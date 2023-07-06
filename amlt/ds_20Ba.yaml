@@ -1,0 +1,87 @@
+ # Steps to run:
+# 1. copy data folder https://itpeus4data.blob.core.windows.net/shuz/data/pcq-pos-custom/ to your Azure storage blob container
+# 2. copy script mae_3d.sh in FoundationModelProp/ to your Azure storage blob container
+# 3. Specify the Azure storage account and container to use
+# 4. Submit the job with this yaml file
+
+description: pj_dstest
+
+target:
+    service: amlk8s
+    # name: itphyperbj1cl1
+    # name: ms-aip-webxt
+    # name: g-v100-8x-eus-1
+    # name: rr1-v100-dgx2
+    name: itphyperdgx2cl1
+    vc: hai1
+    # vc: MS-Shared
+    # queue: bonus
+
+environment:
+  # image: jiyan/mmmsing:1226-mpi
+  image: pj/mfmds:20230207_b
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+  # setup:
+    # - bash ../MFM_DS/install.sh
+
+storage:
+  blob:
+    storage_account_name: hai1data # Storage account
+    container_name: mfm # Container name
+    mount_dir: /blob
+
+code:
+  local_dir: ./MFM_DS_mu
+
+jobs:
+# - name: b4096_64xb32_100m
+- name: pm6_256acc4_fp16_L40_mu
+  sku: 16x G16
+  mpi: true
+  process_count_per_node: 1
+  command:
+  # - jobname=pm6_4096_16xb256_onelr1e4_step1500k_300m_stage1_dl3_m3_fp16_h
+  - mkdir /blob/ds_dataset/output
+  # - mkdir /blob/ds_dataset/output/
+  - mkdir /blob/ds_dataset/output/pm6_2dor3d_1024_256xacc4_lilr1e4_step200k_20Ba_stage1pp8_denoise2m5EH4_fp16_L40_mu
+  - mkdir ./output
+  # - rm -rf /blob/ds_dataset/$jobname
+  - export path=run.sh
+  - export layers=36
+  - export num_pred_attn_layer=4
+  - export hidden_size=6144
+  - export ffn_size=24576
+  - export num_head=32
+  - export num_3d_bias_kernel=128
+  - export atom_loss_coeff=1.0
+  - export pos_loss_coeff=1.0
+  - export sandwich_ln="true"
+  - export dropout=0.0
+  - export attn_dropout=0.1
+  - export act_dropout=0.1
+  - export weight_decay=0.0
+  - export droppath_prob=0.0
+  - export pipeline_parallelism=8
+  - export noise_scale=0.2
+  - export mask_ratio=0.5
+  - export d_tilde=8.0
+  - export max_lr=2e-4
+  - export total_num_steps=1000000
+  - export warmup_num_steps=60000
+  - export loadcheck_path=/blob/ds_dataset/output/pm6_2dor3d_1024_256xacc4_lilr1e4_step200k_20Ba_stage1pp8_denoise2m5EH4_fp16_L40_mu
+  - mkdir /tmp/pm6-86m-3d-filter
+  # - export data_path=/tmp/pm6-86m-3d-filter/pm6oc
+  - export data_path=/tmp/pm6-86m-3d-filter/pm6-86m-3d-filter
+  # - export data_path=/blob/ds_dataset/pm6-86m-3d-filter
+  # - export data_path=/data/pm6-86m-3d-filter/pm6-86m-3d-filter
+  # - export data_path=/mnt/blobfuse/azureml/pm6-86m-3d-filter
+  - export output_path=/blob/ds_dataset/output/pm6_2dor3d_1024_256xacc4_lilr1e4_step200k_20Ba_stage1pp8_denoise2m5EH4_fp16_L40_mu
+  - bash ./install.sh
+  - bash ./run.sh
+  # - bash ./eval.sh
+  # - bash /blob/ds_dataset/mae_3d_ds.sh
+  # - cp -r ./output /blob/ds_dataset/pm6_2048_64xb32_onelr5e5_step200k_1200m_stage0_dl3_m3_fp16
+  submit_args:
+    container_args:
+      shm_size: 1024g
