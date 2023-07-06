@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import deepspeed
 from torch.utils.tensorboard import SummaryWriter
+from deepspeed.runtime.utils import see_memory_usage
 
 import os
 from models.graphormer import GraphormerModel
@@ -30,6 +31,8 @@ class Trainer():
         self.args = args
         if args.rank == 0:
             self.writer = SummaryWriter("../output")
+
+        see_memory_usage(f"Model built", force=True)
 
         parameters = filter(lambda p: p.requires_grad, net.parameters())
 

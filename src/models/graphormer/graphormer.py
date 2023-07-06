@@ -183,6 +183,7 @@ class GraphormerEncoder(nn.Module):
         # project masked tokens only
         if masked_tokens is not None:
             x = x[masked_tokens, :]
+            
         x = self.layer_norm(self.activation_fn(self.lm_head_transform_weight(x)))
 
         pooled_output = self.pooler_activation(self.masked_lm_pooler(sentence_rep))
