@@ -29,15 +29,15 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=60000
 
-[ -z "${data_path}" ] && data_path='../pm6-86m-3d-filter'
+[ -z "${data_path}" ] && data_path='/home/peiran/FMproj/pm6-86m-3d-filter'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
-[ -z "${output_path}" ] && output_path='../output/'
+[ -z "${output_path}" ] && output_path='/home/peiran/FMproj/output/'
 # [ -z "${dataset_name}" ] && dataset_name="PCQM4M-LSC-V2-3D"
 [ -z "${dataset_name}" ] && dataset_name="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${pipeline_parallelism}" ] && pipeline_parallelism=2
+[ -z "${pipeline_parallelism}" ] && pipeline_parallelism=0
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -163,7 +163,7 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # # # # # # # single node
 # # # # # deepspeed --force_multi --num_node=$OMPI_COMM_WORLD_SIZE --num_gpus=$n_gpu --hostfile $hostfile train.py \
 # deepspeed --num_gpus=$n_gpu train.py \
-CUDA_VISIBLE_DEVICES=0,1 deepspeed --num_gpus=2 train.py \
+CUDA_VISIBLE_DEVICES=0 deepspeed --num_gpus=1 src/tasks/pretrain_graphormer.py \
     --num-classes 128 \
     --encoder_attention_heads $num_head \
     --encoder_layers $layers \
