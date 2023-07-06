@@ -1,0 +1,61 @@
+{
+  "train_batch_size": 1024,
+  "train_micro_batch_size_per_gpu": 32,
+  "optimizer": {
+    "type": "Adam",
+    "params": {
+      "lr": 0.00005,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "eps": 1e-8,
+      "weight_decay": 0.0
+    }
+  },
+  "scheduler": {
+    "type": "OneCycle",
+    "params": {
+        "cycle_first_step_size": 150000,
+        "cycle_first_stair_count": 10000,
+        "cycle_second_step_size": 1350000,
+        "cycle_second_stair_count": 10000,
+        "decay_step_size": 1000,
+        "cycle_min_lr": 0.000001,
+        "cycle_max_lr": 0.0001,
+        "decay_lr_rate": 0.00001,
+        "cycle_min_mom": 0.85,
+        "cycle_max_mom": 0.99,
+        "decay_mom_rate": 0.0
+    }
+  },
+  "fp16": {
+    "enabled": true
+  },
+  "zero_optimization": {
+    "stage": 1,
+    "ignore_unused_parameters": true,
+    "contiguous_gradients": true,
+    "reduce_scatter": true
+  },
+  "gradient_clipping": 1.0,
+  "comms_logger": {
+    "enabled": false,
+    "verbose": false,
+    "prof_all": false,
+    "debug": false
+  },
+  "steps_per_output": 10000,
+  "flops_profiler": {
+    "enabled": false,
+    "profile_step": 100,
+    "module_depth": -1,
+    "top_modules": 3,
+    "detailed": true
+  },
+  "csv_monitor": {
+    "enabled": true,
+    "output_path": "/blob/ds_dataset/output/",
+    "job_name": "pm6_1024_32xb32_lr5e5_step1m_100m_stage1fp16"
+  }
+}

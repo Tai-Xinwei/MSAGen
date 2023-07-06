@@ -15,11 +15,11 @@ import itertools
 
 from .wrapper import MyPygPCQM4MDataset, MyPygPCQM4MPosDataset, PM6FullLMDBDataset, preprocess_item
 from .collator import collator, collator_3d, collator_3d_pp, collator_ft
-from .ogb_datasets import OGBDatasetLookupTable
-from .pyg_datasets import PYGDatasetLookupTable, GraphormerPYGDataset
+# from .ogb_datasets import OGBDatasetLookupTable
+# from .pyg_datasets import PYGDatasetLookupTable, GraphormerPYGDataset
 # from ..utils.FairseqDataset import FairseqDataset
-from ..utils.move_to_device import move_to_device
-from graphormer.data.wrapper import smiles2graph
+from utils.move_to_device import move_to_device
+from .wrapper import smiles2graph
 from torch_geometric.data import Data, InMemoryDataset
 from multiprocessing import Pool
 from tqdm import tqdm
@@ -170,7 +170,6 @@ def smile2data(smile, index):
     return data
 
 
-
 class OGBPreprocessedData():
     def __init__(self, dataset_name, dataset_path = "../dataset", seed=42):
         super().__init__()
@@ -204,7 +203,8 @@ class BatchedDataDataset(torch.utils.data.Dataset):
         self.args = args
 
     def __getitem__(self, index):
-        item = preprocess_item(self.dataset[int(index)], mask_ratio=0.0)
+        # item = preprocess_item(self.dataset[int(index)], mask_ratio=self.args.mask_ratio)
+        item = self.dataset[int(index)]
         return item
 
         # return next(self.generator())
