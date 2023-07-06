@@ -190,7 +190,7 @@ class OGBPreprocessedData():
 
 class BatchedDataDataset(torch.utils.data.Dataset):
 # class BatchedDataDataset(torch.utils.data.IterableDataset):
-    def __init__(self, dataset, dataset_version="2D", max_node=32, max_node2=128, multi_hop_max_dist=5, spatial_pos_max=1024, args=None):
+    def __init__(self, dataset, dataset_version="2D", max_node=32, max_node2=128, multi_hop_max_dist=5, spatial_pos_max=1024, args=None, ft=False, infer=False):
         super().__init__()
         self.dataset = dataset
         self.max_node = max_node
@@ -201,7 +201,9 @@ class BatchedDataDataset(torch.utils.data.Dataset):
         self.dataset_version = dataset_version
         assert self.dataset_version in ["2D", "3D"]
         self.args = args
-
+        self.ft = ft
+        self.infer = infer
+        
     def __getitem__(self, index):
         # item = preprocess_item(self.dataset[int(index)], mask_ratio=self.args.mask_ratio)
         item = self.dataset[int(index)]
@@ -275,8 +277,7 @@ class BatchedDataDataset(torch.utils.data.Dataset):
             min_node=-1,
             max_node=self.max_node2,
             multi_hop_max_dist=self.multi_hop_max_dist,
-            spatial_pos_max=self.spatial_pos_max,
-            infer=self.args.infer)
+            spatial_pos_max=self.spatial_pos_max)
 
     def collaterft(self, samples):            
         return collator_ft(

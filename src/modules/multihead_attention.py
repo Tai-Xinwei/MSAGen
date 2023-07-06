@@ -80,7 +80,7 @@ class MultiheadAttention(nn.Module):
     def prepare_for_onnx_export_(self):
         raise NotImplementedError
 
-    def reset_parameters(self, d_tilde):
+    def reset_parameters(self, d_tilde=1):
         if self.qkv_same_dim:
             # Empirically observed the convergence to be much better with
             # the scaled initialization
