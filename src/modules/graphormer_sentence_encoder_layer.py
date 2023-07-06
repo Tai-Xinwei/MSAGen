@@ -11,11 +11,11 @@ import torch.nn as nn
 
 from .multihead_attention import MultiheadAttention
 from .droppath import DropPath
-from ..utils.layer_norm import LayerNorm, Fp32LayerNorm
-from ..utils.quant_noise import quant_noise
-from ..utils.get_activation_fn import get_activation_fn
-from ..utils.FairseqDropout import FairseqDropout
-from transformers.configuration_utils import PretrainedConfig
+from .layer_norm import LayerNorm, Fp32LayerNorm
+from .quant_noise import quant_noise
+from .get_activation_fn import get_activation_fn
+from .FairseqDropout import FairseqDropout
+from models.transformers.configuration_utils import PretrainedConfig
 
 class GraphormerSentenceEncoderLayer(nn.Module):
     """

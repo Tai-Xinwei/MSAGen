@@ -130,7 +130,7 @@ def collator(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
     )
 
 # @profile(precision=4, stream=open('/home/peiran/MFM_DS/memory_profiler.log','w+'))      
-def collator_3d(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
+def collator_3d(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20, infer=False):
     items = [item for item in items if item is not None and item.x.size(0) <= max_node and item.x.size(0) > min_node]
     
     items = [(item.idx, item.attn_bias, item.attn_edge_type, item.spatial_pos, item.in_degree,
@@ -191,7 +191,6 @@ def collator_3d(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial
         node_type_edges.append(node_atom_edge.long())
  
     node_type_edge = torch.cat(node_type_edges)
-    
 
     return dict(
         idx=torch.LongTensor(idxs),

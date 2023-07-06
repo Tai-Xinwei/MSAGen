@@ -10,13 +10,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.modules import (
+from modules import (
     init_bert_params,
     GraphormerSentenceEncoder,
 )
-from src.modules.layer_norm import LayerNorm
-from src.modules.quant_noise import quant_noise
-from src.modules.get_activation_fn import get_activation_fn
+from modules.layer_norm import LayerNorm
+from modules.quant_noise import quant_noise
+from modules.get_activation_fn import get_activation_fn
 
 
 logger = logging.getLogger(__name__)

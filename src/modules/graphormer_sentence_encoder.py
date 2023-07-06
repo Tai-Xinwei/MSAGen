@@ -16,11 +16,11 @@ from .graphormer_layers_pp import GraphNodeFeaturePipe, GraphAttnBiasPipe, Graph
 from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
 from .graphormer_layers import EquivariantMultiHeadAttention, EquivariantLayerNorm, Distance, EquivariantVectorOutput, ExpNormalSmearing
 
-from ..utils.layer_norm import LayerNorm
-from ..utils.quant_noise import quant_noise as apply_quant_noise_
-from ..utils.get_activation_fn import get_activation_fn
-from ..utils.FairseqDropout import FairseqDropout
-from ..utils.LayerDropModuleList import LayerDropModuleList
+from .layer_norm import LayerNorm
+from .quant_noise import quant_noise as apply_quant_noise_
+from .get_activation_fn import get_activation_fn
+from .FairseqDropout import FairseqDropout
+from utils.LayerDropModuleList import LayerDropModuleList
 
 def init_bert_params(module):
     """

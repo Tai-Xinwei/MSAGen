@@ -8,8 +8,8 @@ import torch.nn.functional as F
 from torch import Tensor
 from typing import Callable, Tuple, Optional
 
-from ..utils.get_activation_fn import get_activation_fn
-from ..utils.FairseqDropout import FairseqDropout
+from modules.get_activation_fn import get_activation_fn
+from modules.FairseqDropout import FairseqDropout
 from torch_cluster import radius_graph
 from torch_geometric.nn import MessagePassing
 from torch_scatter import scatter

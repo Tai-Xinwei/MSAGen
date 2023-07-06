@@ -8,9 +8,9 @@ from typing import Optional, Tuple
 
 import torch
 from torch import Tensor, nn
-from ..utils.quant_noise import quant_noise
-from ..utils.layer_norm import LayerNorm, Fp32LayerNorm
-from ..utils.FairseqDropout import FairseqDropout
+from modules.quant_noise import quant_noise
+from modules.layer_norm import LayerNorm, Fp32LayerNorm
+from modules.FairseqDropout import FairseqDropout
 
 class MultiheadAttention(nn.Module):
     """Multi-headed attention.
