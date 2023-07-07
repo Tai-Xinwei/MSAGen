@@ -1,6 +1,6 @@
 from torch.utils.data import Data
-from torch import Tensor, LongTensor, FloatTensor
-from typing import List, Union
+from torch import LongTensor, FloatTensor
+from typing import Union
 import numpy as np
 from rdkit import Chem
 from pathlib import Path
@@ -105,7 +105,7 @@ class Molecule(Data):
     """
     A representation of organic molecules.
     Stores the features extracted from ogb.utils.smiles2mol, and atom positions.
-    Can be constructed from raw SMILES, together with an XYZ file.
+    Can be constructed from raw SMILES strings, or XYZ files with bond connection.
     """
     def __init__(
             self,
@@ -123,18 +123,18 @@ class Molecule(Data):
             self.__dict__[key] = value
 
     @classmethod
-    def from_smiles(cls, smiles: str, remove_hs: bool = True, keep_mol: bool = False) -> 'Molecule':
+    def from_smiles(cls, smiles: str, remove_hs: bool = True, keep_mol: bool = False, **kwargs) -> 'Molecule':
         mol = Chem.MolFromSmiles(smiles)
         if remove_hs:
             mol = RemoveHs(mol)
         graph = mol2graph(mol)
-        molecule = cls(**graph)
+        molecule = cls(**graph, **kwargs)
         if keep_mol:
             molecule.mol = mol
         return molecule
 
     @classmethod
-    def from_xyz_and_bond_index(cls, xyz_path: Path, bond_index: BOND_INDEX_T, bond_order: BOND_FEAT_T, remove_hs: bool, keep_mol: bool = False) -> 'Molecule':
+    def from_xyz_and_bond_index(cls, xyz_path: Path, bond_index: BOND_INDEX_T, bond_order: BOND_FEAT_T, remove_hs: bool, keep_mol: bool = False, **kwargs) -> 'Molecule':
         # check type and shape of bond_index
         if isinstance(bond_index, np.array):
             bond_index = torch.tensor(bond_index).long()
@@ -147,11 +147,12 @@ class Molecule(Data):
         mol = rdkit.Chem.rdmolfiles.MolFromXYZFile(xyz_path)
         editable_mol = RWMol(mol)
         for connection, order in zip(bond_index.T, bond_order):
-            editable_mol.AddBond(int(connection[0]) - 1, int(connection[1]) - 1, bond_dict[order])
+            # assuming that atom index starts from 0
+            editable_mol.AddBond(int(connection[0]), int(connection[1]), bond_dict[order])
         if remove_hs:
             editable_mol = RemoveHs(editable_mol)
         graph = mol2graph(editable_mol)
-        molecule = cls(**graph)
+        molecule = cls(**graph, **kwargs)
         if keep_mol:
             molecule.mol = editable_mol
         return molecule

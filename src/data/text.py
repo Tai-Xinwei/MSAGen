@@ -5,8 +5,6 @@ from typing import Union, List
 from transformers import PreTrainedTokenizer
 from molecule import Molecule
 
-from src.data.text import TOKEN_SEQ_T
-
 TOKEN_SEQ_T = Union[LongTensor, np.array]
 MOL_POS_T = Union[LongTensor, List[int], np.array]
 
@@ -30,5 +28,5 @@ class MixedText(Text):
         super().__init__(token_seq, **kwargs)
         assert len(mol_poses) == len(molecules), f"Numbers of molecules in mol_poses and molecules do not match."
 
-    def from_json(cls, json_text: str, tokenizer: PreTrainedTokenizer) -> 'Text':
+    def from_json(cls, json_text: str, tokenizer: PreTrainedTokenizer) -> 'MixedText':
         raise NotImplementedError
