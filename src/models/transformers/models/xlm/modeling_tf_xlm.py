@@ -25,37 +25,22 @@ import numpy as np
 import tensorflow as tf
 
 from ...activations_tf import get_tf_activation
-from ...modeling_tf_outputs import (
-    TFBaseModelOutput,
-    TFMultipleChoiceModelOutput,
-    TFQuestionAnsweringModelOutput,
-    TFSequenceClassifierOutput,
-    TFTokenClassifierOutput,
-)
-from ...modeling_tf_utils import (
-    TFModelInputType,
-    TFMultipleChoiceLoss,
-    TFPreTrainedModel,
-    TFQuestionAnsweringLoss,
-    TFSequenceClassificationLoss,
-    TFSequenceSummary,
-    TFSharedEmbeddings,
-    TFTokenClassificationLoss,
-    get_initializer,
-    keras_serializable,
-    unpack_inputs,
-)
+from ...modeling_tf_outputs import (TFBaseModelOutput,
+                                    TFMultipleChoiceModelOutput,
+                                    TFQuestionAnsweringModelOutput,
+                                    TFSequenceClassifierOutput,
+                                    TFTokenClassifierOutput)
+from ...modeling_tf_utils import (TFModelInputType, TFMultipleChoiceLoss,
+                                  TFPreTrainedModel, TFQuestionAnsweringLoss,
+                                  TFSequenceClassificationLoss,
+                                  TFSequenceSummary, TFSharedEmbeddings,
+                                  TFTokenClassificationLoss, get_initializer,
+                                  keras_serializable, unpack_inputs)
 from ...tf_utils import shape_list, stable_softmax
-from ...utils import (
-    MULTIPLE_CHOICE_DUMMY_INPUTS,
-    ModelOutput,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-)
+from ...utils import (MULTIPLE_CHOICE_DUMMY_INPUTS, ModelOutput,
+                      add_code_sample_docstrings, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging)
 from .configuration_xlm import XLMConfig
-
 
 logger = logging.get_logger(__name__)
 

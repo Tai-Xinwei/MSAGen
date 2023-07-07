@@ -24,27 +24,16 @@ import tensorflow as tf
 
 from ...activations_tf import get_tf_activation
 from ...modeling_tf_outputs import TFBaseModelOutputWithPastAndCrossAttentions
-
 # Public API
-from ...modeling_tf_utils import (
-    TFModelInputType,
-    TFPreTrainedModel,
-    get_initializer,
-    keras_serializable,
-    unpack_inputs,
-)
+from ...modeling_tf_utils import (TFModelInputType, TFPreTrainedModel,
+                                  get_initializer, keras_serializable,
+                                  unpack_inputs)
 from ...tf_utils import shape_list, stable_softmax
-from ...utils import (
-    ContextManagers,
-    ModelOutput,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import (ContextManagers, ModelOutput, add_code_sample_docstrings,
+                      add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from .configuration_led import LEDConfig
-
 
 logger = logging.get_logger(__name__)
 

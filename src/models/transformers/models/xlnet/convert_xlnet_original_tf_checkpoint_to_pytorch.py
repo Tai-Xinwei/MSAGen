@@ -19,16 +19,10 @@ import argparse
 import os
 
 import torch
-
-from transformers import (
-    XLNetConfig,
-    XLNetForQuestionAnswering,
-    XLNetForSequenceClassification,
-    XLNetLMHeadModel,
-    load_tf_weights_in_xlnet,
-)
+from transformers import (XLNetConfig, XLNetForQuestionAnswering,
+                          XLNetForSequenceClassification, XLNetLMHeadModel,
+                          load_tf_weights_in_xlnet)
 from transformers.utils import CONFIG_NAME, WEIGHTS_NAME, logging
-
 
 GLUE_TASKS_NUM_LABELS = {
     "cola": 2,

@@ -33,20 +33,12 @@ from jax.random import PRNGKey
 
 from ...modeling_flax_outputs import (
     FlaxBaseModelOutputWithPastAndCrossAttentions,
-    FlaxCausalLMOutputWithCrossAttentions,
-)
-from ...modeling_flax_utils import (
-    ACT2FN,
-    FlaxPreTrainedModel,
-    append_call_sample_docstring,
-)
-from ...utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-)
+    FlaxCausalLMOutputWithCrossAttentions)
+from ...modeling_flax_utils import (ACT2FN, FlaxPreTrainedModel,
+                                    append_call_sample_docstring)
+from ...utils import (add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging)
 from .configuration_xglm import XGLMConfig
-
 
 logger = logging.get_logger(__name__)
 

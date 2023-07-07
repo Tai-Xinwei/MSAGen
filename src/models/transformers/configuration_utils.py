@@ -27,18 +27,9 @@ from packaging import version
 
 from . import __version__
 from .dynamic_module_utils import custom_object_save
-from .utils import (
-    CONFIG_NAME,
-    PushToHubMixin,
-    cached_file,
-    copy_func,
-    download_url,
-    extract_commit_hash,
-    is_remote_url,
-    is_torch_available,
-    logging,
-)
-
+from .utils import (CONFIG_NAME, PushToHubMixin, cached_file, copy_func,
+                    download_url, extract_commit_hash, is_remote_url,
+                    is_torch_available, logging)
 
 logger = logging.get_logger(__name__)
 

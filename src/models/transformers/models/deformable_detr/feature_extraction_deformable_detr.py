@@ -19,7 +19,6 @@ import warnings
 from ...utils import logging
 from .image_processing_deformable_detr import DeformableDetrImageProcessor
 
-
 logger = logging.get_logger(__name__)
 
 

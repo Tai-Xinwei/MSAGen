@@ -23,25 +23,16 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import tensorflow as tf
 
-from ...modeling_tf_utils import (
-    TFModelInputType,
-    TFPreTrainedModel,
-    TFSequenceClassificationLoss,
-    get_initializer,
-    keras_serializable,
-    unpack_inputs,
-)
+from ...modeling_tf_utils import (TFModelInputType, TFPreTrainedModel,
+                                  TFSequenceClassificationLoss,
+                                  get_initializer, keras_serializable,
+                                  unpack_inputs)
 from ...tf_utils import shape_list, stable_softmax
-from ...utils import (
-    ModelOutput,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-)
+from ...utils import (ModelOutput, add_code_sample_docstrings,
+                      add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging)
 from .configuration_transfo_xl import TransfoXLConfig
 from .modeling_tf_transfo_xl_utilities import TFAdaptiveSoftmaxMask
-
 
 logger = logging.get_logger(__name__)
 

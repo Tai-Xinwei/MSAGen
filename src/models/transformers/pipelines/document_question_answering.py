@@ -17,17 +17,11 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
-from ..utils import (
-    ExplicitEnum,
-    add_end_docstrings,
-    is_pytesseract_available,
-    is_torch_available,
-    is_vision_available,
-    logging,
-)
+from ..utils import (ExplicitEnum, add_end_docstrings,
+                     is_pytesseract_available, is_torch_available,
+                     is_vision_available, logging)
 from .base import PIPELINE_INIT_ARGS, ChunkPipeline
 from .question_answering import select_starts_ends
-
 
 if is_vision_available():
     from PIL import Image
@@ -37,9 +31,8 @@ if is_vision_available():
 if is_torch_available():
     import torch
 
-    from ..models.auto.modeling_auto import (
-        MODEL_FOR_DOCUMENT_QUESTION_ANSWERING_MAPPING,
-    )
+    from ..models.auto.modeling_auto import \
+        MODEL_FOR_DOCUMENT_QUESTION_ANSWERING_MAPPING
 
 TESSERACT_LOADED = False
 if is_pytesseract_available():

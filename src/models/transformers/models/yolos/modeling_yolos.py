@@ -27,20 +27,14 @@ from torch import Tensor, nn
 from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling
 from ...modeling_utils import PreTrainedModel
-from ...pytorch_utils import find_pruneable_heads_and_indices, prune_linear_layer
-from ...utils import (
-    ModelOutput,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_scipy_available,
-    is_vision_available,
-    logging,
-    replace_return_docstrings,
-    requires_backends,
-)
+from ...pytorch_utils import (find_pruneable_heads_and_indices,
+                              prune_linear_layer)
+from ...utils import (ModelOutput, add_code_sample_docstrings,
+                      add_start_docstrings,
+                      add_start_docstrings_to_model_forward,
+                      is_scipy_available, is_vision_available, logging,
+                      replace_return_docstrings, requires_backends)
 from .configuration_yolos import YolosConfig
-
 
 if is_scipy_available():
     from scipy.optimize import linear_sum_assignment

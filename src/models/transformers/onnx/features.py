@@ -8,7 +8,6 @@ from .. import PretrainedConfig, is_tf_available, is_torch_available
 from ..utils import TF2_WEIGHTS_NAME, WEIGHTS_NAME, logging
 from .config import OnnxConfig
 
-
 if TYPE_CHECKING:
     from transformers import PreTrainedModel, TFPreTrainedModel
 
@@ -16,35 +15,29 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 if is_torch_available():
-    from transformers.models.auto import (
-        AutoModel,
-        AutoModelForCausalLM,
-        AutoModelForImageClassification,
-        AutoModelForImageSegmentation,
-        AutoModelForMaskedImageModeling,
-        AutoModelForMaskedLM,
-        AutoModelForMultipleChoice,
-        AutoModelForObjectDetection,
-        AutoModelForQuestionAnswering,
-        AutoModelForSemanticSegmentation,
-        AutoModelForSeq2SeqLM,
-        AutoModelForSequenceClassification,
-        AutoModelForSpeechSeq2Seq,
-        AutoModelForTokenClassification,
-        AutoModelForVision2Seq,
-    )
+    from transformers.models.auto import (AutoModel, AutoModelForCausalLM,
+                                          AutoModelForImageClassification,
+                                          AutoModelForImageSegmentation,
+                                          AutoModelForMaskedImageModeling,
+                                          AutoModelForMaskedLM,
+                                          AutoModelForMultipleChoice,
+                                          AutoModelForObjectDetection,
+                                          AutoModelForQuestionAnswering,
+                                          AutoModelForSemanticSegmentation,
+                                          AutoModelForSeq2SeqLM,
+                                          AutoModelForSequenceClassification,
+                                          AutoModelForSpeechSeq2Seq,
+                                          AutoModelForTokenClassification,
+                                          AutoModelForVision2Seq)
 if is_tf_available():
-    from transformers.models.auto import (
-        TFAutoModel,
-        TFAutoModelForCausalLM,
-        TFAutoModelForMaskedLM,
-        TFAutoModelForMultipleChoice,
-        TFAutoModelForQuestionAnswering,
-        TFAutoModelForSemanticSegmentation,
-        TFAutoModelForSeq2SeqLM,
-        TFAutoModelForSequenceClassification,
-        TFAutoModelForTokenClassification,
-    )
+    from transformers.models.auto import (TFAutoModel, TFAutoModelForCausalLM,
+                                          TFAutoModelForMaskedLM,
+                                          TFAutoModelForMultipleChoice,
+                                          TFAutoModelForQuestionAnswering,
+                                          TFAutoModelForSemanticSegmentation,
+                                          TFAutoModelForSeq2SeqLM,
+                                          TFAutoModelForSequenceClassification,
+                                          TFAutoModelForTokenClassification)
 if not is_torch_available() and not is_tf_available():
     logger.warning(
         "The ONNX export features are only supported for PyTorch or TensorFlow. You will not be able to export models"

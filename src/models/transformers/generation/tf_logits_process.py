@@ -23,7 +23,6 @@ from ..tf_utils import stable_softmax
 from ..utils import add_start_docstrings
 from ..utils.logging import get_logger
 
-
 logger = get_logger(__name__)
 
 

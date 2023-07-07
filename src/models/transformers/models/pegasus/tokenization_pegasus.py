@@ -21,7 +21,6 @@ import sentencepiece as spm
 from ...tokenization_utils import PreTrainedTokenizer
 from ...utils import logging
 
-
 SPIECE_UNDERLINE = "▁"
 
 VOCAB_FILES_NAMES = {"vocab_file": "spiece.model"}

@@ -24,26 +24,17 @@ import torch
 from torch import Tensor, nn
 
 from ...activations import ACT2FN
-from ...modeling_outputs import (
-    BaseModelOutput,
-    BaseModelOutputWithCrossAttentions,
-    Seq2SeqModelOutput,
-)
+from ...modeling_outputs import (BaseModelOutput,
+                                 BaseModelOutputWithCrossAttentions,
+                                 Seq2SeqModelOutput)
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_scipy_available,
-    is_timm_available,
-    is_vision_available,
-    logging,
-    replace_return_docstrings,
-    requires_backends,
-)
+from ...utils import (ModelOutput, add_start_docstrings,
+                      add_start_docstrings_to_model_forward,
+                      is_scipy_available, is_timm_available,
+                      is_vision_available, logging, replace_return_docstrings,
+                      requires_backends)
 from ..auto import AutoBackbone
 from .configuration_conditional_detr import ConditionalDetrConfig
-
 
 if is_scipy_available():
     from scipy.optimize import linear_sum_assignment

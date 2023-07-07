@@ -21,7 +21,6 @@ from ..utils import is_torch_available, logging
 from .audio_utils import ffmpeg_read
 from .base import ChunkPipeline
 
-
 if TYPE_CHECKING:
     from pyctcdecode import BeamSearchDecoderCTC
 
@@ -31,9 +30,7 @@ logger = logging.get_logger(__name__)
 
 if is_torch_available():
     from ..models.auto.modeling_auto import (
-        MODEL_FOR_CTC_MAPPING,
-        MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING,
-    )
+        MODEL_FOR_CTC_MAPPING, MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING)
 
 
 def rescale_stride(stride, ratio):

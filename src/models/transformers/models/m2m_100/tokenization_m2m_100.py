@@ -23,7 +23,6 @@ import sentencepiece
 from ...tokenization_utils import BatchEncoding, PreTrainedTokenizer
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 SPIECE_UNDERLINE = "▁"

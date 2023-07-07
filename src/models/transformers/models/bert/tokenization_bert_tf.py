@@ -3,13 +3,9 @@ from typing import List, Union
 
 import tensorflow as tf
 from tensorflow_text import BertTokenizer as BertTokenizerLayer
-from tensorflow_text import (
-    FastBertTokenizer,
-    ShrinkLongestTrimmer,
-    case_fold_utf8,
-    combine_segments,
-    pad_model_inputs,
-)
+from tensorflow_text import (FastBertTokenizer, ShrinkLongestTrimmer,
+                             case_fold_utf8, combine_segments,
+                             pad_model_inputs)
 
 from .tokenization_bert import BertTokenizer
 

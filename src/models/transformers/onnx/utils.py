@@ -16,9 +16,9 @@ from ctypes import c_float, sizeof
 from enum import Enum
 from typing import TYPE_CHECKING, Optional, Union
 
-
 if TYPE_CHECKING:
-    from .. import AutoFeatureExtractor, AutoProcessor, AutoTokenizer  # tests_ignore
+    from .. import (AutoFeatureExtractor, AutoProcessor,  # tests_ignore
+                    AutoTokenizer)
 
 
 class ParameterFormat(Enum):
@@ -88,7 +88,8 @@ def get_preprocessor(
             `None` if no preprocessor is found.
     """
     # Avoid circular imports by only importing this here.
-    from .. import AutoFeatureExtractor, AutoProcessor, AutoTokenizer  # tests_ignore
+    from .. import (AutoFeatureExtractor, AutoProcessor,  # tests_ignore
+                    AutoTokenizer)
 
     try:
         return AutoProcessor.from_pretrained(model_name)

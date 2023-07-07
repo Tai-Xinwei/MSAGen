@@ -29,38 +29,22 @@ from uuid import uuid4
 
 import huggingface_hub
 import requests
-from huggingface_hub import (
-    CommitOperationAdd,
-    create_commit,
-    create_repo,
-    get_hf_file_metadata,
-    hf_hub_download,
-    hf_hub_url,
-    whoami,
-)
+from huggingface_hub import (CommitOperationAdd, create_commit, create_repo,
+                             get_hf_file_metadata, hf_hub_download, hf_hub_url,
+                             whoami)
 from huggingface_hub.file_download import REGEX_COMMIT_HASH, http_get
-from huggingface_hub.utils import (
-    EntryNotFoundError,
-    LocalEntryNotFoundError,
-    RepositoryNotFoundError,
-    RevisionNotFoundError,
-    build_hf_headers,
-    hf_raise_for_status,
-)
+from huggingface_hub.utils import (EntryNotFoundError, LocalEntryNotFoundError,
+                                   RepositoryNotFoundError,
+                                   RevisionNotFoundError, build_hf_headers,
+                                   hf_raise_for_status)
 from requests.exceptions import HTTPError
 
 from . import __version__, logging
 from .generic import working_or_temp_dir
-from .import_utils import (
-    ENV_VARS_TRUE_VALUES,
-    _tf_version,
-    _torch_version,
-    is_tf_available,
-    is_torch_available,
-    is_training_run_on_sagemaker,
-)
+from .import_utils import (ENV_VARS_TRUE_VALUES, _tf_version, _torch_version,
+                           is_tf_available, is_torch_available,
+                           is_training_run_on_sagemaker)
 from .logging import tqdm
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

@@ -13,8 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_wavlm": ["WAVLM_PRETRAINED_CONFIG_ARCHIVE_MAP", "WavLMConfig"]
@@ -37,7 +37,8 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_wavlm import WAVLM_PRETRAINED_CONFIG_ARCHIVE_MAP, WavLMConfig
+    from .configuration_wavlm import (WAVLM_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                      WavLMConfig)
 
     try:
         if not is_torch_available():
@@ -45,15 +46,12 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_wavlm import (
-            WAVLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            WavLMForAudioFrameClassification,
-            WavLMForCTC,
-            WavLMForSequenceClassification,
-            WavLMForXVector,
-            WavLMModel,
-            WavLMPreTrainedModel,
-        )
+        from .modeling_wavlm import (WAVLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     WavLMForAudioFrameClassification,
+                                     WavLMForCTC,
+                                     WavLMForSequenceClassification,
+                                     WavLMForXVector, WavLMModel,
+                                     WavLMPreTrainedModel)
 
 else:
     import sys

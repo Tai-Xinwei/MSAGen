@@ -25,7 +25,6 @@ from ..models.bert import BertTokenizer, BertTokenizerFast
 from ..tokenization_utils_base import PreTrainedTokenizerBase
 from ..utils import PaddingStrategy
 
-
 InputDataClass = NewType("InputDataClass", Any)
 
 """

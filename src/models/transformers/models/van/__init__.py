@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_torch_available,
-    is_vision_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available, is_vision_available)
 
 _import_structure = {
     "configuration_van": ["VAN_PRETRAINED_CONFIG_ARCHIVE_MAP", "VanConfig"]
@@ -48,12 +43,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_van import (
-            VAN_PRETRAINED_MODEL_ARCHIVE_LIST,
-            VanForImageClassification,
-            VanModel,
-            VanPreTrainedModel,
-        )
+        from .modeling_van import (VAN_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   VanForImageClassification, VanModel,
+                                   VanPreTrainedModel)
 
 else:
     import sys

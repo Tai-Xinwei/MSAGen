@@ -18,7 +18,7 @@
 import argparse
 
 import torch
-
+from transformers import WavLMConfig, WavLMModel, logging
 # Step 1. clone https://github.com/microsoft/unilm
 # Step 2. git checkout to https://github.com/microsoft/unilm/commit/b94ec76c36f02fb2b0bf0dcb0b8554a2185173cd
 # Step 3. cd unilm
@@ -26,9 +26,6 @@ import torch
 # import classes
 from unilm.wavlm.WavLM import WavLM as WavLMOrig
 from unilm.wavlm.WavLM import WavLMConfig as WavLMConfigOrig
-
-from transformers import WavLMConfig, WavLMModel, logging
-
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

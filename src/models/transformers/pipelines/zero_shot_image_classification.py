@@ -1,16 +1,9 @@
 from collections import UserDict
 from typing import List, Union
 
-from ..utils import (
-    add_end_docstrings,
-    is_tf_available,
-    is_torch_available,
-    is_vision_available,
-    logging,
-    requires_backends,
-)
+from ..utils import (add_end_docstrings, is_tf_available, is_torch_available,
+                     is_vision_available, logging, requires_backends)
 from .base import PIPELINE_INIT_ARGS, Pipeline
-
 
 if is_vision_available():
     from PIL import Image
@@ -18,14 +11,12 @@ if is_vision_available():
     from ..image_utils import load_image
 
 if is_torch_available():
-    from ..models.auto.modeling_auto import (
-        MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING,
-    )
+    from ..models.auto.modeling_auto import \
+        MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING
 
 if is_tf_available():
-    from ..models.auto.modeling_tf_auto import (
-        TF_MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING,
-    )
+    from ..models.auto.modeling_tf_auto import \
+        TF_MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING
     from ..tf_utils import stable_softmax
 
 logger = logging.get_logger(__name__)

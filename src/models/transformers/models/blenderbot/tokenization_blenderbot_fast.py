@@ -23,7 +23,6 @@ from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import logging
 from .tokenization_blenderbot import BlenderbotTokenizer
 
-
 if TYPE_CHECKING:
     from transformers.pipelines.conversational import Conversation
 

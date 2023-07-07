@@ -26,15 +26,11 @@ from torch import nn
 from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-from .configuration_x_clip import XCLIPConfig, XCLIPTextConfig, XCLIPVisionConfig
-
+from ...utils import (ModelOutput, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
+from .configuration_x_clip import (XCLIPConfig, XCLIPTextConfig,
+                                   XCLIPVisionConfig)
 
 logger = logging.get_logger(__name__)
 

@@ -17,7 +17,6 @@ import os
 
 import torch
 from torch import nn
-
 from transformers import NllbMoeConfig, NllbMoeModel
 from transformers.modeling_utils import dtype_byte_size
 from transformers.utils import WEIGHTS_INDEX_NAME, WEIGHTS_NAME

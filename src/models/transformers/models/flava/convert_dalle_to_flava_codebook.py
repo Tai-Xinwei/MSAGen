@@ -17,7 +17,6 @@ import argparse
 import os
 
 import torch
-
 from transformers import FlavaImageCodebook, FlavaImageCodebookConfig
 
 

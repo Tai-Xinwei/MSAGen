@@ -22,7 +22,6 @@ from typing import List, Optional, Union
 
 from ...utils import is_tf_available, is_torch_available, logging
 
-
 logger = logging.get_logger(__name__)
 
 

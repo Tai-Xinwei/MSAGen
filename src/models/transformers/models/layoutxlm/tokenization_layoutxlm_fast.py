@@ -20,28 +20,15 @@ from shutil import copyfile
 from typing import Dict, List, Optional, Tuple, Union
 
 from ...tokenization_utils import AddedToken
-from ...tokenization_utils_base import (
-    BatchEncoding,
-    EncodedInput,
-    PreTokenizedInput,
-    TextInput,
-    TextInputPair,
-    TruncationStrategy,
-)
+from ...tokenization_utils_base import (BatchEncoding, EncodedInput,
+                                        PreTokenizedInput, TextInput,
+                                        TextInputPair, TruncationStrategy)
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
-from ...utils import (
-    PaddingStrategy,
-    TensorType,
-    add_end_docstrings,
-    is_sentencepiece_available,
-    logging,
-)
+from ...utils import (PaddingStrategy, TensorType, add_end_docstrings,
+                      is_sentencepiece_available, logging)
 from ..xlm_roberta.tokenization_xlm_roberta_fast import (
-    PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES,
-    PRETRAINED_VOCAB_FILES_MAP,
-    VOCAB_FILES_NAMES,
-)
-
+    PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES, PRETRAINED_VOCAB_FILES_MAP,
+    VOCAB_FILES_NAMES)
 
 if is_sentencepiece_available():
     from .tokenization_layoutxlm import LayoutXLMTokenizer

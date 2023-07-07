@@ -20,12 +20,8 @@ import requests
 import torch
 from PIL import Image
 from torchvision.transforms import Compose, Normalize, Resize, ToTensor
-
-from transformers import (
-    Swin2SRConfig,
-    Swin2SRForImageSuperResolution,
-    Swin2SRImageProcessor,
-)
+from transformers import (Swin2SRConfig, Swin2SRForImageSuperResolution,
+                          Swin2SRImageProcessor)
 
 
 def get_config(checkpoint_url):

@@ -14,14 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_tf_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_tf_available, is_torch_available)
 
 _import_structure = {
     "configuration_gptsan_japanese": [
@@ -50,9 +44,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_gptsan_japanese import (
-        GPTSAN_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        GPTSanJapaneseConfig,
-    )
+        GPTSAN_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP, GPTSanJapaneseConfig)
     from .tokenization_gptsan_japanese import GPTSanJapaneseTokenizer
 
     try:
@@ -63,10 +55,8 @@ if TYPE_CHECKING:
     else:
         from .modeling_gptsan_japanese import (
             GPTSAN_JAPANESE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GPTSanJapaneseForConditionalGeneration,
-            GPTSanJapaneseModel,
-            GPTSanJapanesePreTrainedModel,
-        )
+            GPTSanJapaneseForConditionalGeneration, GPTSanJapaneseModel,
+            GPTSanJapanesePreTrainedModel)
         from .tokenization_gptsan_japanese import GPTSanJapaneseTokenizer
 
 

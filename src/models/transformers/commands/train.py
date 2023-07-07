@@ -20,7 +20,6 @@ from ..pipelines import TextClassificationPipeline
 from ..utils import is_tf_available, is_torch_available, logging
 from . import BaseTransformersCLICommand
 
-
 if not is_tf_available() and not is_torch_available():
     raise RuntimeError(
         "At least one of PyTorch or TensorFlow 2.0+ should be installed to use CLI training"

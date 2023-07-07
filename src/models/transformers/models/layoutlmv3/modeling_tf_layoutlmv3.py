@@ -21,28 +21,18 @@ from typing import Dict, List, Optional, Tuple, Union
 import tensorflow as tf
 
 from ...activations_tf import get_tf_activation
-from ...modeling_tf_outputs import (
-    TFBaseModelOutput,
-    TFQuestionAnsweringModelOutput,
-    TFSequenceClassifierOutput,
-    TFTokenClassifierOutput,
-)
-from ...modeling_tf_utils import (
-    TFPreTrainedModel,
-    TFQuestionAnsweringLoss,
-    TFSequenceClassificationLoss,
-    TFTokenClassificationLoss,
-    get_initializer,
-    keras_serializable,
-    unpack_inputs,
-)
-from ...utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    replace_return_docstrings,
-)
+from ...modeling_tf_outputs import (TFBaseModelOutput,
+                                    TFQuestionAnsweringModelOutput,
+                                    TFSequenceClassifierOutput,
+                                    TFTokenClassifierOutput)
+from ...modeling_tf_utils import (TFPreTrainedModel, TFQuestionAnsweringLoss,
+                                  TFSequenceClassificationLoss,
+                                  TFTokenClassificationLoss, get_initializer,
+                                  keras_serializable, unpack_inputs)
+from ...utils import (add_start_docstrings,
+                      add_start_docstrings_to_model_forward,
+                      replace_return_docstrings)
 from .configuration_layoutlmv3 import LayoutLMv3Config
-
 
 _CONFIG_FOR_DOC = "LayoutLMv3Config"
 

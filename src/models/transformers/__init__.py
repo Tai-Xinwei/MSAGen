@@ -24,24 +24,13 @@ from typing import TYPE_CHECKING
 
 # Check the dependencies satisfy the minimal versions required.
 from . import dependency_versions_check
-from .utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_bitsandbytes_available,
-    is_flax_available,
-    is_keras_nlp_available,
-    is_sentencepiece_available,
-    is_speech_available,
-    is_tensorflow_text_available,
-    is_tf_available,
-    is_timm_available,
-    is_tokenizers_available,
-    is_torch_available,
-    is_torchvision_available,
-    is_vision_available,
-    logging,
-)
-
+from .utils import (OptionalDependencyNotAvailable, _LazyModule,
+                    is_bitsandbytes_available, is_flax_available,
+                    is_keras_nlp_available, is_sentencepiece_available,
+                    is_speech_available, is_tensorflow_text_available,
+                    is_tf_available, is_timm_available,
+                    is_tokenizers_available, is_torch_available,
+                    is_torchvision_available, is_vision_available, logging)
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -4184,843 +4173,478 @@ else:
 if TYPE_CHECKING:
     # Configuration
     from .configuration_utils import PretrainedConfig
-
     # Data
-    from .data import (
-        DataProcessor,
-        InputExample,
-        InputFeatures,
-        SingleSentenceClassificationProcessor,
-        SquadExample,
-        SquadFeatures,
-        SquadV1Processor,
-        SquadV2Processor,
-        glue_compute_metrics,
-        glue_convert_examples_to_features,
-        glue_output_modes,
-        glue_processors,
-        glue_tasks_num_labels,
-        squad_convert_examples_to_features,
-        xnli_compute_metrics,
-        xnli_output_modes,
-        xnli_processors,
-        xnli_tasks_num_labels,
-    )
+    from .data import (DataProcessor, InputExample, InputFeatures,
+                       SingleSentenceClassificationProcessor, SquadExample,
+                       SquadFeatures, SquadV1Processor, SquadV2Processor,
+                       glue_compute_metrics, glue_convert_examples_to_features,
+                       glue_output_modes, glue_processors,
+                       glue_tasks_num_labels,
+                       squad_convert_examples_to_features,
+                       xnli_compute_metrics, xnli_output_modes,
+                       xnli_processors, xnli_tasks_num_labels)
     from .data.data_collator import (
-        DataCollator,
-        DataCollatorForLanguageModeling,
-        DataCollatorForPermutationLanguageModeling,
-        DataCollatorForSeq2Seq,
-        DataCollatorForSOP,
-        DataCollatorForTokenClassification,
-        DataCollatorForWholeWordMask,
-        DataCollatorWithPadding,
-        DefaultDataCollator,
-        default_data_collator,
-    )
+        DataCollator, DataCollatorForLanguageModeling,
+        DataCollatorForPermutationLanguageModeling, DataCollatorForSeq2Seq,
+        DataCollatorForSOP, DataCollatorForTokenClassification,
+        DataCollatorForWholeWordMask, DataCollatorWithPadding,
+        DefaultDataCollator, default_data_collator)
     from .feature_extraction_sequence_utils import SequenceFeatureExtractor
-
     # Feature Extractor
     from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
-
     # Generation
-    from .generation import GenerationConfig, TextIteratorStreamer, TextStreamer
+    from .generation import (GenerationConfig, TextIteratorStreamer,
+                             TextStreamer)
     from .hf_argparser import HfArgumentParser
-
     # Integrations
-    from .integrations import (
-        is_clearml_available,
-        is_comet_available,
-        is_neptune_available,
-        is_optuna_available,
-        is_ray_available,
-        is_ray_tune_available,
-        is_sigopt_available,
-        is_tensorboard_available,
-        is_wandb_available,
-    )
-
+    from .integrations import (is_clearml_available, is_comet_available,
+                               is_neptune_available, is_optuna_available,
+                               is_ray_available, is_ray_tune_available,
+                               is_sigopt_available, is_tensorboard_available,
+                               is_wandb_available)
     # Model Cards
     from .modelcard import ModelCard
-
     # TF 2.0 <=> PyTorch conversion utilities
     from .modeling_tf_pytorch_utils import (
         convert_tf_weight_name_to_pt_weight_name,
-        load_pytorch_checkpoint_in_tf2_model,
-        load_pytorch_model_in_tf2_model,
+        load_pytorch_checkpoint_in_tf2_model, load_pytorch_model_in_tf2_model,
         load_pytorch_weights_in_tf2_model,
-        load_tf2_checkpoint_in_pytorch_model,
-        load_tf2_model_in_pytorch_model,
-        load_tf2_weights_in_pytorch_model,
-    )
-    from .models.albert import ALBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, AlbertConfig
-    from .models.align import (
-        ALIGN_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        AlignConfig,
-        AlignProcessor,
-        AlignTextConfig,
-        AlignVisionConfig,
-    )
-    from .models.altclip import (
-        ALTCLIP_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        AltCLIPConfig,
-        AltCLIPProcessor,
-        AltCLIPTextConfig,
-        AltCLIPVisionConfig,
-    )
+        load_tf2_checkpoint_in_pytorch_model, load_tf2_model_in_pytorch_model,
+        load_tf2_weights_in_pytorch_model)
+    from .models.albert import (ALBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                AlbertConfig)
+    from .models.align import (ALIGN_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                               AlignConfig, AlignProcessor, AlignTextConfig,
+                               AlignVisionConfig)
+    from .models.altclip import (ALTCLIP_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 AltCLIPConfig, AltCLIPProcessor,
+                                 AltCLIPTextConfig, AltCLIPVisionConfig)
     from .models.audio_spectrogram_transformer import (
-        AUDIO_SPECTROGRAM_TRANSFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        ASTConfig,
-    )
-    from .models.auto import (
-        ALL_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        CONFIG_MAPPING,
-        FEATURE_EXTRACTOR_MAPPING,
-        IMAGE_PROCESSOR_MAPPING,
-        MODEL_NAMES_MAPPING,
-        PROCESSOR_MAPPING,
-        TOKENIZER_MAPPING,
-        AutoConfig,
-        AutoFeatureExtractor,
-        AutoImageProcessor,
-        AutoProcessor,
-        AutoTokenizer,
-    )
+        AUDIO_SPECTROGRAM_TRANSFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, ASTConfig)
+    from .models.auto import (ALL_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                              CONFIG_MAPPING, FEATURE_EXTRACTOR_MAPPING,
+                              IMAGE_PROCESSOR_MAPPING, MODEL_NAMES_MAPPING,
+                              PROCESSOR_MAPPING, TOKENIZER_MAPPING, AutoConfig,
+                              AutoFeatureExtractor, AutoImageProcessor,
+                              AutoProcessor, AutoTokenizer)
     from .models.bart import BartConfig, BartTokenizer
     from .models.beit import BEIT_PRETRAINED_CONFIG_ARCHIVE_MAP, BeitConfig
-    from .models.bert import (
-        BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        BasicTokenizer,
-        BertConfig,
-        BertTokenizer,
-        WordpieceTokenizer,
-    )
+    from .models.bert import (BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                              BasicTokenizer, BertConfig, BertTokenizer,
+                              WordpieceTokenizer)
     from .models.bert_generation import BertGenerationConfig
-    from .models.bert_japanese import (
-        BertJapaneseTokenizer,
-        CharacterTokenizer,
-        MecabTokenizer,
-    )
+    from .models.bert_japanese import (BertJapaneseTokenizer,
+                                       CharacterTokenizer, MecabTokenizer)
     from .models.bertweet import BertweetTokenizer
-    from .models.big_bird import BIG_BIRD_PRETRAINED_CONFIG_ARCHIVE_MAP, BigBirdConfig
+    from .models.big_bird import (BIG_BIRD_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  BigBirdConfig)
     from .models.bigbird_pegasus import (
-        BIGBIRD_PEGASUS_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        BigBirdPegasusConfig,
-    )
-    from .models.biogpt import (
-        BIOGPT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        BioGptConfig,
-        BioGptTokenizer,
-    )
+        BIGBIRD_PEGASUS_PRETRAINED_CONFIG_ARCHIVE_MAP, BigBirdPegasusConfig)
+    from .models.biogpt import (BIOGPT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                BioGptConfig, BioGptTokenizer)
     from .models.bit import BIT_PRETRAINED_CONFIG_ARCHIVE_MAP, BitConfig
-    from .models.blenderbot import (
-        BLENDERBOT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        BlenderbotConfig,
-        BlenderbotTokenizer,
-    )
+    from .models.blenderbot import (BLENDERBOT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    BlenderbotConfig, BlenderbotTokenizer)
     from .models.blenderbot_small import (
-        BLENDERBOT_SMALL_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        BlenderbotSmallConfig,
-        BlenderbotSmallTokenizer,
-    )
-    from .models.blip import (
-        BLIP_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        BlipConfig,
-        BlipProcessor,
-        BlipTextConfig,
-        BlipVisionConfig,
-    )
-    from .models.blip_2 import (
-        BLIP_2_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Blip2Config,
-        Blip2Processor,
-        Blip2QFormerConfig,
-        Blip2VisionConfig,
-    )
+        BLENDERBOT_SMALL_PRETRAINED_CONFIG_ARCHIVE_MAP, BlenderbotSmallConfig,
+        BlenderbotSmallTokenizer)
+    from .models.blip import (BLIP_PRETRAINED_CONFIG_ARCHIVE_MAP, BlipConfig,
+                              BlipProcessor, BlipTextConfig, BlipVisionConfig)
+    from .models.blip_2 import (BLIP_2_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                Blip2Config, Blip2Processor,
+                                Blip2QFormerConfig, Blip2VisionConfig)
     from .models.bloom import BLOOM_PRETRAINED_CONFIG_ARCHIVE_MAP, BloomConfig
-    from .models.bridgetower import (
-        BRIDGETOWER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        BridgeTowerConfig,
-        BridgeTowerProcessor,
-        BridgeTowerTextConfig,
-        BridgeTowerVisionConfig,
-    )
+    from .models.bridgetower import (BRIDGETOWER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                     BridgeTowerConfig, BridgeTowerProcessor,
+                                     BridgeTowerTextConfig,
+                                     BridgeTowerVisionConfig)
     from .models.byt5 import ByT5Tokenizer
-    from .models.camembert import (
-        CAMEMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        CamembertConfig,
-    )
-    from .models.canine import (
-        CANINE_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        CanineConfig,
-        CanineTokenizer,
-    )
+    from .models.camembert import (CAMEMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                   CamembertConfig)
+    from .models.canine import (CANINE_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                CanineConfig, CanineTokenizer)
     from .models.chinese_clip import (
-        CHINESE_CLIP_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        ChineseCLIPConfig,
-        ChineseCLIPProcessor,
-        ChineseCLIPTextConfig,
-        ChineseCLIPVisionConfig,
-    )
-    from .models.clap import (
-        CLAP_PRETRAINED_MODEL_ARCHIVE_LIST,
-        ClapAudioConfig,
-        ClapConfig,
-        ClapProcessor,
-        ClapTextConfig,
-    )
-    from .models.clip import (
-        CLIP_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        CLIPConfig,
-        CLIPProcessor,
-        CLIPTextConfig,
-        CLIPTokenizer,
-        CLIPVisionConfig,
-    )
-    from .models.clipseg import (
-        CLIPSEG_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        CLIPSegConfig,
-        CLIPSegProcessor,
-        CLIPSegTextConfig,
-        CLIPSegVisionConfig,
-    )
-    from .models.codegen import (
-        CODEGEN_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        CodeGenConfig,
-        CodeGenTokenizer,
-    )
+        CHINESE_CLIP_PRETRAINED_CONFIG_ARCHIVE_MAP, ChineseCLIPConfig,
+        ChineseCLIPProcessor, ChineseCLIPTextConfig, ChineseCLIPVisionConfig)
+    from .models.clap import (CLAP_PRETRAINED_MODEL_ARCHIVE_LIST,
+                              ClapAudioConfig, ClapConfig, ClapProcessor,
+                              ClapTextConfig)
+    from .models.clip import (CLIP_PRETRAINED_CONFIG_ARCHIVE_MAP, CLIPConfig,
+                              CLIPProcessor, CLIPTextConfig, CLIPTokenizer,
+                              CLIPVisionConfig)
+    from .models.clipseg import (CLIPSEG_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 CLIPSegConfig, CLIPSegProcessor,
+                                 CLIPSegTextConfig, CLIPSegVisionConfig)
+    from .models.codegen import (CODEGEN_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 CodeGenConfig, CodeGenTokenizer)
     from .models.conditional_detr import (
-        CONDITIONAL_DETR_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        ConditionalDetrConfig,
-    )
-    from .models.convbert import (
-        CONVBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        ConvBertConfig,
-        ConvBertTokenizer,
-    )
-    from .models.convnext import CONVNEXT_PRETRAINED_CONFIG_ARCHIVE_MAP, ConvNextConfig
-    from .models.convnextv2 import (
-        CONVNEXTV2_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        ConvNextV2Config,
-    )
-    from .models.cpmant import (
-        CPMANT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        CpmAntConfig,
-        CpmAntTokenizer,
-    )
-    from .models.ctrl import (
-        CTRL_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        CTRLConfig,
-        CTRLTokenizer,
-    )
+        CONDITIONAL_DETR_PRETRAINED_CONFIG_ARCHIVE_MAP, ConditionalDetrConfig)
+    from .models.convbert import (CONVBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  ConvBertConfig, ConvBertTokenizer)
+    from .models.convnext import (CONVNEXT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  ConvNextConfig)
+    from .models.convnextv2 import (CONVNEXTV2_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    ConvNextV2Config)
+    from .models.cpmant import (CPMANT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                CpmAntConfig, CpmAntTokenizer)
+    from .models.ctrl import (CTRL_PRETRAINED_CONFIG_ARCHIVE_MAP, CTRLConfig,
+                              CTRLTokenizer)
     from .models.cvt import CVT_PRETRAINED_CONFIG_ARCHIVE_MAP, CvtConfig
     from .models.data2vec import (
         DATA2VEC_TEXT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        DATA2VEC_VISION_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Data2VecAudioConfig,
-        Data2VecTextConfig,
-        Data2VecVisionConfig,
-    )
-    from .models.deberta import (
-        DEBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        DebertaConfig,
-        DebertaTokenizer,
-    )
-    from .models.deberta_v2 import (
-        DEBERTA_V2_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        DebertaV2Config,
-    )
+        DATA2VEC_VISION_PRETRAINED_CONFIG_ARCHIVE_MAP, Data2VecAudioConfig,
+        Data2VecTextConfig, Data2VecVisionConfig)
+    from .models.deberta import (DEBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 DebertaConfig, DebertaTokenizer)
+    from .models.deberta_v2 import (DEBERTA_V2_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    DebertaV2Config)
     from .models.decision_transformer import (
         DECISION_TRANSFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        DecisionTransformerConfig,
-    )
+        DecisionTransformerConfig)
     from .models.deformable_detr import (
-        DEFORMABLE_DETR_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        DeformableDetrConfig,
-    )
+        DEFORMABLE_DETR_PRETRAINED_CONFIG_ARCHIVE_MAP, DeformableDetrConfig)
     from .models.deit import DEIT_PRETRAINED_CONFIG_ARCHIVE_MAP, DeiTConfig
     from .models.deta import DETA_PRETRAINED_CONFIG_ARCHIVE_MAP, DetaConfig
     from .models.detr import DETR_PRETRAINED_CONFIG_ARCHIVE_MAP, DetrConfig
     from .models.dinat import DINAT_PRETRAINED_CONFIG_ARCHIVE_MAP, DinatConfig
-    from .models.distilbert import (
-        DISTILBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        DistilBertConfig,
-        DistilBertTokenizer,
-    )
-    from .models.donut import (
-        DONUT_SWIN_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        DonutProcessor,
-        DonutSwinConfig,
-    )
-    from .models.dpr import (
-        DPR_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        DPRConfig,
-        DPRContextEncoderTokenizer,
-        DPRQuestionEncoderTokenizer,
-        DPRReaderOutput,
-        DPRReaderTokenizer,
-    )
+    from .models.distilbert import (DISTILBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    DistilBertConfig, DistilBertTokenizer)
+    from .models.donut import (DONUT_SWIN_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                               DonutProcessor, DonutSwinConfig)
+    from .models.dpr import (DPR_PRETRAINED_CONFIG_ARCHIVE_MAP, DPRConfig,
+                             DPRContextEncoderTokenizer,
+                             DPRQuestionEncoderTokenizer, DPRReaderOutput,
+                             DPRReaderTokenizer)
     from .models.dpt import DPT_PRETRAINED_CONFIG_ARCHIVE_MAP, DPTConfig
     from .models.efficientformer import (
-        EFFICIENTFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        EfficientFormerConfig,
-    )
+        EFFICIENTFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, EfficientFormerConfig)
     from .models.efficientnet import (
-        EFFICIENTNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        EfficientNetConfig,
-    )
-    from .models.electra import (
-        ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        ElectraConfig,
-        ElectraTokenizer,
-    )
+        EFFICIENTNET_PRETRAINED_CONFIG_ARCHIVE_MAP, EfficientNetConfig)
+    from .models.electra import (ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 ElectraConfig, ElectraTokenizer)
     from .models.encoder_decoder import EncoderDecoderConfig
     from .models.ernie import ERNIE_PRETRAINED_CONFIG_ARCHIVE_MAP, ErnieConfig
-    from .models.ernie_m import ERNIE_M_PRETRAINED_CONFIG_ARCHIVE_MAP, ErnieMConfig
-    from .models.esm import ESM_PRETRAINED_CONFIG_ARCHIVE_MAP, EsmConfig, EsmTokenizer
-    from .models.flaubert import (
-        FLAUBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        FlaubertConfig,
-        FlaubertTokenizer,
-    )
-    from .models.flava import (
-        FLAVA_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        FlavaConfig,
-        FlavaImageCodebookConfig,
-        FlavaImageConfig,
-        FlavaMultimodalConfig,
-        FlavaTextConfig,
-    )
+    from .models.ernie_m import (ERNIE_M_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 ErnieMConfig)
+    from .models.esm import (ESM_PRETRAINED_CONFIG_ARCHIVE_MAP, EsmConfig,
+                             EsmTokenizer)
+    from .models.flaubert import (FLAUBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  FlaubertConfig, FlaubertTokenizer)
+    from .models.flava import (FLAVA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                               FlavaConfig, FlavaImageCodebookConfig,
+                               FlavaImageConfig, FlavaMultimodalConfig,
+                               FlavaTextConfig)
     from .models.fnet import FNET_PRETRAINED_CONFIG_ARCHIVE_MAP, FNetConfig
-    from .models.fsmt import (
-        FSMT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        FSMTConfig,
-        FSMTTokenizer,
-    )
-    from .models.funnel import (
-        FUNNEL_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        FunnelConfig,
-        FunnelTokenizer,
-    )
-    from .models.git import (
-        GIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        GitConfig,
-        GitProcessor,
-        GitVisionConfig,
-    )
+    from .models.fsmt import (FSMT_PRETRAINED_CONFIG_ARCHIVE_MAP, FSMTConfig,
+                              FSMTTokenizer)
+    from .models.funnel import (FUNNEL_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                FunnelConfig, FunnelTokenizer)
+    from .models.git import (GIT_PRETRAINED_CONFIG_ARCHIVE_MAP, GitConfig,
+                             GitProcessor, GitVisionConfig)
     from .models.glpn import GLPN_PRETRAINED_CONFIG_ARCHIVE_MAP, GLPNConfig
-    from .models.gpt2 import (
-        GPT2_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        GPT2Config,
-        GPT2Tokenizer,
-    )
-    from .models.gpt_bigcode import (
-        GPT_BIGCODE_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        GPTBigCodeConfig,
-    )
-    from .models.gpt_neo import GPT_NEO_PRETRAINED_CONFIG_ARCHIVE_MAP, GPTNeoConfig
-    from .models.gpt_neox import GPT_NEOX_PRETRAINED_CONFIG_ARCHIVE_MAP, GPTNeoXConfig
+    from .models.gpt2 import (GPT2_PRETRAINED_CONFIG_ARCHIVE_MAP, GPT2Config,
+                              GPT2Tokenizer)
+    from .models.gpt_bigcode import (GPT_BIGCODE_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                     GPTBigCodeConfig)
+    from .models.gpt_neo import (GPT_NEO_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 GPTNeoConfig)
+    from .models.gpt_neox import (GPT_NEOX_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  GPTNeoXConfig)
     from .models.gpt_neox_japanese import (
-        GPT_NEOX_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        GPTNeoXJapaneseConfig,
-    )
+        GPT_NEOX_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP, GPTNeoXJapaneseConfig)
     from .models.gptj import GPTJ_PRETRAINED_CONFIG_ARCHIVE_MAP, GPTJConfig
     from .models.gptsan_japanese import (
-        GPTSAN_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        GPTSanJapaneseConfig,
-        GPTSanJapaneseTokenizer,
-    )
-    from .models.graphormer import (
-        GRAPHORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        GraphormerConfig,
-    )
-    from .models.groupvit import (
-        GROUPVIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        GroupViTConfig,
-        GroupViTTextConfig,
-        GroupViTVisionConfig,
-    )
+        GPTSAN_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP, GPTSanJapaneseConfig,
+        GPTSanJapaneseTokenizer)
+    from .models.graphormer import (GRAPHORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    GraphormerConfig)
+    from .models.groupvit import (GROUPVIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  GroupViTConfig, GroupViTTextConfig,
+                                  GroupViTVisionConfig)
     from .models.herbert import HerbertTokenizer
-    from .models.hubert import HUBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, HubertConfig
+    from .models.hubert import (HUBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                HubertConfig)
     from .models.ibert import IBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, IBertConfig
-    from .models.imagegpt import IMAGEGPT_PRETRAINED_CONFIG_ARCHIVE_MAP, ImageGPTConfig
-    from .models.informer import INFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, InformerConfig
-    from .models.jukebox import (
-        JUKEBOX_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        JukeboxConfig,
-        JukeboxPriorConfig,
-        JukeboxTokenizer,
-        JukeboxVQVAEConfig,
-    )
-    from .models.layoutlm import (
-        LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        LayoutLMConfig,
-        LayoutLMTokenizer,
-    )
-    from .models.layoutlmv2 import (
-        LAYOUTLMV2_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        LayoutLMv2Config,
-        LayoutLMv2FeatureExtractor,
-        LayoutLMv2ImageProcessor,
-        LayoutLMv2Processor,
-        LayoutLMv2Tokenizer,
-    )
-    from .models.layoutlmv3 import (
-        LAYOUTLMV3_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        LayoutLMv3Config,
-        LayoutLMv3FeatureExtractor,
-        LayoutLMv3ImageProcessor,
-        LayoutLMv3Processor,
-        LayoutLMv3Tokenizer,
-    )
+    from .models.imagegpt import (IMAGEGPT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  ImageGPTConfig)
+    from .models.informer import (INFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  InformerConfig)
+    from .models.jukebox import (JUKEBOX_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 JukeboxConfig, JukeboxPriorConfig,
+                                 JukeboxTokenizer, JukeboxVQVAEConfig)
+    from .models.layoutlm import (LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  LayoutLMConfig, LayoutLMTokenizer)
+    from .models.layoutlmv2 import (LAYOUTLMV2_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    LayoutLMv2Config,
+                                    LayoutLMv2FeatureExtractor,
+                                    LayoutLMv2ImageProcessor,
+                                    LayoutLMv2Processor, LayoutLMv2Tokenizer)
+    from .models.layoutlmv3 import (LAYOUTLMV3_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    LayoutLMv3Config,
+                                    LayoutLMv3FeatureExtractor,
+                                    LayoutLMv3ImageProcessor,
+                                    LayoutLMv3Processor, LayoutLMv3Tokenizer)
     from .models.layoutxlm import LayoutXLMProcessor
-    from .models.led import LED_PRETRAINED_CONFIG_ARCHIVE_MAP, LEDConfig, LEDTokenizer
+    from .models.led import (LED_PRETRAINED_CONFIG_ARCHIVE_MAP, LEDConfig,
+                             LEDTokenizer)
     from .models.levit import LEVIT_PRETRAINED_CONFIG_ARCHIVE_MAP, LevitConfig
     from .models.lilt import LILT_PRETRAINED_CONFIG_ARCHIVE_MAP, LiltConfig
     from .models.llama import LLAMA_PRETRAINED_CONFIG_ARCHIVE_MAP, LlamaConfig
-    from .models.longformer import (
-        LONGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        LongformerConfig,
-        LongformerTokenizer,
-    )
-    from .models.longt5 import LONGT5_PRETRAINED_CONFIG_ARCHIVE_MAP, LongT5Config
-    from .models.luke import (
-        LUKE_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        LukeConfig,
-        LukeTokenizer,
-    )
-    from .models.lxmert import (
-        LXMERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        LxmertConfig,
-        LxmertTokenizer,
-    )
-    from .models.m2m_100 import M2M_100_PRETRAINED_CONFIG_ARCHIVE_MAP, M2M100Config
+    from .models.longformer import (LONGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    LongformerConfig, LongformerTokenizer)
+    from .models.longt5 import (LONGT5_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                LongT5Config)
+    from .models.luke import (LUKE_PRETRAINED_CONFIG_ARCHIVE_MAP, LukeConfig,
+                              LukeTokenizer)
+    from .models.lxmert import (LXMERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                LxmertConfig, LxmertTokenizer)
+    from .models.m2m_100 import (M2M_100_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 M2M100Config)
     from .models.marian import MarianConfig
-    from .models.markuplm import (
-        MARKUPLM_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MarkupLMConfig,
-        MarkupLMFeatureExtractor,
-        MarkupLMProcessor,
-        MarkupLMTokenizer,
-    )
-    from .models.mask2former import (
-        MASK2FORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Mask2FormerConfig,
-    )
-    from .models.maskformer import (
-        MASKFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MaskFormerConfig,
-        MaskFormerSwinConfig,
-    )
+    from .models.markuplm import (MARKUPLM_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  MarkupLMConfig, MarkupLMFeatureExtractor,
+                                  MarkupLMProcessor, MarkupLMTokenizer)
+    from .models.mask2former import (MASK2FORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                     Mask2FormerConfig)
+    from .models.maskformer import (MASKFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    MaskFormerConfig, MaskFormerSwinConfig)
     from .models.mbart import MBartConfig
-    from .models.mctct import (
-        MCTCT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MCTCTConfig,
-        MCTCTProcessor,
-    )
+    from .models.mctct import (MCTCT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                               MCTCTConfig, MCTCTProcessor)
     from .models.mega import MEGA_PRETRAINED_CONFIG_ARCHIVE_MAP, MegaConfig
     from .models.megatron_bert import (
-        MEGATRON_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MegatronBertConfig,
-    )
-    from .models.mgp_str import (
-        MGP_STR_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MgpstrConfig,
-        MgpstrProcessor,
-        MgpstrTokenizer,
-    )
+        MEGATRON_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MegatronBertConfig)
+    from .models.mgp_str import (MGP_STR_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 MgpstrConfig, MgpstrProcessor,
+                                 MgpstrTokenizer)
     from .models.mmbt import MMBTConfig
-    from .models.mobilebert import (
-        MOBILEBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MobileBertConfig,
-        MobileBertTokenizer,
-    )
+    from .models.mobilebert import (MOBILEBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    MobileBertConfig, MobileBertTokenizer)
     from .models.mobilenet_v1 import (
-        MOBILENET_V1_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MobileNetV1Config,
-    )
+        MOBILENET_V1_PRETRAINED_CONFIG_ARCHIVE_MAP, MobileNetV1Config)
     from .models.mobilenet_v2 import (
-        MOBILENET_V2_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MobileNetV2Config,
-    )
-    from .models.mobilevit import (
-        MOBILEVIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MobileViTConfig,
-    )
-    from .models.mpnet import (
-        MPNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MPNetConfig,
-        MPNetTokenizer,
-    )
+        MOBILENET_V2_PRETRAINED_CONFIG_ARCHIVE_MAP, MobileNetV2Config)
+    from .models.mobilevit import (MOBILEVIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                   MobileViTConfig)
+    from .models.mpnet import (MPNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                               MPNetConfig, MPNetTokenizer)
     from .models.mt5 import MT5Config
     from .models.mvp import MvpConfig, MvpTokenizer
     from .models.nat import NAT_PRETRAINED_CONFIG_ARCHIVE_MAP, NatConfig
     from .models.nezha import NEZHA_PRETRAINED_CONFIG_ARCHIVE_MAP, NezhaConfig
-    from .models.nllb_moe import NLLB_MOE_PRETRAINED_CONFIG_ARCHIVE_MAP, NllbMoeConfig
+    from .models.nllb_moe import (NLLB_MOE_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  NllbMoeConfig)
     from .models.nystromformer import (
-        NYSTROMFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        NystromformerConfig,
-    )
-    from .models.oneformer import (
-        ONEFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        OneFormerConfig,
-        OneFormerProcessor,
-    )
-    from .models.openai import (
-        OPENAI_GPT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        OpenAIGPTConfig,
-        OpenAIGPTTokenizer,
-    )
+        NYSTROMFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, NystromformerConfig)
+    from .models.oneformer import (ONEFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                   OneFormerConfig, OneFormerProcessor)
+    from .models.openai import (OPENAI_GPT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                OpenAIGPTConfig, OpenAIGPTTokenizer)
     from .models.opt import OPTConfig
-    from .models.owlvit import (
-        OWLVIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        OwlViTConfig,
-        OwlViTProcessor,
-        OwlViTTextConfig,
-        OwlViTVisionConfig,
-    )
-    from .models.pegasus import (
-        PEGASUS_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        PegasusConfig,
-        PegasusTokenizer,
-    )
-    from .models.pegasus_x import (
-        PEGASUS_X_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        PegasusXConfig,
-    )
-    from .models.perceiver import (
-        PERCEIVER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        PerceiverConfig,
-        PerceiverTokenizer,
-    )
+    from .models.owlvit import (OWLVIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                OwlViTConfig, OwlViTProcessor,
+                                OwlViTTextConfig, OwlViTVisionConfig)
+    from .models.pegasus import (PEGASUS_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 PegasusConfig, PegasusTokenizer)
+    from .models.pegasus_x import (PEGASUS_X_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                   PegasusXConfig)
+    from .models.perceiver import (PERCEIVER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                   PerceiverConfig, PerceiverTokenizer)
     from .models.phobert import PhobertTokenizer
-    from .models.pix2struct import (
-        PIX2STRUCT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Pix2StructConfig,
-        Pix2StructProcessor,
-        Pix2StructTextConfig,
-        Pix2StructVisionConfig,
-    )
-    from .models.plbart import PLBART_PRETRAINED_CONFIG_ARCHIVE_MAP, PLBartConfig
-    from .models.poolformer import (
-        POOLFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        PoolFormerConfig,
-    )
-    from .models.prophetnet import (
-        PROPHETNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        ProphetNetConfig,
-        ProphetNetTokenizer,
-    )
-    from .models.qdqbert import QDQBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, QDQBertConfig
+    from .models.pix2struct import (PIX2STRUCT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    Pix2StructConfig, Pix2StructProcessor,
+                                    Pix2StructTextConfig,
+                                    Pix2StructVisionConfig)
+    from .models.plbart import (PLBART_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                PLBartConfig)
+    from .models.poolformer import (POOLFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    PoolFormerConfig)
+    from .models.prophetnet import (PROPHETNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    ProphetNetConfig, ProphetNetTokenizer)
+    from .models.qdqbert import (QDQBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 QDQBertConfig)
     from .models.rag import RagConfig, RagRetriever, RagTokenizer
-    from .models.realm import (
-        REALM_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        RealmConfig,
-        RealmTokenizer,
-    )
-    from .models.reformer import REFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, ReformerConfig
-    from .models.regnet import REGNET_PRETRAINED_CONFIG_ARCHIVE_MAP, RegNetConfig
-    from .models.rembert import REMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, RemBertConfig
-    from .models.resnet import RESNET_PRETRAINED_CONFIG_ARCHIVE_MAP, ResNetConfig
-    from .models.retribert import (
-        RETRIBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        RetriBertConfig,
-        RetriBertTokenizer,
-    )
-    from .models.roberta import (
-        ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        RobertaConfig,
-        RobertaTokenizer,
-    )
+    from .models.realm import (REALM_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                               RealmConfig, RealmTokenizer)
+    from .models.reformer import (REFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  ReformerConfig)
+    from .models.regnet import (REGNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                RegNetConfig)
+    from .models.rembert import (REMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 RemBertConfig)
+    from .models.resnet import (RESNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                ResNetConfig)
+    from .models.retribert import (RETRIBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                   RetriBertConfig, RetriBertTokenizer)
+    from .models.roberta import (ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 RobertaConfig, RobertaTokenizer)
     from .models.roberta_prelayernorm import (
         ROBERTA_PRELAYERNORM_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        RobertaPreLayerNormConfig,
-    )
-    from .models.roc_bert import (
-        ROC_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        RoCBertConfig,
-        RoCBertTokenizer,
-    )
-    from .models.roformer import (
-        ROFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        RoFormerConfig,
-        RoFormerTokenizer,
-    )
-    from .models.segformer import (
-        SEGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        SegformerConfig,
-    )
+        RobertaPreLayerNormConfig)
+    from .models.roc_bert import (ROC_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  RoCBertConfig, RoCBertTokenizer)
+    from .models.roformer import (ROFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  RoFormerConfig, RoFormerTokenizer)
+    from .models.segformer import (SEGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                   SegformerConfig)
     from .models.sew import SEW_PRETRAINED_CONFIG_ARCHIVE_MAP, SEWConfig
     from .models.sew_d import SEW_D_PRETRAINED_CONFIG_ARCHIVE_MAP, SEWDConfig
     from .models.speech_encoder_decoder import SpeechEncoderDecoderConfig
     from .models.speech_to_text import (
-        SPEECH_TO_TEXT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Speech2TextConfig,
-        Speech2TextProcessor,
-    )
+        SPEECH_TO_TEXT_PRETRAINED_CONFIG_ARCHIVE_MAP, Speech2TextConfig,
+        Speech2TextProcessor)
     from .models.speech_to_text_2 import (
-        SPEECH_TO_TEXT_2_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Speech2Text2Config,
-        Speech2Text2Processor,
-        Speech2Text2Tokenizer,
-    )
+        SPEECH_TO_TEXT_2_PRETRAINED_CONFIG_ARCHIVE_MAP, Speech2Text2Config,
+        Speech2Text2Processor, Speech2Text2Tokenizer)
     from .models.speecht5 import (
         SPEECHT5_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        SPEECHT5_PRETRAINED_HIFIGAN_CONFIG_ARCHIVE_MAP,
-        SpeechT5Config,
-        SpeechT5HifiGanConfig,
-        SpeechT5Processor,
-    )
-    from .models.splinter import (
-        SPLINTER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        SplinterConfig,
-        SplinterTokenizer,
-    )
-    from .models.squeezebert import (
-        SQUEEZEBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        SqueezeBertConfig,
-        SqueezeBertTokenizer,
-    )
+        SPEECHT5_PRETRAINED_HIFIGAN_CONFIG_ARCHIVE_MAP, SpeechT5Config,
+        SpeechT5HifiGanConfig, SpeechT5Processor)
+    from .models.splinter import (SPLINTER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  SplinterConfig, SplinterTokenizer)
+    from .models.squeezebert import (SQUEEZEBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                     SqueezeBertConfig, SqueezeBertTokenizer)
     from .models.swin import SWIN_PRETRAINED_CONFIG_ARCHIVE_MAP, SwinConfig
-    from .models.swin2sr import SWIN2SR_PRETRAINED_CONFIG_ARCHIVE_MAP, Swin2SRConfig
-    from .models.swinv2 import SWINV2_PRETRAINED_CONFIG_ARCHIVE_MAP, Swinv2Config
+    from .models.swin2sr import (SWIN2SR_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 Swin2SRConfig)
+    from .models.swinv2 import (SWINV2_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                Swinv2Config)
     from .models.switch_transformers import (
         SWITCH_TRANSFORMERS_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        SwitchTransformersConfig,
-    )
+        SwitchTransformersConfig)
     from .models.t5 import T5_PRETRAINED_CONFIG_ARCHIVE_MAP, T5Config
     from .models.table_transformer import (
         TABLE_TRANSFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        TableTransformerConfig,
-    )
-    from .models.tapas import (
-        TAPAS_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        TapasConfig,
-        TapasTokenizer,
-    )
+        TableTransformerConfig)
+    from .models.tapas import (TAPAS_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                               TapasConfig, TapasTokenizer)
     from .models.tapex import TapexTokenizer
     from .models.time_series_transformer import (
         TIME_SERIES_TRANSFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        TimeSeriesTransformerConfig,
-    )
-    from .models.timesformer import (
-        TIMESFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        TimesformerConfig,
-    )
+        TimeSeriesTransformerConfig)
+    from .models.timesformer import (TIMESFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                     TimesformerConfig)
     from .models.trajectory_transformer import (
         TRAJECTORY_TRANSFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        TrajectoryTransformerConfig,
-    )
-    from .models.transfo_xl import (
-        TRANSFO_XL_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        TransfoXLConfig,
-        TransfoXLCorpus,
-        TransfoXLTokenizer,
-    )
-    from .models.trocr import (
-        TROCR_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        TrOCRConfig,
-        TrOCRProcessor,
-    )
-    from .models.tvlt import (
-        TVLT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        TvltConfig,
-        TvltProcessor,
-    )
-    from .models.unispeech import (
-        UNISPEECH_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        UniSpeechConfig,
-    )
+        TrajectoryTransformerConfig)
+    from .models.transfo_xl import (TRANSFO_XL_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    TransfoXLConfig, TransfoXLCorpus,
+                                    TransfoXLTokenizer)
+    from .models.trocr import (TROCR_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                               TrOCRConfig, TrOCRProcessor)
+    from .models.tvlt import (TVLT_PRETRAINED_CONFIG_ARCHIVE_MAP, TvltConfig,
+                              TvltProcessor)
+    from .models.unispeech import (UNISPEECH_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                   UniSpeechConfig)
     from .models.unispeech_sat import (
-        UNISPEECH_SAT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        UniSpeechSatConfig,
-    )
+        UNISPEECH_SAT_PRETRAINED_CONFIG_ARCHIVE_MAP, UniSpeechSatConfig)
     from .models.upernet import UperNetConfig
     from .models.van import VAN_PRETRAINED_CONFIG_ARCHIVE_MAP, VanConfig
-    from .models.videomae import VIDEOMAE_PRETRAINED_CONFIG_ARCHIVE_MAP, VideoMAEConfig
-    from .models.vilt import (
-        VILT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        ViltConfig,
-        ViltFeatureExtractor,
-        ViltImageProcessor,
-        ViltProcessor,
-    )
+    from .models.videomae import (VIDEOMAE_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  VideoMAEConfig)
+    from .models.vilt import (VILT_PRETRAINED_CONFIG_ARCHIVE_MAP, ViltConfig,
+                              ViltFeatureExtractor, ViltImageProcessor,
+                              ViltProcessor)
     from .models.vision_encoder_decoder import VisionEncoderDecoderConfig
     from .models.vision_text_dual_encoder import (
-        VisionTextDualEncoderConfig,
-        VisionTextDualEncoderProcessor,
-    )
-    from .models.visual_bert import (
-        VISUAL_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        VisualBertConfig,
-    )
+        VisionTextDualEncoderConfig, VisionTextDualEncoderProcessor)
+    from .models.visual_bert import (VISUAL_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                     VisualBertConfig)
     from .models.vit import VIT_PRETRAINED_CONFIG_ARCHIVE_MAP, ViTConfig
-    from .models.vit_hybrid import (
-        VIT_HYBRID_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        ViTHybridConfig,
-    )
-    from .models.vit_mae import VIT_MAE_PRETRAINED_CONFIG_ARCHIVE_MAP, ViTMAEConfig
-    from .models.vit_msn import VIT_MSN_PRETRAINED_CONFIG_ARCHIVE_MAP, ViTMSNConfig
-    from .models.wav2vec2 import (
-        WAV_2_VEC_2_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Wav2Vec2Config,
-        Wav2Vec2CTCTokenizer,
-        Wav2Vec2FeatureExtractor,
-        Wav2Vec2Processor,
-        Wav2Vec2Tokenizer,
-    )
+    from .models.vit_hybrid import (VIT_HYBRID_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    ViTHybridConfig)
+    from .models.vit_mae import (VIT_MAE_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 ViTMAEConfig)
+    from .models.vit_msn import (VIT_MSN_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 ViTMSNConfig)
+    from .models.wav2vec2 import (WAV_2_VEC_2_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                  Wav2Vec2Config, Wav2Vec2CTCTokenizer,
+                                  Wav2Vec2FeatureExtractor, Wav2Vec2Processor,
+                                  Wav2Vec2Tokenizer)
     from .models.wav2vec2_conformer import (
         WAV2VEC2_CONFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Wav2Vec2ConformerConfig,
-    )
+        Wav2Vec2ConformerConfig)
     from .models.wav2vec2_phoneme import Wav2Vec2PhonemeCTCTokenizer
     from .models.wav2vec2_with_lm import Wav2Vec2ProcessorWithLM
     from .models.wavlm import WAVLM_PRETRAINED_CONFIG_ARCHIVE_MAP, WavLMConfig
-    from .models.whisper import (
-        WHISPER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        WhisperConfig,
-        WhisperFeatureExtractor,
-        WhisperProcessor,
-        WhisperTokenizer,
-    )
-    from .models.x_clip import (
-        XCLIP_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        XCLIPConfig,
-        XCLIPProcessor,
-        XCLIPTextConfig,
-        XCLIPVisionConfig,
-    )
+    from .models.whisper import (WHISPER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                 WhisperConfig, WhisperFeatureExtractor,
+                                 WhisperProcessor, WhisperTokenizer)
+    from .models.x_clip import (XCLIP_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                XCLIPConfig, XCLIPProcessor, XCLIPTextConfig,
+                                XCLIPVisionConfig)
     from .models.xglm import XGLM_PRETRAINED_CONFIG_ARCHIVE_MAP, XGLMConfig
-    from .models.xlm import XLM_PRETRAINED_CONFIG_ARCHIVE_MAP, XLMConfig, XLMTokenizer
+    from .models.xlm import (XLM_PRETRAINED_CONFIG_ARCHIVE_MAP, XLMConfig,
+                             XLMTokenizer)
     from .models.xlm_prophetnet import (
-        XLM_PROPHETNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        XLMProphetNetConfig,
-    )
-    from .models.xlm_roberta import (
-        XLM_ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        XLMRobertaConfig,
-    )
+        XLM_PROPHETNET_PRETRAINED_CONFIG_ARCHIVE_MAP, XLMProphetNetConfig)
+    from .models.xlm_roberta import (XLM_ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                     XLMRobertaConfig)
     from .models.xlm_roberta_xl import (
-        XLM_ROBERTA_XL_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        XLMRobertaXLConfig,
-    )
+        XLM_ROBERTA_XL_PRETRAINED_CONFIG_ARCHIVE_MAP, XLMRobertaXLConfig)
     from .models.xlnet import XLNET_PRETRAINED_CONFIG_ARCHIVE_MAP, XLNetConfig
     from .models.xmod import XMOD_PRETRAINED_CONFIG_ARCHIVE_MAP, XmodConfig
     from .models.yolos import YOLOS_PRETRAINED_CONFIG_ARCHIVE_MAP, YolosConfig
     from .models.yoso import YOSO_PRETRAINED_CONFIG_ARCHIVE_MAP, YosoConfig
-
     # Pipelines
-    from .pipelines import (
-        AudioClassificationPipeline,
-        AutomaticSpeechRecognitionPipeline,
-        Conversation,
-        ConversationalPipeline,
-        CsvPipelineDataFormat,
-        DepthEstimationPipeline,
-        DocumentQuestionAnsweringPipeline,
-        FeatureExtractionPipeline,
-        FillMaskPipeline,
-        ImageClassificationPipeline,
-        ImageSegmentationPipeline,
-        ImageToTextPipeline,
-        JsonPipelineDataFormat,
-        NerPipeline,
-        ObjectDetectionPipeline,
-        PipedPipelineDataFormat,
-        Pipeline,
-        PipelineDataFormat,
-        QuestionAnsweringPipeline,
-        SummarizationPipeline,
-        TableQuestionAnsweringPipeline,
-        Text2TextGenerationPipeline,
-        TextClassificationPipeline,
-        TextGenerationPipeline,
-        TokenClassificationPipeline,
-        TranslationPipeline,
-        VideoClassificationPipeline,
-        VisualQuestionAnsweringPipeline,
-        ZeroShotAudioClassificationPipeline,
-        ZeroShotClassificationPipeline,
-        ZeroShotImageClassificationPipeline,
-        ZeroShotObjectDetectionPipeline,
-        pipeline,
-    )
+    from .pipelines import (AudioClassificationPipeline,
+                            AutomaticSpeechRecognitionPipeline, Conversation,
+                            ConversationalPipeline, CsvPipelineDataFormat,
+                            DepthEstimationPipeline,
+                            DocumentQuestionAnsweringPipeline,
+                            FeatureExtractionPipeline, FillMaskPipeline,
+                            ImageClassificationPipeline,
+                            ImageSegmentationPipeline, ImageToTextPipeline,
+                            JsonPipelineDataFormat, NerPipeline,
+                            ObjectDetectionPipeline, PipedPipelineDataFormat,
+                            Pipeline, PipelineDataFormat,
+                            QuestionAnsweringPipeline, SummarizationPipeline,
+                            TableQuestionAnsweringPipeline,
+                            Text2TextGenerationPipeline,
+                            TextClassificationPipeline, TextGenerationPipeline,
+                            TokenClassificationPipeline, TranslationPipeline,
+                            VideoClassificationPipeline,
+                            VisualQuestionAnsweringPipeline,
+                            ZeroShotAudioClassificationPipeline,
+                            ZeroShotClassificationPipeline,
+                            ZeroShotImageClassificationPipeline,
+                            ZeroShotObjectDetectionPipeline, pipeline)
     from .processing_utils import ProcessorMixin
-
     # Tokenization
     from .tokenization_utils import PreTrainedTokenizer
-    from .tokenization_utils_base import (
-        AddedToken,
-        BatchEncoding,
-        CharSpan,
-        PreTrainedTokenizerBase,
-        SpecialTokensMixin,
-        TokenSpan,
-    )
-
+    from .tokenization_utils_base import (AddedToken, BatchEncoding, CharSpan,
+                                          PreTrainedTokenizerBase,
+                                          SpecialTokensMixin, TokenSpan)
     # Trainer
-    from .trainer_callback import (
-        DefaultFlowCallback,
-        EarlyStoppingCallback,
-        PrinterCallback,
-        ProgressCallback,
-        TrainerCallback,
-        TrainerControl,
-        TrainerState,
-    )
-    from .trainer_utils import (
-        EvalPrediction,
-        IntervalStrategy,
-        SchedulerType,
-        enable_full_determinism,
-        set_seed,
-    )
+    from .trainer_callback import (DefaultFlowCallback, EarlyStoppingCallback,
+                                   PrinterCallback, ProgressCallback,
+                                   TrainerCallback, TrainerControl,
+                                   TrainerState)
+    from .trainer_utils import (EvalPrediction, IntervalStrategy,
+                                SchedulerType, enable_full_determinism,
+                                set_seed)
     from .training_args import TrainingArguments
     from .training_args_seq2seq import Seq2SeqTrainingArguments
     from .training_args_tf import TFTrainingArguments
-
     # Files and general utilities
-    from .utils import (
-        CONFIG_NAME,
-        MODEL_CARD_NAME,
-        PYTORCH_PRETRAINED_BERT_CACHE,
-        PYTORCH_TRANSFORMERS_CACHE,
-        SPIECE_UNDERLINE,
-        TF2_WEIGHTS_NAME,
-        TF_WEIGHTS_NAME,
-        TRANSFORMERS_CACHE,
-        WEIGHTS_NAME,
-        TensorType,
-        add_end_docstrings,
-        add_start_docstrings,
-        is_apex_available,
-        is_bitsandbytes_available,
-        is_datasets_available,
-        is_decord_available,
-        is_faiss_available,
-        is_flax_available,
-        is_keras_nlp_available,
-        is_phonemizer_available,
-        is_psutil_available,
-        is_py3nvml_available,
-        is_pyctcdecode_available,
-        is_safetensors_available,
-        is_scipy_available,
-        is_sentencepiece_available,
-        is_sklearn_available,
-        is_speech_available,
-        is_tensorflow_text_available,
-        is_tf_available,
-        is_timm_available,
-        is_tokenizers_available,
-        is_torch_available,
-        is_torch_neuroncore_available,
-        is_torch_tpu_available,
-        is_torchvision_available,
-        is_vision_available,
-        logging,
-    )
-
+    from .utils import (CONFIG_NAME, MODEL_CARD_NAME,
+                        PYTORCH_PRETRAINED_BERT_CACHE,
+                        PYTORCH_TRANSFORMERS_CACHE, SPIECE_UNDERLINE,
+                        TF2_WEIGHTS_NAME, TF_WEIGHTS_NAME, TRANSFORMERS_CACHE,
+                        WEIGHTS_NAME, TensorType, add_end_docstrings,
+                        add_start_docstrings, is_apex_available,
+                        is_bitsandbytes_available, is_datasets_available,
+                        is_decord_available, is_faiss_available,
+                        is_flax_available, is_keras_nlp_available,
+                        is_phonemizer_available, is_psutil_available,
+                        is_py3nvml_available, is_pyctcdecode_available,
+                        is_safetensors_available, is_scipy_available,
+                        is_sentencepiece_available, is_sklearn_available,
+                        is_speech_available, is_tensorflow_text_available,
+                        is_tf_available, is_timm_available,
+                        is_tokenizers_available, is_torch_available,
+                        is_torch_neuroncore_available, is_torch_tpu_available,
+                        is_torchvision_available, is_vision_available, logging)
     # bitsandbytes config
     from .utils.quantization_config import BitsAndBytesConfig
 
@@ -5084,11 +4708,9 @@ if TYPE_CHECKING:
         from .models.deberta import DebertaTokenizerFast
         from .models.deberta_v2 import DebertaV2TokenizerFast
         from .models.distilbert import DistilBertTokenizerFast
-        from .models.dpr import (
-            DPRContextEncoderTokenizerFast,
-            DPRQuestionEncoderTokenizerFast,
-            DPRReaderTokenizerFast,
-        )
+        from .models.dpr import (DPRContextEncoderTokenizerFast,
+                                 DPRQuestionEncoderTokenizerFast,
+                                 DPRReaderTokenizerFast)
         from .models.electra import ElectraTokenizerFast
         from .models.fnet import FNetTokenizerFast
         from .models.funnel import FunnelTokenizerFast
@@ -5135,10 +4757,8 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         from .utils.dummies_sentencepiece_and_tokenizers_objects import *
     else:
-        from .convert_slow_tokenizer import (
-            SLOW_TO_FAST_CONVERTERS,
-            convert_slow_tokenizer,
-        )
+        from .convert_slow_tokenizer import (SLOW_TO_FAST_CONVERTERS,
+                                             convert_slow_tokenizer)
 
     try:
         if not is_speech_available():
@@ -5180,20 +4800,15 @@ if TYPE_CHECKING:
         from .models.bit import BitImageProcessor
         from .models.blip import BlipImageProcessor
         from .models.bridgetower import BridgeTowerImageProcessor
-        from .models.chinese_clip import (
-            ChineseCLIPFeatureExtractor,
-            ChineseCLIPImageProcessor,
-        )
+        from .models.chinese_clip import (ChineseCLIPFeatureExtractor,
+                                          ChineseCLIPImageProcessor)
         from .models.clip import CLIPFeatureExtractor, CLIPImageProcessor
-        from .models.conditional_detr import (
-            ConditionalDetrFeatureExtractor,
-            ConditionalDetrImageProcessor,
-        )
-        from .models.convnext import ConvNextFeatureExtractor, ConvNextImageProcessor
-        from .models.deformable_detr import (
-            DeformableDetrFeatureExtractor,
-            DeformableDetrImageProcessor,
-        )
+        from .models.conditional_detr import (ConditionalDetrFeatureExtractor,
+                                              ConditionalDetrImageProcessor)
+        from .models.convnext import (ConvNextFeatureExtractor,
+                                      ConvNextImageProcessor)
+        from .models.deformable_detr import (DeformableDetrFeatureExtractor,
+                                             DeformableDetrImageProcessor)
         from .models.deit import DeiTFeatureExtractor, DeiTImageProcessor
         from .models.deta import DetaImageProcessor
         from .models.detr import DetrFeatureExtractor, DetrImageProcessor
@@ -5201,49 +4816,40 @@ if TYPE_CHECKING:
         from .models.dpt import DPTFeatureExtractor, DPTImageProcessor
         from .models.efficientformer import EfficientFormerImageProcessor
         from .models.efficientnet import EfficientNetImageProcessor
-        from .models.flava import (
-            FlavaFeatureExtractor,
-            FlavaImageProcessor,
-            FlavaProcessor,
-        )
+        from .models.flava import (FlavaFeatureExtractor, FlavaImageProcessor,
+                                   FlavaProcessor)
         from .models.glpn import GLPNFeatureExtractor, GLPNImageProcessor
-        from .models.imagegpt import ImageGPTFeatureExtractor, ImageGPTImageProcessor
-        from .models.layoutlmv2 import (
-            LayoutLMv2FeatureExtractor,
-            LayoutLMv2ImageProcessor,
-        )
-        from .models.layoutlmv3 import (
-            LayoutLMv3FeatureExtractor,
-            LayoutLMv3ImageProcessor,
-        )
+        from .models.imagegpt import (ImageGPTFeatureExtractor,
+                                      ImageGPTImageProcessor)
+        from .models.layoutlmv2 import (LayoutLMv2FeatureExtractor,
+                                        LayoutLMv2ImageProcessor)
+        from .models.layoutlmv3 import (LayoutLMv3FeatureExtractor,
+                                        LayoutLMv3ImageProcessor)
         from .models.levit import LevitFeatureExtractor, LevitImageProcessor
         from .models.mask2former import Mask2FormerImageProcessor
-        from .models.maskformer import (
-            MaskFormerFeatureExtractor,
-            MaskFormerImageProcessor,
-        )
-        from .models.mobilenet_v1 import (
-            MobileNetV1FeatureExtractor,
-            MobileNetV1ImageProcessor,
-        )
-        from .models.mobilenet_v2 import (
-            MobileNetV2FeatureExtractor,
-            MobileNetV2ImageProcessor,
-        )
-        from .models.mobilevit import MobileViTFeatureExtractor, MobileViTImageProcessor
+        from .models.maskformer import (MaskFormerFeatureExtractor,
+                                        MaskFormerImageProcessor)
+        from .models.mobilenet_v1 import (MobileNetV1FeatureExtractor,
+                                          MobileNetV1ImageProcessor)
+        from .models.mobilenet_v2 import (MobileNetV2FeatureExtractor,
+                                          MobileNetV2ImageProcessor)
+        from .models.mobilevit import (MobileViTFeatureExtractor,
+                                       MobileViTImageProcessor)
         from .models.oneformer import OneFormerImageProcessor
         from .models.owlvit import OwlViTFeatureExtractor, OwlViTImageProcessor
-        from .models.perceiver import PerceiverFeatureExtractor, PerceiverImageProcessor
+        from .models.perceiver import (PerceiverFeatureExtractor,
+                                       PerceiverImageProcessor)
         from .models.pix2struct import Pix2StructImageProcessor
-        from .models.poolformer import (
-            PoolFormerFeatureExtractor,
-            PoolFormerImageProcessor,
-        )
-        from .models.segformer import SegformerFeatureExtractor, SegformerImageProcessor
+        from .models.poolformer import (PoolFormerFeatureExtractor,
+                                        PoolFormerImageProcessor)
+        from .models.segformer import (SegformerFeatureExtractor,
+                                       SegformerImageProcessor)
         from .models.swin2sr import Swin2SRImageProcessor
         from .models.tvlt import TvltImageProcessor
-        from .models.videomae import VideoMAEFeatureExtractor, VideoMAEImageProcessor
-        from .models.vilt import ViltFeatureExtractor, ViltImageProcessor, ViltProcessor
+        from .models.videomae import (VideoMAEFeatureExtractor,
+                                      VideoMAEImageProcessor)
+        from .models.vilt import (ViltFeatureExtractor, ViltImageProcessor,
+                                  ViltProcessor)
         from .models.vit import ViTFeatureExtractor, ViTImageProcessor
         from .models.vit_hybrid import ViTHybridImageProcessor
         from .models.yolos import YolosFeatureExtractor, YolosImageProcessor
@@ -5258,102 +4864,66 @@ if TYPE_CHECKING:
         # Benchmarks
         from .benchmark.benchmark import PyTorchBenchmark
         from .benchmark.benchmark_args import PyTorchBenchmarkArguments
-        from .data.datasets import (
-            GlueDataset,
-            GlueDataTrainingArguments,
-            LineByLineTextDataset,
-            LineByLineWithRefDataset,
-            LineByLineWithSOPTextDataset,
-            SquadDataset,
-            SquadDataTrainingArguments,
-            TextDataset,
-            TextDatasetForNextSentencePrediction,
-        )
-        from .generation import (
-            BeamScorer,
-            BeamSearchScorer,
-            ConstrainedBeamSearchScorer,
-            Constraint,
-            ConstraintListState,
-            DisjunctiveConstraint,
-            ForcedBOSTokenLogitsProcessor,
-            ForcedEOSTokenLogitsProcessor,
-            GenerationMixin,
-            HammingDiversityLogitsProcessor,
-            InfNanRemoveLogitsProcessor,
-            LogitsProcessor,
-            LogitsProcessorList,
-            LogitsWarper,
-            MaxLengthCriteria,
-            MaxTimeCriteria,
-            MinLengthLogitsProcessor,
-            MinNewTokensLengthLogitsProcessor,
-            NoBadWordsLogitsProcessor,
-            NoRepeatNGramLogitsProcessor,
-            PhrasalConstraint,
-            PrefixConstrainedLogitsProcessor,
-            RepetitionPenaltyLogitsProcessor,
-            StoppingCriteria,
-            StoppingCriteriaList,
-            TemperatureLogitsWarper,
-            TopKLogitsWarper,
-            TopPLogitsWarper,
-            TypicalLogitsWarper,
-            top_k_top_p_filtering,
-        )
+        from .data.datasets import (GlueDataset, GlueDataTrainingArguments,
+                                    LineByLineTextDataset,
+                                    LineByLineWithRefDataset,
+                                    LineByLineWithSOPTextDataset, SquadDataset,
+                                    SquadDataTrainingArguments, TextDataset,
+                                    TextDatasetForNextSentencePrediction)
+        from .generation import (BeamScorer, BeamSearchScorer,
+                                 ConstrainedBeamSearchScorer, Constraint,
+                                 ConstraintListState, DisjunctiveConstraint,
+                                 ForcedBOSTokenLogitsProcessor,
+                                 ForcedEOSTokenLogitsProcessor,
+                                 GenerationMixin,
+                                 HammingDiversityLogitsProcessor,
+                                 InfNanRemoveLogitsProcessor, LogitsProcessor,
+                                 LogitsProcessorList, LogitsWarper,
+                                 MaxLengthCriteria, MaxTimeCriteria,
+                                 MinLengthLogitsProcessor,
+                                 MinNewTokensLengthLogitsProcessor,
+                                 NoBadWordsLogitsProcessor,
+                                 NoRepeatNGramLogitsProcessor,
+                                 PhrasalConstraint,
+                                 PrefixConstrainedLogitsProcessor,
+                                 RepetitionPenaltyLogitsProcessor,
+                                 StoppingCriteria, StoppingCriteriaList,
+                                 TemperatureLogitsWarper, TopKLogitsWarper,
+                                 TopPLogitsWarper, TypicalLogitsWarper,
+                                 top_k_top_p_filtering)
         from .modeling_utils import PreTrainedModel
-
         # PyTorch model imports
-        from .models.albert import (
-            ALBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            AlbertForMaskedLM,
-            AlbertForMultipleChoice,
-            AlbertForPreTraining,
-            AlbertForQuestionAnswering,
-            AlbertForSequenceClassification,
-            AlbertForTokenClassification,
-            AlbertModel,
-            AlbertPreTrainedModel,
-            load_tf_weights_in_albert,
-        )
-        from .models.align import (
-            ALIGN_PRETRAINED_MODEL_ARCHIVE_LIST,
-            AlignModel,
-            AlignPreTrainedModel,
-            AlignTextModel,
-            AlignVisionModel,
-        )
-        from .models.altclip import (
-            ALTCLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
-            AltCLIPModel,
-            AltCLIPPreTrainedModel,
-            AltCLIPTextModel,
-            AltCLIPVisionModel,
-        )
+        from .models.albert import (ALBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    AlbertForMaskedLM, AlbertForMultipleChoice,
+                                    AlbertForPreTraining,
+                                    AlbertForQuestionAnswering,
+                                    AlbertForSequenceClassification,
+                                    AlbertForTokenClassification, AlbertModel,
+                                    AlbertPreTrainedModel,
+                                    load_tf_weights_in_albert)
+        from .models.align import (ALIGN_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   AlignModel, AlignPreTrainedModel,
+                                   AlignTextModel, AlignVisionModel)
+        from .models.altclip import (ALTCLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     AltCLIPModel, AltCLIPPreTrainedModel,
+                                     AltCLIPTextModel, AltCLIPVisionModel)
         from .models.audio_spectrogram_transformer import (
             AUDIO_SPECTROGRAM_TRANSFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ASTForAudioClassification,
-            ASTModel,
-            ASTPreTrainedModel,
-        )
+            ASTForAudioClassification, ASTModel, ASTPreTrainedModel)
         from .models.auto import (
             MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING,
-            MODEL_FOR_AUDIO_XVECTOR_MAPPING,
-            MODEL_FOR_BACKBONE_MAPPING,
+            MODEL_FOR_AUDIO_XVECTOR_MAPPING, MODEL_FOR_BACKBONE_MAPPING,
             MODEL_FOR_CAUSAL_IMAGE_MODELING_MAPPING,
-            MODEL_FOR_CAUSAL_LM_MAPPING,
-            MODEL_FOR_CTC_MAPPING,
+            MODEL_FOR_CAUSAL_LM_MAPPING, MODEL_FOR_CTC_MAPPING,
             MODEL_FOR_DEPTH_ESTIMATION_MAPPING,
             MODEL_FOR_DOCUMENT_QUESTION_ANSWERING_MAPPING,
             MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING,
             MODEL_FOR_IMAGE_SEGMENTATION_MAPPING,
             MODEL_FOR_INSTANCE_SEGMENTATION_MAPPING,
             MODEL_FOR_MASKED_IMAGE_MODELING_MAPPING,
-            MODEL_FOR_MASKED_LM_MAPPING,
-            MODEL_FOR_MULTIPLE_CHOICE_MAPPING,
+            MODEL_FOR_MASKED_LM_MAPPING, MODEL_FOR_MULTIPLE_CHOICE_MAPPING,
             MODEL_FOR_NEXT_SENTENCE_PREDICTION_MAPPING,
-            MODEL_FOR_OBJECT_DETECTION_MAPPING,
-            MODEL_FOR_PRETRAINING_MAPPING,
+            MODEL_FOR_OBJECT_DETECTION_MAPPING, MODEL_FOR_PRETRAINING_MAPPING,
             MODEL_FOR_QUESTION_ANSWERING_MAPPING,
             MODEL_FOR_SEMANTIC_SEGMENTATION_MAPPING,
             MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
@@ -5366,1490 +4936,887 @@ if TYPE_CHECKING:
             MODEL_FOR_VISION_2_SEQ_MAPPING,
             MODEL_FOR_VISUAL_QUESTION_ANSWERING_MAPPING,
             MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING,
-            MODEL_FOR_ZERO_SHOT_OBJECT_DETECTION_MAPPING,
-            MODEL_MAPPING,
-            MODEL_WITH_LM_HEAD_MAPPING,
-            AutoBackbone,
-            AutoModel,
+            MODEL_FOR_ZERO_SHOT_OBJECT_DETECTION_MAPPING, MODEL_MAPPING,
+            MODEL_WITH_LM_HEAD_MAPPING, AutoBackbone, AutoModel,
             AutoModelForAudioClassification,
-            AutoModelForAudioFrameClassification,
-            AutoModelForAudioXVector,
-            AutoModelForCausalLM,
-            AutoModelForCTC,
-            AutoModelForDepthEstimation,
+            AutoModelForAudioFrameClassification, AutoModelForAudioXVector,
+            AutoModelForCausalLM, AutoModelForCTC, AutoModelForDepthEstimation,
             AutoModelForDocumentQuestionAnswering,
-            AutoModelForImageClassification,
-            AutoModelForImageSegmentation,
-            AutoModelForInstanceSegmentation,
-            AutoModelForMaskedImageModeling,
-            AutoModelForMaskedLM,
-            AutoModelForMultipleChoice,
-            AutoModelForNextSentencePrediction,
-            AutoModelForObjectDetection,
-            AutoModelForPreTraining,
-            AutoModelForQuestionAnswering,
-            AutoModelForSemanticSegmentation,
-            AutoModelForSeq2SeqLM,
-            AutoModelForSequenceClassification,
-            AutoModelForSpeechSeq2Seq,
+            AutoModelForImageClassification, AutoModelForImageSegmentation,
+            AutoModelForInstanceSegmentation, AutoModelForMaskedImageModeling,
+            AutoModelForMaskedLM, AutoModelForMultipleChoice,
+            AutoModelForNextSentencePrediction, AutoModelForObjectDetection,
+            AutoModelForPreTraining, AutoModelForQuestionAnswering,
+            AutoModelForSemanticSegmentation, AutoModelForSeq2SeqLM,
+            AutoModelForSequenceClassification, AutoModelForSpeechSeq2Seq,
             AutoModelForTableQuestionAnswering,
-            AutoModelForTokenClassification,
-            AutoModelForUniversalSegmentation,
-            AutoModelForVideoClassification,
-            AutoModelForVision2Seq,
+            AutoModelForTokenClassification, AutoModelForUniversalSegmentation,
+            AutoModelForVideoClassification, AutoModelForVision2Seq,
             AutoModelForVisualQuestionAnswering,
             AutoModelForZeroShotImageClassification,
-            AutoModelForZeroShotObjectDetection,
-            AutoModelWithLMHead,
-        )
-        from .models.bart import (
-            BART_PRETRAINED_MODEL_ARCHIVE_LIST,
-            BartForCausalLM,
-            BartForConditionalGeneration,
-            BartForQuestionAnswering,
-            BartForSequenceClassification,
-            BartModel,
-            BartPretrainedModel,
-            PretrainedBartModel,
-        )
-        from .models.beit import (
-            BEIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            BeitForImageClassification,
-            BeitForMaskedImageModeling,
-            BeitForSemanticSegmentation,
-            BeitModel,
-            BeitPreTrainedModel,
-        )
-        from .models.bert import (
-            BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            BertForMaskedLM,
-            BertForMultipleChoice,
-            BertForNextSentencePrediction,
-            BertForPreTraining,
-            BertForQuestionAnswering,
-            BertForSequenceClassification,
-            BertForTokenClassification,
-            BertLayer,
-            BertLMHeadModel,
-            BertModel,
-            BertPreTrainedModel,
-            load_tf_weights_in_bert,
-        )
+            AutoModelForZeroShotObjectDetection, AutoModelWithLMHead)
+        from .models.bart import (BART_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  BartForCausalLM,
+                                  BartForConditionalGeneration,
+                                  BartForQuestionAnswering,
+                                  BartForSequenceClassification, BartModel,
+                                  BartPretrainedModel, PretrainedBartModel)
+        from .models.beit import (BEIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  BeitForImageClassification,
+                                  BeitForMaskedImageModeling,
+                                  BeitForSemanticSegmentation, BeitModel,
+                                  BeitPreTrainedModel)
+        from .models.bert import (BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  BertForMaskedLM, BertForMultipleChoice,
+                                  BertForNextSentencePrediction,
+                                  BertForPreTraining, BertForQuestionAnswering,
+                                  BertForSequenceClassification,
+                                  BertForTokenClassification, BertLayer,
+                                  BertLMHeadModel, BertModel,
+                                  BertPreTrainedModel, load_tf_weights_in_bert)
         from .models.bert_generation import (
-            BertGenerationDecoder,
-            BertGenerationEncoder,
-            BertGenerationPreTrainedModel,
-            load_tf_weights_in_bert_generation,
-        )
-        from .models.big_bird import (
-            BIG_BIRD_PRETRAINED_MODEL_ARCHIVE_LIST,
-            BigBirdForCausalLM,
-            BigBirdForMaskedLM,
-            BigBirdForMultipleChoice,
-            BigBirdForPreTraining,
-            BigBirdForQuestionAnswering,
-            BigBirdForSequenceClassification,
-            BigBirdForTokenClassification,
-            BigBirdLayer,
-            BigBirdModel,
-            BigBirdPreTrainedModel,
-            load_tf_weights_in_big_bird,
-        )
+            BertGenerationDecoder, BertGenerationEncoder,
+            BertGenerationPreTrainedModel, load_tf_weights_in_bert_generation)
+        from .models.big_bird import (BIG_BIRD_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      BigBirdForCausalLM, BigBirdForMaskedLM,
+                                      BigBirdForMultipleChoice,
+                                      BigBirdForPreTraining,
+                                      BigBirdForQuestionAnswering,
+                                      BigBirdForSequenceClassification,
+                                      BigBirdForTokenClassification,
+                                      BigBirdLayer, BigBirdModel,
+                                      BigBirdPreTrainedModel,
+                                      load_tf_weights_in_big_bird)
         from .models.bigbird_pegasus import (
             BIGBIRD_PEGASUS_PRETRAINED_MODEL_ARCHIVE_LIST,
-            BigBirdPegasusForCausalLM,
-            BigBirdPegasusForConditionalGeneration,
+            BigBirdPegasusForCausalLM, BigBirdPegasusForConditionalGeneration,
             BigBirdPegasusForQuestionAnswering,
-            BigBirdPegasusForSequenceClassification,
-            BigBirdPegasusModel,
-            BigBirdPegasusPreTrainedModel,
-        )
-        from .models.biogpt import (
-            BIOGPT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            BioGptForCausalLM,
-            BioGptForTokenClassification,
-            BioGptModel,
-            BioGptPreTrainedModel,
-        )
-        from .models.bit import (
-            BIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            BitBackbone,
-            BitForImageClassification,
-            BitModel,
-            BitPreTrainedModel,
-        )
+            BigBirdPegasusForSequenceClassification, BigBirdPegasusModel,
+            BigBirdPegasusPreTrainedModel)
+        from .models.biogpt import (BIOGPT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    BioGptForCausalLM,
+                                    BioGptForTokenClassification, BioGptModel,
+                                    BioGptPreTrainedModel)
+        from .models.bit import (BIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 BitBackbone, BitForImageClassification,
+                                 BitModel, BitPreTrainedModel)
         from .models.blenderbot import (
-            BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            BlenderbotForCausalLM,
-            BlenderbotForConditionalGeneration,
-            BlenderbotModel,
-            BlenderbotPreTrainedModel,
-        )
+            BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST, BlenderbotForCausalLM,
+            BlenderbotForConditionalGeneration, BlenderbotModel,
+            BlenderbotPreTrainedModel)
         from .models.blenderbot_small import (
             BLENDERBOT_SMALL_PRETRAINED_MODEL_ARCHIVE_LIST,
             BlenderbotSmallForCausalLM,
-            BlenderbotSmallForConditionalGeneration,
-            BlenderbotSmallModel,
-            BlenderbotSmallPreTrainedModel,
-        )
-        from .models.blip import (
-            BLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
-            BlipForConditionalGeneration,
-            BlipForImageTextRetrieval,
-            BlipForQuestionAnswering,
-            BlipModel,
-            BlipPreTrainedModel,
-            BlipTextModel,
-            BlipVisionModel,
-        )
-        from .models.blip_2 import (
-            BLIP_2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Blip2ForConditionalGeneration,
-            Blip2Model,
-            Blip2PreTrainedModel,
-            Blip2QFormerModel,
-            Blip2VisionModel,
-        )
-        from .models.bloom import (
-            BLOOM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            BloomForCausalLM,
-            BloomForQuestionAnswering,
-            BloomForSequenceClassification,
-            BloomForTokenClassification,
-            BloomModel,
-            BloomPreTrainedModel,
-        )
+            BlenderbotSmallForConditionalGeneration, BlenderbotSmallModel,
+            BlenderbotSmallPreTrainedModel)
+        from .models.blip import (BLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  BlipForConditionalGeneration,
+                                  BlipForImageTextRetrieval,
+                                  BlipForQuestionAnswering, BlipModel,
+                                  BlipPreTrainedModel, BlipTextModel,
+                                  BlipVisionModel)
+        from .models.blip_2 import (BLIP_2_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    Blip2ForConditionalGeneration, Blip2Model,
+                                    Blip2PreTrainedModel, Blip2QFormerModel,
+                                    Blip2VisionModel)
+        from .models.bloom import (BLOOM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   BloomForCausalLM, BloomForQuestionAnswering,
+                                   BloomForSequenceClassification,
+                                   BloomForTokenClassification, BloomModel,
+                                   BloomPreTrainedModel)
         from .models.bridgetower import (
             BRIDGETOWER_PRETRAINED_MODEL_ARCHIVE_LIST,
             BridgeTowerForContrastiveLearning,
-            BridgeTowerForImageAndTextRetrieval,
-            BridgeTowerForMaskedLM,
-            BridgeTowerModel,
-            BridgeTowerPreTrainedModel,
-        )
-        from .models.camembert import (
-            CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            CamembertForCausalLM,
-            CamembertForMaskedLM,
-            CamembertForMultipleChoice,
-            CamembertForQuestionAnswering,
-            CamembertForSequenceClassification,
-            CamembertForTokenClassification,
-            CamembertModel,
-            CamembertPreTrainedModel,
-        )
-        from .models.canine import (
-            CANINE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            CanineForMultipleChoice,
-            CanineForQuestionAnswering,
-            CanineForSequenceClassification,
-            CanineForTokenClassification,
-            CanineLayer,
-            CanineModel,
-            CaninePreTrainedModel,
-            load_tf_weights_in_canine,
-        )
+            BridgeTowerForImageAndTextRetrieval, BridgeTowerForMaskedLM,
+            BridgeTowerModel, BridgeTowerPreTrainedModel)
+        from .models.camembert import (CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                       CamembertForCausalLM,
+                                       CamembertForMaskedLM,
+                                       CamembertForMultipleChoice,
+                                       CamembertForQuestionAnswering,
+                                       CamembertForSequenceClassification,
+                                       CamembertForTokenClassification,
+                                       CamembertModel,
+                                       CamembertPreTrainedModel)
+        from .models.canine import (CANINE_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    CanineForMultipleChoice,
+                                    CanineForQuestionAnswering,
+                                    CanineForSequenceClassification,
+                                    CanineForTokenClassification, CanineLayer,
+                                    CanineModel, CaninePreTrainedModel,
+                                    load_tf_weights_in_canine)
         from .models.chinese_clip import (
-            CHINESE_CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ChineseCLIPModel,
-            ChineseCLIPPreTrainedModel,
-            ChineseCLIPTextModel,
-            ChineseCLIPVisionModel,
-        )
-        from .models.clap import (
-            CLAP_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ClapAudioModel,
-            ClapAudioModelWithProjection,
-            ClapFeatureExtractor,
-            ClapModel,
-            ClapPreTrainedModel,
-            ClapTextModel,
-            ClapTextModelWithProjection,
-        )
-        from .models.clip import (
-            CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
-            CLIPModel,
-            CLIPPreTrainedModel,
-            CLIPTextModel,
-            CLIPTextModelWithProjection,
-            CLIPVisionModel,
-            CLIPVisionModelWithProjection,
-        )
-        from .models.clipseg import (
-            CLIPSEG_PRETRAINED_MODEL_ARCHIVE_LIST,
-            CLIPSegForImageSegmentation,
-            CLIPSegModel,
-            CLIPSegPreTrainedModel,
-            CLIPSegTextModel,
-            CLIPSegVisionModel,
-        )
-        from .models.codegen import (
-            CODEGEN_PRETRAINED_MODEL_ARCHIVE_LIST,
-            CodeGenForCausalLM,
-            CodeGenModel,
-            CodeGenPreTrainedModel,
-        )
+            CHINESE_CLIP_PRETRAINED_MODEL_ARCHIVE_LIST, ChineseCLIPModel,
+            ChineseCLIPPreTrainedModel, ChineseCLIPTextModel,
+            ChineseCLIPVisionModel)
+        from .models.clap import (CLAP_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  ClapAudioModel, ClapAudioModelWithProjection,
+                                  ClapFeatureExtractor, ClapModel,
+                                  ClapPreTrainedModel, ClapTextModel,
+                                  ClapTextModelWithProjection)
+        from .models.clip import (CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  CLIPModel, CLIPPreTrainedModel,
+                                  CLIPTextModel, CLIPTextModelWithProjection,
+                                  CLIPVisionModel,
+                                  CLIPVisionModelWithProjection)
+        from .models.clipseg import (CLIPSEG_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     CLIPSegForImageSegmentation, CLIPSegModel,
+                                     CLIPSegPreTrainedModel, CLIPSegTextModel,
+                                     CLIPSegVisionModel)
+        from .models.codegen import (CODEGEN_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     CodeGenForCausalLM, CodeGenModel,
+                                     CodeGenPreTrainedModel)
         from .models.conditional_detr import (
             CONDITIONAL_DETR_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ConditionalDetrForObjectDetection,
-            ConditionalDetrForSegmentation,
-            ConditionalDetrModel,
-            ConditionalDetrPreTrainedModel,
-        )
-        from .models.convbert import (
-            CONVBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ConvBertForMaskedLM,
-            ConvBertForMultipleChoice,
-            ConvBertForQuestionAnswering,
-            ConvBertForSequenceClassification,
-            ConvBertForTokenClassification,
-            ConvBertLayer,
-            ConvBertModel,
-            ConvBertPreTrainedModel,
-            load_tf_weights_in_convbert,
-        )
-        from .models.convnext import (
-            CONVNEXT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ConvNextBackbone,
-            ConvNextForImageClassification,
-            ConvNextModel,
-            ConvNextPreTrainedModel,
-        )
+            ConditionalDetrForObjectDetection, ConditionalDetrForSegmentation,
+            ConditionalDetrModel, ConditionalDetrPreTrainedModel)
+        from .models.convbert import (CONVBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      ConvBertForMaskedLM,
+                                      ConvBertForMultipleChoice,
+                                      ConvBertForQuestionAnswering,
+                                      ConvBertForSequenceClassification,
+                                      ConvBertForTokenClassification,
+                                      ConvBertLayer, ConvBertModel,
+                                      ConvBertPreTrainedModel,
+                                      load_tf_weights_in_convbert)
+        from .models.convnext import (CONVNEXT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      ConvNextBackbone,
+                                      ConvNextForImageClassification,
+                                      ConvNextModel, ConvNextPreTrainedModel)
         from .models.convnextv2 import (
-            CONVNEXTV2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ConvNextV2Backbone,
-            ConvNextV2ForImageClassification,
-            ConvNextV2Model,
-            ConvNextV2PreTrainedModel,
-        )
-        from .models.cpmant import (
-            CPMANT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            CpmAntForCausalLM,
-            CpmAntModel,
-            CpmAntPreTrainedModel,
-        )
-        from .models.ctrl import (
-            CTRL_PRETRAINED_MODEL_ARCHIVE_LIST,
-            CTRLForSequenceClassification,
-            CTRLLMHeadModel,
-            CTRLModel,
-            CTRLPreTrainedModel,
-        )
-        from .models.cvt import (
-            CVT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            CvtForImageClassification,
-            CvtModel,
-            CvtPreTrainedModel,
-        )
+            CONVNEXTV2_PRETRAINED_MODEL_ARCHIVE_LIST, ConvNextV2Backbone,
+            ConvNextV2ForImageClassification, ConvNextV2Model,
+            ConvNextV2PreTrainedModel)
+        from .models.cpmant import (CPMANT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    CpmAntForCausalLM, CpmAntModel,
+                                    CpmAntPreTrainedModel)
+        from .models.ctrl import (CTRL_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  CTRLForSequenceClassification,
+                                  CTRLLMHeadModel, CTRLModel,
+                                  CTRLPreTrainedModel)
+        from .models.cvt import (CVT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 CvtForImageClassification, CvtModel,
+                                 CvtPreTrainedModel)
         from .models.data2vec import (
             DATA2VEC_AUDIO_PRETRAINED_MODEL_ARCHIVE_LIST,
             DATA2VEC_TEXT_PRETRAINED_MODEL_ARCHIVE_LIST,
             DATA2VEC_VISION_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Data2VecAudioForAudioFrameClassification,
-            Data2VecAudioForCTC,
-            Data2VecAudioForSequenceClassification,
-            Data2VecAudioForXVector,
-            Data2VecAudioModel,
-            Data2VecAudioPreTrainedModel,
-            Data2VecTextForCausalLM,
-            Data2VecTextForMaskedLM,
-            Data2VecTextForMultipleChoice,
-            Data2VecTextForQuestionAnswering,
+            Data2VecAudioForAudioFrameClassification, Data2VecAudioForCTC,
+            Data2VecAudioForSequenceClassification, Data2VecAudioForXVector,
+            Data2VecAudioModel, Data2VecAudioPreTrainedModel,
+            Data2VecTextForCausalLM, Data2VecTextForMaskedLM,
+            Data2VecTextForMultipleChoice, Data2VecTextForQuestionAnswering,
             Data2VecTextForSequenceClassification,
-            Data2VecTextForTokenClassification,
-            Data2VecTextModel,
-            Data2VecTextPreTrainedModel,
-            Data2VecVisionForImageClassification,
-            Data2VecVisionForSemanticSegmentation,
-            Data2VecVisionModel,
-            Data2VecVisionPreTrainedModel,
-        )
-        from .models.deberta import (
-            DEBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DebertaForMaskedLM,
-            DebertaForQuestionAnswering,
-            DebertaForSequenceClassification,
-            DebertaForTokenClassification,
-            DebertaModel,
-            DebertaPreTrainedModel,
-        )
+            Data2VecTextForTokenClassification, Data2VecTextModel,
+            Data2VecTextPreTrainedModel, Data2VecVisionForImageClassification,
+            Data2VecVisionForSemanticSegmentation, Data2VecVisionModel,
+            Data2VecVisionPreTrainedModel)
+        from .models.deberta import (DEBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     DebertaForMaskedLM,
+                                     DebertaForQuestionAnswering,
+                                     DebertaForSequenceClassification,
+                                     DebertaForTokenClassification,
+                                     DebertaModel, DebertaPreTrainedModel)
         from .models.deberta_v2 import (
-            DEBERTA_V2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DebertaV2ForMaskedLM,
-            DebertaV2ForMultipleChoice,
-            DebertaV2ForQuestionAnswering,
+            DEBERTA_V2_PRETRAINED_MODEL_ARCHIVE_LIST, DebertaV2ForMaskedLM,
+            DebertaV2ForMultipleChoice, DebertaV2ForQuestionAnswering,
             DebertaV2ForSequenceClassification,
-            DebertaV2ForTokenClassification,
-            DebertaV2Model,
-            DebertaV2PreTrainedModel,
-        )
+            DebertaV2ForTokenClassification, DebertaV2Model,
+            DebertaV2PreTrainedModel)
         from .models.decision_transformer import (
             DECISION_TRANSFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
             DecisionTransformerGPT2Model,
-            DecisionTransformerGPT2PreTrainedModel,
-            DecisionTransformerModel,
-            DecisionTransformerPreTrainedModel,
-        )
+            DecisionTransformerGPT2PreTrainedModel, DecisionTransformerModel,
+            DecisionTransformerPreTrainedModel)
         from .models.deformable_detr import (
             DEFORMABLE_DETR_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DeformableDetrForObjectDetection,
-            DeformableDetrModel,
-            DeformableDetrPreTrainedModel,
-        )
-        from .models.deit import (
-            DEIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DeiTForImageClassification,
-            DeiTForImageClassificationWithTeacher,
-            DeiTForMaskedImageModeling,
-            DeiTModel,
-            DeiTPreTrainedModel,
-        )
-        from .models.deta import (
-            DETA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DetaForObjectDetection,
-            DetaModel,
-            DetaPreTrainedModel,
-        )
-        from .models.detr import (
-            DETR_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DetrForObjectDetection,
-            DetrForSegmentation,
-            DetrModel,
-            DetrPreTrainedModel,
-        )
-        from .models.dinat import (
-            DINAT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DinatBackbone,
-            DinatForImageClassification,
-            DinatModel,
-            DinatPreTrainedModel,
-        )
+            DeformableDetrForObjectDetection, DeformableDetrModel,
+            DeformableDetrPreTrainedModel)
+        from .models.deit import (DEIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  DeiTForImageClassification,
+                                  DeiTForImageClassificationWithTeacher,
+                                  DeiTForMaskedImageModeling, DeiTModel,
+                                  DeiTPreTrainedModel)
+        from .models.deta import (DETA_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  DetaForObjectDetection, DetaModel,
+                                  DetaPreTrainedModel)
+        from .models.detr import (DETR_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  DetrForObjectDetection, DetrForSegmentation,
+                                  DetrModel, DetrPreTrainedModel)
+        from .models.dinat import (DINAT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   DinatBackbone, DinatForImageClassification,
+                                   DinatModel, DinatPreTrainedModel)
         from .models.distilbert import (
-            DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DistilBertForMaskedLM,
-            DistilBertForMultipleChoice,
-            DistilBertForQuestionAnswering,
+            DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST, DistilBertForMaskedLM,
+            DistilBertForMultipleChoice, DistilBertForQuestionAnswering,
             DistilBertForSequenceClassification,
-            DistilBertForTokenClassification,
-            DistilBertModel,
-            DistilBertPreTrainedModel,
-        )
-        from .models.donut import (
-            DONUT_SWIN_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DonutSwinModel,
-            DonutSwinPreTrainedModel,
-        )
+            DistilBertForTokenClassification, DistilBertModel,
+            DistilBertPreTrainedModel)
+        from .models.donut import (DONUT_SWIN_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   DonutSwinModel, DonutSwinPreTrainedModel)
         from .models.dpr import (
             DPR_CONTEXT_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST,
             DPR_QUESTION_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DPR_READER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DPRContextEncoder,
-            DPRPretrainedContextEncoder,
-            DPRPreTrainedModel,
-            DPRPretrainedQuestionEncoder,
-            DPRPretrainedReader,
-            DPRQuestionEncoder,
-            DPRReader,
-        )
-        from .models.dpt import (
-            DPT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DPTForDepthEstimation,
-            DPTForSemanticSegmentation,
-            DPTModel,
-            DPTPreTrainedModel,
-        )
+            DPR_READER_PRETRAINED_MODEL_ARCHIVE_LIST, DPRContextEncoder,
+            DPRPretrainedContextEncoder, DPRPreTrainedModel,
+            DPRPretrainedQuestionEncoder, DPRPretrainedReader,
+            DPRQuestionEncoder, DPRReader)
+        from .models.dpt import (DPT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 DPTForDepthEstimation,
+                                 DPTForSemanticSegmentation, DPTModel,
+                                 DPTPreTrainedModel)
         from .models.efficientformer import (
             EFFICIENTFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
             EfficientFormerForImageClassification,
             EfficientFormerForImageClassificationWithTeacher,
-            EfficientFormerModel,
-            EfficientFormerPreTrainedModel,
-        )
+            EfficientFormerModel, EfficientFormerPreTrainedModel)
         from .models.efficientnet import (
             EFFICIENTNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            EfficientNetForImageClassification,
-            EfficientNetModel,
-            EfficientNetPreTrainedModel,
-        )
-        from .models.electra import (
-            ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ElectraForCausalLM,
-            ElectraForMaskedLM,
-            ElectraForMultipleChoice,
-            ElectraForPreTraining,
-            ElectraForQuestionAnswering,
-            ElectraForSequenceClassification,
-            ElectraForTokenClassification,
-            ElectraModel,
-            ElectraPreTrainedModel,
-            load_tf_weights_in_electra,
-        )
+            EfficientNetForImageClassification, EfficientNetModel,
+            EfficientNetPreTrainedModel)
+        from .models.electra import (ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     ElectraForCausalLM, ElectraForMaskedLM,
+                                     ElectraForMultipleChoice,
+                                     ElectraForPreTraining,
+                                     ElectraForQuestionAnswering,
+                                     ElectraForSequenceClassification,
+                                     ElectraForTokenClassification,
+                                     ElectraModel, ElectraPreTrainedModel,
+                                     load_tf_weights_in_electra)
         from .models.encoder_decoder import EncoderDecoderModel
-        from .models.ernie import (
-            ERNIE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ErnieForCausalLM,
-            ErnieForMaskedLM,
-            ErnieForMultipleChoice,
-            ErnieForNextSentencePrediction,
-            ErnieForPreTraining,
-            ErnieForQuestionAnswering,
-            ErnieForSequenceClassification,
-            ErnieForTokenClassification,
-            ErnieModel,
-            ErniePreTrainedModel,
-        )
-        from .models.ernie_m import (
-            ERNIE_M_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ErnieMForInformationExtraction,
-            ErnieMForMultipleChoice,
-            ErnieMForQuestionAnswering,
-            ErnieMForSequenceClassification,
-            ErnieMForTokenClassification,
-            ErnieMModel,
-            ErnieMPreTrainedModel,
-        )
-        from .models.esm import (
-            ESM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            EsmFoldPreTrainedModel,
-            EsmForMaskedLM,
-            EsmForProteinFolding,
-            EsmForSequenceClassification,
-            EsmForTokenClassification,
-            EsmModel,
-            EsmPreTrainedModel,
-        )
-        from .models.flaubert import (
-            FLAUBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            FlaubertForMultipleChoice,
-            FlaubertForQuestionAnswering,
-            FlaubertForQuestionAnsweringSimple,
-            FlaubertForSequenceClassification,
-            FlaubertForTokenClassification,
-            FlaubertModel,
-            FlaubertPreTrainedModel,
-            FlaubertWithLMHeadModel,
-        )
-        from .models.flava import (
-            FLAVA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            FlavaForPreTraining,
-            FlavaImageCodebook,
-            FlavaImageModel,
-            FlavaModel,
-            FlavaMultimodalModel,
-            FlavaPreTrainedModel,
-            FlavaTextModel,
-        )
-        from .models.fnet import (
-            FNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            FNetForMaskedLM,
-            FNetForMultipleChoice,
-            FNetForNextSentencePrediction,
-            FNetForPreTraining,
-            FNetForQuestionAnswering,
-            FNetForSequenceClassification,
-            FNetForTokenClassification,
-            FNetLayer,
-            FNetModel,
-            FNetPreTrainedModel,
-        )
-        from .models.fsmt import (
-            FSMTForConditionalGeneration,
-            FSMTModel,
-            PretrainedFSMTModel,
-        )
-        from .models.funnel import (
-            FUNNEL_PRETRAINED_MODEL_ARCHIVE_LIST,
-            FunnelBaseModel,
-            FunnelForMaskedLM,
-            FunnelForMultipleChoice,
-            FunnelForPreTraining,
-            FunnelForQuestionAnswering,
-            FunnelForSequenceClassification,
-            FunnelForTokenClassification,
-            FunnelModel,
-            FunnelPreTrainedModel,
-            load_tf_weights_in_funnel,
-        )
-        from .models.git import (
-            GIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GitForCausalLM,
-            GitModel,
-            GitPreTrainedModel,
-            GitVisionModel,
-        )
-        from .models.glpn import (
-            GLPN_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GLPNForDepthEstimation,
-            GLPNModel,
-            GLPNPreTrainedModel,
-        )
-        from .models.gpt2 import (
-            GPT2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GPT2DoubleHeadsModel,
-            GPT2ForSequenceClassification,
-            GPT2ForTokenClassification,
-            GPT2LMHeadModel,
-            GPT2Model,
-            GPT2PreTrainedModel,
-            load_tf_weights_in_gpt2,
-        )
+        from .models.ernie import (ERNIE_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   ErnieForCausalLM, ErnieForMaskedLM,
+                                   ErnieForMultipleChoice,
+                                   ErnieForNextSentencePrediction,
+                                   ErnieForPreTraining,
+                                   ErnieForQuestionAnswering,
+                                   ErnieForSequenceClassification,
+                                   ErnieForTokenClassification, ErnieModel,
+                                   ErniePreTrainedModel)
+        from .models.ernie_m import (ERNIE_M_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     ErnieMForInformationExtraction,
+                                     ErnieMForMultipleChoice,
+                                     ErnieMForQuestionAnswering,
+                                     ErnieMForSequenceClassification,
+                                     ErnieMForTokenClassification, ErnieMModel,
+                                     ErnieMPreTrainedModel)
+        from .models.esm import (ESM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 EsmFoldPreTrainedModel, EsmForMaskedLM,
+                                 EsmForProteinFolding,
+                                 EsmForSequenceClassification,
+                                 EsmForTokenClassification, EsmModel,
+                                 EsmPreTrainedModel)
+        from .models.flaubert import (FLAUBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      FlaubertForMultipleChoice,
+                                      FlaubertForQuestionAnswering,
+                                      FlaubertForQuestionAnsweringSimple,
+                                      FlaubertForSequenceClassification,
+                                      FlaubertForTokenClassification,
+                                      FlaubertModel, FlaubertPreTrainedModel,
+                                      FlaubertWithLMHeadModel)
+        from .models.flava import (FLAVA_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   FlavaForPreTraining, FlavaImageCodebook,
+                                   FlavaImageModel, FlavaModel,
+                                   FlavaMultimodalModel, FlavaPreTrainedModel,
+                                   FlavaTextModel)
+        from .models.fnet import (FNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  FNetForMaskedLM, FNetForMultipleChoice,
+                                  FNetForNextSentencePrediction,
+                                  FNetForPreTraining, FNetForQuestionAnswering,
+                                  FNetForSequenceClassification,
+                                  FNetForTokenClassification, FNetLayer,
+                                  FNetModel, FNetPreTrainedModel)
+        from .models.fsmt import (FSMTForConditionalGeneration, FSMTModel,
+                                  PretrainedFSMTModel)
+        from .models.funnel import (FUNNEL_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    FunnelBaseModel, FunnelForMaskedLM,
+                                    FunnelForMultipleChoice,
+                                    FunnelForPreTraining,
+                                    FunnelForQuestionAnswering,
+                                    FunnelForSequenceClassification,
+                                    FunnelForTokenClassification, FunnelModel,
+                                    FunnelPreTrainedModel,
+                                    load_tf_weights_in_funnel)
+        from .models.git import (GIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 GitForCausalLM, GitModel, GitPreTrainedModel,
+                                 GitVisionModel)
+        from .models.glpn import (GLPN_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  GLPNForDepthEstimation, GLPNModel,
+                                  GLPNPreTrainedModel)
+        from .models.gpt2 import (GPT2_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  GPT2DoubleHeadsModel,
+                                  GPT2ForSequenceClassification,
+                                  GPT2ForTokenClassification, GPT2LMHeadModel,
+                                  GPT2Model, GPT2PreTrainedModel,
+                                  load_tf_weights_in_gpt2)
         from .models.gpt_bigcode import (
-            GPT_BIGCODE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GPTBigCodeForCausalLM,
+            GPT_BIGCODE_PRETRAINED_MODEL_ARCHIVE_LIST, GPTBigCodeForCausalLM,
             GPTBigCodeForSequenceClassification,
-            GPTBigCodeForTokenClassification,
-            GPTBigCodeModel,
-            GPTBigCodePreTrainedModel,
-        )
-        from .models.gpt_neo import (
-            GPT_NEO_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GPTNeoForCausalLM,
-            GPTNeoForSequenceClassification,
-            GPTNeoModel,
-            GPTNeoPreTrainedModel,
-            load_tf_weights_in_gpt_neo,
-        )
-        from .models.gpt_neox import (
-            GPT_NEOX_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GPTNeoXForCausalLM,
-            GPTNeoXForSequenceClassification,
-            GPTNeoXLayer,
-            GPTNeoXModel,
-            GPTNeoXPreTrainedModel,
-        )
+            GPTBigCodeForTokenClassification, GPTBigCodeModel,
+            GPTBigCodePreTrainedModel)
+        from .models.gpt_neo import (GPT_NEO_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     GPTNeoForCausalLM,
+                                     GPTNeoForSequenceClassification,
+                                     GPTNeoModel, GPTNeoPreTrainedModel,
+                                     load_tf_weights_in_gpt_neo)
+        from .models.gpt_neox import (GPT_NEOX_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      GPTNeoXForCausalLM,
+                                      GPTNeoXForSequenceClassification,
+                                      GPTNeoXLayer, GPTNeoXModel,
+                                      GPTNeoXPreTrainedModel)
         from .models.gpt_neox_japanese import (
             GPT_NEOX_JAPANESE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GPTNeoXJapaneseForCausalLM,
-            GPTNeoXJapaneseLayer,
-            GPTNeoXJapaneseModel,
-            GPTNeoXJapanesePreTrainedModel,
-        )
-        from .models.gptj import (
-            GPTJ_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GPTJForCausalLM,
-            GPTJForQuestionAnswering,
-            GPTJForSequenceClassification,
-            GPTJModel,
-            GPTJPreTrainedModel,
-        )
+            GPTNeoXJapaneseForCausalLM, GPTNeoXJapaneseLayer,
+            GPTNeoXJapaneseModel, GPTNeoXJapanesePreTrainedModel)
+        from .models.gptj import (GPTJ_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  GPTJForCausalLM, GPTJForQuestionAnswering,
+                                  GPTJForSequenceClassification, GPTJModel,
+                                  GPTJPreTrainedModel)
         from .models.gptsan_japanese import (
             GPTSAN_JAPANESE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GPTSanJapaneseForConditionalGeneration,
-            GPTSanJapaneseModel,
-            GPTSanJapanesePreTrainedModel,
-        )
+            GPTSanJapaneseForConditionalGeneration, GPTSanJapaneseModel,
+            GPTSanJapanesePreTrainedModel)
         from .models.graphormer import (
             GRAPHORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GraphormerForGraphClassification,
-            GraphormerModel,
-            GraphormerPreTrainedModel,
-        )
-        from .models.groupvit import (
-            GROUPVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GroupViTModel,
-            GroupViTPreTrainedModel,
-            GroupViTTextModel,
-            GroupViTVisionModel,
-        )
-        from .models.hubert import (
-            HUBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            HubertForCTC,
-            HubertForSequenceClassification,
-            HubertModel,
-            HubertPreTrainedModel,
-        )
-        from .models.ibert import (
-            IBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            IBertForMaskedLM,
-            IBertForMultipleChoice,
-            IBertForQuestionAnswering,
-            IBertForSequenceClassification,
-            IBertForTokenClassification,
-            IBertModel,
-            IBertPreTrainedModel,
-        )
-        from .models.imagegpt import (
-            IMAGEGPT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ImageGPTForCausalImageModeling,
-            ImageGPTForImageClassification,
-            ImageGPTModel,
-            ImageGPTPreTrainedModel,
-            load_tf_weights_in_imagegpt,
-        )
-        from .models.informer import (
-            INFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            InformerForPrediction,
-            InformerModel,
-            InformerPreTrainedModel,
-        )
-        from .models.jukebox import (
-            JUKEBOX_PRETRAINED_MODEL_ARCHIVE_LIST,
-            JukeboxModel,
-            JukeboxPreTrainedModel,
-            JukeboxPrior,
-            JukeboxVQVAE,
-        )
-        from .models.layoutlm import (
-            LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            LayoutLMForMaskedLM,
-            LayoutLMForQuestionAnswering,
-            LayoutLMForSequenceClassification,
-            LayoutLMForTokenClassification,
-            LayoutLMModel,
-            LayoutLMPreTrainedModel,
-        )
+            GraphormerForGraphClassification, GraphormerModel,
+            GraphormerPreTrainedModel)
+        from .models.groupvit import (GROUPVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      GroupViTModel, GroupViTPreTrainedModel,
+                                      GroupViTTextModel, GroupViTVisionModel)
+        from .models.hubert import (HUBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    HubertForCTC,
+                                    HubertForSequenceClassification,
+                                    HubertModel, HubertPreTrainedModel)
+        from .models.ibert import (IBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   IBertForMaskedLM, IBertForMultipleChoice,
+                                   IBertForQuestionAnswering,
+                                   IBertForSequenceClassification,
+                                   IBertForTokenClassification, IBertModel,
+                                   IBertPreTrainedModel)
+        from .models.imagegpt import (IMAGEGPT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      ImageGPTForCausalImageModeling,
+                                      ImageGPTForImageClassification,
+                                      ImageGPTModel, ImageGPTPreTrainedModel,
+                                      load_tf_weights_in_imagegpt)
+        from .models.informer import (INFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      InformerForPrediction, InformerModel,
+                                      InformerPreTrainedModel)
+        from .models.jukebox import (JUKEBOX_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     JukeboxModel, JukeboxPreTrainedModel,
+                                     JukeboxPrior, JukeboxVQVAE)
+        from .models.layoutlm import (LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      LayoutLMForMaskedLM,
+                                      LayoutLMForQuestionAnswering,
+                                      LayoutLMForSequenceClassification,
+                                      LayoutLMForTokenClassification,
+                                      LayoutLMModel, LayoutLMPreTrainedModel)
         from .models.layoutlmv2 import (
             LAYOUTLMV2_PRETRAINED_MODEL_ARCHIVE_LIST,
             LayoutLMv2ForQuestionAnswering,
             LayoutLMv2ForSequenceClassification,
-            LayoutLMv2ForTokenClassification,
-            LayoutLMv2Model,
-            LayoutLMv2PreTrainedModel,
-        )
+            LayoutLMv2ForTokenClassification, LayoutLMv2Model,
+            LayoutLMv2PreTrainedModel)
         from .models.layoutlmv3 import (
             LAYOUTLMV3_PRETRAINED_MODEL_ARCHIVE_LIST,
             LayoutLMv3ForQuestionAnswering,
             LayoutLMv3ForSequenceClassification,
-            LayoutLMv3ForTokenClassification,
-            LayoutLMv3Model,
-            LayoutLMv3PreTrainedModel,
-        )
-        from .models.led import (
-            LED_PRETRAINED_MODEL_ARCHIVE_LIST,
-            LEDForConditionalGeneration,
-            LEDForQuestionAnswering,
-            LEDForSequenceClassification,
-            LEDModel,
-            LEDPreTrainedModel,
-        )
-        from .models.levit import (
-            LEVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            LevitForImageClassification,
-            LevitForImageClassificationWithTeacher,
-            LevitModel,
-            LevitPreTrainedModel,
-        )
-        from .models.lilt import (
-            LILT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            LiltForQuestionAnswering,
-            LiltForSequenceClassification,
-            LiltForTokenClassification,
-            LiltModel,
-            LiltPreTrainedModel,
-        )
-        from .models.llama import (
-            LlamaForCausalLM,
-            LlamaForSequenceClassification,
-            LlamaModel,
-            LlamaPreTrainedModel,
-        )
+            LayoutLMv3ForTokenClassification, LayoutLMv3Model,
+            LayoutLMv3PreTrainedModel)
+        from .models.led import (LED_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 LEDForConditionalGeneration,
+                                 LEDForQuestionAnswering,
+                                 LEDForSequenceClassification, LEDModel,
+                                 LEDPreTrainedModel)
+        from .models.levit import (LEVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   LevitForImageClassification,
+                                   LevitForImageClassificationWithTeacher,
+                                   LevitModel, LevitPreTrainedModel)
+        from .models.lilt import (LILT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  LiltForQuestionAnswering,
+                                  LiltForSequenceClassification,
+                                  LiltForTokenClassification, LiltModel,
+                                  LiltPreTrainedModel)
+        from .models.llama import (LlamaForCausalLM,
+                                   LlamaForSequenceClassification, LlamaModel,
+                                   LlamaPreTrainedModel)
         from .models.longformer import (
-            LONGFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            LongformerForMaskedLM,
-            LongformerForMultipleChoice,
-            LongformerForQuestionAnswering,
+            LONGFORMER_PRETRAINED_MODEL_ARCHIVE_LIST, LongformerForMaskedLM,
+            LongformerForMultipleChoice, LongformerForQuestionAnswering,
             LongformerForSequenceClassification,
-            LongformerForTokenClassification,
-            LongformerModel,
-            LongformerPreTrainedModel,
-            LongformerSelfAttention,
-        )
-        from .models.longt5 import (
-            LONGT5_PRETRAINED_MODEL_ARCHIVE_LIST,
-            LongT5EncoderModel,
-            LongT5ForConditionalGeneration,
-            LongT5Model,
-            LongT5PreTrainedModel,
-        )
-        from .models.luke import (
-            LUKE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            LukeForEntityClassification,
-            LukeForEntityPairClassification,
-            LukeForEntitySpanClassification,
-            LukeForMaskedLM,
-            LukeForMultipleChoice,
-            LukeForQuestionAnswering,
-            LukeForSequenceClassification,
-            LukeForTokenClassification,
-            LukeModel,
-            LukePreTrainedModel,
-        )
-        from .models.lxmert import (
-            LxmertEncoder,
-            LxmertForPreTraining,
-            LxmertForQuestionAnswering,
-            LxmertModel,
-            LxmertPreTrainedModel,
-            LxmertVisualFeatureEncoder,
-            LxmertXLayer,
-        )
-        from .models.m2m_100 import (
-            M2M_100_PRETRAINED_MODEL_ARCHIVE_LIST,
-            M2M100ForConditionalGeneration,
-            M2M100Model,
-            M2M100PreTrainedModel,
-        )
-        from .models.marian import MarianForCausalLM, MarianModel, MarianMTModel
-        from .models.markuplm import (
-            MARKUPLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MarkupLMForQuestionAnswering,
-            MarkupLMForSequenceClassification,
-            MarkupLMForTokenClassification,
-            MarkupLMModel,
-            MarkupLMPreTrainedModel,
-        )
+            LongformerForTokenClassification, LongformerModel,
+            LongformerPreTrainedModel, LongformerSelfAttention)
+        from .models.longt5 import (LONGT5_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    LongT5EncoderModel,
+                                    LongT5ForConditionalGeneration,
+                                    LongT5Model, LongT5PreTrainedModel)
+        from .models.luke import (LUKE_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  LukeForEntityClassification,
+                                  LukeForEntityPairClassification,
+                                  LukeForEntitySpanClassification,
+                                  LukeForMaskedLM, LukeForMultipleChoice,
+                                  LukeForQuestionAnswering,
+                                  LukeForSequenceClassification,
+                                  LukeForTokenClassification, LukeModel,
+                                  LukePreTrainedModel)
+        from .models.lxmert import (LxmertEncoder, LxmertForPreTraining,
+                                    LxmertForQuestionAnswering, LxmertModel,
+                                    LxmertPreTrainedModel,
+                                    LxmertVisualFeatureEncoder, LxmertXLayer)
+        from .models.m2m_100 import (M2M_100_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     M2M100ForConditionalGeneration,
+                                     M2M100Model, M2M100PreTrainedModel)
+        from .models.marian import (MarianForCausalLM, MarianModel,
+                                    MarianMTModel)
+        from .models.markuplm import (MARKUPLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      MarkupLMForQuestionAnswering,
+                                      MarkupLMForSequenceClassification,
+                                      MarkupLMForTokenClassification,
+                                      MarkupLMModel, MarkupLMPreTrainedModel)
         from .models.mask2former import (
             MASK2FORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Mask2FormerForUniversalSegmentation,
-            Mask2FormerModel,
-            Mask2FormerPreTrainedModel,
-        )
+            Mask2FormerForUniversalSegmentation, Mask2FormerModel,
+            Mask2FormerPreTrainedModel)
         from .models.maskformer import (
             MASKFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MaskFormerForInstanceSegmentation,
-            MaskFormerModel,
-            MaskFormerPreTrainedModel,
-            MaskFormerSwinBackbone,
-        )
-        from .models.mbart import (
-            MBartForCausalLM,
-            MBartForConditionalGeneration,
-            MBartForQuestionAnswering,
-            MBartForSequenceClassification,
-            MBartModel,
-            MBartPreTrainedModel,
-        )
-        from .models.mctct import (
-            MCTCT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MCTCTForCTC,
-            MCTCTModel,
-            MCTCTPreTrainedModel,
-        )
-        from .models.mega import (
-            MEGA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MegaForCausalLM,
-            MegaForMaskedLM,
-            MegaForMultipleChoice,
-            MegaForQuestionAnswering,
-            MegaForSequenceClassification,
-            MegaForTokenClassification,
-            MegaModel,
-            MegaPreTrainedModel,
-        )
+            MaskFormerForInstanceSegmentation, MaskFormerModel,
+            MaskFormerPreTrainedModel, MaskFormerSwinBackbone)
+        from .models.mbart import (MBartForCausalLM,
+                                   MBartForConditionalGeneration,
+                                   MBartForQuestionAnswering,
+                                   MBartForSequenceClassification, MBartModel,
+                                   MBartPreTrainedModel)
+        from .models.mctct import (MCTCT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   MCTCTForCTC, MCTCTModel,
+                                   MCTCTPreTrainedModel)
+        from .models.mega import (MEGA_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  MegaForCausalLM, MegaForMaskedLM,
+                                  MegaForMultipleChoice,
+                                  MegaForQuestionAnswering,
+                                  MegaForSequenceClassification,
+                                  MegaForTokenClassification, MegaModel,
+                                  MegaPreTrainedModel)
         from .models.megatron_bert import (
             MEGATRON_BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MegatronBertForCausalLM,
-            MegatronBertForMaskedLM,
+            MegatronBertForCausalLM, MegatronBertForMaskedLM,
             MegatronBertForMultipleChoice,
-            MegatronBertForNextSentencePrediction,
-            MegatronBertForPreTraining,
+            MegatronBertForNextSentencePrediction, MegatronBertForPreTraining,
             MegatronBertForQuestionAnswering,
             MegatronBertForSequenceClassification,
-            MegatronBertForTokenClassification,
-            MegatronBertModel,
-            MegatronBertPreTrainedModel,
-        )
-        from .models.mgp_str import (
-            MGP_STR_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MgpstrForSceneTextRecognition,
-            MgpstrModel,
-            MgpstrPreTrainedModel,
-        )
-        from .models.mmbt import MMBTForClassification, MMBTModel, ModalEmbeddings
+            MegatronBertForTokenClassification, MegatronBertModel,
+            MegatronBertPreTrainedModel)
+        from .models.mgp_str import (MGP_STR_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     MgpstrForSceneTextRecognition,
+                                     MgpstrModel, MgpstrPreTrainedModel)
+        from .models.mmbt import (MMBTForClassification, MMBTModel,
+                                  ModalEmbeddings)
         from .models.mobilebert import (
-            MOBILEBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MobileBertForMaskedLM,
-            MobileBertForMultipleChoice,
-            MobileBertForNextSentencePrediction,
-            MobileBertForPreTraining,
-            MobileBertForQuestionAnswering,
+            MOBILEBERT_PRETRAINED_MODEL_ARCHIVE_LIST, MobileBertForMaskedLM,
+            MobileBertForMultipleChoice, MobileBertForNextSentencePrediction,
+            MobileBertForPreTraining, MobileBertForQuestionAnswering,
             MobileBertForSequenceClassification,
-            MobileBertForTokenClassification,
-            MobileBertLayer,
-            MobileBertModel,
-            MobileBertPreTrainedModel,
-            load_tf_weights_in_mobilebert,
-        )
+            MobileBertForTokenClassification, MobileBertLayer, MobileBertModel,
+            MobileBertPreTrainedModel, load_tf_weights_in_mobilebert)
         from .models.mobilenet_v1 import (
             MOBILENET_V1_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MobileNetV1ForImageClassification,
-            MobileNetV1Model,
-            MobileNetV1PreTrainedModel,
-            load_tf_weights_in_mobilenet_v1,
-        )
+            MobileNetV1ForImageClassification, MobileNetV1Model,
+            MobileNetV1PreTrainedModel, load_tf_weights_in_mobilenet_v1)
         from .models.mobilenet_v2 import (
             MOBILENET_V2_PRETRAINED_MODEL_ARCHIVE_LIST,
             MobileNetV2ForImageClassification,
-            MobileNetV2ForSemanticSegmentation,
-            MobileNetV2Model,
-            MobileNetV2PreTrainedModel,
-            load_tf_weights_in_mobilenet_v2,
-        )
-        from .models.mobilevit import (
-            MOBILEVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MobileViTForImageClassification,
-            MobileViTForSemanticSegmentation,
-            MobileViTModel,
-            MobileViTPreTrainedModel,
-        )
-        from .models.mpnet import (
-            MPNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MPNetForMaskedLM,
-            MPNetForMultipleChoice,
-            MPNetForQuestionAnswering,
-            MPNetForSequenceClassification,
-            MPNetForTokenClassification,
-            MPNetLayer,
-            MPNetModel,
-            MPNetPreTrainedModel,
-        )
-        from .models.mt5 import (
-            MT5EncoderModel,
-            MT5ForConditionalGeneration,
-            MT5Model,
-            MT5PreTrainedModel,
-        )
-        from .models.mvp import (
-            MVP_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MvpForCausalLM,
-            MvpForConditionalGeneration,
-            MvpForQuestionAnswering,
-            MvpForSequenceClassification,
-            MvpModel,
-            MvpPreTrainedModel,
-        )
-        from .models.nat import (
-            NAT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            NatBackbone,
-            NatForImageClassification,
-            NatModel,
-            NatPreTrainedModel,
-        )
-        from .models.nezha import (
-            NEZHA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            NezhaForMaskedLM,
-            NezhaForMultipleChoice,
-            NezhaForNextSentencePrediction,
-            NezhaForPreTraining,
-            NezhaForQuestionAnswering,
-            NezhaForSequenceClassification,
-            NezhaForTokenClassification,
-            NezhaModel,
-            NezhaPreTrainedModel,
-        )
-        from .models.nllb_moe import (
-            NLLB_MOE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            NllbMoeForConditionalGeneration,
-            NllbMoeModel,
-            NllbMoePreTrainedModel,
-            NllbMoeSparseMLP,
-            NllbMoeTop2Router,
-        )
+            MobileNetV2ForSemanticSegmentation, MobileNetV2Model,
+            MobileNetV2PreTrainedModel, load_tf_weights_in_mobilenet_v2)
+        from .models.mobilevit import (MOBILEVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                       MobileViTForImageClassification,
+                                       MobileViTForSemanticSegmentation,
+                                       MobileViTModel,
+                                       MobileViTPreTrainedModel)
+        from .models.mpnet import (MPNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   MPNetForMaskedLM, MPNetForMultipleChoice,
+                                   MPNetForQuestionAnswering,
+                                   MPNetForSequenceClassification,
+                                   MPNetForTokenClassification, MPNetLayer,
+                                   MPNetModel, MPNetPreTrainedModel)
+        from .models.mt5 import (MT5EncoderModel, MT5ForConditionalGeneration,
+                                 MT5Model, MT5PreTrainedModel)
+        from .models.mvp import (MVP_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 MvpForCausalLM, MvpForConditionalGeneration,
+                                 MvpForQuestionAnswering,
+                                 MvpForSequenceClassification, MvpModel,
+                                 MvpPreTrainedModel)
+        from .models.nat import (NAT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 NatBackbone, NatForImageClassification,
+                                 NatModel, NatPreTrainedModel)
+        from .models.nezha import (NEZHA_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   NezhaForMaskedLM, NezhaForMultipleChoice,
+                                   NezhaForNextSentencePrediction,
+                                   NezhaForPreTraining,
+                                   NezhaForQuestionAnswering,
+                                   NezhaForSequenceClassification,
+                                   NezhaForTokenClassification, NezhaModel,
+                                   NezhaPreTrainedModel)
+        from .models.nllb_moe import (NLLB_MOE_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      NllbMoeForConditionalGeneration,
+                                      NllbMoeModel, NllbMoePreTrainedModel,
+                                      NllbMoeSparseMLP, NllbMoeTop2Router)
         from .models.nystromformer import (
             NYSTROMFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            NystromformerForMaskedLM,
-            NystromformerForMultipleChoice,
+            NystromformerForMaskedLM, NystromformerForMultipleChoice,
             NystromformerForQuestionAnswering,
             NystromformerForSequenceClassification,
-            NystromformerForTokenClassification,
-            NystromformerLayer,
-            NystromformerModel,
-            NystromformerPreTrainedModel,
-        )
-        from .models.oneformer import (
-            ONEFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            OneFormerForUniversalSegmentation,
-            OneFormerModel,
-            OneFormerPreTrainedModel,
-        )
-        from .models.openai import (
-            OPENAI_GPT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            OpenAIGPTDoubleHeadsModel,
-            OpenAIGPTForSequenceClassification,
-            OpenAIGPTLMHeadModel,
-            OpenAIGPTModel,
-            OpenAIGPTPreTrainedModel,
-            load_tf_weights_in_openai_gpt,
-        )
-        from .models.opt import (
-            OPT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            OPTForCausalLM,
-            OPTForQuestionAnswering,
-            OPTForSequenceClassification,
-            OPTModel,
-            OPTPreTrainedModel,
-        )
-        from .models.owlvit import (
-            OWLVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            OwlViTForObjectDetection,
-            OwlViTModel,
-            OwlViTPreTrainedModel,
-            OwlViTTextModel,
-            OwlViTVisionModel,
-        )
-        from .models.pegasus import (
-            PegasusForCausalLM,
-            PegasusForConditionalGeneration,
-            PegasusModel,
-            PegasusPreTrainedModel,
-        )
-        from .models.pegasus_x import (
-            PEGASUS_X_PRETRAINED_MODEL_ARCHIVE_LIST,
-            PegasusXForConditionalGeneration,
-            PegasusXModel,
-            PegasusXPreTrainedModel,
-        )
+            NystromformerForTokenClassification, NystromformerLayer,
+            NystromformerModel, NystromformerPreTrainedModel)
+        from .models.oneformer import (ONEFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                       OneFormerForUniversalSegmentation,
+                                       OneFormerModel,
+                                       OneFormerPreTrainedModel)
+        from .models.openai import (OPENAI_GPT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    OpenAIGPTDoubleHeadsModel,
+                                    OpenAIGPTForSequenceClassification,
+                                    OpenAIGPTLMHeadModel, OpenAIGPTModel,
+                                    OpenAIGPTPreTrainedModel,
+                                    load_tf_weights_in_openai_gpt)
+        from .models.opt import (OPT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 OPTForCausalLM, OPTForQuestionAnswering,
+                                 OPTForSequenceClassification, OPTModel,
+                                 OPTPreTrainedModel)
+        from .models.owlvit import (OWLVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    OwlViTForObjectDetection, OwlViTModel,
+                                    OwlViTPreTrainedModel, OwlViTTextModel,
+                                    OwlViTVisionModel)
+        from .models.pegasus import (PegasusForCausalLM,
+                                     PegasusForConditionalGeneration,
+                                     PegasusModel, PegasusPreTrainedModel)
+        from .models.pegasus_x import (PEGASUS_X_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                       PegasusXForConditionalGeneration,
+                                       PegasusXModel, PegasusXPreTrainedModel)
         from .models.perceiver import (
             PERCEIVER_PRETRAINED_MODEL_ARCHIVE_LIST,
             PerceiverForImageClassificationConvProcessing,
             PerceiverForImageClassificationFourier,
-            PerceiverForImageClassificationLearned,
-            PerceiverForMaskedLM,
-            PerceiverForMultimodalAutoencoding,
-            PerceiverForOpticalFlow,
-            PerceiverForSequenceClassification,
-            PerceiverLayer,
-            PerceiverModel,
-            PerceiverPreTrainedModel,
-        )
+            PerceiverForImageClassificationLearned, PerceiverForMaskedLM,
+            PerceiverForMultimodalAutoencoding, PerceiverForOpticalFlow,
+            PerceiverForSequenceClassification, PerceiverLayer, PerceiverModel,
+            PerceiverPreTrainedModel)
         from .models.pix2struct import (
             PIX2STRUCT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Pix2StructForConditionalGeneration,
-            Pix2StructPreTrainedModel,
-            Pix2StructTextModel,
-            Pix2StructVisionModel,
-        )
-        from .models.plbart import (
-            PLBART_PRETRAINED_MODEL_ARCHIVE_LIST,
-            PLBartForCausalLM,
-            PLBartForConditionalGeneration,
-            PLBartForSequenceClassification,
-            PLBartModel,
-            PLBartPreTrainedModel,
-        )
+            Pix2StructForConditionalGeneration, Pix2StructPreTrainedModel,
+            Pix2StructTextModel, Pix2StructVisionModel)
+        from .models.plbart import (PLBART_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    PLBartForCausalLM,
+                                    PLBartForConditionalGeneration,
+                                    PLBartForSequenceClassification,
+                                    PLBartModel, PLBartPreTrainedModel)
         from .models.poolformer import (
             POOLFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            PoolFormerForImageClassification,
-            PoolFormerModel,
-            PoolFormerPreTrainedModel,
-        )
+            PoolFormerForImageClassification, PoolFormerModel,
+            PoolFormerPreTrainedModel)
         from .models.prophetnet import (
-            PROPHETNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ProphetNetDecoder,
-            ProphetNetEncoder,
-            ProphetNetForCausalLM,
-            ProphetNetForConditionalGeneration,
-            ProphetNetModel,
-            ProphetNetPreTrainedModel,
-        )
-        from .models.qdqbert import (
-            QDQBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            QDQBertForMaskedLM,
-            QDQBertForMultipleChoice,
-            QDQBertForNextSentencePrediction,
-            QDQBertForQuestionAnswering,
-            QDQBertForSequenceClassification,
-            QDQBertForTokenClassification,
-            QDQBertLayer,
-            QDQBertLMHeadModel,
-            QDQBertModel,
-            QDQBertPreTrainedModel,
-            load_tf_weights_in_qdqbert,
-        )
-        from .models.rag import (
-            RagModel,
-            RagPreTrainedModel,
-            RagSequenceForGeneration,
-            RagTokenForGeneration,
-        )
-        from .models.realm import (
-            REALM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            RealmEmbedder,
-            RealmForOpenQA,
-            RealmKnowledgeAugEncoder,
-            RealmPreTrainedModel,
-            RealmReader,
-            RealmRetriever,
-            RealmScorer,
-            load_tf_weights_in_realm,
-        )
-        from .models.reformer import (
-            REFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ReformerAttention,
-            ReformerForMaskedLM,
-            ReformerForQuestionAnswering,
-            ReformerForSequenceClassification,
-            ReformerLayer,
-            ReformerModel,
-            ReformerModelWithLMHead,
-            ReformerPreTrainedModel,
-        )
-        from .models.regnet import (
-            REGNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            RegNetForImageClassification,
-            RegNetModel,
-            RegNetPreTrainedModel,
-        )
-        from .models.rembert import (
-            REMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            RemBertForCausalLM,
-            RemBertForMaskedLM,
-            RemBertForMultipleChoice,
-            RemBertForQuestionAnswering,
-            RemBertForSequenceClassification,
-            RemBertForTokenClassification,
-            RemBertLayer,
-            RemBertModel,
-            RemBertPreTrainedModel,
-            load_tf_weights_in_rembert,
-        )
-        from .models.resnet import (
-            RESNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ResNetBackbone,
-            ResNetForImageClassification,
-            ResNetModel,
-            ResNetPreTrainedModel,
-        )
-        from .models.retribert import (
-            RETRIBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            RetriBertModel,
-            RetriBertPreTrainedModel,
-        )
-        from .models.roberta import (
-            ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            RobertaForCausalLM,
-            RobertaForMaskedLM,
-            RobertaForMultipleChoice,
-            RobertaForQuestionAnswering,
-            RobertaForSequenceClassification,
-            RobertaForTokenClassification,
-            RobertaModel,
-            RobertaPreTrainedModel,
-        )
+            PROPHETNET_PRETRAINED_MODEL_ARCHIVE_LIST, ProphetNetDecoder,
+            ProphetNetEncoder, ProphetNetForCausalLM,
+            ProphetNetForConditionalGeneration, ProphetNetModel,
+            ProphetNetPreTrainedModel)
+        from .models.qdqbert import (QDQBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     QDQBertForMaskedLM,
+                                     QDQBertForMultipleChoice,
+                                     QDQBertForNextSentencePrediction,
+                                     QDQBertForQuestionAnswering,
+                                     QDQBertForSequenceClassification,
+                                     QDQBertForTokenClassification,
+                                     QDQBertLayer, QDQBertLMHeadModel,
+                                     QDQBertModel, QDQBertPreTrainedModel,
+                                     load_tf_weights_in_qdqbert)
+        from .models.rag import (RagModel, RagPreTrainedModel,
+                                 RagSequenceForGeneration,
+                                 RagTokenForGeneration)
+        from .models.realm import (REALM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   RealmEmbedder, RealmForOpenQA,
+                                   RealmKnowledgeAugEncoder,
+                                   RealmPreTrainedModel, RealmReader,
+                                   RealmRetriever, RealmScorer,
+                                   load_tf_weights_in_realm)
+        from .models.reformer import (REFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      ReformerAttention, ReformerForMaskedLM,
+                                      ReformerForQuestionAnswering,
+                                      ReformerForSequenceClassification,
+                                      ReformerLayer, ReformerModel,
+                                      ReformerModelWithLMHead,
+                                      ReformerPreTrainedModel)
+        from .models.regnet import (REGNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    RegNetForImageClassification, RegNetModel,
+                                    RegNetPreTrainedModel)
+        from .models.rembert import (REMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     RemBertForCausalLM, RemBertForMaskedLM,
+                                     RemBertForMultipleChoice,
+                                     RemBertForQuestionAnswering,
+                                     RemBertForSequenceClassification,
+                                     RemBertForTokenClassification,
+                                     RemBertLayer, RemBertModel,
+                                     RemBertPreTrainedModel,
+                                     load_tf_weights_in_rembert)
+        from .models.resnet import (RESNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    ResNetBackbone,
+                                    ResNetForImageClassification, ResNetModel,
+                                    ResNetPreTrainedModel)
+        from .models.retribert import (RETRIBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                       RetriBertModel,
+                                       RetriBertPreTrainedModel)
+        from .models.roberta import (ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     RobertaForCausalLM, RobertaForMaskedLM,
+                                     RobertaForMultipleChoice,
+                                     RobertaForQuestionAnswering,
+                                     RobertaForSequenceClassification,
+                                     RobertaForTokenClassification,
+                                     RobertaModel, RobertaPreTrainedModel)
         from .models.roberta_prelayernorm import (
             ROBERTA_PRELAYERNORM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            RobertaPreLayerNormForCausalLM,
-            RobertaPreLayerNormForMaskedLM,
+            RobertaPreLayerNormForCausalLM, RobertaPreLayerNormForMaskedLM,
             RobertaPreLayerNormForMultipleChoice,
             RobertaPreLayerNormForQuestionAnswering,
             RobertaPreLayerNormForSequenceClassification,
             RobertaPreLayerNormForTokenClassification,
-            RobertaPreLayerNormModel,
-            RobertaPreLayerNormPreTrainedModel,
-        )
-        from .models.roc_bert import (
-            ROC_BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            RoCBertForCausalLM,
-            RoCBertForMaskedLM,
-            RoCBertForMultipleChoice,
-            RoCBertForPreTraining,
-            RoCBertForQuestionAnswering,
-            RoCBertForSequenceClassification,
-            RoCBertForTokenClassification,
-            RoCBertLayer,
-            RoCBertModel,
-            RoCBertPreTrainedModel,
-            load_tf_weights_in_roc_bert,
-        )
-        from .models.roformer import (
-            ROFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            RoFormerForCausalLM,
-            RoFormerForMaskedLM,
-            RoFormerForMultipleChoice,
-            RoFormerForQuestionAnswering,
-            RoFormerForSequenceClassification,
-            RoFormerForTokenClassification,
-            RoFormerLayer,
-            RoFormerModel,
-            RoFormerPreTrainedModel,
-            load_tf_weights_in_roformer,
-        )
-        from .models.segformer import (
-            SEGFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            SegformerDecodeHead,
-            SegformerForImageClassification,
-            SegformerForSemanticSegmentation,
-            SegformerLayer,
-            SegformerModel,
-            SegformerPreTrainedModel,
-        )
-        from .models.sew import (
-            SEW_PRETRAINED_MODEL_ARCHIVE_LIST,
-            SEWForCTC,
-            SEWForSequenceClassification,
-            SEWModel,
-            SEWPreTrainedModel,
-        )
-        from .models.sew_d import (
-            SEW_D_PRETRAINED_MODEL_ARCHIVE_LIST,
-            SEWDForCTC,
-            SEWDForSequenceClassification,
-            SEWDModel,
-            SEWDPreTrainedModel,
-        )
+            RobertaPreLayerNormModel, RobertaPreLayerNormPreTrainedModel)
+        from .models.roc_bert import (ROC_BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      RoCBertForCausalLM, RoCBertForMaskedLM,
+                                      RoCBertForMultipleChoice,
+                                      RoCBertForPreTraining,
+                                      RoCBertForQuestionAnswering,
+                                      RoCBertForSequenceClassification,
+                                      RoCBertForTokenClassification,
+                                      RoCBertLayer, RoCBertModel,
+                                      RoCBertPreTrainedModel,
+                                      load_tf_weights_in_roc_bert)
+        from .models.roformer import (ROFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      RoFormerForCausalLM, RoFormerForMaskedLM,
+                                      RoFormerForMultipleChoice,
+                                      RoFormerForQuestionAnswering,
+                                      RoFormerForSequenceClassification,
+                                      RoFormerForTokenClassification,
+                                      RoFormerLayer, RoFormerModel,
+                                      RoFormerPreTrainedModel,
+                                      load_tf_weights_in_roformer)
+        from .models.segformer import (SEGFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                       SegformerDecodeHead,
+                                       SegformerForImageClassification,
+                                       SegformerForSemanticSegmentation,
+                                       SegformerLayer, SegformerModel,
+                                       SegformerPreTrainedModel)
+        from .models.sew import (SEW_PRETRAINED_MODEL_ARCHIVE_LIST, SEWForCTC,
+                                 SEWForSequenceClassification, SEWModel,
+                                 SEWPreTrainedModel)
+        from .models.sew_d import (SEW_D_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   SEWDForCTC, SEWDForSequenceClassification,
+                                   SEWDModel, SEWDPreTrainedModel)
         from .models.speech_encoder_decoder import SpeechEncoderDecoderModel
         from .models.speech_to_text import (
             SPEECH_TO_TEXT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Speech2TextForConditionalGeneration,
-            Speech2TextModel,
-            Speech2TextPreTrainedModel,
-        )
-        from .models.speech_to_text_2 import (
-            Speech2Text2ForCausalLM,
-            Speech2Text2PreTrainedModel,
-        )
-        from .models.speecht5 import (
-            SPEECHT5_PRETRAINED_MODEL_ARCHIVE_LIST,
-            SpeechT5ForSpeechToSpeech,
-            SpeechT5ForSpeechToText,
-            SpeechT5ForTextToSpeech,
-            SpeechT5HifiGan,
-            SpeechT5Model,
-            SpeechT5PreTrainedModel,
-        )
-        from .models.splinter import (
-            SPLINTER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            SplinterForPreTraining,
-            SplinterForQuestionAnswering,
-            SplinterLayer,
-            SplinterModel,
-            SplinterPreTrainedModel,
-        )
+            Speech2TextForConditionalGeneration, Speech2TextModel,
+            Speech2TextPreTrainedModel)
+        from .models.speech_to_text_2 import (Speech2Text2ForCausalLM,
+                                              Speech2Text2PreTrainedModel)
+        from .models.speecht5 import (SPEECHT5_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      SpeechT5ForSpeechToSpeech,
+                                      SpeechT5ForSpeechToText,
+                                      SpeechT5ForTextToSpeech, SpeechT5HifiGan,
+                                      SpeechT5Model, SpeechT5PreTrainedModel)
+        from .models.splinter import (SPLINTER_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      SplinterForPreTraining,
+                                      SplinterForQuestionAnswering,
+                                      SplinterLayer, SplinterModel,
+                                      SplinterPreTrainedModel)
         from .models.squeezebert import (
-            SQUEEZEBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            SqueezeBertForMaskedLM,
-            SqueezeBertForMultipleChoice,
-            SqueezeBertForQuestionAnswering,
+            SQUEEZEBERT_PRETRAINED_MODEL_ARCHIVE_LIST, SqueezeBertForMaskedLM,
+            SqueezeBertForMultipleChoice, SqueezeBertForQuestionAnswering,
             SqueezeBertForSequenceClassification,
-            SqueezeBertForTokenClassification,
-            SqueezeBertModel,
-            SqueezeBertModule,
-            SqueezeBertPreTrainedModel,
-        )
-        from .models.swin import (
-            SWIN_PRETRAINED_MODEL_ARCHIVE_LIST,
-            SwinBackbone,
-            SwinForImageClassification,
-            SwinForMaskedImageModeling,
-            SwinModel,
-            SwinPreTrainedModel,
-        )
-        from .models.swin2sr import (
-            SWIN2SR_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Swin2SRForImageSuperResolution,
-            Swin2SRModel,
-            Swin2SRPreTrainedModel,
-        )
-        from .models.swinv2 import (
-            SWINV2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Swinv2ForImageClassification,
-            Swinv2ForMaskedImageModeling,
-            Swinv2Model,
-            Swinv2PreTrainedModel,
-        )
+            SqueezeBertForTokenClassification, SqueezeBertModel,
+            SqueezeBertModule, SqueezeBertPreTrainedModel)
+        from .models.swin import (SWIN_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  SwinBackbone, SwinForImageClassification,
+                                  SwinForMaskedImageModeling, SwinModel,
+                                  SwinPreTrainedModel)
+        from .models.swin2sr import (SWIN2SR_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     Swin2SRForImageSuperResolution,
+                                     Swin2SRModel, Swin2SRPreTrainedModel)
+        from .models.swinv2 import (SWINV2_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    Swinv2ForImageClassification,
+                                    Swinv2ForMaskedImageModeling, Swinv2Model,
+                                    Swinv2PreTrainedModel)
         from .models.switch_transformers import (
             SWITCH_TRANSFORMERS_PRETRAINED_MODEL_ARCHIVE_LIST,
             SwitchTransformersEncoderModel,
             SwitchTransformersForConditionalGeneration,
-            SwitchTransformersModel,
-            SwitchTransformersPreTrainedModel,
-            SwitchTransformersSparseMLP,
-            SwitchTransformersTop1Router,
-        )
-        from .models.t5 import (
-            T5_PRETRAINED_MODEL_ARCHIVE_LIST,
-            T5EncoderModel,
-            T5ForConditionalGeneration,
-            T5Model,
-            T5PreTrainedModel,
-            load_tf_weights_in_t5,
-        )
+            SwitchTransformersModel, SwitchTransformersPreTrainedModel,
+            SwitchTransformersSparseMLP, SwitchTransformersTop1Router)
+        from .models.t5 import (T5_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                T5EncoderModel, T5ForConditionalGeneration,
+                                T5Model, T5PreTrainedModel,
+                                load_tf_weights_in_t5)
         from .models.table_transformer import (
             TABLE_TRANSFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TableTransformerForObjectDetection,
-            TableTransformerModel,
-            TableTransformerPreTrainedModel,
-        )
-        from .models.tapas import (
-            TAPAS_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TapasForMaskedLM,
-            TapasForQuestionAnswering,
-            TapasForSequenceClassification,
-            TapasModel,
-            TapasPreTrainedModel,
-            load_tf_weights_in_tapas,
-        )
+            TableTransformerForObjectDetection, TableTransformerModel,
+            TableTransformerPreTrainedModel)
+        from .models.tapas import (TAPAS_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   TapasForMaskedLM, TapasForQuestionAnswering,
+                                   TapasForSequenceClassification, TapasModel,
+                                   TapasPreTrainedModel,
+                                   load_tf_weights_in_tapas)
         from .models.time_series_transformer import (
             TIME_SERIES_TRANSFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TimeSeriesTransformerForPrediction,
-            TimeSeriesTransformerModel,
-            TimeSeriesTransformerPreTrainedModel,
-        )
+            TimeSeriesTransformerForPrediction, TimeSeriesTransformerModel,
+            TimeSeriesTransformerPreTrainedModel)
         from .models.timesformer import (
             TIMESFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TimesformerForVideoClassification,
-            TimesformerModel,
-            TimesformerPreTrainedModel,
-        )
+            TimesformerForVideoClassification, TimesformerModel,
+            TimesformerPreTrainedModel)
         from .models.trajectory_transformer import (
             TRAJECTORY_TRANSFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TrajectoryTransformerModel,
-            TrajectoryTransformerPreTrainedModel,
-        )
+            TrajectoryTransformerModel, TrajectoryTransformerPreTrainedModel)
         from .models.transfo_xl import (
-            TRANSFO_XL_PRETRAINED_MODEL_ARCHIVE_LIST,
-            AdaptiveEmbedding,
-            TransfoXLForSequenceClassification,
-            TransfoXLLMHeadModel,
-            TransfoXLModel,
-            TransfoXLPreTrainedModel,
-            load_tf_weights_in_transfo_xl,
-        )
-        from .models.trocr import (
-            TROCR_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TrOCRForCausalLM,
-            TrOCRPreTrainedModel,
-        )
-        from .models.tvlt import (
-            TVLT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TvltForAudioVisualClassification,
-            TvltForPreTraining,
-            TvltModel,
-            TvltPreTrainedModel,
-        )
-        from .models.unispeech import (
-            UNISPEECH_PRETRAINED_MODEL_ARCHIVE_LIST,
-            UniSpeechForCTC,
-            UniSpeechForPreTraining,
-            UniSpeechForSequenceClassification,
-            UniSpeechModel,
-            UniSpeechPreTrainedModel,
-        )
+            TRANSFO_XL_PRETRAINED_MODEL_ARCHIVE_LIST, AdaptiveEmbedding,
+            TransfoXLForSequenceClassification, TransfoXLLMHeadModel,
+            TransfoXLModel, TransfoXLPreTrainedModel,
+            load_tf_weights_in_transfo_xl)
+        from .models.trocr import (TROCR_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   TrOCRForCausalLM, TrOCRPreTrainedModel)
+        from .models.tvlt import (TVLT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  TvltForAudioVisualClassification,
+                                  TvltForPreTraining, TvltModel,
+                                  TvltPreTrainedModel)
+        from .models.unispeech import (UNISPEECH_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                       UniSpeechForCTC,
+                                       UniSpeechForPreTraining,
+                                       UniSpeechForSequenceClassification,
+                                       UniSpeechModel,
+                                       UniSpeechPreTrainedModel)
         from .models.unispeech_sat import (
             UNISPEECH_SAT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            UniSpeechSatForAudioFrameClassification,
-            UniSpeechSatForCTC,
-            UniSpeechSatForPreTraining,
-            UniSpeechSatForSequenceClassification,
-            UniSpeechSatForXVector,
-            UniSpeechSatModel,
-            UniSpeechSatPreTrainedModel,
-        )
-        from .models.upernet import (
-            UperNetForSemanticSegmentation,
-            UperNetPreTrainedModel,
-        )
-        from .models.van import (
-            VAN_PRETRAINED_MODEL_ARCHIVE_LIST,
-            VanForImageClassification,
-            VanModel,
-            VanPreTrainedModel,
-        )
-        from .models.videomae import (
-            VIDEOMAE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            VideoMAEForPreTraining,
-            VideoMAEForVideoClassification,
-            VideoMAEModel,
-            VideoMAEPreTrainedModel,
-        )
-        from .models.vilt import (
-            VILT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ViltForImageAndTextRetrieval,
-            ViltForImagesAndTextClassification,
-            ViltForMaskedLM,
-            ViltForQuestionAnswering,
-            ViltForTokenClassification,
-            ViltLayer,
-            ViltModel,
-            ViltPreTrainedModel,
-        )
+            UniSpeechSatForAudioFrameClassification, UniSpeechSatForCTC,
+            UniSpeechSatForPreTraining, UniSpeechSatForSequenceClassification,
+            UniSpeechSatForXVector, UniSpeechSatModel,
+            UniSpeechSatPreTrainedModel)
+        from .models.upernet import (UperNetForSemanticSegmentation,
+                                     UperNetPreTrainedModel)
+        from .models.van import (VAN_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 VanForImageClassification, VanModel,
+                                 VanPreTrainedModel)
+        from .models.videomae import (VIDEOMAE_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      VideoMAEForPreTraining,
+                                      VideoMAEForVideoClassification,
+                                      VideoMAEModel, VideoMAEPreTrainedModel)
+        from .models.vilt import (VILT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  ViltForImageAndTextRetrieval,
+                                  ViltForImagesAndTextClassification,
+                                  ViltForMaskedLM, ViltForQuestionAnswering,
+                                  ViltForTokenClassification, ViltLayer,
+                                  ViltModel, ViltPreTrainedModel)
         from .models.vision_encoder_decoder import VisionEncoderDecoderModel
         from .models.vision_text_dual_encoder import VisionTextDualEncoderModel
         from .models.visual_bert import (
             VISUAL_BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            VisualBertForMultipleChoice,
-            VisualBertForPreTraining,
+            VisualBertForMultipleChoice, VisualBertForPreTraining,
             VisualBertForQuestionAnswering,
-            VisualBertForRegionToPhraseAlignment,
-            VisualBertForVisualReasoning,
-            VisualBertLayer,
-            VisualBertModel,
-            VisualBertPreTrainedModel,
-        )
-        from .models.vit import (
-            VIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ViTForImageClassification,
-            ViTForMaskedImageModeling,
-            ViTModel,
-            ViTPreTrainedModel,
-        )
+            VisualBertForRegionToPhraseAlignment, VisualBertForVisualReasoning,
+            VisualBertLayer, VisualBertModel, VisualBertPreTrainedModel)
+        from .models.vit import (VIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 ViTForImageClassification,
+                                 ViTForMaskedImageModeling, ViTModel,
+                                 ViTPreTrainedModel)
         from .models.vit_hybrid import (
             VIT_HYBRID_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ViTHybridForImageClassification,
-            ViTHybridModel,
-            ViTHybridPreTrainedModel,
-        )
-        from .models.vit_mae import (
-            VIT_MAE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ViTMAEForPreTraining,
-            ViTMAELayer,
-            ViTMAEModel,
-            ViTMAEPreTrainedModel,
-        )
-        from .models.vit_msn import (
-            VIT_MSN_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ViTMSNForImageClassification,
-            ViTMSNModel,
-            ViTMSNPreTrainedModel,
-        )
+            ViTHybridForImageClassification, ViTHybridModel,
+            ViTHybridPreTrainedModel)
+        from .models.vit_mae import (VIT_MAE_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     ViTMAEForPreTraining, ViTMAELayer,
+                                     ViTMAEModel, ViTMAEPreTrainedModel)
+        from .models.vit_msn import (VIT_MSN_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     ViTMSNForImageClassification, ViTMSNModel,
+                                     ViTMSNPreTrainedModel)
         from .models.wav2vec2 import (
             WAV_2_VEC_2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Wav2Vec2ForAudioFrameClassification,
-            Wav2Vec2ForCTC,
-            Wav2Vec2ForMaskedLM,
-            Wav2Vec2ForPreTraining,
-            Wav2Vec2ForSequenceClassification,
-            Wav2Vec2ForXVector,
-            Wav2Vec2Model,
-            Wav2Vec2PreTrainedModel,
-        )
+            Wav2Vec2ForAudioFrameClassification, Wav2Vec2ForCTC,
+            Wav2Vec2ForMaskedLM, Wav2Vec2ForPreTraining,
+            Wav2Vec2ForSequenceClassification, Wav2Vec2ForXVector,
+            Wav2Vec2Model, Wav2Vec2PreTrainedModel)
         from .models.wav2vec2_conformer import (
             WAV2VEC2_CONFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
             Wav2Vec2ConformerForAudioFrameClassification,
-            Wav2Vec2ConformerForCTC,
-            Wav2Vec2ConformerForPreTraining,
+            Wav2Vec2ConformerForCTC, Wav2Vec2ConformerForPreTraining,
             Wav2Vec2ConformerForSequenceClassification,
-            Wav2Vec2ConformerForXVector,
-            Wav2Vec2ConformerModel,
-            Wav2Vec2ConformerPreTrainedModel,
-        )
-        from .models.wavlm import (
-            WAVLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            WavLMForAudioFrameClassification,
-            WavLMForCTC,
-            WavLMForSequenceClassification,
-            WavLMForXVector,
-            WavLMModel,
-            WavLMPreTrainedModel,
-        )
-        from .models.whisper import (
-            WHISPER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            WhisperForAudioClassification,
-            WhisperForConditionalGeneration,
-            WhisperModel,
-            WhisperPreTrainedModel,
-        )
-        from .models.x_clip import (
-            XCLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XCLIPModel,
-            XCLIPPreTrainedModel,
-            XCLIPTextModel,
-            XCLIPVisionModel,
-        )
-        from .models.xglm import (
-            XGLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XGLMForCausalLM,
-            XGLMModel,
-            XGLMPreTrainedModel,
-        )
-        from .models.xlm import (
-            XLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XLMForMultipleChoice,
-            XLMForQuestionAnswering,
-            XLMForQuestionAnsweringSimple,
-            XLMForSequenceClassification,
-            XLMForTokenClassification,
-            XLMModel,
-            XLMPreTrainedModel,
-            XLMWithLMHeadModel,
-        )
+            Wav2Vec2ConformerForXVector, Wav2Vec2ConformerModel,
+            Wav2Vec2ConformerPreTrainedModel)
+        from .models.wavlm import (WAVLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   WavLMForAudioFrameClassification,
+                                   WavLMForCTC, WavLMForSequenceClassification,
+                                   WavLMForXVector, WavLMModel,
+                                   WavLMPreTrainedModel)
+        from .models.whisper import (WHISPER_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     WhisperForAudioClassification,
+                                     WhisperForConditionalGeneration,
+                                     WhisperModel, WhisperPreTrainedModel)
+        from .models.x_clip import (XCLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    XCLIPModel, XCLIPPreTrainedModel,
+                                    XCLIPTextModel, XCLIPVisionModel)
+        from .models.xglm import (XGLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  XGLMForCausalLM, XGLMModel,
+                                  XGLMPreTrainedModel)
+        from .models.xlm import (XLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 XLMForMultipleChoice, XLMForQuestionAnswering,
+                                 XLMForQuestionAnsweringSimple,
+                                 XLMForSequenceClassification,
+                                 XLMForTokenClassification, XLMModel,
+                                 XLMPreTrainedModel, XLMWithLMHeadModel)
         from .models.xlm_prophetnet import (
-            XLM_PROPHETNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XLMProphetNetDecoder,
-            XLMProphetNetEncoder,
-            XLMProphetNetForCausalLM,
-            XLMProphetNetForConditionalGeneration,
-            XLMProphetNetModel,
-            XLMProphetNetPreTrainedModel,
-        )
+            XLM_PROPHETNET_PRETRAINED_MODEL_ARCHIVE_LIST, XLMProphetNetDecoder,
+            XLMProphetNetEncoder, XLMProphetNetForCausalLM,
+            XLMProphetNetForConditionalGeneration, XLMProphetNetModel,
+            XLMProphetNetPreTrainedModel)
         from .models.xlm_roberta import (
-            XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XLMRobertaForCausalLM,
-            XLMRobertaForMaskedLM,
-            XLMRobertaForMultipleChoice,
+            XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST, XLMRobertaForCausalLM,
+            XLMRobertaForMaskedLM, XLMRobertaForMultipleChoice,
             XLMRobertaForQuestionAnswering,
             XLMRobertaForSequenceClassification,
-            XLMRobertaForTokenClassification,
-            XLMRobertaModel,
-            XLMRobertaPreTrainedModel,
-        )
+            XLMRobertaForTokenClassification, XLMRobertaModel,
+            XLMRobertaPreTrainedModel)
         from .models.xlm_roberta_xl import (
             XLM_ROBERTA_XL_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XLMRobertaXLForCausalLM,
-            XLMRobertaXLForMaskedLM,
-            XLMRobertaXLForMultipleChoice,
-            XLMRobertaXLForQuestionAnswering,
+            XLMRobertaXLForCausalLM, XLMRobertaXLForMaskedLM,
+            XLMRobertaXLForMultipleChoice, XLMRobertaXLForQuestionAnswering,
             XLMRobertaXLForSequenceClassification,
-            XLMRobertaXLForTokenClassification,
-            XLMRobertaXLModel,
-            XLMRobertaXLPreTrainedModel,
-        )
-        from .models.xlnet import (
-            XLNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XLNetForMultipleChoice,
-            XLNetForQuestionAnswering,
-            XLNetForQuestionAnsweringSimple,
-            XLNetForSequenceClassification,
-            XLNetForTokenClassification,
-            XLNetLMHeadModel,
-            XLNetModel,
-            XLNetPreTrainedModel,
-            load_tf_weights_in_xlnet,
-        )
-        from .models.xmod import (
-            XMOD_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XmodForCausalLM,
-            XmodForMaskedLM,
-            XmodForMultipleChoice,
-            XmodForQuestionAnswering,
-            XmodForSequenceClassification,
-            XmodForTokenClassification,
-            XmodModel,
-            XmodPreTrainedModel,
-        )
-        from .models.yolos import (
-            YOLOS_PRETRAINED_MODEL_ARCHIVE_LIST,
-            YolosForObjectDetection,
-            YolosModel,
-            YolosPreTrainedModel,
-        )
-        from .models.yoso import (
-            YOSO_PRETRAINED_MODEL_ARCHIVE_LIST,
-            YosoForMaskedLM,
-            YosoForMultipleChoice,
-            YosoForQuestionAnswering,
-            YosoForSequenceClassification,
-            YosoForTokenClassification,
-            YosoLayer,
-            YosoModel,
-            YosoPreTrainedModel,
-        )
-
+            XLMRobertaXLForTokenClassification, XLMRobertaXLModel,
+            XLMRobertaXLPreTrainedModel)
+        from .models.xlnet import (XLNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   XLNetForMultipleChoice,
+                                   XLNetForQuestionAnswering,
+                                   XLNetForQuestionAnsweringSimple,
+                                   XLNetForSequenceClassification,
+                                   XLNetForTokenClassification,
+                                   XLNetLMHeadModel, XLNetModel,
+                                   XLNetPreTrainedModel,
+                                   load_tf_weights_in_xlnet)
+        from .models.xmod import (XMOD_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  XmodForCausalLM, XmodForMaskedLM,
+                                  XmodForMultipleChoice,
+                                  XmodForQuestionAnswering,
+                                  XmodForSequenceClassification,
+                                  XmodForTokenClassification, XmodModel,
+                                  XmodPreTrainedModel)
+        from .models.yolos import (YOLOS_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   YolosForObjectDetection, YolosModel,
+                                   YolosPreTrainedModel)
+        from .models.yoso import (YOSO_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  YosoForMaskedLM, YosoForMultipleChoice,
+                                  YosoForQuestionAnswering,
+                                  YosoForSequenceClassification,
+                                  YosoForTokenClassification, YosoLayer,
+                                  YosoModel, YosoPreTrainedModel)
         # Optimization
         from .optimization import (
-            Adafactor,
-            AdamW,
-            get_constant_schedule,
-            get_constant_schedule_with_warmup,
-            get_cosine_schedule_with_warmup,
+            Adafactor, AdamW, get_constant_schedule,
+            get_constant_schedule_with_warmup, get_cosine_schedule_with_warmup,
             get_cosine_with_hard_restarts_schedule_with_warmup,
-            get_inverse_sqrt_schedule,
-            get_linear_schedule_with_warmup,
-            get_polynomial_decay_schedule_with_warmup,
-            get_scheduler,
-        )
-        from .pytorch_utils import Conv1D, apply_chunking_to_forward, prune_layer
-
+            get_inverse_sqrt_schedule, get_linear_schedule_with_warmup,
+            get_polynomial_decay_schedule_with_warmup, get_scheduler)
+        from .pytorch_utils import (Conv1D, apply_chunking_to_forward,
+                                    prune_layer)
         # Trainer
         from .trainer import Trainer
         from .trainer_pt_utils import torch_distributed_zero_first
@@ -6865,46 +5832,31 @@ if TYPE_CHECKING:
         from .utils.dummy_tf_objects import *
     else:
         from .benchmark.benchmark_args_tf import TensorFlowBenchmarkArguments
-
         # Benchmarks
         from .benchmark.benchmark_tf import TensorFlowBenchmark
-        from .generation import (
-            TFForcedBOSTokenLogitsProcessor,
-            TFForcedEOSTokenLogitsProcessor,
-            TFGenerationMixin,
-            TFLogitsProcessor,
-            TFLogitsProcessorList,
-            TFLogitsWarper,
-            TFMinLengthLogitsProcessor,
-            TFNoBadWordsLogitsProcessor,
-            TFNoRepeatNGramLogitsProcessor,
-            TFRepetitionPenaltyLogitsProcessor,
-            TFTemperatureLogitsWarper,
-            TFTopKLogitsWarper,
-            TFTopPLogitsWarper,
-            tf_top_k_top_p_filtering,
-        )
+        from .generation import (TFForcedBOSTokenLogitsProcessor,
+                                 TFForcedEOSTokenLogitsProcessor,
+                                 TFGenerationMixin, TFLogitsProcessor,
+                                 TFLogitsProcessorList, TFLogitsWarper,
+                                 TFMinLengthLogitsProcessor,
+                                 TFNoBadWordsLogitsProcessor,
+                                 TFNoRepeatNGramLogitsProcessor,
+                                 TFRepetitionPenaltyLogitsProcessor,
+                                 TFTemperatureLogitsWarper, TFTopKLogitsWarper,
+                                 TFTopPLogitsWarper, tf_top_k_top_p_filtering)
         from .keras_callbacks import KerasMetricCallback, PushToHubCallback
-        from .modeling_tf_utils import (
-            TFPreTrainedModel,
-            TFSequenceSummary,
-            TFSharedEmbeddings,
-            shape_list,
-        )
-
+        from .modeling_tf_utils import (TFPreTrainedModel, TFSequenceSummary,
+                                        TFSharedEmbeddings, shape_list)
         # TensorFlow model imports
-        from .models.albert import (
-            TF_ALBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFAlbertForMaskedLM,
-            TFAlbertForMultipleChoice,
-            TFAlbertForPreTraining,
-            TFAlbertForQuestionAnswering,
-            TFAlbertForSequenceClassification,
-            TFAlbertForTokenClassification,
-            TFAlbertMainLayer,
-            TFAlbertModel,
-            TFAlbertPreTrainedModel,
-        )
+        from .models.albert import (TF_ALBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    TFAlbertForMaskedLM,
+                                    TFAlbertForMultipleChoice,
+                                    TFAlbertForPreTraining,
+                                    TFAlbertForQuestionAnswering,
+                                    TFAlbertForSequenceClassification,
+                                    TFAlbertForTokenClassification,
+                                    TFAlbertMainLayer, TFAlbertModel,
+                                    TFAlbertPreTrainedModel)
         from .models.auto import (
             TF_MODEL_FOR_CAUSAL_LM_MAPPING,
             TF_MODEL_FOR_DOCUMENT_QUESTION_ANSWERING_MAPPING,
@@ -6923,526 +5875,314 @@ if TYPE_CHECKING:
             TF_MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING,
             TF_MODEL_FOR_VISION_2_SEQ_MAPPING,
             TF_MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING,
-            TF_MODEL_MAPPING,
-            TF_MODEL_WITH_LM_HEAD_MAPPING,
-            TFAutoModel,
-            TFAutoModelForCausalLM,
-            TFAutoModelForDocumentQuestionAnswering,
-            TFAutoModelForImageClassification,
-            TFAutoModelForMaskedLM,
-            TFAutoModelForMultipleChoice,
-            TFAutoModelForNextSentencePrediction,
-            TFAutoModelForPreTraining,
-            TFAutoModelForQuestionAnswering,
-            TFAutoModelForSemanticSegmentation,
-            TFAutoModelForSeq2SeqLM,
-            TFAutoModelForSequenceClassification,
-            TFAutoModelForSpeechSeq2Seq,
+            TF_MODEL_MAPPING, TF_MODEL_WITH_LM_HEAD_MAPPING, TFAutoModel,
+            TFAutoModelForCausalLM, TFAutoModelForDocumentQuestionAnswering,
+            TFAutoModelForImageClassification, TFAutoModelForMaskedLM,
+            TFAutoModelForMultipleChoice, TFAutoModelForNextSentencePrediction,
+            TFAutoModelForPreTraining, TFAutoModelForQuestionAnswering,
+            TFAutoModelForSemanticSegmentation, TFAutoModelForSeq2SeqLM,
+            TFAutoModelForSequenceClassification, TFAutoModelForSpeechSeq2Seq,
             TFAutoModelForTableQuestionAnswering,
-            TFAutoModelForTokenClassification,
-            TFAutoModelForVision2Seq,
-            TFAutoModelForZeroShotImageClassification,
-            TFAutoModelWithLMHead,
-        )
-        from .models.bart import (
-            TFBartForConditionalGeneration,
-            TFBartForSequenceClassification,
-            TFBartModel,
-            TFBartPretrainedModel,
-        )
-        from .models.bert import (
-            TF_BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFBertEmbeddings,
-            TFBertForMaskedLM,
-            TFBertForMultipleChoice,
-            TFBertForNextSentencePrediction,
-            TFBertForPreTraining,
-            TFBertForQuestionAnswering,
-            TFBertForSequenceClassification,
-            TFBertForTokenClassification,
-            TFBertLMHeadModel,
-            TFBertMainLayer,
-            TFBertModel,
-            TFBertPreTrainedModel,
-        )
-        from .models.blenderbot import (
-            TFBlenderbotForConditionalGeneration,
-            TFBlenderbotModel,
-            TFBlenderbotPreTrainedModel,
-        )
+            TFAutoModelForTokenClassification, TFAutoModelForVision2Seq,
+            TFAutoModelForZeroShotImageClassification, TFAutoModelWithLMHead)
+        from .models.bart import (TFBartForConditionalGeneration,
+                                  TFBartForSequenceClassification, TFBartModel,
+                                  TFBartPretrainedModel)
+        from .models.bert import (TF_BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  TFBertEmbeddings, TFBertForMaskedLM,
+                                  TFBertForMultipleChoice,
+                                  TFBertForNextSentencePrediction,
+                                  TFBertForPreTraining,
+                                  TFBertForQuestionAnswering,
+                                  TFBertForSequenceClassification,
+                                  TFBertForTokenClassification,
+                                  TFBertLMHeadModel, TFBertMainLayer,
+                                  TFBertModel, TFBertPreTrainedModel)
+        from .models.blenderbot import (TFBlenderbotForConditionalGeneration,
+                                        TFBlenderbotModel,
+                                        TFBlenderbotPreTrainedModel)
         from .models.blenderbot_small import (
-            TFBlenderbotSmallForConditionalGeneration,
-            TFBlenderbotSmallModel,
-            TFBlenderbotSmallPreTrainedModel,
-        )
-        from .models.blip import (
-            TF_BLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFBlipForConditionalGeneration,
-            TFBlipForImageTextRetrieval,
-            TFBlipForQuestionAnswering,
-            TFBlipModel,
-            TFBlipPreTrainedModel,
-            TFBlipTextModel,
-            TFBlipVisionModel,
-        )
+            TFBlenderbotSmallForConditionalGeneration, TFBlenderbotSmallModel,
+            TFBlenderbotSmallPreTrainedModel)
+        from .models.blip import (TF_BLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  TFBlipForConditionalGeneration,
+                                  TFBlipForImageTextRetrieval,
+                                  TFBlipForQuestionAnswering, TFBlipModel,
+                                  TFBlipPreTrainedModel, TFBlipTextModel,
+                                  TFBlipVisionModel)
         from .models.camembert import (
-            TF_CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFCamembertForCausalLM,
-            TFCamembertForMaskedLM,
-            TFCamembertForMultipleChoice,
+            TF_CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST, TFCamembertForCausalLM,
+            TFCamembertForMaskedLM, TFCamembertForMultipleChoice,
             TFCamembertForQuestionAnswering,
             TFCamembertForSequenceClassification,
-            TFCamembertForTokenClassification,
-            TFCamembertModel,
-            TFCamembertPreTrainedModel,
-        )
-        from .models.clip import (
-            TF_CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFCLIPModel,
-            TFCLIPPreTrainedModel,
-            TFCLIPTextModel,
-            TFCLIPVisionModel,
-        )
+            TFCamembertForTokenClassification, TFCamembertModel,
+            TFCamembertPreTrainedModel)
+        from .models.clip import (TF_CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  TFCLIPModel, TFCLIPPreTrainedModel,
+                                  TFCLIPTextModel, TFCLIPVisionModel)
         from .models.convbert import (
-            TF_CONVBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFConvBertForMaskedLM,
-            TFConvBertForMultipleChoice,
-            TFConvBertForQuestionAnswering,
+            TF_CONVBERT_PRETRAINED_MODEL_ARCHIVE_LIST, TFConvBertForMaskedLM,
+            TFConvBertForMultipleChoice, TFConvBertForQuestionAnswering,
             TFConvBertForSequenceClassification,
-            TFConvBertForTokenClassification,
-            TFConvBertLayer,
-            TFConvBertModel,
-            TFConvBertPreTrainedModel,
-        )
-        from .models.convnext import (
-            TFConvNextForImageClassification,
-            TFConvNextModel,
-            TFConvNextPreTrainedModel,
-        )
-        from .models.ctrl import (
-            TF_CTRL_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFCTRLForSequenceClassification,
-            TFCTRLLMHeadModel,
-            TFCTRLModel,
-            TFCTRLPreTrainedModel,
-        )
-        from .models.cvt import (
-            TF_CVT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFCvtForImageClassification,
-            TFCvtModel,
-            TFCvtPreTrainedModel,
-        )
-        from .models.data2vec import (
-            TFData2VecVisionForImageClassification,
-            TFData2VecVisionForSemanticSegmentation,
-            TFData2VecVisionModel,
-            TFData2VecVisionPreTrainedModel,
-        )
-        from .models.deberta import (
-            TF_DEBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFDebertaForMaskedLM,
-            TFDebertaForQuestionAnswering,
-            TFDebertaForSequenceClassification,
-            TFDebertaForTokenClassification,
-            TFDebertaModel,
-            TFDebertaPreTrainedModel,
-        )
+            TFConvBertForTokenClassification, TFConvBertLayer, TFConvBertModel,
+            TFConvBertPreTrainedModel)
+        from .models.convnext import (TFConvNextForImageClassification,
+                                      TFConvNextModel,
+                                      TFConvNextPreTrainedModel)
+        from .models.ctrl import (TF_CTRL_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  TFCTRLForSequenceClassification,
+                                  TFCTRLLMHeadModel, TFCTRLModel,
+                                  TFCTRLPreTrainedModel)
+        from .models.cvt import (TF_CVT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 TFCvtForImageClassification, TFCvtModel,
+                                 TFCvtPreTrainedModel)
+        from .models.data2vec import (TFData2VecVisionForImageClassification,
+                                      TFData2VecVisionForSemanticSegmentation,
+                                      TFData2VecVisionModel,
+                                      TFData2VecVisionPreTrainedModel)
+        from .models.deberta import (TF_DEBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     TFDebertaForMaskedLM,
+                                     TFDebertaForQuestionAnswering,
+                                     TFDebertaForSequenceClassification,
+                                     TFDebertaForTokenClassification,
+                                     TFDebertaModel, TFDebertaPreTrainedModel)
         from .models.deberta_v2 import (
             TF_DEBERTA_V2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFDebertaV2ForMaskedLM,
-            TFDebertaV2ForQuestionAnswering,
+            TFDebertaV2ForMaskedLM, TFDebertaV2ForQuestionAnswering,
             TFDebertaV2ForSequenceClassification,
-            TFDebertaV2ForTokenClassification,
-            TFDebertaV2Model,
-            TFDebertaV2PreTrainedModel,
-        )
-        from .models.deit import (
-            TF_DEIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFDeiTForImageClassification,
-            TFDeiTForImageClassificationWithTeacher,
-            TFDeiTForMaskedImageModeling,
-            TFDeiTModel,
-            TFDeiTPreTrainedModel,
-        )
+            TFDebertaV2ForTokenClassification, TFDebertaV2Model,
+            TFDebertaV2PreTrainedModel)
+        from .models.deit import (TF_DEIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  TFDeiTForImageClassification,
+                                  TFDeiTForImageClassificationWithTeacher,
+                                  TFDeiTForMaskedImageModeling, TFDeiTModel,
+                                  TFDeiTPreTrainedModel)
         from .models.distilbert import (
             TF_DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFDistilBertForMaskedLM,
-            TFDistilBertForMultipleChoice,
+            TFDistilBertForMaskedLM, TFDistilBertForMultipleChoice,
             TFDistilBertForQuestionAnswering,
             TFDistilBertForSequenceClassification,
-            TFDistilBertForTokenClassification,
-            TFDistilBertMainLayer,
-            TFDistilBertModel,
-            TFDistilBertPreTrainedModel,
-        )
+            TFDistilBertForTokenClassification, TFDistilBertMainLayer,
+            TFDistilBertModel, TFDistilBertPreTrainedModel)
         from .models.dpr import (
             TF_DPR_CONTEXT_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST,
             TF_DPR_QUESTION_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TF_DPR_READER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFDPRContextEncoder,
-            TFDPRPretrainedContextEncoder,
-            TFDPRPretrainedQuestionEncoder,
-            TFDPRPretrainedReader,
-            TFDPRQuestionEncoder,
-            TFDPRReader,
-        )
-        from .models.electra import (
-            TF_ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFElectraForMaskedLM,
-            TFElectraForMultipleChoice,
-            TFElectraForPreTraining,
-            TFElectraForQuestionAnswering,
-            TFElectraForSequenceClassification,
-            TFElectraForTokenClassification,
-            TFElectraModel,
-            TFElectraPreTrainedModel,
-        )
+            TF_DPR_READER_PRETRAINED_MODEL_ARCHIVE_LIST, TFDPRContextEncoder,
+            TFDPRPretrainedContextEncoder, TFDPRPretrainedQuestionEncoder,
+            TFDPRPretrainedReader, TFDPRQuestionEncoder, TFDPRReader)
+        from .models.electra import (TF_ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     TFElectraForMaskedLM,
+                                     TFElectraForMultipleChoice,
+                                     TFElectraForPreTraining,
+                                     TFElectraForQuestionAnswering,
+                                     TFElectraForSequenceClassification,
+                                     TFElectraForTokenClassification,
+                                     TFElectraModel, TFElectraPreTrainedModel)
         from .models.encoder_decoder import TFEncoderDecoderModel
-        from .models.esm import (
-            ESM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFEsmForMaskedLM,
-            TFEsmForSequenceClassification,
-            TFEsmForTokenClassification,
-            TFEsmModel,
-            TFEsmPreTrainedModel,
-        )
+        from .models.esm import (ESM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 TFEsmForMaskedLM,
+                                 TFEsmForSequenceClassification,
+                                 TFEsmForTokenClassification, TFEsmModel,
+                                 TFEsmPreTrainedModel)
         from .models.flaubert import (
             TF_FLAUBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFFlaubertForMultipleChoice,
-            TFFlaubertForQuestionAnsweringSimple,
+            TFFlaubertForMultipleChoice, TFFlaubertForQuestionAnsweringSimple,
             TFFlaubertForSequenceClassification,
-            TFFlaubertForTokenClassification,
-            TFFlaubertModel,
-            TFFlaubertPreTrainedModel,
-            TFFlaubertWithLMHeadModel,
-        )
-        from .models.funnel import (
-            TF_FUNNEL_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFFunnelBaseModel,
-            TFFunnelForMaskedLM,
-            TFFunnelForMultipleChoice,
-            TFFunnelForPreTraining,
-            TFFunnelForQuestionAnswering,
-            TFFunnelForSequenceClassification,
-            TFFunnelForTokenClassification,
-            TFFunnelModel,
-            TFFunnelPreTrainedModel,
-        )
-        from .models.gpt2 import (
-            TF_GPT2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFGPT2DoubleHeadsModel,
-            TFGPT2ForSequenceClassification,
-            TFGPT2LMHeadModel,
-            TFGPT2MainLayer,
-            TFGPT2Model,
-            TFGPT2PreTrainedModel,
-        )
-        from .models.gptj import (
-            TFGPTJForCausalLM,
-            TFGPTJForQuestionAnswering,
-            TFGPTJForSequenceClassification,
-            TFGPTJModel,
-            TFGPTJPreTrainedModel,
-        )
+            TFFlaubertForTokenClassification, TFFlaubertModel,
+            TFFlaubertPreTrainedModel, TFFlaubertWithLMHeadModel)
+        from .models.funnel import (TF_FUNNEL_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    TFFunnelBaseModel, TFFunnelForMaskedLM,
+                                    TFFunnelForMultipleChoice,
+                                    TFFunnelForPreTraining,
+                                    TFFunnelForQuestionAnswering,
+                                    TFFunnelForSequenceClassification,
+                                    TFFunnelForTokenClassification,
+                                    TFFunnelModel, TFFunnelPreTrainedModel)
+        from .models.gpt2 import (TF_GPT2_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  TFGPT2DoubleHeadsModel,
+                                  TFGPT2ForSequenceClassification,
+                                  TFGPT2LMHeadModel, TFGPT2MainLayer,
+                                  TFGPT2Model, TFGPT2PreTrainedModel)
+        from .models.gptj import (TFGPTJForCausalLM,
+                                  TFGPTJForQuestionAnswering,
+                                  TFGPTJForSequenceClassification, TFGPTJModel,
+                                  TFGPTJPreTrainedModel)
         from .models.groupvit import (
-            TF_GROUPVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFGroupViTModel,
-            TFGroupViTPreTrainedModel,
-            TFGroupViTTextModel,
-            TFGroupViTVisionModel,
-        )
-        from .models.hubert import (
-            TF_HUBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFHubertForCTC,
-            TFHubertModel,
-            TFHubertPreTrainedModel,
-        )
+            TF_GROUPVIT_PRETRAINED_MODEL_ARCHIVE_LIST, TFGroupViTModel,
+            TFGroupViTPreTrainedModel, TFGroupViTTextModel,
+            TFGroupViTVisionModel)
+        from .models.hubert import (TF_HUBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    TFHubertForCTC, TFHubertModel,
+                                    TFHubertPreTrainedModel)
         from .models.layoutlm import (
-            TF_LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFLayoutLMForMaskedLM,
+            TF_LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_LIST, TFLayoutLMForMaskedLM,
             TFLayoutLMForQuestionAnswering,
             TFLayoutLMForSequenceClassification,
-            TFLayoutLMForTokenClassification,
-            TFLayoutLMMainLayer,
-            TFLayoutLMModel,
-            TFLayoutLMPreTrainedModel,
-        )
+            TFLayoutLMForTokenClassification, TFLayoutLMMainLayer,
+            TFLayoutLMModel, TFLayoutLMPreTrainedModel)
         from .models.layoutlmv3 import (
             TF_LAYOUTLMV3_PRETRAINED_MODEL_ARCHIVE_LIST,
             TFLayoutLMv3ForQuestionAnswering,
             TFLayoutLMv3ForSequenceClassification,
-            TFLayoutLMv3ForTokenClassification,
-            TFLayoutLMv3Model,
-            TFLayoutLMv3PreTrainedModel,
-        )
-        from .models.led import (
-            TFLEDForConditionalGeneration,
-            TFLEDModel,
-            TFLEDPreTrainedModel,
-        )
+            TFLayoutLMv3ForTokenClassification, TFLayoutLMv3Model,
+            TFLayoutLMv3PreTrainedModel)
+        from .models.led import (TFLEDForConditionalGeneration, TFLEDModel,
+                                 TFLEDPreTrainedModel)
         from .models.longformer import (
             TF_LONGFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFLongformerForMaskedLM,
-            TFLongformerForMultipleChoice,
+            TFLongformerForMaskedLM, TFLongformerForMultipleChoice,
             TFLongformerForQuestionAnswering,
             TFLongformerForSequenceClassification,
-            TFLongformerForTokenClassification,
-            TFLongformerModel,
-            TFLongformerPreTrainedModel,
-            TFLongformerSelfAttention,
-        )
-        from .models.lxmert import (
-            TF_LXMERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFLxmertForPreTraining,
-            TFLxmertMainLayer,
-            TFLxmertModel,
-            TFLxmertPreTrainedModel,
-            TFLxmertVisualFeatureEncoder,
-        )
-        from .models.marian import (
-            TFMarianModel,
-            TFMarianMTModel,
-            TFMarianPreTrainedModel,
-        )
-        from .models.mbart import (
-            TFMBartForConditionalGeneration,
-            TFMBartModel,
-            TFMBartPreTrainedModel,
-        )
+            TFLongformerForTokenClassification, TFLongformerModel,
+            TFLongformerPreTrainedModel, TFLongformerSelfAttention)
+        from .models.lxmert import (TF_LXMERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    TFLxmertForPreTraining, TFLxmertMainLayer,
+                                    TFLxmertModel, TFLxmertPreTrainedModel,
+                                    TFLxmertVisualFeatureEncoder)
+        from .models.marian import (TFMarianModel, TFMarianMTModel,
+                                    TFMarianPreTrainedModel)
+        from .models.mbart import (TFMBartForConditionalGeneration,
+                                   TFMBartModel, TFMBartPreTrainedModel)
         from .models.mobilebert import (
             TF_MOBILEBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFMobileBertForMaskedLM,
-            TFMobileBertForMultipleChoice,
-            TFMobileBertForNextSentencePrediction,
-            TFMobileBertForPreTraining,
+            TFMobileBertForMaskedLM, TFMobileBertForMultipleChoice,
+            TFMobileBertForNextSentencePrediction, TFMobileBertForPreTraining,
             TFMobileBertForQuestionAnswering,
             TFMobileBertForSequenceClassification,
-            TFMobileBertForTokenClassification,
-            TFMobileBertMainLayer,
-            TFMobileBertModel,
-            TFMobileBertPreTrainedModel,
-        )
+            TFMobileBertForTokenClassification, TFMobileBertMainLayer,
+            TFMobileBertModel, TFMobileBertPreTrainedModel)
         from .models.mobilevit import (
             TF_MOBILEVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
             TFMobileViTForImageClassification,
-            TFMobileViTForSemanticSegmentation,
-            TFMobileViTModel,
-            TFMobileViTPreTrainedModel,
-        )
-        from .models.mpnet import (
-            TF_MPNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFMPNetForMaskedLM,
-            TFMPNetForMultipleChoice,
-            TFMPNetForQuestionAnswering,
-            TFMPNetForSequenceClassification,
-            TFMPNetForTokenClassification,
-            TFMPNetMainLayer,
-            TFMPNetModel,
-            TFMPNetPreTrainedModel,
-        )
-        from .models.mt5 import (
-            TFMT5EncoderModel,
-            TFMT5ForConditionalGeneration,
-            TFMT5Model,
-        )
+            TFMobileViTForSemanticSegmentation, TFMobileViTModel,
+            TFMobileViTPreTrainedModel)
+        from .models.mpnet import (TF_MPNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   TFMPNetForMaskedLM,
+                                   TFMPNetForMultipleChoice,
+                                   TFMPNetForQuestionAnswering,
+                                   TFMPNetForSequenceClassification,
+                                   TFMPNetForTokenClassification,
+                                   TFMPNetMainLayer, TFMPNetModel,
+                                   TFMPNetPreTrainedModel)
+        from .models.mt5 import (TFMT5EncoderModel,
+                                 TFMT5ForConditionalGeneration, TFMT5Model)
         from .models.openai import (
             TF_OPENAI_GPT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFOpenAIGPTDoubleHeadsModel,
-            TFOpenAIGPTForSequenceClassification,
-            TFOpenAIGPTLMHeadModel,
-            TFOpenAIGPTMainLayer,
-            TFOpenAIGPTModel,
-            TFOpenAIGPTPreTrainedModel,
-        )
-        from .models.opt import TFOPTForCausalLM, TFOPTModel, TFOPTPreTrainedModel
-        from .models.pegasus import (
-            TFPegasusForConditionalGeneration,
-            TFPegasusModel,
-            TFPegasusPreTrainedModel,
-        )
-        from .models.rag import (
-            TFRagModel,
-            TFRagPreTrainedModel,
-            TFRagSequenceForGeneration,
-            TFRagTokenForGeneration,
-        )
-        from .models.regnet import (
-            TF_REGNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFRegNetForImageClassification,
-            TFRegNetModel,
-            TFRegNetPreTrainedModel,
-        )
-        from .models.rembert import (
-            TF_REMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFRemBertForCausalLM,
-            TFRemBertForMaskedLM,
-            TFRemBertForMultipleChoice,
-            TFRemBertForQuestionAnswering,
-            TFRemBertForSequenceClassification,
-            TFRemBertForTokenClassification,
-            TFRemBertLayer,
-            TFRemBertModel,
-            TFRemBertPreTrainedModel,
-        )
-        from .models.resnet import (
-            TF_RESNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFResNetForImageClassification,
-            TFResNetModel,
-            TFResNetPreTrainedModel,
-        )
-        from .models.roberta import (
-            TF_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFRobertaForCausalLM,
-            TFRobertaForMaskedLM,
-            TFRobertaForMultipleChoice,
-            TFRobertaForQuestionAnswering,
-            TFRobertaForSequenceClassification,
-            TFRobertaForTokenClassification,
-            TFRobertaMainLayer,
-            TFRobertaModel,
-            TFRobertaPreTrainedModel,
-        )
+            TFOpenAIGPTDoubleHeadsModel, TFOpenAIGPTForSequenceClassification,
+            TFOpenAIGPTLMHeadModel, TFOpenAIGPTMainLayer, TFOpenAIGPTModel,
+            TFOpenAIGPTPreTrainedModel)
+        from .models.opt import (TFOPTForCausalLM, TFOPTModel,
+                                 TFOPTPreTrainedModel)
+        from .models.pegasus import (TFPegasusForConditionalGeneration,
+                                     TFPegasusModel, TFPegasusPreTrainedModel)
+        from .models.rag import (TFRagModel, TFRagPreTrainedModel,
+                                 TFRagSequenceForGeneration,
+                                 TFRagTokenForGeneration)
+        from .models.regnet import (TF_REGNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    TFRegNetForImageClassification,
+                                    TFRegNetModel, TFRegNetPreTrainedModel)
+        from .models.rembert import (TF_REMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     TFRemBertForCausalLM,
+                                     TFRemBertForMaskedLM,
+                                     TFRemBertForMultipleChoice,
+                                     TFRemBertForQuestionAnswering,
+                                     TFRemBertForSequenceClassification,
+                                     TFRemBertForTokenClassification,
+                                     TFRemBertLayer, TFRemBertModel,
+                                     TFRemBertPreTrainedModel)
+        from .models.resnet import (TF_RESNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    TFResNetForImageClassification,
+                                    TFResNetModel, TFResNetPreTrainedModel)
+        from .models.roberta import (TF_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     TFRobertaForCausalLM,
+                                     TFRobertaForMaskedLM,
+                                     TFRobertaForMultipleChoice,
+                                     TFRobertaForQuestionAnswering,
+                                     TFRobertaForSequenceClassification,
+                                     TFRobertaForTokenClassification,
+                                     TFRobertaMainLayer, TFRobertaModel,
+                                     TFRobertaPreTrainedModel)
         from .models.roberta_prelayernorm import (
             TF_ROBERTA_PRELAYERNORM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFRobertaPreLayerNormForCausalLM,
-            TFRobertaPreLayerNormForMaskedLM,
+            TFRobertaPreLayerNormForCausalLM, TFRobertaPreLayerNormForMaskedLM,
             TFRobertaPreLayerNormForMultipleChoice,
             TFRobertaPreLayerNormForQuestionAnswering,
             TFRobertaPreLayerNormForSequenceClassification,
             TFRobertaPreLayerNormForTokenClassification,
-            TFRobertaPreLayerNormMainLayer,
-            TFRobertaPreLayerNormModel,
-            TFRobertaPreLayerNormPreTrainedModel,
-        )
+            TFRobertaPreLayerNormMainLayer, TFRobertaPreLayerNormModel,
+            TFRobertaPreLayerNormPreTrainedModel)
         from .models.roformer import (
-            TF_ROFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFRoFormerForCausalLM,
-            TFRoFormerForMaskedLM,
-            TFRoFormerForMultipleChoice,
+            TF_ROFORMER_PRETRAINED_MODEL_ARCHIVE_LIST, TFRoFormerForCausalLM,
+            TFRoFormerForMaskedLM, TFRoFormerForMultipleChoice,
             TFRoFormerForQuestionAnswering,
             TFRoFormerForSequenceClassification,
-            TFRoFormerForTokenClassification,
-            TFRoFormerLayer,
-            TFRoFormerModel,
-            TFRoFormerPreTrainedModel,
-        )
+            TFRoFormerForTokenClassification, TFRoFormerLayer, TFRoFormerModel,
+            TFRoFormerPreTrainedModel)
         from .models.segformer import (
-            TF_SEGFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFSegformerDecodeHead,
+            TF_SEGFORMER_PRETRAINED_MODEL_ARCHIVE_LIST, TFSegformerDecodeHead,
             TFSegformerForImageClassification,
-            TFSegformerForSemanticSegmentation,
-            TFSegformerModel,
-            TFSegformerPreTrainedModel,
-        )
+            TFSegformerForSemanticSegmentation, TFSegformerModel,
+            TFSegformerPreTrainedModel)
         from .models.speech_to_text import (
             TF_SPEECH_TO_TEXT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFSpeech2TextForConditionalGeneration,
-            TFSpeech2TextModel,
-            TFSpeech2TextPreTrainedModel,
-        )
-        from .models.swin import (
-            TF_SWIN_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFSwinForImageClassification,
-            TFSwinForMaskedImageModeling,
-            TFSwinModel,
-            TFSwinPreTrainedModel,
-        )
-        from .models.t5 import (
-            TF_T5_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFT5EncoderModel,
-            TFT5ForConditionalGeneration,
-            TFT5Model,
-            TFT5PreTrainedModel,
-        )
-        from .models.tapas import (
-            TF_TAPAS_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFTapasForMaskedLM,
-            TFTapasForQuestionAnswering,
-            TFTapasForSequenceClassification,
-            TFTapasModel,
-            TFTapasPreTrainedModel,
-        )
+            TFSpeech2TextForConditionalGeneration, TFSpeech2TextModel,
+            TFSpeech2TextPreTrainedModel)
+        from .models.swin import (TF_SWIN_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  TFSwinForImageClassification,
+                                  TFSwinForMaskedImageModeling, TFSwinModel,
+                                  TFSwinPreTrainedModel)
+        from .models.t5 import (TF_T5_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                TFT5EncoderModel, TFT5ForConditionalGeneration,
+                                TFT5Model, TFT5PreTrainedModel)
+        from .models.tapas import (TF_TAPAS_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   TFTapasForMaskedLM,
+                                   TFTapasForQuestionAnswering,
+                                   TFTapasForSequenceClassification,
+                                   TFTapasModel, TFTapasPreTrainedModel)
         from .models.transfo_xl import (
-            TF_TRANSFO_XL_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFAdaptiveEmbedding,
-            TFTransfoXLForSequenceClassification,
-            TFTransfoXLLMHeadModel,
-            TFTransfoXLMainLayer,
-            TFTransfoXLModel,
-            TFTransfoXLPreTrainedModel,
-        )
+            TF_TRANSFO_XL_PRETRAINED_MODEL_ARCHIVE_LIST, TFAdaptiveEmbedding,
+            TFTransfoXLForSequenceClassification, TFTransfoXLLMHeadModel,
+            TFTransfoXLMainLayer, TFTransfoXLModel, TFTransfoXLPreTrainedModel)
         from .models.vision_encoder_decoder import TFVisionEncoderDecoderModel
-        from .models.vision_text_dual_encoder import TFVisionTextDualEncoderModel
-        from .models.vit import (
-            TFViTForImageClassification,
-            TFViTModel,
-            TFViTPreTrainedModel,
-        )
-        from .models.vit_mae import (
-            TFViTMAEForPreTraining,
-            TFViTMAEModel,
-            TFViTMAEPreTrainedModel,
-        )
+        from .models.vision_text_dual_encoder import \
+            TFVisionTextDualEncoderModel
+        from .models.vit import (TFViTForImageClassification, TFViTModel,
+                                 TFViTPreTrainedModel)
+        from .models.vit_mae import (TFViTMAEForPreTraining, TFViTMAEModel,
+                                     TFViTMAEPreTrainedModel)
         from .models.wav2vec2 import (
-            TF_WAV_2_VEC_2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFWav2Vec2ForCTC,
-            TFWav2Vec2Model,
-            TFWav2Vec2PreTrainedModel,
-        )
-        from .models.whisper import (
-            TF_WHISPER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFWhisperForConditionalGeneration,
-            TFWhisperModel,
-            TFWhisperPreTrainedModel,
-        )
-        from .models.xglm import (
-            TF_XGLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFXGLMForCausalLM,
-            TFXGLMModel,
-            TFXGLMPreTrainedModel,
-        )
-        from .models.xlm import (
-            TF_XLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFXLMForMultipleChoice,
-            TFXLMForQuestionAnsweringSimple,
-            TFXLMForSequenceClassification,
-            TFXLMForTokenClassification,
-            TFXLMMainLayer,
-            TFXLMModel,
-            TFXLMPreTrainedModel,
-            TFXLMWithLMHeadModel,
-        )
+            TF_WAV_2_VEC_2_PRETRAINED_MODEL_ARCHIVE_LIST, TFWav2Vec2ForCTC,
+            TFWav2Vec2Model, TFWav2Vec2PreTrainedModel)
+        from .models.whisper import (TF_WHISPER_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     TFWhisperForConditionalGeneration,
+                                     TFWhisperModel, TFWhisperPreTrainedModel)
+        from .models.xglm import (TF_XGLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  TFXGLMForCausalLM, TFXGLMModel,
+                                  TFXGLMPreTrainedModel)
+        from .models.xlm import (TF_XLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                 TFXLMForMultipleChoice,
+                                 TFXLMForQuestionAnsweringSimple,
+                                 TFXLMForSequenceClassification,
+                                 TFXLMForTokenClassification, TFXLMMainLayer,
+                                 TFXLMModel, TFXLMPreTrainedModel,
+                                 TFXLMWithLMHeadModel)
         from .models.xlm_roberta import (
             TF_XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFXLMRobertaForCausalLM,
-            TFXLMRobertaForMaskedLM,
-            TFXLMRobertaForMultipleChoice,
-            TFXLMRobertaForQuestionAnswering,
+            TFXLMRobertaForCausalLM, TFXLMRobertaForMaskedLM,
+            TFXLMRobertaForMultipleChoice, TFXLMRobertaForQuestionAnswering,
             TFXLMRobertaForSequenceClassification,
-            TFXLMRobertaForTokenClassification,
-            TFXLMRobertaModel,
-            TFXLMRobertaPreTrainedModel,
-        )
-        from .models.xlnet import (
-            TF_XLNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFXLNetForMultipleChoice,
-            TFXLNetForQuestionAnsweringSimple,
-            TFXLNetForSequenceClassification,
-            TFXLNetForTokenClassification,
-            TFXLNetLMHeadModel,
-            TFXLNetMainLayer,
-            TFXLNetModel,
-            TFXLNetPreTrainedModel,
-        )
-
+            TFXLMRobertaForTokenClassification, TFXLMRobertaModel,
+            TFXLMRobertaPreTrainedModel)
+        from .models.xlnet import (TF_XLNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   TFXLNetForMultipleChoice,
+                                   TFXLNetForQuestionAnsweringSimple,
+                                   TFXLNetForSequenceClassification,
+                                   TFXLNetForTokenClassification,
+                                   TFXLNetLMHeadModel, TFXLNetMainLayer,
+                                   TFXLNetModel, TFXLNetPreTrainedModel)
         # Optimization
-        from .optimization_tf import (
-            AdamWeightDecay,
-            GradientAccumulator,
-            WarmUp,
-            create_optimizer,
-        )
-
+        from .optimization_tf import (AdamWeightDecay, GradientAccumulator,
+                                      WarmUp, create_optimizer)
         # Trainer
         from .trainer_tf import TFTrainer
 
@@ -7454,31 +6194,22 @@ if TYPE_CHECKING:
         # They will raise an import error if the user tries to instantiate / use them.
         from .utils.dummy_flax_objects import *
     else:
-        from .generation import (
-            FlaxForcedBOSTokenLogitsProcessor,
-            FlaxForcedEOSTokenLogitsProcessor,
-            FlaxGenerationMixin,
-            FlaxLogitsProcessor,
-            FlaxLogitsProcessorList,
-            FlaxLogitsWarper,
-            FlaxMinLengthLogitsProcessor,
-            FlaxTemperatureLogitsWarper,
-            FlaxTopKLogitsWarper,
-            FlaxTopPLogitsWarper,
-        )
+        from .generation import (FlaxForcedBOSTokenLogitsProcessor,
+                                 FlaxForcedEOSTokenLogitsProcessor,
+                                 FlaxGenerationMixin, FlaxLogitsProcessor,
+                                 FlaxLogitsProcessorList, FlaxLogitsWarper,
+                                 FlaxMinLengthLogitsProcessor,
+                                 FlaxTemperatureLogitsWarper,
+                                 FlaxTopKLogitsWarper, FlaxTopPLogitsWarper)
         from .modeling_flax_utils import FlaxPreTrainedModel
-
         # Flax model imports
-        from .models.albert import (
-            FlaxAlbertForMaskedLM,
-            FlaxAlbertForMultipleChoice,
-            FlaxAlbertForPreTraining,
-            FlaxAlbertForQuestionAnswering,
-            FlaxAlbertForSequenceClassification,
-            FlaxAlbertForTokenClassification,
-            FlaxAlbertModel,
-            FlaxAlbertPreTrainedModel,
-        )
+        from .models.albert import (FlaxAlbertForMaskedLM,
+                                    FlaxAlbertForMultipleChoice,
+                                    FlaxAlbertForPreTraining,
+                                    FlaxAlbertForQuestionAnswering,
+                                    FlaxAlbertForSequenceClassification,
+                                    FlaxAlbertForTokenClassification,
+                                    FlaxAlbertModel, FlaxAlbertPreTrainedModel)
         from .models.auto import (
             FLAX_MODEL_FOR_CAUSAL_LM_MAPPING,
             FLAX_MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING,
@@ -7491,162 +6222,101 @@ if TYPE_CHECKING:
             FLAX_MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING,
             FLAX_MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING,
             FLAX_MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING,
-            FLAX_MODEL_FOR_VISION_2_SEQ_MAPPING,
-            FLAX_MODEL_MAPPING,
-            FlaxAutoModel,
-            FlaxAutoModelForCausalLM,
-            FlaxAutoModelForImageClassification,
-            FlaxAutoModelForMaskedLM,
+            FLAX_MODEL_FOR_VISION_2_SEQ_MAPPING, FLAX_MODEL_MAPPING,
+            FlaxAutoModel, FlaxAutoModelForCausalLM,
+            FlaxAutoModelForImageClassification, FlaxAutoModelForMaskedLM,
             FlaxAutoModelForMultipleChoice,
             FlaxAutoModelForNextSentencePrediction,
-            FlaxAutoModelForPreTraining,
-            FlaxAutoModelForQuestionAnswering,
-            FlaxAutoModelForSeq2SeqLM,
-            FlaxAutoModelForSequenceClassification,
-            FlaxAutoModelForSpeechSeq2Seq,
-            FlaxAutoModelForTokenClassification,
-            FlaxAutoModelForVision2Seq,
-        )
-        from .models.bart import (
-            FlaxBartDecoderPreTrainedModel,
-            FlaxBartForCausalLM,
-            FlaxBartForConditionalGeneration,
-            FlaxBartForQuestionAnswering,
-            FlaxBartForSequenceClassification,
-            FlaxBartModel,
-            FlaxBartPreTrainedModel,
-        )
-        from .models.beit import (
-            FlaxBeitForImageClassification,
-            FlaxBeitForMaskedImageModeling,
-            FlaxBeitModel,
-            FlaxBeitPreTrainedModel,
-        )
-        from .models.bert import (
-            FlaxBertForCausalLM,
-            FlaxBertForMaskedLM,
-            FlaxBertForMultipleChoice,
-            FlaxBertForNextSentencePrediction,
-            FlaxBertForPreTraining,
-            FlaxBertForQuestionAnswering,
-            FlaxBertForSequenceClassification,
-            FlaxBertForTokenClassification,
-            FlaxBertModel,
-            FlaxBertPreTrainedModel,
-        )
-        from .models.big_bird import (
-            FlaxBigBirdForCausalLM,
-            FlaxBigBirdForMaskedLM,
-            FlaxBigBirdForMultipleChoice,
-            FlaxBigBirdForPreTraining,
-            FlaxBigBirdForQuestionAnswering,
-            FlaxBigBirdForSequenceClassification,
-            FlaxBigBirdForTokenClassification,
-            FlaxBigBirdModel,
-            FlaxBigBirdPreTrainedModel,
-        )
-        from .models.blenderbot import (
-            FlaxBlenderbotForConditionalGeneration,
-            FlaxBlenderbotModel,
-            FlaxBlenderbotPreTrainedModel,
-        )
+            FlaxAutoModelForPreTraining, FlaxAutoModelForQuestionAnswering,
+            FlaxAutoModelForSeq2SeqLM, FlaxAutoModelForSequenceClassification,
+            FlaxAutoModelForSpeechSeq2Seq, FlaxAutoModelForTokenClassification,
+            FlaxAutoModelForVision2Seq)
+        from .models.bart import (FlaxBartDecoderPreTrainedModel,
+                                  FlaxBartForCausalLM,
+                                  FlaxBartForConditionalGeneration,
+                                  FlaxBartForQuestionAnswering,
+                                  FlaxBartForSequenceClassification,
+                                  FlaxBartModel, FlaxBartPreTrainedModel)
+        from .models.beit import (FlaxBeitForImageClassification,
+                                  FlaxBeitForMaskedImageModeling,
+                                  FlaxBeitModel, FlaxBeitPreTrainedModel)
+        from .models.bert import (FlaxBertForCausalLM, FlaxBertForMaskedLM,
+                                  FlaxBertForMultipleChoice,
+                                  FlaxBertForNextSentencePrediction,
+                                  FlaxBertForPreTraining,
+                                  FlaxBertForQuestionAnswering,
+                                  FlaxBertForSequenceClassification,
+                                  FlaxBertForTokenClassification,
+                                  FlaxBertModel, FlaxBertPreTrainedModel)
+        from .models.big_bird import (FlaxBigBirdForCausalLM,
+                                      FlaxBigBirdForMaskedLM,
+                                      FlaxBigBirdForMultipleChoice,
+                                      FlaxBigBirdForPreTraining,
+                                      FlaxBigBirdForQuestionAnswering,
+                                      FlaxBigBirdForSequenceClassification,
+                                      FlaxBigBirdForTokenClassification,
+                                      FlaxBigBirdModel,
+                                      FlaxBigBirdPreTrainedModel)
+        from .models.blenderbot import (FlaxBlenderbotForConditionalGeneration,
+                                        FlaxBlenderbotModel,
+                                        FlaxBlenderbotPreTrainedModel)
         from .models.blenderbot_small import (
             FlaxBlenderbotSmallForConditionalGeneration,
-            FlaxBlenderbotSmallModel,
-            FlaxBlenderbotSmallPreTrainedModel,
-        )
-        from .models.clip import (
-            FlaxCLIPModel,
-            FlaxCLIPPreTrainedModel,
-            FlaxCLIPTextModel,
-            FlaxCLIPTextPreTrainedModel,
-            FlaxCLIPVisionModel,
-            FlaxCLIPVisionPreTrainedModel,
-        )
+            FlaxBlenderbotSmallModel, FlaxBlenderbotSmallPreTrainedModel)
+        from .models.clip import (FlaxCLIPModel, FlaxCLIPPreTrainedModel,
+                                  FlaxCLIPTextModel,
+                                  FlaxCLIPTextPreTrainedModel,
+                                  FlaxCLIPVisionModel,
+                                  FlaxCLIPVisionPreTrainedModel)
         from .models.distilbert import (
-            FlaxDistilBertForMaskedLM,
-            FlaxDistilBertForMultipleChoice,
+            FlaxDistilBertForMaskedLM, FlaxDistilBertForMultipleChoice,
             FlaxDistilBertForQuestionAnswering,
             FlaxDistilBertForSequenceClassification,
-            FlaxDistilBertForTokenClassification,
-            FlaxDistilBertModel,
-            FlaxDistilBertPreTrainedModel,
-        )
-        from .models.electra import (
-            FlaxElectraForCausalLM,
-            FlaxElectraForMaskedLM,
-            FlaxElectraForMultipleChoice,
-            FlaxElectraForPreTraining,
-            FlaxElectraForQuestionAnswering,
-            FlaxElectraForSequenceClassification,
-            FlaxElectraForTokenClassification,
-            FlaxElectraModel,
-            FlaxElectraPreTrainedModel,
-        )
+            FlaxDistilBertForTokenClassification, FlaxDistilBertModel,
+            FlaxDistilBertPreTrainedModel)
+        from .models.electra import (FlaxElectraForCausalLM,
+                                     FlaxElectraForMaskedLM,
+                                     FlaxElectraForMultipleChoice,
+                                     FlaxElectraForPreTraining,
+                                     FlaxElectraForQuestionAnswering,
+                                     FlaxElectraForSequenceClassification,
+                                     FlaxElectraForTokenClassification,
+                                     FlaxElectraModel,
+                                     FlaxElectraPreTrainedModel)
         from .models.encoder_decoder import FlaxEncoderDecoderModel
-        from .models.gpt2 import (
-            FlaxGPT2LMHeadModel,
-            FlaxGPT2Model,
-            FlaxGPT2PreTrainedModel,
-        )
-        from .models.gpt_neo import (
-            FlaxGPTNeoForCausalLM,
-            FlaxGPTNeoModel,
-            FlaxGPTNeoPreTrainedModel,
-        )
-        from .models.gptj import (
-            FlaxGPTJForCausalLM,
-            FlaxGPTJModel,
-            FlaxGPTJPreTrainedModel,
-        )
-        from .models.longt5 import (
-            FlaxLongT5ForConditionalGeneration,
-            FlaxLongT5Model,
-            FlaxLongT5PreTrainedModel,
-        )
-        from .models.marian import (
-            FlaxMarianModel,
-            FlaxMarianMTModel,
-            FlaxMarianPreTrainedModel,
-        )
-        from .models.mbart import (
-            FlaxMBartForConditionalGeneration,
-            FlaxMBartForQuestionAnswering,
-            FlaxMBartForSequenceClassification,
-            FlaxMBartModel,
-            FlaxMBartPreTrainedModel,
-        )
-        from .models.mt5 import (
-            FlaxMT5EncoderModel,
-            FlaxMT5ForConditionalGeneration,
-            FlaxMT5Model,
-        )
-        from .models.opt import FlaxOPTForCausalLM, FlaxOPTModel, FlaxOPTPreTrainedModel
-        from .models.pegasus import (
-            FlaxPegasusForConditionalGeneration,
-            FlaxPegasusModel,
-            FlaxPegasusPreTrainedModel,
-        )
-        from .models.regnet import (
-            FlaxRegNetForImageClassification,
-            FlaxRegNetModel,
-            FlaxRegNetPreTrainedModel,
-        )
-        from .models.resnet import (
-            FlaxResNetForImageClassification,
-            FlaxResNetModel,
-            FlaxResNetPreTrainedModel,
-        )
-        from .models.roberta import (
-            FlaxRobertaForCausalLM,
-            FlaxRobertaForMaskedLM,
-            FlaxRobertaForMultipleChoice,
-            FlaxRobertaForQuestionAnswering,
-            FlaxRobertaForSequenceClassification,
-            FlaxRobertaForTokenClassification,
-            FlaxRobertaModel,
-            FlaxRobertaPreTrainedModel,
-        )
+        from .models.gpt2 import (FlaxGPT2LMHeadModel, FlaxGPT2Model,
+                                  FlaxGPT2PreTrainedModel)
+        from .models.gpt_neo import (FlaxGPTNeoForCausalLM, FlaxGPTNeoModel,
+                                     FlaxGPTNeoPreTrainedModel)
+        from .models.gptj import (FlaxGPTJForCausalLM, FlaxGPTJModel,
+                                  FlaxGPTJPreTrainedModel)
+        from .models.longt5 import (FlaxLongT5ForConditionalGeneration,
+                                    FlaxLongT5Model, FlaxLongT5PreTrainedModel)
+        from .models.marian import (FlaxMarianModel, FlaxMarianMTModel,
+                                    FlaxMarianPreTrainedModel)
+        from .models.mbart import (FlaxMBartForConditionalGeneration,
+                                   FlaxMBartForQuestionAnswering,
+                                   FlaxMBartForSequenceClassification,
+                                   FlaxMBartModel, FlaxMBartPreTrainedModel)
+        from .models.mt5 import (FlaxMT5EncoderModel,
+                                 FlaxMT5ForConditionalGeneration, FlaxMT5Model)
+        from .models.opt import (FlaxOPTForCausalLM, FlaxOPTModel,
+                                 FlaxOPTPreTrainedModel)
+        from .models.pegasus import (FlaxPegasusForConditionalGeneration,
+                                     FlaxPegasusModel,
+                                     FlaxPegasusPreTrainedModel)
+        from .models.regnet import (FlaxRegNetForImageClassification,
+                                    FlaxRegNetModel, FlaxRegNetPreTrainedModel)
+        from .models.resnet import (FlaxResNetForImageClassification,
+                                    FlaxResNetModel, FlaxResNetPreTrainedModel)
+        from .models.roberta import (FlaxRobertaForCausalLM,
+                                     FlaxRobertaForMaskedLM,
+                                     FlaxRobertaForMultipleChoice,
+                                     FlaxRobertaForQuestionAnswering,
+                                     FlaxRobertaForSequenceClassification,
+                                     FlaxRobertaForTokenClassification,
+                                     FlaxRobertaModel,
+                                     FlaxRobertaPreTrainedModel)
         from .models.roberta_prelayernorm import (
             FlaxRobertaPreLayerNormForCausalLM,
             FlaxRobertaPreLayerNormForMaskedLM,
@@ -7655,58 +6325,42 @@ if TYPE_CHECKING:
             FlaxRobertaPreLayerNormForSequenceClassification,
             FlaxRobertaPreLayerNormForTokenClassification,
             FlaxRobertaPreLayerNormModel,
-            FlaxRobertaPreLayerNormPreTrainedModel,
-        )
-        from .models.roformer import (
-            FlaxRoFormerForMaskedLM,
-            FlaxRoFormerForMultipleChoice,
-            FlaxRoFormerForQuestionAnswering,
-            FlaxRoFormerForSequenceClassification,
-            FlaxRoFormerForTokenClassification,
-            FlaxRoFormerModel,
-            FlaxRoFormerPreTrainedModel,
-        )
-        from .models.speech_encoder_decoder import FlaxSpeechEncoderDecoderModel
-        from .models.t5 import (
-            FlaxT5EncoderModel,
-            FlaxT5ForConditionalGeneration,
-            FlaxT5Model,
-            FlaxT5PreTrainedModel,
-        )
-        from .models.vision_encoder_decoder import FlaxVisionEncoderDecoderModel
-        from .models.vision_text_dual_encoder import FlaxVisionTextDualEncoderModel
-        from .models.vit import (
-            FlaxViTForImageClassification,
-            FlaxViTModel,
-            FlaxViTPreTrainedModel,
-        )
-        from .models.wav2vec2 import (
-            FlaxWav2Vec2ForCTC,
-            FlaxWav2Vec2ForPreTraining,
-            FlaxWav2Vec2Model,
-            FlaxWav2Vec2PreTrainedModel,
-        )
-        from .models.whisper import (
-            FlaxWhisperForConditionalGeneration,
-            FlaxWhisperModel,
-            FlaxWhisperPreTrainedModel,
-        )
-        from .models.xglm import (
-            FlaxXGLMForCausalLM,
-            FlaxXGLMModel,
-            FlaxXGLMPreTrainedModel,
-        )
+            FlaxRobertaPreLayerNormPreTrainedModel)
+        from .models.roformer import (FlaxRoFormerForMaskedLM,
+                                      FlaxRoFormerForMultipleChoice,
+                                      FlaxRoFormerForQuestionAnswering,
+                                      FlaxRoFormerForSequenceClassification,
+                                      FlaxRoFormerForTokenClassification,
+                                      FlaxRoFormerModel,
+                                      FlaxRoFormerPreTrainedModel)
+        from .models.speech_encoder_decoder import \
+            FlaxSpeechEncoderDecoderModel
+        from .models.t5 import (FlaxT5EncoderModel,
+                                FlaxT5ForConditionalGeneration, FlaxT5Model,
+                                FlaxT5PreTrainedModel)
+        from .models.vision_encoder_decoder import \
+            FlaxVisionEncoderDecoderModel
+        from .models.vision_text_dual_encoder import \
+            FlaxVisionTextDualEncoderModel
+        from .models.vit import (FlaxViTForImageClassification, FlaxViTModel,
+                                 FlaxViTPreTrainedModel)
+        from .models.wav2vec2 import (FlaxWav2Vec2ForCTC,
+                                      FlaxWav2Vec2ForPreTraining,
+                                      FlaxWav2Vec2Model,
+                                      FlaxWav2Vec2PreTrainedModel)
+        from .models.whisper import (FlaxWhisperForConditionalGeneration,
+                                     FlaxWhisperModel,
+                                     FlaxWhisperPreTrainedModel)
+        from .models.xglm import (FlaxXGLMForCausalLM, FlaxXGLMModel,
+                                  FlaxXGLMPreTrainedModel)
         from .models.xlm_roberta import (
             FLAX_XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            FlaxXLMRobertaForCausalLM,
-            FlaxXLMRobertaForMaskedLM,
+            FlaxXLMRobertaForCausalLM, FlaxXLMRobertaForMaskedLM,
             FlaxXLMRobertaForMultipleChoice,
             FlaxXLMRobertaForQuestionAnswering,
             FlaxXLMRobertaForSequenceClassification,
-            FlaxXLMRobertaForTokenClassification,
-            FlaxXLMRobertaModel,
-            FlaxXLMRobertaPreTrainedModel,
-        )
+            FlaxXLMRobertaForTokenClassification, FlaxXLMRobertaModel,
+            FlaxXLMRobertaPreTrainedModel)
 
 
 else:

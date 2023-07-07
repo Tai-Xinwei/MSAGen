@@ -19,7 +19,6 @@ import warnings
 from ...utils import logging
 from .image_processing_conditional_detr import ConditionalDetrImageProcessor
 
-
 logger = logging.get_logger(__name__)
 
 

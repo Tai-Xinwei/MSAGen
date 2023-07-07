@@ -26,7 +26,6 @@ import requests
 from ..utils import logging
 from . import BaseTransformersCLICommand
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 

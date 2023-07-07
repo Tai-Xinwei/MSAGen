@@ -28,14 +28,10 @@ import torch
 from huggingface_hub import hf_hub_download
 from PIL import Image
 from tensorflow.keras.preprocessing import image
-
-from transformers import (
-    EfficientNetConfig,
-    EfficientNetForImageClassification,
-    EfficientNetImageProcessor,
-)
+from transformers import (EfficientNetConfig,
+                          EfficientNetForImageClassification,
+                          EfficientNetImageProcessor)
 from transformers.utils import logging
-
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

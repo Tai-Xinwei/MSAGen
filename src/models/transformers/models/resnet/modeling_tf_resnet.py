@@ -19,26 +19,16 @@ from typing import Dict, Optional, Tuple, Union
 import tensorflow as tf
 
 from ...activations_tf import ACT2FN
-from ...modeling_tf_outputs import (
-    TFBaseModelOutputWithNoAttention,
-    TFBaseModelOutputWithPoolingAndNoAttention,
-    TFImageClassifierOutputWithNoAttention,
-)
-from ...modeling_tf_utils import (
-    TFPreTrainedModel,
-    TFSequenceClassificationLoss,
-    keras_serializable,
-    unpack_inputs,
-)
+from ...modeling_tf_outputs import (TFBaseModelOutputWithNoAttention,
+                                    TFBaseModelOutputWithPoolingAndNoAttention,
+                                    TFImageClassifierOutputWithNoAttention)
+from ...modeling_tf_utils import (TFPreTrainedModel,
+                                  TFSequenceClassificationLoss,
+                                  keras_serializable, unpack_inputs)
 from ...tf_utils import shape_list
-from ...utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-)
+from ...utils import (add_code_sample_docstrings, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging)
 from .configuration_resnet import ResNetConfig
-
 
 logger = logging.get_logger(__name__)
 

@@ -3,29 +3,17 @@ import types
 
 import numpy as np
 
-from ..utils import (
-    add_end_docstrings,
-    is_tensorflow_probability_available,
-    is_tf_available,
-    is_torch_available,
-    requires_backends,
-)
-from .base import (
-    PIPELINE_INIT_ARGS,
-    ArgumentHandler,
-    Dataset,
-    Pipeline,
-    PipelineException,
-)
-
+from ..utils import (add_end_docstrings, is_tensorflow_probability_available,
+                     is_tf_available, is_torch_available, requires_backends)
+from .base import (PIPELINE_INIT_ARGS, ArgumentHandler, Dataset, Pipeline,
+                   PipelineException)
 
 if is_torch_available():
     import torch
 
     from ..models.auto.modeling_auto import (
         MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
-        MODEL_FOR_TABLE_QUESTION_ANSWERING_MAPPING,
-    )
+        MODEL_FOR_TABLE_QUESTION_ANSWERING_MAPPING)
 
 if is_tf_available() and is_tensorflow_probability_available():
     import tensorflow as tf
@@ -33,8 +21,7 @@ if is_tf_available() and is_tensorflow_probability_available():
 
     from ..models.auto.modeling_tf_auto import (
         TF_MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
-        TF_MODEL_FOR_TABLE_QUESTION_ANSWERING_MAPPING,
-    )
+        TF_MODEL_FOR_TABLE_QUESTION_ANSWERING_MAPPING)
 
 
 class TableQuestionAnsweringArgumentHandler(ArgumentHandler):

@@ -26,16 +26,11 @@ from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    ModelOutput,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-)
+from ...utils import (ModelOutput, add_code_sample_docstrings,
+                      add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging)
 from .configuration_transfo_xl import TransfoXLConfig
 from .modeling_transfo_xl_utilities import ProjectedAdaptiveLogSoftmax
-
 
 logger = logging.get_logger(__name__)
 

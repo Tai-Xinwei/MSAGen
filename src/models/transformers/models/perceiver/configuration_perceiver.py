@@ -24,7 +24,6 @@ from ...onnx.utils import compute_effective_axis_dimension
 from ...tokenization_utils_base import PreTrainedTokenizerBase
 from ...utils import TensorType, logging
 
-
 logger = logging.get_logger(__name__)
 
 PERCEIVER_PRETRAINED_CONFIG_ARCHIVE_MAP = {

@@ -14,7 +14,6 @@ from . import IntervalStrategy, PreTrainedTokenizerBase
 from .modelcard import TrainingSummary
 from .utils import get_full_repo_name
 
-
 logger = logging.getLogger(__name__)
 
 

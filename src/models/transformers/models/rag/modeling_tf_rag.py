@@ -24,22 +24,13 @@ import tensorflow as tf
 
 from ...configuration_utils import PretrainedConfig
 from ...generation import TFLogitsProcessorList
-from ...modeling_tf_utils import (
-    TFCausalLanguageModelingLoss,
-    TFModelInputType,
-    TFPreTrainedModel,
-    shape_list,
-    unpack_inputs,
-)
-from ...utils import (
-    ModelOutput,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...modeling_tf_utils import (TFCausalLanguageModelingLoss,
+                                  TFModelInputType, TFPreTrainedModel,
+                                  shape_list, unpack_inputs)
+from ...utils import (ModelOutput, add_start_docstrings_to_model_forward,
+                      logging, replace_return_docstrings)
 from .configuration_rag import RagConfig
 from .retrieval_rag import RagRetriever
-
 
 logger = logging.get_logger(__name__)
 

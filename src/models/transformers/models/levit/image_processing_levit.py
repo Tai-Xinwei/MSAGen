@@ -18,27 +18,15 @@ from typing import Dict, Iterable, List, Optional, Union
 
 import numpy as np
 
-from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
-from ...image_transforms import (
-    center_crop,
-    get_resize_output_image_size,
-    normalize,
-    rescale,
-    resize,
-    to_channel_dimension_format,
-)
-from ...image_utils import (
-    IMAGENET_DEFAULT_MEAN,
-    IMAGENET_DEFAULT_STD,
-    ChannelDimension,
-    ImageInput,
-    PILImageResampling,
-    make_list_of_images,
-    to_numpy_array,
-    valid_images,
-)
+from ...image_processing_utils import (BaseImageProcessor, BatchFeature,
+                                       get_size_dict)
+from ...image_transforms import (center_crop, get_resize_output_image_size,
+                                 normalize, rescale, resize,
+                                 to_channel_dimension_format)
+from ...image_utils import (IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD,
+                            ChannelDimension, ImageInput, PILImageResampling,
+                            make_list_of_images, to_numpy_array, valid_images)
 from ...utils import TensorType, logging
-
 
 logger = logging.get_logger(__name__)
 

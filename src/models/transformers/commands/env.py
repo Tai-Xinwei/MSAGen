@@ -19,12 +19,8 @@ from argparse import ArgumentParser
 import huggingface_hub
 
 from .. import __version__ as version
-from ..utils import (
-    is_flax_available,
-    is_safetensors_available,
-    is_tf_available,
-    is_torch_available,
-)
+from ..utils import (is_flax_available, is_safetensors_available,
+                     is_tf_available, is_torch_available)
 from . import BaseTransformersCLICommand
 
 

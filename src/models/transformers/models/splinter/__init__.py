@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_splinter": [
@@ -55,9 +50,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_splinter import (
-        SPLINTER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        SplinterConfig,
-    )
+        SPLINTER_PRETRAINED_CONFIG_ARCHIVE_MAP, SplinterConfig)
     from .tokenization_splinter import SplinterTokenizer
 
     try:
@@ -74,14 +67,11 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_splinter import (
-            SPLINTER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            SplinterForPreTraining,
-            SplinterForQuestionAnswering,
-            SplinterLayer,
-            SplinterModel,
-            SplinterPreTrainedModel,
-        )
+        from .modeling_splinter import (SPLINTER_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                        SplinterForPreTraining,
+                                        SplinterForQuestionAnswering,
+                                        SplinterLayer, SplinterModel,
+                                        SplinterPreTrainedModel)
 
 
 else:

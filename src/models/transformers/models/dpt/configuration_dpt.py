@@ -20,7 +20,6 @@ from ...configuration_utils import PretrainedConfig
 from ...utils import logging
 from ..bit import BitConfig
 
-
 logger = logging.get_logger(__name__)
 
 DPT_PRETRAINED_CONFIG_ARCHIVE_MAP = {

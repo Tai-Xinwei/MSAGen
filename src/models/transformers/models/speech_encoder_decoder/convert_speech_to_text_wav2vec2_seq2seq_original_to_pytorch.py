@@ -22,19 +22,10 @@ import os
 import fairseq
 import torch
 from torch import nn
-
-from transformers import (
-    Speech2Text2Config,
-    Speech2Text2ForCausalLM,
-    Speech2Text2Tokenizer,
-    SpeechEncoderDecoderConfig,
-    SpeechEncoderDecoderModel,
-    Wav2Vec2Config,
-    Wav2Vec2FeatureExtractor,
-    Wav2Vec2Model,
-    logging,
-)
-
+from transformers import (Speech2Text2Config, Speech2Text2ForCausalLM,
+                          Speech2Text2Tokenizer, SpeechEncoderDecoderConfig,
+                          SpeechEncoderDecoderModel, Wav2Vec2Config,
+                          Wav2Vec2FeatureExtractor, Wav2Vec2Model, logging)
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

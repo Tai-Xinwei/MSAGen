@@ -23,7 +23,6 @@ from ...tokenization_utils import AddedToken
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import is_sentencepiece_available, logging
 
-
 if is_sentencepiece_available():
     from .tokenization_big_bird import BigBirdTokenizer
 else:

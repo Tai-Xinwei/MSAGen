@@ -13,8 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_sew": ["SEW_PRETRAINED_CONFIG_ARCHIVE_MAP", "SEWConfig"]
@@ -43,13 +43,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_sew import (
-            SEW_PRETRAINED_MODEL_ARCHIVE_LIST,
-            SEWForCTC,
-            SEWForSequenceClassification,
-            SEWModel,
-            SEWPreTrainedModel,
-        )
+        from .modeling_sew import (SEW_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   SEWForCTC, SEWForSequenceClassification,
+                                   SEWModel, SEWPreTrainedModel)
 
 
 else:

@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_torch_available,
-    is_vision_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available, is_vision_available)
 
 _import_structure = {
     "configuration_pix2struct": [
@@ -56,11 +51,8 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_pix2struct import (
-        PIX2STRUCT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Pix2StructConfig,
-        Pix2StructTextConfig,
-        Pix2StructVisionConfig,
-    )
+        PIX2STRUCT_PRETRAINED_CONFIG_ARCHIVE_MAP, Pix2StructConfig,
+        Pix2StructTextConfig, Pix2StructVisionConfig)
     from .processing_pix2struct import Pix2StructProcessor
 
     try:
@@ -79,11 +71,8 @@ if TYPE_CHECKING:
     else:
         from .modeling_pix2struct import (
             PIX2STRUCT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Pix2StructForConditionalGeneration,
-            Pix2StructPreTrainedModel,
-            Pix2StructTextModel,
-            Pix2StructVisionModel,
-        )
+            Pix2StructForConditionalGeneration, Pix2StructPreTrainedModel,
+            Pix2StructTextModel, Pix2StructVisionModel)
 
 else:
     import sys

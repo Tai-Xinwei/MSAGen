@@ -23,7 +23,6 @@ from huggingface_hub import hf_hub_download
 from ... import AutoTokenizer
 from ...utils import logging
 
-
 _REALM_BLOCK_RECORDS_FILENAME = "block_records.npy"
 
 

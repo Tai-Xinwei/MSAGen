@@ -24,7 +24,6 @@ from ...onnx import OnnxConfig
 from ...utils import logging
 from ..auto.configuration_auto import AutoConfig
 
-
 if TYPE_CHECKING:
     from ... import PreTrainedTokenizerBase, TensorType
 

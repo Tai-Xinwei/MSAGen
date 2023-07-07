@@ -14,8 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_ibert": [
@@ -43,11 +43,8 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_ibert import (
-        IBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        IBertConfig,
-        IBertOnnxConfig,
-    )
+    from .configuration_ibert import (IBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                      IBertConfig, IBertOnnxConfig)
 
     try:
         if not is_torch_available():
@@ -55,16 +52,12 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_ibert import (
-            IBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            IBertForMaskedLM,
-            IBertForMultipleChoice,
-            IBertForQuestionAnswering,
-            IBertForSequenceClassification,
-            IBertForTokenClassification,
-            IBertModel,
-            IBertPreTrainedModel,
-        )
+        from .modeling_ibert import (IBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     IBertForMaskedLM, IBertForMultipleChoice,
+                                     IBertForQuestionAnswering,
+                                     IBertForSequenceClassification,
+                                     IBertForTokenClassification, IBertModel,
+                                     IBertPreTrainedModel)
 
 else:
     import sys

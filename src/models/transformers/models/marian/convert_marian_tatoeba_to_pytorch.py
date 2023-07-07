@@ -22,15 +22,9 @@ from typing import Tuple
 
 import yaml
 from tqdm import tqdm
-
 from transformers.models.marian.convert_marian_to_pytorch import (
-    FRONT_MATTER_TEMPLATE,
-    convert,
-    convert_opus_name_to_hf_name,
-    download_and_unzip,
-    get_system_metadata,
-)
-
+    FRONT_MATTER_TEMPLATE, convert, convert_opus_name_to_hf_name,
+    download_and_unzip, get_system_metadata)
 
 DEFAULT_REPO = "Tatoeba-Challenge"
 DEFAULT_MODEL_DIR = os.path.join(DEFAULT_REPO, "models")

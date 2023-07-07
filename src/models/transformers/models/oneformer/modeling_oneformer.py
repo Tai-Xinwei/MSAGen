@@ -28,17 +28,11 @@ from ... import AutoBackbone
 from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutput
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_scipy_available,
-    logging,
-    replace_return_docstrings,
-    requires_backends,
-)
+from ...utils import (ModelOutput, add_start_docstrings,
+                      add_start_docstrings_to_model_forward,
+                      is_scipy_available, logging, replace_return_docstrings,
+                      requires_backends)
 from .configuration_oneformer import OneFormerConfig
-
 
 logger = logging.get_logger(__name__)
 

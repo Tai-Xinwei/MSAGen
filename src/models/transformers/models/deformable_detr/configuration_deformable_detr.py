@@ -18,7 +18,6 @@ from ...configuration_utils import PretrainedConfig
 from ...utils import logging
 from ..auto import CONFIG_MAPPING
 
-
 logger = logging.get_logger(__name__)
 
 DEFORMABLE_DETR_PRETRAINED_CONFIG_ARCHIVE_MAP = {

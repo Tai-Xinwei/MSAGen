@@ -14,13 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tf_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tf_available, is_torch_available)
 
 _import_structure = {
     "configuration_flaubert": [
@@ -69,10 +64,8 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_flaubert import (
-        FLAUBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        FlaubertConfig,
-        FlaubertOnnxConfig,
-    )
+        FLAUBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, FlaubertConfig,
+        FlaubertOnnxConfig)
     from .tokenization_flaubert import FlaubertTokenizer
 
     try:
@@ -81,17 +74,14 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_flaubert import (
-            FLAUBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            FlaubertForMultipleChoice,
-            FlaubertForQuestionAnswering,
-            FlaubertForQuestionAnsweringSimple,
-            FlaubertForSequenceClassification,
-            FlaubertForTokenClassification,
-            FlaubertModel,
-            FlaubertPreTrainedModel,
-            FlaubertWithLMHeadModel,
-        )
+        from .modeling_flaubert import (FLAUBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                        FlaubertForMultipleChoice,
+                                        FlaubertForQuestionAnswering,
+                                        FlaubertForQuestionAnsweringSimple,
+                                        FlaubertForSequenceClassification,
+                                        FlaubertForTokenClassification,
+                                        FlaubertModel, FlaubertPreTrainedModel,
+                                        FlaubertWithLMHeadModel)
 
     try:
         if not is_tf_available():
@@ -101,14 +91,10 @@ if TYPE_CHECKING:
     else:
         from .modeling_tf_flaubert import (
             TF_FLAUBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFFlaubertForMultipleChoice,
-            TFFlaubertForQuestionAnsweringSimple,
+            TFFlaubertForMultipleChoice, TFFlaubertForQuestionAnsweringSimple,
             TFFlaubertForSequenceClassification,
-            TFFlaubertForTokenClassification,
-            TFFlaubertModel,
-            TFFlaubertPreTrainedModel,
-            TFFlaubertWithLMHeadModel,
-        )
+            TFFlaubertForTokenClassification, TFFlaubertModel,
+            TFFlaubertPreTrainedModel, TFFlaubertWithLMHeadModel)
 
 else:
     import sys

@@ -6,8 +6,8 @@ import timm
 import torch
 from huggingface_hub import hf_hub_download
 from PIL import Image
-
-from transformers import AutoFeatureExtractor, SwinConfig, SwinForImageClassification
+from transformers import (AutoFeatureExtractor, SwinConfig,
+                          SwinForImageClassification)
 
 
 def get_swin_config(swin_name):

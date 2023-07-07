@@ -30,10 +30,10 @@ import time
 import warnings
 from collections.abc import Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
+                    Union)
 
 from tqdm.auto import tqdm
-
 
 # Integrations must be imported before ML frameworks:
 # isort: off
@@ -60,115 +60,62 @@ import torch.distributed as dist
 from huggingface_hub import Repository, create_repo
 from packaging import version
 from torch import nn
-from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
+from torch.utils.data import (DataLoader, Dataset, RandomSampler,
+                              SequentialSampler)
 from torch.utils.data.distributed import DistributedSampler
 
 from . import __version__
 from .configuration_utils import PretrainedConfig
-from .data.data_collator import (
-    DataCollator,
-    DataCollatorWithPadding,
-    default_data_collator,
-)
+from .data.data_collator import (DataCollator, DataCollatorWithPadding,
+                                 default_data_collator)
 from .debug_utils import DebugOption, DebugUnderflowOverflow
 from .deepspeed import deepspeed_init, is_deepspeed_zero3_enabled
 from .dependency_versions_check import dep_version_check
 from .modelcard import TrainingSummary
-from .modeling_utils import PreTrainedModel, load_sharded_checkpoint, unwrap_model
-from .models.auto.modeling_auto import (
-    MODEL_FOR_CAUSAL_LM_MAPPING_NAMES,
-    MODEL_MAPPING_NAMES,
-)
+from .modeling_utils import (PreTrainedModel, load_sharded_checkpoint,
+                             unwrap_model)
+from .models.auto.modeling_auto import (MODEL_FOR_CAUSAL_LM_MAPPING_NAMES,
+                                        MODEL_MAPPING_NAMES)
 from .optimization import Adafactor, get_scheduler
-from .pytorch_utils import (
-    ALL_LAYERNORM_LAYERS,
-    is_torch_greater_or_equal_than_1_10,
-    is_torch_less_than_1_11,
-)
+from .pytorch_utils import (ALL_LAYERNORM_LAYERS,
+                            is_torch_greater_or_equal_than_1_10,
+                            is_torch_less_than_1_11)
 from .tokenization_utils_base import PreTrainedTokenizerBase
-from .trainer_callback import (
-    CallbackHandler,
-    DefaultFlowCallback,
-    PrinterCallback,
-    ProgressCallback,
-    TrainerCallback,
-    TrainerControl,
-    TrainerState,
-)
-from .trainer_pt_utils import (
-    DistributedLengthGroupedSampler,
-    DistributedSamplerWithLoop,
-    DistributedTensorGatherer,
-    IterableDatasetShard,
-    LabelSmoother,
-    LengthGroupedSampler,
-    SequentialDistributedSampler,
-    ShardSampler,
-    distributed_broadcast_scalars,
-    distributed_concat,
-    find_batch_size,
-    get_model_param_count,
-    get_module_class_from_name,
-    get_parameter_names,
-    nested_concat,
-    nested_detach,
-    nested_numpify,
-    nested_truncate,
-    nested_xla_mesh_reduce,
-    reissue_pt_warnings,
-)
-from .trainer_utils import (
-    PREFIX_CHECKPOINT_DIR,
-    BestRun,
-    EvalLoopOutput,
-    EvalPrediction,
-    FSDPOption,
-    HPSearchBackend,
-    HubStrategy,
-    IntervalStrategy,
-    PredictionOutput,
-    RemoveColumnsCollator,
-    ShardedDDPOption,
-    TrainerMemoryTracker,
-    TrainOutput,
-    default_compute_objective,
-    default_hp_space,
-    denumpify_detensorize,
-    enable_full_determinism,
-    find_executable_batch_size,
-    get_last_checkpoint,
-    has_length,
-    number_of_arguments,
-    seed_worker,
-    set_seed,
-    speed_metrics,
-)
+from .trainer_callback import (CallbackHandler, DefaultFlowCallback,
+                               PrinterCallback, ProgressCallback,
+                               TrainerCallback, TrainerControl, TrainerState)
+from .trainer_pt_utils import (DistributedLengthGroupedSampler,
+                               DistributedSamplerWithLoop,
+                               DistributedTensorGatherer, IterableDatasetShard,
+                               LabelSmoother, LengthGroupedSampler,
+                               SequentialDistributedSampler, ShardSampler,
+                               distributed_broadcast_scalars,
+                               distributed_concat, find_batch_size,
+                               get_model_param_count,
+                               get_module_class_from_name, get_parameter_names,
+                               nested_concat, nested_detach, nested_numpify,
+                               nested_truncate, nested_xla_mesh_reduce,
+                               reissue_pt_warnings)
+from .trainer_utils import (PREFIX_CHECKPOINT_DIR, BestRun, EvalLoopOutput,
+                            EvalPrediction, FSDPOption, HPSearchBackend,
+                            HubStrategy, IntervalStrategy, PredictionOutput,
+                            RemoveColumnsCollator, ShardedDDPOption,
+                            TrainerMemoryTracker, TrainOutput,
+                            default_compute_objective, default_hp_space,
+                            denumpify_detensorize, enable_full_determinism,
+                            find_executable_batch_size, get_last_checkpoint,
+                            has_length, number_of_arguments, seed_worker,
+                            set_seed, speed_metrics)
 from .training_args import OptimizerNames, ParallelMode, TrainingArguments
-from .utils import (
-    CONFIG_NAME,
-    SAFE_WEIGHTS_INDEX_NAME,
-    SAFE_WEIGHTS_NAME,
-    WEIGHTS_INDEX_NAME,
-    WEIGHTS_NAME,
-    can_return_loss,
-    find_labels,
-    get_full_repo_name,
-    is_accelerate_available,
-    is_apex_available,
-    is_datasets_available,
-    is_in_notebook,
-    is_ipex_available,
-    is_safetensors_available,
-    is_sagemaker_dp_enabled,
-    is_sagemaker_mp_enabled,
-    is_torch_compile_available,
-    is_torch_neuroncore_available,
-    is_torch_tpu_available,
-    logging,
-    strtobool,
-)
+from .utils import (CONFIG_NAME, SAFE_WEIGHTS_INDEX_NAME, SAFE_WEIGHTS_NAME,
+                    WEIGHTS_INDEX_NAME, WEIGHTS_NAME, can_return_loss,
+                    find_labels, get_full_repo_name, is_accelerate_available,
+                    is_apex_available, is_datasets_available, is_in_notebook,
+                    is_ipex_available, is_safetensors_available,
+                    is_sagemaker_dp_enabled, is_sagemaker_mp_enabled,
+                    is_torch_compile_available, is_torch_neuroncore_available,
+                    is_torch_tpu_available, logging, strtobool)
 from .utils.generic import ContextManagers
-
 
 _is_native_cpu_amp_available = is_torch_greater_or_equal_than_1_10
 
@@ -194,7 +141,8 @@ if is_torch_tpu_available(check_device=False):
 if is_fairscale_available():
     dep_version_check("fairscale")
     import fairscale
-    from fairscale.nn.data_parallel import FullyShardedDataParallel as FullyShardedDDP
+    from fairscale.nn.data_parallel import \
+        FullyShardedDataParallel as FullyShardedDDP
     from fairscale.nn.data_parallel import ShardedDataParallel as ShardedDDP
     from fairscale.nn.wrap import auto_wrap
     from fairscale.optim import OSS
@@ -207,12 +155,8 @@ if is_sagemaker_mp_enabled():
 
     IS_SAGEMAKER_MP_POST_1_10 = version.parse(SMP_VERSION) >= version.parse("1.10")
 
-    from .trainer_pt_utils import (
-        smp_forward_backward,
-        smp_forward_only,
-        smp_gather,
-        smp_nested_concat,
-    )
+    from .trainer_pt_utils import (smp_forward_backward, smp_forward_only,
+                                   smp_gather, smp_nested_concat)
 else:
     IS_SAGEMAKER_MP_POST_1_10 = False
 
@@ -326,13 +270,8 @@ class Trainer:
 
     """
 
-    from .trainer_pt_utils import (
-        _get_learning_rate,
-        log_metrics,
-        metrics_format,
-        save_metrics,
-        save_state,
-    )
+    from .trainer_pt_utils import (_get_learning_rate, log_metrics,
+                                   metrics_format, save_metrics, save_state)
 
     def __init__(
         self,
@@ -503,9 +442,7 @@ class Trainer:
                 raise ValueError("FSDP requires PyTorch >= 1.12.0")
 
             from torch.distributed.fsdp.fully_sharded_data_parallel import (
-                BackwardPrefetch,
-                ShardingStrategy,
-            )
+                BackwardPrefetch, ShardingStrategy)
 
             if FSDPOption.FULL_SHARD in args.fsdp:
                 self.fsdp = ShardingStrategy.FULL_SHARD
@@ -730,9 +667,8 @@ class Trainer:
                     if self.sharded_ddp is not None:
                         self.scaler = ShardedGradScaler()
                     elif self.fsdp is not None:
-                        from torch.distributed.fsdp.sharded_grad_scaler import (
-                            ShardedGradScaler as FSDPShardedGradScaler,
-                        )
+                        from torch.distributed.fsdp.sharded_grad_scaler import \
+                            ShardedGradScaler as FSDPShardedGradScaler
 
                         self.scaler = FSDPShardedGradScaler()
                     elif is_torch_tpu_available():
@@ -1670,17 +1606,14 @@ class Trainer:
         elif self.fsdp is not None:
             if not self.args.fsdp_config["xla"]:
                 # PyTorch FSDP!
-                from torch.distributed.fsdp.fully_sharded_data_parallel import (
-                    CPUOffload,
-                    MixedPrecision,
-                )
-                from torch.distributed.fsdp.fully_sharded_data_parallel import (
-                    FullyShardedDataParallel as FSDP,
-                )
+                from torch.distributed.fsdp.fully_sharded_data_parallel import \
+                    CPUOffload
+                from torch.distributed.fsdp.fully_sharded_data_parallel import \
+                    FullyShardedDataParallel as FSDP
+                from torch.distributed.fsdp.fully_sharded_data_parallel import \
+                    MixedPrecision
                 from torch.distributed.fsdp.wrap import (
-                    size_based_auto_wrap_policy,
-                    transformer_auto_wrap_policy,
-                )
+                    size_based_auto_wrap_policy, transformer_auto_wrap_policy)
 
                 if FSDPOption.OFFLOAD in self.args.fsdp:
                     cpu_offload = CPUOffload(offload_params=True)
@@ -1751,14 +1684,12 @@ class Trainer:
                     )
             else:
                 try:
-                    from torch_xla.distributed.fsdp import (
-                        XlaFullyShardedDataParallel as FSDP,
-                    )
+                    from torch_xla.distributed.fsdp import \
+                        XlaFullyShardedDataParallel as FSDP
                     from torch_xla.distributed.fsdp import checkpoint_module
                     from torch_xla.distributed.fsdp.wrap import (
                         size_based_auto_wrap_policy,
-                        transformer_auto_wrap_policy,
-                    )
+                        transformer_auto_wrap_policy)
                 except ImportError:
                     raise ImportError(
                         "Missing XLA FSDP related module; please make sure to use torch-xla >= 2.0."

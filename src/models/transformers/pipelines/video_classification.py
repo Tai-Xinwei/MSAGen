@@ -3,15 +3,9 @@ from typing import List, Union
 
 import requests
 
-from ..utils import (
-    add_end_docstrings,
-    is_decord_available,
-    is_torch_available,
-    logging,
-    requires_backends,
-)
+from ..utils import (add_end_docstrings, is_decord_available,
+                     is_torch_available, logging, requires_backends)
 from .base import PIPELINE_INIT_ARGS, Pipeline
-
 
 if is_decord_available():
     import numpy as np
@@ -19,7 +13,8 @@ if is_decord_available():
 
 
 if is_torch_available():
-    from ..models.auto.modeling_auto import MODEL_FOR_VIDEO_CLASSIFICATION_MAPPING
+    from ..models.auto.modeling_auto import \
+        MODEL_FOR_VIDEO_CLASSIFICATION_MAPPING
 
 logger = logging.get_logger(__name__)
 

@@ -24,18 +24,10 @@ import tensorflow as tf
 import torch
 from PIL import Image
 from tokenizer import Tokenizer
-
-from transformers import (
-    AlignConfig,
-    AlignModel,
-    AlignProcessor,
-    BertConfig,
-    BertTokenizer,
-    EfficientNetConfig,
-    EfficientNetImageProcessor,
-)
+from transformers import (AlignConfig, AlignModel, AlignProcessor, BertConfig,
+                          BertTokenizer, EfficientNetConfig,
+                          EfficientNetImageProcessor)
 from transformers.utils import logging
-
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

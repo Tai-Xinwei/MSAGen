@@ -27,16 +27,11 @@ from torch import nn
 from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_vision_available,
-    logging,
-    replace_return_docstrings,
-)
-from .configuration_owlvit import OwlViTConfig, OwlViTTextConfig, OwlViTVisionConfig
-
+from ...utils import (ModelOutput, add_start_docstrings,
+                      add_start_docstrings_to_model_forward,
+                      is_vision_available, logging, replace_return_docstrings)
+from .configuration_owlvit import (OwlViTConfig, OwlViTTextConfig,
+                                   OwlViTVisionConfig)
 
 if is_vision_available():
     from transformers.image_transforms import center_to_corners_format

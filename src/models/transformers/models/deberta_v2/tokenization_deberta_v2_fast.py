@@ -22,7 +22,6 @@ from ...file_utils import is_sentencepiece_available
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import logging
 
-
 if is_sentencepiece_available():
     from .tokenization_deberta_v2 import DebertaV2Tokenizer
 else:

@@ -20,7 +20,6 @@ from typing import Callable, List, Optional, Union
 
 import tensorflow as tf
 
-
 try:
     from tensorflow.keras.optimizers.legacy import Adam
 except ImportError:

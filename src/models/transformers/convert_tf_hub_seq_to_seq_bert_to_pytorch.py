@@ -17,15 +17,9 @@
 
 import argparse
 
-from . import (
-    BertConfig,
-    BertGenerationConfig,
-    BertGenerationDecoder,
-    BertGenerationEncoder,
-    load_tf_weights_in_bert_generation,
-    logging,
-)
-
+from . import (BertConfig, BertGenerationConfig, BertGenerationDecoder,
+               BertGenerationEncoder, load_tf_weights_in_bert_generation,
+               logging)
 
 logging.set_verbosity_info()
 

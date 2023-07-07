@@ -13,8 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_clap": [
@@ -44,12 +44,9 @@ else:
     _import_structure["feature_extraction_clap"] = ["ClapFeatureExtractor"]
 
 if TYPE_CHECKING:
-    from .configuration_clap import (
-        CLAP_PRETRAINED_MODEL_ARCHIVE_LIST,
-        ClapAudioConfig,
-        ClapConfig,
-        ClapTextConfig,
-    )
+    from .configuration_clap import (CLAP_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     ClapAudioConfig, ClapConfig,
+                                     ClapTextConfig)
     from .processing_clap import ClapProcessor
 
     try:
@@ -59,15 +56,11 @@ if TYPE_CHECKING:
         pass
     else:
         from .feature_extraction_clap import ClapFeatureExtractor
-        from .modeling_clap import (
-            CLAP_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ClapAudioModel,
-            ClapAudioModelWithProjection,
-            ClapModel,
-            ClapPreTrainedModel,
-            ClapTextModel,
-            ClapTextModelWithProjection,
-        )
+        from .modeling_clap import (CLAP_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    ClapAudioModel,
+                                    ClapAudioModelWithProjection, ClapModel,
+                                    ClapPreTrainedModel, ClapTextModel,
+                                    ClapTextModelWithProjection)
 
 
 else:

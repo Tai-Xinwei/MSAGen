@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_mvp": [
@@ -55,11 +50,8 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_mvp import (
-        MVP_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MvpConfig,
-        MvpOnnxConfig,
-    )
+    from .configuration_mvp import (MVP_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    MvpConfig, MvpOnnxConfig)
     from .tokenization_mvp import MvpTokenizer
 
     try:
@@ -76,15 +68,11 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_mvp import (
-            MVP_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MvpForCausalLM,
-            MvpForConditionalGeneration,
-            MvpForQuestionAnswering,
-            MvpForSequenceClassification,
-            MvpModel,
-            MvpPreTrainedModel,
-        )
+        from .modeling_mvp import (MVP_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   MvpForCausalLM, MvpForConditionalGeneration,
+                                   MvpForQuestionAnswering,
+                                   MvpForSequenceClassification, MvpModel,
+                                   MvpPreTrainedModel)
 
 else:
     import sys

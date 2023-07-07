@@ -18,9 +18,7 @@ import argparse
 
 import numpy as np
 import torch
-
 from transformers import SpeechT5HifiGan, SpeechT5HifiGanConfig, logging
-
 
 logging.set_verbosity_info()
 logger = logging.get_logger("transformers.models.speecht5")

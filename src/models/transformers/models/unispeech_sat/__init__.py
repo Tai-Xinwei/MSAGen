@@ -13,14 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_tf_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_tf_available, is_torch_available)
 
 _import_structure = {
     "configuration_unispeech_sat": [
@@ -48,9 +42,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_unispeech_sat import (
-        UNISPEECH_SAT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        UniSpeechSatConfig,
-    )
+        UNISPEECH_SAT_PRETRAINED_CONFIG_ARCHIVE_MAP, UniSpeechSatConfig)
 
     try:
         if not is_torch_available():
@@ -60,14 +52,10 @@ if TYPE_CHECKING:
     else:
         from .modeling_unispeech_sat import (
             UNISPEECH_SAT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            UniSpeechSatForAudioFrameClassification,
-            UniSpeechSatForCTC,
-            UniSpeechSatForPreTraining,
-            UniSpeechSatForSequenceClassification,
-            UniSpeechSatForXVector,
-            UniSpeechSatModel,
-            UniSpeechSatPreTrainedModel,
-        )
+            UniSpeechSatForAudioFrameClassification, UniSpeechSatForCTC,
+            UniSpeechSatForPreTraining, UniSpeechSatForSequenceClassification,
+            UniSpeechSatForXVector, UniSpeechSatModel,
+            UniSpeechSatPreTrainedModel)
 
 else:
     import sys

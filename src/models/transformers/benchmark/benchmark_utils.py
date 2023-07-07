@@ -33,15 +33,9 @@ from typing import Callable, Iterable, List, NamedTuple, Optional, Union
 
 from .. import AutoConfig, PretrainedConfig
 from .. import __version__ as version
-from ..utils import (
-    is_psutil_available,
-    is_py3nvml_available,
-    is_tf_available,
-    is_torch_available,
-    logging,
-)
+from ..utils import (is_psutil_available, is_py3nvml_available,
+                     is_tf_available, is_torch_available, logging)
 from .benchmark_args_utils import BenchmarkArguments
-
 
 if is_torch_available():
     from torch.cuda import empty_cache as torch_empty_cache

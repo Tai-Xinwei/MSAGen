@@ -24,7 +24,6 @@ from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import PaddingStrategy, logging
 from .tokenization_led import LEDTokenizer
 
-
 logger = logging.get_logger(__name__)
 
 

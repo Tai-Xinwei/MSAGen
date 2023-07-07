@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_graphormer": [
@@ -44,9 +39,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_graphormer import (
-        GRAPHORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        GraphormerConfig,
-    )
+        GRAPHORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, GraphormerConfig)
 
     try:
         if not is_torch_available():
@@ -56,10 +49,8 @@ if TYPE_CHECKING:
     else:
         from .modeling_graphormer import (
             GRAPHORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GraphormerForGraphClassification,
-            GraphormerModel,
-            GraphormerPreTrainedModel,
-        )
+            GraphormerForGraphClassification, GraphormerModel,
+            GraphormerPreTrainedModel)
 
 
 else:

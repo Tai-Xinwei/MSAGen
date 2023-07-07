@@ -23,7 +23,6 @@ import torch
 from ..utils import add_start_docstrings
 from .beam_constraints import Constraint, ConstraintListState
 
-
 PROCESS_INPUTS_DOCSTRING = r"""
     Args:
         input_ids (`torch.LongTensor` of shape `(batch_size * num_beams, sequence_length)`):

@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_torch_available,
-    is_vision_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available, is_vision_available)
 
 _import_structure = {
     "configuration_swin2sr": ["SWIN2SR_PRETRAINED_CONFIG_ARCHIVE_MAP", "Swin2SRConfig"],
@@ -50,10 +45,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_swin2sr import (
-        SWIN2SR_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Swin2SRConfig,
-    )
+    from .configuration_swin2sr import (SWIN2SR_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                        Swin2SRConfig)
 
     try:
         if not is_torch_available():
@@ -61,12 +54,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_swin2sr import (
-            SWIN2SR_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Swin2SRForImageSuperResolution,
-            Swin2SRModel,
-            Swin2SRPreTrainedModel,
-        )
+        from .modeling_swin2sr import (SWIN2SR_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                       Swin2SRForImageSuperResolution,
+                                       Swin2SRModel, Swin2SRPreTrainedModel)
 
     try:
         if not is_vision_available():

@@ -19,10 +19,8 @@ import argparse
 from pathlib import Path
 
 import torch
-
 from transformers import OPTConfig, OPTModel
 from transformers.utils import logging
-
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

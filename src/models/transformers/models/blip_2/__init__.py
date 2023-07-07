@@ -13,8 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_blip_2": [
@@ -42,12 +42,9 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_blip_2 import (
-        BLIP_2_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Blip2Config,
-        Blip2QFormerConfig,
-        Blip2VisionConfig,
-    )
+    from .configuration_blip_2 import (BLIP_2_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                       Blip2Config, Blip2QFormerConfig,
+                                       Blip2VisionConfig)
     from .processing_blip_2 import Blip2Processor
 
     try:
@@ -56,14 +53,10 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_blip_2 import (
-            BLIP_2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Blip2ForConditionalGeneration,
-            Blip2Model,
-            Blip2PreTrainedModel,
-            Blip2QFormerModel,
-            Blip2VisionModel,
-        )
+        from .modeling_blip_2 import (BLIP_2_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      Blip2ForConditionalGeneration,
+                                      Blip2Model, Blip2PreTrainedModel,
+                                      Blip2QFormerModel, Blip2VisionModel)
 
 else:
     import sys

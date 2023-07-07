@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_torch_available,
-    is_vision_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available, is_vision_available)
 
 _import_structure = {
     "configuration_maskformer": [
@@ -59,9 +54,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_maskformer import (
-        MASKFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MaskFormerConfig,
-    )
+        MASKFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, MaskFormerConfig)
     from .configuration_maskformer_swin import MaskFormerSwinConfig
 
     try:
@@ -80,15 +73,11 @@ if TYPE_CHECKING:
     else:
         from .modeling_maskformer import (
             MASKFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MaskFormerForInstanceSegmentation,
-            MaskFormerModel,
-            MaskFormerPreTrainedModel,
-        )
-        from .modeling_maskformer_swin import (
-            MaskFormerSwinBackbone,
-            MaskFormerSwinModel,
-            MaskFormerSwinPreTrainedModel,
-        )
+            MaskFormerForInstanceSegmentation, MaskFormerModel,
+            MaskFormerPreTrainedModel)
+        from .modeling_maskformer_swin import (MaskFormerSwinBackbone,
+                                               MaskFormerSwinModel,
+                                               MaskFormerSwinPreTrainedModel)
 
 
 else:

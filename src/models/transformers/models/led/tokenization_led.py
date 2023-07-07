@@ -25,7 +25,6 @@ from ...tokenization_utils import AddedToken, PreTrainedTokenizer
 from ...tokenization_utils_base import BatchEncoding, EncodedInput
 from ...utils import PaddingStrategy, logging
 
-
 logger = logging.get_logger(__name__)
 
 

@@ -24,24 +24,16 @@ import numpy as np
 import tensorflow as tf
 
 from ...activations_tf import get_tf_activation
-from ...file_utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    replace_return_docstrings,
-)
+from ...file_utils import (ModelOutput, add_start_docstrings,
+                           add_start_docstrings_to_model_forward,
+                           replace_return_docstrings)
 from ...modeling_tf_outputs import TFBaseModelOutput
-from ...modeling_tf_utils import (
-    TFModelInputType,
-    TFPreTrainedModel,
-    get_initializer,
-    keras_serializable,
-    unpack_inputs,
-)
+from ...modeling_tf_utils import (TFModelInputType, TFPreTrainedModel,
+                                  get_initializer, keras_serializable,
+                                  unpack_inputs)
 from ...tf_utils import shape_list, stable_softmax
 from ...utils import logging
 from .configuration_vit_mae import ViTMAEConfig
-
 
 logger = logging.get_logger(__name__)
 

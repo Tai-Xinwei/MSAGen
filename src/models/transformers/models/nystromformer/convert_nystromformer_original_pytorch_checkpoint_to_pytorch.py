@@ -18,7 +18,6 @@
 import argparse
 
 import torch
-
 from transformers import NystromformerConfig, NystromformerForMaskedLM
 
 

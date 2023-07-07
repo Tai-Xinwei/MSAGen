@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_markuplm": [
@@ -57,9 +52,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_markuplm import (
-        MARKUPLM_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MarkupLMConfig,
-    )
+        MARKUPLM_PRETRAINED_CONFIG_ARCHIVE_MAP, MarkupLMConfig)
     from .feature_extraction_markuplm import MarkupLMFeatureExtractor
     from .processing_markuplm import MarkupLMProcessor
     from .tokenization_markuplm import MarkupLMTokenizer
@@ -78,14 +71,11 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_markuplm import (
-            MARKUPLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MarkupLMForQuestionAnswering,
-            MarkupLMForSequenceClassification,
-            MarkupLMForTokenClassification,
-            MarkupLMModel,
-            MarkupLMPreTrainedModel,
-        )
+        from .modeling_markuplm import (MARKUPLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                        MarkupLMForQuestionAnswering,
+                                        MarkupLMForSequenceClassification,
+                                        MarkupLMForTokenClassification,
+                                        MarkupLMModel, MarkupLMPreTrainedModel)
 
 
 else:

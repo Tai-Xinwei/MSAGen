@@ -14,8 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_nllb_moe": [
@@ -42,9 +42,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_nllb_moe import (
-        NLLB_MOE_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        NllbMoeConfig,
-    )
+        NLLB_MOE_PRETRAINED_CONFIG_ARCHIVE_MAP, NllbMoeConfig)
 
     try:
         if not is_torch_available():
@@ -52,14 +50,10 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_nllb_moe import (
-            NLLB_MOE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            NllbMoeForConditionalGeneration,
-            NllbMoeModel,
-            NllbMoePreTrainedModel,
-            NllbMoeSparseMLP,
-            NllbMoeTop2Router,
-        )
+        from .modeling_nllb_moe import (NLLB_MOE_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                        NllbMoeForConditionalGeneration,
+                                        NllbMoeModel, NllbMoePreTrainedModel,
+                                        NllbMoeSparseMLP, NllbMoeTop2Router)
 
 
 else:

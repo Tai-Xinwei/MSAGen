@@ -30,9 +30,9 @@ from typing import TYPE_CHECKING, Dict, Optional
 import numpy as np
 
 from . import __version__ as version
-from .utils import flatten_dict, is_datasets_available, is_torch_available, logging
+from .utils import (flatten_dict, is_datasets_available, is_torch_available,
+                    logging)
 from .utils.versions import importlib_metadata
-
 
 logger = logging.get_logger(__name__)
 
@@ -73,11 +73,8 @@ if TYPE_CHECKING and _has_neptune:
             _has_neptune = False
 
 from .trainer_callback import ProgressCallback, TrainerCallback  # noqa: E402
-from .trainer_utils import (
-    PREFIX_CHECKPOINT_DIR,
-    BestRun,
-    IntervalStrategy,
-)  # noqa: E402
+from .trainer_utils import (PREFIX_CHECKPOINT_DIR, BestRun,  # noqa: E402
+                            IntervalStrategy)
 from .training_args import ParallelMode  # noqa: E402
 from .utils import ENV_VARS_TRUE_VALUES, is_torch_tpu_available  # noqa: E402
 
@@ -319,12 +316,9 @@ def run_hp_search_ray(trainer, n_trials: int, direction: str, **kwargs) -> BestR
                 "consider setting `keep_checkpoints_num=1`."
             )
     if "scheduler" in kwargs:
-        from ray.tune.schedulers import (
-            ASHAScheduler,
-            HyperBandForBOHB,
-            MedianStoppingRule,
-            PopulationBasedTraining,
-        )
+        from ray.tune.schedulers import (ASHAScheduler, HyperBandForBOHB,
+                                         MedianStoppingRule,
+                                         PopulationBasedTraining)
 
         # Check if checkpointing is enabled for PopulationBasedTraining
         if isinstance(kwargs["scheduler"], PopulationBasedTraining):
@@ -410,7 +404,6 @@ def run_hp_search_ray(trainer, n_trials: int, direction: str, **kwargs) -> BestR
 
 def run_hp_search_sigopt(trainer, n_trials: int, direction: str, **kwargs) -> BestRun:
     import sigopt
-
     from transformers.utils.versions import importlib_metadata
 
     if trainer.args.process_index == 0:
@@ -1395,10 +1388,8 @@ class NeptuneCallback(TrainerCallback):
 
     def _initialize_run(self, **additional_neptune_kwargs):
         from neptune.new import init_run
-        from neptune.new.exceptions import (
-            NeptuneMissingApiTokenException,
-            NeptuneMissingProjectNameException,
-        )
+        from neptune.new.exceptions import (NeptuneMissingApiTokenException,
+                                            NeptuneMissingProjectNameException)
 
         self._stop_run_if_exists()
 

@@ -14,16 +14,10 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_sentencepiece_available,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_sentencepiece_available,
+                      is_tf_available, is_tokenizers_available,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_switch_transformers": [
@@ -53,9 +47,7 @@ else:
 if TYPE_CHECKING:
     from .configuration_switch_transformers import (
         SWITCH_TRANSFORMERS_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        SwitchTransformersConfig,
-        SwitchTransformersOnnxConfig,
-    )
+        SwitchTransformersConfig, SwitchTransformersOnnxConfig)
 
     try:
         if not is_torch_available():
@@ -67,11 +59,8 @@ if TYPE_CHECKING:
             SWITCH_TRANSFORMERS_PRETRAINED_MODEL_ARCHIVE_LIST,
             SwitchTransformersEncoderModel,
             SwitchTransformersForConditionalGeneration,
-            SwitchTransformersModel,
-            SwitchTransformersPreTrainedModel,
-            SwitchTransformersSparseMLP,
-            SwitchTransformersTop1Router,
-        )
+            SwitchTransformersModel, SwitchTransformersPreTrainedModel,
+            SwitchTransformersSparseMLP, SwitchTransformersTop1Router)
 
 
 else:

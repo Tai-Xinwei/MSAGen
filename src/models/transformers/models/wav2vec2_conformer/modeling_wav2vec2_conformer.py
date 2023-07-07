@@ -26,25 +26,16 @@ from torch.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
 from ...deepspeed import is_deepspeed_zero3_enabled
-from ...modeling_outputs import (
-    BaseModelOutput,
-    CausalLMOutput,
-    SequenceClassifierOutput,
-    TokenClassifierOutput,
-    Wav2Vec2BaseModelOutput,
-    XVectorOutput,
-)
+from ...modeling_outputs import (BaseModelOutput, CausalLMOutput,
+                                 SequenceClassifierOutput,
+                                 TokenClassifierOutput,
+                                 Wav2Vec2BaseModelOutput, XVectorOutput)
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    ModelOutput,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import (ModelOutput, add_code_sample_docstrings,
+                      add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from .configuration_wav2vec2_conformer import Wav2Vec2ConformerConfig
-
 
 logger = logging.get_logger(__name__)
 

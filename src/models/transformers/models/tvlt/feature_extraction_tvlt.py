@@ -20,9 +20,9 @@ from typing import List, Optional, Union
 import numpy as np
 from numpy.fft import fft
 
-from ...feature_extraction_sequence_utils import BatchFeature, SequenceFeatureExtractor
+from ...feature_extraction_sequence_utils import (BatchFeature,
+                                                  SequenceFeatureExtractor)
 from ...utils import TensorType, logging
-
 
 logger = logging.get_logger(__name__)
 

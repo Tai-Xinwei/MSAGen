@@ -24,24 +24,16 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 import tensorflow as tf
 
 from ...activations_tf import ACT2FN
-from ...modeling_tf_utils import (
-    TFPreTrainedModel,
-    TFSequenceClassificationLoss,
-    get_initializer,
-    keras_serializable,
-    unpack_inputs,
-)
+from ...modeling_tf_utils import (TFPreTrainedModel,
+                                  TFSequenceClassificationLoss,
+                                  get_initializer, keras_serializable,
+                                  unpack_inputs)
 from ...tf_utils import shape_list
-from ...utils import (
-    ModelOutput,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import (ModelOutput, add_code_sample_docstrings,
+                      add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from .configuration_swin import SwinConfig
-
 
 logger = logging.get_logger(__name__)
 

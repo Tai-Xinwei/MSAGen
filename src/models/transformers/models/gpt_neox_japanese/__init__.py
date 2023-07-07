@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING
 from ...file_utils import _LazyModule, is_torch_available
 from ...utils import OptionalDependencyNotAvailable
 
-
 _import_structure = {
     "configuration_gpt_neox_japanese": [
         "GPT_NEOX_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP",
@@ -42,9 +41,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_gpt_neox_japanese import (
-        GPT_NEOX_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        GPTNeoXJapaneseConfig,
-    )
+        GPT_NEOX_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP, GPTNeoXJapaneseConfig)
     from .tokenization_gpt_neox_japanese import GPTNeoXJapaneseTokenizer
 
     try:
@@ -55,11 +52,8 @@ if TYPE_CHECKING:
     else:
         from .modeling_gpt_neox_japanese import (
             GPT_NEOX_JAPANESE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GPTNeoXJapaneseForCausalLM,
-            GPTNeoXJapaneseLayer,
-            GPTNeoXJapaneseModel,
-            GPTNeoXJapanesePreTrainedModel,
-        )
+            GPTNeoXJapaneseForCausalLM, GPTNeoXJapaneseLayer,
+            GPTNeoXJapaneseModel, GPTNeoXJapanesePreTrainedModel)
 
 
 else:

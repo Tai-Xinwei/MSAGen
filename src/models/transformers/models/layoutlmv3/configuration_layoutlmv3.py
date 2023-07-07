@@ -24,7 +24,6 @@ from ...onnx import OnnxConfig
 from ...onnx.utils import compute_effective_axis_dimension
 from ...utils import logging
 
-
 if TYPE_CHECKING:
     from ...processing_utils import ProcessorMixin
     from ...utils import TensorType

@@ -20,7 +20,6 @@ from ...configuration_utils import PretrainedConfig
 from ...onnx import OnnxConfig
 from ...utils import TensorType, logging
 
-
 if TYPE_CHECKING:
     from ...onnx.config import PatchingSpec
     from ...tokenization_utils_base import PreTrainedTokenizerBase

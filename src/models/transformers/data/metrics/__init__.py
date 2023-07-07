@@ -14,7 +14,6 @@ import warnings
 
 from ...utils import is_sklearn_available, requires_backends
 
-
 if is_sklearn_available():
     from scipy.stats import pearsonr, spearmanr
     from sklearn.metrics import f1_score, matthews_corrcoef

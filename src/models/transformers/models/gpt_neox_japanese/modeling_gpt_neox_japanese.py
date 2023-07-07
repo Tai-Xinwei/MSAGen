@@ -22,16 +22,13 @@ from torch import Tensor, nn
 from torch.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
-from ...file_utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    replace_return_docstrings,
-)
+from ...file_utils import (add_start_docstrings,
+                           add_start_docstrings_to_model_forward,
+                           replace_return_docstrings)
 from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
 from .configuration_gpt_neox_japanese import GPTNeoXJapaneseConfig
-
 
 logger = logging.get_logger(__name__)
 

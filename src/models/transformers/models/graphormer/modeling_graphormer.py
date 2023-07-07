@@ -23,11 +23,11 @@ import torch.nn as nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
-from ...modeling_outputs import BaseModelOutputWithNoAttention, SequenceClassifierOutput
+from ...modeling_outputs import (BaseModelOutputWithNoAttention,
+                                 SequenceClassifierOutput)
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
 from .configuration_graphormer import GraphormerConfig
-
 
 logger = logging.get_logger(__name__)
 

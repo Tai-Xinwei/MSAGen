@@ -21,8 +21,8 @@ from pathlib import Path
 
 from .dynamic_module_utils import custom_object_save
 from .tokenization_utils_base import PreTrainedTokenizerBase
-from .utils import PushToHubMixin, copy_func, direct_transformers_import, logging
-
+from .utils import (PushToHubMixin, copy_func, direct_transformers_import,
+                    logging)
 
 logger = logging.get_logger(__name__)
 

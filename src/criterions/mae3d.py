@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 
 import torch
-# from sklearn.metrics import roc_auc_score
 import torch.distributed as dist
 import torch.nn as nn
 
@@ -20,7 +19,6 @@ class MAE3d_criterions(nn.Module):
             targets = batch_data["x"][:, :, 0][node_mask]
 
         logits = logits[:, 1:, :][node_mask]
-        # print("local rank", self.args.local_rank, targets)
 
         type_loss = (
             self.l1(

@@ -17,8 +17,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_mgp_str": ["MGP_STR_PRETRAINED_CONFIG_ARCHIVE_MAP", "MgpstrConfig"],
@@ -40,10 +40,8 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_mgp_str import (
-        MGP_STR_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MgpstrConfig,
-    )
+    from .configuration_mgp_str import (MGP_STR_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                        MgpstrConfig)
     from .processing_mgp_str import MgpstrProcessor
     from .tokenization_mgp_str import MgpstrTokenizer
 
@@ -53,12 +51,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_mgp_str import (
-            MGP_STR_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MgpstrForSceneTextRecognition,
-            MgpstrModel,
-            MgpstrPreTrainedModel,
-        )
+        from .modeling_mgp_str import (MGP_STR_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                       MgpstrForSceneTextRecognition,
+                                       MgpstrModel, MgpstrPreTrainedModel)
 else:
     import sys
 

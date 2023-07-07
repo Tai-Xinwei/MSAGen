@@ -22,16 +22,10 @@ from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 import numpy as np
 
 from ...tokenization_utils import PreTrainedTokenizer
-from ...tokenization_utils_base import (
-    BatchEncoding,
-    PreTokenizedInput,
-    PreTokenizedInputPair,
-    TextInput,
-    TextInputPair,
-    TruncationStrategy,
-)
+from ...tokenization_utils_base import (BatchEncoding, PreTokenizedInput,
+                                        PreTokenizedInputPair, TextInput,
+                                        TextInputPair, TruncationStrategy)
 from ...utils import PaddingStrategy, logging
-
 
 if TYPE_CHECKING:
     from transformers.pipelines.conversational import Conversation

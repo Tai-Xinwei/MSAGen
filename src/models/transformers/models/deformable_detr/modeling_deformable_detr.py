@@ -28,17 +28,11 @@ from torch.autograd import Function
 from torch.autograd.function import once_differentiable
 
 from ...activations import ACT2FN
-from ...file_utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_scipy_available,
-    is_timm_available,
-    is_torch_cuda_available,
-    is_vision_available,
-    replace_return_docstrings,
-    requires_backends,
-)
+from ...file_utils import (ModelOutput, add_start_docstrings,
+                           add_start_docstrings_to_model_forward,
+                           is_scipy_available, is_timm_available,
+                           is_torch_cuda_available, is_vision_available,
+                           replace_return_docstrings, requires_backends)
 from ...modeling_outputs import BaseModelOutput
 from ...modeling_utils import PreTrainedModel
 from ...pytorch_utils import meshgrid
@@ -46,7 +40,6 @@ from ...utils import is_ninja_available, logging
 from ..auto import AutoBackbone
 from .configuration_deformable_detr import DeformableDetrConfig
 from .load_custom import load_cuda_kernels
-
 
 logger = logging.get_logger(__name__)
 

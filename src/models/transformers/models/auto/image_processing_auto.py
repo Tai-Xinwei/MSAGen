@@ -23,15 +23,12 @@ from typing import Dict, Optional, Union
 from ...configuration_utils import PretrainedConfig
 from ...dynamic_module_utils import get_class_from_dynamic_module
 from ...image_processing_utils import ImageProcessingMixin
-from ...utils import CONFIG_NAME, IMAGE_PROCESSOR_NAME, get_file_from_repo, logging
+from ...utils import (CONFIG_NAME, IMAGE_PROCESSOR_NAME, get_file_from_repo,
+                      logging)
 from .auto_factory import _LazyAutoMapping
-from .configuration_auto import (
-    CONFIG_MAPPING_NAMES,
-    AutoConfig,
-    model_type_to_module_name,
-    replace_list_option_in_docstrings,
-)
-
+from .configuration_auto import (CONFIG_MAPPING_NAMES, AutoConfig,
+                                 model_type_to_module_name,
+                                 replace_list_option_in_docstrings)
 
 logger = logging.get_logger(__name__)
 

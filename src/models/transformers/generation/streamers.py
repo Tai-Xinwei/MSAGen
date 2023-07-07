@@ -16,7 +16,6 @@
 from queue import Queue
 from typing import TYPE_CHECKING, Optional
 
-
 if TYPE_CHECKING:
     from ..models.auto import AutoTokenizer
 

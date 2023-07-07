@@ -24,18 +24,14 @@ from tensorflow.keras.layers import Dense
 from ...configuration_utils import PretrainedConfig
 from ...modeling_tf_utils import TFPreTrainedModel, unpack_inputs
 from ...tf_utils import shape_list
-from ...utils import (
-    DUMMY_INPUTS,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import (DUMMY_INPUTS, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from ..auto.configuration_auto import AutoConfig
 from ..auto.modeling_tf_auto import TFAutoModel
-from ..clip.modeling_tf_clip import CLIPVisionConfig, TFCLIPOutput, TFCLIPVisionModel
+from ..clip.modeling_tf_clip import (CLIPVisionConfig, TFCLIPOutput,
+                                     TFCLIPVisionModel)
 from .configuration_vision_text_dual_encoder import VisionTextDualEncoderConfig
-
 
 logger = logging.get_logger(__name__)
 

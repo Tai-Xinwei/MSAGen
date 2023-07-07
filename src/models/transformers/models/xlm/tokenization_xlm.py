@@ -25,7 +25,6 @@ from typing import List, Optional, Tuple
 from ...tokenization_utils import PreTrainedTokenizer
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 VOCAB_FILES_NAMES = {
@@ -816,7 +815,8 @@ class XLMTokenizer(PreTrainedTokenizer):
             text = self.moses_pipeline(text, lang=lang)
             try:
                 if "pythainlp" not in sys.modules:
-                    from pythainlp.tokenize import word_tokenize as th_word_tokenize
+                    from pythainlp.tokenize import \
+                        word_tokenize as th_word_tokenize
                 else:
                     th_word_tokenize = sys.modules["pythainlp"].word_tokenize
             except (AttributeError, ImportError):

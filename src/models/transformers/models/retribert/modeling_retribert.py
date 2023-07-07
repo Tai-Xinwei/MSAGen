@@ -29,7 +29,6 @@ from ...utils import add_start_docstrings, logging
 from ..bert.modeling_bert import BertModel
 from .configuration_retribert import RetriBertConfig
 
-
 logger = logging.get_logger(__name__)
 
 RETRIBERT_PRETRAINED_MODEL_ARCHIVE_LIST = [

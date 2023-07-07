@@ -21,28 +21,18 @@ import numpy as np
 import tensorflow as tf
 
 from ...activations_tf import get_tf_activation
-from ...modeling_tf_outputs import TFBaseModelOutputWithPast, TFCausalLMOutputWithPast
-
+from ...modeling_tf_outputs import (TFBaseModelOutputWithPast,
+                                    TFCausalLMOutputWithPast)
 # Public API
-from ...modeling_tf_utils import (
-    DUMMY_INPUTS,
-    TFCausalLanguageModelingLoss,
-    TFModelInputType,
-    TFPreTrainedModel,
-    TFSharedEmbeddings,
-    keras_serializable,
-    unpack_inputs,
-)
+from ...modeling_tf_utils import (DUMMY_INPUTS, TFCausalLanguageModelingLoss,
+                                  TFModelInputType, TFPreTrainedModel,
+                                  TFSharedEmbeddings, keras_serializable,
+                                  unpack_inputs)
 from ...tf_utils import shape_list, stable_softmax
-from ...utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import (add_code_sample_docstrings, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from .configuration_opt import OPTConfig
-
 
 logger = logging.get_logger(__name__)
 

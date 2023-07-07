@@ -22,20 +22,11 @@ import os
 import fairseq
 import torch
 from fairseq.data import Dictionary
-
 # Register SEW's fairseq modules
 from sew_asapp import tasks  # noqa: F401
-
-from transformers import (
-    SEWDConfig,
-    SEWDForCTC,
-    SEWDModel,
-    Wav2Vec2CTCTokenizer,
-    Wav2Vec2FeatureExtractor,
-    Wav2Vec2Processor,
-    logging,
-)
-
+from transformers import (SEWDConfig, SEWDForCTC, SEWDModel,
+                          Wav2Vec2CTCTokenizer, Wav2Vec2FeatureExtractor,
+                          Wav2Vec2Processor, logging)
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

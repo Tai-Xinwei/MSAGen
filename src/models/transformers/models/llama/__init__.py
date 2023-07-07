@@ -13,14 +13,9 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_sentencepiece_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_sentencepiece_available, is_tokenizers_available,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_llama": ["LLAMA_PRETRAINED_CONFIG_ARCHIVE_MAP", "LlamaConfig"],
@@ -57,7 +52,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_llama import LLAMA_PRETRAINED_CONFIG_ARCHIVE_MAP, LlamaConfig
+    from .configuration_llama import (LLAMA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                      LlamaConfig)
 
     try:
         if not is_sentencepiece_available():
@@ -81,12 +77,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_llama import (
-            LlamaForCausalLM,
-            LlamaForSequenceClassification,
-            LlamaModel,
-            LlamaPreTrainedModel,
-        )
+        from .modeling_llama import (LlamaForCausalLM,
+                                     LlamaForSequenceClassification,
+                                     LlamaModel, LlamaPreTrainedModel)
 
 
 else:

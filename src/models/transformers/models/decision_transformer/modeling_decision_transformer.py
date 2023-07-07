@@ -27,20 +27,12 @@ from torch.cuda.amp import autocast
 from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
 from ...modeling_utils import PreTrainedModel
-from ...pytorch_utils import (
-    Conv1D,
-    find_pruneable_heads_and_indices,
-    prune_conv1d_layer,
-)
-from ...utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...pytorch_utils import (Conv1D, find_pruneable_heads_and_indices,
+                              prune_conv1d_layer)
+from ...utils import (ModelOutput, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from .configuration_decision_transformer import DecisionTransformerConfig
-
 
 logger = logging.get_logger(__name__)
 

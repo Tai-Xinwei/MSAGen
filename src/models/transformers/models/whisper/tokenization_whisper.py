@@ -24,7 +24,6 @@ from ...tokenization_utils import AddedToken, PreTrainedTokenizer
 from ...utils import logging
 from .english_normalizer import EnglishTextNormalizer
 
-
 VOCAB_FILES_NAMES = {
     "vocab_file": "vocab.json",
     "tokenizer_file": "tokenizer.json",

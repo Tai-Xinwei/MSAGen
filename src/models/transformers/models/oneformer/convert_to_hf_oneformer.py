@@ -29,7 +29,6 @@ import torchvision.transforms as T
 from PIL import Image
 from torch import Tensor, nn
 
-
 try:
     from detectron2.checkpoint import DetectionCheckpointer
     from detectron2.config import get_cfg
@@ -38,19 +37,15 @@ try:
 except ImportError:
     pass
 from transformers import CLIPTokenizer, DinatConfig, SwinConfig
-from transformers.models.oneformer.image_processing_oneformer import (
-    OneFormerImageProcessor,
-)
+from transformers.models.oneformer.image_processing_oneformer import \
+    OneFormerImageProcessor
 from transformers.models.oneformer.modeling_oneformer import (
-    OneFormerConfig,
-    OneFormerForUniversalSegmentation,
-    OneFormerForUniversalSegmentationOutput,
-    OneFormerModel,
-    OneFormerModelOutput,
-)
-from transformers.models.oneformer.processing_oneformer import OneFormerProcessor
+    OneFormerConfig, OneFormerForUniversalSegmentation,
+    OneFormerForUniversalSegmentationOutput, OneFormerModel,
+    OneFormerModelOutput)
+from transformers.models.oneformer.processing_oneformer import \
+    OneFormerProcessor
 from transformers.utils import logging
-
 
 StateDict = Dict[str, Tensor]
 
@@ -1357,13 +1352,10 @@ if __name__ == "__main__":
     # append the path to the parents to oneformer dir
     sys.path.append(str(oneformer_dir.parent))
     # and import what's needed
-    from OneFormer.oneformer import (
-        add_common_config,
-        add_dinat_config,
-        add_oneformer_config,
-        add_swin_config,
-    )
-    from OneFormer.oneformer.oneformer_model import OneFormer as OriginalOneFormer
+    from OneFormer.oneformer import (add_common_config, add_dinat_config,
+                                     add_oneformer_config, add_swin_config)
+    from OneFormer.oneformer.oneformer_model import \
+        OneFormer as OriginalOneFormer
 
     if not save_directory.exists():
         save_directory.mkdir(parents=True)

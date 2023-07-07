@@ -14,8 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_table_transformer": [
@@ -42,9 +42,7 @@ else:
 if TYPE_CHECKING:
     from .configuration_table_transformer import (
         TABLE_TRANSFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        TableTransformerConfig,
-        TableTransformerOnnxConfig,
-    )
+        TableTransformerConfig, TableTransformerOnnxConfig)
 
     try:
         if not is_torch_available():
@@ -54,10 +52,8 @@ if TYPE_CHECKING:
     else:
         from .modeling_table_transformer import (
             TABLE_TRANSFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TableTransformerForObjectDetection,
-            TableTransformerModel,
-            TableTransformerPreTrainedModel,
-        )
+            TableTransformerForObjectDetection, TableTransformerModel,
+            TableTransformerPreTrainedModel)
 
 else:
     import sys

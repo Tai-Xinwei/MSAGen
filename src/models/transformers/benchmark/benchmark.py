@@ -22,17 +22,12 @@ import timeit
 from typing import Callable, Optional
 
 from ..configuration_utils import PretrainedConfig
-from ..models.auto.modeling_auto import MODEL_MAPPING, MODEL_WITH_LM_HEAD_MAPPING
+from ..models.auto.modeling_auto import (MODEL_MAPPING,
+                                         MODEL_WITH_LM_HEAD_MAPPING)
 from ..utils import is_py3nvml_available, is_torch_available, logging
-from .benchmark_utils import (
-    Benchmark,
-    Memory,
-    MemorySummary,
-    measure_peak_memory_cpu,
-    start_memory_tracing,
-    stop_memory_tracing,
-)
-
+from .benchmark_utils import (Benchmark, Memory, MemorySummary,
+                              measure_peak_memory_cpu, start_memory_tracing,
+                              stop_memory_tracing)
 
 if is_torch_available():
     import torch

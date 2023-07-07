@@ -19,9 +19,8 @@ import argparse
 
 import torch
 from s3prl.hub import distilhubert
-
-from transformers import HubertConfig, HubertModel, Wav2Vec2FeatureExtractor, logging
-
+from transformers import (HubertConfig, HubertModel, Wav2Vec2FeatureExtractor,
+                          logging)
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

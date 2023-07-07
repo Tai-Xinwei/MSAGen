@@ -23,7 +23,6 @@ from typing import List
 from ..utils import logging
 from . import BaseTransformersCLICommand
 
-
 try:
     from cookiecutter.main import cookiecutter
 

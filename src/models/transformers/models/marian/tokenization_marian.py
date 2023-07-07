@@ -24,7 +24,6 @@ import sentencepiece
 from ...tokenization_utils import PreTrainedTokenizer
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 VOCAB_FILES_NAMES = {

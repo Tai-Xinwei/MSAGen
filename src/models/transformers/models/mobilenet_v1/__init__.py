@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_torch_available,
-    is_vision_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available, is_vision_available)
 
 _import_structure = {
     "configuration_mobilenet_v1": [
@@ -57,10 +52,8 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_mobilenet_v1 import (
-        MOBILENET_V1_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MobileNetV1Config,
-        MobileNetV1OnnxConfig,
-    )
+        MOBILENET_V1_PRETRAINED_CONFIG_ARCHIVE_MAP, MobileNetV1Config,
+        MobileNetV1OnnxConfig)
 
     try:
         if not is_vision_available():
@@ -68,7 +61,8 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .feature_extraction_mobilenet_v1 import MobileNetV1FeatureExtractor
+        from .feature_extraction_mobilenet_v1 import \
+            MobileNetV1FeatureExtractor
         from .image_processing_mobilenet_v1 import MobileNetV1ImageProcessor
 
     try:
@@ -79,11 +73,8 @@ if TYPE_CHECKING:
     else:
         from .modeling_mobilenet_v1 import (
             MOBILENET_V1_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MobileNetV1ForImageClassification,
-            MobileNetV1Model,
-            MobileNetV1PreTrainedModel,
-            load_tf_weights_in_mobilenet_v1,
-        )
+            MobileNetV1ForImageClassification, MobileNetV1Model,
+            MobileNetV1PreTrainedModel, load_tf_weights_in_mobilenet_v1)
 
 
 else:

@@ -28,19 +28,13 @@ from ... import AutoBackbone
 from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutputWithCrossAttentions
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_scipy_available,
-    logging,
-    replace_return_docstrings,
-    requires_backends,
-)
+from ...utils import (ModelOutput, add_start_docstrings,
+                      add_start_docstrings_to_model_forward,
+                      is_scipy_available, logging, replace_return_docstrings,
+                      requires_backends)
 from ..detr import DetrConfig
 from .configuration_maskformer import MaskFormerConfig
 from .configuration_maskformer_swin import MaskFormerSwinConfig
-
 
 if is_scipy_available():
     from scipy.optimize import linear_sum_assignment

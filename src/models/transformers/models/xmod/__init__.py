@@ -18,8 +18,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_xmod": [
@@ -48,11 +48,8 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_xmod import (
-        XMOD_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        XmodConfig,
-        XmodOnnxConfig,
-    )
+    from .configuration_xmod import (XMOD_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                     XmodConfig, XmodOnnxConfig)
 
     try:
         if not is_torch_available():
@@ -60,17 +57,13 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_xmod import (
-            XMOD_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XmodForCausalLM,
-            XmodForMaskedLM,
-            XmodForMultipleChoice,
-            XmodForQuestionAnswering,
-            XmodForSequenceClassification,
-            XmodForTokenClassification,
-            XmodModel,
-            XmodPreTrainedModel,
-        )
+        from .modeling_xmod import (XMOD_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    XmodForCausalLM, XmodForMaskedLM,
+                                    XmodForMultipleChoice,
+                                    XmodForQuestionAnswering,
+                                    XmodForSequenceClassification,
+                                    XmodForTokenClassification, XmodModel,
+                                    XmodPreTrainedModel)
 
 else:
     import sys

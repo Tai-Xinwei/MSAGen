@@ -20,7 +20,6 @@ from typing import Mapping
 from ...configuration_utils import PretrainedConfig
 from ...onnx import OnnxConfig
 
-
 ALBERT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     "albert-base-v1": "https://huggingface.co/albert-base-v1/resolve/main/config.json",
     "albert-large-v1": "https://huggingface.co/albert-large-v1/resolve/main/config.json",

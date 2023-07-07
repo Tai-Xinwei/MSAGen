@@ -13,14 +13,9 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_sentencepiece_available,
-    is_speech_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_sentencepiece_available, is_speech_available,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_trocr": ["TROCR_PRETRAINED_CONFIG_ARCHIVE_MAP", "TrOCRConfig"],
@@ -42,7 +37,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_trocr import TROCR_PRETRAINED_CONFIG_ARCHIVE_MAP, TrOCRConfig
+    from .configuration_trocr import (TROCR_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                      TrOCRConfig)
     from .processing_trocr import TrOCRProcessor
 
     try:
@@ -51,11 +47,8 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_trocr import (
-            TROCR_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TrOCRForCausalLM,
-            TrOCRPreTrainedModel,
-        )
+        from .modeling_trocr import (TROCR_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     TrOCRForCausalLM, TrOCRPreTrainedModel)
 
 else:
     import sys

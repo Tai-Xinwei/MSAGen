@@ -22,21 +22,13 @@ import torch
 import torch.nn as nn
 
 from ...activations import ACT2FN
-from ...modeling_outputs import (
-    MoECausalLMOutputWithPast,
-    MoEModelOutputWithPastAndCrossAttentions,
-)
+from ...modeling_outputs import (MoECausalLMOutputWithPast,
+                                 MoEModelOutputWithPastAndCrossAttentions)
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    DUMMY_INPUTS,
-    DUMMY_MASK,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_torch_fx_proxy,
-    logging,
-)
+from ...utils import (DUMMY_INPUTS, DUMMY_MASK, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, is_torch_fx_proxy,
+                      logging)
 from .configuration_gptsan_japanese import GPTSanJapaneseConfig
-
 
 logger = logging.get_logger(__name__)
 

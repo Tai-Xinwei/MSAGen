@@ -14,13 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tf_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tf_available, is_torch_available)
 
 _import_structure = {
     "configuration_xlm": [
@@ -69,11 +64,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_xlm import (
-        XLM_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        XLMConfig,
-        XLMOnnxConfig,
-    )
+    from .configuration_xlm import (XLM_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    XLMConfig, XLMOnnxConfig)
     from .tokenization_xlm import XLMTokenizer
 
     try:
@@ -82,17 +74,13 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_xlm import (
-            XLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XLMForMultipleChoice,
-            XLMForQuestionAnswering,
-            XLMForQuestionAnsweringSimple,
-            XLMForSequenceClassification,
-            XLMForTokenClassification,
-            XLMModel,
-            XLMPreTrainedModel,
-            XLMWithLMHeadModel,
-        )
+        from .modeling_xlm import (XLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   XLMForMultipleChoice,
+                                   XLMForQuestionAnswering,
+                                   XLMForQuestionAnsweringSimple,
+                                   XLMForSequenceClassification,
+                                   XLMForTokenClassification, XLMModel,
+                                   XLMPreTrainedModel, XLMWithLMHeadModel)
 
     try:
         if not is_tf_available():
@@ -100,17 +88,14 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_xlm import (
-            TF_XLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFXLMForMultipleChoice,
-            TFXLMForQuestionAnsweringSimple,
-            TFXLMForSequenceClassification,
-            TFXLMForTokenClassification,
-            TFXLMMainLayer,
-            TFXLMModel,
-            TFXLMPreTrainedModel,
-            TFXLMWithLMHeadModel,
-        )
+        from .modeling_tf_xlm import (TF_XLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      TFXLMForMultipleChoice,
+                                      TFXLMForQuestionAnsweringSimple,
+                                      TFXLMForSequenceClassification,
+                                      TFXLMForTokenClassification,
+                                      TFXLMMainLayer, TFXLMModel,
+                                      TFXLMPreTrainedModel,
+                                      TFXLMWithLMHeadModel)
 
 else:
     import sys

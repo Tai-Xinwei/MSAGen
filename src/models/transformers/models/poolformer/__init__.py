@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_torch_available,
-    is_vision_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available, is_vision_available)
 
 _import_structure = {
     "configuration_poolformer": [
@@ -54,10 +49,8 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_poolformer import (
-        POOLFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        PoolFormerConfig,
-        PoolFormerOnnxConfig,
-    )
+        POOLFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, PoolFormerConfig,
+        PoolFormerOnnxConfig)
 
     try:
         if not is_vision_available():
@@ -76,10 +69,8 @@ if TYPE_CHECKING:
     else:
         from .modeling_poolformer import (
             POOLFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            PoolFormerForImageClassification,
-            PoolFormerModel,
-            PoolFormerPreTrainedModel,
-        )
+            PoolFormerForImageClassification, PoolFormerModel,
+            PoolFormerPreTrainedModel)
 
 
 else:

@@ -14,15 +14,9 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_tf_available,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_blenderbot": [
@@ -84,10 +78,8 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_blenderbot import (
-        BLENDERBOT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        BlenderbotConfig,
-        BlenderbotOnnxConfig,
-    )
+        BLENDERBOT_PRETRAINED_CONFIG_ARCHIVE_MAP, BlenderbotConfig,
+        BlenderbotOnnxConfig)
     from .tokenization_blenderbot import BlenderbotTokenizer
 
     try:
@@ -105,12 +97,9 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_blenderbot import (
-            BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            BlenderbotForCausalLM,
-            BlenderbotForConditionalGeneration,
-            BlenderbotModel,
-            BlenderbotPreTrainedModel,
-        )
+            BLENDERBOT_PRETRAINED_MODEL_ARCHIVE_LIST, BlenderbotForCausalLM,
+            BlenderbotForConditionalGeneration, BlenderbotModel,
+            BlenderbotPreTrainedModel)
 
     try:
         if not is_tf_available():
@@ -119,10 +108,8 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_tf_blenderbot import (
-            TFBlenderbotForConditionalGeneration,
-            TFBlenderbotModel,
-            TFBlenderbotPreTrainedModel,
-        )
+            TFBlenderbotForConditionalGeneration, TFBlenderbotModel,
+            TFBlenderbotPreTrainedModel)
 
     try:
         if not is_flax_available():
@@ -131,10 +118,8 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_flax_blenderbot import (
-            FlaxBlenderbotForConditionalGeneration,
-            FlaxBlenderbotModel,
-            FlaxBlenderbotPreTrainedModel,
-        )
+            FlaxBlenderbotForConditionalGeneration, FlaxBlenderbotModel,
+            FlaxBlenderbotPreTrainedModel)
 
 else:
     import sys

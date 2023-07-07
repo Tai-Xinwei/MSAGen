@@ -14,16 +14,10 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_sentencepiece_available,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_sentencepiece_available,
+                      is_tf_available, is_tokenizers_available,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_t5": ["T5_PRETRAINED_CONFIG_ARCHIVE_MAP", "T5Config", "T5OnnxConfig"]
@@ -89,11 +83,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_t5 import (
-        T5_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        T5Config,
-        T5OnnxConfig,
-    )
+    from .configuration_t5 import (T5_PRETRAINED_CONFIG_ARCHIVE_MAP, T5Config,
+                                   T5OnnxConfig)
 
     try:
         if not is_sentencepiece_available():
@@ -117,14 +108,10 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_t5 import (
-            T5_PRETRAINED_MODEL_ARCHIVE_LIST,
-            T5EncoderModel,
-            T5ForConditionalGeneration,
-            T5Model,
-            T5PreTrainedModel,
-            load_tf_weights_in_t5,
-        )
+        from .modeling_t5 import (T5_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                  T5EncoderModel, T5ForConditionalGeneration,
+                                  T5Model, T5PreTrainedModel,
+                                  load_tf_weights_in_t5)
 
     try:
         if not is_tf_available():
@@ -132,13 +119,10 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_t5 import (
-            TF_T5_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFT5EncoderModel,
-            TFT5ForConditionalGeneration,
-            TFT5Model,
-            TFT5PreTrainedModel,
-        )
+        from .modeling_tf_t5 import (TF_T5_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     TFT5EncoderModel,
+                                     TFT5ForConditionalGeneration, TFT5Model,
+                                     TFT5PreTrainedModel)
 
     try:
         if not is_flax_available():
@@ -146,12 +130,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_flax_t5 import (
-            FlaxT5EncoderModel,
-            FlaxT5ForConditionalGeneration,
-            FlaxT5Model,
-            FlaxT5PreTrainedModel,
-        )
+        from .modeling_flax_t5 import (FlaxT5EncoderModel,
+                                       FlaxT5ForConditionalGeneration,
+                                       FlaxT5Model, FlaxT5PreTrainedModel)
 
 
 else:

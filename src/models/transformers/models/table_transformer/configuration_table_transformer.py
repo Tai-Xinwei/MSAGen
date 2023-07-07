@@ -24,7 +24,6 @@ from ...onnx import OnnxConfig
 from ...utils import logging
 from ..auto import CONFIG_MAPPING
 
-
 logger = logging.get_logger(__name__)
 
 TABLE_TRANSFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP = {

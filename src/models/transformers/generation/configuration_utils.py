@@ -21,16 +21,8 @@ from typing import Any, Dict, Optional, Union
 
 from .. import __version__
 from ..configuration_utils import PretrainedConfig
-from ..utils import (
-    GENERATION_CONFIG_NAME,
-    PushToHubMixin,
-    cached_file,
-    download_url,
-    extract_commit_hash,
-    is_remote_url,
-    logging,
-)
-
+from ..utils import (GENERATION_CONFIG_NAME, PushToHubMixin, cached_file,
+                     download_url, extract_commit_hash, is_remote_url, logging)
 
 logger = logging.get_logger(__name__)
 

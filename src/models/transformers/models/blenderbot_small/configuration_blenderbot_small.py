@@ -24,7 +24,6 @@ from ...onnx import OnnxConfig, OnnxConfigWithPast, OnnxSeq2SeqConfigWithPast
 from ...onnx.utils import compute_effective_axis_dimension
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 BLENDERBOT_SMALL_PRETRAINED_CONFIG_ARCHIVE_MAP = {

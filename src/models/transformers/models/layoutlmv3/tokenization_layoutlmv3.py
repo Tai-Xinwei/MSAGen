@@ -22,16 +22,10 @@ from typing import Dict, List, Optional, Tuple, Union
 import regex as re
 
 from ...tokenization_utils import AddedToken, PreTrainedTokenizer
-from ...tokenization_utils_base import (
-    BatchEncoding,
-    EncodedInput,
-    PreTokenizedInput,
-    TextInput,
-    TextInputPair,
-    TruncationStrategy,
-)
+from ...tokenization_utils_base import (BatchEncoding, EncodedInput,
+                                        PreTokenizedInput, TextInput,
+                                        TextInputPair, TruncationStrategy)
 from ...utils import PaddingStrategy, TensorType, add_end_docstrings, logging
-
 
 logger = logging.get_logger(__name__)
 

@@ -19,17 +19,10 @@ import argparse
 import torch
 from datasets import load_dataset
 from donut import DonutModel
-
-from transformers import (
-    DonutFeatureExtractor,
-    DonutProcessor,
-    DonutSwinConfig,
-    DonutSwinModel,
-    MBartConfig,
-    MBartForCausalLM,
-    VisionEncoderDecoderModel,
-    XLMRobertaTokenizerFast,
-)
+from transformers import (DonutFeatureExtractor, DonutProcessor,
+                          DonutSwinConfig, DonutSwinModel, MBartConfig,
+                          MBartForCausalLM, VisionEncoderDecoderModel,
+                          XLMRobertaTokenizerFast)
 
 
 def get_configs(model):

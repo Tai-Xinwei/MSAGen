@@ -29,26 +29,16 @@ from torch.autograd.function import Function
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
-from ...modeling_outputs import (
-    CausalLMOutput,
-    MaskedLMOutput,
-    QuestionAnsweringModelOutput,
-    SequenceClassifierOutput,
-)
+from ...modeling_outputs import (CausalLMOutput, MaskedLMOutput,
+                                 QuestionAnsweringModelOutput,
+                                 SequenceClassifierOutput)
 from ...modeling_utils import PreTrainedModel
 from ...pytorch_utils import apply_chunking_to_forward
-from ...utils import (
-    DUMMY_INPUTS,
-    DUMMY_MASK,
-    ModelOutput,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import (DUMMY_INPUTS, DUMMY_MASK, ModelOutput,
+                      add_code_sample_docstrings, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from .configuration_reformer import ReformerConfig
-
 
 logger = logging.get_logger(__name__)
 

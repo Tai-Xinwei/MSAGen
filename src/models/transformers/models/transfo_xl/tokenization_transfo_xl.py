@@ -28,15 +28,8 @@ from typing import List, Optional, Tuple
 import numpy as np
 
 from ...tokenization_utils import PreTrainedTokenizer
-from ...utils import (
-    cached_file,
-    is_sacremoses_available,
-    is_torch_available,
-    logging,
-    requires_backends,
-    torch_only_method,
-)
-
+from ...utils import (cached_file, is_sacremoses_available, is_torch_available,
+                      logging, requires_backends, torch_only_method)
 
 if is_sacremoses_available():
     import sacremoses as sm

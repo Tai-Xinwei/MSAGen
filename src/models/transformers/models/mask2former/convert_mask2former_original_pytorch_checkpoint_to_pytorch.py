@@ -29,20 +29,13 @@ from detectron2.projects.deeplab import add_deeplab_config
 from huggingface_hub import hf_hub_download
 from PIL import Image
 from torch import Tensor, nn
-
-from transformers import (
-    Mask2FormerConfig,
-    Mask2FormerForUniversalSegmentation,
-    Mask2FormerImageProcessor,
-    Mask2FormerModel,
-    SwinConfig,
-)
+from transformers import (Mask2FormerConfig,
+                          Mask2FormerForUniversalSegmentation,
+                          Mask2FormerImageProcessor, Mask2FormerModel,
+                          SwinConfig)
 from transformers.models.mask2former.modeling_mask2former import (
-    Mask2FormerForUniversalSegmentationOutput,
-    Mask2FormerModelOutput,
-)
+    Mask2FormerForUniversalSegmentationOutput, Mask2FormerModelOutput)
 from transformers.utils import logging
-
 
 StateDict = Dict[str, Tensor]
 
@@ -1144,9 +1137,8 @@ if __name__ == "__main__":
     sys.path.append(str(mask2former_dir.parent))
     # import original Mask2Former config and model from original source code repo
     from Mask2Former.mask2former.config import add_maskformer2_config
-    from Mask2Former.mask2former.maskformer_model import (
-        MaskFormer as OriginalMask2Former,
-    )
+    from Mask2Former.mask2former.maskformer_model import \
+        MaskFormer as OriginalMask2Former
 
     for (
         config_file,

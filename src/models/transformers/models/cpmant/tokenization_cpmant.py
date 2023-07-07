@@ -19,13 +19,11 @@ from typing import List, Optional, Tuple
 
 from transformers.utils import is_jieba_available, requires_backends
 
-
 if is_jieba_available():
     import jieba
 
 from ...tokenization_utils import PreTrainedTokenizer
 from ...utils import logging
-
 
 logger = logging.get_logger(__name__)
 

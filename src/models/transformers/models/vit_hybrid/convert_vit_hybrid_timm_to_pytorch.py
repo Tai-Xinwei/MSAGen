@@ -26,17 +26,11 @@ from huggingface_hub import hf_hub_download
 from PIL import Image
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
-
-from transformers import (
-    BitConfig,
-    ViTHybridConfig,
-    ViTHybridForImageClassification,
-    ViTHybridImageProcessor,
-    ViTHybridModel,
-)
+from transformers import (BitConfig, ViTHybridConfig,
+                          ViTHybridForImageClassification,
+                          ViTHybridImageProcessor, ViTHybridModel)
 from transformers.image_utils import PILImageResampling
 from transformers.utils import logging
-
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

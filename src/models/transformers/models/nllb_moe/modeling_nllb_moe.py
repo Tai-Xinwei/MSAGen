@@ -26,22 +26,14 @@ from torch.utils.checkpoint import checkpoint
 
 from ...activations import ACT2FN
 from ...deepspeed import is_deepspeed_zero3_enabled
-from ...modeling_outputs import (
-    MoEModelOutput,
-    MoEModelOutputWithPastAndCrossAttentions,
-    Seq2SeqMoEModelOutput,
-    Seq2SeqMoEOutput,
-)
+from ...modeling_outputs import (MoEModelOutput,
+                                 MoEModelOutputWithPastAndCrossAttentions,
+                                 Seq2SeqMoEModelOutput, Seq2SeqMoEOutput)
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    add_end_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import (add_end_docstrings, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from .configuration_nllb_moe import NllbMoeConfig
-
 
 logger = logging.get_logger(__name__)
 

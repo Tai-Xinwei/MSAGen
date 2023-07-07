@@ -13,15 +13,9 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_tf_available,
-    is_torch_available,
-    is_vision_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_tf_available, is_torch_available,
+                      is_vision_available)
 
 _import_structure = {
     "configuration_vit": [
@@ -79,11 +73,8 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_vit import (
-        VIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        ViTConfig,
-        ViTOnnxConfig,
-    )
+    from .configuration_vit import (VIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                    ViTConfig, ViTOnnxConfig)
 
     try:
         if not is_vision_available():
@@ -100,13 +91,10 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_vit import (
-            VIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ViTForImageClassification,
-            ViTForMaskedImageModeling,
-            ViTModel,
-            ViTPreTrainedModel,
-        )
+        from .modeling_vit import (VIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   ViTForImageClassification,
+                                   ViTForMaskedImageModeling, ViTModel,
+                                   ViTPreTrainedModel)
 
     try:
         if not is_tf_available():
@@ -114,11 +102,8 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_vit import (
-            TFViTForImageClassification,
-            TFViTModel,
-            TFViTPreTrainedModel,
-        )
+        from .modeling_tf_vit import (TFViTForImageClassification, TFViTModel,
+                                      TFViTPreTrainedModel)
 
     try:
         if not is_flax_available():
@@ -126,11 +111,8 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_flax_vit import (
-            FlaxViTForImageClassification,
-            FlaxViTModel,
-            FlaxViTPreTrainedModel,
-        )
+        from .modeling_flax_vit import (FlaxViTForImageClassification,
+                                        FlaxViTModel, FlaxViTPreTrainedModel)
 
 
 else:

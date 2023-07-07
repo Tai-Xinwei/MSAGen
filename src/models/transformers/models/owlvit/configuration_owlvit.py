@@ -19,7 +19,6 @@ import os
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Union
 
-
 if TYPE_CHECKING:
     from ...processing_utils import ProcessorMixin
     from ...utils import TensorType
@@ -27,7 +26,6 @@ if TYPE_CHECKING:
 from ...configuration_utils import PretrainedConfig
 from ...onnx import OnnxConfig
 from ...utils import logging
-
 
 logger = logging.get_logger(__name__)
 

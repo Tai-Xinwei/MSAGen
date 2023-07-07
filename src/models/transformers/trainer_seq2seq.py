@@ -14,7 +14,8 @@
 
 from copy import deepcopy
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
+                    Union)
 
 import torch
 from torch import nn
@@ -24,7 +25,6 @@ from .deepspeed import is_deepspeed_zero3_enabled
 from .generation.configuration_utils import GenerationConfig
 from .trainer import Trainer
 from .utils import logging
-
 
 if TYPE_CHECKING:
     from .data.data_collator import DataCollator

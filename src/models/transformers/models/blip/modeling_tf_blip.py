@@ -19,31 +19,19 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import tensorflow as tf
 
-from ...modeling_tf_outputs import TFBaseModelOutput, TFBaseModelOutputWithPooling
-from ...modeling_tf_utils import (
-    DUMMY_INPUTS,
-    TFPreTrainedModel,
-    get_initializer,
-    get_tf_activation,
-    keras_serializable,
-    shape_list,
-    unpack_inputs,
-)
+from ...modeling_tf_outputs import (TFBaseModelOutput,
+                                    TFBaseModelOutputWithPooling)
+from ...modeling_tf_utils import (DUMMY_INPUTS, TFPreTrainedModel,
+                                  get_initializer, get_tf_activation,
+                                  keras_serializable, shape_list,
+                                  unpack_inputs)
 from ...tf_utils import stable_softmax
-from ...utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import (ModelOutput, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from .configuration_blip import BlipConfig, BlipTextConfig, BlipVisionConfig
-from .modeling_tf_blip_text import (
-    BLIP_TEXT_INPUTS_DOCSTRING,
-    TFBlipTextLMHeadModel,
-    TFBlipTextModel,
-)
-
+from .modeling_tf_blip_text import (BLIP_TEXT_INPUTS_DOCSTRING,
+                                    TFBlipTextLMHeadModel, TFBlipTextModel)
 
 logger = logging.get_logger(__name__)
 

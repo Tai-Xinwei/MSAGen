@@ -24,7 +24,6 @@ from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import logging
 from .tokenization_deberta import DebertaTokenizer
 
-
 if TYPE_CHECKING:
     from transformers.pipelines.conversational import Conversation
 

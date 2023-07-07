@@ -23,7 +23,6 @@ from typing import List
 
 from ..utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 

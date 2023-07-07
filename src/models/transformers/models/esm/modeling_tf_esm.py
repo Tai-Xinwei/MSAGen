@@ -19,35 +19,23 @@ from typing import Optional, Tuple, Union
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.activations import gelu
-from tensorflow.keras.layers import Dense, Dropout, Embedding, Layer, LayerNormalization
+from tensorflow.keras.layers import (Dense, Dropout, Embedding, Layer,
+                                     LayerNormalization)
 
-from ...file_utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-)
+from ...file_utils import (add_code_sample_docstrings, add_start_docstrings,
+                           add_start_docstrings_to_model_forward)
 from ...modeling_tf_outputs import (
     TFBaseModelOutputWithPastAndCrossAttentions,
-    TFBaseModelOutputWithPoolingAndCrossAttentions,
-    TFMaskedLMOutput,
-    TFSequenceClassifierOutput,
-    TFTokenClassifierOutput,
-)
-from ...modeling_tf_utils import (
-    TFMaskedLanguageModelingLoss,
-    TFModelInputType,
-    TFPreTrainedModel,
-    TFSequenceClassificationLoss,
-    TFTokenClassificationLoss,
-    get_initializer,
-    get_tf_activation,
-    shape_list,
-    unpack_inputs,
-)
+    TFBaseModelOutputWithPoolingAndCrossAttentions, TFMaskedLMOutput,
+    TFSequenceClassifierOutput, TFTokenClassifierOutput)
+from ...modeling_tf_utils import (TFMaskedLanguageModelingLoss,
+                                  TFModelInputType, TFPreTrainedModel,
+                                  TFSequenceClassificationLoss,
+                                  TFTokenClassificationLoss, get_initializer,
+                                  get_tf_activation, shape_list, unpack_inputs)
 from ...tf_utils import stable_softmax
 from ...utils import logging
 from .configuration_esm import EsmConfig
-
 
 logger = logging.get_logger(__name__)
 

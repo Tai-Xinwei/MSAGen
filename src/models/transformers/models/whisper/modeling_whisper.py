@@ -26,23 +26,16 @@ from torch.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
 from ...generation.logits_process import WhisperTimeStampLogitsProcessor
-from ...modeling_outputs import (
-    BaseModelOutput,
-    BaseModelOutputWithPastAndCrossAttentions,
-    Seq2SeqLMOutput,
-    Seq2SeqModelOutput,
-    SequenceClassifierOutput,
-)
+from ...modeling_outputs import (BaseModelOutput,
+                                 BaseModelOutputWithPastAndCrossAttentions,
+                                 Seq2SeqLMOutput, Seq2SeqModelOutput,
+                                 SequenceClassifierOutput)
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import (add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from .configuration_whisper import WhisperConfig
 from .tokenization_whisper import TASK_IDS, TO_LANGUAGE_CODE
-
 
 logger = logging.get_logger(__name__)
 

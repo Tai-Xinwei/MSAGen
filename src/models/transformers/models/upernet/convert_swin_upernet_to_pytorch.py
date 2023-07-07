@@ -24,13 +24,8 @@ import requests
 import torch
 from huggingface_hub import hf_hub_download
 from PIL import Image
-
-from transformers import (
-    SegformerImageProcessor,
-    SwinConfig,
-    UperNetConfig,
-    UperNetForSemanticSegmentation,
-)
+from transformers import (SegformerImageProcessor, SwinConfig, UperNetConfig,
+                          UperNetForSemanticSegmentation)
 
 
 def get_upernet_config(model_name):

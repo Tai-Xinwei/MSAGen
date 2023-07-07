@@ -21,7 +21,6 @@ from tokenizers import normalizers
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from .tokenization_lxmert import LxmertTokenizer
 
-
 VOCAB_FILES_NAMES = {"vocab_file": "vocab.txt", "tokenizer_file": "tokenizer.json"}
 
 PRETRAINED_VOCAB_FILES_MAP = {

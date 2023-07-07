@@ -22,7 +22,6 @@ from ..auto import CONFIG_MAPPING
 from ..detr import DetrConfig
 from ..swin import SwinConfig
 
-
 MASKFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     "facebook/maskformer-swin-base-ade": (
         "https://huggingface.co/facebook/maskformer-swin-base-ade/blob/main/config.json"

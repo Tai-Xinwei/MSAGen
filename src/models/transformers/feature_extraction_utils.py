@@ -25,26 +25,12 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 import numpy as np
 
 from .dynamic_module_utils import custom_object_save
-from .utils import (
-    FEATURE_EXTRACTOR_NAME,
-    PushToHubMixin,
-    TensorType,
-    cached_file,
-    copy_func,
-    download_url,
-    is_flax_available,
-    is_jax_tensor,
-    is_numpy_array,
-    is_offline_mode,
-    is_remote_url,
-    is_tf_available,
-    is_torch_available,
-    is_torch_device,
-    is_torch_dtype,
-    logging,
-    requires_backends,
-)
-
+from .utils import (FEATURE_EXTRACTOR_NAME, PushToHubMixin, TensorType,
+                    cached_file, copy_func, download_url, is_flax_available,
+                    is_jax_tensor, is_numpy_array, is_offline_mode,
+                    is_remote_url, is_tf_available, is_torch_available,
+                    is_torch_device, is_torch_dtype, logging,
+                    requires_backends)
 
 if TYPE_CHECKING:
     if is_torch_available():

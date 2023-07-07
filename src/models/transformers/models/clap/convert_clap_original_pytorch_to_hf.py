@@ -18,9 +18,7 @@ import re
 
 import torch
 from CLAP import create_model
-
 from transformers import AutoFeatureExtractor, ClapConfig, ClapModel
-
 
 KEYS_TO_MODIFY_MAPPING = {
     "text_branch": "text_model",

@@ -22,7 +22,6 @@ from ...onnx import OnnxConfig, OnnxSeq2SeqConfigWithPast
 from ...onnx.utils import compute_effective_axis_dimension
 from ...utils import TensorType, is_torch_available, logging
 
-
 logger = logging.get_logger(__name__)
 
 M2M_100_PRETRAINED_CONFIG_ARCHIVE_MAP = {

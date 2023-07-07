@@ -18,13 +18,11 @@ import copy
 import os
 from typing import TYPE_CHECKING, List, Union
 
-
 if TYPE_CHECKING:
     pass
 
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
-
 
 logger = logging.get_logger(__name__)
 

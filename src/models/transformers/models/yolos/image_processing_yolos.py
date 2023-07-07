@@ -15,52 +15,27 @@
 """Image processor class for YOLOS."""
 
 import pathlib
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import (Any, Callable, Dict, Iterable, List, Optional, Set, Tuple,
+                    Union)
 
 import numpy as np
 
 from ...feature_extraction_utils import BatchFeature
 from ...image_processing_utils import BaseImageProcessor, get_size_dict
-from ...image_transforms import (
-    PaddingMode,
-    center_to_corners_format,
-    corners_to_center_format,
-    id_to_rgb,
-    normalize,
-    pad,
-    rescale,
-    resize,
-    rgb_to_id,
-    to_channel_dimension_format,
-)
-from ...image_utils import (
-    IMAGENET_DEFAULT_MEAN,
-    IMAGENET_DEFAULT_STD,
-    ChannelDimension,
-    ImageInput,
-    PILImageResampling,
-    get_image_size,
-    infer_channel_dimension_format,
-    make_list_of_images,
-    to_numpy_array,
-    valid_coco_detection_annotations,
-    valid_coco_panoptic_annotations,
-    valid_images,
-)
-from ...utils import (
-    ExplicitEnum,
-    TensorType,
-    is_flax_available,
-    is_jax_tensor,
-    is_scipy_available,
-    is_tf_available,
-    is_tf_tensor,
-    is_torch_available,
-    is_torch_tensor,
-    is_vision_available,
-    logging,
-)
-
+from ...image_transforms import (PaddingMode, center_to_corners_format,
+                                 corners_to_center_format, id_to_rgb,
+                                 normalize, pad, rescale, resize, rgb_to_id,
+                                 to_channel_dimension_format)
+from ...image_utils import (IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD,
+                            ChannelDimension, ImageInput, PILImageResampling,
+                            get_image_size, infer_channel_dimension_format,
+                            make_list_of_images, to_numpy_array,
+                            valid_coco_detection_annotations,
+                            valid_coco_panoptic_annotations, valid_images)
+from ...utils import (ExplicitEnum, TensorType, is_flax_available,
+                      is_jax_tensor, is_scipy_available, is_tf_available,
+                      is_tf_tensor, is_torch_available, is_torch_tensor,
+                      is_vision_available, logging)
 
 if is_torch_available():
     import torch

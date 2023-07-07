@@ -22,22 +22,13 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import sentencepiece as spm
 
 from ...tokenization_utils import AddedToken, PreTrainedTokenizer
-from ...tokenization_utils_base import (
-    BatchEncoding,
-    EncodedInput,
-    PreTokenizedInput,
-    TextInput,
-    TextInputPair,
-    TruncationStrategy,
-)
+from ...tokenization_utils_base import (BatchEncoding, EncodedInput,
+                                        PreTokenizedInput, TextInput,
+                                        TextInputPair, TruncationStrategy)
 from ...utils import PaddingStrategy, TensorType, add_end_docstrings, logging
 from ..xlm_roberta.tokenization_xlm_roberta import (
-    PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES,
-    PRETRAINED_VOCAB_FILES_MAP,
-    SPIECE_UNDERLINE,
-    VOCAB_FILES_NAMES,
-)
-
+    PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES, PRETRAINED_VOCAB_FILES_MAP,
+    SPIECE_UNDERLINE, VOCAB_FILES_NAMES)
 
 logger = logging.get_logger(__name__)
 

@@ -20,7 +20,6 @@ from ... import PretrainedConfig, PreTrainedTokenizer
 from ...onnx import OnnxConfig, PatchingSpec
 from ...utils import TensorType, is_torch_available, logging
 
-
 logger = logging.get_logger(__name__)
 
 LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP = {

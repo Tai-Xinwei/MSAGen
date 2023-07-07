@@ -8,7 +8,6 @@ import torch
 
 from ..utils import add_start_docstrings
 
-
 STOPPING_CRITERIA_INPUTS_DOCSTRING = r"""
     Args:
         input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):

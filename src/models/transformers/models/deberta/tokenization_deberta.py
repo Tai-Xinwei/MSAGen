@@ -23,7 +23,6 @@ import regex as re
 from ...tokenization_utils import AddedToken, PreTrainedTokenizer
 from ...utils import logging
 
-
 if TYPE_CHECKING:
     from transformers.pipelines.conversational import Conversation
 

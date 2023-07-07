@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_torch_available,
-    is_vision_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available, is_vision_available)
 
 _import_structure = {
     "configuration_glpn": ["GLPN_PRETRAINED_CONFIG_ARCHIVE_MAP", "GLPNConfig"]
@@ -50,7 +45,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_glpn import GLPN_PRETRAINED_CONFIG_ARCHIVE_MAP, GLPNConfig
+    from .configuration_glpn import (GLPN_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                     GLPNConfig)
 
     try:
         if not is_vision_available():
@@ -67,13 +63,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_glpn import (
-            GLPN_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GLPNForDepthEstimation,
-            GLPNLayer,
-            GLPNModel,
-            GLPNPreTrainedModel,
-        )
+        from .modeling_glpn import (GLPN_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    GLPNForDepthEstimation, GLPNLayer,
+                                    GLPNModel, GLPNPreTrainedModel)
 
 
 else:

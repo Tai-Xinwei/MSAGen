@@ -27,26 +27,20 @@ import jax.numpy as jnp
 import numpy as np
 from jax import lax
 
-from ..models.auto import (
-    FLAX_MODEL_FOR_CAUSAL_LM_MAPPING,
-    FLAX_MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
-    FLAX_MODEL_FOR_VISION_2_SEQ_MAPPING,
-)
+from ..models.auto import (FLAX_MODEL_FOR_CAUSAL_LM_MAPPING,
+                           FLAX_MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
+                           FLAX_MODEL_FOR_VISION_2_SEQ_MAPPING)
 from ..utils import ModelOutput, logging
 from .configuration_utils import GenerationConfig
-from .flax_logits_process import (
-    FlaxForcedBOSTokenLogitsProcessor,
-    FlaxForcedEOSTokenLogitsProcessor,
-    FlaxForceTokensLogitsProcessor,
-    FlaxLogitsProcessorList,
-    FlaxMinLengthLogitsProcessor,
-    FlaxSuppressTokensAtBeginLogitsProcessor,
-    FlaxSuppressTokensLogitsProcessor,
-    FlaxTemperatureLogitsWarper,
-    FlaxTopKLogitsWarper,
-    FlaxTopPLogitsWarper,
-)
-
+from .flax_logits_process import (FlaxForcedBOSTokenLogitsProcessor,
+                                  FlaxForcedEOSTokenLogitsProcessor,
+                                  FlaxForceTokensLogitsProcessor,
+                                  FlaxLogitsProcessorList,
+                                  FlaxMinLengthLogitsProcessor,
+                                  FlaxSuppressTokensAtBeginLogitsProcessor,
+                                  FlaxSuppressTokensLogitsProcessor,
+                                  FlaxTemperatureLogitsWarper,
+                                  FlaxTopKLogitsWarper, FlaxTopPLogitsWarper)
 
 logger = logging.get_logger(__name__)
 

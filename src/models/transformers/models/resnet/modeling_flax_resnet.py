@@ -25,17 +25,13 @@ from flax.traverse_util import flatten_dict, unflatten_dict
 from ...modeling_flax_outputs import (
     FlaxBaseModelOutputWithNoAttention,
     FlaxBaseModelOutputWithPoolingAndNoAttention,
-    FlaxImageClassifierOutputWithNoAttention,
-)
-from ...modeling_flax_utils import (
-    ACT2FN,
-    FlaxPreTrainedModel,
-    append_replace_return_docstrings,
-    overwrite_call_docstring,
-)
-from ...utils import add_start_docstrings, add_start_docstrings_to_model_forward
+    FlaxImageClassifierOutputWithNoAttention)
+from ...modeling_flax_utils import (ACT2FN, FlaxPreTrainedModel,
+                                    append_replace_return_docstrings,
+                                    overwrite_call_docstring)
+from ...utils import (add_start_docstrings,
+                      add_start_docstrings_to_model_forward)
 from .configuration_resnet import ResNetConfig
-
 
 RESNET_START_DOCSTRING = r"""
 
