@@ -86,7 +86,9 @@ def convert_t5x_to_pytorch(variables: dict, *, num_layers: int, is_encoder_only:
     # Encoder.
     for i in range(num_layers):
         # Block i, layer 0 (Self Attention).
-        layer_norm = t5x_layer_norm_lookup(old, i, "encoder", "pre_attention_layer_norm")
+        layer_norm = t5x_layer_norm_lookup(
+            old, i, "encoder", "pre_attention_layer_norm"
+        )
         k, o, q, v = t5x_attention_lookup(old, i, "encoder", "attention")
         new[f"encoder.block.{i}.layer.0.layer_norm.weight"] = layer_norm
         new[f"encoder.block.{i}.layer.0.SelfAttention.k.weight"] = k.T
@@ -114,7 +116,9 @@ def convert_t5x_to_pytorch(variables: dict, *, num_layers: int, is_encoder_only:
         # Decoder.
         for i in range(num_layers):
             # Block i, layer 0 (Self Attention).
-            layer_norm = t5x_layer_norm_lookup(old, i, "decoder", "pre_self_attention_layer_norm")
+            layer_norm = t5x_layer_norm_lookup(
+                old, i, "decoder", "pre_self_attention_layer_norm"
+            )
             k, o, q, v = t5x_attention_lookup(old, i, "decoder", "self_attention")
             new[f"decoder.block.{i}.layer.0.layer_norm.weight"] = layer_norm
             new[f"decoder.block.{i}.layer.0.SelfAttention.k.weight"] = k.T
@@ -123,8 +127,12 @@ def convert_t5x_to_pytorch(variables: dict, *, num_layers: int, is_encoder_only:
             new[f"decoder.block.{i}.layer.0.SelfAttention.v.weight"] = v.T
 
             # Block i, layer 1 (Cross Attention).
-            layer_norm = t5x_layer_norm_lookup(old, i, "decoder", "pre_cross_attention_layer_norm")
-            k, o, q, v = t5x_attention_lookup(old, i, "decoder", "encoder_decoder_attention")
+            layer_norm = t5x_layer_norm_lookup(
+                old, i, "decoder", "pre_cross_attention_layer_norm"
+            )
+            k, o, q, v = t5x_attention_lookup(
+                old, i, "decoder", "encoder_decoder_attention"
+            )
             new[f"decoder.block.{i}.layer.1.layer_norm.weight"] = layer_norm
             new[f"decoder.block.{i}.layer.1.EncDecAttention.k.weight"] = k.T
             new[f"decoder.block.{i}.layer.1.EncDecAttention.o.weight"] = o.T
@@ -143,9 +151,9 @@ def convert_t5x_to_pytorch(variables: dict, *, num_layers: int, is_encoder_only:
             new[f"decoder.block.{i}.layer.2.DenseReluDense.wo.weight"] = wo.T
 
         new["decoder.final_layer_norm.weight"] = old["decoder/decoder_norm/scale"]
-        new["decoder.block.0.layer.0.SelfAttention.relative_attention_bias.weight"] = old[
-            "decoder/relpos_bias/rel_embedding"
-        ].T
+        new[
+            "decoder.block.0.layer.0.SelfAttention.relative_attention_bias.weight"
+        ] = old["decoder/relpos_bias/rel_embedding"].T
 
         # LM Head (only in v1.1 checkpoints, in v1.0 embeddings are used instead)
         if "decoder/logits_dense/kernel" in old:
@@ -157,7 +165,9 @@ def convert_t5x_to_pytorch(variables: dict, *, num_layers: int, is_encoder_only:
 def make_state_dict(converted_params, is_encoder_only: bool):
     """Prepares a state dict for the PyTorch model."""
     # Make a state dict with torch tensors.
-    state_dict = collections.OrderedDict([(k, torch.from_numpy(v.copy())) for (k, v) in converted_params.items()])
+    state_dict = collections.OrderedDict(
+        [(k, torch.from_numpy(v.copy())) for (k, v) in converted_params.items()]
+    )
 
     # Add what is missing.
     if "encoder.embed_tokens.weight" not in state_dict:
@@ -177,7 +187,9 @@ def make_state_dict(converted_params, is_encoder_only: bool):
 def load_t5x_weights_in_t5(model, config, t5x_checkpoint_path, is_encoder_only):
     """Replaces the params in model witht the T5X converted params."""
     variables = checkpoints.load_t5x_checkpoint(t5x_checkpoint_path)
-    converted = convert_t5x_to_pytorch(variables, num_layers=config.num_layers, is_encoder_only=is_encoder_only)
+    converted = convert_t5x_to_pytorch(
+        variables, num_layers=config.num_layers, is_encoder_only=is_encoder_only
+    )
     state_dict = make_state_dict(converted, is_encoder_only)
     model.load_state_dict(state_dict, strict=True)
 
@@ -209,10 +221,16 @@ def convert_t5x_checkpoint_to_pytorch(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Converts a native T5X checkpoint into a PyTorch checkpoint.")
+    parser = argparse.ArgumentParser(
+        description="Converts a native T5X checkpoint into a PyTorch checkpoint."
+    )
     # Required parameters
     parser.add_argument(
-        "--t5x_checkpoint_path", default=None, type=str, required=True, help="Path to the T5X checkpoint."
+        "--t5x_checkpoint_path",
+        default=None,
+        type=str,
+        required=True,
+        help="Path to the T5X checkpoint.",
     )
     parser.add_argument(
         "--config_file",
@@ -222,12 +240,22 @@ if __name__ == "__main__":
         help="The config json file corresponding to the pre-trained T5 model.\nThis specifies the model architecture.",
     )
     parser.add_argument(
-        "--pytorch_dump_path", default=None, type=str, required=True, help="Path to the output PyTorch model."
+        "--pytorch_dump_path",
+        default=None,
+        type=str,
+        required=True,
+        help="Path to the output PyTorch model.",
     )
     parser.add_argument(
-        "--is_encoder_only", action="store_true", help="Check if the model is encoder-decoder model", default=False
+        "--is_encoder_only",
+        action="store_true",
+        help="Check if the model is encoder-decoder model",
+        default=False,
     )
     args = parser.parse_args()
     convert_t5x_checkpoint_to_pytorch(
-        args.t5x_checkpoint_path, args.config_file, args.pytorch_dump_path, args.is_encoder_only
+        args.t5x_checkpoint_path,
+        args.config_file,
+        args.pytorch_dump_path,
+        args.is_encoder_only,
     )

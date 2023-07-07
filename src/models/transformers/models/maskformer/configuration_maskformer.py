@@ -132,7 +132,9 @@ class MaskFormerConfig(PretrainedConfig):
         else:
             # verify that the backbone is supported
             backbone_model_type = (
-                backbone_config.pop("model_type") if isinstance(backbone_config, dict) else backbone_config.model_type
+                backbone_config.pop("model_type")
+                if isinstance(backbone_config, dict)
+                else backbone_config.model_type
             )
             if backbone_model_type not in self.backbones_supported:
                 raise ValueError(
@@ -149,7 +151,9 @@ class MaskFormerConfig(PretrainedConfig):
         else:
             # verify that the decoder is supported
             decoder_type = (
-                decoder_config.pop("model_type") if isinstance(decoder_config, dict) else decoder_config.model_type
+                decoder_config.pop("model_type")
+                if isinstance(decoder_config, dict)
+                else decoder_config.model_type
             )
             if decoder_type not in self.decoders_supported:
                 raise ValueError(
@@ -182,7 +186,10 @@ class MaskFormerConfig(PretrainedConfig):
 
     @classmethod
     def from_backbone_and_decoder_configs(
-        cls, backbone_config: PretrainedConfig, decoder_config: PretrainedConfig, **kwargs
+        cls,
+        backbone_config: PretrainedConfig,
+        decoder_config: PretrainedConfig,
+        **kwargs,
     ):
         """Instantiate a [`MaskFormerConfig`] (or a derived class) from a pre-trained backbone model configuration and DETR model
         configuration.

@@ -70,7 +70,12 @@ class GLPNImageProcessor(BaseImageProcessor):
         super().__init__(**kwargs)
 
     def resize(
-        self, image: np.ndarray, size_divisor: int, resample, data_format: Optional[ChannelDimension] = None, **kwargs
+        self,
+        image: np.ndarray,
+        size_divisor: int,
+        resample,
+        data_format: Optional[ChannelDimension] = None,
+        **kwargs,
     ) -> np.ndarray:
         """
         Resize the image, rounding the (height, width) dimensions down to the closest multiple of size_divisor.
@@ -98,11 +103,17 @@ class GLPNImageProcessor(BaseImageProcessor):
         # Rounds the height and width down to the closest multiple of size_divisor
         new_h = height // size_divisor * size_divisor
         new_w = width // size_divisor * size_divisor
-        image = resize(image, (new_h, new_w), resample=resample, data_format=data_format, **kwargs)
+        image = resize(
+            image, (new_h, new_w), resample=resample, data_format=data_format, **kwargs
+        )
         return image
 
     def rescale(
-        self, image: np.ndarray, scale: float, data_format: Optional[ChannelDimension] = None, **kwargs
+        self,
+        image: np.ndarray,
+        scale: float,
+        data_format: Optional[ChannelDimension] = None,
+        **kwargs,
     ) -> np.ndarray:
         """
         Rescale the image by the given scaling factor `scale`.
@@ -125,7 +136,9 @@ class GLPNImageProcessor(BaseImageProcessor):
 
     def preprocess(
         self,
-        images: Union["PIL.Image.Image", TensorType, List["PIL.Image.Image"], List[TensorType]],
+        images: Union[
+            "PIL.Image.Image", TensorType, List["PIL.Image.Image"], List[TensorType]
+        ],
         do_resize: Optional[bool] = None,
         size_divisor: Optional[int] = None,
         resample=None,
@@ -179,7 +192,10 @@ class GLPNImageProcessor(BaseImageProcessor):
         images = [to_numpy_array(img) for img in images]
 
         if do_resize:
-            images = [self.resize(image, size_divisor=size_divisor, resample=resample) for image in images]
+            images = [
+                self.resize(image, size_divisor=size_divisor, resample=resample)
+                for image in images
+            ]
 
         if do_rescale:
             images = [self.rescale(image, scale=1 / 255) for image in images]

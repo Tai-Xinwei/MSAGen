@@ -93,7 +93,9 @@ class TFCvtDropPath(tf.keras.layers.Layer):
             return x
         keep_prob = 1 - self.drop_prob
         shape = (tf.shape(x)[0],) + (1,) * (len(tf.shape(x)) - 1)
-        random_tensor = keep_prob + tf.random.uniform(shape, 0, 1, dtype=self.compute_dtype)
+        random_tensor = keep_prob + tf.random.uniform(
+            shape, 0, 1, dtype=self.compute_dtype
+        )
         random_tensor = tf.floor(random_tensor)
         return (x / keep_prob) * random_tensor
 
@@ -131,10 +133,22 @@ class TFCvtEmbeddings(tf.keras.layers.Layer):
 class TFCvtConvEmbeddings(tf.keras.layers.Layer):
     """Image to Convolution Embeddings. This convolutional operation aims to model local spatial contexts."""
 
-    def __init__(self, config: CvtConfig, patch_size: int, embed_dim: int, stride: int, padding: int, **kwargs):
+    def __init__(
+        self,
+        config: CvtConfig,
+        patch_size: int,
+        embed_dim: int,
+        stride: int,
+        padding: int,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.padding = tf.keras.layers.ZeroPadding2D(padding=padding)
-        self.patch_size = patch_size if isinstance(patch_size, collections.abc.Iterable) else (patch_size, patch_size)
+        self.patch_size = (
+            patch_size
+            if isinstance(patch_size, collections.abc.Iterable)
+            else (patch_size, patch_size)
+        )
         self.projection = tf.keras.layers.Conv2D(
             filters=embed_dim,
             kernel_size=patch_size,
@@ -145,7 +159,9 @@ class TFCvtConvEmbeddings(tf.keras.layers.Layer):
             name="projection",
         )
         # Using the same default epsilon as PyTorch
-        self.normalization = tf.keras.layers.LayerNormalization(epsilon=1e-5, name="normalization")
+        self.normalization = tf.keras.layers.LayerNormalization(
+            epsilon=1e-5, name="normalization"
+        )
 
     def call(self, pixel_values: tf.Tensor) -> tf.Tensor:
         if isinstance(pixel_values, dict):
@@ -156,18 +172,30 @@ class TFCvtConvEmbeddings(tf.keras.layers.Layer):
         # "batch_size, height, width, num_channels -> batch_size, (height*width), num_channels"
         batch_size, height, width, num_channels = shape_list(pixel_values)
         hidden_size = height * width
-        pixel_values = tf.reshape(pixel_values, shape=(batch_size, hidden_size, num_channels))
+        pixel_values = tf.reshape(
+            pixel_values, shape=(batch_size, hidden_size, num_channels)
+        )
         pixel_values = self.normalization(pixel_values)
 
         # "batch_size, (height*width), num_channels -> batch_size, height, width, num_channels"
-        pixel_values = tf.reshape(pixel_values, shape=(batch_size, height, width, num_channels))
+        pixel_values = tf.reshape(
+            pixel_values, shape=(batch_size, height, width, num_channels)
+        )
         return pixel_values
 
 
 class TFCvtSelfAttentionConvProjection(tf.keras.layers.Layer):
     """Convolutional projection layer."""
 
-    def __init__(self, config: CvtConfig, embed_dim: int, kernel_size: int, stride: int, padding: int, **kwargs):
+    def __init__(
+        self,
+        config: CvtConfig,
+        embed_dim: int,
+        kernel_size: int,
+        stride: int,
+        padding: int,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.padding = tf.keras.layers.ZeroPadding2D(padding=padding)
         self.convolution = tf.keras.layers.Conv2D(
@@ -181,7 +209,9 @@ class TFCvtSelfAttentionConvProjection(tf.keras.layers.Layer):
             groups=embed_dim,
         )
         # Using the same default epsilon as PyTorch, TF uses (1 - pytorch momentum)
-        self.normalization = tf.keras.layers.BatchNormalization(epsilon=1e-5, momentum=0.9, name="normalization")
+        self.normalization = tf.keras.layers.BatchNormalization(
+            epsilon=1e-5, momentum=0.9, name="normalization"
+        )
 
     def call(self, hidden_state: tf.Tensor, training: bool = False) -> tf.Tensor:
         hidden_state = self.convolution(self.padding(hidden_state))
@@ -196,7 +226,9 @@ class TFCvtSelfAttentionLinearProjection(tf.keras.layers.Layer):
         # "batch_size, height, width, num_channels -> batch_size, (height*width), num_channels"
         batch_size, height, width, num_channels = shape_list(hidden_state)
         hidden_size = height * width
-        hidden_state = tf.reshape(hidden_state, shape=(batch_size, hidden_size, num_channels))
+        hidden_state = tf.reshape(
+            hidden_state, shape=(batch_size, hidden_size, num_channels)
+        )
         return hidden_state
 
 
@@ -216,7 +248,12 @@ class TFCvtSelfAttentionProjection(tf.keras.layers.Layer):
         super().__init__(**kwargs)
         if projection_method == "dw_bn":
             self.convolution_projection = TFCvtSelfAttentionConvProjection(
-                config, embed_dim, kernel_size, stride, padding, name="convolution_projection"
+                config,
+                embed_dim,
+                kernel_size,
+                stride,
+                padding,
+                name="convolution_projection",
             )
         self.linear_projection = TFCvtSelfAttentionLinearProjection()
 
@@ -260,7 +297,9 @@ class TFCvtSelfAttention(tf.keras.layers.Layer):
             kernel_size,
             stride_q,
             padding_q,
-            projection_method="linear" if qkv_projection_method == "avg" else qkv_projection_method,
+            projection_method="linear"
+            if qkv_projection_method == "avg"
+            else qkv_projection_method,
             name="convolution_projection_query",
         )
         self.convolution_projection_key = TFCvtSelfAttentionProjection(
@@ -308,17 +347,23 @@ class TFCvtSelfAttention(tf.keras.layers.Layer):
     def rearrange_for_multi_head_attention(self, hidden_state: tf.Tensor) -> tf.Tensor:
         batch_size, hidden_size, _ = shape_list(hidden_state)
         head_dim = self.embed_dim // self.num_heads
-        hidden_state = tf.reshape(hidden_state, shape=(batch_size, hidden_size, self.num_heads, head_dim))
+        hidden_state = tf.reshape(
+            hidden_state, shape=(batch_size, hidden_size, self.num_heads, head_dim)
+        )
         hidden_state = tf.transpose(hidden_state, perm=(0, 2, 1, 3))
         return hidden_state
 
-    def call(self, hidden_state: tf.Tensor, height: int, width: int, training: bool = False) -> tf.Tensor:
+    def call(
+        self, hidden_state: tf.Tensor, height: int, width: int, training: bool = False
+    ) -> tf.Tensor:
         if self.with_cls_token:
             cls_token, hidden_state = tf.split(hidden_state, [1, height * width], 1)
 
         # "batch_size, (height*width), num_channels -> batch_size, height, width, num_channels"
         batch_size, hidden_size, num_channels = shape_list(hidden_state)
-        hidden_state = tf.reshape(hidden_state, shape=(batch_size, height, width, num_channels))
+        hidden_state = tf.reshape(
+            hidden_state, shape=(batch_size, height, width, num_channels)
+        )
 
         key = self.convolution_projection_key(hidden_state, training=training)
         query = self.convolution_projection_query(hidden_state, training=training)
@@ -343,7 +388,9 @@ class TFCvtSelfAttention(tf.keras.layers.Layer):
         # "batch_size, num_heads, hidden_size, head_dim -> batch_size, hidden_size, (num_heads*head_dim)"
         _, _, hidden_size, _ = shape_list(context)
         context = tf.transpose(context, perm=(0, 2, 1, 3))
-        context = tf.reshape(context, (batch_size, hidden_size, self.num_heads * head_dim))
+        context = tf.reshape(
+            context, (batch_size, hidden_size, self.num_heads * head_dim)
+        )
         return context
 
 
@@ -353,7 +400,9 @@ class TFCvtSelfOutput(tf.keras.layers.Layer):
     def __init__(self, config: CvtConfig, embed_dim: int, drop_rate: float, **kwargs):
         super().__init__(**kwargs)
         self.dense = tf.keras.layers.Dense(
-            units=embed_dim, kernel_initializer=get_initializer(config.initializer_range), name="dense"
+            units=embed_dim,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="dense",
         )
         self.dropout = tf.keras.layers.Dropout(drop_rate)
 
@@ -404,7 +453,9 @@ class TFCvtAttention(tf.keras.layers.Layer):
     def prune_heads(self, heads):
         raise NotImplementedError
 
-    def call(self, hidden_state: tf.Tensor, height: int, width: int, training: bool = False):
+    def call(
+        self, hidden_state: tf.Tensor, height: int, width: int, training: bool = False
+    ):
         self_output = self.attention(hidden_state, height, width, training=training)
         attention_output = self.dense_output(self_output, training=training)
         return attention_output
@@ -435,11 +486,15 @@ class TFCvtOutput(tf.keras.layers.Layer):
     def __init__(self, config: CvtConfig, embed_dim: int, drop_rate: int, **kwargs):
         super().__init__(**kwargs)
         self.dense = tf.keras.layers.Dense(
-            units=embed_dim, kernel_initializer=get_initializer(config.initializer_range), name="dense"
+            units=embed_dim,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="dense",
         )
         self.dropout = tf.keras.layers.Dropout(drop_rate)
 
-    def call(self, hidden_state: tf.Tensor, input_tensor: tf.Tensor, training: bool = False) -> tf.Tensor:
+    def call(
+        self, hidden_state: tf.Tensor, input_tensor: tf.Tensor, training: bool = False
+    ) -> tf.Tensor:
         hidden_state = self.dense(inputs=hidden_state)
         hidden_state = self.dropout(inputs=hidden_state, training=training)
         hidden_state = hidden_state + input_tensor
@@ -489,7 +544,9 @@ class TFCvtLayer(tf.keras.layers.Layer):
             with_cls_token,
             name="attention",
         )
-        self.intermediate = TFCvtIntermediate(config, embed_dim, mlp_ratio, name="intermediate")
+        self.intermediate = TFCvtIntermediate(
+            config, embed_dim, mlp_ratio, name="intermediate"
+        )
         self.dense_output = TFCvtOutput(config, embed_dim, drop_rate, name="output")
         # Using `layers.Activation` instead of `tf.identity` to better control `training` behaviour.
         self.drop_path = (
@@ -498,12 +555,20 @@ class TFCvtLayer(tf.keras.layers.Layer):
             else tf.keras.layers.Activation("linear", name="drop_path")
         )
         # Using the same default epsilon as PyTorch
-        self.layernorm_before = tf.keras.layers.LayerNormalization(epsilon=1e-5, name="layernorm_before")
-        self.layernorm_after = tf.keras.layers.LayerNormalization(epsilon=1e-5, name="layernorm_after")
+        self.layernorm_before = tf.keras.layers.LayerNormalization(
+            epsilon=1e-5, name="layernorm_before"
+        )
+        self.layernorm_after = tf.keras.layers.LayerNormalization(
+            epsilon=1e-5, name="layernorm_after"
+        )
 
-    def call(self, hidden_state: tf.Tensor, height: int, width: int, training: bool = False) -> tf.Tensor:
+    def call(
+        self, hidden_state: tf.Tensor, height: int, width: int, training: bool = False
+    ) -> tf.Tensor:
         # in Cvt, layernorm is applied before self-attention
-        attention_output = self.attention(self.layernorm_before(hidden_state), height, width, training=training)
+        attention_output = self.attention(
+            self.layernorm_before(hidden_state), height, width, training=training
+        )
         attention_output = self.drop_path(attention_output, training=training)
 
         # first residual connection
@@ -553,7 +618,9 @@ class TFCvtStage(tf.keras.layers.Layer):
             name="embedding",
         )
 
-        drop_path_rates = tf.linspace(0.0, config.drop_path_rate[self.stage], config.depth[stage])
+        drop_path_rates = tf.linspace(
+            0.0, config.drop_path_rate[self.stage], config.depth[stage]
+        )
         drop_path_rates = [x.numpy().item() for x in drop_path_rates]
         self.layers = [
             TFCvtLayer(
@@ -584,7 +651,9 @@ class TFCvtStage(tf.keras.layers.Layer):
         # "batch_size, height, width, num_channels -> batch_size, (height*width), num_channels"
         batch_size, height, width, num_channels = shape_list(hidden_state)
         hidden_size = height * width
-        hidden_state = tf.reshape(hidden_state, shape=(batch_size, hidden_size, num_channels))
+        hidden_state = tf.reshape(
+            hidden_state, shape=(batch_size, hidden_size, num_channels)
+        )
 
         if self.config.cls_token[self.stage]:
             cls_token = tf.repeat(self.cls_token, repeats=batch_size, axis=0)
@@ -598,7 +667,9 @@ class TFCvtStage(tf.keras.layers.Layer):
             cls_token, hidden_state = tf.split(hidden_state, [1, height * width], 1)
 
         # "batch_size, (height*width), num_channels -> batch_size, height, width, num_channels"
-        hidden_state = tf.reshape(hidden_state, shape=(batch_size, height, width, num_channels))
+        hidden_state = tf.reshape(
+            hidden_state, shape=(batch_size, height, width, num_channels)
+        )
         return hidden_state, cls_token
 
 
@@ -617,7 +688,8 @@ class TFCvtEncoder(tf.keras.layers.Layer):
         super().__init__(**kwargs)
         self.config = config
         self.stages = [
-            TFCvtStage(config, stage_idx, name=f"stages.{stage_idx}") for stage_idx in range(len(config.depth))
+            TFCvtStage(config, stage_idx, name=f"stages.{stage_idx}")
+            for stage_idx in range(len(config.depth))
         ]
 
     def call(
@@ -642,10 +714,14 @@ class TFCvtEncoder(tf.keras.layers.Layer):
         # Change back to (batch_size, num_channels, height, width) format to have uniformity in the modules
         hidden_state = tf.transpose(hidden_state, perm=(0, 3, 1, 2))
         if output_hidden_states:
-            all_hidden_states = tuple([tf.transpose(hs, perm=(0, 3, 1, 2)) for hs in all_hidden_states])
+            all_hidden_states = tuple(
+                [tf.transpose(hs, perm=(0, 3, 1, 2)) for hs in all_hidden_states]
+            )
 
         if not return_dict:
-            return tuple(v for v in [hidden_state, cls_token, all_hidden_states] if v is not None)
+            return tuple(
+                v for v in [hidden_state, cls_token, all_hidden_states] if v is not None
+            )
 
         return TFBaseModelOutputWithCLSToken(
             last_hidden_state=hidden_state,
@@ -713,13 +789,17 @@ class TFCvtPreTrainedModel(TFPreTrainedModel):
         Returns:
             `Dict[str, tf.Tensor]`: The dummy inputs.
         """
-        VISION_DUMMY_INPUTS = tf.random.uniform(shape=(3, self.config.num_channels, 224, 224), dtype=tf.float32)
+        VISION_DUMMY_INPUTS = tf.random.uniform(
+            shape=(3, self.config.num_channels, 224, 224), dtype=tf.float32
+        )
         return {"pixel_values": tf.constant(VISION_DUMMY_INPUTS)}
 
     @tf.function(
         input_signature=[
             {
-                "pixel_values": tf.TensorSpec((None, None, None, None), tf.float32, name="pixel_values"),
+                "pixel_values": tf.TensorSpec(
+                    (None, None, None, None), tf.float32, name="pixel_values"
+                ),
             }
         ]
     )
@@ -794,7 +874,9 @@ class TFCvtModel(TFCvtPreTrainedModel):
 
     @unpack_inputs
     @add_start_docstrings_to_model_forward(TFCVT_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=TFBaseModelOutputWithCLSToken, config_class=_CONFIG_FOR_DOC)
+    @replace_return_docstrings(
+        output_type=TFBaseModelOutputWithCLSToken, config_class=_CONFIG_FOR_DOC
+    )
     def call(
         self,
         pixel_values: Optional[tf.Tensor] = None,
@@ -842,7 +924,9 @@ class TFCvtModel(TFCvtPreTrainedModel):
             hidden_states=outputs.hidden_states,
         )
 
-    def serving_output(self, output: TFBaseModelOutputWithCLSToken) -> TFBaseModelOutputWithCLSToken:
+    def serving_output(
+        self, output: TFBaseModelOutputWithCLSToken
+    ) -> TFBaseModelOutputWithCLSToken:
         return TFBaseModelOutputWithCLSToken(
             last_hidden_state=output.last_hidden_state,
             cls_token_value=output.cls_token_value,
@@ -864,7 +948,9 @@ class TFCvtForImageClassification(TFCvtPreTrainedModel, TFSequenceClassification
         self.num_labels = config.num_labels
         self.cvt = TFCvtMainLayer(config, name="cvt")
         # Using same default epsilon as in the original implementation.
-        self.layernorm = tf.keras.layers.LayerNormalization(epsilon=1e-5, name="layernorm")
+        self.layernorm = tf.keras.layers.LayerNormalization(
+            epsilon=1e-5, name="layernorm"
+        )
 
         # Classifier head
         self.classifier = tf.keras.layers.Dense(
@@ -877,7 +963,9 @@ class TFCvtForImageClassification(TFCvtPreTrainedModel, TFSequenceClassification
 
     @unpack_inputs
     @add_start_docstrings_to_model_forward(TFCVT_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=TFImageClassifierOutputWithNoAttention, config_class=_CONFIG_FOR_DOC)
+    @replace_return_docstrings(
+        output_type=TFImageClassifierOutputWithNoAttention, config_class=_CONFIG_FOR_DOC
+    )
     def call(
         self,
         pixel_values: Optional[tf.Tensor] = None,
@@ -930,19 +1018,31 @@ class TFCvtForImageClassification(TFCvtPreTrainedModel, TFSequenceClassification
         else:
             # rearrange "batch_size, num_channels, height, width -> batch_size, (height*width), num_channels"
             batch_size, num_channels, height, width = shape_list(sequence_output)
-            sequence_output = tf.reshape(sequence_output, shape=(batch_size, num_channels, height * width))
+            sequence_output = tf.reshape(
+                sequence_output, shape=(batch_size, num_channels, height * width)
+            )
             sequence_output = tf.transpose(sequence_output, perm=(0, 2, 1))
             sequence_output = self.layernorm(sequence_output)
 
         sequence_output_mean = tf.reduce_mean(sequence_output, axis=1)
         logits = self.classifier(sequence_output_mean)
-        loss = None if labels is None else self.hf_compute_loss(labels=labels, logits=logits)
+        loss = (
+            None
+            if labels is None
+            else self.hf_compute_loss(labels=labels, logits=logits)
+        )
 
         if not return_dict:
             output = (logits,) + outputs[2:]
             return ((loss,) + output) if loss is not None else output
 
-        return TFImageClassifierOutputWithNoAttention(loss=loss, logits=logits, hidden_states=outputs.hidden_states)
+        return TFImageClassifierOutputWithNoAttention(
+            loss=loss, logits=logits, hidden_states=outputs.hidden_states
+        )
 
-    def serving_output(self, output: TFImageClassifierOutputWithNoAttention) -> TFImageClassifierOutputWithNoAttention:
-        return TFImageClassifierOutputWithNoAttention(logits=output.logits, hidden_states=output.hidden_states)
+    def serving_output(
+        self, output: TFImageClassifierOutputWithNoAttention
+    ) -> TFImageClassifierOutputWithNoAttention:
+        return TFImageClassifierOutputWithNoAttention(
+            logits=output.logits, hidden_states=output.hidden_states
+        )

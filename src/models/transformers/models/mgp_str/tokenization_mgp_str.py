@@ -61,7 +61,15 @@ class MgpstrTokenizer(PreTrainedTokenizer):
     pretrained_vocab_files_map = PRETRAINED_VOCAB_FILES_MAP
     max_model_input_sizes = PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES
 
-    def __init__(self, vocab_file, unk_token="[GO]", bos_token="[GO]", eos_token="[s]", pad_token="[GO]", **kwargs):
+    def __init__(
+        self,
+        vocab_file,
+        unk_token="[GO]",
+        bos_token="[GO]",
+        eos_token="[s]",
+        pad_token="[GO]",
+        **kwargs
+    ):
         super().__init__(
             unk_token=unk_token,
             bos_token=bos_token,
@@ -96,15 +104,24 @@ class MgpstrTokenizer(PreTrainedTokenizer):
         """Converts an index (integer) in a token (str) using the vocab."""
         return self.decoder.get(index)
 
-    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
+    def save_vocabulary(
+        self, save_directory: str, filename_prefix: Optional[str] = None
+    ) -> Tuple[str]:
         if not os.path.isdir(save_directory):
-            logger.error("Vocabulary path ({}) should be a directory".format(save_directory))
+            logger.error(
+                "Vocabulary path ({}) should be a directory".format(save_directory)
+            )
             return
         vocab_file = os.path.join(
-            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["vocab_file"]
+            save_directory,
+            (filename_prefix + "-" if filename_prefix else "")
+            + VOCAB_FILES_NAMES["vocab_file"],
         )
 
         with open(vocab_file, "w", encoding="utf-8") as f:
-            f.write(json.dumps(self.vocab, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
+            f.write(
+                json.dumps(self.vocab, indent=2, sort_keys=True, ensure_ascii=False)
+                + "\n"
+            )
 
         return (vocab_file,)

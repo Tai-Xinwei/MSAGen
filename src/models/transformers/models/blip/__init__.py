@@ -76,7 +76,12 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_blip import BLIP_PRETRAINED_CONFIG_ARCHIVE_MAP, BlipConfig, BlipTextConfig, BlipVisionConfig
+    from .configuration_blip import (
+        BLIP_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        BlipConfig,
+        BlipTextConfig,
+        BlipVisionConfig,
+    )
     from .processing_blip import BlipProcessor
 
     try:
@@ -124,4 +129,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

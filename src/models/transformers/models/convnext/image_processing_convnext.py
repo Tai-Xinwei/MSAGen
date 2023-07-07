@@ -110,7 +110,9 @@ class ConvNextImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_factor
         self.do_normalize = do_normalize
-        self.image_mean = image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        self.image_mean = (
+            image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        )
         self.image_std = image_std if image_std is not None else IMAGENET_STANDARD_STD
 
     def resize(
@@ -142,20 +144,39 @@ class ConvNextImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size, default_to_square=False)
         if "shortest_edge" not in size:
-            raise ValueError(f"Size dictionary must contain 'shortest_edge' key. Got {size.keys()}")
+            raise ValueError(
+                f"Size dictionary must contain 'shortest_edge' key. Got {size.keys()}"
+            )
         shortest_edge = size["shortest_edge"]
 
         if shortest_edge < 384:
             # maintain same ratio, resizing shortest edge to shortest_edge/crop_pct
             resize_shortest_edge = int(shortest_edge / crop_pct)
-            resize_size = get_resize_output_image_size(image, size=resize_shortest_edge, default_to_square=False)
-            image = resize(image=image, size=resize_size, resample=resample, data_format=data_format, **kwargs)
+            resize_size = get_resize_output_image_size(
+                image, size=resize_shortest_edge, default_to_square=False
+            )
+            image = resize(
+                image=image,
+                size=resize_size,
+                resample=resample,
+                data_format=data_format,
+                **kwargs,
+            )
             # then crop to (shortest_edge, shortest_edge)
-            return center_crop(image=image, size=(shortest_edge, shortest_edge), data_format=data_format, **kwargs)
+            return center_crop(
+                image=image,
+                size=(shortest_edge, shortest_edge),
+                data_format=data_format,
+                **kwargs,
+            )
         else:
             # warping (no cropping) when evaluated at 384 or larger
             return resize(
-                image, size=(shortest_edge, shortest_edge), resample=resample, data_format=data_format, **kwargs
+                image,
+                size=(shortest_edge, shortest_edge),
+                resample=resample,
+                data_format=data_format,
+                **kwargs,
             )
 
     def rescale(
@@ -261,7 +282,9 @@ class ConvNextImageProcessor(BaseImageProcessor):
         crop_pct = crop_pct if crop_pct is not None else self.crop_pct
         resample = resample if resample is not None else self.resample
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
@@ -278,7 +301,9 @@ class ConvNextImageProcessor(BaseImageProcessor):
             )
 
         if do_resize and size is None or resample is None:
-            raise ValueError("Size and resample must be specified if do_resize is True.")
+            raise ValueError(
+                "Size and resample must be specified if do_resize is True."
+            )
 
         if do_resize and size["shortest_edge"] < 384 and crop_pct is None:
             raise ValueError("crop_pct must be specified if size < 384.")
@@ -287,19 +312,31 @@ class ConvNextImageProcessor(BaseImageProcessor):
             raise ValueError("Rescale factor must be specified if do_rescale is True.")
 
         if do_normalize and (image_mean is None or image_std is None):
-            raise ValueError("Image mean and std must be specified if do_normalize is True.")
+            raise ValueError(
+                "Image mean and std must be specified if do_normalize is True."
+            )
 
         # All transformations expect numpy arrays.
         images = [to_numpy_array(image) for image in images]
 
         if do_resize:
-            images = [self.resize(image=image, size=size, crop_pct=crop_pct, resample=resample) for image in images]
+            images = [
+                self.resize(
+                    image=image, size=size, crop_pct=crop_pct, resample=resample
+                )
+                for image in images
+            ]
 
         if do_rescale:
-            images = [self.rescale(image=image, scale=rescale_factor) for image in images]
+            images = [
+                self.rescale(image=image, scale=rescale_factor) for image in images
+            ]
 
         if do_normalize:
-            images = [self.normalize(image=image, mean=image_mean, std=image_std) for image in images]
+            images = [
+                self.normalize(image=image, mean=image_mean, std=image_std)
+                for image in images
+            ]
 
         images = [to_channel_dimension_format(image, data_format) for image in images]
 

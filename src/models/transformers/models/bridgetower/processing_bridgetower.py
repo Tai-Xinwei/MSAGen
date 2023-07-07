@@ -19,7 +19,13 @@ Processor class for BridgeTower.
 from typing import List, Optional, Union
 
 from ...processing_utils import ProcessorMixin
-from ...tokenization_utils_base import BatchEncoding, PaddingStrategy, PreTokenizedInput, TextInput, TruncationStrategy
+from ...tokenization_utils_base import (
+    BatchEncoding,
+    PaddingStrategy,
+    PreTokenizedInput,
+    TextInput,
+    TruncationStrategy,
+)
 from ...utils import TensorType
 
 
@@ -48,7 +54,9 @@ class BridgeTowerProcessor(ProcessorMixin):
     def __call__(
         self,
         images,
-        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
+        text: Union[
+            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
+        ] = None,
         add_special_tokens: bool = True,
         padding: Union[bool, str, PaddingStrategy] = False,
         truncation: Union[bool, str, TruncationStrategy] = None,
@@ -91,7 +99,11 @@ class BridgeTowerProcessor(ProcessorMixin):
         )
         # add pixel_values + pixel_mask
         encoding_image_processor = self.image_processor(
-            images, return_tensors=return_tensors, do_normalize=True, do_center_crop=True, **kwargs
+            images,
+            return_tensors=return_tensors,
+            do_normalize=True,
+            do_center_crop=True,
+            **kwargs,
         )
         encoding.update(encoding_image_processor)
 

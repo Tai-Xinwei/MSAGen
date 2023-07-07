@@ -21,7 +21,12 @@ import numpy as np
 from huggingface_hub import hf_hub_download
 
 from ...image_processing_utils import BaseImageProcessor, BatchFeature
-from ...image_transforms import convert_to_rgb, normalize, to_channel_dimension_format, to_pil_image
+from ...image_transforms import (
+    convert_to_rgb,
+    normalize,
+    to_channel_dimension_format,
+    to_pil_image,
+)
 from ...image_utils import (
     ChannelDimension,
     ImageInput,
@@ -65,8 +70,12 @@ def torch_extract_patches(image_tensor, patch_height, patch_width):
     requires_backends(torch_extract_patches, ["torch"])
 
     image_tensor = image_tensor.unsqueeze(0)
-    patches = torch.nn.functional.unfold(image_tensor, (patch_height, patch_width), stride=(patch_height, patch_width))
-    patches = patches.reshape(image_tensor.size(0), image_tensor.size(1), patch_height, patch_width, -1)
+    patches = torch.nn.functional.unfold(
+        image_tensor, (patch_height, patch_width), stride=(patch_height, patch_width)
+    )
+    patches = patches.reshape(
+        image_tensor.size(0), image_tensor.size(1), patch_height, patch_width, -1
+    )
     patches = patches.permute(0, 4, 2, 3, 1).reshape(
         image_tensor.size(2) // patch_height,
         image_tensor.size(3) // patch_width,
@@ -139,7 +148,9 @@ def render_text(
     image_height = text_height + top_padding + bottom_padding
     image = Image.new("RGB", (image_width, image_height), background_color)
     draw = ImageDraw.Draw(image)
-    draw.text(xy=(left_padding, top_padding), text=wrapped_text, fill=text_color, font=font)
+    draw.text(
+        xy=(left_padding, top_padding), text=wrapped_text, fill=text_color, font=font
+    )
     return image
 
 
@@ -217,13 +228,17 @@ class Pix2StructImageProcessor(BaseImageProcessor):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.patch_size = patch_size if patch_size is not None else {"height": 16, "width": 16}
+        self.patch_size = (
+            patch_size if patch_size is not None else {"height": 16, "width": 16}
+        )
         self.do_normalize = do_normalize
         self.do_convert_rgb = do_convert_rgb
         self.max_patches = max_patches
         self.is_vqa = is_vqa
 
-    def extract_flattened_patches(self, image: np.ndarray, max_patches: int, patch_size: dict, **kwargs) -> np.ndarray:
+    def extract_flattened_patches(
+        self, image: np.ndarray, max_patches: int, patch_size: dict, **kwargs
+    ) -> np.ndarray:
         """
         Extract flattened patches from an image.
 
@@ -249,9 +264,15 @@ class Pix2StructImageProcessor(BaseImageProcessor):
         image_height, image_width = get_image_size(image)
 
         # maximize scale s.t.
-        scale = math.sqrt(max_patches * (patch_height / image_height) * (patch_width / image_width))
-        num_feasible_rows = max(min(math.floor(scale * image_height / patch_height), max_patches), 1)
-        num_feasible_cols = max(min(math.floor(scale * image_width / patch_width), max_patches), 1)
+        scale = math.sqrt(
+            max_patches * (patch_height / image_height) * (patch_width / image_width)
+        )
+        num_feasible_rows = max(
+            min(math.floor(scale * image_height / patch_height), max_patches), 1
+        )
+        num_feasible_cols = max(
+            min(math.floor(scale * image_width / patch_width), max_patches), 1
+        )
         resized_height = max(num_feasible_rows * patch_height, 1)
         resized_width = max(num_feasible_cols * patch_width, 1)
 
@@ -275,8 +296,18 @@ class Pix2StructImageProcessor(BaseImageProcessor):
         patches = patches.reshape([rows * columns, depth])
 
         # [rows * columns, 1]
-        row_ids = torch.arange(rows).reshape([rows, 1]).repeat(1, columns).reshape([rows * columns, 1])
-        col_ids = torch.arange(columns).reshape([1, columns]).repeat(rows, 1).reshape([rows * columns, 1])
+        row_ids = (
+            torch.arange(rows)
+            .reshape([rows, 1])
+            .repeat(1, columns)
+            .reshape([rows * columns, 1])
+        )
+        col_ids = (
+            torch.arange(columns)
+            .reshape([1, columns])
+            .repeat(rows, 1)
+            .reshape([rows * columns, 1])
+        )
 
         # Offset by 1 so the ids do not contain zeros, which represent padding.
         row_ids += 1
@@ -291,14 +322,19 @@ class Pix2StructImageProcessor(BaseImageProcessor):
         result = torch.cat([row_ids, col_ids, patches], -1)
 
         # [max_patches, 2 + patch_height * patch_width * image_channels]
-        result = torch.nn.functional.pad(result, [0, 0, 0, max_patches - (rows * columns)]).float()
+        result = torch.nn.functional.pad(
+            result, [0, 0, 0, max_patches - (rows * columns)]
+        ).float()
 
         result = to_numpy_array(result)
 
         return result
 
     def normalize(
-        self, image: np.ndarray, data_format: Optional[Union[str, ChannelDimension]] = None, **kwargs
+        self,
+        image: np.ndarray,
+        data_format: Optional[Union[str, ChannelDimension]] = None,
+        **kwargs,
     ) -> np.ndarray:
         """
         Normalize an image. image = (image - image_mean) / image_std.
@@ -362,7 +398,9 @@ class Pix2StructImageProcessor(BaseImageProcessor):
                     - `TensorType.JAX` or `'jax'`: Return a batch of type `jax.numpy.ndarray`.
         """
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
-        do_convert_rgb = do_convert_rgb if do_convert_rgb is not None else self.do_convert_rgb
+        do_convert_rgb = (
+            do_convert_rgb if do_convert_rgb is not None else self.do_convert_rgb
+        )
         patch_size = patch_size if patch_size is not None else self.patch_size
         max_patches = max_patches if max_patches is not None else self.max_patches
         is_vqa = self.is_vqa
@@ -395,7 +433,9 @@ class Pix2StructImageProcessor(BaseImageProcessor):
                 header_text = [header_text] * len(images)
 
             images = [
-                render_header(image, header_text[i], font_bytes=font_bytes, font_path=font_path)
+                render_header(
+                    image, header_text[i], font_bytes=font_bytes, font_path=font_path
+                )
                 for i, image in enumerate(images)
             ]
 
@@ -404,15 +444,20 @@ class Pix2StructImageProcessor(BaseImageProcessor):
 
         # convert to torch tensor and permute
         images = [
-            self.extract_flattened_patches(image=image, max_patches=max_patches, patch_size=patch_size)
+            self.extract_flattened_patches(
+                image=image, max_patches=max_patches, patch_size=patch_size
+            )
             for image in images
         ]
 
         # create attention mask in numpy
-        attention_masks = [(image.sum(axis=-1) != 0).astype(np.float32) for image in images]
+        attention_masks = [
+            (image.sum(axis=-1) != 0).astype(np.float32) for image in images
+        ]
 
         encoded_outputs = BatchFeature(
-            data={"flattened_patches": images, "attention_mask": attention_masks}, tensor_type=return_tensors
+            data={"flattened_patches": images, "attention_mask": attention_masks},
+            tensor_type=return_tensors,
         )
 
         return encoded_outputs

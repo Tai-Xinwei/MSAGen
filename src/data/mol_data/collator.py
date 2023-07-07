@@ -1,10 +1,13 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import torch
-import numpy as np
 import copy
+
+import numpy as np
+import torch
+
 # from memory_profiler import profile
+
 
 def pad_1d_unsqueeze(x, padlen):
     x = x + 1  # pad id = 0
@@ -29,8 +32,7 @@ def pad_2d_unsqueeze(x, padlen):
 def pad_attn_bias_unsqueeze(x, padlen):
     xlen = x.size(0)
     if xlen < padlen:
-        new_x = x.new_zeros(
-            [padlen, padlen], dtype=x.dtype).fill_(float('-inf'))
+        new_x = x.new_zeros([padlen, padlen], dtype=x.dtype).fill_(float("-inf"))
         new_x[:xlen, :xlen] = x
         new_x[xlen:, :xlen] = 0
         x = new_x
@@ -55,6 +57,7 @@ def pad_spatial_pos_unsqueeze(x, padlen):
         x = new_x
     return x.unsqueeze(0)
 
+
 def pad_3d_unsqueeze(x, padlen1, padlen2, padlen3):
     x = x + 1
     xlen1, xlen2, xlen3, xlen4 = x.size()
@@ -64,6 +67,7 @@ def pad_3d_unsqueeze(x, padlen1, padlen2, padlen3):
         x = new_x
     return x.unsqueeze(0)
 
+
 def pad_pos_unsqueeze(x, padlen):
     xlen, xdim = x.size()
     if xlen < padlen:
@@ -72,6 +76,7 @@ def pad_pos_unsqueeze(x, padlen):
         x = new_x
     return x.unsqueeze(0)
 
+
 @torch.jit.script
 def convert_to_single_emb(x, offset: int = 512):
     feature_num = x.size(-1) if len(x.size()) > 1 else 1
@@ -79,34 +84,68 @@ def convert_to_single_emb(x, offset: int = 512):
     x = x + feature_offset
     return x
 
-def collator(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
+
+def collator(
+    items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20
+):
     # return 0
-    items = [item for item in items if item is not None and item.x.size(0) <= max_node and item.x.size(0) > min_node]
+    items = [
+        item
+        for item in items
+        if item is not None and item.x.size(0) <= max_node and item.x.size(0) > min_node
+    ]
 
-    items = [(item.idx, item.attn_bias, item.attn_edge_type, item.spatial_pos, item.in_degree,
-              item.out_degree, item.x, item.edge_input[:, :, :multi_hop_max_dist, :], item.y,
+    items = [
+        (
+            item.idx,
+            item.attn_bias,
+            item.attn_edge_type,
+            item.spatial_pos,
+            item.in_degree,
+            item.out_degree,
+            item.x,
+            item.edge_input[:, :, :multi_hop_max_dist, :],
+            item.y,
+            # spd_count, full_path_information
+            # item.spatial_pos_count, item.node_input[:, :, :multi_hop_max_dist+1, :]
+        )
+        for item in items
+    ]
 
-              # spd_count, full_path_information
-              # item.spatial_pos_count, item.node_input[:, :, :multi_hop_max_dist+1, :]
-              ) for item in items]
-
-
-    idxs, attn_biases, attn_edge_types, spatial_poses, in_degrees, out_degrees, xs, edge_inputs, ys = zip(*items)
+    (
+        idxs,
+        attn_biases,
+        attn_edge_types,
+        spatial_poses,
+        in_degrees,
+        out_degrees,
+        xs,
+        edge_inputs,
+        ys,
+    ) = zip(*items)
 
     # spd_count, full_path_information
     # idxs, attn_biases, attn_edge_types, spatial_poses, in_degrees, out_degrees, xs, edge_inputs, ys, spatial_pos_counts, node_inputs = zip(*items)
 
     for idx, _ in enumerate(attn_biases):
-        attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float('-inf')
+        attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float("-inf")
     max_node_num = max(i.size(0) for i in xs)
     max_dist = max(i.size(-2) for i in edge_inputs)
     y = torch.cat(ys)
     x = torch.cat([pad_2d_unsqueeze(i, max_node_num) for i in xs])
-    edge_input = torch.cat([pad_3d_unsqueeze(i, max_node_num, max_node_num, max_dist) for i in edge_inputs])
-    attn_bias = torch.cat([pad_attn_bias_unsqueeze(i, max_node_num + 1) for i in attn_biases])
-    attn_edge_type = torch.cat([pad_edge_type_unsqueeze(i, max_node_num) for i in attn_edge_types])
-    spatial_pos = torch.cat([pad_spatial_pos_unsqueeze(i, max_node_num) for i in spatial_poses])
-    in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num)for i in in_degrees])
+    edge_input = torch.cat(
+        [pad_3d_unsqueeze(i, max_node_num, max_node_num, max_dist) for i in edge_inputs]
+    )
+    attn_bias = torch.cat(
+        [pad_attn_bias_unsqueeze(i, max_node_num + 1) for i in attn_biases]
+    )
+    attn_edge_type = torch.cat(
+        [pad_edge_type_unsqueeze(i, max_node_num) for i in attn_edge_types]
+    )
+    spatial_pos = torch.cat(
+        [pad_spatial_pos_unsqueeze(i, max_node_num) for i in spatial_poses]
+    )
+    in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num) for i in in_degrees])
 
     return dict(
         idx=torch.LongTensor(idxs),
@@ -114,7 +153,7 @@ def collator(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_po
         attn_edge_type=attn_edge_type,
         spatial_pos=spatial_pos,
         in_degree=in_degree,
-        out_degree=in_degree, # for undirected graph
+        out_degree=in_degree,  # for undirected graph
         x=x,
         edge_input=edge_input,
         y=y,
@@ -123,16 +162,53 @@ def collator(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_po
         node_mask=None,
     )
 
-# @profile(precision=4, stream=open('/home/peiran/MFM_DS/memory_profiler.log','w+'))      
-def collator_3d(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20, infer=False):
-    items = [item for item in items if item is not None and item.x.size(0) <= max_node and item.x.size(0) > min_node]
-    
-    items = [(item.idx, item.attn_bias, item.attn_edge_type, item.spatial_pos, item.in_degree,
-              item.out_degree, item.x, item.edge_input[:, :, :multi_hop_max_dist, :], item.y, item.pos, item.node_mask
-              ) for item in items]
 
-    idxs, attn_biases, attn_edge_types, spatial_poses, in_degrees, out_degrees, xs, edge_inputs, ys, poses, node_masks = zip(*items)
-    
+# @profile(precision=4, stream=open('/home/peiran/MFM_DS/memory_profiler.log','w+'))
+def collator_3d(
+    items,
+    min_node=-1,
+    max_node=512,
+    multi_hop_max_dist=20,
+    spatial_pos_max=20,
+    infer=False,
+):
+    items = [
+        item
+        for item in items
+        if item is not None and item.x.size(0) <= max_node and item.x.size(0) > min_node
+    ]
+
+    items = [
+        (
+            item.idx,
+            item.attn_bias,
+            item.attn_edge_type,
+            item.spatial_pos,
+            item.in_degree,
+            item.out_degree,
+            item.x,
+            item.edge_input[:, :, :multi_hop_max_dist, :],
+            item.y,
+            item.pos,
+            item.node_mask,
+        )
+        for item in items
+    ]
+
+    (
+        idxs,
+        attn_biases,
+        attn_edge_types,
+        spatial_poses,
+        in_degrees,
+        out_degrees,
+        xs,
+        edge_inputs,
+        ys,
+        poses,
+        node_masks,
+    ) = zip(*items)
+
     # idxs = torch.as_tensor(idxs)
     # attn_biases = torch.as_tensor(attn_biases)
     # attn_edge_types = torch.as_tensor(attn_edge_types)
@@ -149,8 +225,8 @@ def collator_3d(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial
     # idxs, attn_biases, attn_edge_types, spatial_poses, in_degrees, out_degrees, xs, edge_inputs, ys, spatial_pos_counts, node_inputs = zip(*items)
 
     for idx, _ in enumerate(attn_biases):
-        attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float('-inf')
-    
+        attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float("-inf")
+
     # attn_biases[...][1:, 1:][spatial_poses[...] >= spatial_pos_max] = float('-inf')
     # attn_biases[:, 1:, 1:] = torch.where(spatial_poses[:] >= spatial_pos_max, attn_biases, float('-inf'))
 
@@ -158,15 +234,19 @@ def collator_3d(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial
     max_dist = max(i.size(-2) for i in edge_inputs)
     y = torch.cat(ys)
     x = torch.cat([pad_2d_unsqueeze(i, max_node_num) for i in xs])
-    edge_input = torch.cat([pad_3d_unsqueeze(i, max_node_num, max_node_num, max_dist) for i in edge_inputs])
-    attn_bias = torch.cat([pad_attn_bias_unsqueeze(
-        i, max_node_num + 1) for i in attn_biases])
+    edge_input = torch.cat(
+        [pad_3d_unsqueeze(i, max_node_num, max_node_num, max_dist) for i in edge_inputs]
+    )
+    attn_bias = torch.cat(
+        [pad_attn_bias_unsqueeze(i, max_node_num + 1) for i in attn_biases]
+    )
     attn_edge_type = torch.cat(
-        [pad_edge_type_unsqueeze(i, max_node_num) for i in attn_edge_types])
-    spatial_pos = torch.cat([pad_spatial_pos_unsqueeze(i, max_node_num)
-                        for i in spatial_poses])
-    in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num)
-                          for i in in_degrees])
+        [pad_edge_type_unsqueeze(i, max_node_num) for i in attn_edge_types]
+    )
+    spatial_pos = torch.cat(
+        [pad_spatial_pos_unsqueeze(i, max_node_num) for i in spatial_poses]
+    )
+    in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num) for i in in_degrees])
 
     pos = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in poses])
     node_mask = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in node_masks])
@@ -183,7 +263,7 @@ def collator_3d(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial
         node_atom_edge = torch.cat([node_atom_i, node_atom_j], dim=-1)
         node_atom_edge = convert_to_single_emb(node_atom_edge)
         node_type_edges.append(node_atom_edge.long())
- 
+
     node_type_edge = torch.cat(node_type_edges)
 
     return dict(
@@ -193,7 +273,7 @@ def collator_3d(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial
         attn_edge_type=attn_edge_type,
         spatial_pos=spatial_pos,
         in_degree=in_degree,
-        out_degree=in_degree, # for undirected graph
+        out_degree=in_degree,  # for undirected graph
         x=x,
         edge_input=edge_input,
         y=y,
@@ -202,18 +282,53 @@ def collator_3d(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial
         node_mask=node_mask,
     )
 
-def collator_3d_pp(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20, infer=False):
+
+def collator_3d_pp(
+    items,
+    min_node=-1,
+    max_node=512,
+    multi_hop_max_dist=20,
+    spatial_pos_max=20,
+    infer=False,
+):
     items = [
-        item for item in items if item is not None and item.x.size(0) <= max_node and item.x.size(0) > min_node]
+        item
+        for item in items
+        if item is not None and item.x.size(0) <= max_node and item.x.size(0) > min_node
+    ]
 
     # if not infer:
-    items = [(item.idx, item.attn_bias, item.attn_edge_type, item.spatial_pos, item.in_degree,
-            item.out_degree, item.x, item.edge_input[:, :, :multi_hop_max_dist, :], item.y, item.pos, item.node_mask
-
+    items = [
+        (
+            item.idx,
+            item.attn_bias,
+            item.attn_edge_type,
+            item.spatial_pos,
+            item.in_degree,
+            item.out_degree,
+            item.x,
+            item.edge_input[:, :, :multi_hop_max_dist, :],
+            item.y,
+            item.pos,
+            item.node_mask
             # spd_count, full_path_information
             # item.spatial_pos_count, item.node_input[:, :, :multi_hop_max_dist+1, :]
-            ) for item in items]
-    idxs, attn_biases, attn_edge_types, spatial_poses, in_degrees, out_degrees, xs, edge_inputs, ys, poses, node_masks = zip(*items)
+        )
+        for item in items
+    ]
+    (
+        idxs,
+        attn_biases,
+        attn_edge_types,
+        spatial_poses,
+        in_degrees,
+        out_degrees,
+        xs,
+        edge_inputs,
+        ys,
+        poses,
+        node_masks,
+    ) = zip(*items)
     # else:
     #     items = [(item.idx, item.attn_bias, item.attn_edge_type, item.spatial_pos, item.in_degree,
     #             item.out_degree, item.x, item.edge_input[:, :, :multi_hop_max_dist, :], item.y, item.pos, item.node_mask, item.smiles
@@ -226,7 +341,7 @@ def collator_3d_pp(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spat
     # idxs, attn_biases, attn_edge_types, spatial_poses, in_degrees, out_degrees, xs, edge_inputs, ys, spatial_pos_counts, node_inputs = zip(*items)
 
     for idx, _ in enumerate(attn_biases):
-        attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float('-inf')
+        attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float("-inf")
     max_node_num = max(i.size(0) for i in xs)
     # max_node_num = 80
     max_dist = max(i.size(-2) for i in edge_inputs)
@@ -235,16 +350,19 @@ def collator_3d_pp(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spat
     else:
         y = None
     x = torch.cat([pad_2d_unsqueeze(i, max_node_num) for i in xs])
-    edge_input = torch.cat([pad_3d_unsqueeze(
-        i, max_node_num, max_node_num, max_dist) for i in edge_inputs])
-    attn_bias = torch.cat([pad_attn_bias_unsqueeze(
-        i, max_node_num + 1) for i in attn_biases])
+    edge_input = torch.cat(
+        [pad_3d_unsqueeze(i, max_node_num, max_node_num, max_dist) for i in edge_inputs]
+    )
+    attn_bias = torch.cat(
+        [pad_attn_bias_unsqueeze(i, max_node_num + 1) for i in attn_biases]
+    )
     attn_edge_type = torch.cat(
-        [pad_edge_type_unsqueeze(i, max_node_num) for i in attn_edge_types])
-    spatial_pos = torch.cat([pad_spatial_pos_unsqueeze(i, max_node_num)
-                        for i in spatial_poses])
-    in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num)
-                          for i in in_degrees])
+        [pad_edge_type_unsqueeze(i, max_node_num) for i in attn_edge_types]
+    )
+    spatial_pos = torch.cat(
+        [pad_spatial_pos_unsqueeze(i, max_node_num) for i in spatial_poses]
+    )
+    in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num) for i in in_degrees])
 
     if not infer:
         pos = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in poses])
@@ -256,7 +374,6 @@ def collator_3d_pp(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spat
 
     node_type_edges = []
     for idx in range(len(items)):
-
         node_atom_type = items[idx][6][:, 0]
         n_nodes = items[idx][6].shape[0]
         node_atom_i = node_atom_type.unsqueeze(-1).repeat(1, n_nodes)
@@ -277,19 +394,19 @@ def collator_3d_pp(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spat
 
     if not infer:
         intput = [
-            torch.LongTensor(idxs), #0
-            # attn_bias, 
-            attn_bias, #1
-            attn_edge_type, #2
-            spatial_pos, #3
-            in_degree, #4
-            in_degree, #5 for undirected graph
-            x, #6
-            edge_input, #7
-            y, #8
-            pos, #9
-            node_type_edge, #10
-            node_mask #11
+            torch.LongTensor(idxs),  # 0
+            # attn_bias,
+            attn_bias,  # 1
+            attn_edge_type,  # 2
+            spatial_pos,  # 3
+            in_degree,  # 4
+            in_degree,  # 5 for undirected graph
+            x,  # 6
+            edge_input,  # 7
+            y,  # 8
+            pos,  # 9
+            node_type_edge,  # 10
+            node_mask  # 11
             # spd_count, full_path_information
             # spatial_pos_count=spatial_pos_count,
             # node_input=node_input,
@@ -301,19 +418,19 @@ def collator_3d_pp(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spat
         ]
     else:
         intput = [
-            torch.LongTensor(idxs), #0
-            # attn_bias, 
-            attn_bias, #1
-            attn_edge_type, #2
-            spatial_pos, #3
-            in_degree, #4
-            in_degree, #5 for undirected graph
-            x, #6
-            edge_input, #7
-            x, #8
-            x, #9
-            node_type_edge, #10
-            x #11
+            torch.LongTensor(idxs),  # 0
+            # attn_bias,
+            attn_bias,  # 1
+            attn_edge_type,  # 2
+            spatial_pos,  # 3
+            in_degree,  # 4
+            in_degree,  # 5 for undirected graph
+            x,  # 6
+            edge_input,  # 7
+            x,  # 8
+            x,  # 9
+            node_type_edge,  # 10
+            x  # 11
             # spd_count, full_path_information
             # spatial_pos_count=spatial_pos_count,
             # node_input=node_input,
@@ -326,10 +443,9 @@ def collator_3d_pp(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spat
 
     intput = tuple(intput)
     label = tuple(label)
-    
+
     return (intput, label)
 
-    
 
 def collator_ft(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
     original_len = len(items)
@@ -344,7 +460,7 @@ def collator_ft(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
     max_node_num = max(item.x.size(0) for item in items if item is not None)
 
     if hasattr(items[0], "pos") and items[0].pos is not None:
-        poses = [item.pos-item.pos.mean(dim=0, keepdim=True) for item in items]
+        poses = [item.pos - item.pos.mean(dim=0, keepdim=True) for item in items]
         pos = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in poses])
     if hasattr(items[0], "head") and items[0].head is not None:
         head = torch.cat([item.head for item in items])
@@ -362,7 +478,10 @@ def collator_ft(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
         num_protein_nodes = [int(item.num_node[1]) for item in items]
         node_type_edges = []
         for idx in range(len(num_ligand_nodes)):
-            n_nodes, n_ligand_nodes = num_ligand_nodes[idx] + num_protein_nodes[idx], num_ligand_nodes[idx]
+            n_nodes, n_ligand_nodes = (
+                num_ligand_nodes[idx] + num_protein_nodes[idx],
+                num_ligand_nodes[idx],
+            )
             node_type_edge = torch.zeros(n_nodes, n_nodes)
             node_type_edge[:n_ligand_nodes, :n_ligand_nodes] = 3
             node_type_edge[n_ligand_nodes:, :n_ligand_nodes] = 4
@@ -371,17 +490,24 @@ def collator_ft(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
 
             node_atom_type = items[idx].x[:, 0]
             node_atom_i = node_atom_type.unsqueeze(-1).repeat(1, n_nodes)
-            node_atom_i = pad_spatial_pos_unsqueeze(node_atom_i, max_node_num).unsqueeze(-1)
+            node_atom_i = pad_spatial_pos_unsqueeze(
+                node_atom_i, max_node_num
+            ).unsqueeze(-1)
             node_atom_j = node_atom_type.unsqueeze(0).repeat(n_nodes, 1)
-            node_atom_j = pad_spatial_pos_unsqueeze(node_atom_j, max_node_num).unsqueeze(-1)
-            node_type_edge = pad_spatial_pos_unsqueeze(node_type_edge, max_node_num).unsqueeze(-1)
-            node_atom_edge = torch.cat([node_type_edge, node_atom_i, node_atom_j], dim=-1)
+            node_atom_j = pad_spatial_pos_unsqueeze(
+                node_atom_j, max_node_num
+            ).unsqueeze(-1)
+            node_type_edge = pad_spatial_pos_unsqueeze(
+                node_type_edge, max_node_num
+            ).unsqueeze(-1)
+            node_atom_edge = torch.cat(
+                [node_type_edge, node_atom_i, node_atom_j], dim=-1
+            )
             node_atom_edge = convert_to_single_emb(node_atom_edge)
 
             node_type_edges.append(node_atom_edge.long())
         node_type_edge = torch.cat(node_type_edges)
 
-    
     items = [
         (
             item.idx,
@@ -408,7 +534,6 @@ def collator_ft(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
         ys,
     ) = zip(*items)
 
-    
     for idx, _ in enumerate(attn_biases):
         attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float("-inf")
     max_dist = max(i.size(-2) for i in edge_inputs)
@@ -446,23 +571,61 @@ def collator_ft(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
     )
 
 
-
-def collator_copilot(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20, infer=False):
+def collator_copilot(
+    items,
+    min_node=-1,
+    max_node=512,
+    multi_hop_max_dist=20,
+    spatial_pos_max=20,
+    infer=False,
+):
     items = [
-        item for item in items if item is not None and item.x.size(0) <= max_node and item.x.size(0) > min_node]
+        item
+        for item in items
+        if item is not None and item.x.size(0) <= max_node and item.x.size(0) > min_node
+    ]
 
-    items = [(item.idx, item.attn_bias, item.attn_edge_type, item.spatial_pos, item.in_degree,
-            item.out_degree, item.x, item.edge_input[:, :, :multi_hop_max_dist, :], item.y, item.pos, item.node_mask,
-            item.input_ids, item.target_ids, item.llm_mask,
+    items = [
+        (
+            item.idx,
+            item.attn_bias,
+            item.attn_edge_type,
+            item.spatial_pos,
+            item.in_degree,
+            item.out_degree,
+            item.x,
+            item.edge_input[:, :, :multi_hop_max_dist, :],
+            item.y,
+            item.pos,
+            item.node_mask,
+            item.input_ids,
+            item.target_ids,
+            item.llm_mask,
             # spd_count, full_path_information
             # item.spatial_pos_count, item.node_input[:, :, :multi_hop_max_dist+1, :]
-            ) for item in items]
-    
-    idxs, attn_biases, attn_edge_types, spatial_poses, in_degrees, out_degrees, xs, edge_inputs, ys, poses, node_masks, input_ids, target_ids, llm_masks = zip(*items)
+        )
+        for item in items
+    ]
 
+    (
+        idxs,
+        attn_biases,
+        attn_edge_types,
+        spatial_poses,
+        in_degrees,
+        out_degrees,
+        xs,
+        edge_inputs,
+        ys,
+        poses,
+        node_masks,
+        input_ids,
+        target_ids,
+        llm_masks,
+    ) = zip(*items)
 
     for idx, _ in enumerate(attn_biases):
-        attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float('-inf')
+        attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float("-inf")
     max_node_num = max(i.size(0) for i in xs)
     # max_node_num = 80
     max_dist = max(i.size(-2) for i in edge_inputs)
@@ -471,16 +634,19 @@ def collator_copilot(items, min_node=-1, max_node=512, multi_hop_max_dist=20, sp
     # else:
     #     y = None
     x = torch.cat([pad_2d_unsqueeze(i, max_node_num) for i in xs])
-    edge_input = torch.cat([pad_3d_unsqueeze(
-        i, max_node_num, max_node_num, max_dist) for i in edge_inputs])
-    attn_bias = torch.cat([pad_attn_bias_unsqueeze(
-        i, max_node_num + 1) for i in attn_biases])
+    edge_input = torch.cat(
+        [pad_3d_unsqueeze(i, max_node_num, max_node_num, max_dist) for i in edge_inputs]
+    )
+    attn_bias = torch.cat(
+        [pad_attn_bias_unsqueeze(i, max_node_num + 1) for i in attn_biases]
+    )
     attn_edge_type = torch.cat(
-        [pad_edge_type_unsqueeze(i, max_node_num) for i in attn_edge_types])
-    spatial_pos = torch.cat([pad_spatial_pos_unsqueeze(i, max_node_num)
-                        for i in spatial_poses])
-    in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num)
-                          for i in in_degrees])
+        [pad_edge_type_unsqueeze(i, max_node_num) for i in attn_edge_types]
+    )
+    spatial_pos = torch.cat(
+        [pad_spatial_pos_unsqueeze(i, max_node_num) for i in spatial_poses]
+    )
+    in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num) for i in in_degrees])
 
     input_ids = torch.cat([i.unsqueeze(0) for i in input_ids])
     target_ids = torch.cat([i.unsqueeze(0) for i in target_ids])
@@ -495,7 +661,6 @@ def collator_copilot(items, min_node=-1, max_node=512, multi_hop_max_dist=20, sp
 
     node_type_edges = []
     for idx in range(len(items)):
-
         node_atom_type = items[idx][6][:, 0]
         n_nodes = items[idx][6].shape[0]
         node_atom_i = node_atom_type.unsqueeze(-1).repeat(1, n_nodes)
@@ -508,22 +673,21 @@ def collator_copilot(items, min_node=-1, max_node=512, multi_hop_max_dist=20, sp
         node_type_edges.append(node_atom_edge.long())
     node_type_edge = torch.cat(node_type_edges)
 
-
     intput = [
-        torch.LongTensor(idxs), #0
-        attn_bias, #1
-        attn_edge_type, #2
-        spatial_pos, #3
-        in_degree, #4
-        in_degree, #5 for undirected graph
-        x, #6
-        edge_input, #7
-        x, #8
-        x, #9
-        node_type_edge, #10
-        x, #11
-        input_ids, #12
-        llm_mask, #13
+        torch.LongTensor(idxs),  # 0
+        attn_bias,  # 1
+        attn_edge_type,  # 2
+        spatial_pos,  # 3
+        in_degree,  # 4
+        in_degree,  # 5 for undirected graph
+        x,  # 6
+        edge_input,  # 7
+        x,  # 8
+        x,  # 9
+        node_type_edge,  # 10
+        x,  # 11
+        input_ids,  # 12
+        llm_mask,  # 13
         # spd_count, full_path_information
         # spatial_pos_count=spatial_pos_count,
         # node_input=node_input,
@@ -536,11 +700,19 @@ def collator_copilot(items, min_node=-1, max_node=512, multi_hop_max_dist=20, sp
 
     intput = tuple(intput)
     label = tuple(label)
-    
+
     return (intput, label)
 
 
-def collator_copilot_multi_mol(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20, infer=False, pad_token_id=32000):
+def collator_copilot_multi_mol(
+    items,
+    min_node=-1,
+    max_node=512,
+    multi_hop_max_dist=20,
+    spatial_pos_max=20,
+    infer=False,
+    pad_token_id=32000,
+):
     mol_items = []
     num_mol_offsets = []
     for item in items:
@@ -550,43 +722,84 @@ def collator_copilot_multi_mol(items, min_node=-1, max_node=512, multi_hop_max_d
     num_mol_offsets.append(len(mol_items))
     num_mol_offsets = torch.tensor(num_mol_offsets)
 
-    mol_items = [(item.idx, item.attn_bias, item.attn_edge_type, item.spatial_pos, item.in_degree,
-                item.out_degree, item.x, item.edge_input[:, :, :multi_hop_max_dist, :], item.y, item.pos, item.node_mask,
-                # spd_count, full_path_information
-                # item.spatial_pos_count, item.node_input[:, :, :multi_hop_max_dist+1, :]
-                ) for item in mol_items]
+    mol_items = [
+        (
+            item.idx,
+            item.attn_bias,
+            item.attn_edge_type,
+            item.spatial_pos,
+            item.in_degree,
+            item.out_degree,
+            item.x,
+            item.edge_input[:, :, :multi_hop_max_dist, :],
+            item.y,
+            item.pos,
+            item.node_mask,
+            # spd_count, full_path_information
+            # item.spatial_pos_count, item.node_input[:, :, :multi_hop_max_dist+1, :]
+        )
+        for item in mol_items
+    ]
 
-    idxs, attn_biases, attn_edge_types, spatial_poses, in_degrees, out_degrees, xs, edge_inputs, ys, poses, node_masks = zip(*mol_items)
-
+    (
+        idxs,
+        attn_biases,
+        attn_edge_types,
+        spatial_poses,
+        in_degrees,
+        out_degrees,
+        xs,
+        edge_inputs,
+        ys,
+        poses,
+        node_masks,
+    ) = zip(*mol_items)
 
     for idx, _ in enumerate(attn_biases):
-        attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float('-inf')
+        attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float("-inf")
     max_node_num = max(i.size(0) for i in xs)
-    # max_node_num = 80            
+    # max_node_num = 80
     max_dist = max(i.size(-2) for i in edge_inputs)
     # if not infer:
     #     y = torch.cat(ys)
     # else:
     #     y = None
     x = torch.cat([pad_2d_unsqueeze(i, max_node_num) for i in xs])
-    edge_input = torch.cat([pad_3d_unsqueeze(
-        i, max_node_num, max_node_num, max_dist) for i in edge_inputs])
-    attn_bias = torch.cat([pad_attn_bias_unsqueeze(
-        i, max_node_num + 1) for i in attn_biases])
+    edge_input = torch.cat(
+        [pad_3d_unsqueeze(i, max_node_num, max_node_num, max_dist) for i in edge_inputs]
+    )
+    attn_bias = torch.cat(
+        [pad_attn_bias_unsqueeze(i, max_node_num + 1) for i in attn_biases]
+    )
     attn_edge_type = torch.cat(
-        [pad_edge_type_unsqueeze(i, max_node_num) for i in attn_edge_types])
-    spatial_pos = torch.cat([pad_spatial_pos_unsqueeze(i, max_node_num)
-                        for i in spatial_poses])
-    in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num)
-                          for i in in_degrees])
+        [pad_edge_type_unsqueeze(i, max_node_num) for i in attn_edge_types]
+    )
+    spatial_pos = torch.cat(
+        [pad_spatial_pos_unsqueeze(i, max_node_num) for i in spatial_poses]
+    )
+    in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num) for i in in_degrees])
 
     input_ids = [item["input_ids"] for item in items]
     labels = [item["labels"] for item in items]
     llm_mask = [item["llm_mask"] for item in items]
 
     max_seq_len = max(len(i) for i in input_ids)
-    input_ids = torch.cat([torch.cat([i, torch.ones(max_seq_len - len(i), dtype=i.dtype).fill_(pad_token_id)]).unsqueeze(0) for i in input_ids])
-    labels = torch.cat([torch.cat([i, torch.ones(max_seq_len - len(i), dtype=i.dtype).fill_(-100)]).unsqueeze(0) for i in labels])
+    input_ids = torch.cat(
+        [
+            torch.cat(
+                [i, torch.ones(max_seq_len - len(i), dtype=i.dtype).fill_(pad_token_id)]
+            ).unsqueeze(0)
+            for i in input_ids
+        ]
+    )
+    labels = torch.cat(
+        [
+            torch.cat(
+                [i, torch.ones(max_seq_len - len(i), dtype=i.dtype).fill_(-100)]
+            ).unsqueeze(0)
+            for i in labels
+        ]
+    )
     llm_mask = torch.cat([i.ne(pad_token_id).unsqueeze(0) for i in input_ids])
 
     # if not infer:
@@ -598,7 +811,6 @@ def collator_copilot_multi_mol(items, min_node=-1, max_node=512, multi_hop_max_d
 
     node_type_edges = []
     for idx in range(len(mol_items)):
-
         node_atom_type = mol_items[idx][6][:, 0]
         n_nodes = mol_items[idx][6].shape[0]
         node_atom_i = node_atom_type.unsqueeze(-1).repeat(1, n_nodes)
@@ -611,22 +823,21 @@ def collator_copilot_multi_mol(items, min_node=-1, max_node=512, multi_hop_max_d
         node_type_edges.append(node_atom_edge.long())
     node_type_edge = torch.cat(node_type_edges)
 
-
     intput = [
-        torch.LongTensor(idxs), #0
-        attn_bias, #1
-        attn_edge_type, #2
-        spatial_pos, #3
-        in_degree, #4
-        in_degree, #5 for undirected graph
-        x, #6
-        edge_input, #7
-        x, #8
-        x, #9
-        node_type_edge, #10
-        x, #11
-        input_ids, #12
-        llm_mask, #13
+        torch.LongTensor(idxs),  # 0
+        attn_bias,  # 1
+        attn_edge_type,  # 2
+        spatial_pos,  # 3
+        in_degree,  # 4
+        in_degree,  # 5 for undirected graph
+        x,  # 6
+        edge_input,  # 7
+        x,  # 8
+        x,  # 9
+        node_type_edge,  # 10
+        x,  # 11
+        input_ids,  # 12
+        llm_mask,  # 13
         # num_mol_offsets, #14
         # spd_count, full_path_information
         # spatial_pos_count=spatial_pos_count,
@@ -640,5 +851,5 @@ def collator_copilot_multi_mol(items, min_node=-1, max_node=512, multi_hop_max_d
 
     intput = tuple(intput)
     label = tuple(label)
-    
+
     return (intput, label)

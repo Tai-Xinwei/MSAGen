@@ -20,7 +20,18 @@ from copy import copy
 from enum import Enum
 from inspect import isclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, NewType, Optional, Tuple, Union, get_type_hints
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    NewType,
+    Optional,
+    Tuple,
+    Union,
+    get_type_hints,
+)
 
 import yaml
 
@@ -110,7 +121,9 @@ def HfArg(
     if help is not None:
         metadata["help"] = help
 
-    return dataclasses.field(metadata=metadata, default=default, default_factory=default_factory, **kwargs)
+    return dataclasses.field(
+        metadata=metadata, default=default, default_factory=default_factory, **kwargs
+    )
 
 
 class HfArgumentParser(ArgumentParser):
@@ -124,7 +137,9 @@ class HfArgumentParser(ArgumentParser):
 
     dataclass_types: Iterable[DataClassType]
 
-    def __init__(self, dataclass_types: Union[DataClassType, Iterable[DataClassType]], **kwargs):
+    def __init__(
+        self, dataclass_types: Union[DataClassType, Iterable[DataClassType]], **kwargs
+    ):
         """
         Args:
             dataclass_types:
@@ -170,19 +185,27 @@ class HfArgumentParser(ArgumentParser):
                 )
             if type(None) not in field.type.__args__:
                 # filter `str` in Union
-                field.type = field.type.__args__[0] if field.type.__args__[1] == str else field.type.__args__[1]
+                field.type = (
+                    field.type.__args__[0]
+                    if field.type.__args__[1] == str
+                    else field.type.__args__[1]
+                )
                 origin_type = getattr(field.type, "__origin__", field.type)
             elif bool not in field.type.__args__:
                 # filter `NoneType` in Union (except for `Union[bool, NoneType]`)
                 field.type = (
-                    field.type.__args__[0] if isinstance(None, field.type.__args__[1]) else field.type.__args__[1]
+                    field.type.__args__[0]
+                    if isinstance(None, field.type.__args__[1])
+                    else field.type.__args__[1]
                 )
                 origin_type = getattr(field.type, "__origin__", field.type)
 
         # A variable to store kwargs for a boolean field, if needed
         # so that we can init a `no_*` complement argument (see below)
         bool_kwargs = {}
-        if origin_type is Literal or (isinstance(field.type, type) and issubclass(field.type, Enum)):
+        if origin_type is Literal or (
+            isinstance(field.type, type) and issubclass(field.type, Enum)
+        ):
             if origin_type is Literal:
                 kwargs["choices"] = field.type.__args__
             else:
@@ -201,9 +224,13 @@ class HfArgumentParser(ArgumentParser):
 
             # Hack because type=bool in argparse does not behave as we want.
             kwargs["type"] = string_to_bool
-            if field.type is bool or (field.default is not None and field.default is not dataclasses.MISSING):
+            if field.type is bool or (
+                field.default is not None and field.default is not dataclasses.MISSING
+            ):
                 # Default value is False if we have no default when of type bool.
-                default = False if field.default is dataclasses.MISSING else field.default
+                default = (
+                    False if field.default is dataclasses.MISSING else field.default
+                )
                 # This is the value that will get picked if we don't include --field_name in any way
                 kwargs["default"] = default
                 # This tells argparse we accept 0 or 1 value after --field_name
@@ -231,9 +258,16 @@ class HfArgumentParser(ArgumentParser):
         # Order is important for arguments with the same destination!
         # We use a copy of earlier kwargs because the original kwargs have changed a lot before reaching down
         # here and we do not need those changes/additional keys.
-        if field.default is True and (field.type is bool or field.type == Optional[bool]):
+        if field.default is True and (
+            field.type is bool or field.type == Optional[bool]
+        ):
             bool_kwargs["default"] = False
-            parser.add_argument(f"--no_{field.name}", action="store_false", dest=field.name, **bool_kwargs)
+            parser.add_argument(
+                f"--no_{field.name}",
+                action="store_false",
+                dest=field.name,
+                **bool_kwargs,
+            )
 
     def _add_dataclass_arguments(self, dtype: DataClassType):
         if hasattr(dtype, "_argument_group_name"):
@@ -338,11 +372,15 @@ class HfArgumentParser(ArgumentParser):
             return (*outputs, remaining_args)
         else:
             if remaining_args:
-                raise ValueError(f"Some specified arguments are not used by the HfArgumentParser: {remaining_args}")
+                raise ValueError(
+                    f"Some specified arguments are not used by the HfArgumentParser: {remaining_args}"
+                )
 
             return (*outputs,)
 
-    def parse_dict(self, args: Dict[str, Any], allow_extra_keys: bool = False) -> Tuple[DataClass, ...]:
+    def parse_dict(
+        self, args: Dict[str, Any], allow_extra_keys: bool = False
+    ) -> Tuple[DataClass, ...]:
         """
         Alternative helper method that does not use `argparse` at all, instead uses a dict and populating the dataclass
         types.
@@ -367,10 +405,14 @@ class HfArgumentParser(ArgumentParser):
             obj = dtype(**inputs)
             outputs.append(obj)
         if not allow_extra_keys and unused_keys:
-            raise ValueError(f"Some keys are not used by the HfArgumentParser: {sorted(unused_keys)}")
+            raise ValueError(
+                f"Some keys are not used by the HfArgumentParser: {sorted(unused_keys)}"
+            )
         return tuple(outputs)
 
-    def parse_json_file(self, json_file: str, allow_extra_keys: bool = False) -> Tuple[DataClass, ...]:
+    def parse_json_file(
+        self, json_file: str, allow_extra_keys: bool = False
+    ) -> Tuple[DataClass, ...]:
         """
         Alternative helper method that does not use `argparse` at all, instead loading a json file and populating the
         dataclass types.
@@ -392,7 +434,9 @@ class HfArgumentParser(ArgumentParser):
         outputs = self.parse_dict(data, allow_extra_keys=allow_extra_keys)
         return tuple(outputs)
 
-    def parse_yaml_file(self, yaml_file: str, allow_extra_keys: bool = False) -> Tuple[DataClass, ...]:
+    def parse_yaml_file(
+        self, yaml_file: str, allow_extra_keys: bool = False
+    ) -> Tuple[DataClass, ...]:
         """
         Alternative helper method that does not use `argparse` at all, instead loading a yaml file and populating the
         dataclass types.
@@ -409,5 +453,8 @@ class HfArgumentParser(ArgumentParser):
 
                 - the dataclass instances in the same order as they were passed to the initializer.
         """
-        outputs = self.parse_dict(yaml.safe_load(Path(yaml_file).read_text()), allow_extra_keys=allow_extra_keys)
+        outputs = self.parse_dict(
+            yaml.safe_load(Path(yaml_file).read_text()),
+            allow_extra_keys=allow_extra_keys,
+        )
         return tuple(outputs)

@@ -104,7 +104,9 @@ IMAGE_PROCESSOR_MAPPING_NAMES = OrderedDict(
     ]
 )
 
-IMAGE_PROCESSOR_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, IMAGE_PROCESSOR_MAPPING_NAMES)
+IMAGE_PROCESSOR_MAPPING = _LazyAutoMapping(
+    CONFIG_MAPPING_NAMES, IMAGE_PROCESSOR_MAPPING_NAMES
+)
 
 
 def image_processor_class_from_name(class_name: str):
@@ -313,7 +315,9 @@ class AutoImageProcessor:
         trust_remote_code = kwargs.pop("trust_remote_code", False)
         kwargs["_from_auto"] = True
 
-        config_dict, _ = ImageProcessingMixin.get_image_processor_dict(pretrained_model_name_or_path, **kwargs)
+        config_dict, _ = ImageProcessingMixin.get_image_processor_dict(
+            pretrained_model_name_or_path, **kwargs
+        )
         image_processor_class = config_dict.get("image_processor_type", None)
         image_processor_auto_map = None
         if "AutoImageProcessor" in config_dict.get("auto_map", {}):
@@ -328,10 +332,16 @@ class AutoImageProcessor:
                     "Could not find image processor class in the image processor config or the model config. Loading"
                     " based on pattern matching with the model's feature extractor configuration."
                 )
-                image_processor_class = feature_extractor_class.replace("FeatureExtractor", "ImageProcessor")
+                image_processor_class = feature_extractor_class.replace(
+                    "FeatureExtractor", "ImageProcessor"
+                )
             if "AutoFeatureExtractor" in config_dict.get("auto_map", {}):
-                feature_extractor_auto_map = config_dict["auto_map"]["AutoFeatureExtractor"]
-                image_processor_auto_map = feature_extractor_auto_map.replace("FeatureExtractor", "ImageProcessor")
+                feature_extractor_auto_map = config_dict["auto_map"][
+                    "AutoFeatureExtractor"
+                ]
+                image_processor_auto_map = feature_extractor_auto_map.replace(
+                    "FeatureExtractor", "ImageProcessor"
+                )
                 logger.warning(
                     "Could not find image processor auto map in the image processor config or the model config."
                     " Loading based on pattern matching with the model's feature extractor configuration."
@@ -340,7 +350,9 @@ class AutoImageProcessor:
         # If we don't find the image processor class in the image processor config, let's try the model config.
         if image_processor_class is None and image_processor_auto_map is None:
             if not isinstance(config, PretrainedConfig):
-                config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
+                config = AutoConfig.from_pretrained(
+                    pretrained_model_name_or_path, **kwargs
+                )
             # It could be in `config.image_processor_type``
             image_processor_class = getattr(config, "image_processor_type", None)
             if hasattr(config, "auto_map") and "AutoImageProcessor" in config.auto_map:
@@ -363,11 +375,16 @@ class AutoImageProcessor:
 
                 module_file, class_name = image_processor_auto_map.split(".")
                 image_processor_class = get_class_from_dynamic_module(
-                    pretrained_model_name_or_path, module_file + ".py", class_name, **kwargs
+                    pretrained_model_name_or_path,
+                    module_file + ".py",
+                    class_name,
+                    **kwargs,
                 )
                 image_processor_class.register_for_auto_class()
             else:
-                image_processor_class = image_processor_class_from_name(image_processor_class)
+                image_processor_class = image_processor_class_from_name(
+                    image_processor_class
+                )
 
             return image_processor_class.from_dict(config_dict, **kwargs)
         # Last try: we use the IMAGE_PROCESSOR_MAPPING.

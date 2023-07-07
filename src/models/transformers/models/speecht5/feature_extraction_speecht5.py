@@ -93,7 +93,12 @@ class SpeechT5FeatureExtractor(SequenceFeatureExtractor):
         return_attention_mask: bool = True,
         **kwargs,
     ):
-        super().__init__(feature_size=feature_size, sampling_rate=sampling_rate, padding_value=padding_value, **kwargs)
+        super().__init__(
+            feature_size=feature_size,
+            sampling_rate=sampling_rate,
+            padding_value=padding_value,
+            **kwargs,
+        )
         self.do_normalize = do_normalize
         self.return_attention_mask = return_attention_mask
 
@@ -116,7 +121,9 @@ class SpeechT5FeatureExtractor(SequenceFeatureExtractor):
     @staticmethod
     # Copied from transformers.models.wav2vec2.feature_extraction_wav2vec2.Wav2Vec2FeatureExtractor.zero_mean_unit_var_norm
     def zero_mean_unit_var_norm(
-        input_values: List[np.ndarray], attention_mask: List[np.ndarray], padding_value: float = 0.0
+        input_values: List[np.ndarray],
+        attention_mask: List[np.ndarray],
+        padding_value: float = 0.0,
     ) -> List[np.ndarray]:
         """
         Every array in the list is normalized to have zero mean and unit variance
@@ -126,13 +133,17 @@ class SpeechT5FeatureExtractor(SequenceFeatureExtractor):
             normed_input_values = []
 
             for vector, length in zip(input_values, attention_mask.sum(-1)):
-                normed_slice = (vector - vector[:length].mean()) / np.sqrt(vector[:length].var() + 1e-7)
+                normed_slice = (vector - vector[:length].mean()) / np.sqrt(
+                    vector[:length].var() + 1e-7
+                )
                 if length < normed_slice.shape[0]:
                     normed_slice[length:] = padding_value
 
                 normed_input_values.append(normed_slice)
         else:
-            normed_input_values = [(x - x.mean()) / np.sqrt(x.var() + 1e-7) for x in input_values]
+            normed_input_values = [
+                (x - x.mean()) / np.sqrt(x.var() + 1e-7) for x in input_values
+            ]
 
         return normed_input_values
 
@@ -148,7 +159,9 @@ class SpeechT5FeatureExtractor(SequenceFeatureExtractor):
 
     @staticmethod
     # Copied from transformers.models.mctct.feature_extraction_mctct.MCTCTFeatureExtractor._frame_signal
-    def _frame_signal(one_waveform, n_frames, frame_signal_scale, window_length, sample_stride):
+    def _frame_signal(
+        one_waveform, n_frames, frame_signal_scale, window_length, sample_stride
+    ):
         scale = frame_signal_scale
         frames = np.zeros(n_frames * window_length)
         for frame_idx in range(n_frames):
@@ -199,18 +212,28 @@ class SpeechT5FeatureExtractor(SequenceFeatureExtractor):
         """
         one_waveform = self._center_pad(one_waveform, self.n_fft, "reflect")
 
-        n_frames = self._num_frames_calc(one_waveform.size, self.sample_size, self.sample_stride)
-
-        frames = self._frame_signal(
-            one_waveform, n_frames, self.frame_signal_scale, self.sample_size, self.sample_stride
+        n_frames = self._num_frames_calc(
+            one_waveform.size, self.sample_size, self.sample_stride
         )
 
-        window = getattr(torch, self.win_function)(window_length=self.sample_size, periodic=True)
+        frames = self._frame_signal(
+            one_waveform,
+            n_frames,
+            self.frame_signal_scale,
+            self.sample_size,
+            self.sample_stride,
+        )
+
+        window = getattr(torch, self.win_function)(
+            window_length=self.sample_size, periodic=True
+        )
         window = window.numpy()
 
         frames = self._windowing(frames, self.sample_size, window)
 
-        dft_out = self._dft(frames.flatten(), self.n_freqs, n_frames, self.sample_size, self.n_fft)
+        dft_out = self._dft(
+            frames.flatten(), self.n_freqs, n_frames, self.sample_size, self.n_fft
+        )
 
         fbanks = torchaudio.functional.melscale_fbanks(
             n_freqs=self.n_freqs,
@@ -228,13 +251,19 @@ class SpeechT5FeatureExtractor(SequenceFeatureExtractor):
     def _reduce(self, inputs):
         reduced = []
         for i in range(len(inputs)):
-            reduced.append(inputs[i][self.reduction_factor - 1 :: self.reduction_factor])
+            reduced.append(
+                inputs[i][self.reduction_factor - 1 :: self.reduction_factor]
+            )
         return reduced
 
     def __call__(
         self,
-        audio: Optional[Union[np.ndarray, List[float], List[np.ndarray], List[List[float]]]] = None,
-        audio_target: Optional[Union[np.ndarray, List[float], List[np.ndarray], List[List[float]]]] = None,
+        audio: Optional[
+            Union[np.ndarray, List[float], List[np.ndarray], List[List[float]]]
+        ] = None,
+        audio_target: Optional[
+            Union[np.ndarray, List[float], List[np.ndarray], List[List[float]]]
+        ] = None,
         padding: Union[bool, str, PaddingStrategy] = False,
         max_length: Optional[int] = None,
         truncation: bool = False,
@@ -294,7 +323,9 @@ class SpeechT5FeatureExtractor(SequenceFeatureExtractor):
                 to pass `sampling_rate` at the forward call to prevent silent errors.
         """
         if audio is None and audio_target is None:
-            raise ValueError("You must provide either `audio` or `audio_target` values.")
+            raise ValueError(
+                "You must provide either `audio` or `audio_target` values."
+            )
 
         if sampling_rate is not None:
             if sampling_rate != self.sampling_rate:
@@ -362,7 +393,10 @@ class SpeechT5FeatureExtractor(SequenceFeatureExtractor):
     ) -> BatchFeature:
         is_batched = bool(
             isinstance(speech, (list, tuple))
-            and (isinstance(speech[0], np.ndarray) or isinstance(speech[0], (tuple, list)))
+            and (
+                isinstance(speech[0], np.ndarray)
+                or isinstance(speech[0], (tuple, list))
+            )
         )
 
         if is_batched:
@@ -403,30 +437,41 @@ class SpeechT5FeatureExtractor(SequenceFeatureExtractor):
         # convert input values to correct format
         input_values = padded_inputs["input_values"]
         if not isinstance(input_values[0], np.ndarray):
-            padded_inputs["input_values"] = [np.asarray(array, dtype=np.float32) for array in input_values]
+            padded_inputs["input_values"] = [
+                np.asarray(array, dtype=np.float32) for array in input_values
+            ]
         elif (
             not isinstance(input_values, np.ndarray)
             and isinstance(input_values[0], np.ndarray)
             and input_values[0].dtype is np.dtype(np.float64)
         ):
-            padded_inputs["input_values"] = [array.astype(np.float32) for array in input_values]
-        elif isinstance(input_values, np.ndarray) and input_values.dtype is np.dtype(np.float64):
+            padded_inputs["input_values"] = [
+                array.astype(np.float32) for array in input_values
+            ]
+        elif isinstance(input_values, np.ndarray) and input_values.dtype is np.dtype(
+            np.float64
+        ):
             padded_inputs["input_values"] = input_values.astype(np.float32)
 
         # convert attention_mask to correct format
         attention_mask = padded_inputs.get("attention_mask")
         if attention_mask is not None:
-            padded_inputs["attention_mask"] = [np.asarray(array, dtype=np.int32) for array in attention_mask]
+            padded_inputs["attention_mask"] = [
+                np.asarray(array, dtype=np.int32) for array in attention_mask
+            ]
 
         # zero-mean and unit-variance normalization
         if not is_target and self.do_normalize:
             attention_mask = (
                 attention_mask
-                if self._get_padding_strategies(padding, max_length=max_length) is not PaddingStrategy.DO_NOT_PAD
+                if self._get_padding_strategies(padding, max_length=max_length)
+                is not PaddingStrategy.DO_NOT_PAD
                 else None
             )
             padded_inputs["input_values"] = self.zero_mean_unit_var_norm(
-                padded_inputs["input_values"], attention_mask=attention_mask, padding_value=self.padding_value
+                padded_inputs["input_values"],
+                attention_mask=attention_mask,
+                padding_value=self.padding_value,
             )
 
         if is_target:
@@ -440,9 +485,13 @@ class SpeechT5FeatureExtractor(SequenceFeatureExtractor):
 
             # thin out frames for reduction factor
             if self.reduction_factor > 1:
-                padded_inputs["input_values"] = self._reduce(padded_inputs["input_values"])
+                padded_inputs["input_values"] = self._reduce(
+                    padded_inputs["input_values"]
+                )
                 if attention_mask is not None:
-                    padded_inputs["attention_mask"] = self._reduce(padded_inputs["attention_mask"])
+                    padded_inputs["attention_mask"] = self._reduce(
+                        padded_inputs["attention_mask"]
+                    )
 
         if return_tensors is not None:
             padded_inputs = padded_inputs.convert_to_tensors(return_tensors)

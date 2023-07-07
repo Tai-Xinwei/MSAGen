@@ -192,11 +192,15 @@ class DeformableDetrConfig(PretrainedConfig):
         **kwargs,
     ):
         if backbone_config is not None and use_timm_backbone:
-            raise ValueError("You can't specify both `backbone_config` and `use_timm_backbone`.")
+            raise ValueError(
+                "You can't specify both `backbone_config` and `use_timm_backbone`."
+            )
 
         if not use_timm_backbone:
             if backbone_config is None:
-                logger.info("`backbone_config` is `None`. Initializing the config with the default `ResNet` backbone.")
+                logger.info(
+                    "`backbone_config` is `None`. Initializing the config with the default `ResNet` backbone."
+                )
                 backbone_config = CONFIG_MAPPING["resnet"](out_features=["stage4"])
             elif isinstance(backbone_config, dict):
                 backbone_model_type = backbone_config.get("model_type")

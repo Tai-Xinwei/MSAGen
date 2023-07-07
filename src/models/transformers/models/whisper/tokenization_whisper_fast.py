@@ -24,7 +24,13 @@ from ...tokenization_utils_base import BatchEncoding
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import logging
 from .english_normalizer import EnglishTextNormalizer
-from .tokenization_whisper import LANGUAGES, TASK_IDS, TO_LANGUAGE_CODE, WhisperTokenizer, _decode_asr
+from .tokenization_whisper import (
+    LANGUAGES,
+    TASK_IDS,
+    TO_LANGUAGE_CODE,
+    WhisperTokenizer,
+    _decode_asr,
+)
 
 
 logger = logging.get_logger(__name__)
@@ -303,7 +309,9 @@ class WhisperTokenizerFast(PreTrainedTokenizerFast):
             **kwargs,
         )
         if decode_with_timestamps:
-            text = self._decode_with_timestamps(token_ids, time_precision=time_precision)
+            text = self._decode_with_timestamps(
+                token_ids, time_precision=time_precision
+            )
         # retrieve offsets
         if output_offsets:
             offsets = None
@@ -329,22 +337,34 @@ class WhisperTokenizerFast(PreTrainedTokenizerFast):
         normalizer = EnglishTextNormalizer(self.english_spelling_normalizer)
         return normalizer(text)
 
-    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
+    def save_vocabulary(
+        self, save_directory: str, filename_prefix: Optional[str] = None
+    ) -> Tuple[str]:
         files = self._tokenizer.model.save(save_directory, name=filename_prefix)
 
         normalizer_file = os.path.join(
-            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["normalizer_file"]
+            save_directory,
+            (filename_prefix + "-" if filename_prefix else "")
+            + VOCAB_FILES_NAMES["normalizer_file"],
         )
 
         if self.english_spelling_normalizer is not None:
             with open(normalizer_file, "w", encoding="utf-8") as f:
                 f.write(
-                    json.dumps(self.english_spelling_normalizer, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+                    json.dumps(
+                        self.english_spelling_normalizer,
+                        indent=2,
+                        sort_keys=True,
+                        ensure_ascii=False,
+                    )
+                    + "\n"
                 )
 
         return tuple(files) + (normalizer_file,)
 
-    def set_prefix_tokens(self, language: str = None, task: str = None, predict_timestamps: bool = None):
+    def set_prefix_tokens(
+        self, language: str = None, task: str = None, predict_timestamps: bool = None
+    ):
         """
         Override the prefix tokens appended to the start of the label sequence. This method can be used standalone to
         update the prefix tokens as required when fine-tuning. Example:
@@ -366,7 +386,11 @@ class WhisperTokenizerFast(PreTrainedTokenizerFast):
         """
         self.language = language if language is not None else self.language
         self.task = task if task is not None else self.task
-        self.predict_timestamps = predict_timestamps if predict_timestamps is not None else self.predict_timestamps
+        self.predict_timestamps = (
+            predict_timestamps
+            if predict_timestamps is not None
+            else self.predict_timestamps
+        )
 
         prefix_token_ids = self.prefix_tokens
         prefixes = self.convert_ids_to_tokens(prefix_token_ids)
@@ -407,19 +431,25 @@ class WhisperTokenizerFast(PreTrainedTokenizerFast):
 
         if self.task is not None:
             if self.task not in TASK_IDS:
-                raise ValueError(f"Unsupported task: {self.task}. Task should be in: {TASK_IDS}")
+                raise ValueError(
+                    f"Unsupported task: {self.task}. Task should be in: {TASK_IDS}"
+                )
 
         bos_sequence = [bos_token_id]
         if self.language is not None:
             bos_sequence.append(bos_token_id + 1 + langs.index(language_id))
         if self.task is not None:
-            bos_sequence.append(transcribe_token_id if self.task == "transcribe" else translate_token_id)
+            bos_sequence.append(
+                transcribe_token_id if self.task == "transcribe" else translate_token_id
+            )
         if not self.predict_timestamps:
             bos_sequence.append(notimestamps_token_id)
         return bos_sequence
 
     # Copied from transformers.models.whisper.tokenization_whisper.WhisperTokenizer.build_inputs_with_special_tokens
-    def build_inputs_with_special_tokens(self, token_ids_0, token_ids_1=None) -> List[int]:
+    def build_inputs_with_special_tokens(
+        self, token_ids_0, token_ids_1=None
+    ) -> List[int]:
         """Build model inputs from a sequence by appending eos_token_id."""
         if token_ids_1 is None:
             return self.prefix_tokens + token_ids_0 + [self.eos_token_id]
@@ -428,7 +458,10 @@ class WhisperTokenizerFast(PreTrainedTokenizerFast):
 
     # Copied from transformers.models.whisper.tokenization_whisper.WhisperTokenizer.get_special_tokens_mask
     def get_special_tokens_mask(
-        self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None, already_has_special_tokens: bool = False
+        self,
+        token_ids_0: List[int],
+        token_ids_1: Optional[List[int]] = None,
+        already_has_special_tokens: bool = False,
     ) -> List[int]:
         """
         Retrieve sequence ids from a token list that has no special tokens added. This method is called when adding
@@ -448,36 +481,51 @@ class WhisperTokenizerFast(PreTrainedTokenizerFast):
 
         if already_has_special_tokens:
             return super().get_special_tokens_mask(
-                token_ids_0=token_ids_0, token_ids_1=token_ids_1, already_has_special_tokens=True
+                token_ids_0=token_ids_0,
+                token_ids_1=token_ids_1,
+                already_has_special_tokens=True,
             )
 
         prefix_ones = [1] * len(self.prefix_tokens)
         suffix_ones = [1]
         if token_ids_1 is None:
             return prefix_ones + ([0] * len(token_ids_0)) + suffix_ones
-        return prefix_ones + ([0] * len(token_ids_0)) + ([0] * len(token_ids_1)) + suffix_ones
+        return (
+            prefix_ones
+            + ([0] * len(token_ids_0))
+            + ([0] * len(token_ids_1))
+            + suffix_ones
+        )
 
     # Copied from transformers.models.whisper.tokenization_whisper.WhisperTokenizer._build_conversation_input_ids
     def _build_conversation_input_ids(self, conversation) -> List[int]:
         input_ids = []
         for is_user, text in conversation.iter_texts():
-            input_ids.extend(self.encode(text, add_special_tokens=False) + [self.eos_token_id])
+            input_ids.extend(
+                self.encode(text, add_special_tokens=False) + [self.eos_token_id]
+            )
         if len(input_ids) > self.model_max_length:
             input_ids = input_ids[-self.model_max_length :]
         return input_ids
 
     # Copied from transformers.models.whisper.tokenization_whisper.WhisperTokenizer.get_decoder_prompt_ids
     def get_decoder_prompt_ids(self, task=None, language=None, no_timestamps=True):
-        self.set_prefix_tokens(task=task, language=language, predict_timestamps=not no_timestamps)
+        self.set_prefix_tokens(
+            task=task, language=language, predict_timestamps=not no_timestamps
+        )
         # prefix tokens are of the form: <|startoftranscript|> <|lang_id|> <|task|> <|notimestamps|>
         # we don't want to force the bos token at position 1, as this is the starting token
         # when we generate, so we slice the prefix tokens to: <|lang_id|> <|task|> <|notimestamps|>
         # to get the forced tokens
         forced_tokens = self.prefix_tokens[1:]
-        forced_decoder_ids = [(rank + 1, token) for rank, token in enumerate(forced_tokens)]
+        forced_decoder_ids = [
+            (rank + 1, token) for rank, token in enumerate(forced_tokens)
+        ]
         return forced_decoder_ids
 
-    def _decode_asr(self, model_outputs, *, return_timestamps, return_language, time_precision):
+    def _decode_asr(
+        self, model_outputs, *, return_timestamps, return_language, time_precision
+    ):
         return _decode_asr(
             self,
             model_outputs,

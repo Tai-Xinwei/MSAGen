@@ -75,7 +75,9 @@ class DimensionInfo:
 
 
 # Copied from transformers.models.bart.modeling_bart.shift_tokens_right
-def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int, decoder_start_token_id: int):
+def shift_tokens_right(
+    input_ids: torch.Tensor, pad_token_id: int, decoder_start_token_id: int
+):
     """
     Shift input ids one token to the right.
     """
@@ -93,20 +95,37 @@ def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int, decoder_start
 
 # Copied from transformers.models.bart.modeling_bart._make_causal_mask
 def _make_causal_mask(
-    input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
+    input_ids_shape: torch.Size,
+    dtype: torch.dtype,
+    device: torch.device,
+    past_key_values_length: int = 0,
 ):
     """
     Make causal mask used for bi-directional self-attention.
     """
     bsz, tgt_len = input_ids_shape
-    mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
+    mask = torch.full(
+        (tgt_len, tgt_len),
+        torch.tensor(torch.finfo(dtype).min, device=device),
+        device=device,
+    )
     mask_cond = torch.arange(mask.size(-1), device=device)
     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
     mask = mask.to(dtype)
 
     if past_key_values_length > 0:
-        mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
-    return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+        mask = torch.cat(
+            [
+                torch.zeros(
+                    tgt_len, past_key_values_length, dtype=dtype, device=device
+                ),
+                mask,
+            ],
+            dim=-1,
+        )
+    return mask[None, None, :, :].expand(
+        bsz, 1, tgt_len, tgt_len + past_key_values_length
+    )
 
 
 # Copied from transformers.models.bart.modeling_bart._expand_mask
@@ -121,7 +140,9 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
 
     inverted_mask = 1.0 - expanded_mask
 
-    return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+    return inverted_mask.masked_fill(
+        inverted_mask.to(torch.bool), torch.finfo(dtype).min
+    )
 
 
 class PegasusXSinusoidalPositionalEmbedding(nn.Module):
@@ -133,16 +154,27 @@ class PegasusXSinusoidalPositionalEmbedding(nn.Module):
         self.max_scale = max_scale
 
     @torch.no_grad()
-    def forward(self, input_embeds: torch.Tensor, past_key_values_length: int = 0) -> torch.Tensor:
+    def forward(
+        self, input_embeds: torch.Tensor, past_key_values_length: int = 0
+    ) -> torch.Tensor:
         """`input_ids_shape` is expected to be [bsz x seqlen]."""
         batch_size, seq_len = input_embeds.shape[:2]
         positions = torch.arange(
-            past_key_values_length, past_key_values_length + seq_len, dtype=torch.long, device=input_embeds.device
+            past_key_values_length,
+            past_key_values_length + seq_len,
+            dtype=torch.long,
+            device=input_embeds.device,
         )[:, None]
-        pe = torch.zeros((seq_len, self.embed_dim), device=input_embeds.device, dtype=input_embeds.dtype)
+        pe = torch.zeros(
+            (seq_len, self.embed_dim),
+            device=input_embeds.device,
+            dtype=input_embeds.dtype,
+        )
         half_d_feature = self.embed_dim // 2
         div_term = torch.exp(
-            torch.arange(half_d_feature, device=input_embeds.device, dtype=input_embeds.dtype)
+            torch.arange(
+                half_d_feature, device=input_embeds.device, dtype=input_embeds.dtype
+            )
             * -(np.log(float(self.max_scale)) / (half_d_feature - 1))
         )
         pe[:, :half_d_feature] = torch.sin(positions * div_term)
@@ -182,7 +214,11 @@ class PegasusXAttention(nn.Module):
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
-        return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
+        return (
+            tensor.view(bsz, seq_len, self.num_heads, self.head_dim)
+            .transpose(1, 2)
+            .contiguous()
+        )
 
     def forward(
         self,
@@ -259,7 +295,10 @@ class PegasusXAttention(nn.Module):
                 raise ValueError(
                     f"Attention mask should be of size {(bsz, 1, tgt_len, src_len)}, but is {attention_mask.size()}"
                 )
-            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len) + attention_mask
+            attn_weights = (
+                attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
+                + attention_mask
+            )
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
         attn_weights = nn.functional.softmax(attn_weights, dim=-1)
@@ -270,7 +309,9 @@ class PegasusXAttention(nn.Module):
                     f"Head mask for a single layer should be of size {(self.num_heads,)}, but is"
                     f" {layer_head_mask.size()}"
                 )
-            attn_weights = layer_head_mask.view(1, -1, 1, 1) * attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
+            attn_weights = layer_head_mask.view(1, -1, 1, 1) * attn_weights.view(
+                bsz, self.num_heads, tgt_len, src_len
+            )
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
         if output_attentions:
@@ -278,12 +319,18 @@ class PegasusXAttention(nn.Module):
             # make sure that attn_weights keeps its gradient.
             # In order to do so, attn_weights have to be reshaped
             # twice and have to be reused in the following
-            attn_weights_reshaped = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            attn_weights = attn_weights_reshaped.view(bsz * self.num_heads, tgt_len, src_len)
+            attn_weights_reshaped = attn_weights.view(
+                bsz, self.num_heads, tgt_len, src_len
+            )
+            attn_weights = attn_weights_reshaped.view(
+                bsz * self.num_heads, tgt_len, src_len
+            )
         else:
             attn_weights_reshaped = None
 
-        attn_probs = nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
+        attn_probs = nn.functional.dropout(
+            attn_weights, p=self.dropout, training=self.training
+        )
 
         attn_output = torch.bmm(attn_probs, value_states)
 
@@ -337,7 +384,11 @@ class PegasusXGlobalLocalAttention(nn.Module):
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=False)
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
-        return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
+        return (
+            tensor.view(bsz, seq_len, self.num_heads, self.head_dim)
+            .transpose(1, 2)
+            .contiguous()
+        )
 
     def forward(
         self,
@@ -393,7 +444,10 @@ class PegasusXGlobalLocalAttention(nn.Module):
             bsz=dim.batch_size,
         )
 
-        global_attn_output, global_attn_probs = self.compute_global_attention_representations(
+        (
+            global_attn_output,
+            global_attn_probs,
+        ) = self.compute_global_attention_representations(
             global_q=global_q,
             global_k=global_k,
             global_v=global_v,
@@ -402,7 +456,10 @@ class PegasusXGlobalLocalAttention(nn.Module):
             mask=attention_mask,
             dim=dim,
         )
-        local_attn_output, local_attn_probs = self.compute_local_attention_representations(
+        (
+            local_attn_output,
+            local_attn_probs,
+        ) = self.compute_local_attention_representations(
             global_k=global_k,
             global_v=global_v,
             local_q=local_q,
@@ -414,14 +471,18 @@ class PegasusXGlobalLocalAttention(nn.Module):
 
         # [batch_size, global_len, hidden_dim]
         global_attn_output = (
-            global_attn_output.transpose(1, 2).contiguous().view(dim.batch_size, dim.global_len, dim.hidden_dim)
+            global_attn_output.transpose(1, 2)
+            .contiguous()
+            .view(dim.batch_size, dim.global_len, dim.hidden_dim)
         )
         # [batch_size, global_len, hidden_dim]
         global_attn_output = self.out_proj(global_attn_output)
         # [batch_size, num_heads, block_size, num_heads, dim_per_head]
         local_attn_output = local_attn_output.permute(0, 2, 3, 1, 4).contiguous()
         # [batch_size, padded_seq_len, hidden_dim]
-        local_attn_output = local_attn_output.view(dim.batch_size, dim.padded_seq_len, dim.hidden_dim)
+        local_attn_output = local_attn_output.view(
+            dim.batch_size, dim.padded_seq_len, dim.hidden_dim
+        )
         # [batch_size, padded_seq_len, hidden_dim]
         local_attn_output = self.out_proj(local_attn_output)
 
@@ -469,7 +530,9 @@ class PegasusXGlobalLocalAttention(nn.Module):
         attn_weights = torch.einsum("BHGF,BHXF->BHGX", global_q, global_and_local_k)
         attn_weights = attn_weights + extended_mask[:, None, None, :]
         attn_probs = nn.functional.softmax(attn_weights, dim=-1)
-        attn_probs = nn.functional.dropout(attn_probs, p=self.dropout, training=self.training)
+        attn_probs = nn.functional.dropout(
+            attn_probs, p=self.dropout, training=self.training
+        )
 
         # [batch_size, num_heads, global_len, F]
         attn_output = torch.einsum("BHGX,BHXF->BHGF", attn_probs, global_and_local_v)
@@ -501,11 +564,29 @@ class PegasusXGlobalLocalAttention(nn.Module):
             output of shape `[batch_sizes, length, features]`. where length will be padded to a multiple of block_size
         """
         # [batch_size, num_heads, num_blocks, block_size, dim_per_head]
-        blocked_local_q = local_q.view(dim.batch_size, dim.num_heads, dim.num_blocks, dim.block_size, dim.dim_per_head)
+        blocked_local_q = local_q.view(
+            dim.batch_size,
+            dim.num_heads,
+            dim.num_blocks,
+            dim.block_size,
+            dim.dim_per_head,
+        )
         # [batch_size, num_heads, num_blocks, block_size, dim_per_head]
-        blocked_local_k = local_k.view(dim.batch_size, dim.num_heads, dim.num_blocks, dim.block_size, dim.dim_per_head)
+        blocked_local_k = local_k.view(
+            dim.batch_size,
+            dim.num_heads,
+            dim.num_blocks,
+            dim.block_size,
+            dim.dim_per_head,
+        )
         # [batch_size, num_heads, num_blocks, block_size, dim_per_head]
-        blocked_local_v = local_v.view(dim.batch_size, dim.num_heads, dim.num_blocks, dim.block_size, dim.dim_per_head)
+        blocked_local_v = local_v.view(
+            dim.batch_size,
+            dim.num_heads,
+            dim.num_blocks,
+            dim.block_size,
+            dim.dim_per_head,
+        )
 
         # [batch_size, num_blocks, global_len+block_size]
         extended_mask = nn.functional.pad(
@@ -515,15 +596,21 @@ class PegasusXGlobalLocalAttention(nn.Module):
         )
 
         # [batch_size, num_heads, num_blocks, block_size, global_len]
-        blocked_local2global = torch.einsum("BHNKF,BHGF->BHNKG", blocked_local_q, global_k)
+        blocked_local2global = torch.einsum(
+            "BHNKF,BHGF->BHNKG", blocked_local_q, global_k
+        )
         # [batch_size, num_heads, num_blocks, block_size, block_size]
-        blocked_local2local = torch.einsum("BHNKF,BHNXF->BHNKX", blocked_local_q, blocked_local_k)
+        blocked_local2local = torch.einsum(
+            "BHNKF,BHNXF->BHNKX", blocked_local_q, blocked_local_k
+        )
 
         # [batch_size, num_heads, num_blocks, block_size, global_len+block_size]
         attn_weights = torch.cat([blocked_local2global, blocked_local2local], dim=-1)
         attn_weights = attn_weights + extended_mask[:, None, :, None, :]
         attn_probs = nn.functional.softmax(attn_weights, dim=-1)
-        attn_probs = nn.functional.dropout(attn_probs, p=self.dropout, training=self.training)
+        attn_probs = nn.functional.dropout(
+            attn_probs, p=self.dropout, training=self.training
+        )
 
         # [batch_size, num_heads, num_blocks, block_size, global_len]
         local2global_attn_probs = attn_probs[:, :, :, :, : dim.global_len]
@@ -531,9 +618,13 @@ class PegasusXGlobalLocalAttention(nn.Module):
         local2local_attn_probs = attn_probs[:, :, :, :, dim.global_len :]
 
         # [batch_size, num_heads, num_blocks, block_size, dim_per_head]
-        local2global_attn_output = torch.einsum("BHNKG,BHGF->BHNKF", local2global_attn_probs, global_v)
+        local2global_attn_output = torch.einsum(
+            "BHNKG,BHGF->BHNKF", local2global_attn_probs, global_v
+        )
         # [batch_size, num_heads, num_blocks, block_size, dim_per_head]
-        local2local_attn_output = torch.einsum("BHNKX,BHNXF->BHNKF", local2local_attn_probs, blocked_local_v)
+        local2local_attn_output = torch.einsum(
+            "BHNKX,BHNXF->BHNKF", local2local_attn_probs, blocked_local_v
+        )
         # [batch_size, num_heads, num_blocks, block_size, dim_per_head]
         attn_output = local2global_attn_output + local2local_attn_output
         return attn_output, attn_probs
@@ -587,7 +678,9 @@ class PegasusXEncoderLayer(nn.Module):
         if self.stagger_blocks_this_layer:
             # Pad the blocks to simulate staggering
             hidden_states, attention_mask = self.pad_local_tokens(
-                hidden_states=hidden_states, attention_mask=attention_mask, block_size=self.block_size
+                hidden_states=hidden_states,
+                attention_mask=attention_mask,
+                block_size=self.block_size,
             )
 
         hidden_states, global_hidden_states, attn_weights = self.self_attn(
@@ -599,20 +692,30 @@ class PegasusXEncoderLayer(nn.Module):
 
         if self.stagger_blocks_this_layer:
             # Undo the padding
-            hidden_states = self.unpad_local_tokens(padded_hidden_states=hidden_states, block_size=self.block_size)
+            hidden_states = self.unpad_local_tokens(
+                padded_hidden_states=hidden_states, block_size=self.block_size
+            )
 
-        hidden_states = nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = nn.functional.dropout(
+            hidden_states, p=self.dropout, training=self.training
+        )
         hidden_states = residual + hidden_states
 
-        global_hidden_states = nn.functional.dropout(global_hidden_states, p=self.dropout, training=self.training)
+        global_hidden_states = nn.functional.dropout(
+            global_hidden_states, p=self.dropout, training=self.training
+        )
         global_hidden_states = global_residual + global_hidden_states
 
         residual = hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
         hidden_states = self.activation_fn(self.fc1(hidden_states))
-        hidden_states = nn.functional.dropout(hidden_states, p=self.activation_dropout, training=self.training)
+        hidden_states = nn.functional.dropout(
+            hidden_states, p=self.activation_dropout, training=self.training
+        )
         hidden_states = self.fc2(hidden_states)
-        hidden_states = nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = nn.functional.dropout(
+            hidden_states, p=self.dropout, training=self.training
+        )
         hidden_states = residual + hidden_states
 
         global_residual = global_hidden_states
@@ -622,7 +725,9 @@ class PegasusXEncoderLayer(nn.Module):
             global_hidden_states, p=self.activation_dropout, training=self.training
         )
         global_hidden_states = self.fc2(global_hidden_states)
-        global_hidden_states = nn.functional.dropout(global_hidden_states, p=self.dropout, training=self.training)
+        global_hidden_states = nn.functional.dropout(
+            global_hidden_states, p=self.dropout, training=self.training
+        )
         global_hidden_states = global_residual + global_hidden_states
         outputs = (hidden_states, global_hidden_states)
 
@@ -713,7 +818,9 @@ class PegasusXDecoderLayer(nn.Module):
 
         # Self Attention
         # decoder uni-directional self-attention cached key/values tuple is at positions 1,2
-        self_attn_past_key_value = past_key_value[:2] if past_key_value is not None else None
+        self_attn_past_key_value = (
+            past_key_value[:2] if past_key_value is not None else None
+        )
         # add present self-attn cache to positions 1,2 of present_key_value tuple
         hidden_states, self_attn_weights, present_key_value = self.self_attn(
             hidden_states=hidden_states,
@@ -721,7 +828,9 @@ class PegasusXDecoderLayer(nn.Module):
             attention_mask=attention_mask,
             output_attentions=output_attentions,
         )
-        hidden_states = nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = nn.functional.dropout(
+            hidden_states, p=self.dropout, training=self.training
+        )
         hidden_states = residual + hidden_states
 
         # Cross-Attention Block
@@ -732,15 +841,23 @@ class PegasusXDecoderLayer(nn.Module):
             hidden_states = self.encoder_attn_layer_norm(hidden_states)
 
             # cross_attn cached key/values tuple is at positions 3,4 of present_key_value tuple
-            cross_attn_past_key_value = past_key_value[-2:] if past_key_value is not None else None
-            hidden_states, cross_attn_weights, cross_attn_present_key_value = self.encoder_attn(
+            cross_attn_past_key_value = (
+                past_key_value[-2:] if past_key_value is not None else None
+            )
+            (
+                hidden_states,
+                cross_attn_weights,
+                cross_attn_present_key_value,
+            ) = self.encoder_attn(
                 hidden_states=hidden_states,
                 key_value_states=encoder_hidden_states,
                 attention_mask=encoder_attention_mask,
                 past_key_value=cross_attn_past_key_value,
                 output_attentions=output_attentions,
             )
-            hidden_states = nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
+            hidden_states = nn.functional.dropout(
+                hidden_states, p=self.dropout, training=self.training
+            )
             hidden_states = residual + hidden_states
 
             # add cross-attn to positions 3,4 of present_key_value tuple
@@ -750,9 +867,13 @@ class PegasusXDecoderLayer(nn.Module):
         residual = hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
         hidden_states = self.activation_fn(self.fc1(hidden_states))
-        hidden_states = nn.functional.dropout(hidden_states, p=self.activation_dropout, training=self.training)
+        hidden_states = nn.functional.dropout(
+            hidden_states, p=self.activation_dropout, training=self.training
+        )
         hidden_states = self.fc2(hidden_states)
-        hidden_states = nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = nn.functional.dropout(
+            hidden_states, p=self.dropout, training=self.training
+        )
         hidden_states = residual + hidden_states
 
         outputs = (hidden_states,)
@@ -908,7 +1029,9 @@ class PegasusXEncoder(PegasusXPreTrainedModel):
         embed_tokens (nn.Embedding): output embedding
     """
 
-    def __init__(self, config: PegasusXConfig, embed_tokens: Optional[nn.Embedding] = None):
+    def __init__(
+        self, config: PegasusXConfig, embed_tokens: Optional[nn.Embedding] = None
+    ):
         super().__init__(config)
 
         self.dropout = config.dropout
@@ -928,7 +1051,9 @@ class PegasusXEncoder(PegasusXPreTrainedModel):
         self.layers = nn.ModuleList(
             [
                 PegasusXEncoderLayer(
-                    stagger_blocks_this_layer=i % 2 == 1 and config.stagger_local_blocks, config=config
+                    stagger_blocks_this_layer=i % 2 == 1
+                    and config.stagger_local_blocks,
+                    config=config,
                 )
                 for i in range(config.encoder_layers)
             ]
@@ -952,10 +1077,14 @@ class PegasusXEncoder(PegasusXPreTrainedModel):
                 add correct vectors at the end following the position encoding algorithm, whereas reducing the size
                 will remove vectors from the end.
         """
-        logger.info(f"Setting `config.max_position_embeddings={new_num_position_embeddings}`...")
+        logger.info(
+            f"Setting `config.max_position_embeddings={new_num_position_embeddings}`..."
+        )
         self.config.max_position_embeddings = new_num_position_embeddings
 
-        self.embed_positions = PegasusXSinusoidalPositionalEmbedding(self.config.d_model)
+        self.embed_positions = PegasusXSinusoidalPositionalEmbedding(
+            self.config.d_model
+        )
         self.embed_positions.to(self.device)
 
     def get_position_embeddings(self) -> nn.Embedding:
@@ -1004,15 +1133,25 @@ class PegasusXEncoder(PegasusXPreTrainedModel):
             return_dict (`bool`, *optional*):
                 Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
         """
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
         )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        output_hidden_states = (
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
+        )
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         # retrieve input_ids and inputs_embeds
         if input_ids is not None and inputs_embeds is not None:
-            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
+            raise ValueError(
+                "You cannot specify both input_ids and inputs_embeds at the same time"
+            )
         elif input_ids is not None:
             input_shape = input_ids.size()
             input_ids = input_ids.view(-1, input_shape[-1])
@@ -1027,13 +1166,17 @@ class PegasusXEncoder(PegasusXPreTrainedModel):
         embed_pos = self.embed_positions(inputs_embeds)
 
         hidden_states = inputs_embeds + embed_pos
-        hidden_states = nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = nn.functional.dropout(
+            hidden_states, p=self.dropout, training=self.training
+        )
 
         batch_size, seq_len, _ = hidden_states.shape
 
         # Setup mask
         if attention_mask is None:
-            attention_mask = torch.ones(*input_shape, dtype=inputs_embeds.dtype, device=inputs_embeds.device)
+            attention_mask = torch.ones(
+                *input_shape, dtype=inputs_embeds.dtype, device=inputs_embeds.device
+            )
         attention_mask = attention_mask.to(dtype=hidden_states.dtype)
         mask_min_value = torch.finfo(hidden_states.dtype).min
         inverted_mask = 1.0 - attention_mask
@@ -1045,12 +1188,18 @@ class PegasusXEncoder(PegasusXPreTrainedModel):
         # padding to block_size
         if seq_len % self.config.block_size != 0:
             pad_len = self.config.block_size - seq_len % self.config.block_size
-            hidden_states = nn.functional.pad(hidden_states, pad=(0, 0, 0, pad_len), value=0)
-            attention_mask = nn.functional.pad(attention_mask, pad=(0, pad_len), value=mask_min_value)
+            hidden_states = nn.functional.pad(
+                hidden_states, pad=(0, 0, 0, pad_len), value=0
+            )
+            attention_mask = nn.functional.pad(
+                attention_mask, pad=(0, pad_len), value=mask_min_value
+            )
 
         # Global tokens
         global_hidden_states = self.embed_global(
-            torch.arange(self.config.num_global_tokens, device=hidden_states.device)[None].expand(batch_size, -1)
+            torch.arange(self.config.num_global_tokens, device=hidden_states.device)[
+                None
+            ].expand(batch_size, -1)
         )
 
         encoder_states = () if output_hidden_states else None
@@ -1061,7 +1210,9 @@ class PegasusXEncoder(PegasusXPreTrainedModel):
                 encoder_states = encoder_states + (hidden_states,)
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
             dropout_probability = random.uniform(0, 1)
-            if self.training and (dropout_probability < self.layerdrop):  # skip the layer
+            if self.training and (
+                dropout_probability < self.layerdrop
+            ):  # skip the layer
                 layer_outputs = (None, None)
             else:
                 if self.gradient_checkpointing and self.training:
@@ -1101,9 +1252,15 @@ class PegasusXEncoder(PegasusXPreTrainedModel):
             encoder_states = encoder_states + ((hidden_states, global_hidden_states),)
 
         if not return_dict:
-            return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
+            return tuple(
+                v
+                for v in [hidden_states, encoder_states, all_attentions]
+                if v is not None
+            )
         return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
+            last_hidden_state=hidden_states,
+            hidden_states=encoder_states,
+            attentions=all_attentions,
         )
 
 
@@ -1116,7 +1273,9 @@ class PegasusXDecoder(PegasusXPreTrainedModel):
         embed_tokens (nn.Embedding): output embedding
     """
 
-    def __init__(self, config: PegasusXConfig, embed_tokens: Optional[nn.Embedding] = None):
+    def __init__(
+        self, config: PegasusXConfig, embed_tokens: Optional[nn.Embedding] = None
+    ):
         super().__init__(config)
         self.dropout = config.dropout
         self.layerdrop = config.decoder_layerdrop
@@ -1129,7 +1288,9 @@ class PegasusXDecoder(PegasusXPreTrainedModel):
             self.embed_tokens = nn.Embedding(config.vocab_size, config.d_model)
 
         self.embed_positions = PegasusXSinusoidalPositionalEmbedding(config.d_model)
-        self.layers = nn.ModuleList([PegasusXDecoderLayer(config) for _ in range(config.decoder_layers)])
+        self.layers = nn.ModuleList(
+            [PegasusXDecoderLayer(config) for _ in range(config.decoder_layers)]
+        )
         self.layer_norm = nn.LayerNorm(config.d_model)
 
         self.gradient_checkpointing = False
@@ -1143,7 +1304,9 @@ class PegasusXDecoder(PegasusXPreTrainedModel):
         self.embed_tokens = value
 
     # Copied from transformers.models.bart.modeling_bart.BartDecoder._prepare_decoder_attention_mask
-    def _prepare_decoder_attention_mask(self, attention_mask, input_shape, inputs_embeds, past_key_values_length):
+    def _prepare_decoder_attention_mask(
+        self, attention_mask, input_shape, inputs_embeds, past_key_values_length
+    ):
         # create causal mask
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
         combined_attention_mask = None
@@ -1157,11 +1320,13 @@ class PegasusXDecoder(PegasusXPreTrainedModel):
 
         if attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-            expanded_attn_mask = _expand_mask(attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]).to(
-                inputs_embeds.device
-            )
+            expanded_attn_mask = _expand_mask(
+                attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]
+            ).to(inputs_embeds.device)
             combined_attention_mask = (
-                expanded_attn_mask if combined_attention_mask is None else expanded_attn_mask + combined_attention_mask
+                expanded_attn_mask
+                if combined_attention_mask is None
+                else expanded_attn_mask + combined_attention_mask
             )
 
         return combined_attention_mask
@@ -1179,10 +1344,14 @@ class PegasusXDecoder(PegasusXPreTrainedModel):
                 add correct vectors at the end following the position encoding algorithm, whereas reducing the size
                 will remove vectors from the end.
         """
-        logger.info(f"Setting `config.max_position_embeddings={new_num_position_embeddings}`...")
+        logger.info(
+            f"Setting `config.max_position_embeddings={new_num_position_embeddings}`..."
+        )
         self.config.max_position_embeddings = new_num_position_embeddings
 
-        self.embed_positions = PegasusXSinusoidalPositionalEmbedding(self.config.d_model)
+        self.embed_positions = PegasusXSinusoidalPositionalEmbedding(
+            self.config.d_model
+        )
         self.embed_positions.to(self.device)
 
     def get_position_embeddings(self) -> nn.Embedding:
@@ -1258,26 +1427,40 @@ class PegasusXDecoder(PegasusXPreTrainedModel):
             return_dict (`bool`, *optional*):
                 Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
         """
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
+        )
         output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
         )
         use_cache = use_cache if use_cache is not None else self.config.use_cache
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         # retrieve input_ids and inputs_embeds
         if input_ids is not None and inputs_embeds is not None:
-            raise ValueError("You cannot specify both decoder_input_ids and decoder_inputs_embeds at the same time")
+            raise ValueError(
+                "You cannot specify both decoder_input_ids and decoder_inputs_embeds at the same time"
+            )
         elif input_ids is not None:
             input_shape = input_ids.size()
             input_ids = input_ids.view(-1, input_shape[-1])
         elif inputs_embeds is not None:
             input_shape = inputs_embeds.size()[:-1]
         else:
-            raise ValueError("You have to specify either decoder_input_ids or decoder_inputs_embeds")
+            raise ValueError(
+                "You have to specify either decoder_input_ids or decoder_inputs_embeds"
+            )
 
         # past_key_values_length
-        past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
+        past_key_values_length = (
+            past_key_values[0][0].shape[2] if past_key_values is not None else 0
+        )
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
@@ -1289,14 +1472,18 @@ class PegasusXDecoder(PegasusXPreTrainedModel):
         # expand encoder attention mask
         if encoder_hidden_states is not None and encoder_attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-            encoder_attention_mask = _expand_mask(encoder_attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1])
+            encoder_attention_mask = _expand_mask(
+                encoder_attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]
+            )
 
         # embed positions
         positions = self.embed_positions(inputs_embeds, past_key_values_length)
 
         hidden_states = inputs_embeds + positions
 
-        hidden_states = nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = nn.functional.dropout(
+            hidden_states, p=self.dropout, training=self.training
+        )
 
         if self.gradient_checkpointing and self.training:
             if use_cache:
@@ -1308,7 +1495,9 @@ class PegasusXDecoder(PegasusXPreTrainedModel):
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
-        all_cross_attentions = () if (output_attentions and encoder_hidden_states is not None) else None
+        all_cross_attentions = (
+            () if (output_attentions and encoder_hidden_states is not None) else None
+        )
         next_decoder_cache = () if use_cache else None
 
         for idx, decoder_layer in enumerate(self.layers):
@@ -1319,7 +1508,9 @@ class PegasusXDecoder(PegasusXPreTrainedModel):
             if self.training and (dropout_probability < self.layerdrop):
                 continue
 
-            past_key_value = past_key_values[idx] if past_key_values is not None else None
+            past_key_value = (
+                past_key_values[idx] if past_key_values is not None else None
+            )
 
             if self.gradient_checkpointing and self.training:
 
@@ -1369,7 +1560,13 @@ class PegasusXDecoder(PegasusXPreTrainedModel):
         if not return_dict:
             return tuple(
                 v
-                for v in [hidden_states, next_cache, all_hidden_states, all_self_attns, all_cross_attentions]
+                for v in [
+                    hidden_states,
+                    next_cache,
+                    all_hidden_states,
+                    all_self_attns,
+                    all_cross_attentions,
+                ]
                 if v is not None
             )
         return BaseModelOutputWithPastAndCrossAttentions(
@@ -1386,7 +1583,10 @@ class PegasusXDecoder(PegasusXPreTrainedModel):
     PEGASUS_X_START_DOCSTRING,
 )
 class PegasusXModel(PegasusXPreTrainedModel):
-    _keys_to_ignore_on_load_missing = ["decoder.embed_tokens.weight", "encoder.embed_tokens.weight"]
+    _keys_to_ignore_on_load_missing = [
+        "decoder.embed_tokens.weight",
+        "encoder.embed_tokens.weight",
+    ]
 
     def __init__(self, config: PegasusXConfig):
         super().__init__(config)
@@ -1435,10 +1635,15 @@ class PegasusXModel(PegasusXPreTrainedModel):
         """
         Returns the position embeddings matrix
         """
-        return (self.encoder.get_position_embeddings(), self.decoder.get_position_embeddings())
+        return (
+            self.encoder.get_position_embeddings(),
+            self.decoder.get_position_embeddings(),
+        )
 
     @add_start_docstrings_to_model_forward(PEGASUS_X_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=Seq2SeqModelOutput, config_class=_CONFIG_FOR_DOC)
+    @replace_return_docstrings(
+        output_type=Seq2SeqModelOutput, config_class=_CONFIG_FOR_DOC
+    )
     def forward(
         self,
         input_ids: Optional[torch.Tensor] = None,
@@ -1474,12 +1679,20 @@ class PegasusXModel(PegasusXPreTrainedModel):
         [1, 4, 1024]
         ```"""
 
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
+        )
         output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
         )
         use_cache = use_cache if use_cache is not None else self.config.use_cache
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         if encoder_outputs is None:
             encoder_outputs = self.encoder(
@@ -1527,7 +1740,10 @@ class PegasusXModel(PegasusXPreTrainedModel):
         )
 
 
-@add_start_docstrings("The PEGASUS-X for conditional generation (e.g. summarization).", PEGASUS_X_START_DOCSTRING)
+@add_start_docstrings(
+    "The PEGASUS-X for conditional generation (e.g. summarization).",
+    PEGASUS_X_START_DOCSTRING,
+)
 class PegasusXForConditionalGeneration(PegasusXPreTrainedModel):
     base_model_prefix = "model"
     _keys_to_ignore_on_load_missing = [
@@ -1542,7 +1758,9 @@ class PegasusXForConditionalGeneration(PegasusXPreTrainedModel):
     def __init__(self, config: PegasusXConfig):
         super().__init__(config)
         self.model = PegasusXModel(config)
-        self.lm_head = nn.Linear(config.d_model, self.model.shared.num_embeddings, bias=False)
+        self.lm_head = nn.Linear(
+            config.d_model, self.model.shared.num_embeddings, bias=False
+        )
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1584,10 +1802,15 @@ class PegasusXForConditionalGeneration(PegasusXPreTrainedModel):
         """
         Returns the position embeddings matrix
         """
-        return (self.model.encoder.get_position_embeddings(), self.model.decoder.get_position_embeddings())
+        return (
+            self.model.encoder.get_position_embeddings(),
+            self.model.decoder.get_position_embeddings(),
+        )
 
     @add_start_docstrings_to_model_forward(PEGASUS_X_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=Seq2SeqLMOutput, config_class=_CONFIG_FOR_DOC)
+    @replace_return_docstrings(
+        output_type=Seq2SeqLMOutput, config_class=_CONFIG_FOR_DOC
+    )
     @add_end_docstrings(PEGASUS_X_GENERATION_EXAMPLE)
     def forward(
         self,
@@ -1614,11 +1837,15 @@ class PegasusXForConditionalGeneration(PegasusXPreTrainedModel):
         Returns:
 
         """
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         if labels is not None:
             if use_cache:
-                logger.warning("The `use_cache` argument is changed to `False` since `labels` is provided.")
+                logger.warning(
+                    "The `use_cache` argument is changed to `False` since `labels` is provided."
+                )
             use_cache = False
             if decoder_input_ids is None and decoder_inputs_embeds is None:
                 decoder_input_ids = shift_tokens_right(
@@ -1644,11 +1871,15 @@ class PegasusXForConditionalGeneration(PegasusXPreTrainedModel):
         masked_lm_loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
-            masked_lm_loss = loss_fct(lm_logits.view(-1, self.config.vocab_size), labels.view(-1))
+            masked_lm_loss = loss_fct(
+                lm_logits.view(-1, self.config.vocab_size), labels.view(-1)
+            )
 
         if not return_dict:
             output = (lm_logits,) + outputs[1:]
-            return ((masked_lm_loss,) + output) if masked_lm_loss is not None else output
+            return (
+                ((masked_lm_loss,) + output) if masked_lm_loss is not None else output
+            )
 
         return Seq2SeqLMOutput(
             loss=masked_lm_loss,
@@ -1685,7 +1916,9 @@ class PegasusXForConditionalGeneration(PegasusXPreTrainedModel):
         }
 
     def prepare_decoder_input_ids_from_labels(self, labels: torch.Tensor):
-        return shift_tokens_right(labels, self.config.pad_token_id, self.config.decoder_start_token_id)
+        return shift_tokens_right(
+            labels, self.config.pad_token_id, self.config.decoder_start_token_id
+        )
 
     @staticmethod
     def _reorder_cache(past_key_values, beam_idx):
@@ -1693,7 +1926,11 @@ class PegasusXForConditionalGeneration(PegasusXPreTrainedModel):
         for layer_past in past_key_values:
             # cached cross_attention states don't have to be reordered -> they are always the same
             reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past[:2]) + layer_past[2:],
+                tuple(
+                    past_state.index_select(0, beam_idx)
+                    for past_state in layer_past[:2]
+                )
+                + layer_past[2:],
             )
         return reordered_past
 

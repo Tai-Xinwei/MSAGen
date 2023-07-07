@@ -1,29 +1,29 @@
-from functools import lru_cache
-
-import ogb
-from ogb.lsc import PCQM4Mv2Evaluator
-from ogb.graphproppred import Evaluator
-import numpy as np
-# import pytorch_forecasting
-import torch
-from torch.utils.data import DataLoader, RandomSampler
-from torch.utils.data.distributed import DistributedSampler
-
-from torch.nn import functional as F
 import copy
 import itertools
+from functools import lru_cache
+from multiprocessing import Pool
+from typing import Callable, List, Optional, Tuple, Union
 
-from .wrapper import MyPygPCQM4MDataset, MyPygPCQM4MPosDataset, PM6FullLMDBDataset, preprocess_item
-from .collator import collator, collator_3d, collator_3d_pp, collator_ft
+import numpy as np
+import ogb
+# import pytorch_forecasting
+import torch
+from ogb.graphproppred import Evaluator
+from ogb.lsc import PCQM4Mv2Evaluator
+from torch.nn import functional as F
+from torch.utils.data import DataLoader, RandomSampler
+from torch.utils.data.distributed import DistributedSampler
+from torch_geometric.data import Data, InMemoryDataset
+from tqdm import tqdm
+
 # from .ogb_datasets import OGBDatasetLookupTable
 # from .pyg_datasets import PYGDatasetLookupTable, GraphormerPYGDataset
 # from ..utils.FairseqDataset import FairseqDataset
 from utils.move_to_device import move_to_device
-from .wrapper import smiles2graph
-from torch_geometric.data import Data, InMemoryDataset
-from multiprocessing import Pool
-from tqdm import tqdm
-from typing import Optional, Callable, Union, List, Tuple
+
+from .collator import collator, collator_3d, collator_3d_pp, collator_ft
+from .wrapper import (MyPygPCQM4MDataset, MyPygPCQM4MPosDataset,
+                      PM6FullLMDBDataset, preprocess_item, smiles2graph)
 
 # from nvidia.dali.pipeline import Pipeline
 # import nvidia.dali.ops as ops
@@ -31,22 +31,26 @@ from typing import Optional, Callable, Union, List, Tuple
 # from nvidia.dali.plugin.base_iterator import LastBatchPolicy
 
 
-class PCQPreprocessedData():
-    def __init__(self, args, dataset_name, dataset_path = "../FMproj/pm6-86m-3d"):
+class PCQPreprocessedData:
+    def __init__(self, args, dataset_name, dataset_path="../FMproj/pm6-86m-3d"):
         super().__init__()
 
         assert dataset_name in [
             "PCQM4M-LSC-V2",
             "PCQM4M-LSC-V2-TOY",
             "PCQM4M-LSC-V2-3D",
-            "PM6-Full-3D"
-        ], "Only support PCQM4M-LSC-V2 or PCQM4M-LSC-V2-POS" or "PM6-Full-3D"
+            "PM6-Full-3D",
+        ], (
+            "Only support PCQM4M-LSC-V2 or PCQM4M-LSC-V2-POS" or "PM6-Full-3D"
+        )
         self.dataset_name = dataset_name
-        if dataset_name == 'PCQM4M-LSC-V2-3D':
+        if dataset_name == "PCQM4M-LSC-V2-3D":
             self.dataset = MyPygPCQM4MPosDataset(root=dataset_path)
             # self.dataset_version = '3D'
         elif dataset_name == "PM6-Full-3D":
-            self.dataset = PM6FullLMDBDataset(root=dataset_path, mask_ratio=args.mask_ratio)
+            self.dataset = PM6FullLMDBDataset(
+                root=dataset_path, mask_ratio=args.mask_ratio
+            )
         else:
             self.dataset = MyPygPCQM4MDataset(root=dataset_path)
             # self.dataset_version = '2D'
@@ -82,15 +86,15 @@ class PCQPreprocessedData():
         self.spatial_pos_max = 1024
         self.loss_fn = F.l1_loss
         self.num_class = 1
-        self.metric = 'mae'
-        self.metric_mode = 'min'
-        self.evaluator = PCQM4Mv2Evaluator(),
+        self.metric = "mae"
+        self.metric_mode = "min"
+        self.evaluator = (PCQM4Mv2Evaluator(),)
 
 
 class PreprocessSmile(InMemoryDataset):
     def __init__(self, args, smiles):
         # super().__init__()
-        
+
         self.smiles = smiles
         self.smiles2graph = smiles2graph
         self.smile_dict = {}
@@ -98,19 +102,18 @@ class PreprocessSmile(InMemoryDataset):
         self.max_node2 = 256
         self.multi_hop_max_dist = 5
         self.spatial_pos_max = 1024
-        
-        super(PreprocessSmile, self).__init__('.', transform=None, pre_transform=None)
+
+        super(PreprocessSmile, self).__init__(".", transform=None, pre_transform=None)
         # self.dataset, self.smile_dict = self.process(smiles)
         # torch.save(self.dataset, '../data_processed.pt')
 
-        # 
+        #
         # for i, smile in enumerate(smiles):
-            # self.smile_dict[i] = smile
+        # self.smile_dict[i] = smile
 
         self.dataset = torch.load(self.processed_paths[0])
 
         # print(len(self.dataset));exit()
-
 
     # @property
     # def raw_file_names(self):
@@ -118,7 +121,7 @@ class PreprocessSmile(InMemoryDataset):
 
     @property
     def processed_file_names(self):
-        return 'data_processed.pt'
+        return "data_processed.pt"
 
     def process(self):
         data_list = []
@@ -127,26 +130,26 @@ class PreprocessSmile(InMemoryDataset):
         with Pool(processes=120) as pool:
             iter = pool.imap(smiles2graph, self.smiles)
             for idx, graph in tqdm(enumerate(iter), total=length):
-        # for idx, smile in enumerate(smiles):
+                # for idx, smile in enumerate(smiles):
                 data = Data()
                 # graph = self.smiles2graph(smile)
 
-                data.__num_nodes__ = int(graph['num_nodes'])
+                data.__num_nodes__ = int(graph["num_nodes"])
                 if data.__num_nodes__ > self.max_node2:
                     continue
 
-                data.edge_index = torch.from_numpy(graph['edge_index']).to(torch.int64)
-                data.edge_attr = torch.from_numpy(graph['edge_feat']).to(torch.int64)
-                data.x = torch.from_numpy(graph['node_feat']).to(torch.int64)
+                data.edge_index = torch.from_numpy(graph["edge_index"]).to(torch.int64)
+                data.edge_attr = torch.from_numpy(graph["edge_feat"]).to(torch.int64)
+                data.x = torch.from_numpy(graph["node_feat"]).to(torch.int64)
                 data.pos = None
                 data.y = None
                 data.idx = idx
-                data.smile = graph['smile']
+                data.smile = graph["smile"]
 
                 # data_list.append(preprocess_item(data, mask_ratio=0.0))
                 data_list.append(data)
 
-                self.smile_dict[idx] = graph['smile']
+                self.smile_dict[idx] = graph["smile"]
 
         torch.save(data_list, self.processed_paths[0])
         return data_list
@@ -156,61 +159,54 @@ def smile2data(smile, index):
     data = Data()
     graph = smiles2graph(smile)
 
-    data.__num_nodes__ = int(graph['num_nodes'])
-    data.edge_index = torch.from_numpy(graph['edge_index']).to(torch.int64)
-    data.edge_attr = torch.from_numpy(graph['edge_feat']).to(torch.int64)
-    data.x = torch.from_numpy(graph['node_feat']).to(torch.int64)
+    data.__num_nodes__ = int(graph["num_nodes"])
+    data.edge_index = torch.from_numpy(graph["edge_index"]).to(torch.int64)
+    data.edge_attr = torch.from_numpy(graph["edge_feat"]).to(torch.int64)
+    data.x = torch.from_numpy(graph["node_feat"]).to(torch.int64)
     data.pos = None
     data.y = None
     data.idx = index
-    data.smile = graph['smile']
+    data.smile = graph["smile"]
 
     data = preprocess_item(data, mask_ratio=0.0)
 
     return data
 
 
-class OGBPreprocessedData():
-    def __init__(self, dataset_name, dataset_path = "../dataset", seed=42):
-        super().__init__()
-
-        self.dataset_name = dataset_name
-        self.dataset = OGBDatasetLookupTable.GetOGBDataset(dataset_name, seed=seed)
-        self.setup()
-
-    def setup(self, stage: str = None):
-        self.train_idx = self.dataset.train_idx
-        self.valid_idx = self.dataset.valid_idx
-        self.test_idx = self.dataset.test_idx
-
-        self.dataset_train = self.dataset.train_data
-        self.dataset_val = self.dataset.valid_data
-        self.dataset_test = self.dataset.test_data
-
-
 class BatchedDataDataset(torch.utils.data.Dataset):
-# class BatchedDataDataset(torch.utils.data.IterableDataset):
-    def __init__(self, dataset, dataset_version="2D", max_node=32, max_node2=128, multi_hop_max_dist=5, spatial_pos_max=1024, args=None, ft=False, infer=False):
+    # class BatchedDataDataset(torch.utils.data.IterableDataset):
+    def __init__(
+        self,
+        dataset,
+        dataset_version="2D",
+        max_node=32,
+        max_node2=128,
+        multi_hop_max_dist=5,
+        spatial_pos_max=1024,
+        args=None,
+        ft=False,
+        infer=False,
+    ):
         super().__init__()
         self.dataset = dataset
         self.max_node = max_node
         self.max_node2 = max_node2
         self.multi_hop_max_dist = multi_hop_max_dist
         self.spatial_pos_max = spatial_pos_max
-        
+
         self.dataset_version = dataset_version
         assert self.dataset_version in ["2D", "3D"]
         self.args = args
         self.ft = ft
         self.infer = infer
-        
+
     def __getitem__(self, index):
         # item = preprocess_item(self.dataset[int(index)], mask_ratio=self.args.mask_ratio)
         item = self.dataset[int(index)]
         return item
 
         # return next(self.generator())
-    
+
     # def __iter__(self):
     #     # return self.generator()
     #     batch = []
@@ -219,7 +215,7 @@ class BatchedDataDataset(torch.utils.data.Dataset):
     #         if len(batch) == 128:
     #             yield self.collater(batch)
     #             batch = []
-    
+
     # def _infinite(self):
     #     #train_list_path = os.path.join(cfg.dataset_dir, "list", "pdb40_train.txt")
     #     # train_list_path = '/home/jiaxi/EDP/DF/v1.d256x8/protein_correct.txt'
@@ -238,18 +234,17 @@ class BatchedDataDataset(torch.utils.data.Dataset):
     #         if len(batch) == 128:
     #             yield batch
     #             batch = []
-            
+
     # def generator(self):
     #     for data in self.dataset:
     #         batch_samples = []
     #         while len(batch_samples) > 0:
     #             yield batch_samples.pop()
-            
-    # def generator(self):
-        # while True:
-            # idx = np.random.choice(len(self.dataset), 1)
-            # yield self.dataset[int(idx)]
 
+    # def generator(self):
+    # while True:
+    # idx = np.random.choice(len(self.dataset), 1)
+    # yield self.dataset[int(idx)]
 
     def __len__(self):
         return len(self.dataset)
@@ -257,51 +252,56 @@ class BatchedDataDataset(torch.utils.data.Dataset):
     def collater(self, samples):
         if self.args is not None and self.args.pipeline_parallelism > 0:
             collator_fn = collator_3d_pp
-        else:    
-            collator_fn = collator if (self.dataset_version == '2D') else collator_3d
-            
-        return collator_fn(samples,
+        else:
+            collator_fn = collator if (self.dataset_version == "2D") else collator_3d
+
+        return collator_fn(
+            samples,
             min_node=-1,
             max_node=self.max_node,
             multi_hop_max_dist=self.multi_hop_max_dist,
             spatial_pos_max=self.spatial_pos_max,
-            infer=self.args.infer)
-    
+            infer=self.args.infer,
+        )
+
     def collater2(self, samples):
         if self.args is not None and self.args.pipeline_parallelism > 0:
             collator_fn = collator_3d_pp
-        else:    
-            collator_fn = collator if (self.dataset_version == '2D') else collator_3d
-            
-        return collator_fn(samples,
+        else:
+            collator_fn = collator if (self.dataset_version == "2D") else collator_3d
+
+        return collator_fn(
+            samples,
             min_node=-1,
             max_node=self.max_node2,
             multi_hop_max_dist=self.multi_hop_max_dist,
-            spatial_pos_max=self.spatial_pos_max)
+            spatial_pos_max=self.spatial_pos_max,
+        )
 
-    def collaterft(self, samples):            
+    def collaterft(self, samples):
         return collator_ft(
             samples,
             max_node=1024,
             multi_hop_max_dist=self.multi_hop_max_dist,
             spatial_pos_max=self.spatial_pos_max,
         )
-            
 
-class DSDataLoader():
-    def __init__(self,
-                 dataset,
-                 batch_size,
-                 local_rank,
-                 pin_memory=True,
-                 collate_fn=None,
-                 num_workers=None,
-                 data_sampler=None,
-                 prefetch_factor=2,
-                 data_parallel_world_size=None,
-                 data_parallel_rank=None,
-                 dataloader_drop_last=True,
-                ):
+
+class DSDataLoader:
+    def __init__(
+        self,
+        dataset,
+        batch_size,
+        local_rank,
+        pin_memory=True,
+        collate_fn=None,
+        num_workers=None,
+        data_sampler=None,
+        prefetch_factor=2,
+        data_parallel_world_size=None,
+        data_parallel_rank=None,
+        dataloader_drop_last=True,
+    ):
         self.batch_size = batch_size
         self.prefetch_factor = prefetch_factor
 
@@ -310,7 +310,8 @@ class DSDataLoader():
                 data_sampler = DistributedSampler(
                     dataset=dataset,
                     num_replicas=data_parallel_world_size,
-                    rank=data_parallel_rank)
+                    rank=data_parallel_rank,
+                )
             device_count = 1
         else:
             if data_sampler is None:
@@ -336,6 +337,7 @@ class DSDataLoader():
             self.len = len(self.data_sampler) // self.batch_size
         else:
             from math import ceil
+
             self.len = ceil(len(self.data_sampler) / self.batch_size)
 
     def __iter__(self):
@@ -350,26 +352,29 @@ class DSDataLoader():
 
     def _create_dataloader(self):
         if self.collate_fn is None:
-            self.dataloader = DataLoader(self.dataset,
-                                            batch_size=self.batch_size,
-                                            pin_memory=self.pin_memory,
-                                            sampler=self.data_sampler,
-                                            num_workers=self.num_workers,
-                                            prefetch_factor=self.prefetch_factor,
-                                            drop_last=self.dataloader_drop_last)
+            self.dataloader = DataLoader(
+                self.dataset,
+                batch_size=self.batch_size,
+                pin_memory=self.pin_memory,
+                sampler=self.data_sampler,
+                num_workers=self.num_workers,
+                prefetch_factor=self.prefetch_factor,
+                drop_last=self.dataloader_drop_last,
+            )
         else:
-            self.dataloader = DataLoader(self.dataset,
-                                            batch_size=self.batch_size,
-                                            pin_memory=self.pin_memory,
-                                            sampler=self.data_sampler,
-                                            collate_fn=self.collate_fn,
-                                            num_workers=self.num_workers,
-                                            prefetch_factor=self.prefetch_factor,
-                                            drop_last=self.dataloader_drop_last)
+            self.dataloader = DataLoader(
+                self.dataset,
+                batch_size=self.batch_size,
+                pin_memory=self.pin_memory,
+                sampler=self.data_sampler,
+                collate_fn=self.collate_fn,
+                num_workers=self.num_workers,
+                prefetch_factor=self.prefetch_factor,
+                drop_last=self.dataloader_drop_last,
+            )
         self.data = (x for x in self.dataloader)
 
         return self.dataloader
-
 
 
 # class CacheAllDataset(BaseWrapperDataset):
@@ -402,7 +407,7 @@ class DSDataLoader():
 #         return False
 
 
-class TargetDataset():
+class TargetDataset:
     def __init__(self, dataset):
         super().__init__()
         self.dataset = dataset
@@ -416,6 +421,7 @@ class TargetDataset():
 
     def collater(self, samples):
         return torch.stack(samples, dim=0)
+
 
 # class TargetPM6Dataset(FairseqDataset):
 #     def __init__(self, dataset):
@@ -439,14 +445,13 @@ class TargetDataset():
 #         return torch.stack(samples, dim=0)
 
 
-
-class data_prefetcher():
+class data_prefetcher:
     def __init__(self, loader, args):
         self.args = args
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
         self.preload()
-       
+
     def preload(self):
         try:
             self.batch = next(self.loader)
@@ -454,13 +459,16 @@ class data_prefetcher():
             self.batch = None
             return
         with torch.cuda.stream(self.stream):
-            self.batch = move_to_device(self.batch, self.args.local_rank, non_blocking=True)
-            
+            self.batch = move_to_device(
+                self.batch, self.args.local_rank, non_blocking=True
+            )
+
     def next(self):
         torch.cuda.current_stream().wait_stream(self.stream)
         batch = self.batch
         self.preload()
         return batch
+
 
 # class DataLoaderX(torch.utils.data.dataloader.DataLoader):
 #         def __iter__(self):
@@ -468,11 +476,12 @@ class data_prefetcher():
 
 
 class _RepeatSampler(object):
-    """ Sampler that repeats forever.
+    """Sampler that repeats forever.
 
     Args:
         sampler (Sampler)
     """
+
     def __init__(self, sampler):
         self.sampler = sampler
 
@@ -495,6 +504,7 @@ class myDataLoader(torch.utils.data.dataloader.DataLoader):
         for i in range(len(self)):
             yield next(self.iterator)
 
+
 # class TrainPipeline(Pipeline):
 #     def __init__(self, dataset, batch_size, num_threads, device_id, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
 #         super(TrainPipeline, self).__init__(batch_size, num_threads, device_id, prefetch_queue_depth=4)
@@ -504,7 +514,7 @@ class myDataLoader(torch.utils.data.dataloader.DataLoader):
 #         self.multi_hop_max_dist = multi_hop_max_dist
 #         self.spatial_pos_max = spatial_pos_max
 
-        
+
 #     def define_graph(self, items):
 #         items = [item for item in items if item is not None and item.x.size(0) <= self.max_node]
 #         items = [(item.idx, item.attn_bias, item.attn_edge_type, item.spatial_pos, item.in_degree,
@@ -546,7 +556,7 @@ class myDataLoader(torch.utils.data.dataloader.DataLoader):
 #             node_atom_edge = torch.cat([node_atom_i, node_atom_j], dim=-1)
 #             node_atom_edge = convert_to_single_emb(node_atom_edge)
 #             node_type_edges.append(node_atom_edge.long())
-    
+
 #         node_type_edge = torch.cat(node_type_edges)
 
 #         return dict(
@@ -573,6 +583,6 @@ class myDataLoader(torch.utils.data.dataloader.DataLoader):
 #                                                 last_batch_policy=LastBatchPolicy.PARTIAL, auto_reset=True)
 #     return train_loader
 
-if __name__ == '__main__':
-    dataset = PCQPreprocessedData('PCQM4M-LSC-V2')
+if __name__ == "__main__":
+    dataset = PCQPreprocessedData("PCQM4M-LSC-V2")
     print(len(dataset))

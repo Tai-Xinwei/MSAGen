@@ -44,7 +44,9 @@ if is_vision_available():
     import PIL.Image
     import PIL.ImageOps
 
-    if version.parse(version.parse(PIL.__version__).base_version) >= version.parse("9.1.0"):
+    if version.parse(version.parse(PIL.__version__).base_version) >= version.parse(
+        "9.1.0"
+    ):
         PILImageResampling = PIL.Image.Resampling
     else:
         PILImageResampling = PIL.Image
@@ -55,7 +57,12 @@ if TYPE_CHECKING:
 
 
 ImageInput = Union[
-    "PIL.Image.Image", np.ndarray, "torch.Tensor", List["PIL.Image.Image"], List[np.ndarray], List["torch.Tensor"]
+    "PIL.Image.Image",
+    np.ndarray,
+    "torch.Tensor",
+    List["PIL.Image.Image"],
+    List[np.ndarray],
+    List["torch.Tensor"],
 ]  # noqa
 
 
@@ -184,7 +191,9 @@ def get_channel_dimension_axis(image: np.ndarray) -> int:
     raise ValueError(f"Unsupported data format: {channel_dim}")
 
 
-def get_image_size(image: np.ndarray, channel_dim: ChannelDimension = None) -> Tuple[int, int]:
+def get_image_size(
+    image: np.ndarray, channel_dim: ChannelDimension = None
+) -> Tuple[int, int]:
     """
     Returns the (height, width) dimensions of the image.
 
@@ -208,7 +217,9 @@ def get_image_size(image: np.ndarray, channel_dim: ChannelDimension = None) -> T
         raise ValueError(f"Unsupported data format: {channel_dim}")
 
 
-def is_valid_annotation_coco_detection(annotation: Dict[str, Union[List, Tuple]]) -> bool:
+def is_valid_annotation_coco_detection(
+    annotation: Dict[str, Union[List, Tuple]]
+) -> bool:
     if (
         isinstance(annotation, dict)
         and "image_id" in annotation
@@ -224,7 +235,9 @@ def is_valid_annotation_coco_detection(annotation: Dict[str, Union[List, Tuple]]
     return False
 
 
-def is_valid_annotation_coco_panoptic(annotation: Dict[str, Union[List, Tuple]]) -> bool:
+def is_valid_annotation_coco_panoptic(
+    annotation: Dict[str, Union[List, Tuple]]
+) -> bool:
     if (
         isinstance(annotation, dict)
         and "image_id" in annotation
@@ -241,11 +254,15 @@ def is_valid_annotation_coco_panoptic(annotation: Dict[str, Union[List, Tuple]])
     return False
 
 
-def valid_coco_detection_annotations(annotations: Iterable[Dict[str, Union[List, Tuple]]]) -> bool:
+def valid_coco_detection_annotations(
+    annotations: Iterable[Dict[str, Union[List, Tuple]]]
+) -> bool:
     return all(is_valid_annotation_coco_detection(ann) for ann in annotations)
 
 
-def valid_coco_panoptic_annotations(annotations: Iterable[Dict[str, Union[List, Tuple]]]) -> bool:
+def valid_coco_panoptic_annotations(
+    annotations: Iterable[Dict[str, Union[List, Tuple]]]
+) -> bool:
     return all(is_valid_annotation_coco_panoptic(ann) for ann in annotations)
 
 
@@ -290,7 +307,9 @@ class ImageFeatureExtractionMixin:
     """
 
     def _ensure_format_supported(self, image):
-        if not isinstance(image, (PIL.Image.Image, np.ndarray)) and not is_torch_tensor(image):
+        if not isinstance(image, (PIL.Image.Image, np.ndarray)) and not is_torch_tensor(
+            image
+        ):
             raise ValueError(
                 f"Got type {type(image)} which is not supported, only `PIL.Image.Image`, `np.array` and "
                 "`torch.Tensor` are."
@@ -497,7 +516,9 @@ class ImageFeatureExtractionMixin:
                 if short == requested_new_short:
                     return image
 
-                new_short, new_long = requested_new_short, int(requested_new_short * long / short)
+                new_short, new_long = requested_new_short, int(
+                    requested_new_short * long / short
+                )
 
                 if max_size is not None:
                     if max_size <= requested_new_short:
@@ -506,9 +527,14 @@ class ImageFeatureExtractionMixin:
                             f"size for the smaller edge size = {size}"
                         )
                     if new_long > max_size:
-                        new_short, new_long = int(max_size * new_short / new_long), max_size
+                        new_short, new_long = (
+                            int(max_size * new_short / new_long),
+                            max_size,
+                        )
 
-                size = (new_short, new_long) if width <= height else (new_long, new_short)
+                size = (
+                    (new_short, new_long) if width <= height else (new_long, new_short)
+                )
 
         return image.resize(size, resample=resample)
 
@@ -536,14 +562,20 @@ class ImageFeatureExtractionMixin:
         if is_torch_tensor(image) or isinstance(image, np.ndarray):
             if image.ndim == 2:
                 image = self.expand_dims(image)
-            image_shape = image.shape[1:] if image.shape[0] in [1, 3] else image.shape[:2]
+            image_shape = (
+                image.shape[1:] if image.shape[0] in [1, 3] else image.shape[:2]
+            )
         else:
             image_shape = (image.size[1], image.size[0])
 
         top = (image_shape[0] - size[0]) // 2
-        bottom = top + size[0]  # In case size is odd, (image_shape[0] + size[0]) // 2 won't give the proper result.
+        bottom = (
+            top + size[0]
+        )  # In case size is odd, (image_shape[0] + size[0]) // 2 won't give the proper result.
         left = (image_shape[1] - size[1]) // 2
-        right = left + size[1]  # In case size is odd, (image_shape[1] + size[1]) // 2 won't give the proper result.
+        right = (
+            left + size[1]
+        )  # In case size is odd, (image_shape[1] + size[1]) // 2 won't give the proper result.
 
         # For PIL Images we have a method to crop directly.
         if isinstance(image, PIL.Image.Image):
@@ -560,11 +592,19 @@ class ImageFeatureExtractionMixin:
                 image = image.permute(2, 0, 1)
 
         # Check if cropped area is within image boundaries
-        if top >= 0 and bottom <= image_shape[0] and left >= 0 and right <= image_shape[1]:
+        if (
+            top >= 0
+            and bottom <= image_shape[0]
+            and left >= 0
+            and right <= image_shape[1]
+        ):
             return image[..., top:bottom, left:right]
 
         # Otherwise, we may need to pad if the image is too small. Oh joy...
-        new_shape = image.shape[:-2] + (max(size[0], image_shape[0]), max(size[1], image_shape[1]))
+        new_shape = image.shape[:-2] + (
+            max(size[0], image_shape[0]),
+            max(size[1], image_shape[1]),
+        )
         if isinstance(image, np.ndarray):
             new_image = np.zeros_like(image, shape=new_shape)
         elif is_torch_tensor(image):
@@ -582,7 +622,9 @@ class ImageFeatureExtractionMixin:
         right += left_pad
 
         new_image = new_image[
-            ..., max(0, top) : min(new_image.shape[-2], bottom), max(0, left) : min(new_image.shape[-1], right)
+            ...,
+            max(0, top) : min(new_image.shape[-2], bottom),
+            max(0, left) : min(new_image.shape[-1], right),
         ]
 
         return new_image
@@ -604,7 +646,16 @@ class ImageFeatureExtractionMixin:
 
         return image[::-1, :, :]
 
-    def rotate(self, image, angle, resample=None, expand=0, center=None, translate=None, fillcolor=None):
+    def rotate(
+        self,
+        image,
+        angle,
+        resample=None,
+        expand=0,
+        center=None,
+        translate=None,
+        fillcolor=None,
+    ):
         """
         Returns a rotated copy of `image`. This method returns a copy of `image`, rotated the given number of degrees
         counter clockwise around its centre.
@@ -625,5 +676,10 @@ class ImageFeatureExtractionMixin:
             image = self.to_pil_image(image)
 
         return image.rotate(
-            angle, resample=resample, expand=expand, center=center, translate=translate, fillcolor=fillcolor
+            angle,
+            resample=resample,
+            expand=expand,
+            center=center,
+            translate=translate,
+            fillcolor=fillcolor,
         )

@@ -79,7 +79,9 @@ class TFEmbeddings(tf.keras.layers.Layer):
         self.dim = config.dim
         self.initializer_range = config.initializer_range
         self.max_position_embeddings = config.max_position_embeddings
-        self.LayerNorm = tf.keras.layers.LayerNormalization(epsilon=1e-12, name="LayerNorm")
+        self.LayerNorm = tf.keras.layers.LayerNormalization(
+            epsilon=1e-12, name="LayerNorm"
+        )
         self.dropout = tf.keras.layers.Dropout(rate=config.dropout)
 
     def build(self, input_shape: tf.TensorShape):
@@ -99,7 +101,9 @@ class TFEmbeddings(tf.keras.layers.Layer):
 
         super().build(input_shape)
 
-    def call(self, input_ids=None, position_ids=None, inputs_embeds=None, training=False):
+    def call(
+        self, input_ids=None, position_ids=None, inputs_embeds=None, training=False
+    ):
         """
         Applies embedding based on inputs tensor.
 
@@ -124,9 +128,13 @@ class TFEmbeddings(tf.keras.layers.Layer):
         input_shape = shape_list(inputs_embeds)[:-1]
 
         if position_ids is None:
-            position_ids = tf.expand_dims(tf.range(start=0, limit=input_shape[-1]), axis=0)
+            position_ids = tf.expand_dims(
+                tf.range(start=0, limit=input_shape[-1]), axis=0
+            )
 
-        position_embeds = tf.gather(params=self.position_embeddings, indices=position_ids)
+        position_embeds = tf.gather(
+            params=self.position_embeddings, indices=position_ids
+        )
         final_embeddings = inputs_embeds + position_embeds
         final_embeddings = self.LayerNorm(inputs=final_embeddings)
         final_embeddings = self.dropout(inputs=final_embeddings, training=training)
@@ -143,19 +151,29 @@ class TFMultiHeadSelfAttention(tf.keras.layers.Layer):
         self.dropout = tf.keras.layers.Dropout(config.attention_dropout)
         self.output_attentions = config.output_attentions
 
-        assert self.dim % self.n_heads == 0, f"Hidden size {self.dim} not dividable by number of heads {self.n_heads}"
+        assert (
+            self.dim % self.n_heads == 0
+        ), f"Hidden size {self.dim} not dividable by number of heads {self.n_heads}"
 
         self.q_lin = tf.keras.layers.Dense(
-            config.dim, kernel_initializer=get_initializer(config.initializer_range), name="q_lin"
+            config.dim,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="q_lin",
         )
         self.k_lin = tf.keras.layers.Dense(
-            config.dim, kernel_initializer=get_initializer(config.initializer_range), name="k_lin"
+            config.dim,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="k_lin",
         )
         self.v_lin = tf.keras.layers.Dense(
-            config.dim, kernel_initializer=get_initializer(config.initializer_range), name="v_lin"
+            config.dim,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="v_lin",
         )
         self.out_lin = tf.keras.layers.Dense(
-            config.dim, kernel_initializer=get_initializer(config.initializer_range), name="out_lin"
+            config.dim,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="out_lin",
         )
 
         self.pruned_heads = set()
@@ -163,7 +181,9 @@ class TFMultiHeadSelfAttention(tf.keras.layers.Layer):
     def prune_heads(self, heads):
         raise NotImplementedError
 
-    def call(self, query, key, value, mask, head_mask, output_attentions, training=False):
+    def call(
+        self, query, key, value, mask, head_mask, output_attentions, training=False
+    ):
         """
         Parameters:
             query: tf.Tensor(bs, seq_length, dim)
@@ -185,11 +205,16 @@ class TFMultiHeadSelfAttention(tf.keras.layers.Layer):
 
         def shape(x):
             """separate heads"""
-            return tf.transpose(tf.reshape(x, (bs, -1, self.n_heads, dim_per_head)), perm=(0, 2, 1, 3))
+            return tf.transpose(
+                tf.reshape(x, (bs, -1, self.n_heads, dim_per_head)), perm=(0, 2, 1, 3)
+            )
 
         def unshape(x):
             """group heads"""
-            return tf.reshape(tf.transpose(x, perm=(0, 2, 1, 3)), (bs, -1, self.n_heads * dim_per_head))
+            return tf.reshape(
+                tf.transpose(x, perm=(0, 2, 1, 3)),
+                (bs, -1, self.n_heads * dim_per_head),
+            )
 
         q = shape(self.q_lin(query))  # (bs, n_heads, q_length, dim_per_head)
         k = shape(self.k_lin(key))  # (bs, n_heads, k_length, dim_per_head)
@@ -225,10 +250,14 @@ class TFFFN(tf.keras.layers.Layer):
         super().__init__(**kwargs)
         self.dropout = tf.keras.layers.Dropout(config.dropout)
         self.lin1 = tf.keras.layers.Dense(
-            config.hidden_dim, kernel_initializer=get_initializer(config.initializer_range), name="lin1"
+            config.hidden_dim,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="lin1",
         )
         self.lin2 = tf.keras.layers.Dense(
-            config.dim, kernel_initializer=get_initializer(config.initializer_range), name="lin2"
+            config.dim,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="lin2",
         )
         self.activation = get_tf_activation(config.activation)
 
@@ -256,12 +285,18 @@ class TFTransformerBlock(tf.keras.layers.Layer):
         ), f"Hidden size {config.dim} not dividable by number of heads {config.n_heads}"
 
         self.attention = TFMultiHeadSelfAttention(config, name="attention")
-        self.sa_layer_norm = tf.keras.layers.LayerNormalization(epsilon=1e-12, name="sa_layer_norm")
+        self.sa_layer_norm = tf.keras.layers.LayerNormalization(
+            epsilon=1e-12, name="sa_layer_norm"
+        )
 
         self.ffn = TFFFN(config, name="ffn")
-        self.output_layer_norm = tf.keras.layers.LayerNormalization(epsilon=1e-12, name="output_layer_norm")
+        self.output_layer_norm = tf.keras.layers.LayerNormalization(
+            epsilon=1e-12, name="output_layer_norm"
+        )
 
-    def call(self, x, attn_mask, head_mask, output_attentions, training=False):  # removed: src_enc=None, src_len=None
+    def call(
+        self, x, attn_mask, head_mask, output_attentions, training=False
+    ):  # removed: src_enc=None, src_len=None
         """
         Parameters:
             x: tf.Tensor(bs, seq_length, dim)
@@ -271,9 +306,14 @@ class TFTransformerBlock(tf.keras.layers.Layer):
         tf.Tensor(bs, seq_length, dim) The output of the transformer block contextualization.
         """
         # Self-Attention
-        sa_output = self.attention(x, x, x, attn_mask, head_mask, output_attentions, training=training)
+        sa_output = self.attention(
+            x, x, x, attn_mask, head_mask, output_attentions, training=training
+        )
         if output_attentions:
-            sa_output, sa_weights = sa_output  # (bs, seq_length, dim), (bs, n_heads, seq_length, seq_length)
+            (
+                sa_output,
+                sa_weights,
+            ) = sa_output  # (bs, seq_length, dim), (bs, n_heads, seq_length, seq_length)
         else:  # To handle these `output_attentions` or `output_hidden_states` cases returning tuples
             # assert type(sa_output) == tuple
             sa_output = sa_output[0]
@@ -281,7 +321,9 @@ class TFTransformerBlock(tf.keras.layers.Layer):
 
         # Feed Forward Network
         ffn_output = self.ffn(sa_output, training=training)  # (bs, seq_length, dim)
-        ffn_output = self.output_layer_norm(ffn_output + sa_output)  # (bs, seq_length, dim)
+        ffn_output = self.output_layer_norm(
+            ffn_output + sa_output
+        )  # (bs, seq_length, dim)
 
         output = (ffn_output,)
         if output_attentions:
@@ -296,9 +338,21 @@ class TFTransformer(tf.keras.layers.Layer):
         self.output_hidden_states = config.output_hidden_states
         self.output_attentions = config.output_attentions
 
-        self.layer = [TFTransformerBlock(config, name=f"layer_._{i}") for i in range(config.n_layers)]
+        self.layer = [
+            TFTransformerBlock(config, name=f"layer_._{i}")
+            for i in range(config.n_layers)
+        ]
 
-    def call(self, x, attn_mask, head_mask, output_attentions, output_hidden_states, return_dict, training=False):
+    def call(
+        self,
+        x,
+        attn_mask,
+        head_mask,
+        output_attentions,
+        output_hidden_states,
+        return_dict,
+        training=False,
+    ):
         # docstyle-ignore
         """
         Parameters:
@@ -323,7 +377,13 @@ class TFTransformer(tf.keras.layers.Layer):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_state,)
 
-            layer_outputs = layer_module(hidden_state, attn_mask, head_mask[i], output_attentions, training=training)
+            layer_outputs = layer_module(
+                hidden_state,
+                attn_mask,
+                head_mask[i],
+                output_attentions,
+                training=training,
+            )
             hidden_state = layer_outputs[-1]
 
             if output_attentions:
@@ -331,16 +391,24 @@ class TFTransformer(tf.keras.layers.Layer):
                 attentions = layer_outputs[0]
                 all_attentions = all_attentions + (attentions,)
             else:
-                assert len(layer_outputs) == 1, f"Incorrect number of outputs {len(layer_outputs)} instead of 1"
+                assert (
+                    len(layer_outputs) == 1
+                ), f"Incorrect number of outputs {len(layer_outputs)} instead of 1"
 
         # Add last layer
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_state,)
 
         if not return_dict:
-            return tuple(v for v in [hidden_state, all_hidden_states, all_attentions] if v is not None)
+            return tuple(
+                v
+                for v in [hidden_state, all_hidden_states, all_attentions]
+                if v is not None
+            )
         return TFBaseModelOutput(
-            last_hidden_state=hidden_state, hidden_states=all_hidden_states, attentions=all_attentions
+            last_hidden_state=hidden_state,
+            hidden_states=all_hidden_states,
+            attentions=all_attentions,
         )
 
 
@@ -383,7 +451,9 @@ class TFDistilBertMainLayer(tf.keras.layers.Layer):
         training=False,
     ):
         if input_ids is not None and inputs_embeds is not None:
-            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
+            raise ValueError(
+                "You cannot specify both input_ids and inputs_embeds at the same time"
+            )
         elif input_ids is not None:
             input_shape = shape_list(input_ids)
         elif inputs_embeds is not None:
@@ -406,7 +476,9 @@ class TFDistilBertMainLayer(tf.keras.layers.Layer):
         else:
             head_mask = [None] * self.num_hidden_layers
 
-        embedding_output = self.embeddings(input_ids, inputs_embeds=inputs_embeds)  # (bs, seq_length, dim)
+        embedding_output = self.embeddings(
+            input_ids, inputs_embeds=inputs_embeds
+        )  # (bs, seq_length, dim)
         tfmr_output = self.transformer(
             embedding_output,
             attention_mask,
@@ -434,7 +506,9 @@ class TFDistilBertPreTrainedModel(TFPreTrainedModel):
         input_signature=[
             {
                 "input_ids": tf.TensorSpec((None, None), tf.int32, name="input_ids"),
-                "attention_mask": tf.TensorSpec((None, None), tf.int32, name="attention_mask"),
+                "attention_mask": tf.TensorSpec(
+                    (None, None), tf.int32, name="attention_mask"
+                ),
             }
         ]
     )
@@ -539,7 +613,9 @@ class TFDistilBertModel(TFDistilBertPreTrainedModel):
         self.distilbert = TFDistilBertMainLayer(config, name="distilbert")  # Embeddings
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(DISTILBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        DISTILBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=TFBaseModelOutput,
@@ -569,10 +645,22 @@ class TFDistilBertModel(TFDistilBertPreTrainedModel):
         return outputs
 
     def serving_output(self, output):
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
 
-        return TFBaseModelOutput(last_hidden_state=output.last_hidden_state, hidden_states=hs, attentions=attns)
+        return TFBaseModelOutput(
+            last_hidden_state=output.last_hidden_state,
+            hidden_states=hs,
+            attentions=attns,
+        )
 
 
 class TFDistilBertLMHead(tf.keras.layers.Layer):
@@ -587,7 +675,12 @@ class TFDistilBertLMHead(tf.keras.layers.Layer):
         self.input_embeddings = input_embeddings
 
     def build(self, input_shape):
-        self.bias = self.add_weight(shape=(self.config.vocab_size,), initializer="zeros", trainable=True, name="bias")
+        self.bias = self.add_weight(
+            shape=(self.config.vocab_size,),
+            initializer="zeros",
+            trainable=True,
+            name="bias",
+        )
 
         super().build(input_shape)
 
@@ -608,8 +701,12 @@ class TFDistilBertLMHead(tf.keras.layers.Layer):
     def call(self, hidden_states):
         seq_length = shape_list(tensor=hidden_states)[1]
         hidden_states = tf.reshape(tensor=hidden_states, shape=[-1, self.dim])
-        hidden_states = tf.matmul(a=hidden_states, b=self.input_embeddings.weight, transpose_b=True)
-        hidden_states = tf.reshape(tensor=hidden_states, shape=[-1, seq_length, self.config.vocab_size])
+        hidden_states = tf.matmul(
+            a=hidden_states, b=self.input_embeddings.weight, transpose_b=True
+        )
+        hidden_states = tf.reshape(
+            tensor=hidden_states, shape=[-1, seq_length, self.config.vocab_size]
+        )
         hidden_states = tf.nn.bias_add(value=hidden_states, bias=self.bias)
 
         return hidden_states
@@ -619,28 +716,41 @@ class TFDistilBertLMHead(tf.keras.layers.Layer):
     """DistilBert Model with a `masked language modeling` head on top.""",
     DISTILBERT_START_DOCSTRING,
 )
-class TFDistilBertForMaskedLM(TFDistilBertPreTrainedModel, TFMaskedLanguageModelingLoss):
+class TFDistilBertForMaskedLM(
+    TFDistilBertPreTrainedModel, TFMaskedLanguageModelingLoss
+):
     def __init__(self, config, *inputs, **kwargs):
         super().__init__(config, *inputs, **kwargs)
         self.config = config
 
         self.distilbert = TFDistilBertMainLayer(config, name="distilbert")
         self.vocab_transform = tf.keras.layers.Dense(
-            config.dim, kernel_initializer=get_initializer(config.initializer_range), name="vocab_transform"
+            config.dim,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="vocab_transform",
         )
         self.act = get_tf_activation(config.activation)
-        self.vocab_layer_norm = tf.keras.layers.LayerNormalization(epsilon=1e-12, name="vocab_layer_norm")
-        self.vocab_projector = TFDistilBertLMHead(config, self.distilbert.embeddings, name="vocab_projector")
+        self.vocab_layer_norm = tf.keras.layers.LayerNormalization(
+            epsilon=1e-12, name="vocab_layer_norm"
+        )
+        self.vocab_projector = TFDistilBertLMHead(
+            config, self.distilbert.embeddings, name="vocab_projector"
+        )
 
     def get_lm_head(self):
         return self.vocab_projector
 
     def get_prefix_bias_name(self):
-        warnings.warn("The method get_prefix_bias_name is deprecated. Please use `get_bias` instead.", FutureWarning)
+        warnings.warn(
+            "The method get_prefix_bias_name is deprecated. Please use `get_bias` instead.",
+            FutureWarning,
+        )
         return self.name + "/" + self.vocab_projector.name
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(DISTILBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        DISTILBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=TFMaskedLMOutput,
@@ -677,10 +787,14 @@ class TFDistilBertForMaskedLM(TFDistilBertPreTrainedModel, TFMaskedLanguageModel
         hidden_states = distilbert_output[0]  # (bs, seq_length, dim)
         prediction_logits = self.vocab_transform(hidden_states)  # (bs, seq_length, dim)
         prediction_logits = self.act(prediction_logits)  # (bs, seq_length, dim)
-        prediction_logits = self.vocab_layer_norm(prediction_logits)  # (bs, seq_length, dim)
+        prediction_logits = self.vocab_layer_norm(
+            prediction_logits
+        )  # (bs, seq_length, dim)
         prediction_logits = self.vocab_projector(prediction_logits)
 
-        loss = None if labels is None else self.hf_compute_loss(labels, prediction_logits)
+        loss = (
+            None if labels is None else self.hf_compute_loss(labels, prediction_logits)
+        )
 
         if not return_dict:
             output = (prediction_logits,) + distilbert_output[1:]
@@ -695,10 +809,20 @@ class TFDistilBertForMaskedLM(TFDistilBertPreTrainedModel, TFMaskedLanguageModel
 
     # Copied from transformers.models.bert.modeling_tf_bert.TFBertForMaskedLM.serving_output
     def serving_output(self, output: TFMaskedLMOutput) -> TFMaskedLMOutput:
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
 
-        return TFMaskedLMOutput(logits=output.logits, hidden_states=hs, attentions=attns)
+        return TFMaskedLMOutput(
+            logits=output.logits, hidden_states=hs, attentions=attns
+        )
 
 
 @add_start_docstrings(
@@ -708,7 +832,9 @@ class TFDistilBertForMaskedLM(TFDistilBertPreTrainedModel, TFMaskedLanguageModel
     """,
     DISTILBERT_START_DOCSTRING,
 )
-class TFDistilBertForSequenceClassification(TFDistilBertPreTrainedModel, TFSequenceClassificationLoss):
+class TFDistilBertForSequenceClassification(
+    TFDistilBertPreTrainedModel, TFSequenceClassificationLoss
+):
     def __init__(self, config, *inputs, **kwargs):
         super().__init__(config, *inputs, **kwargs)
         self.num_labels = config.num_labels
@@ -721,12 +847,16 @@ class TFDistilBertForSequenceClassification(TFDistilBertPreTrainedModel, TFSeque
             name="pre_classifier",
         )
         self.classifier = tf.keras.layers.Dense(
-            config.num_labels, kernel_initializer=get_initializer(config.initializer_range), name="classifier"
+            config.num_labels,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="classifier",
         )
         self.dropout = tf.keras.layers.Dropout(config.seq_classif_dropout)
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(DISTILBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        DISTILBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=TFSequenceClassifierOutput,
@@ -780,11 +910,23 @@ class TFDistilBertForSequenceClassification(TFDistilBertPreTrainedModel, TFSeque
         )
 
     # Copied from transformers.models.bert.modeling_tf_bert.TFBertForSequenceClassification.serving_output
-    def serving_output(self, output: TFSequenceClassifierOutput) -> TFSequenceClassifierOutput:
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+    def serving_output(
+        self, output: TFSequenceClassifierOutput
+    ) -> TFSequenceClassifierOutput:
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
 
-        return TFSequenceClassifierOutput(logits=output.logits, hidden_states=hs, attentions=attns)
+        return TFSequenceClassifierOutput(
+            logits=output.logits, hidden_states=hs, attentions=attns
+        )
 
 
 @add_start_docstrings(
@@ -794,7 +936,9 @@ class TFDistilBertForSequenceClassification(TFDistilBertPreTrainedModel, TFSeque
     """,
     DISTILBERT_START_DOCSTRING,
 )
-class TFDistilBertForTokenClassification(TFDistilBertPreTrainedModel, TFTokenClassificationLoss):
+class TFDistilBertForTokenClassification(
+    TFDistilBertPreTrainedModel, TFTokenClassificationLoss
+):
     def __init__(self, config, *inputs, **kwargs):
         super().__init__(config, *inputs, **kwargs)
         self.num_labels = config.num_labels
@@ -802,11 +946,15 @@ class TFDistilBertForTokenClassification(TFDistilBertPreTrainedModel, TFTokenCla
         self.distilbert = TFDistilBertMainLayer(config, name="distilbert")
         self.dropout = tf.keras.layers.Dropout(config.dropout)
         self.classifier = tf.keras.layers.Dense(
-            config.num_labels, kernel_initializer=get_initializer(config.initializer_range), name="classifier"
+            config.num_labels,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="classifier",
         )
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(DISTILBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        DISTILBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=TFTokenClassifierOutput,
@@ -855,11 +1003,23 @@ class TFDistilBertForTokenClassification(TFDistilBertPreTrainedModel, TFTokenCla
         )
 
     # Copied from transformers.models.bert.modeling_tf_bert.TFBertForTokenClassification.serving_output
-    def serving_output(self, output: TFTokenClassifierOutput) -> TFTokenClassifierOutput:
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+    def serving_output(
+        self, output: TFTokenClassifierOutput
+    ) -> TFTokenClassifierOutput:
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
 
-        return TFTokenClassifierOutput(logits=output.logits, hidden_states=hs, attentions=attns)
+        return TFTokenClassifierOutput(
+            logits=output.logits, hidden_states=hs, attentions=attns
+        )
 
 
 @add_start_docstrings(
@@ -882,7 +1042,9 @@ class TFDistilBertForMultipleChoice(TFDistilBertPreTrainedModel, TFMultipleChoic
             name="pre_classifier",
         )
         self.classifier = tf.keras.layers.Dense(
-            1, kernel_initializer=get_initializer(config.initializer_range), name="classifier"
+            1,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="classifier",
         )
 
     @property
@@ -928,8 +1090,14 @@ class TFDistilBertForMultipleChoice(TFDistilBertPreTrainedModel, TFMultipleChoic
             num_choices = shape_list(inputs_embeds)[1]
             seq_length = shape_list(inputs_embeds)[2]
 
-        flat_input_ids = tf.reshape(input_ids, (-1, seq_length)) if input_ids is not None else None
-        flat_attention_mask = tf.reshape(attention_mask, (-1, seq_length)) if attention_mask is not None else None
+        flat_input_ids = (
+            tf.reshape(input_ids, (-1, seq_length)) if input_ids is not None else None
+        )
+        flat_attention_mask = (
+            tf.reshape(attention_mask, (-1, seq_length))
+            if attention_mask is not None
+            else None
+        )
         flat_inputs_embeds = (
             tf.reshape(inputs_embeds, (-1, seq_length, shape_list(inputs_embeds)[3]))
             if inputs_embeds is not None
@@ -968,8 +1136,12 @@ class TFDistilBertForMultipleChoice(TFDistilBertPreTrainedModel, TFMultipleChoic
     @tf.function(
         input_signature=[
             {
-                "input_ids": tf.TensorSpec((None, None, None), tf.int32, name="input_ids"),
-                "attention_mask": tf.TensorSpec((None, None, None), tf.int32, name="attention_mask"),
+                "input_ids": tf.TensorSpec(
+                    (None, None, None), tf.int32, name="input_ids"
+                ),
+                "attention_mask": tf.TensorSpec(
+                    (None, None, None), tf.int32, name="attention_mask"
+                ),
             }
         ]
     )
@@ -979,11 +1151,23 @@ class TFDistilBertForMultipleChoice(TFDistilBertPreTrainedModel, TFMultipleChoic
         return self.serving_output(output)
 
     # Copied from transformers.models.bert.modeling_tf_bert.TFBertForMultipleChoice.serving_output
-    def serving_output(self, output: TFMultipleChoiceModelOutput) -> TFMultipleChoiceModelOutput:
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+    def serving_output(
+        self, output: TFMultipleChoiceModelOutput
+    ) -> TFMultipleChoiceModelOutput:
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
 
-        return TFMultipleChoiceModelOutput(logits=output.logits, hidden_states=hs, attentions=attns)
+        return TFMultipleChoiceModelOutput(
+            logits=output.logits, hidden_states=hs, attentions=attns
+        )
 
 
 @add_start_docstrings(
@@ -993,19 +1177,27 @@ class TFDistilBertForMultipleChoice(TFDistilBertPreTrainedModel, TFMultipleChoic
     """,
     DISTILBERT_START_DOCSTRING,
 )
-class TFDistilBertForQuestionAnswering(TFDistilBertPreTrainedModel, TFQuestionAnsweringLoss):
+class TFDistilBertForQuestionAnswering(
+    TFDistilBertPreTrainedModel, TFQuestionAnsweringLoss
+):
     def __init__(self, config, *inputs, **kwargs):
         super().__init__(config, *inputs, **kwargs)
 
         self.distilbert = TFDistilBertMainLayer(config, name="distilbert")
         self.qa_outputs = tf.keras.layers.Dense(
-            config.num_labels, kernel_initializer=get_initializer(config.initializer_range), name="qa_outputs"
+            config.num_labels,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="qa_outputs",
         )
-        assert config.num_labels == 2, f"Incorrect number of labels {config.num_labels} instead of 2"
+        assert (
+            config.num_labels == 2
+        ), f"Incorrect number of labels {config.num_labels} instead of 2"
         self.dropout = tf.keras.layers.Dropout(config.qa_dropout)
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(DISTILBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        DISTILBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=TFQuestionAnsweringModelOutput,
@@ -1045,7 +1237,9 @@ class TFDistilBertForQuestionAnswering(TFDistilBertPreTrainedModel, TFQuestionAn
             training=training,
         )
         hidden_states = distilbert_output[0]  # (bs, max_query_len, dim)
-        hidden_states = self.dropout(hidden_states, training=training)  # (bs, max_query_len, dim)
+        hidden_states = self.dropout(
+            hidden_states, training=training
+        )  # (bs, max_query_len, dim)
         logits = self.qa_outputs(hidden_states)  # (bs, max_query_len, 2)
         start_logits, end_logits = tf.split(logits, 2, axis=-1)
         start_logits = tf.squeeze(start_logits, axis=-1)
@@ -1070,10 +1264,23 @@ class TFDistilBertForQuestionAnswering(TFDistilBertPreTrainedModel, TFQuestionAn
         )
 
     # Copied from transformers.models.bert.modeling_tf_bert.TFBertForQuestionAnswering.serving_output
-    def serving_output(self, output: TFQuestionAnsweringModelOutput) -> TFQuestionAnsweringModelOutput:
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+    def serving_output(
+        self, output: TFQuestionAnsweringModelOutput
+    ) -> TFQuestionAnsweringModelOutput:
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
 
         return TFQuestionAnsweringModelOutput(
-            start_logits=output.start_logits, end_logits=output.end_logits, hidden_states=hs, attentions=attns
+            start_logits=output.start_logits,
+            end_logits=output.end_logits,
+            hidden_states=hs,
+            attentions=attns,
         )

@@ -40,7 +40,10 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_mgp_str import MGP_STR_PRETRAINED_CONFIG_ARCHIVE_MAP, MgpstrConfig
+    from .configuration_mgp_str import (
+        MGP_STR_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        MgpstrConfig,
+    )
     from .processing_mgp_str import MgpstrProcessor
     from .tokenization_mgp_str import MgpstrTokenizer
 
@@ -59,4 +62,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

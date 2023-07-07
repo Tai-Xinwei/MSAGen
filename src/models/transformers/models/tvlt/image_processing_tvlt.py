@@ -136,7 +136,9 @@ class TvltImageProcessor(BaseImageProcessor):
         super().__init__(**kwargs)
         size = size if size is not None else {"shortest_edge": 224}
         size = get_size_dict(size, default_to_square=False)
-        crop_size = crop_size if crop_size is not None else {"height": 224, "width": 224}
+        crop_size = (
+            crop_size if crop_size is not None else {"height": 224, "width": 224}
+        )
         crop_size = get_size_dict(crop_size, param_name="crop_size")
 
         self.do_resize = do_resize
@@ -177,12 +179,22 @@ class TvltImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size, default_to_square=False)
         if "shortest_edge" in size:
-            output_size = get_resize_output_image_size(image, size["shortest_edge"], default_to_square=False)
+            output_size = get_resize_output_image_size(
+                image, size["shortest_edge"], default_to_square=False
+            )
         elif "height" in size and "width" in size:
             output_size = (size["height"], size["width"])
         else:
-            raise ValueError(f"Size must have 'height' and 'width' or 'shortest_edge' as keys. Got {size.keys()}")
-        return resize(image, size=output_size, resample=resample, data_format=data_format, **kwargs)
+            raise ValueError(
+                f"Size must have 'height' and 'width' or 'shortest_edge' as keys. Got {size.keys()}"
+            )
+        return resize(
+            image,
+            size=output_size,
+            resample=resample,
+            data_format=data_format,
+            **kwargs,
+        )
 
     def center_crop(
         self,
@@ -205,8 +217,15 @@ class TvltImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(f"Size must have 'height' and 'width' as keys. Got {size.keys()}")
-        return center_crop(image, size=(size["height"], size["width"]), data_format=data_format, **kwargs)
+            raise ValueError(
+                f"Size must have 'height' and 'width' as keys. Got {size.keys()}"
+            )
+        return center_crop(
+            image,
+            size=(size["height"], size["width"]),
+            data_format=data_format,
+            **kwargs,
+        )
 
     def rescale(
         self,
@@ -275,7 +294,9 @@ class TvltImageProcessor(BaseImageProcessor):
     ) -> np.ndarray:
         """Preprocesses a single image."""
         if do_resize and size is None or resample is None:
-            raise ValueError("Size and resample must be specified if do_resize is True.")
+            raise ValueError(
+                "Size and resample must be specified if do_resize is True."
+            )
 
         if do_center_crop and crop_size is None:
             raise ValueError("Crop size must be specified if do_center_crop is True.")
@@ -284,7 +305,9 @@ class TvltImageProcessor(BaseImageProcessor):
             raise ValueError("Rescale factor must be specified if do_rescale is True.")
 
         if do_normalize and (image_mean is None or image_std is None):
-            raise ValueError("Image mean and std must be specified if do_normalize is True.")
+            raise ValueError(
+                "Image mean and std must be specified if do_normalize is True."
+            )
 
         # All transformations expect numpy arrays.
         image = to_numpy_array(image)
@@ -385,9 +408,13 @@ class TvltImageProcessor(BaseImageProcessor):
         """
         do_resize = do_resize if do_resize is not None else self.do_resize
         resample = resample if resample is not None else self.resample
-        do_center_crop = do_center_crop if do_center_crop is not None else self.do_center_crop
+        do_center_crop = (
+            do_center_crop if do_center_crop is not None else self.do_center_crop
+        )
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
@@ -418,7 +445,8 @@ class TvltImageProcessor(BaseImageProcessor):
         num_patches_per_image = (size["shortest_edge"] // patch_size[0]) ** 2
         video_masks = np.array(
             [
-                len(video) * num_patches_per_image * [1] + (max_num_frames - len(video)) * num_patches_per_image * [0]
+                len(video) * num_patches_per_image * [1]
+                + (max_num_frames - len(video)) * num_patches_per_image * [0]
                 for video in videos
             ]
         )

@@ -24,7 +24,10 @@ from ...utils import (
 
 
 _import_structure = {
-    "configuration_layoutlmv2": ["LAYOUTLMV2_PRETRAINED_CONFIG_ARCHIVE_MAP", "LayoutLMv2Config"],
+    "configuration_layoutlmv2": [
+        "LAYOUTLMV2_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "LayoutLMv2Config",
+    ],
     "processing_layoutlmv2": ["LayoutLMv2Processor"],
     "tokenization_layoutlmv2": ["LayoutLMv2Tokenizer"],
 }
@@ -63,7 +66,10 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_layoutlmv2 import LAYOUTLMV2_PRETRAINED_CONFIG_ARCHIVE_MAP, LayoutLMv2Config
+    from .configuration_layoutlmv2 import (
+        LAYOUTLMV2_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        LayoutLMv2Config,
+    )
     from .processing_layoutlmv2 import LayoutLMv2Processor
     from .tokenization_layoutlmv2 import LayoutLMv2Tokenizer
 
@@ -81,7 +87,10 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .feature_extraction_layoutlmv2 import LayoutLMv2FeatureExtractor, LayoutLMv2ImageProcessor
+        from .feature_extraction_layoutlmv2 import (
+            LayoutLMv2FeatureExtractor,
+            LayoutLMv2ImageProcessor,
+        )
 
     try:
         if not is_torch_available():
@@ -101,4 +110,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

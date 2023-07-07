@@ -13,7 +13,12 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_speech_available, is_torch_available
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_speech_available,
+    is_torch_available,
+)
 
 
 _import_structure = {
@@ -42,7 +47,9 @@ try:
 except OptionalDependencyNotAvailable:
     pass
 else:
-    _import_structure["feature_extraction_audio_spectrogram_transformer"] = ["ASTFeatureExtractor"]
+    _import_structure["feature_extraction_audio_spectrogram_transformer"] = [
+        "ASTFeatureExtractor"
+    ]
 
 if TYPE_CHECKING:
     from .configuration_audio_spectrogram_transformer import (
@@ -69,10 +76,14 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .feature_extraction_audio_spectrogram_transformer import ASTFeatureExtractor
+        from .feature_extraction_audio_spectrogram_transformer import (
+            ASTFeatureExtractor,
+        )
 
 
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

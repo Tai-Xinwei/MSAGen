@@ -117,7 +117,9 @@ def _create_triangular_filterbank(
     # Adapted from Librosa
     # calculate the difference between each filter mid point and each stft freq point in hertz
     f_diff = f_pts[1:] - f_pts[:-1]  # (n_filter + 1)
-    slopes = np.expand_dims(f_pts, 0) - np.expand_dims(all_freqs, 1)  # (nb_frequency_bins, n_filter + 2)
+    slopes = np.expand_dims(f_pts, 0) - np.expand_dims(
+        all_freqs, 1
+    )  # (nb_frequency_bins, n_filter + 2)
     # create overlapping triangles
     zero = np.zeros(1)
     down_slopes = (-1.0 * slopes[:, :-2]) / f_diff[:-1]  # (nb_frequency_bins, n_filter)
@@ -246,7 +248,12 @@ def power_to_db(mel_spectrogram, top_db=None, a_min=1e-10, ref=1.0):
 
 
 # TODO @ArthurZucker: This method does not support batching yet as we are mainly focus on inference.
-def fram_wave(waveform: np.array, hop_length: int = 160, fft_window_size: int = 400, center: bool = True):
+def fram_wave(
+    waveform: np.array,
+    hop_length: int = 160,
+    fft_window_size: int = 400,
+    center: bool = True,
+):
     """
     In order to compute the short time fourier transform, the waveform needs to be split in overlapping windowed
     segments called `frames`.
@@ -275,7 +282,11 @@ def fram_wave(waveform: np.array, hop_length: int = 160, fft_window_size: int = 
         if center:
             half_window = (fft_window_size - 1) // 2 + 1
             start = i - half_window if i > half_window else 0
-            end = i + half_window if i < waveform.shape[0] - half_window else waveform.shape[0]
+            end = (
+                i + half_window
+                if i < waveform.shape[0] - half_window
+                else waveform.shape[0]
+            )
             frame = waveform[start:end]
             if start == 0:
                 padd_width = (-i + half_window, 0)
@@ -290,7 +301,10 @@ def fram_wave(waveform: np.array, hop_length: int = 160, fft_window_size: int = 
             frame_width = frame.shape[0]
             if frame_width < waveform.shape[0]:
                 frame = np.lib.pad(
-                    frame, pad_width=(0, fft_window_size - frame_width), mode="constant", constant_values=0
+                    frame,
+                    pad_width=(0, fft_window_size - frame_width),
+                    mode="constant",
+                    constant_values=0,
                 )
         frames.append(frame)
 

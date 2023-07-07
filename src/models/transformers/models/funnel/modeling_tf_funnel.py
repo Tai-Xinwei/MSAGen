@@ -83,9 +83,13 @@ class TFFunnelEmbeddings(tf.keras.layers.Layer):
 
         self.config = config
         self.hidden_size = config.hidden_size
-        self.initializer_std = 1.0 if config.initializer_std is None else config.initializer_std
+        self.initializer_std = (
+            1.0 if config.initializer_std is None else config.initializer_std
+        )
 
-        self.LayerNorm = tf.keras.layers.LayerNormalization(epsilon=config.layer_norm_eps, name="layer_norm")
+        self.LayerNorm = tf.keras.layers.LayerNormalization(
+            epsilon=config.layer_norm_eps, name="layer_norm"
+        )
         self.dropout = tf.keras.layers.Dropout(rate=config.hidden_dropout)
 
     def build(self, input_shape):
@@ -149,16 +153,25 @@ class TFFunnelAttentionStructure:
         # divided.
         self.pooling_mult = None
 
-    def init_attention_inputs(self, inputs_embeds, attention_mask=None, token_type_ids=None, training=False):
+    def init_attention_inputs(
+        self, inputs_embeds, attention_mask=None, token_type_ids=None, training=False
+    ):
         """Returns the attention inputs associated to the inputs of the model."""
         # inputs_embeds has shape batch_size x seq_len x d_model
         # attention_mask and token_type_ids have shape batch_size x seq_len
         self.pooling_mult = 1
         self.seq_len = seq_len = shape_list(inputs_embeds)[1]
         position_embeds = self.get_position_embeds(seq_len, training=training)
-        token_type_mat = self.token_type_ids_to_mat(token_type_ids) if token_type_ids is not None else None
+        token_type_mat = (
+            self.token_type_ids_to_mat(token_type_ids)
+            if token_type_ids is not None
+            else None
+        )
         cls_mask = (
-            tf.pad(tf.ones([seq_len - 1, seq_len - 1], dtype=inputs_embeds.dtype), [[1, 0], [1, 0]])
+            tf.pad(
+                tf.ones([seq_len - 1, seq_len - 1], dtype=inputs_embeds.dtype),
+                [[1, 0], [1, 0]],
+            )
             if self.separate_cls
             else None
         )
@@ -166,10 +179,17 @@ class TFFunnelAttentionStructure:
 
     def token_type_ids_to_mat(self, token_type_ids):
         """Convert `token_type_ids` to `token_type_mat`."""
-        token_type_mat = tf.equal(tf.expand_dims(token_type_ids, -1), tf.expand_dims(token_type_ids, -2))
+        token_type_mat = tf.equal(
+            tf.expand_dims(token_type_ids, -1), tf.expand_dims(token_type_ids, -2)
+        )
         # Treat <cls> as in the same segment as both A & B
-        cls_ids = tf.equal(token_type_ids, tf.constant([self.cls_token_type_id], dtype=token_type_ids.dtype))
-        cls_mat = tf.logical_or(tf.expand_dims(cls_ids, -1), tf.expand_dims(cls_ids, -2))
+        cls_ids = tf.equal(
+            token_type_ids,
+            tf.constant([self.cls_token_type_id], dtype=token_type_ids.dtype),
+        )
+        cls_mat = tf.logical_or(
+            tf.expand_dims(cls_ids, -1), tf.expand_dims(cls_ids, -2)
+        )
         return tf.logical_or(cls_mat, token_type_mat)
 
     def get_position_embeds(self, seq_len, training=False):
@@ -251,7 +271,9 @@ class TFFunnelAttentionStructure:
                 rel_pos = rel_pos + zero_offset
                 position_embeds_no_pooling = tf.gather(pos_embed, rel_pos, axis=0)
 
-                position_embeds_list.append([position_embeds_no_pooling, position_embeds_pooling])
+                position_embeds_list.append(
+                    [position_embeds_no_pooling, position_embeds_pooling]
+                )
             return position_embeds_list
 
     def stride_pool_pos(self, pos_id, block_index):
@@ -303,7 +325,11 @@ class TFFunnelAttentionStructure:
         # Deal with negative axis
         axis %= len(shape_list(tensor))
 
-        axis_slice = slice(None, -1, 2) if self.separate_cls and self.truncate_seq else slice(None, None, 2)
+        axis_slice = (
+            slice(None, -1, 2)
+            if self.separate_cls and self.truncate_seq
+            else slice(None, None, 2)
+        )
         enc_slice = [slice(None)] * axis + [axis_slice]
         if self.separate_cls:
             cls_slice = [slice(None)] * axis + [slice(None, 1)]
@@ -317,7 +343,9 @@ class TFFunnelAttentionStructure:
 
         # Do the pool recursively if tensor is a list or tuple of tensors.
         if isinstance(tensor, (tuple, list)):
-            return type(tensor)(self.pool_tensor(tensor, mode=mode, stride=stride) for x in tensor)
+            return type(tensor)(
+                self.pool_tensor(tensor, mode=mode, stride=stride) for x in tensor
+            )
 
         if self.separate_cls:
             suffix = tensor[:, :-1] if self.truncate_seq else tensor
@@ -328,13 +356,21 @@ class TFFunnelAttentionStructure:
             tensor = tensor[:, :, None]
 
         if mode == "mean":
-            tensor = tf.nn.avg_pool1d(tensor, stride, strides=stride, data_format="NWC", padding="SAME")
+            tensor = tf.nn.avg_pool1d(
+                tensor, stride, strides=stride, data_format="NWC", padding="SAME"
+            )
         elif mode == "max":
-            tensor = tf.nn.max_pool1d(tensor, stride, strides=stride, data_format="NWC", padding="SAME")
+            tensor = tf.nn.max_pool1d(
+                tensor, stride, strides=stride, data_format="NWC", padding="SAME"
+            )
         elif mode == "min":
-            tensor = -tf.nn.max_pool1d(-tensor, stride, strides=stride, data_format="NWC", padding="SAME")
+            tensor = -tf.nn.max_pool1d(
+                -tensor, stride, strides=stride, data_format="NWC", padding="SAME"
+            )
         else:
-            raise NotImplementedError("The supported modes are 'mean', 'max' and 'min'.")
+            raise NotImplementedError(
+                "The supported modes are 'mean', 'max' and 'min'."
+            )
 
         return tf.squeeze(tensor, 2) if ndim == 2 else tensor
 
@@ -343,7 +379,9 @@ class TFFunnelAttentionStructure:
         position_embeds, token_type_mat, attention_mask, cls_mask = attention_inputs
         if self.pool_q_only:
             if self.attention_type == "factorized":
-                position_embeds = self.stride_pool(position_embeds[:2], 0) + position_embeds[2:]
+                position_embeds = (
+                    self.stride_pool(position_embeds[:2], 0) + position_embeds[2:]
+                )
             token_type_mat = self.stride_pool(token_type_mat, 1)
             cls_mask = self.stride_pool(cls_mask, 0)
             output = self.pool_tensor(output, mode=self.pooling_type)
@@ -364,7 +402,9 @@ class TFFunnelAttentionStructure:
         if self.pool_q_only:
             self.pooling_mult *= 2
             if self.attention_type == "factorized":
-                position_embeds = position_embeds[:2] + self.stride_pool(position_embeds[2:], 0)
+                position_embeds = position_embeds[:2] + self.stride_pool(
+                    position_embeds[2:], 0
+                )
             token_type_mat = self.stride_pool(token_type_mat, 2)
             cls_mask = self.stride_pool(cls_mask, 1)
             attention_mask = self.pool_tensor(attention_mask, mode="min")
@@ -381,9 +421,13 @@ def _relative_shift_gather(positional_attn, context_len, shift):
     # # matrix of context_len + i-j
     # return positional_attn.gather(3, idxs.expand([batch_size, n_head, context_len, context_len]))
 
-    positional_attn = tf.reshape(positional_attn, [batch_size, n_head, max_rel_len, seq_len])
+    positional_attn = tf.reshape(
+        positional_attn, [batch_size, n_head, max_rel_len, seq_len]
+    )
     positional_attn = positional_attn[:, :, shift:, :]
-    positional_attn = tf.reshape(positional_attn, [batch_size, n_head, seq_len, max_rel_len - shift])
+    positional_attn = tf.reshape(
+        positional_attn, [batch_size, n_head, seq_len, max_rel_len - shift]
+    )
     positional_attn = positional_attn[..., :context_len]
     return positional_attn
 
@@ -404,13 +448,24 @@ class TFFunnelRelMultiheadAttention(tf.keras.layers.Layer):
         initializer = get_initializer(config.initializer_range)
 
         self.q_head = tf.keras.layers.Dense(
-            n_head * d_head, use_bias=False, kernel_initializer=initializer, name="q_head"
+            n_head * d_head,
+            use_bias=False,
+            kernel_initializer=initializer,
+            name="q_head",
         )
-        self.k_head = tf.keras.layers.Dense(n_head * d_head, kernel_initializer=initializer, name="k_head")
-        self.v_head = tf.keras.layers.Dense(n_head * d_head, kernel_initializer=initializer, name="v_head")
+        self.k_head = tf.keras.layers.Dense(
+            n_head * d_head, kernel_initializer=initializer, name="k_head"
+        )
+        self.v_head = tf.keras.layers.Dense(
+            n_head * d_head, kernel_initializer=initializer, name="v_head"
+        )
 
-        self.post_proj = tf.keras.layers.Dense(d_model, kernel_initializer=initializer, name="post_proj")
-        self.layer_norm = tf.keras.layers.LayerNormalization(epsilon=config.layer_norm_eps, name="layer_norm")
+        self.post_proj = tf.keras.layers.Dense(
+            d_model, kernel_initializer=initializer, name="post_proj"
+        )
+        self.layer_norm = tf.keras.layers.LayerNormalization(
+            epsilon=config.layer_norm_eps, name="layer_norm"
+        )
         self.scale = 1.0 / (d_head**0.5)
 
     def build(self, input_shape):
@@ -418,23 +473,40 @@ class TFFunnelRelMultiheadAttention(tf.keras.layers.Layer):
         initializer = get_initializer(self.initializer_range)
 
         self.r_w_bias = self.add_weight(
-            shape=(n_head, d_head), initializer=initializer, trainable=True, name="r_w_bias"
+            shape=(n_head, d_head),
+            initializer=initializer,
+            trainable=True,
+            name="r_w_bias",
         )
         self.r_r_bias = self.add_weight(
-            shape=(n_head, d_head), initializer=initializer, trainable=True, name="r_r_bias"
+            shape=(n_head, d_head),
+            initializer=initializer,
+            trainable=True,
+            name="r_r_bias",
         )
         self.r_kernel = self.add_weight(
-            shape=(d_model, n_head, d_head), initializer=initializer, trainable=True, name="r_kernel"
+            shape=(d_model, n_head, d_head),
+            initializer=initializer,
+            trainable=True,
+            name="r_kernel",
         )
         self.r_s_bias = self.add_weight(
-            shape=(n_head, d_head), initializer=initializer, trainable=True, name="r_s_bias"
+            shape=(n_head, d_head),
+            initializer=initializer,
+            trainable=True,
+            name="r_s_bias",
         )
         self.seg_embed = self.add_weight(
-            shape=(2, n_head, d_head), initializer=initializer, trainable=True, name="seg_embed"
+            shape=(2, n_head, d_head),
+            initializer=initializer,
+            trainable=True,
+            name="seg_embed",
         )
         super().build(input_shape)
 
-    def relative_positional_attention(self, position_embeds, q_head, context_len, cls_mask=None):
+    def relative_positional_attention(
+        self, position_embeds, q_head, context_len, cls_mask=None
+    ):
         """Relative attention score for the positional encodings"""
         # q_head has shape batch_size x sea_len x n_head x d_head
         if self.attention_type == "factorized":
@@ -452,9 +524,9 @@ class TFFunnelRelMultiheadAttention(tf.keras.layers.Layer):
             q_r_attention_2 = q_r_attention * pi[:, None]
 
             # Shape batch_size x n_head x seq_len x context_len
-            positional_attn = tf.einsum("bind,jd->bnij", q_r_attention_1, psi) + tf.einsum(
-                "bind,jd->bnij", q_r_attention_2, omega
-            )
+            positional_attn = tf.einsum(
+                "bind,jd->bnij", q_r_attention_1, psi
+            ) + tf.einsum("bind,jd->bnij", q_r_attention_2, omega)
         else:
             # Notations from the paper, appending A.2.1, final formula (https://arxiv.org/abs/2006.03236)
             # Grab the proper positional encoding, shape max_rel_len x d_model
@@ -474,7 +546,9 @@ class TFFunnelRelMultiheadAttention(tf.keras.layers.Layer):
             # Shape batch_size x n_head x seq_len x max_rel_len
             positional_attn = tf.einsum("binh,tnh->bnit", q_head + v, r_head)
             # Shape batch_size x n_head x seq_len x context_len
-            positional_attn = _relative_shift_gather(positional_attn, context_len, shift)
+            positional_attn = _relative_shift_gather(
+                positional_attn, context_len, shift
+            )
 
         if cls_mask is not None:
             positional_attn *= cls_mask
@@ -492,7 +566,9 @@ class TFFunnelRelMultiheadAttention(tf.keras.layers.Layer):
         # Shape batch_size x n_head x seq_len x 2
         token_type_bias = tf.einsum("bind,snd->bnis", q_head + r_s_bias, self.seg_embed)
         # Shape batch_size x n_head x seq_len x context_len
-        token_type_mat = tf.tile(token_type_mat[:, None], [1, shape_list(q_head)[2], 1, 1])
+        token_type_mat = tf.tile(
+            token_type_mat[:, None], [1, shape_list(q_head)[2], 1, 1]
+        )
         # token_type_mat = tf.broadcast_to(token_type_mat[:, None], new_shape)
         # Shapes batch_size x n_head x seq_len
         diff_token_type, same_token_type = tf.split(token_type_bias, 2, axis=-1)
@@ -507,7 +583,15 @@ class TFFunnelRelMultiheadAttention(tf.keras.layers.Layer):
             token_type_attn *= cls_mask
         return token_type_attn
 
-    def call(self, query, key, value, attention_inputs, output_attentions=False, training=False):
+    def call(
+        self,
+        query,
+        key,
+        value,
+        attention_inputs,
+        output_attentions=False,
+        training=False,
+    ):
         # query has shape batch_size x seq_len x d_model
         # key and value have shapes batch_size x context_len x d_model
         position_embeds, token_type_mat, attention_mask, cls_mask = attention_inputs
@@ -520,15 +604,21 @@ class TFFunnelRelMultiheadAttention(tf.keras.layers.Layer):
         q_head = tf.reshape(self.q_head(query), [batch_size, seq_len, n_head, d_head])
         # Shapes batch_size x context_len x n_head x d_head
         k_head = tf.reshape(self.k_head(key), [batch_size, context_len, n_head, d_head])
-        v_head = tf.reshape(self.v_head(value), [batch_size, context_len, n_head, d_head])
+        v_head = tf.reshape(
+            self.v_head(value), [batch_size, context_len, n_head, d_head]
+        )
 
         q_head = q_head * self.scale
         # Shape n_head x d_head
         r_w_bias = self.r_w_bias * self.scale
         # Shapes batch_size x n_head x seq_len x context_len
         content_score = tf.einsum("bind,bjnd->bnij", q_head + r_w_bias, k_head)
-        positional_attn = self.relative_positional_attention(position_embeds, q_head, context_len, cls_mask)
-        token_type_attn = self.relative_token_type_attention(token_type_mat, q_head, cls_mask)
+        positional_attn = self.relative_positional_attention(
+            position_embeds, q_head, context_len, cls_mask
+        )
+        token_type_attn = self.relative_token_type_attention(
+            token_type_mat, q_head, cls_mask
+        )
 
         # merge attention scores
         attn_score = content_score + positional_attn + token_type_attn
@@ -546,7 +636,9 @@ class TFFunnelRelMultiheadAttention(tf.keras.layers.Layer):
         attn_vec = tf.einsum("bnij,bjnd->bind", attn_prob, v_head)
 
         # Shape shape batch_size x seq_len x d_model
-        attn_out = self.post_proj(tf.reshape(attn_vec, [batch_size, seq_len, n_head * d_head]))
+        attn_out = self.post_proj(
+            tf.reshape(attn_vec, [batch_size, seq_len, n_head * d_head])
+        )
         attn_out = self.hidden_dropout(attn_out, training=training)
 
         output = self.layer_norm(query + attn_out)
@@ -557,12 +649,18 @@ class TFFunnelPositionwiseFFN(tf.keras.layers.Layer):
     def __init__(self, config, **kwargs):
         super().__init__(**kwargs)
         initializer = get_initializer(config.initializer_range)
-        self.linear_1 = tf.keras.layers.Dense(config.d_inner, kernel_initializer=initializer, name="linear_1")
+        self.linear_1 = tf.keras.layers.Dense(
+            config.d_inner, kernel_initializer=initializer, name="linear_1"
+        )
         self.activation_function = get_tf_activation(config.hidden_act)
         self.activation_dropout = tf.keras.layers.Dropout(config.activation_dropout)
-        self.linear_2 = tf.keras.layers.Dense(config.d_model, kernel_initializer=initializer, name="linear_2")
+        self.linear_2 = tf.keras.layers.Dense(
+            config.d_model, kernel_initializer=initializer, name="linear_2"
+        )
         self.dropout = tf.keras.layers.Dropout(config.hidden_dropout)
-        self.layer_norm = tf.keras.layers.LayerNormalization(epsilon=config.layer_norm_eps, name="layer_norm")
+        self.layer_norm = tf.keras.layers.LayerNormalization(
+            epsilon=config.layer_norm_eps, name="layer_norm"
+        )
 
     def call(self, hidden, training=False):
         h = self.linear_1(hidden)
@@ -576,12 +674,27 @@ class TFFunnelPositionwiseFFN(tf.keras.layers.Layer):
 class TFFunnelLayer(tf.keras.layers.Layer):
     def __init__(self, config, block_index, **kwargs):
         super().__init__(**kwargs)
-        self.attention = TFFunnelRelMultiheadAttention(config, block_index, name="attention")
+        self.attention = TFFunnelRelMultiheadAttention(
+            config, block_index, name="attention"
+        )
         self.ffn = TFFunnelPositionwiseFFN(config, name="ffn")
 
-    def call(self, query, key, value, attention_inputs, output_attentions=False, training=False):
+    def call(
+        self,
+        query,
+        key,
+        value,
+        attention_inputs,
+        output_attentions=False,
+        training=False,
+    ):
         attn = self.attention(
-            query, key, value, attention_inputs, output_attentions=output_attentions, training=training
+            query,
+            key,
+            value,
+            attention_inputs,
+            output_attentions=output_attentions,
+            training=training,
         )
         output = self.ffn(attn[0], training=training)
         return (output, attn[1]) if output_attentions else (output,)
@@ -595,7 +708,10 @@ class TFFunnelEncoder(tf.keras.layers.Layer):
         self.block_repeats = config.block_repeats
         self.attention_structure = TFFunnelAttentionStructure(config)
         self.blocks = [
-            [TFFunnelLayer(config, block_index, name=f"blocks_._{block_index}_._{i}") for i in range(block_size)]
+            [
+                TFFunnelLayer(config, block_index, name=f"blocks_._{block_index}_._{i}")
+                for i in range(block_size)
+            ]
             for block_index, block_size in enumerate(config.block_sizes)
         ]
 
@@ -628,24 +744,38 @@ class TFFunnelEncoder(tf.keras.layers.Layer):
             pooled_hidden = tf.zeros(shape_list(hidden))
 
             if pooling_flag:
-                pooled_hidden, attention_inputs = self.attention_structure.pre_attention_pooling(
+                (
+                    pooled_hidden,
+                    attention_inputs,
+                ) = self.attention_structure.pre_attention_pooling(
                     hidden, attention_inputs
                 )
 
             for layer_index, layer in enumerate(block):
                 for repeat_index in range(self.block_repeats[block_index]):
-                    do_pooling = (repeat_index == 0) and (layer_index == 0) and pooling_flag
+                    do_pooling = (
+                        (repeat_index == 0) and (layer_index == 0) and pooling_flag
+                    )
                     if do_pooling:
                         query = pooled_hidden
                         key = value = hidden if self.pool_q_only else pooled_hidden
                     else:
                         query = key = value = hidden
                     layer_output = layer(
-                        query, key, value, attention_inputs, output_attentions=output_attentions, training=training
+                        query,
+                        key,
+                        value,
+                        attention_inputs,
+                        output_attentions=output_attentions,
+                        training=training,
                     )
                     hidden = layer_output[0]
                     if do_pooling:
-                        attention_inputs = self.attention_structure.post_attention_pooling(attention_inputs)
+                        attention_inputs = (
+                            self.attention_structure.post_attention_pooling(
+                                attention_inputs
+                            )
+                        )
 
                     if output_attentions:
                         all_attentions = all_attentions + layer_output[1:]
@@ -653,8 +783,14 @@ class TFFunnelEncoder(tf.keras.layers.Layer):
                         all_hidden_states = all_hidden_states + (hidden,)
 
         if not return_dict:
-            return tuple(v for v in [hidden, all_hidden_states, all_attentions] if v is not None)
-        return TFBaseModelOutput(last_hidden_state=hidden, hidden_states=all_hidden_states, attentions=all_attentions)
+            return tuple(
+                v for v in [hidden, all_hidden_states, all_attentions] if v is not None
+            )
+        return TFBaseModelOutput(
+            last_hidden_state=hidden,
+            hidden_states=all_hidden_states,
+            attentions=all_attentions,
+        )
 
 
 def upsample(x, stride, target_len, separate_cls=True, truncate_seq=False):
@@ -684,7 +820,10 @@ class TFFunnelDecoder(tf.keras.layers.Layer):
         self.truncate_seq = config.truncate_seq
         self.stride = 2 ** (len(config.block_sizes) - 1)
         self.attention_structure = TFFunnelAttentionStructure(config)
-        self.layers = [TFFunnelLayer(config, 0, name=f"layers_._{i}") for i in range(config.num_decoder_layers)]
+        self.layers = [
+            TFFunnelLayer(config, 0, name=f"layers_._{i}")
+            for i in range(config.num_decoder_layers)
+        ]
 
     def call(
         self,
@@ -718,7 +857,12 @@ class TFFunnelDecoder(tf.keras.layers.Layer):
 
         for layer in self.layers:
             layer_output = layer(
-                hidden, hidden, hidden, attention_inputs, output_attentions=output_attentions, training=training
+                hidden,
+                hidden,
+                hidden,
+                attention_inputs,
+                output_attentions=output_attentions,
+                training=training,
             )
             hidden = layer_output[0]
 
@@ -728,8 +872,14 @@ class TFFunnelDecoder(tf.keras.layers.Layer):
                 all_hidden_states = all_hidden_states + (hidden,)
 
         if not return_dict:
-            return tuple(v for v in [hidden, all_hidden_states, all_attentions] if v is not None)
-        return TFBaseModelOutput(last_hidden_state=hidden, hidden_states=all_hidden_states, attentions=all_attentions)
+            return tuple(
+                v for v in [hidden, all_hidden_states, all_attentions] if v is not None
+            )
+        return TFBaseModelOutput(
+            last_hidden_state=hidden,
+            hidden_states=all_hidden_states,
+            attentions=all_attentions,
+        )
 
 
 @keras_serializable
@@ -772,7 +922,9 @@ class TFFunnelBaseLayer(tf.keras.layers.Layer):
         training=False,
     ):
         if input_ids is not None and inputs_embeds is not None:
-            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
+            raise ValueError(
+                "You cannot specify both input_ids and inputs_embeds at the same time"
+            )
         elif input_ids is not None:
             input_shape = shape_list(input_ids)
         elif inputs_embeds is not None:
@@ -844,7 +996,9 @@ class TFFunnelMainLayer(tf.keras.layers.Layer):
         training=False,
     ):
         if input_ids is not None and inputs_embeds is not None:
-            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
+            raise ValueError(
+                "You cannot specify both input_ids and inputs_embeds at the same time"
+            )
         elif input_ids is not None:
             input_shape = shape_list(input_ids)
         elif inputs_embeds is not None:
@@ -895,10 +1049,14 @@ class TFFunnelMainLayer(tf.keras.layers.Layer):
 
         return TFBaseModelOutput(
             last_hidden_state=decoder_outputs[0],
-            hidden_states=(encoder_outputs.hidden_states + decoder_outputs.hidden_states)
+            hidden_states=(
+                encoder_outputs.hidden_states + decoder_outputs.hidden_states
+            )
             if output_hidden_states
             else None,
-            attentions=(encoder_outputs.attentions + decoder_outputs.attentions) if output_attentions else None,
+            attentions=(encoder_outputs.attentions + decoder_outputs.attentions)
+            if output_attentions
+            else None,
         )
 
 
@@ -908,9 +1066,13 @@ class TFFunnelDiscriminatorPredictions(tf.keras.layers.Layer):
     def __init__(self, config, **kwargs):
         super().__init__(**kwargs)
         initializer = get_initializer(config.initializer_range)
-        self.dense = tf.keras.layers.Dense(config.d_model, kernel_initializer=initializer, name="dense")
+        self.dense = tf.keras.layers.Dense(
+            config.d_model, kernel_initializer=initializer, name="dense"
+        )
         self.activation_function = get_tf_activation(config.hidden_act)
-        self.dense_prediction = tf.keras.layers.Dense(1, kernel_initializer=initializer, name="dense_prediction")
+        self.dense_prediction = tf.keras.layers.Dense(
+            1, kernel_initializer=initializer, name="dense_prediction"
+        )
 
     def call(self, discriminator_hidden_states):
         hidden_states = self.dense(discriminator_hidden_states)
@@ -927,7 +1089,12 @@ class TFFunnelMaskedLMHead(tf.keras.layers.Layer):
         self.input_embeddings = input_embeddings
 
     def build(self, input_shape):
-        self.bias = self.add_weight(shape=(self.config.vocab_size,), initializer="zeros", trainable=True, name="bias")
+        self.bias = self.add_weight(
+            shape=(self.config.vocab_size,),
+            initializer="zeros",
+            trainable=True,
+            name="bias",
+        )
 
         super().build(input_shape)
 
@@ -948,8 +1115,12 @@ class TFFunnelMaskedLMHead(tf.keras.layers.Layer):
     def call(self, hidden_states, training=False):
         seq_length = shape_list(tensor=hidden_states)[1]
         hidden_states = tf.reshape(tensor=hidden_states, shape=[-1, self.hidden_size])
-        hidden_states = tf.matmul(a=hidden_states, b=self.input_embeddings.weight, transpose_b=True)
-        hidden_states = tf.reshape(tensor=hidden_states, shape=[-1, seq_length, self.config.vocab_size])
+        hidden_states = tf.matmul(
+            a=hidden_states, b=self.input_embeddings.weight, transpose_b=True
+        )
+        hidden_states = tf.reshape(
+            tensor=hidden_states, shape=[-1, seq_length, self.config.vocab_size]
+        )
         hidden_states = tf.nn.bias_add(value=hidden_states, bias=self.bias)
 
         return hidden_states
@@ -963,7 +1134,9 @@ class TFFunnelClassificationHead(tf.keras.layers.Layer):
             config.d_model, kernel_initializer=initializer, name="linear_hidden"
         )
         self.dropout = tf.keras.layers.Dropout(config.hidden_dropout)
-        self.linear_out = tf.keras.layers.Dense(n_labels, kernel_initializer=initializer, name="linear_out")
+        self.linear_out = tf.keras.layers.Dense(
+            n_labels, kernel_initializer=initializer, name="linear_out"
+        )
 
     def call(self, hidden, training=False):
         hidden = self.linear_hidden(hidden)
@@ -1110,7 +1283,9 @@ class TFFunnelBaseModel(TFFunnelPreTrainedModel):
         super().__init__(config, *inputs, **kwargs)
         self.funnel = TFFunnelBaseLayer(config, name="funnel")
 
-    @add_start_docstrings_to_model_forward(FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint="funnel-transformer/small-base",
         output_type=TFBaseModelOutput,
@@ -1159,7 +1334,9 @@ class TFFunnelModel(TFFunnelPreTrainedModel):
         self.funnel = TFFunnelMainLayer(config, name="funnel")
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint="funnel-transformer/small",
         output_type=TFBaseModelOutput,
@@ -1208,11 +1385,17 @@ class TFFunnelForPreTraining(TFFunnelPreTrainedModel):
         super().__init__(config, **kwargs)
 
         self.funnel = TFFunnelMainLayer(config, name="funnel")
-        self.discriminator_predictions = TFFunnelDiscriminatorPredictions(config, name="discriminator_predictions")
+        self.discriminator_predictions = TFFunnelDiscriminatorPredictions(
+            config, name="discriminator_predictions"
+        )
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
-    @replace_return_docstrings(output_type=TFFunnelForPreTrainingOutput, config_class=_CONFIG_FOR_DOC)
+    @add_start_docstrings_to_model_forward(
+        FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
+    @replace_return_docstrings(
+        output_type=TFFunnelForPreTrainingOutput, config_class=_CONFIG_FOR_DOC
+    )
     def call(
         self,
         input_ids: Optional[TFModelInputType] = None,
@@ -1266,27 +1449,38 @@ class TFFunnelForPreTraining(TFFunnelPreTrainedModel):
         # hidden_states and attentions not converted to Tensor with tf.convert_to_tensor as they are all of
         # different dimensions
         return TFFunnelForPreTrainingOutput(
-            logits=output.logits, hidden_states=output.hidden_states, attentions=output.attentions
+            logits=output.logits,
+            hidden_states=output.hidden_states,
+            attentions=output.attentions,
         )
 
 
-@add_start_docstrings("""Funnel Model with a `language modeling` head on top.""", FUNNEL_START_DOCSTRING)
+@add_start_docstrings(
+    """Funnel Model with a `language modeling` head on top.""", FUNNEL_START_DOCSTRING
+)
 class TFFunnelForMaskedLM(TFFunnelPreTrainedModel, TFMaskedLanguageModelingLoss):
     def __init__(self, config: FunnelConfig, *inputs, **kwargs) -> None:
         super().__init__(config, *inputs, **kwargs)
 
         self.funnel = TFFunnelMainLayer(config, name="funnel")
-        self.lm_head = TFFunnelMaskedLMHead(config, self.funnel.embeddings, name="lm_head")
+        self.lm_head = TFFunnelMaskedLMHead(
+            config, self.funnel.embeddings, name="lm_head"
+        )
 
     def get_lm_head(self) -> TFFunnelMaskedLMHead:
         return self.lm_head
 
     def get_prefix_bias_name(self) -> str:
-        warnings.warn("The method get_prefix_bias_name is deprecated. Please use `get_bias` instead.", FutureWarning)
+        warnings.warn(
+            "The method get_prefix_bias_name is deprecated. Please use `get_bias` instead.",
+            FutureWarning,
+        )
         return self.name + "/" + self.lm_head.name
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint="funnel-transformer/small",
         output_type=TFMaskedLMOutput,
@@ -1323,7 +1517,9 @@ class TFFunnelForMaskedLM(TFFunnelPreTrainedModel, TFMaskedLanguageModelingLoss)
         sequence_output = outputs[0]
         prediction_scores = self.lm_head(sequence_output, training=training)
 
-        loss = None if labels is None else self.hf_compute_loss(labels, prediction_scores)
+        loss = (
+            None if labels is None else self.hf_compute_loss(labels, prediction_scores)
+        )
 
         if not return_dict:
             output = (prediction_scores,) + outputs[1:]
@@ -1339,7 +1535,11 @@ class TFFunnelForMaskedLM(TFFunnelPreTrainedModel, TFMaskedLanguageModelingLoss)
     def serving_output(self, output: TFMaskedLMOutput) -> TFMaskedLMOutput:
         # hidden_states and attentions not converted to Tensor with tf.convert_to_tensor as they are all of
         # different dimensions
-        return TFMaskedLMOutput(logits=output.logits, hidden_states=output.hidden_states, attentions=output.attentions)
+        return TFMaskedLMOutput(
+            logits=output.logits,
+            hidden_states=output.hidden_states,
+            attentions=output.attentions,
+        )
 
 
 @add_start_docstrings(
@@ -1349,16 +1549,22 @@ class TFFunnelForMaskedLM(TFFunnelPreTrainedModel, TFMaskedLanguageModelingLoss)
     """,
     FUNNEL_START_DOCSTRING,
 )
-class TFFunnelForSequenceClassification(TFFunnelPreTrainedModel, TFSequenceClassificationLoss):
+class TFFunnelForSequenceClassification(
+    TFFunnelPreTrainedModel, TFSequenceClassificationLoss
+):
     def __init__(self, config: FunnelConfig, *inputs, **kwargs) -> None:
         super().__init__(config, *inputs, **kwargs)
         self.num_labels = config.num_labels
 
         self.funnel = TFFunnelBaseLayer(config, name="funnel")
-        self.classifier = TFFunnelClassificationHead(config, config.num_labels, name="classifier")
+        self.classifier = TFFunnelClassificationHead(
+            config, config.num_labels, name="classifier"
+        )
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint="funnel-transformer/small-base",
         output_type=TFSequenceClassifierOutput,
@@ -1409,11 +1615,15 @@ class TFFunnelForSequenceClassification(TFFunnelPreTrainedModel, TFSequenceClass
             attentions=outputs.attentions,
         )
 
-    def serving_output(self, output: TFSequenceClassifierOutput) -> TFSequenceClassifierOutput:
+    def serving_output(
+        self, output: TFSequenceClassifierOutput
+    ) -> TFSequenceClassifierOutput:
         # hidden_states and attentions not converted to Tensor with tf.convert_to_tensor as they are all of
         # different dimensions
         return TFSequenceClassifierOutput(
-            logits=output.logits, hidden_states=output.hidden_states, attentions=output.attentions
+            logits=output.logits,
+            hidden_states=output.hidden_states,
+            attentions=output.attentions,
         )
 
 
@@ -1442,7 +1652,9 @@ class TFFunnelForMultipleChoice(TFFunnelPreTrainedModel, TFMultipleChoiceLoss):
         return {"input_ids": tf.constant(MULTIPLE_CHOICE_DUMMY_INPUTS, dtype=tf.int32)}
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(FUNNEL_INPUTS_DOCSTRING.format("batch_size, num_choices, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        FUNNEL_INPUTS_DOCSTRING.format("batch_size, num_choices, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint="funnel-transformer/small-base",
         output_type=TFMultipleChoiceModelOutput,
@@ -1472,9 +1684,19 @@ class TFFunnelForMultipleChoice(TFFunnelPreTrainedModel, TFMultipleChoiceLoss):
             num_choices = shape_list(inputs_embeds)[1]
             seq_length = shape_list(inputs_embeds)[2]
 
-        flat_input_ids = tf.reshape(input_ids, (-1, seq_length)) if input_ids is not None else None
-        flat_attention_mask = tf.reshape(attention_mask, (-1, seq_length)) if attention_mask is not None else None
-        flat_token_type_ids = tf.reshape(token_type_ids, (-1, seq_length)) if token_type_ids is not None else None
+        flat_input_ids = (
+            tf.reshape(input_ids, (-1, seq_length)) if input_ids is not None else None
+        )
+        flat_attention_mask = (
+            tf.reshape(attention_mask, (-1, seq_length))
+            if attention_mask is not None
+            else None
+        )
+        flat_token_type_ids = (
+            tf.reshape(token_type_ids, (-1, seq_length))
+            if token_type_ids is not None
+            else None
+        )
         flat_inputs_embeds = (
             tf.reshape(inputs_embeds, (-1, seq_length, shape_list(inputs_embeds)[3]))
             if inputs_embeds is not None
@@ -1514,8 +1736,12 @@ class TFFunnelForMultipleChoice(TFFunnelPreTrainedModel, TFMultipleChoiceLoss):
         input_signature=[
             {
                 "input_ids": tf.TensorSpec((None, None), tf.int32, name="input_ids"),
-                "attention_mask": tf.TensorSpec((None, None), tf.float32, name="attention_mask"),
-                "token_type_ids": tf.TensorSpec((None, None), tf.int32, name="token_type_ids"),
+                "attention_mask": tf.TensorSpec(
+                    (None, None), tf.float32, name="attention_mask"
+                ),
+                "token_type_ids": tf.TensorSpec(
+                    (None, None), tf.int32, name="token_type_ids"
+                ),
             }
         ]
     )
@@ -1524,11 +1750,15 @@ class TFFunnelForMultipleChoice(TFFunnelPreTrainedModel, TFMultipleChoiceLoss):
 
         return self.serving_output(output=output)
 
-    def serving_output(self, output: TFMultipleChoiceModelOutput) -> TFMultipleChoiceModelOutput:
+    def serving_output(
+        self, output: TFMultipleChoiceModelOutput
+    ) -> TFMultipleChoiceModelOutput:
         # hidden_states and attentions not converted to Tensor with tf.convert_to_tensor as they are all of
         # different dimensions
         return TFMultipleChoiceModelOutput(
-            logits=output.logits, hidden_states=output.hidden_states, attentions=output.attentions
+            logits=output.logits,
+            hidden_states=output.hidden_states,
+            attentions=output.attentions,
         )
 
 
@@ -1539,7 +1769,9 @@ class TFFunnelForMultipleChoice(TFFunnelPreTrainedModel, TFMultipleChoiceLoss):
     """,
     FUNNEL_START_DOCSTRING,
 )
-class TFFunnelForTokenClassification(TFFunnelPreTrainedModel, TFTokenClassificationLoss):
+class TFFunnelForTokenClassification(
+    TFFunnelPreTrainedModel, TFTokenClassificationLoss
+):
     def __init__(self, config: FunnelConfig, *inputs, **kwargs) -> None:
         super().__init__(config, *inputs, **kwargs)
         self.num_labels = config.num_labels
@@ -1547,11 +1779,15 @@ class TFFunnelForTokenClassification(TFFunnelPreTrainedModel, TFTokenClassificat
         self.funnel = TFFunnelMainLayer(config, name="funnel")
         self.dropout = tf.keras.layers.Dropout(config.hidden_dropout)
         self.classifier = tf.keras.layers.Dense(
-            config.num_labels, kernel_initializer=get_initializer(config.initializer_range), name="classifier"
+            config.num_labels,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="classifier",
         )
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint="funnel-transformer/small",
         output_type=TFTokenClassifierOutput,
@@ -1601,11 +1837,15 @@ class TFFunnelForTokenClassification(TFFunnelPreTrainedModel, TFTokenClassificat
             attentions=outputs.attentions,
         )
 
-    def serving_output(self, output: TFTokenClassifierOutput) -> TFTokenClassifierOutput:
+    def serving_output(
+        self, output: TFTokenClassifierOutput
+    ) -> TFTokenClassifierOutput:
         # hidden_states and attentions not converted to Tensor with tf.convert_to_tensor as they are all of
         # different dimensions
         return TFTokenClassifierOutput(
-            logits=output.logits, hidden_states=output.hidden_states, attentions=output.attentions
+            logits=output.logits,
+            hidden_states=output.hidden_states,
+            attentions=output.attentions,
         )
 
 
@@ -1623,11 +1863,15 @@ class TFFunnelForQuestionAnswering(TFFunnelPreTrainedModel, TFQuestionAnsweringL
 
         self.funnel = TFFunnelMainLayer(config, name="funnel")
         self.qa_outputs = tf.keras.layers.Dense(
-            config.num_labels, kernel_initializer=get_initializer(config.initializer_range), name="qa_outputs"
+            config.num_labels,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="qa_outputs",
         )
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        FUNNEL_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint="funnel-transformer/small",
         output_type=TFQuestionAnsweringModelOutput,
@@ -1691,7 +1935,9 @@ class TFFunnelForQuestionAnswering(TFFunnelPreTrainedModel, TFQuestionAnsweringL
             attentions=outputs.attentions,
         )
 
-    def serving_output(self, output: TFQuestionAnsweringModelOutput) -> TFQuestionAnsweringModelOutput:
+    def serving_output(
+        self, output: TFQuestionAnsweringModelOutput
+    ) -> TFQuestionAnsweringModelOutput:
         # hidden_states and attentions not converted to Tensor with tf.convert_to_tensor as they are all of
         # different dimensions
         return TFQuestionAnsweringModelOutput(

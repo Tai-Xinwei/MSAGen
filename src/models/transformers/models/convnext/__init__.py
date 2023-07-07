@@ -23,7 +23,11 @@ from ...utils import (
 
 
 _import_structure = {
-    "configuration_convnext": ["CONVNEXT_PRETRAINED_CONFIG_ARCHIVE_MAP", "ConvNextConfig", "ConvNextOnnxConfig"]
+    "configuration_convnext": [
+        "CONVNEXT_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "ConvNextConfig",
+        "ConvNextOnnxConfig",
+    ]
 }
 
 try:
@@ -62,7 +66,11 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_convnext import CONVNEXT_PRETRAINED_CONFIG_ARCHIVE_MAP, ConvNextConfig, ConvNextOnnxConfig
+    from .configuration_convnext import (
+        CONVNEXT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        ConvNextConfig,
+        ConvNextOnnxConfig,
+    )
 
     try:
         if not is_vision_available():
@@ -93,10 +101,16 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_convnext import TFConvNextForImageClassification, TFConvNextModel, TFConvNextPreTrainedModel
+        from .modeling_convnext import (
+            TFConvNextForImageClassification,
+            TFConvNextModel,
+            TFConvNextPreTrainedModel,
+        )
 
 
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure
+    )

@@ -105,7 +105,9 @@ class MobileNetV2ImageProcessor(BaseImageProcessor):
         super().__init__(**kwargs)
         size = size if size is not None else {"shortest_edge": 256}
         size = get_size_dict(size, default_to_square=False)
-        crop_size = crop_size if crop_size is not None else {"height": 224, "width": 224}
+        crop_size = (
+            crop_size if crop_size is not None else {"height": 224, "width": 224}
+        )
         crop_size = get_size_dict(crop_size, param_name="crop_size")
         self.do_resize = do_resize
         self.size = size
@@ -115,7 +117,9 @@ class MobileNetV2ImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_factor
         self.do_normalize = do_normalize
-        self.image_mean = image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        self.image_mean = (
+            image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        )
         self.image_std = image_std if image_std is not None else IMAGENET_STANDARD_STD
 
     def resize(
@@ -142,9 +146,19 @@ class MobileNetV2ImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size, default_to_square=False)
         if "shortest_edge" not in size:
-            raise ValueError(f"The `size` parameter must contain the key `shortest_edge`. Got {size.keys()}")
-        output_size = get_resize_output_image_size(image, size=size["shortest_edge"], default_to_square=False)
-        return resize(image, size=output_size, resample=resample, data_format=data_format, **kwargs)
+            raise ValueError(
+                f"The `size` parameter must contain the key `shortest_edge`. Got {size.keys()}"
+            )
+        output_size = get_resize_output_image_size(
+            image, size=size["shortest_edge"], default_to_square=False
+        )
+        return resize(
+            image,
+            size=output_size,
+            resample=resample,
+            data_format=data_format,
+            **kwargs,
+        )
 
     def center_crop(
         self,
@@ -167,11 +181,22 @@ class MobileNetV2ImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(f"The `size` parameter must contain the keys `height` and `width`. Got {size.keys()}")
-        return center_crop(image, size=(size["height"], size["width"]), data_format=data_format, **kwargs)
+            raise ValueError(
+                f"The `size` parameter must contain the keys `height` and `width`. Got {size.keys()}"
+            )
+        return center_crop(
+            image,
+            size=(size["height"], size["width"]),
+            data_format=data_format,
+            **kwargs,
+        )
 
     def rescale(
-        self, image: np.ndarray, scale: float, data_format: Optional[Union[str, ChannelDimension]] = None, **kwargs
+        self,
+        image: np.ndarray,
+        scale: float,
+        data_format: Optional[Union[str, ChannelDimension]] = None,
+        **kwargs,
     ) -> np.ndarray:
         """
         Rescale an image by a scale factor. image = image * scale.
@@ -283,11 +308,15 @@ class MobileNetV2ImageProcessor(BaseImageProcessor):
         size = size if size is not None else self.size
         size = get_size_dict(size, default_to_square=False)
         resample = resample if resample is not None else self.resample
-        do_center_crop = do_center_crop if do_center_crop is not None else self.do_center_crop
+        do_center_crop = (
+            do_center_crop if do_center_crop is not None else self.do_center_crop
+        )
         crop_size = crop_size if crop_size is not None else self.crop_size
         crop_size = get_size_dict(crop_size, param_name="crop_size")
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
@@ -310,29 +339,41 @@ class MobileNetV2ImageProcessor(BaseImageProcessor):
             raise ValueError("Rescale factor must be specified if do_rescale is True.")
 
         if do_normalize and (image_mean is None or image_std is None):
-            raise ValueError("Image mean and std must be specified if do_normalize is True.")
+            raise ValueError(
+                "Image mean and std must be specified if do_normalize is True."
+            )
 
         # All transformations expect numpy arrays.
         images = [to_numpy_array(image) for image in images]
 
         if do_resize:
-            images = [self.resize(image=image, size=size, resample=resample) for image in images]
+            images = [
+                self.resize(image=image, size=size, resample=resample)
+                for image in images
+            ]
 
         if do_center_crop:
             images = [self.center_crop(image=image, size=crop_size) for image in images]
 
         if do_rescale:
-            images = [self.rescale(image=image, scale=rescale_factor) for image in images]
+            images = [
+                self.rescale(image=image, scale=rescale_factor) for image in images
+            ]
 
         if do_normalize:
-            images = [self.normalize(image=image, mean=image_mean, std=image_std) for image in images]
+            images = [
+                self.normalize(image=image, mean=image_mean, std=image_std)
+                for image in images
+            ]
 
         images = [to_channel_dimension_format(image, data_format) for image in images]
 
         data = {"pixel_values": images}
         return BatchFeature(data=data, tensor_type=return_tensors)
 
-    def post_process_semantic_segmentation(self, outputs, target_sizes: List[Tuple] = None):
+    def post_process_semantic_segmentation(
+        self, outputs, target_sizes: List[Tuple] = None
+    ):
         """
         Converts the output of [`MobileNetV2ForSemanticSegmentation`] into semantic segmentation maps. Only supports
         PyTorch.
@@ -366,12 +407,17 @@ class MobileNetV2ImageProcessor(BaseImageProcessor):
 
             for idx in range(len(logits)):
                 resized_logits = torch.nn.functional.interpolate(
-                    logits[idx].unsqueeze(dim=0), size=target_sizes[idx], mode="bilinear", align_corners=False
+                    logits[idx].unsqueeze(dim=0),
+                    size=target_sizes[idx],
+                    mode="bilinear",
+                    align_corners=False,
                 )
                 semantic_map = resized_logits[0].argmax(dim=0)
                 semantic_segmentation.append(semantic_map)
         else:
             semantic_segmentation = logits.argmax(dim=1)
-            semantic_segmentation = [semantic_segmentation[i] for i in range(semantic_segmentation.shape[0])]
+            semantic_segmentation = [
+                semantic_segmentation[i] for i in range(semantic_segmentation.shape[0])
+            ]
 
         return semantic_segmentation

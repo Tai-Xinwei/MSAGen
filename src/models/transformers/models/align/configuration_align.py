@@ -138,14 +138,22 @@ class AlignTextConfig(PretrainedConfig):
         self.pad_token_id = pad_token_id
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PretrainedConfig":
-        config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
+    def from_pretrained(
+        cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
+    ) -> "PretrainedConfig":
+        config_dict, kwargs = cls.get_config_dict(
+            pretrained_model_name_or_path, **kwargs
+        )
 
         # get the text config dict if we are loading from AlignConfig
         if config_dict.get("model_type") == "align":
             config_dict = config_dict["text_config"]
 
-        if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
+        if (
+            "model_type" in config_dict
+            and hasattr(cls, "model_type")
+            and config_dict["model_type"] != cls.model_type
+        ):
             logger.warning(
                 f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
                 f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
@@ -279,14 +287,22 @@ class AlignVisionConfig(PretrainedConfig):
         self.num_hidden_layers = sum(num_block_repeats) * 4
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PretrainedConfig":
-        config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
+    def from_pretrained(
+        cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
+    ) -> "PretrainedConfig":
+        config_dict, kwargs = cls.get_config_dict(
+            pretrained_model_name_or_path, **kwargs
+        )
 
         # get the vision config dict if we are loading from AlignConfig
         if config_dict.get("model_type") == "align":
             config_dict = config_dict["vision_config"]
 
-        if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
+        if (
+            "model_type" in config_dict
+            and hasattr(cls, "model_type")
+            and config_dict["model_type"] != cls.model_type
+        ):
             logger.warning(
                 f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
                 f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
@@ -359,11 +375,15 @@ class AlignConfig(PretrainedConfig):
 
         if text_config is None:
             text_config = {}
-            logger.info("text_config is None. Initializing the AlignTextConfig with default values.")
+            logger.info(
+                "text_config is None. Initializing the AlignTextConfig with default values."
+            )
 
         if vision_config is None:
             vision_config = {}
-            logger.info("vision_config is None. Initializing the AlignVisionConfig with default values.")
+            logger.info(
+                "vision_config is None. Initializing the AlignVisionConfig with default values."
+            )
 
         self.text_config = AlignTextConfig(**text_config)
         self.vision_config = AlignVisionConfig(**vision_config)
@@ -373,7 +393,9 @@ class AlignConfig(PretrainedConfig):
         self.initializer_range = initializer_range
 
     @classmethod
-    def from_text_vision_configs(cls, text_config: AlignTextConfig, vision_config: AlignVisionConfig, **kwargs):
+    def from_text_vision_configs(
+        cls, text_config: AlignTextConfig, vision_config: AlignVisionConfig, **kwargs
+    ):
         r"""
         Instantiate a [`AlignConfig`] (or a derived class) from align text model configuration and align vision model
         configuration.
@@ -382,7 +404,11 @@ class AlignConfig(PretrainedConfig):
             [`AlignConfig`]: An instance of a configuration object
         """
 
-        return cls(text_config=text_config.to_dict(), vision_config=vision_config.to_dict(), **kwargs)
+        return cls(
+            text_config=text_config.to_dict(),
+            vision_config=vision_config.to_dict(),
+            **kwargs,
+        )
 
     def to_dict(self):
         """

@@ -79,7 +79,10 @@ class ErnieMConfig(PretrainedConfig):
     `ErnieMPretrainedModel._init_weights()` for how weights are initialized in `ErnieMModel`.
     """
     model_type = "ernie_m"
-    attribute_map: Dict[str, str] = {"dropout": "classifier_dropout", "num_classes": "num_labels"}
+    attribute_map: Dict[str, str] = {
+        "dropout": "classifier_dropout",
+        "num_classes": "num_labels",
+    }
 
     def __init__(
         self,

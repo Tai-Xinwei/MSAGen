@@ -25,7 +25,11 @@ from ...utils import (
 
 
 _import_structure = {
-    "configuration_rembert": ["REMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "RemBertConfig", "RemBertOnnxConfig"]
+    "configuration_rembert": [
+        "REMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "RemBertConfig",
+        "RemBertOnnxConfig",
+    ]
 }
 
 try:
@@ -86,7 +90,11 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_rembert import REMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, RemBertConfig, RemBertOnnxConfig
+    from .configuration_rembert import (
+        REMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        RemBertConfig,
+        RemBertOnnxConfig,
+    )
 
     try:
         if not is_sentencepiece_available():
@@ -147,4 +155,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

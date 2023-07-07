@@ -20,7 +20,11 @@ from collections import OrderedDict
 from ...configuration_utils import PretrainedConfig
 from ...dynamic_module_utils import get_class_from_dynamic_module
 from ...utils import copy_func, logging
-from .configuration_auto import AutoConfig, model_type_to_module_name, replace_list_option_in_docstrings
+from .configuration_auto import (
+    AutoConfig,
+    model_type_to_module_name,
+    replace_list_option_in_docstrings,
+)
 
 
 logger = logging.get_logger(__name__)
@@ -404,7 +408,9 @@ class _BaseAutoModelClass:
                 )
             class_ref = config.auto_map[cls.__name__]
             module_file, class_name = class_ref.split(".")
-            model_class = get_class_from_dynamic_module(config.name_or_path, module_file + ".py", class_name, **kwargs)
+            model_class = get_class_from_dynamic_module(
+                config.name_or_path, module_file + ".py", class_name, **kwargs
+            )
             return model_class._from_config(config, **kwargs)
         elif type(config) in cls._model_mapping.keys():
             model_class = _get_model_class(config, cls._model_mapping)
@@ -430,7 +436,9 @@ class _BaseAutoModelClass:
             "subfolder",
             "use_auth_token",
         ]
-        hub_kwargs = {name: kwargs.pop(name) for name in hub_kwargs_names if name in kwargs}
+        hub_kwargs = {
+            name: kwargs.pop(name) for name in hub_kwargs_names if name in kwargs
+        }
         if not isinstance(config, PretrainedConfig):
             kwargs_copy = copy.deepcopy(kwargs)
             # ensure not to pollute the config object with torch_dtype="auto" - since it's
@@ -460,16 +468,28 @@ class _BaseAutoModelClass:
             class_ref = config.auto_map[cls.__name__]
             module_file, class_name = class_ref.split(".")
             model_class = get_class_from_dynamic_module(
-                pretrained_model_name_or_path, module_file + ".py", class_name, **hub_kwargs, **kwargs
+                pretrained_model_name_or_path,
+                module_file + ".py",
+                class_name,
+                **hub_kwargs,
+                **kwargs,
             )
             model_class.register_for_auto_class(cls.__name__)
             return model_class.from_pretrained(
-                pretrained_model_name_or_path, *model_args, config=config, **hub_kwargs, **kwargs
+                pretrained_model_name_or_path,
+                *model_args,
+                config=config,
+                **hub_kwargs,
+                **kwargs,
             )
         elif type(config) in cls._model_mapping.keys():
             model_class = _get_model_class(config, cls._model_mapping)
             return model_class.from_pretrained(
-                pretrained_model_name_or_path, *model_args, config=config, **hub_kwargs, **kwargs
+                pretrained_model_name_or_path,
+                *model_args,
+                config=config,
+                **hub_kwargs,
+                **kwargs,
             )
         raise ValueError(
             f"Unrecognized configuration class {config.__class__} for this kind of AutoModel: {cls.__name__}.\n"
@@ -487,7 +507,10 @@ class _BaseAutoModelClass:
             model_class ([`PreTrainedModel`]):
                 The model to register.
         """
-        if hasattr(model_class, "config_class") and model_class.config_class != config_class:
+        if (
+            hasattr(model_class, "config_class")
+            and model_class.config_class != config_class
+        ):
             raise ValueError(
                 "The model class you are passing has a `config_class` attribute that is not consistent with the "
                 f"config class you passed (model has {model_class.config_class} and you passed {config_class}. Fix "
@@ -503,7 +526,8 @@ def insert_head_doc(docstring, head_doc=""):
             f"one of the model classes of the library (with a {head_doc} head) ",
         )
     return docstring.replace(
-        "one of the model classes of the library ", "one of the base model classes of the library "
+        "one of the model classes of the library ",
+        "one of the base model classes of the library ",
     )
 
 
@@ -519,9 +543,13 @@ def auto_class_update(cls, checkpoint_for_example="bert-base-cased", head_doc=""
     from_config = copy_func(_BaseAutoModelClass.from_config)
     from_config_docstring = insert_head_doc(FROM_CONFIG_DOCSTRING, head_doc=head_doc)
     from_config_docstring = from_config_docstring.replace("BaseAutoModelClass", name)
-    from_config_docstring = from_config_docstring.replace("checkpoint_placeholder", checkpoint_for_example)
+    from_config_docstring = from_config_docstring.replace(
+        "checkpoint_placeholder", checkpoint_for_example
+    )
     from_config.__doc__ = from_config_docstring
-    from_config = replace_list_option_in_docstrings(model_mapping._model_mapping, use_model_types=False)(from_config)
+    from_config = replace_list_option_in_docstrings(
+        model_mapping._model_mapping, use_model_types=False
+    )(from_config)
     cls.from_config = classmethod(from_config)
 
     if name.startswith("TF"):
@@ -531,13 +559,23 @@ def auto_class_update(cls, checkpoint_for_example="bert-base-cased", head_doc=""
     else:
         from_pretrained_docstring = FROM_PRETRAINED_TORCH_DOCSTRING
     from_pretrained = copy_func(_BaseAutoModelClass.from_pretrained)
-    from_pretrained_docstring = insert_head_doc(from_pretrained_docstring, head_doc=head_doc)
-    from_pretrained_docstring = from_pretrained_docstring.replace("BaseAutoModelClass", name)
-    from_pretrained_docstring = from_pretrained_docstring.replace("checkpoint_placeholder", checkpoint_for_example)
+    from_pretrained_docstring = insert_head_doc(
+        from_pretrained_docstring, head_doc=head_doc
+    )
+    from_pretrained_docstring = from_pretrained_docstring.replace(
+        "BaseAutoModelClass", name
+    )
+    from_pretrained_docstring = from_pretrained_docstring.replace(
+        "checkpoint_placeholder", checkpoint_for_example
+    )
     shortcut = checkpoint_for_example.split("/")[-1].split("-")[0]
-    from_pretrained_docstring = from_pretrained_docstring.replace("shortcut_placeholder", shortcut)
+    from_pretrained_docstring = from_pretrained_docstring.replace(
+        "shortcut_placeholder", shortcut
+    )
     from_pretrained.__doc__ = from_pretrained_docstring
-    from_pretrained = replace_list_option_in_docstrings(model_mapping._model_mapping)(from_pretrained)
+    from_pretrained = replace_list_option_in_docstrings(model_mapping._model_mapping)(
+        from_pretrained
+    )
     cls.from_pretrained = classmethod(from_pretrained)
     return cls
 
@@ -568,7 +606,9 @@ def getattribute_from_module(module, attr):
         try:
             return getattribute_from_module(transformers_module, attr)
         except ValueError:
-            raise ValueError(f"Could not find {attr} neither in {module} nor in {transformers_module}!")
+            raise ValueError(
+                f"Could not find {attr} neither in {module} nor in {transformers_module}!"
+            )
     else:
         raise ValueError(f"Could not find {attr} in {transformers_module}!")
 
@@ -590,7 +630,9 @@ class _LazyAutoMapping(OrderedDict):
         self._modules = {}
 
     def __len__(self):
-        common_keys = set(self._config_mapping.keys()).intersection(self._model_mapping.keys())
+        common_keys = set(self._config_mapping.keys()).intersection(
+            self._model_mapping.keys()
+        )
         return len(common_keys) + len(self._extra_content)
 
     def __getitem__(self, key):
@@ -612,7 +654,9 @@ class _LazyAutoMapping(OrderedDict):
     def _load_attr_from_module(self, model_type, attr):
         module_name = model_type_to_module_name(model_type)
         if module_name not in self._modules:
-            self._modules[module_name] = importlib.import_module(f".{module_name}", "transformers.models")
+            self._modules[module_name] = importlib.import_module(
+                f".{module_name}", "transformers.models"
+            )
         return getattribute_from_module(self._modules[module_name], attr)
 
     def keys(self):
@@ -657,7 +701,10 @@ class _LazyAutoMapping(OrderedDict):
     def __contains__(self, item):
         if item in self._extra_content:
             return True
-        if not hasattr(item, "__name__") or item.__name__ not in self._reverse_config_mapping:
+        if (
+            not hasattr(item, "__name__")
+            or item.__name__ not in self._reverse_config_mapping
+        ):
             return False
         model_type = self._reverse_config_mapping[item.__name__]
         return model_type in self._model_mapping

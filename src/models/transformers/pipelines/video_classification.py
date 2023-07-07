@@ -3,7 +3,13 @@ from typing import List, Union
 
 import requests
 
-from ..utils import add_end_docstrings, is_decord_available, is_torch_available, logging, requires_backends
+from ..utils import (
+    add_end_docstrings,
+    is_decord_available,
+    is_torch_available,
+    logging,
+    requires_backends,
+)
 from .base import PIPELINE_INIT_ARGS, Pipeline
 
 
@@ -36,7 +42,9 @@ class VideoClassificationPipeline(Pipeline):
         requires_backends(self, "decord")
         self.check_model_type(MODEL_FOR_VIDEO_CLASSIFICATION_MAPPING)
 
-    def _sanitize_parameters(self, top_k=None, num_frames=None, frame_sampling_rate=None):
+    def _sanitize_parameters(
+        self, top_k=None, num_frames=None, frame_sampling_rate=None
+    ):
         preprocess_params = {}
         if frame_sampling_rate is not None:
             preprocess_params["frame_sampling_rate"] = frame_sampling_rate
@@ -119,4 +127,7 @@ class VideoClassificationPipeline(Pipeline):
 
         scores = scores.tolist()
         ids = ids.tolist()
-        return [{"score": score, "label": self.model.config.id2label[_id]} for score, _id in zip(scores, ids)]
+        return [
+            {"score": score, "label": self.model.config.id2label[_id]}
+            for score, _id in zip(scores, ids)
+        ]

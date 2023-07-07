@@ -8,14 +8,15 @@ from typing import Callable, Optional
 import torch
 import torch.nn as nn
 
-
-from .multihead_attention import MultiheadAttention
-from .droppath import DropPath
-from .layer_norm import LayerNorm, Fp32LayerNorm
-from .quant_noise import quant_noise
-from .get_activation_fn import get_activation_fn
-from .FairseqDropout import FairseqDropout
 from models.transformers.configuration_utils import PretrainedConfig
+
+from .droppath import DropPath
+from .FairseqDropout import FairseqDropout
+from .get_activation_fn import get_activation_fn
+from .layer_norm import Fp32LayerNorm, LayerNorm
+from .multihead_attention import MultiheadAttention
+from .quant_noise import quant_noise
+
 
 class GraphormerSentenceEncoderLayer(nn.Module):
     """
@@ -40,7 +41,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         droppath_prob: float = 0.0,
         nl: int = 0,
         self_attn_mask: Optional[torch.Tensor] = None,
-        args = None,
+        args=None,
     ) -> None:
         super().__init__()
 
@@ -108,7 +109,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         self.nl = nl
         self.args = args
         self.self_attn_mask = self_attn_mask
-        
+
         # self.dummy = nn.Parameter(torch.zeros(1, dtype=torch.float32), requires_grad=True)
         self.dummy = nn.Linear(1, 1, bias=False)
 
@@ -191,33 +192,61 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
     Implements a Graphormer Encoder Layer used in BERT/XLM style pre-trained
     models.
     """
+
     @classmethod
     def config(cls):
         return GraphormerConfig(
-            hidden_size = cls.embedding_dim,
-            intermediate_size = cls.ffn_embedding_dim,
-            num_attention_heads = cls.num_attention_heads,
+            hidden_size=cls.embedding_dim,
+            intermediate_size=cls.ffn_embedding_dim,
+            num_attention_heads=cls.num_attention_heads,
             hidden_act="relu",
         )
-    
+
     def tensors_encode(self, x, self_attn_bias, delta_pos):
-        shape_tensor = torch.cat([torch.tensor(x.shape), torch.tensor(self_attn_bias.shape), torch.tensor(delta_pos.shape)], dim=-1)
-        output = torch.cat([x.contiguous().view(-1), self_attn_bias.contiguous().view(-1), delta_pos.contiguous().view(-1)], dim=-1)
+        shape_tensor = torch.cat(
+            [
+                torch.tensor(x.shape),
+                torch.tensor(self_attn_bias.shape),
+                torch.tensor(delta_pos.shape),
+            ],
+            dim=-1,
+        )
+        output = torch.cat(
+            [
+                x.contiguous().view(-1),
+                self_attn_bias.contiguous().view(-1),
+                delta_pos.contiguous().view(-1),
+            ],
+            dim=-1,
+        )
 
         return output, shape_tensor.to(x.device)
 
     def tensors_decode(self, output, shape_tensor):
-        
-        x_len = shape_tensor[0]*shape_tensor[1]*shape_tensor[2]
-        self_attn_bias_len = shape_tensor[3]*shape_tensor[4]*shape_tensor[5]*shape_tensor[6]*shape_tensor[7]
-        delta_pos_len = shape_tensor[8]*shape_tensor[9]*shape_tensor[10]*shape_tensor[11]
+        x_len = shape_tensor[0] * shape_tensor[1] * shape_tensor[2]
+        self_attn_bias_len = (
+            shape_tensor[3]
+            * shape_tensor[4]
+            * shape_tensor[5]
+            * shape_tensor[6]
+            * shape_tensor[7]
+        )
+        (shape_tensor[8] * shape_tensor[9] * shape_tensor[10] * shape_tensor[11])
 
         x = output[:x_len].view(shape_tensor[0], shape_tensor[1], shape_tensor[2])
-        self_attn_bias = output[x_len:x_len+self_attn_bias_len].view(shape_tensor[3], shape_tensor[4], shape_tensor[5], shape_tensor[6], shape_tensor[7])
-        delta_pos = output[x_len+self_attn_bias_len:].view(shape_tensor[8], shape_tensor[9], shape_tensor[10], shape_tensor[11])
-        
+        self_attn_bias = output[x_len : x_len + self_attn_bias_len].view(
+            shape_tensor[3],
+            shape_tensor[4],
+            shape_tensor[5],
+            shape_tensor[6],
+            shape_tensor[7],
+        )
+        delta_pos = output[x_len + self_attn_bias_len :].view(
+            shape_tensor[8], shape_tensor[9], shape_tensor[10], shape_tensor[11]
+        )
+
         return x, self_attn_bias, delta_pos
-    
+
     def forward(self, input_tuple: tuple):
         """
         LayerNorm is applied either before or after the self-attention/ffn
@@ -231,7 +260,7 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
         # x, self_attn_bias, delta_pos = self.tensors_decode(value_tensor, shape_tensor)
         # x = x.to(torch.float16)
         # print("layer", self.nl)
-        assert type(x) == torch.Tensor  
+        assert type(x) == torch.Tensor
         assert type(self_attn_bias) == torch.Tensor
         assert type(self_attn_padding_mask) == torch.Tensor
         # assert type(delta_pos) == torch.Tensor
@@ -262,16 +291,28 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
         x = self.dropout_module(x)
         x = residual + x
         if not self.args.infer:
-            return (x.contiguous(), self_attn_padding_mask.contiguous(), self_attn_bias.contiguous(), delta_pos.contiguous(), pos.contiguous())
+            return (
+                x.contiguous(),
+                self_attn_padding_mask.contiguous(),
+                self_attn_bias.contiguous(),
+                delta_pos.contiguous(),
+                pos.contiguous(),
+            )
         else:
-            return (x.contiguous(), self_attn_padding_mask.contiguous(), self_attn_bias.contiguous(), input_ids.contiguous(), llm_mask.contiguous())
+            return (
+                x.contiguous(),
+                self_attn_padding_mask.contiguous(),
+                self_attn_bias.contiguous(),
+                input_ids.contiguous(),
+                llm_mask.contiguous(),
+            )
         # value_tensor, shape_tensor = self.tensors_encode(x, self_attn_bias, delta_pos)
         # return (value_tensor, self_attn_padding_mask, shape_tensor)
 
 
 class GraphormerConfig(PretrainedConfig):
-
     model_type = "graphormer"
+
     def __init__(
         self,
         vocab_size=32000,

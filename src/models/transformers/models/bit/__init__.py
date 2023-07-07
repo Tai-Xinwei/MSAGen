@@ -13,10 +13,21 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available, is_vision_available
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_torch_available,
+    is_vision_available,
+)
 
 
-_import_structure = {"configuration_bit": ["BIT_PRETRAINED_CONFIG_ARCHIVE_MAP", "BitConfig", "BitOnnxConfig"]}
+_import_structure = {
+    "configuration_bit": [
+        "BIT_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "BitConfig",
+        "BitOnnxConfig",
+    ]
+}
 
 try:
     if not is_torch_available():
@@ -43,7 +54,11 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_bit import BIT_PRETRAINED_CONFIG_ARCHIVE_MAP, BitConfig, BitOnnxConfig
+    from .configuration_bit import (
+        BIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        BitConfig,
+        BitOnnxConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -70,4 +85,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure
+    )

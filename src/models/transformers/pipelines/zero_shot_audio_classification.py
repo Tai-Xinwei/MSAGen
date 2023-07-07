@@ -94,7 +94,9 @@ class ZeroShotAudioClassificationPipeline(Pipeline):
 
         return preprocess_params, {}, {}
 
-    def preprocess(self, audio, candidate_labels=None, hypothesis_template="This is a sound of {}."):
+    def preprocess(
+        self, audio, candidate_labels=None, hypothesis_template="This is a sound of {}."
+    ):
         if isinstance(audio, str):
             if audio.startswith("http://") or audio.startswith("https://"):
                 # We need to actually check for a real protocol, otherwise it's impossible to use a local file
@@ -110,14 +112,20 @@ class ZeroShotAudioClassificationPipeline(Pipeline):
         if not isinstance(audio, np.ndarray):
             raise ValueError("We expect a numpy ndarray as input")
         if len(audio.shape) != 1:
-            raise ValueError("We expect a single channel audio input for ZeroShotAudioClassificationPipeline")
+            raise ValueError(
+                "We expect a single channel audio input for ZeroShotAudioClassificationPipeline"
+            )
 
         inputs = self.feature_extractor(
-            [audio], sampling_rate=self.feature_extractor.sampling_rate, return_tensors="pt"
+            [audio],
+            sampling_rate=self.feature_extractor.sampling_rate,
+            return_tensors="pt",
         )
         inputs["candidate_labels"] = candidate_labels
         sequences = [hypothesis_template.format(x) for x in candidate_labels]
-        text_inputs = self.tokenizer(sequences, return_tensors=self.framework, padding=True)
+        text_inputs = self.tokenizer(
+            sequences, return_tensors=self.framework, padding=True
+        )
         inputs["text_inputs"] = [text_inputs]
         return inputs
 
@@ -150,6 +158,8 @@ class ZeroShotAudioClassificationPipeline(Pipeline):
 
         result = [
             {"score": score, "label": candidate_label}
-            for score, candidate_label in sorted(zip(scores, candidate_labels), key=lambda x: -x[0])
+            for score, candidate_label in sorted(
+                zip(scores, candidate_labels), key=lambda x: -x[0]
+            )
         ]
         return result

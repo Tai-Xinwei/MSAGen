@@ -199,7 +199,8 @@ def get_masks(slen, lengths, causal, padding_mask=None):
     # attention mask is the same as mask, or triangular inferior attention (causal)
     if causal:
         attn_mask = tf.less_equal(
-            tf.tile(tf.reshape(alen, (1, 1, slen)), (bs, slen, 1)), tf.reshape(alen, (1, slen, 1))
+            tf.tile(tf.reshape(alen, (1, 1, slen)), (bs, slen, 1)),
+            tf.reshape(alen, (1, slen, 1)),
         )
     else:
         attn_mask = mask
@@ -225,13 +226,19 @@ class TFFlaubertPreTrainedModel(TFPreTrainedModel):
     @property
     def dummy_inputs(self):
         # Sometimes Flaubert has language embeddings so don't forget to build them as well if needed
-        inputs_list = tf.constant([[7, 6, 0, 0, 1], [1, 2, 3, 0, 0], [0, 0, 0, 4, 5]], dtype=tf.int32)
-        attns_list = tf.constant([[1, 1, 0, 0, 1], [1, 1, 1, 0, 0], [1, 0, 0, 1, 1]], dtype=tf.int32)
+        inputs_list = tf.constant(
+            [[7, 6, 0, 0, 1], [1, 2, 3, 0, 0], [0, 0, 0, 4, 5]], dtype=tf.int32
+        )
+        attns_list = tf.constant(
+            [[1, 1, 0, 0, 1], [1, 1, 1, 0, 0], [1, 0, 0, 1, 1]], dtype=tf.int32
+        )
         if self.config.use_lang_emb and self.config.n_langs > 1:
             return {
                 "input_ids": inputs_list,
                 "attention_mask": attns_list,
-                "langs": tf.constant([[1, 1, 0, 0, 1], [1, 1, 1, 0, 0], [1, 0, 0, 1, 1]], dtype=tf.int32),
+                "langs": tf.constant(
+                    [[1, 1, 0, 0, 1], [1, 1, 1, 0, 0], [1, 0, 0, 1, 1]], dtype=tf.int32
+                ),
             }
         else:
             return {"input_ids": inputs_list, "attention_mask": attns_list}
@@ -289,10 +296,22 @@ class TFFlaubertModel(TFFlaubertPreTrainedModel):
 
     # Copied from transformers.models.distilbert.modeling_tf_distilbert.TFDistilBertModel.serving_output
     def serving_output(self, output):
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
 
-        return TFBaseModelOutput(last_hidden_state=output.last_hidden_state, hidden_states=hs, attentions=attns)
+        return TFBaseModelOutput(
+            last_hidden_state=output.last_hidden_state,
+            hidden_states=hs,
+            attentions=attns,
+        )
 
 
 # Copied from transformers.models.xlm.modeling_tf_xlm.TFXLMMultiHeadAttention with XLM->Flaubert
@@ -307,17 +326,27 @@ class TFFlaubertMultiHeadAttention(tf.keras.layers.Layer):
         self.output_attentions = config.output_attentions
         assert self.dim % self.n_heads == 0
 
-        self.q_lin = tf.keras.layers.Dense(dim, kernel_initializer=get_initializer(config.init_std), name="q_lin")
-        self.k_lin = tf.keras.layers.Dense(dim, kernel_initializer=get_initializer(config.init_std), name="k_lin")
-        self.v_lin = tf.keras.layers.Dense(dim, kernel_initializer=get_initializer(config.init_std), name="v_lin")
-        self.out_lin = tf.keras.layers.Dense(dim, kernel_initializer=get_initializer(config.init_std), name="out_lin")
+        self.q_lin = tf.keras.layers.Dense(
+            dim, kernel_initializer=get_initializer(config.init_std), name="q_lin"
+        )
+        self.k_lin = tf.keras.layers.Dense(
+            dim, kernel_initializer=get_initializer(config.init_std), name="k_lin"
+        )
+        self.v_lin = tf.keras.layers.Dense(
+            dim, kernel_initializer=get_initializer(config.init_std), name="v_lin"
+        )
+        self.out_lin = tf.keras.layers.Dense(
+            dim, kernel_initializer=get_initializer(config.init_std), name="out_lin"
+        )
         self.dropout = tf.keras.layers.Dropout(config.attention_dropout)
         self.pruned_heads = set()
 
     def prune_heads(self, heads):
         raise NotImplementedError
 
-    def call(self, input, mask, kv, cache, head_mask, output_attentions, training=False):
+    def call(
+        self, input, mask, kv, cache, head_mask, output_attentions, training=False
+    ):
         """
         Self-attention (if kv is None) or attention over source sentence (provided by kv).
         """
@@ -332,15 +361,22 @@ class TFFlaubertMultiHeadAttention(tf.keras.layers.Layer):
 
         # assert dim == self.dim, f'Dimensions do not match: {dim} input vs {self.dim} configured'
         dim_per_head = self.dim // self.n_heads
-        mask_reshape = (bs, 1, qlen, klen) if len(shape_list(mask)) == 3 else (bs, 1, 1, klen)
+        mask_reshape = (
+            (bs, 1, qlen, klen) if len(shape_list(mask)) == 3 else (bs, 1, 1, klen)
+        )
 
         def shape(x):
             """projection"""
-            return tf.transpose(tf.reshape(x, (bs, -1, self.n_heads, dim_per_head)), perm=(0, 2, 1, 3))
+            return tf.transpose(
+                tf.reshape(x, (bs, -1, self.n_heads, dim_per_head)), perm=(0, 2, 1, 3)
+            )
 
         def unshape(x):
             """compute context"""
-            return tf.reshape(tf.transpose(x, perm=(0, 2, 1, 3)), (bs, -1, self.n_heads * dim_per_head))
+            return tf.reshape(
+                tf.transpose(x, perm=(0, 2, 1, 3)),
+                (bs, -1, self.n_heads * dim_per_head),
+            )
 
         q = shape(self.q_lin(input))  # (bs, n_heads, qlen, dim_per_head)
 
@@ -364,7 +400,9 @@ class TFFlaubertMultiHeadAttention(tf.keras.layers.Layer):
             cache[self.layer_id] = (k, v)
 
         f_dim_per_head = tf.cast(dim_per_head, dtype=q.dtype)
-        q = tf.multiply(q, tf.math.rsqrt(f_dim_per_head))  # (bs, n_heads, qlen, dim_per_head)
+        q = tf.multiply(
+            q, tf.math.rsqrt(f_dim_per_head)
+        )  # (bs, n_heads, qlen, dim_per_head)
         k = tf.cast(k, dtype=q.dtype)
         scores = tf.matmul(q, k, transpose_b=True)  # (bs, n_heads, qlen, klen)
         mask = tf.reshape(mask, mask_reshape)  # (bs, n_heads, qlen, klen)
@@ -393,9 +431,17 @@ class TFFlaubertTransformerFFN(tf.keras.layers.Layer):
     def __init__(self, in_dim, dim_hidden, out_dim, config, **kwargs):
         super().__init__(**kwargs)
 
-        self.lin1 = tf.keras.layers.Dense(dim_hidden, kernel_initializer=get_initializer(config.init_std), name="lin1")
-        self.lin2 = tf.keras.layers.Dense(out_dim, kernel_initializer=get_initializer(config.init_std), name="lin2")
-        self.act = get_tf_activation("gelu") if config.gelu_activation else get_tf_activation("relu")
+        self.lin1 = tf.keras.layers.Dense(
+            dim_hidden, kernel_initializer=get_initializer(config.init_std), name="lin1"
+        )
+        self.lin2 = tf.keras.layers.Dense(
+            out_dim, kernel_initializer=get_initializer(config.init_std), name="lin2"
+        )
+        self.act = (
+            get_tf_activation("gelu")
+            if config.gelu_activation
+            else get_tf_activation("relu")
+        )
         self.dropout = tf.keras.layers.Dropout(config.dropout)
 
     def call(self, input, training=False):
@@ -433,9 +479,14 @@ class TFFlaubertMainLayer(tf.keras.layers.Layer):
         self.embed_init_std = config.embed_init_std
         self.dropout = tf.keras.layers.Dropout(config.dropout)
         self.embeddings = TFSharedEmbeddings(
-            self.n_words, self.dim, initializer_range=config.embed_init_std, name="embeddings"
+            self.n_words,
+            self.dim,
+            initializer_range=config.embed_init_std,
+            name="embeddings",
         )
-        self.layer_norm_emb = tf.keras.layers.LayerNormalization(epsilon=config.layer_norm_eps, name="layer_norm_emb")
+        self.layer_norm_emb = tf.keras.layers.LayerNormalization(
+            epsilon=config.layer_norm_eps, name="layer_norm_emb"
+        )
         self.attentions = []
         self.layer_norm1 = []
         self.ffns = []
@@ -443,19 +494,31 @@ class TFFlaubertMainLayer(tf.keras.layers.Layer):
 
         for i in range(self.n_layers):
             self.attentions.append(
-                TFFlaubertMultiHeadAttention(self.n_heads, self.dim, config=config, name=f"attentions_._{i}")
+                TFFlaubertMultiHeadAttention(
+                    self.n_heads, self.dim, config=config, name=f"attentions_._{i}"
+                )
             )
             self.layer_norm1.append(
-                tf.keras.layers.LayerNormalization(epsilon=config.layer_norm_eps, name=f"layer_norm1_._{i}")
+                tf.keras.layers.LayerNormalization(
+                    epsilon=config.layer_norm_eps, name=f"layer_norm1_._{i}"
+                )
             )
             # if self.is_decoder:
             #     self.layer_norm15.append(nn.LayerNorm(self.dim, eps=config.layer_norm_eps))
             #     self.encoder_attn.append(MultiHeadAttention(self.n_heads, self.dim, dropout=self.attention_dropout))
             self.ffns.append(
-                TFFlaubertTransformerFFN(self.dim, self.hidden_dim, self.dim, config=config, name=f"ffns_._{i}")
+                TFFlaubertTransformerFFN(
+                    self.dim,
+                    self.hidden_dim,
+                    self.dim,
+                    config=config,
+                    name=f"ffns_._{i}",
+                )
             )
             self.layer_norm2.append(
-                tf.keras.layers.LayerNormalization(epsilon=config.layer_norm_eps, name=f"layer_norm2_._{i}")
+                tf.keras.layers.LayerNormalization(
+                    epsilon=config.layer_norm_eps, name=f"layer_norm2_._{i}"
+                )
             )
 
     def build(self, input_shape):
@@ -503,7 +566,9 @@ class TFFlaubertMainLayer(tf.keras.layers.Layer):
         # removed: src_enc=None, src_len=None
 
         if input_ids is not None and inputs_embeds is not None:
-            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
+            raise ValueError(
+                "You cannot specify both input_ids and inputs_embeds at the same time"
+            )
         elif input_ids is not None:
             bs, slen = shape_list(input_ids)
         elif inputs_embeds is not None:
@@ -514,7 +579,10 @@ class TFFlaubertMainLayer(tf.keras.layers.Layer):
         if lengths is None:
             if input_ids is not None:
                 lengths = tf.reduce_sum(
-                    tf.cast(tf.not_equal(input_ids, self.pad_index), dtype=input_ids.dtype), axis=1
+                    tf.cast(
+                        tf.not_equal(input_ids, self.pad_index), dtype=input_ids.dtype
+                    ),
+                    axis=1,
                 )
             else:
                 lengths = tf.convert_to_tensor([slen] * bs)
@@ -533,7 +601,9 @@ class TFFlaubertMainLayer(tf.keras.layers.Layer):
         #     assert src_enc.size(0) == bs
 
         # generate masks
-        mask, attn_mask = get_masks(slen, lengths, self.causal, padding_mask=attention_mask)
+        mask, attn_mask = get_masks(
+            slen, lengths, self.causal, padding_mask=attention_mask
+        )
         # if self.is_decoder and src_enc is not None:
         #     src_mask = torch.arange(src_len.max(), dtype=torch.long, device=lengths.device) < src_len[:, None]
 
@@ -684,9 +754,13 @@ class TFFlaubertMainLayer(tf.keras.layers.Layer):
         # tensor = tensor.transpose(0, 1)
 
         if not return_dict:
-            return tuple(v for v in [tensor, hidden_states, attentions] if v is not None)
+            return tuple(
+                v for v in [tensor, hidden_states, attentions] if v is not None
+            )
 
-        return TFBaseModelOutput(last_hidden_state=tensor, hidden_states=hidden_states, attentions=attentions)
+        return TFBaseModelOutput(
+            last_hidden_state=tensor, hidden_states=hidden_states, attentions=attentions
+        )
 
 
 # Copied from transformers.models.xlm.modeling_tf_xlm.TFXLMPredLayer
@@ -716,7 +790,9 @@ class TFFlaubertPredLayer(tf.keras.layers.Layer):
 
     def build(self, input_shape):
         # The output weights are the same as the input embeddings, but there is an output-only bias for each token.
-        self.bias = self.add_weight(shape=(self.n_words,), initializer="zeros", trainable=True, name="bias")
+        self.bias = self.add_weight(
+            shape=(self.n_words,), initializer="zeros", trainable=True, name="bias"
+        )
 
         super().build(input_shape)
 
@@ -778,7 +854,9 @@ class TFFlaubertWithLMHeadModel(TFFlaubertPreTrainedModel):
     def __init__(self, config, *inputs, **kwargs):
         super().__init__(config, *inputs, **kwargs)
         self.transformer = TFFlaubertMainLayer(config, name="transformer")
-        self.pred_layer = TFFlaubertPredLayer(config, self.transformer.embeddings, name="pred_layer_._proj")
+        self.pred_layer = TFFlaubertPredLayer(
+            config, self.transformer.embeddings, name="pred_layer_._proj"
+        )
         # Flaubert does not have past caching features
         self.supports_xla_generation = False
 
@@ -786,7 +864,10 @@ class TFFlaubertWithLMHeadModel(TFFlaubertPreTrainedModel):
         return self.pred_layer
 
     def get_prefix_bias_name(self):
-        warnings.warn("The method get_prefix_bias_name is deprecated. Please use `get_bias` instead.", FutureWarning)
+        warnings.warn(
+            "The method get_prefix_bias_name is deprecated. Please use `get_bias` instead.",
+            FutureWarning,
+        )
         return self.name + "/" + self.pred_layer.name
 
     def prepare_inputs_for_generation(self, inputs, **kwargs):
@@ -848,14 +929,26 @@ class TFFlaubertWithLMHeadModel(TFFlaubertPreTrainedModel):
             return (outputs,) + transformer_outputs[1:]
 
         return TFFlaubertWithLMHeadModelOutput(
-            logits=outputs, hidden_states=transformer_outputs.hidden_states, attentions=transformer_outputs.attentions
+            logits=outputs,
+            hidden_states=transformer_outputs.hidden_states,
+            attentions=transformer_outputs.attentions,
         )
 
     def serving_output(self, output):
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
 
-        return TFFlaubertWithLMHeadModelOutput(logits=output.logits, hidden_states=hs, attentions=attns)
+        return TFFlaubertWithLMHeadModelOutput(
+            logits=output.logits, hidden_states=hs, attentions=attns
+        )
 
 
 @add_start_docstrings(
@@ -866,16 +959,22 @@ class TFFlaubertWithLMHeadModel(TFFlaubertPreTrainedModel):
     FLAUBERT_START_DOCSTRING,
 )
 # Copied from transformers.models.xlm.modeling_tf_xlm.TFXLMForSequenceClassification with XLM_INPUTS->FLAUBERT_INPUTS,XLM->Flaubert
-class TFFlaubertForSequenceClassification(TFFlaubertPreTrainedModel, TFSequenceClassificationLoss):
+class TFFlaubertForSequenceClassification(
+    TFFlaubertPreTrainedModel, TFSequenceClassificationLoss
+):
     def __init__(self, config, *inputs, **kwargs):
         super().__init__(config, *inputs, **kwargs)
         self.num_labels = config.num_labels
 
         self.transformer = TFFlaubertMainLayer(config, name="transformer")
-        self.sequence_summary = TFSequenceSummary(config, initializer_range=config.init_std, name="sequence_summary")
+        self.sequence_summary = TFSequenceSummary(
+            config, initializer_range=config.init_std, name="sequence_summary"
+        )
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(FLAUBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        FLAUBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=TFSequenceClassifierOutput,
@@ -937,11 +1036,23 @@ class TFFlaubertForSequenceClassification(TFFlaubertPreTrainedModel, TFSequenceC
         )
 
     # Copied from transformers.models.bert.modeling_tf_bert.TFBertForSequenceClassification.serving_output
-    def serving_output(self, output: TFSequenceClassifierOutput) -> TFSequenceClassifierOutput:
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+    def serving_output(
+        self, output: TFSequenceClassifierOutput
+    ) -> TFSequenceClassifierOutput:
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
 
-        return TFSequenceClassifierOutput(logits=output.logits, hidden_states=hs, attentions=attns)
+        return TFSequenceClassifierOutput(
+            logits=output.logits, hidden_states=hs, attentions=attns
+        )
 
 
 @add_start_docstrings(
@@ -952,16 +1063,22 @@ class TFFlaubertForSequenceClassification(TFFlaubertPreTrainedModel, TFSequenceC
     FLAUBERT_START_DOCSTRING,
 )
 # Copied from transformers.models.xlm.modeling_tf_xlm.TFXLMForQuestionAnsweringSimple with XLM_INPUTS->FLAUBERT_INPUTS,XLM->Flaubert
-class TFFlaubertForQuestionAnsweringSimple(TFFlaubertPreTrainedModel, TFQuestionAnsweringLoss):
+class TFFlaubertForQuestionAnsweringSimple(
+    TFFlaubertPreTrainedModel, TFQuestionAnsweringLoss
+):
     def __init__(self, config, *inputs, **kwargs):
         super().__init__(config, *inputs, **kwargs)
         self.transformer = TFFlaubertMainLayer(config, name="transformer")
         self.qa_outputs = tf.keras.layers.Dense(
-            config.num_labels, kernel_initializer=get_initializer(config.init_std), name="qa_outputs"
+            config.num_labels,
+            kernel_initializer=get_initializer(config.init_std),
+            name="qa_outputs",
         )
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(FLAUBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        FLAUBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=TFQuestionAnsweringModelOutput,
@@ -1036,12 +1153,25 @@ class TFFlaubertForQuestionAnsweringSimple(TFFlaubertPreTrainedModel, TFQuestion
         )
 
     # Copied from transformers.models.bert.modeling_tf_bert.TFBertForQuestionAnswering.serving_output
-    def serving_output(self, output: TFQuestionAnsweringModelOutput) -> TFQuestionAnsweringModelOutput:
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+    def serving_output(
+        self, output: TFQuestionAnsweringModelOutput
+    ) -> TFQuestionAnsweringModelOutput:
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
 
         return TFQuestionAnsweringModelOutput(
-            start_logits=output.start_logits, end_logits=output.end_logits, hidden_states=hs, attentions=attns
+            start_logits=output.start_logits,
+            end_logits=output.end_logits,
+            hidden_states=hs,
+            attentions=attns,
         )
 
 
@@ -1053,7 +1183,9 @@ class TFFlaubertForQuestionAnsweringSimple(TFFlaubertPreTrainedModel, TFQuestion
     FLAUBERT_START_DOCSTRING,
 )
 # Copied from transformers.models.xlm.modeling_tf_xlm.TFXLMForTokenClassification with XLM_INPUTS->FLAUBERT_INPUTS,XLM->Flaubert
-class TFFlaubertForTokenClassification(TFFlaubertPreTrainedModel, TFTokenClassificationLoss):
+class TFFlaubertForTokenClassification(
+    TFFlaubertPreTrainedModel, TFTokenClassificationLoss
+):
     def __init__(self, config, *inputs, **kwargs):
         super().__init__(config, *inputs, **kwargs)
         self.num_labels = config.num_labels
@@ -1061,11 +1193,15 @@ class TFFlaubertForTokenClassification(TFFlaubertPreTrainedModel, TFTokenClassif
         self.transformer = TFFlaubertMainLayer(config, name="transformer")
         self.dropout = tf.keras.layers.Dropout(config.dropout)
         self.classifier = tf.keras.layers.Dense(
-            config.num_labels, kernel_initializer=get_initializer(config.init_std), name="classifier"
+            config.num_labels,
+            kernel_initializer=get_initializer(config.init_std),
+            name="classifier",
         )
 
     @unpack_inputs
-    @add_start_docstrings_to_model_forward(FLAUBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(
+        FLAUBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length")
+    )
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=TFTokenClassifierOutput,
@@ -1126,11 +1262,23 @@ class TFFlaubertForTokenClassification(TFFlaubertPreTrainedModel, TFTokenClassif
         )
 
     # Copied from transformers.models.bert.modeling_tf_bert.TFBertForTokenClassification.serving_output
-    def serving_output(self, output: TFTokenClassifierOutput) -> TFTokenClassifierOutput:
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+    def serving_output(
+        self, output: TFTokenClassifierOutput
+    ) -> TFTokenClassifierOutput:
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
 
-        return TFTokenClassifierOutput(logits=output.logits, hidden_states=hs, attentions=attns)
+        return TFTokenClassifierOutput(
+            logits=output.logits, hidden_states=hs, attentions=attns
+        )
 
 
 @add_start_docstrings(
@@ -1146,9 +1294,13 @@ class TFFlaubertForMultipleChoice(TFFlaubertPreTrainedModel, TFMultipleChoiceLos
         super().__init__(config, *inputs, **kwargs)
 
         self.transformer = TFFlaubertMainLayer(config, name="transformer")
-        self.sequence_summary = TFSequenceSummary(config, initializer_range=config.init_std, name="sequence_summary")
+        self.sequence_summary = TFSequenceSummary(
+            config, initializer_range=config.init_std, name="sequence_summary"
+        )
         self.logits_proj = tf.keras.layers.Dense(
-            1, kernel_initializer=get_initializer(config.initializer_range), name="logits_proj"
+            1,
+            kernel_initializer=get_initializer(config.initializer_range),
+            name="logits_proj",
         )
 
     @property
@@ -1203,10 +1355,24 @@ class TFFlaubertForMultipleChoice(TFFlaubertPreTrainedModel, TFMultipleChoiceLos
             num_choices = shape_list(inputs_embeds)[1]
             seq_length = shape_list(inputs_embeds)[2]
 
-        flat_input_ids = tf.reshape(input_ids, (-1, seq_length)) if input_ids is not None else None
-        flat_attention_mask = tf.reshape(attention_mask, (-1, seq_length)) if attention_mask is not None else None
-        flat_token_type_ids = tf.reshape(token_type_ids, (-1, seq_length)) if token_type_ids is not None else None
-        flat_position_ids = tf.reshape(position_ids, (-1, seq_length)) if position_ids is not None else None
+        flat_input_ids = (
+            tf.reshape(input_ids, (-1, seq_length)) if input_ids is not None else None
+        )
+        flat_attention_mask = (
+            tf.reshape(attention_mask, (-1, seq_length))
+            if attention_mask is not None
+            else None
+        )
+        flat_token_type_ids = (
+            tf.reshape(token_type_ids, (-1, seq_length))
+            if token_type_ids is not None
+            else None
+        )
+        flat_position_ids = (
+            tf.reshape(position_ids, (-1, seq_length))
+            if position_ids is not None
+            else None
+        )
         flat_langs = tf.reshape(langs, (-1, seq_length)) if langs is not None else None
         flat_inputs_embeds = (
             tf.reshape(inputs_embeds, (-1, seq_length, shape_list(inputs_embeds)[3]))
@@ -1257,9 +1423,15 @@ class TFFlaubertForMultipleChoice(TFFlaubertPreTrainedModel, TFMultipleChoiceLos
     @tf.function(
         input_signature=[
             {
-                "input_ids": tf.TensorSpec((None, None, None), tf.int32, name="input_ids"),
-                "attention_mask": tf.TensorSpec((None, None, None), tf.int32, name="attention_mask"),
-                "token_type_ids": tf.TensorSpec((None, None, None), tf.int32, name="token_type_ids"),
+                "input_ids": tf.TensorSpec(
+                    (None, None, None), tf.int32, name="input_ids"
+                ),
+                "attention_mask": tf.TensorSpec(
+                    (None, None, None), tf.int32, name="attention_mask"
+                ),
+                "token_type_ids": tf.TensorSpec(
+                    (None, None, None), tf.int32, name="token_type_ids"
+                ),
             }
         ]
     )
@@ -1270,8 +1442,20 @@ class TFFlaubertForMultipleChoice(TFFlaubertPreTrainedModel, TFMultipleChoiceLos
         return self.serving_output(output)
 
     # Copied from transformers.models.bert.modeling_tf_bert.TFBertForMultipleChoice.serving_output
-    def serving_output(self, output: TFMultipleChoiceModelOutput) -> TFMultipleChoiceModelOutput:
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+    def serving_output(
+        self, output: TFMultipleChoiceModelOutput
+    ) -> TFMultipleChoiceModelOutput:
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
 
-        return TFMultipleChoiceModelOutput(logits=output.logits, hidden_states=hs, attentions=attns)
+        return TFMultipleChoiceModelOutput(
+            logits=output.logits, hidden_states=hs, attentions=attns
+        )

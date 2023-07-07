@@ -8,9 +8,11 @@ from typing import Optional, Tuple
 
 import torch
 from torch import Tensor, nn
-from modules.quant_noise import quant_noise
-from modules.layer_norm import LayerNorm, Fp32LayerNorm
+
 from modules.FairseqDropout import FairseqDropout
+from modules.layer_norm import Fp32LayerNorm, LayerNorm
+from modules.quant_noise import quant_noise
+
 
 class MultiheadAttention(nn.Module):
     """Multi-headed attention.
@@ -46,7 +48,9 @@ class MultiheadAttention(nn.Module):
         assert (
             self.head_dim * num_heads == self.embed_dim
         ), "embed_dim must be divisible by num_heads"
-        self.scaling = ((self.head_dim/d_tilde) ** 0.5) / self.head_dim  # when d_tilt == 1, match with original transformer scale
+        self.scaling = (
+            (self.head_dim / d_tilde) ** 0.5
+        ) / self.head_dim  # when d_tilt == 1, match with original transformer scale
 
         self.self_attention = self_attention
 
@@ -84,15 +88,21 @@ class MultiheadAttention(nn.Module):
         if self.qkv_same_dim:
             # Empirically observed the convergence to be much better with
             # the scaled initialization
-            nn.init.xavier_uniform_(self.k_proj.weight, gain=1. / (math.sqrt(2 * d_tilde)))
-            nn.init.xavier_uniform_(self.v_proj.weight, gain=1. / (math.sqrt(2 * d_tilde)))
-            nn.init.xavier_uniform_(self.q_proj.weight, gain=1. / (math.sqrt(2 * d_tilde)))
+            nn.init.xavier_uniform_(
+                self.k_proj.weight, gain=1.0 / (math.sqrt(2 * d_tilde))
+            )
+            nn.init.xavier_uniform_(
+                self.v_proj.weight, gain=1.0 / (math.sqrt(2 * d_tilde))
+            )
+            nn.init.xavier_uniform_(
+                self.q_proj.weight, gain=1.0 / (math.sqrt(2 * d_tilde))
+            )
         else:
-            nn.init.xavier_uniform_(self.k_proj.weight, gain=1./math.sqrt(d_tilde))
-            nn.init.xavier_uniform_(self.v_proj.weight, gain=1./math.sqrt(d_tilde))
-            nn.init.xavier_uniform_(self.q_proj.weight, gain=1./math.sqrt(d_tilde))
+            nn.init.xavier_uniform_(self.k_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+            nn.init.xavier_uniform_(self.v_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+            nn.init.xavier_uniform_(self.q_proj.weight, gain=1.0 / math.sqrt(d_tilde))
 
-        nn.init.xavier_uniform_(self.out_proj.weight, gain=1./math.sqrt(d_tilde))
+        nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         if self.out_proj.bias is not None:
             nn.init.constant_(self.out_proj.bias, 0.0)
         self.layer_norm.reset_parameters()
@@ -181,7 +191,9 @@ class MultiheadAttention(nn.Module):
         assert list(attn_weights.size()) == [bsz * self.num_heads, tgt_len, src_len]
 
         if attn_bias is not None:
-            attn_weights += attn_bias.contiguous().view(bsz * self.num_heads, tgt_len, src_len)
+            attn_weights += attn_bias.contiguous().view(
+                bsz * self.num_heads, tgt_len, src_len
+            )
 
         if attn_mask is not None:
             attn_mask = attn_mask.unsqueeze(0)
@@ -202,9 +214,7 @@ class MultiheadAttention(nn.Module):
         # attn_weights_float = utils.softmax(
         #     attn_weights, dim=-1, onnx_trace=self.onnx_trace
         # )
-        attn_weights_float = nn.functional.softmax(
-            attn_weights, dim=-1
-        )
+        attn_weights_float = nn.functional.softmax(attn_weights, dim=-1)
         attn_weights = attn_weights_float.type_as(attn_weights)
         attn_probs = self.dropout_module(attn_weights)
 

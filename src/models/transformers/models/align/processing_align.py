@@ -42,7 +42,15 @@ class AlignProcessor(ProcessorMixin):
     def __init__(self, image_processor, tokenizer):
         super().__init__(image_processor, tokenizer)
 
-    def __call__(self, text=None, images=None, padding="max_length", max_length=64, return_tensors=None, **kwargs):
+    def __call__(
+        self,
+        text=None,
+        images=None,
+        padding="max_length",
+        max_length=64,
+        return_tensors=None,
+        **kwargs
+    ):
         """
         Main method to prepare text(s) and image(s) to be fed as input to the model. This method forwards the `text`
         and `kwargs` arguments to BertTokenizerFast's [`~BertTokenizerFast.__call__`] if `text` is not `None` to encode
@@ -83,15 +91,23 @@ class AlignProcessor(ProcessorMixin):
             - **pixel_values** -- Pixel values to be fed to a model. Returned when `images` is not `None`.
         """
         if text is None and images is None:
-            raise ValueError("You have to specify either text or images. Both cannot be none.")
+            raise ValueError(
+                "You have to specify either text or images. Both cannot be none."
+            )
 
         if text is not None:
             encoding = self.tokenizer(
-                text, padding=padding, max_length=max_length, return_tensors=return_tensors, **kwargs
+                text,
+                padding=padding,
+                max_length=max_length,
+                return_tensors=return_tensors,
+                **kwargs
             )
 
         if images is not None:
-            image_features = self.image_processor(images, return_tensors=return_tensors, **kwargs)
+            image_features = self.image_processor(
+                images, return_tensors=return_tensors, **kwargs
+            )
 
         if text is not None and images is not None:
             encoding["pixel_values"] = image_features.pixel_values
@@ -99,7 +115,9 @@ class AlignProcessor(ProcessorMixin):
         elif text is not None:
             return encoding
         else:
-            return BatchEncoding(data=dict(**image_features), tensor_type=return_tensors)
+            return BatchEncoding(
+                data=dict(**image_features), tensor_type=return_tensors
+            )
 
     def batch_decode(self, *args, **kwargs):
         """

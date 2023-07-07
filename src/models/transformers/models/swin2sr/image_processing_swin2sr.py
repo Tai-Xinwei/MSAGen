@@ -19,8 +19,19 @@ from typing import Optional, Union
 import numpy as np
 
 from ...image_processing_utils import BaseImageProcessor, BatchFeature
-from ...image_transforms import get_image_size, pad, rescale, to_channel_dimension_format
-from ...image_utils import ChannelDimension, ImageInput, make_list_of_images, to_numpy_array, valid_images
+from ...image_transforms import (
+    get_image_size,
+    pad,
+    rescale,
+    to_channel_dimension_format,
+)
+from ...image_utils import (
+    ChannelDimension,
+    ImageInput,
+    make_list_of_images,
+    to_numpy_array,
+    valid_images,
+)
 from ...utils import TensorType, logging
 
 
@@ -58,7 +69,11 @@ class Swin2SRImageProcessor(BaseImageProcessor):
         self.pad_size = pad_size
 
     def rescale(
-        self, image: np.ndarray, scale: float, data_format: Optional[Union[str, ChannelDimension]] = None, **kwargs
+        self,
+        image: np.ndarray,
+        scale: float,
+        data_format: Optional[Union[str, ChannelDimension]] = None,
+        **kwargs,
     ) -> np.ndarray:
         """
         Rescale an image by a scale factor. image = image * scale.
@@ -79,7 +94,12 @@ class Swin2SRImageProcessor(BaseImageProcessor):
         """
         return rescale(image, scale=scale, data_format=data_format, **kwargs)
 
-    def pad(self, image: np.ndarray, size: int, data_format: Optional[Union[str, ChannelDimension]] = None):
+    def pad(
+        self,
+        image: np.ndarray,
+        size: int,
+        data_format: Optional[Union[str, ChannelDimension]] = None,
+    ):
         """
         Pad an image to make the height and width divisible by `size`.
 
@@ -101,7 +121,12 @@ class Swin2SRImageProcessor(BaseImageProcessor):
         pad_height = (old_height // size + 1) * size - old_height
         pad_width = (old_width // size + 1) * size - old_width
 
-        return pad(image, ((0, pad_height), (0, pad_width)), mode="symmetric", data_format=data_format)
+        return pad(
+            image,
+            ((0, pad_height), (0, pad_width)),
+            mode="symmetric",
+            data_format=data_format,
+        )
 
     def preprocess(
         self,
@@ -142,7 +167,9 @@ class Swin2SRImageProcessor(BaseImageProcessor):
                 - Unset: Use the channel dimension format of the input image.
         """
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         do_pad = do_pad if do_pad is not None else self.do_pad
         pad_size = pad_size if pad_size is not None else self.pad_size
 
@@ -161,7 +188,9 @@ class Swin2SRImageProcessor(BaseImageProcessor):
         images = [to_numpy_array(image) for image in images]
 
         if do_rescale:
-            images = [self.rescale(image=image, scale=rescale_factor) for image in images]
+            images = [
+                self.rescale(image=image, scale=rescale_factor) for image in images
+            ]
 
         if do_pad:
             images = [self.pad(image, size=pad_size) for image in images]

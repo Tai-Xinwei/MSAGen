@@ -120,11 +120,16 @@ class DonutImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_factor
         self.do_normalize = do_normalize
-        self.image_mean = image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        self.image_mean = (
+            image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        )
         self.image_std = image_std if image_std is not None else IMAGENET_STANDARD_STD
 
     def align_long_axis(
-        self, image: np.ndarray, size: Dict[str, int], data_format: Optional[Union[str, ChannelDimension]] = None
+        self,
+        image: np.ndarray,
+        size: Dict[str, int],
+        data_format: Optional[Union[str, ChannelDimension]] = None,
     ) -> np.ndarray:
         """
         Align the long axis of the image to the longest axis of the specified size.
@@ -197,7 +202,9 @@ class DonutImageProcessor(BaseImageProcessor):
         return pad(image, padding, data_format=data_format)
 
     def pad(self, *args, **kwargs):
-        logger.info("pad is deprecated and will be removed in version 4.27. Please use pad_image instead.")
+        logger.info(
+            "pad is deprecated and will be removed in version 4.27. Please use pad_image instead."
+        )
         return self.pad_image(*args, **kwargs)
 
     def thumbnail(
@@ -238,7 +245,12 @@ class DonutImageProcessor(BaseImageProcessor):
             height = int(input_height * width / input_width)
 
         return resize(
-            image, size=(height, width), resample=resample, reducing_gap=2.0, data_format=data_format, **kwargs
+            image,
+            size=(height, width),
+            resample=resample,
+            reducing_gap=2.0,
+            data_format=data_format,
+            **kwargs,
         )
 
     def resize(
@@ -265,8 +277,16 @@ class DonutImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         shortest_edge = min(size["height"], size["width"])
-        output_size = get_resize_output_image_size(image, size=shortest_edge, default_to_square=False)
-        resized_image = resize(image, size=output_size, resample=resample, data_format=data_format, **kwargs)
+        output_size = get_resize_output_image_size(
+            image, size=shortest_edge, default_to_square=False
+        )
+        resized_image = resize(
+            image,
+            size=output_size,
+            resample=resample,
+            data_format=data_format,
+            **kwargs,
+        )
         return resized_image
 
     def rescale(
@@ -387,10 +407,16 @@ class DonutImageProcessor(BaseImageProcessor):
         size = get_size_dict(size)
         resample = resample if resample is not None else self.resample
         do_thumbnail = do_thumbnail if do_thumbnail is not None else self.do_thumbnail
-        do_align_long_axis = do_align_long_axis if do_align_long_axis is not None else self.do_align_long_axis
+        do_align_long_axis = (
+            do_align_long_axis
+            if do_align_long_axis is not None
+            else self.do_align_long_axis
+        )
         do_pad = do_pad if do_pad is not None else self.do_pad
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
@@ -413,7 +439,9 @@ class DonutImageProcessor(BaseImageProcessor):
             raise ValueError("Size must be specified if do_pad is True.")
 
         if do_normalize and (image_mean is None or image_std is None):
-            raise ValueError("Image mean and std must be specified if do_normalize is True.")
+            raise ValueError(
+                "Image mean and std must be specified if do_normalize is True."
+            )
 
         # All transformations expect numpy arrays.
         images = [to_numpy_array(image) for image in images]
@@ -422,19 +450,30 @@ class DonutImageProcessor(BaseImageProcessor):
             images = [self.align_long_axis(image, size=size) for image in images]
 
         if do_resize:
-            images = [self.resize(image=image, size=size, resample=resample) for image in images]
+            images = [
+                self.resize(image=image, size=size, resample=resample)
+                for image in images
+            ]
 
         if do_thumbnail:
             images = [self.thumbnail(image=image, size=size) for image in images]
 
         if do_pad:
-            images = [self.pad_image(image=image, size=size, random_padding=random_padding) for image in images]
+            images = [
+                self.pad_image(image=image, size=size, random_padding=random_padding)
+                for image in images
+            ]
 
         if do_rescale:
-            images = [self.rescale(image=image, scale=rescale_factor) for image in images]
+            images = [
+                self.rescale(image=image, scale=rescale_factor) for image in images
+            ]
 
         if do_normalize:
-            images = [self.normalize(image=image, mean=image_mean, std=image_std) for image in images]
+            images = [
+                self.normalize(image=image, mean=image_mean, std=image_std)
+                for image in images
+            ]
 
         images = [to_channel_dimension_format(image, data_format) for image in images]
 

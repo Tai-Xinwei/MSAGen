@@ -32,7 +32,10 @@ from ...file_utils import (
     add_start_docstrings_to_model_forward,
     replace_return_docstrings,
 )
-from ...modeling_tf_outputs import TFBaseModelOutputWithPastAndCrossAttentions, TFCausalLMOutputWithCrossAttentions
+from ...modeling_tf_outputs import (
+    TFBaseModelOutputWithPastAndCrossAttentions,
+    TFCausalLMOutputWithCrossAttentions,
+)
 from ...modeling_tf_utils import (
     TFCausalLanguageModelingLoss,
     TFModelInputType,
@@ -62,11 +65,15 @@ TF_XGLM_PRETRAINED_MODEL_ARCHIVE_LIST = [
 LARGE_NEGATIVE = -1e8
 
 
-def create_sinusiodal_positions(num_positions: int, embedding_dim: int, padding_idx: Optional[int]) -> tf.Tensor:
+def create_sinusiodal_positions(
+    num_positions: int, embedding_dim: int, padding_idx: Optional[int]
+) -> tf.Tensor:
     half_dim = embedding_dim // 2
     emb = math.log(10000) / (half_dim - 1)
     emb = tf.exp(tf.range(half_dim, dtype=tf.float32) * -emb)
-    emb = tf.expand_dims(tf.range(num_positions, dtype=tf.float32), axis=1) * tf.expand_dims(emb, axis=0)
+    emb = tf.expand_dims(
+        tf.range(num_positions, dtype=tf.float32), axis=1
+    ) * tf.expand_dims(emb, axis=0)
     emb = tf.reshape(tf.concat([tf.sin(emb), tf.cos(emb)], axis=1), (num_positions, -1))
     if embedding_dim % 2 == 1:
         # zero pad
@@ -94,7 +101,9 @@ def _create_position_ids_from_input_ids(
     """
     # The series of casts and type-conversions here are carefully balanced to both work with ONNX export and XLA.
     mask = tf.where(input_ids != padding_idx, 1, 0)
-    incremental_indices = (tf.cast(tf.cumsum(mask, axis=1), dtype=mask.dtype) + past_key_values_length) * mask
+    incremental_indices = (
+        tf.cast(tf.cumsum(mask, axis=1), dtype=mask.dtype) + past_key_values_length
+    ) * mask
     return tf.cast(incremental_indices, dtype=tf.int64) + padding_idx
 
 
@@ -110,9 +119,14 @@ def _create_position_ids_from_inputs_embeds(
     input_shape = shape_list(inputs_embeds)[:-1]
     sequence_length = input_shape[1]
 
-    position_ids = tf.range(padding_idx + 1, sequence_length + padding_idx + 1, dtype=tf.int64)
+    position_ids = tf.range(
+        padding_idx + 1, sequence_length + padding_idx + 1, dtype=tf.int64
+    )
 
-    return tf.broadcast_to(tf.expand_dims(position_ids, axis=0), input_shape) + past_key_values_length
+    return (
+        tf.broadcast_to(tf.expand_dims(position_ids, axis=0), input_shape)
+        + past_key_values_length
+    )
 
 
 # Copied from transformers.models.bart.modeling_tf_bart._make_causal_mask
@@ -125,7 +139,9 @@ def _make_causal_mask(input_ids_shape: tf.TensorShape, past_key_values_length: i
     mask = tf.ones((tgt_len, tgt_len)) * LARGE_NEGATIVE
     mask_cond = tf.range(shape_list(mask)[-1])
 
-    mask = tf.where(mask_cond < tf.reshape(mask_cond + 1, (shape_list(mask)[-1], 1)), 0.0, mask)
+    mask = tf.where(
+        mask_cond < tf.reshape(mask_cond + 1, (shape_list(mask)[-1], 1)), 0.0, mask
+    )
 
     if past_key_values_length > 0:
         mask = tf.concat([tf.zeros((tgt_len, past_key_values_length)), mask], axis=-1)
@@ -134,7 +150,9 @@ def _make_causal_mask(input_ids_shape: tf.TensorShape, past_key_values_length: i
 
 
 # Copied from transformers.models.bart.modeling_tf_bart._expand_mask
-def _expand_mask(mask: tf.Tensor, tgt_len: Optional[int] = None, past_key_values_length: int = 0):
+def _expand_mask(
+    mask: tf.Tensor, tgt_len: Optional[int] = None, past_key_values_length: int = 0
+):
     """
     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
     """
@@ -180,7 +198,10 @@ class TFXGLMAttention(tf.keras.layers.Layer):
         self.out_proj = tf.keras.layers.Dense(embed_dim, use_bias=bias, name="out_proj")
 
     def _shape(self, tensor: tf.Tensor, seq_len: int, bsz: int):
-        return tf.transpose(tf.reshape(tensor, (bsz, seq_len, self.num_heads, self.head_dim)), (0, 2, 1, 3))
+        return tf.transpose(
+            tf.reshape(tensor, (bsz, seq_len, self.num_heads, self.head_dim)),
+            (0, 2, 1, 3),
+        )
 
     def call(
         self,
@@ -258,8 +279,13 @@ class TFXGLMAttention(tf.keras.layers.Layer):
             )
 
             attention_mask = tf.cast(attention_mask, dtype=attn_weights.dtype)
-            attn_weights = tf.reshape(attn_weights, (bsz, self.num_heads, tgt_len, src_len)) + attention_mask
-            attn_weights = tf.reshape(attn_weights, (bsz * self.num_heads, tgt_len, src_len))
+            attn_weights = (
+                tf.reshape(attn_weights, (bsz, self.num_heads, tgt_len, src_len))
+                + attention_mask
+            )
+            attn_weights = tf.reshape(
+                attn_weights, (bsz * self.num_heads, tgt_len, src_len)
+            )
 
         attn_weights = stable_softmax(attn_weights, axis=-1)
 
@@ -276,7 +302,9 @@ class TFXGLMAttention(tf.keras.layers.Layer):
             attn_weights = tf.reshape(layer_head_mask, (1, -1, 1, 1)) * tf.reshape(
                 attn_weights, (bsz, self.num_heads, tgt_len, src_len)
             )
-            attn_weights = tf.reshape(attn_weights, (bsz * self.num_heads, tgt_len, src_len))
+            attn_weights = tf.reshape(
+                attn_weights, (bsz * self.num_heads, tgt_len, src_len)
+            )
 
         attn_probs = self.dropout(attn_weights, training=training)
         attn_output = tf.matmul(attn_probs, value_states)
@@ -291,12 +319,15 @@ class TFXGLMAttention(tf.keras.layers.Layer):
         )
 
         attn_output = tf.transpose(
-            tf.reshape(attn_output, (bsz, self.num_heads, tgt_len, self.head_dim)), (0, 2, 1, 3)
+            tf.reshape(attn_output, (bsz, self.num_heads, tgt_len, self.head_dim)),
+            (0, 2, 1, 3),
         )
         attn_output = tf.reshape(attn_output, (bsz, tgt_len, embed_dim))
 
         attn_output = self.out_proj(attn_output)
-        attn_weights: tf.Tensor = tf.reshape(attn_weights, (bsz, self.num_heads, tgt_len, src_len))
+        attn_weights: tf.Tensor = tf.reshape(
+            attn_weights, (bsz, self.num_heads, tgt_len, src_len)
+        )
 
         return attn_output, attn_weights, past_key_value
 
@@ -328,10 +359,14 @@ class TFXGLMDecoderLayer(tf.keras.layers.Layer):
                 epsilon=1e-5, name="encoder_attn_layer_norm"
             )
 
-        self.self_attn_layer_norm = tf.keras.layers.LayerNormalization(epsilon=1e-5, name="self_attn_layer_norm")
+        self.self_attn_layer_norm = tf.keras.layers.LayerNormalization(
+            epsilon=1e-5, name="self_attn_layer_norm"
+        )
         self.fc1 = tf.keras.layers.Dense(config.ffn_dim, name="fc1")
         self.fc2 = tf.keras.layers.Dense(self.embed_dim, name="fc2")
-        self.final_layer_norm = tf.keras.layers.LayerNormalization(epsilon=1e-5, name="final_layer_norm")
+        self.final_layer_norm = tf.keras.layers.LayerNormalization(
+            epsilon=1e-5, name="final_layer_norm"
+        )
 
     # Copied from transformers.models.mbart.modeling_tf_mbart.TFMBartDecoderLayer.call
     def call(
@@ -365,7 +400,9 @@ class TFXGLMDecoderLayer(tf.keras.layers.Layer):
 
         # Self Attention
         # decoder uni-directional self-attention cached key/values tuple is at positions 1,2
-        self_attn_past_key_value = past_key_value[:2] if past_key_value is not None else None
+        self_attn_past_key_value = (
+            past_key_value[:2] if past_key_value is not None else None
+        )
         # add present self-attn cache to positions 1,2 of present_key_value tuple
         hidden_states, self_attn_weights, present_key_value = self.self_attn(
             hidden_states=hidden_states,
@@ -384,8 +421,14 @@ class TFXGLMDecoderLayer(tf.keras.layers.Layer):
             hidden_states = self.encoder_attn_layer_norm(hidden_states)
 
             # cross_attn cached key/values tuple is at positions 3,4 of present_key_value tuple
-            cross_attn_past_key_value = past_key_value[-2:] if past_key_value is not None else None
-            hidden_states, cross_attn_weights, cross_attn_present_key_value = self.encoder_attn(
+            cross_attn_past_key_value = (
+                past_key_value[-2:] if past_key_value is not None else None
+            )
+            (
+                hidden_states,
+                cross_attn_weights,
+                cross_attn_present_key_value,
+            ) = self.encoder_attn(
                 hidden_states=hidden_states,
                 key_value_states=encoder_hidden_states,
                 attention_mask=encoder_attention_mask,
@@ -420,7 +463,11 @@ class TFXGLMMainLayer(tf.keras.layers.Layer):
     config_class = XGLMConfig
 
     def __init__(
-        self, config: XGLMConfig, embed_tokens: Optional[TFSharedEmbeddings] = None, *inputs, **kwargs: Any
+        self,
+        config: XGLMConfig,
+        embed_tokens: Optional[TFSharedEmbeddings] = None,
+        *inputs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(*inputs, **kwargs)
 
@@ -444,9 +491,14 @@ class TFXGLMMainLayer(tf.keras.layers.Layer):
         )
 
         self.dropout = tf.keras.layers.Dropout(config.dropout)
-        self.layers = [TFXGLMDecoderLayer(config, name=f"layers.{i}") for i in range(config.num_layers)]
+        self.layers = [
+            TFXGLMDecoderLayer(config, name=f"layers.{i}")
+            for i in range(config.num_layers)
+        ]
         self.layerdrop = config.layerdrop
-        self.layer_norm = tf.keras.layers.LayerNormalization(epsilon=1e-5, name="layer_norm")
+        self.layer_norm = tf.keras.layers.LayerNormalization(
+            epsilon=1e-5, name="layer_norm"
+        )
 
     def get_input_embeddings(self) -> TFSharedEmbeddings:
         return self.embed_tokens
@@ -464,10 +516,14 @@ class TFXGLMMainLayer(tf.keras.layers.Layer):
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
         combined_attention_mask: Optional[tf.Tensor] = None
         if input_shape[-1] > 1:
-            combined_attention_mask = _make_causal_mask(input_shape, past_key_values_length)
+            combined_attention_mask = _make_causal_mask(
+                input_shape, past_key_values_length
+            )
 
         if attention_mask is not None:
-            expand_attention_mask = _expand_mask(attention_mask, tgt_len=input_shape[-1])
+            expand_attention_mask = _expand_mask(
+                attention_mask, tgt_len=input_shape[-1]
+            )
             combined_attention_mask = (
                 expand_attention_mask
                 if combined_attention_mask is None
@@ -483,7 +539,9 @@ class TFXGLMMainLayer(tf.keras.layers.Layer):
         past_key_values_length: Optional[int] = None,
     ) -> tf.Tensor:
         if input_ids is not None:
-            position_ids = _create_position_ids_from_input_ids(input_ids, past_key_values_length, self.padding_idx)
+            position_ids = _create_position_ids_from_input_ids(
+                input_ids, past_key_values_length, self.padding_idx
+            )
         else:
             position_ids = _create_position_ids_from_inputs_embeds(
                 inputs_embeds, past_key_values_length, self.padding_idx
@@ -510,16 +568,26 @@ class TFXGLMMainLayer(tf.keras.layers.Layer):
         training: Optional[bool] = False,
         **kwargs: Any,
     ) -> Union[TFBaseModelOutputWithPastAndCrossAttentions, Tuple[tf.Tensor]]:
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
+        )
         output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
         )
         use_cache = use_cache if use_cache is not None else self.config.use_cache
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         # retrieve input_ids and inputs_embeds
         if input_ids is not None and inputs_embeds is not None:
-            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
+            raise ValueError(
+                "You cannot specify both input_ids and inputs_embeds at the same time"
+            )
         elif input_ids is not None:
             input_shape = shape_list(input_ids)
             input_ids = tf.reshape(input_ids, (-1, input_shape[-1]))
@@ -529,7 +597,9 @@ class TFXGLMMainLayer(tf.keras.layers.Layer):
             raise ValueError("You have to specify either input_ids or inputs_embeds")
 
         # past_key_values_length
-        past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
+        past_key_values_length = (
+            past_key_values[0][0].shape[2] if past_key_values is not None else 0
+        )
 
         if inputs_embeds is None:
             # Note: tf.gather, on which the embedding layer is based, won't check positive out of bound
@@ -544,15 +614,21 @@ class TFXGLMMainLayer(tf.keras.layers.Layer):
             )
             inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
 
-        attention_mask = self._prepare_decoder_attention_mask(attention_mask, input_shape, past_key_values_length)
+        attention_mask = self._prepare_decoder_attention_mask(
+            attention_mask, input_shape, past_key_values_length
+        )
 
         # expand encoder attention mask
         if encoder_hidden_states is not None and encoder_attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-            encoder_attention_mask = _expand_mask(encoder_attention_mask, tgt_len=input_shape[-1])
+            encoder_attention_mask = _expand_mask(
+                encoder_attention_mask, tgt_len=input_shape[-1]
+            )
 
         # embed positions
-        positions = self.embed_positions(input_ids, inputs_embeds, past_key_values_length)
+        positions = self.embed_positions(
+            input_ids, inputs_embeds, past_key_values_length
+        )
 
         hidden_states = tf.cast(inputs_embeds, dtype=tf.float32) + positions
 
@@ -561,11 +637,16 @@ class TFXGLMMainLayer(tf.keras.layers.Layer):
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
-        all_cross_attentions = () if (output_attentions and encoder_hidden_states is not None) else None
+        all_cross_attentions = (
+            () if (output_attentions and encoder_hidden_states is not None) else None
+        )
         next_decoder_cache = () if use_cache else None
 
         # check if head_mask and cross_attn_head_mask have a correct number of layers specified if desired
-        for attn_mask_name, attn_mask in [("head_mask", head_mask), ("cross_attn_head_mask", cross_attn_head_mask)]:
+        for attn_mask_name, attn_mask in [
+            ("head_mask", head_mask),
+            ("cross_attn_head_mask", cross_attn_head_mask),
+        ]:
             if attn_mask is not None:
                 tf.debugging.assert_equal(
                     shape_list(attn_mask)[0],
@@ -585,15 +666,26 @@ class TFXGLMMainLayer(tf.keras.layers.Layer):
             if training and (dropout_probability < self.layerdrop):
                 continue
 
-            past_key_value = past_key_values[idx] if past_key_values is not None else None
+            past_key_value = (
+                past_key_values[idx] if past_key_values is not None else None
+            )
 
-            hidden_states, layer_self_attn, layer_cross_attn, present_key_value = decoder_layer(
+            (
+                hidden_states,
+                layer_self_attn,
+                layer_cross_attn,
+                present_key_value,
+            ) = decoder_layer(
                 hidden_states,
                 attention_mask=attention_mask,
                 encoder_hidden_states=encoder_hidden_states,
                 encoder_attention_mask=encoder_attention_mask,
                 layer_head_mask=(head_mask[idx] if head_mask is not None else None),
-                cross_attn_layer_head_mask=(cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None),
+                cross_attn_layer_head_mask=(
+                    cross_attn_head_mask[idx]
+                    if cross_attn_head_mask is not None
+                    else None
+                ),
                 past_key_value=past_key_value,
             )
 
@@ -616,7 +708,13 @@ class TFXGLMMainLayer(tf.keras.layers.Layer):
         if not return_dict:
             return tuple(
                 v
-                for v in [hidden_states, next_cache, all_hidden_states, all_self_attns, all_cross_attentions]
+                for v in [
+                    hidden_states,
+                    next_cache,
+                    all_hidden_states,
+                    all_self_attns,
+                    all_cross_attentions,
+                ]
                 if v is not None
             )
         return TFBaseModelOutputWithPastAndCrossAttentions(
@@ -646,7 +744,9 @@ class TFXGLMPreTrainedModel(TFPreTrainedModel):
         input_signature=[
             {
                 "input_ids": tf.TensorSpec((None, None), tf.int32, name="input_ids"),
-                "attention_mask": tf.TensorSpec((None, None), tf.int32, name="attention_mask"),
+                "attention_mask": tf.TensorSpec(
+                    (None, None), tf.int32, name="attention_mask"
+                ),
             }
         ]
     )
@@ -779,7 +879,11 @@ class TFXGLMModel(TFXGLMPreTrainedModel):
     """
 
     def __init__(
-        self, config: XGLMConfig, embed_tokens: Optional[TFSharedEmbeddings] = None, *inputs: Any, **kwargs: Any
+        self,
+        config: XGLMConfig,
+        embed_tokens: Optional[TFSharedEmbeddings] = None,
+        *inputs: Any,
+        **kwargs: Any,
     ) -> None:
         super().__init__(config, *inputs, **kwargs)
 
@@ -828,9 +932,21 @@ class TFXGLMModel(TFXGLMPreTrainedModel):
         return outputs
 
     def serving_output(self, output):
-        pkv = tf.convert_to_tensor(output.past_key_values) if self.config.use_cache else None
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+        pkv = (
+            tf.convert_to_tensor(output.past_key_values)
+            if self.config.use_cache
+            else None
+        )
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
         cross_attns = (
             tf.convert_to_tensor(output.cross_attentions)
             if self.config.output_attentions and self.config.add_cross_attention
@@ -864,7 +980,11 @@ class TFXGLMForCausalLM(TFXGLMPreTrainedModel, TFCausalLanguageModelingLoss):
     ]
 
     def __init__(
-        self, config: XGLMConfig, embed_tokens: Optional[TFSharedEmbeddings] = None, *inputs: Any, **kwargs: Any
+        self,
+        config: XGLMConfig,
+        embed_tokens: Optional[TFSharedEmbeddings] = None,
+        *inputs: Any,
+        **kwargs: Any,
     ) -> None:
         super().__init__(config, *inputs, **kwargs)
 
@@ -885,7 +1005,9 @@ class TFXGLMForCausalLM(TFXGLMPreTrainedModel, TFCausalLanguageModelingLoss):
     def set_output_embeddings(self, new_embeddings):
         self.lm_head = new_embeddings
 
-    def prepare_inputs_for_generation(self, inputs, past_key_values=None, use_cache=None, **kwargs):
+    def prepare_inputs_for_generation(
+        self, inputs, past_key_values=None, use_cache=None, **kwargs
+    ):
         # only last token for inputs_ids if past is defined in kwargs
         if past_key_values:
             inputs = tf.expand_dims(inputs[:, -1], -1)
@@ -901,7 +1023,9 @@ class TFXGLMForCausalLM(TFXGLMPreTrainedModel, TFCausalLanguageModelingLoss):
 
     @unpack_inputs
     @add_start_docstrings_to_model_forward(XGLM_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=TFCausalLMOutputWithCrossAttentions, config_class=_CONFIG_FOR_DOC)
+    @replace_return_docstrings(
+        output_type=TFCausalLMOutputWithCrossAttentions, config_class=_CONFIG_FOR_DOC
+    )
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=TFCausalLMOutputWithCrossAttentions,
@@ -954,7 +1078,13 @@ class TFXGLMForCausalLM(TFXGLMPreTrainedModel, TFCausalLanguageModelingLoss):
         if labels is not None:
             # shift labels to the left and cut last logit token
             labels = tf.concat(
-                [labels[:, 1:], tf.fill((labels.shape[0], 1), tf.cast(self.config.pad_token_id, labels.dtype))],
+                [
+                    labels[:, 1:],
+                    tf.fill(
+                        (labels.shape[0], 1),
+                        tf.cast(self.config.pad_token_id, labels.dtype),
+                    ),
+                ],
                 axis=-1,
             )
             loss = self.hf_compute_loss(labels, lm_logits)
@@ -973,9 +1103,21 @@ class TFXGLMForCausalLM(TFXGLMPreTrainedModel, TFCausalLanguageModelingLoss):
         )
 
     def serving_output(self, output):
-        pkv = tf.convert_to_tensor(output.past_key_values) if self.config.use_cache else None
-        hs = tf.convert_to_tensor(output.hidden_states) if self.config.output_hidden_states else None
-        attns = tf.convert_to_tensor(output.attentions) if self.config.output_attentions else None
+        pkv = (
+            tf.convert_to_tensor(output.past_key_values)
+            if self.config.use_cache
+            else None
+        )
+        hs = (
+            tf.convert_to_tensor(output.hidden_states)
+            if self.config.output_hidden_states
+            else None
+        )
+        attns = (
+            tf.convert_to_tensor(output.attentions)
+            if self.config.output_attentions
+            else None
+        )
         cross_attns = (
             tf.convert_to_tensor(output.cross_attentions)
             if self.config.output_attentions and self.config.add_cross_attention

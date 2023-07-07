@@ -81,7 +81,9 @@ class WhisperFeatureExtractor(SequenceFeatureExtractor):
         self.n_samples = chunk_length * sampling_rate
         self.nb_max_frames = self.n_samples // hop_length
         self.sampling_rate = sampling_rate
-        self.mel_filters = self.get_mel_filters(sampling_rate, n_fft, n_mels=feature_size)
+        self.mel_filters = self.get_mel_filters(
+            sampling_rate, n_fft, n_mels=feature_size
+        )
 
     def get_mel_filters(self, sr, n_fft, n_mels=128, dtype=np.float32):
         # Initialize the weights
@@ -145,7 +147,11 @@ class WhisperFeatureExtractor(SequenceFeatureExtractor):
             half_window = (self.n_fft - 1) // 2 + 1
             if center:
                 start = i - half_window if i > half_window else 0
-                end = i + half_window if i < waveform.shape[0] - half_window else waveform.shape[0]
+                end = (
+                    i + half_window
+                    if i < waveform.shape[0] - half_window
+                    else waveform.shape[0]
+                )
 
                 frame = waveform[start:end]
 
@@ -162,7 +168,10 @@ class WhisperFeatureExtractor(SequenceFeatureExtractor):
                 frame_width = frame.shape[0]
                 if frame_width < waveform.shape[0]:
                     frame = np.lib.pad(
-                        frame, pad_width=(0, self.n_fft - frame_width), mode="constant", constant_values=0
+                        frame,
+                        pad_width=(0, self.n_fft - frame_width),
+                        mode="constant",
+                        constant_values=0,
                     )
 
             frames.append(frame)
@@ -218,7 +227,9 @@ class WhisperFeatureExtractor(SequenceFeatureExtractor):
     @staticmethod
     # Copied from transformers.models.wav2vec2.feature_extraction_wav2vec2.Wav2Vec2FeatureExtractor.zero_mean_unit_var_norm
     def zero_mean_unit_var_norm(
-        input_values: List[np.ndarray], attention_mask: List[np.ndarray], padding_value: float = 0.0
+        input_values: List[np.ndarray],
+        attention_mask: List[np.ndarray],
+        padding_value: float = 0.0,
     ) -> List[np.ndarray]:
         """
         Every array in the list is normalized to have zero mean and unit variance
@@ -228,13 +239,17 @@ class WhisperFeatureExtractor(SequenceFeatureExtractor):
             normed_input_values = []
 
             for vector, length in zip(input_values, attention_mask.sum(-1)):
-                normed_slice = (vector - vector[:length].mean()) / np.sqrt(vector[:length].var() + 1e-7)
+                normed_slice = (vector - vector[:length].mean()) / np.sqrt(
+                    vector[:length].var() + 1e-7
+                )
                 if length < normed_slice.shape[0]:
                     normed_slice[length:] = padding_value
 
                 normed_input_values.append(normed_slice)
         else:
-            normed_input_values = [(x - x.mean()) / np.sqrt(x.var() + 1e-7) for x in input_values]
+            normed_input_values = [
+                (x - x.mean()) / np.sqrt(x.var() + 1e-7) for x in input_values
+            ]
 
         return normed_input_values
 
@@ -310,14 +325,21 @@ class WhisperFeatureExtractor(SequenceFeatureExtractor):
 
         is_batched = bool(
             isinstance(raw_speech, (list, tuple))
-            and (isinstance(raw_speech[0], np.ndarray) or isinstance(raw_speech[0], (tuple, list)))
+            and (
+                isinstance(raw_speech[0], np.ndarray)
+                or isinstance(raw_speech[0], (tuple, list))
+            )
         )
 
         if is_batched:
-            raw_speech = [np.asarray([speech], dtype=np.float32).T for speech in raw_speech]
+            raw_speech = [
+                np.asarray([speech], dtype=np.float32).T for speech in raw_speech
+            ]
         elif not is_batched and not isinstance(raw_speech, np.ndarray):
             raw_speech = np.asarray(raw_speech, dtype=np.float32)
-        elif isinstance(raw_speech, np.ndarray) and raw_speech.dtype is np.dtype(np.float64):
+        elif isinstance(raw_speech, np.ndarray) and raw_speech.dtype is np.dtype(
+            np.float64
+        ):
             raw_speech = raw_speech.astype(np.float32)
 
         # always return batch
@@ -344,21 +366,29 @@ class WhisperFeatureExtractor(SequenceFeatureExtractor):
                 attention_mask=padded_inputs["attention_mask"],
                 padding_value=self.padding_value,
             )
-            padded_inputs["input_features"] = np.stack(padded_inputs["input_features"], axis=0)
+            padded_inputs["input_features"] = np.stack(
+                padded_inputs["input_features"], axis=0
+            )
 
         # make sure list is in array format
         input_features = padded_inputs.get("input_features").transpose(2, 0, 1)
 
-        input_features = [self._np_extract_fbank_features(waveform) for waveform in input_features[0]]
+        input_features = [
+            self._np_extract_fbank_features(waveform) for waveform in input_features[0]
+        ]
 
         if isinstance(input_features[0], List):
-            padded_inputs["input_features"] = [np.asarray(feature, dtype=np.float32) for feature in input_features]
+            padded_inputs["input_features"] = [
+                np.asarray(feature, dtype=np.float32) for feature in input_features
+            ]
         else:
             padded_inputs["input_features"] = input_features
 
         if return_attention_mask:
             # rescale from sample (48000) to feature (3000)
-            padded_inputs["attention_mask"] = padded_inputs["attention_mask"][:, :: self.hop_length]
+            padded_inputs["attention_mask"] = padded_inputs["attention_mask"][
+                :, :: self.hop_length
+            ]
 
         if return_tensors is not None:
             padded_inputs = padded_inputs.convert_to_tensors(return_tensors)

@@ -99,8 +99,12 @@ class EfficientFormerImageProcessor(BaseImageProcessor):
         super().__init__(**kwargs)
         size = size if size is not None else {"height": 224, "width": 224}
         size = get_size_dict(size)
-        crop_size = crop_size if crop_size is not None else {"height": 224, "width": 224}
-        crop_size = get_size_dict(crop_size, default_to_square=True, param_name="crop_size")
+        crop_size = (
+            crop_size if crop_size is not None else {"height": 224, "width": 224}
+        )
+        crop_size = get_size_dict(
+            crop_size, default_to_square=True, param_name="crop_size"
+        )
 
         self.do_resize = do_resize
         self.do_rescale = do_rescale
@@ -110,7 +114,9 @@ class EfficientFormerImageProcessor(BaseImageProcessor):
         self.size = size
         self.resample = resample
         self.rescale_factor = rescale_factor
-        self.image_mean = image_mean if image_mean is not None else IMAGENET_DEFAULT_MEAN
+        self.image_mean = (
+            image_mean if image_mean is not None else IMAGENET_DEFAULT_MEAN
+        )
         self.image_std = image_std if image_std is not None else IMAGENET_DEFAULT_STD
 
     def resize(
@@ -143,13 +149,19 @@ class EfficientFormerImageProcessor(BaseImageProcessor):
         size = get_size_dict(size)
 
         if "shortest_edge" in size:
-            size = get_resize_output_image_size(image, size=size["shortest_edge"], default_to_square=False)
+            size = get_resize_output_image_size(
+                image, size=size["shortest_edge"], default_to_square=False
+            )
             # size = get_resize_output_image_size(image, size["shortest_edge"], size["longest_edge"])
         elif "height" in size and "width" in size:
             size = (size["height"], size["width"])
         else:
-            raise ValueError(f"Size must contain 'height' and 'width' keys or 'shortest_edge' key. Got {size.keys()}")
-        return resize(image, size=size, resample=resample, data_format=data_format, **kwargs)
+            raise ValueError(
+                f"Size must contain 'height' and 'width' keys or 'shortest_edge' key. Got {size.keys()}"
+            )
+        return resize(
+            image, size=size, resample=resample, data_format=data_format, **kwargs
+        )
 
     def center_crop(
         self,
@@ -172,11 +184,22 @@ class EfficientFormerImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(f"The `size` parameter must contain the keys (height, width). Got {size.keys()}")
-        return center_crop(image, size=(size["height"], size["width"]), data_format=data_format, **kwargs)
+            raise ValueError(
+                f"The `size` parameter must contain the keys (height, width). Got {size.keys()}"
+            )
+        return center_crop(
+            image,
+            size=(size["height"], size["width"]),
+            data_format=data_format,
+            **kwargs,
+        )
 
     def rescale(
-        self, image: np.ndarray, scale: float, data_format: Optional[Union[str, ChannelDimension]] = None, **kwargs
+        self,
+        image: np.ndarray,
+        scale: float,
+        data_format: Optional[Union[str, ChannelDimension]] = None,
+        **kwargs,
     ) -> np.ndarray:
         """
         Rescale an image by a scale factor. image = image * scale.
@@ -287,11 +310,17 @@ class EfficientFormerImageProcessor(BaseImageProcessor):
         do_resize = do_resize if do_resize is not None else self.do_resize
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
-        do_center_crop = do_center_crop if do_center_crop is not None else self.do_center_crop
+        do_center_crop = (
+            do_center_crop if do_center_crop is not None else self.do_center_crop
+        )
         crop_size = crop_size if crop_size is not None else self.crop_size
-        crop_size = get_size_dict(crop_size, param_name="crop_size", default_to_square=True)
+        crop_size = get_size_dict(
+            crop_size, param_name="crop_size", default_to_square=True
+        )
         resample = resample if resample is not None else self.resample
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
 
@@ -320,16 +349,24 @@ class EfficientFormerImageProcessor(BaseImageProcessor):
         images = [to_numpy_array(image) for image in images]
 
         if do_resize:
-            images = [self.resize(image=image, size=size_dict, resample=resample) for image in images]
+            images = [
+                self.resize(image=image, size=size_dict, resample=resample)
+                for image in images
+            ]
 
         if do_center_crop:
             images = [self.center_crop(image=image, size=crop_size) for image in images]
 
         if do_rescale:
-            images = [self.rescale(image=image, scale=rescale_factor) for image in images]
+            images = [
+                self.rescale(image=image, scale=rescale_factor) for image in images
+            ]
 
         if do_normalize:
-            images = [self.normalize(image=image, mean=image_mean, std=image_std) for image in images]
+            images = [
+                self.normalize(image=image, mean=image_mean, std=image_std)
+                for image in images
+            ]
 
         images = [to_channel_dimension_format(image, data_format) for image in images]
 

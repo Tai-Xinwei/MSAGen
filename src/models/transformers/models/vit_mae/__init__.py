@@ -22,7 +22,9 @@ from ...utils import (
 )
 
 
-_import_structure = {"configuration_vit_mae": ["VIT_MAE_PRETRAINED_CONFIG_ARCHIVE_MAP", "ViTMAEConfig"]}
+_import_structure = {
+    "configuration_vit_mae": ["VIT_MAE_PRETRAINED_CONFIG_ARCHIVE_MAP", "ViTMAEConfig"]
+}
 
 try:
     if not is_torch_available():
@@ -51,7 +53,10 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_vit_mae import VIT_MAE_PRETRAINED_CONFIG_ARCHIVE_MAP, ViTMAEConfig
+    from .configuration_vit_mae import (
+        VIT_MAE_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        ViTMAEConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -73,10 +78,16 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_vit_mae import TFViTMAEForPreTraining, TFViTMAEModel, TFViTMAEPreTrainedModel
+        from .modeling_tf_vit_mae import (
+            TFViTMAEForPreTraining,
+            TFViTMAEModel,
+            TFViTMAEPreTrainedModel,
+        )
 
 
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

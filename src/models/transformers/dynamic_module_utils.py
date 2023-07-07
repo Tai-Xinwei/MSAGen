@@ -78,9 +78,13 @@ def get_relative_imports(module_file):
         content = f.read()
 
     # Imports of the form `import .xxx`
-    relative_imports = re.findall(r"^\s*import\s+\.(\S+)\s*$", content, flags=re.MULTILINE)
+    relative_imports = re.findall(
+        r"^\s*import\s+\.(\S+)\s*$", content, flags=re.MULTILINE
+    )
     # Imports of the form `from .xxx import yyy`
-    relative_imports += re.findall(r"^\s*from\s+\.(\S+)\s+import", content, flags=re.MULTILINE)
+    relative_imports += re.findall(
+        r"^\s*from\s+\.(\S+)\s+import", content, flags=re.MULTILINE
+    )
     # Unique-ify
     return list(set(relative_imports))
 
@@ -105,7 +109,9 @@ def get_relative_import_files(module_file):
 
         module_path = Path(module_file).parent
         new_import_files = [str(module_path / m) for m in new_imports]
-        new_import_files = [f for f in new_import_files if f not in all_relative_imports]
+        new_import_files = [
+            f for f in new_import_files if f not in all_relative_imports
+        ]
         files_to_check = [f"{f}.py" for f in new_import_files]
 
         no_change = len(new_import_files) == 0
@@ -243,7 +249,9 @@ def get_cached_module_file(
         )
 
     except EnvironmentError:
-        logger.error(f"Could not locate the {module_file} inside {pretrained_model_name_or_path}.")
+        logger.error(
+            f"Could not locate the {module_file} inside {pretrained_model_name_or_path}."
+        )
         raise
 
     # Check we have all the requirements in our environment
@@ -263,7 +271,9 @@ def get_cached_module_file(
             importlib.invalidate_caches()
         for module_needed in modules_needed:
             module_needed = f"{module_needed}.py"
-            module_needed_file = os.path.join(pretrained_model_name_or_path, module_needed)
+            module_needed_file = os.path.join(
+                pretrained_model_name_or_path, module_needed
+            )
             if not (submodule_path / module_needed).exists() or not filecmp.cmp(
                 module_needed_file, str(submodule_path / module_needed)
             ):
@@ -421,7 +431,9 @@ def custom_object_save(obj, folder, config=None):
                     slow_tokenizer = getattr(obj, "slow_tokenizer_class")
                     slow_tok_module_name = slow_tokenizer.__module__
                     last_slow_tok_module = slow_tok_module_name.split(".")[-1]
-                    slow_tokenizer_class = f"{last_slow_tok_module}.{slow_tokenizer.__name__}"
+                    slow_tokenizer_class = (
+                        f"{last_slow_tok_module}.{slow_tokenizer.__name__}"
+                    )
             else:
                 # Slow tokenizer: no way to have the fast class
                 slow_tokenizer_class = f"{last_module}.{obj.__class__.__name__}"

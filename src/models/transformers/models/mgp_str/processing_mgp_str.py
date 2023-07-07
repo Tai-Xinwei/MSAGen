@@ -33,7 +33,11 @@ class DecodeType(ExplicitEnum):
     WORDPIECE = "wp"
 
 
-SUPPORTED_ANNOTATION_FORMATS = (DecodeType.CHARACTER, DecodeType.BPE, DecodeType.WORDPIECE)
+SUPPORTED_ANNOTATION_FORMATS = (
+    DecodeType.CHARACTER,
+    DecodeType.BPE,
+    DecodeType.WORDPIECE,
+)
 
 
 class MgpstrProcessor(ProcessorMixin):
@@ -62,7 +66,9 @@ class MgpstrProcessor(ProcessorMixin):
             )
             feature_extractor = kwargs.pop("feature_extractor")
 
-        image_processor = image_processor if image_processor is not None else feature_extractor
+        image_processor = (
+            image_processor if image_processor is not None else feature_extractor
+        )
         if image_processor is None:
             raise ValueError("You need to specify an `image_processor`.")
         if tokenizer is None:
@@ -82,12 +88,18 @@ class MgpstrProcessor(ProcessorMixin):
         refer to the doctsring of the above methods for more information.
         """
         if images is None and text is None:
-            raise ValueError("You need to specify either an `images` or `text` input to process.")
+            raise ValueError(
+                "You need to specify either an `images` or `text` input to process."
+            )
 
         if images is not None:
-            inputs = self.image_processor(images, return_tensors=return_tensors, **kwargs)
+            inputs = self.image_processor(
+                images, return_tensors=return_tensors, **kwargs
+            )
         if text is not None:
-            encodings = self.char_tokenizer(text, return_tensors=return_tensors, **kwargs)
+            encodings = self.char_tokenizer(
+                text, return_tensors=return_tensors, **kwargs
+            )
 
         if text is None:
             return inputs
@@ -181,9 +193,15 @@ class MgpstrProcessor(ProcessorMixin):
             pred_eos = preds_str[index].find(eos_str)
             pred = preds_str[index][:pred_eos]
             pred_index = preds_index[index].cpu().tolist()
-            pred_eos_index = pred_index.index(eos_token) if eos_token in pred_index else -1
+            pred_eos_index = (
+                pred_index.index(eos_token) if eos_token in pred_index else -1
+            )
             pred_max_prob = preds_max_prob[index][: pred_eos_index + 1]
-            confidence_score = pred_max_prob.cumprod(dim=0)[-1] if pred_max_prob.nelement() != 0 else 0.0
+            confidence_score = (
+                pred_max_prob.cumprod(dim=0)[-1]
+                if pred_max_prob.nelement() != 0
+                else 0.0
+            )
             dec_strs.append(pred)
             conf_scores.append(confidence_score)
 
@@ -199,7 +217,9 @@ class MgpstrProcessor(ProcessorMixin):
         Returns:
             `List[str]`: The list of char decoded sentences.
         """
-        decode_strs = [seq.replace(" ", "") for seq in self.char_tokenizer.batch_decode(sequences)]
+        decode_strs = [
+            seq.replace(" ", "") for seq in self.char_tokenizer.batch_decode(sequences)
+        ]
         return decode_strs
 
     def bpe_decode(self, sequences):
@@ -224,5 +244,7 @@ class MgpstrProcessor(ProcessorMixin):
         Returns:
             `List[str]`: The list of wp decoded sentences.
         """
-        decode_strs = [seq.replace(" ", "") for seq in self.wp_tokenizer.batch_decode(sequences)]
+        decode_strs = [
+            seq.replace(" ", "") for seq in self.wp_tokenizer.batch_decode(sequences)
+        ]
         return decode_strs

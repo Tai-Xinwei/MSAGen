@@ -14,7 +14,12 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available, is_vision_available
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_torch_available,
+    is_vision_available,
+)
 
 
 _import_structure = {
@@ -31,8 +36,12 @@ try:
 except OptionalDependencyNotAvailable:
     pass
 else:
-    _import_structure["feature_extraction_conditional_detr"] = ["ConditionalDetrFeatureExtractor"]
-    _import_structure["image_processing_conditional_detr"] = ["ConditionalDetrImageProcessor"]
+    _import_structure["feature_extraction_conditional_detr"] = [
+        "ConditionalDetrFeatureExtractor"
+    ]
+    _import_structure["image_processing_conditional_detr"] = [
+        "ConditionalDetrImageProcessor"
+    ]
 
 try:
     if not is_torch_available():
@@ -82,4 +91,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

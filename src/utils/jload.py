@@ -1,7 +1,6 @@
-
-import os
 import io
 import json
+import os
 
 
 def _make_w_io_base(f, mode: str):

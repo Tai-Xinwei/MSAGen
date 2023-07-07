@@ -84,7 +84,9 @@ class BitsAndBytesConfig:
         if not isinstance(self.llm_int8_threshold, float):
             raise ValueError("llm_int8_threshold must be a float")
 
-        if self.llm_int8_skip_modules is not None and not isinstance(self.llm_int8_skip_modules, list):
+        if self.llm_int8_skip_modules is not None and not isinstance(
+            self.llm_int8_skip_modules, list
+        ):
             raise ValueError("llm_int8_skip_modules must be a list of strings")
 
         if not isinstance(self.llm_int8_enable_fp32_cpu_offload, bool):

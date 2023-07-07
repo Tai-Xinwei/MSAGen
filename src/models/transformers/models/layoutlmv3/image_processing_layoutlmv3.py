@@ -19,7 +19,13 @@ from typing import Dict, Iterable, Optional, Union
 import numpy as np
 
 from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
-from ...image_transforms import normalize, rescale, resize, to_channel_dimension_format, to_pil_image
+from ...image_transforms import (
+    normalize,
+    rescale,
+    resize,
+    to_channel_dimension_format,
+    to_pil_image,
+)
 from ...image_utils import (
     IMAGENET_STANDARD_MEAN,
     IMAGENET_STANDARD_STD,
@@ -31,7 +37,13 @@ from ...image_utils import (
     to_numpy_array,
     valid_images,
 )
-from ...utils import TensorType, is_pytesseract_available, is_vision_available, logging, requires_backends
+from ...utils import (
+    TensorType,
+    is_pytesseract_available,
+    is_vision_available,
+    logging,
+    requires_backends,
+)
 
 
 if is_vision_available():
@@ -53,14 +65,24 @@ def normalize_box(box, width, height):
     ]
 
 
-def apply_tesseract(image: np.ndarray, lang: Optional[str], tesseract_config: Optional[str]):
+def apply_tesseract(
+    image: np.ndarray, lang: Optional[str], tesseract_config: Optional[str]
+):
     """Applies Tesseract OCR on a document image, and returns recognized words + normalized bounding boxes."""
 
     # apply OCR
     pil_image = to_pil_image(image)
     image_width, image_height = pil_image.size
-    data = pytesseract.image_to_data(pil_image, lang=lang, output_type="dict", config=tesseract_config)
-    words, left, top, width, height = data["text"], data["left"], data["top"], data["width"], data["height"]
+    data = pytesseract.image_to_data(
+        pil_image, lang=lang, output_type="dict", config=tesseract_config
+    )
+    words, left, top, width, height = (
+        data["text"],
+        data["left"],
+        data["top"],
+        data["width"],
+        data["height"],
+    )
 
     # filter empty words and corresponding coordinates
     irrelevant_indices = [idx for idx, word in enumerate(words) if not word.strip()]
@@ -68,7 +90,9 @@ def apply_tesseract(image: np.ndarray, lang: Optional[str], tesseract_config: Op
     left = [coord for idx, coord in enumerate(left) if idx not in irrelevant_indices]
     top = [coord for idx, coord in enumerate(top) if idx not in irrelevant_indices]
     width = [coord for idx, coord in enumerate(width) if idx not in irrelevant_indices]
-    height = [coord for idx, coord in enumerate(height) if idx not in irrelevant_indices]
+    height = [
+        coord for idx, coord in enumerate(height) if idx not in irrelevant_indices
+    ]
 
     # turn coordinates into (left, top, left+width, top+height) format
     actual_boxes = []
@@ -81,12 +105,16 @@ def apply_tesseract(image: np.ndarray, lang: Optional[str], tesseract_config: Op
     for box in actual_boxes:
         normalized_boxes.append(normalize_box(box, image_width, image_height))
 
-    assert len(words) == len(normalized_boxes), "Not as many words as there are bounding boxes"
+    assert len(words) == len(
+        normalized_boxes
+    ), "Not as many words as there are bounding boxes"
 
     return words, normalized_boxes
 
 
-def flip_channel_order(image: np.ndarray, data_format: Optional[ChannelDimension] = None) -> np.ndarray:
+def flip_channel_order(
+    image: np.ndarray, data_format: Optional[ChannelDimension] = None
+) -> np.ndarray:
     input_data_format = infer_channel_dimension_format(image)
     if input_data_format == ChannelDimension.LAST:
         image = image[..., ::-1]
@@ -166,7 +194,9 @@ class LayoutLMv3ImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_value
         self.do_normalize = do_normalize
-        self.image_mean = image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        self.image_mean = (
+            image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        )
         self.image_std = image_std if image_std is not None else IMAGENET_STANDARD_STD
         self.apply_ocr = apply_ocr
         self.ocr_lang = ocr_lang
@@ -195,9 +225,17 @@ class LayoutLMv3ImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(f"The size dictionary must contain the keys 'height' and 'width'. Got {size.keys()}")
+            raise ValueError(
+                f"The size dictionary must contain the keys 'height' and 'width'. Got {size.keys()}"
+            )
         output_size = (size["height"], size["width"])
-        return resize(image, size=output_size, resample=resample, data_format=data_format, **kwargs)
+        return resize(
+            image,
+            size=output_size,
+            resample=resample,
+            data_format=data_format,
+            **kwargs,
+        )
 
     def rescale(
         self,
@@ -309,13 +347,17 @@ class LayoutLMv3ImageProcessor(BaseImageProcessor):
         size = get_size_dict(size)
         resample = resample if resample is not None else self.resample
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
         apply_ocr = apply_ocr if apply_ocr is not None else self.apply_ocr
         ocr_lang = ocr_lang if ocr_lang is not None else self.ocr_lang
-        tesseract_config = tesseract_config if tesseract_config is not None else self.tesseract_config
+        tesseract_config = (
+            tesseract_config if tesseract_config is not None else self.tesseract_config
+        )
 
         images = make_list_of_images(images)
 
@@ -332,7 +374,9 @@ class LayoutLMv3ImageProcessor(BaseImageProcessor):
             raise ValueError("Rescale factor must be specified if do_rescale is True.")
 
         if do_normalize and (image_mean is None or image_std is None):
-            raise ValueError("If do_normalize is True, image_mean and image_std must be specified.")
+            raise ValueError(
+                "If do_normalize is True, image_mean and image_std must be specified."
+            )
 
         # All transformations expect numpy arrays.
         images = [to_numpy_array(image) for image in images]
@@ -348,13 +392,21 @@ class LayoutLMv3ImageProcessor(BaseImageProcessor):
                 boxes_batch.append(boxes)
 
         if do_resize:
-            images = [self.resize(image=image, size=size, resample=resample) for image in images]
+            images = [
+                self.resize(image=image, size=size, resample=resample)
+                for image in images
+            ]
 
         if do_rescale:
-            images = [self.rescale(image=image, scale=rescale_factor) for image in images]
+            images = [
+                self.rescale(image=image, scale=rescale_factor) for image in images
+            ]
 
         if do_normalize:
-            images = [self.normalize(image=image, mean=image_mean, std=image_std) for image in images]
+            images = [
+                self.normalize(image=image, mean=image_mean, std=image_std)
+                for image in images
+            ]
 
         # flip color channels from RGB to BGR (as Detectron2 requires this)
         images = [to_channel_dimension_format(image, data_format) for image in images]

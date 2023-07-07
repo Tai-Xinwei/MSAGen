@@ -24,7 +24,9 @@ from ...utils import (
 )
 
 
-_import_structure = {"configuration_pegasus": ["PEGASUS_PRETRAINED_CONFIG_ARCHIVE_MAP", "PegasusConfig"]}
+_import_structure = {
+    "configuration_pegasus": ["PEGASUS_PRETRAINED_CONFIG_ARCHIVE_MAP", "PegasusConfig"]
+}
 
 try:
     if not is_sentencepiece_available():
@@ -82,7 +84,10 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_pegasus import PEGASUS_PRETRAINED_CONFIG_ARCHIVE_MAP, PegasusConfig
+    from .configuration_pegasus import (
+        PEGASUS_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        PegasusConfig,
+    )
 
     try:
         if not is_sentencepiece_available():
@@ -120,7 +125,11 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_pegasus import TFPegasusForConditionalGeneration, TFPegasusModel, TFPegasusPreTrainedModel
+        from .modeling_tf_pegasus import (
+            TFPegasusForConditionalGeneration,
+            TFPegasusModel,
+            TFPegasusPreTrainedModel,
+        )
 
     try:
         if not is_flax_available():
@@ -137,4 +146,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

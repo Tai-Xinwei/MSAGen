@@ -30,7 +30,10 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 if is_torch_available():
-    from ..models.auto.modeling_auto import MODEL_FOR_CTC_MAPPING, MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING
+    from ..models.auto.modeling_auto import (
+        MODEL_FOR_CTC_MAPPING,
+        MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING,
+    )
 
 
 def rescale_stride(stride, ratio):
@@ -53,18 +56,32 @@ def rescale_stride(stride, ratio):
     return new_strides
 
 
-def chunk_iter(inputs, feature_extractor, chunk_len, stride_left, stride_right, rescale=True, dtype=None):
+def chunk_iter(
+    inputs,
+    feature_extractor,
+    chunk_len,
+    stride_left,
+    stride_right,
+    rescale=True,
+    dtype=None,
+):
     inputs_len = inputs.shape[0]
     step = chunk_len - stride_left - stride_right
     for chunk_start_idx in range(0, inputs_len, step):
         chunk_end_idx = chunk_start_idx + chunk_len
         chunk = inputs[chunk_start_idx:chunk_end_idx]
-        processed = feature_extractor(chunk, sampling_rate=feature_extractor.sampling_rate, return_tensors="pt")
+        processed = feature_extractor(
+            chunk, sampling_rate=feature_extractor.sampling_rate, return_tensors="pt"
+        )
         if dtype is not None:
             processed = processed.to(dtype=dtype)
         _stride_left = 0 if chunk_start_idx == 0 else stride_left
         # all right strides must be full, otherwise it is the last item
-        is_last = chunk_end_idx > inputs_len if stride_right > 0 else chunk_end_idx >= inputs_len
+        is_last = (
+            chunk_end_idx > inputs_len
+            if stride_right > 0
+            else chunk_end_idx >= inputs_len
+        )
         _stride_right = 0 if is_last else stride_right
 
         chunk_len = chunk.shape[0]
@@ -97,8 +114,12 @@ def _fast_find_longest_common_sequence(sequence_left, sequence_right):
 
     counter = np.array(counter)
     # we return the idx of the first element of the longest common sequence in the left sequence
-    index_left = np.argwhere(counter == longest)[-1][0] - longest if longest != 0 else -1
-    index_right = np.argwhere(counter == longest)[-1][1] - longest if longest != 0 else -1
+    index_left = (
+        np.argwhere(counter == longest)[-1][0] - longest if longest != 0 else -1
+    )
+    index_right = (
+        np.argwhere(counter == longest)[-1][1] - longest if longest != 0 else -1
+    )
     return index_left, index_right, longest
 
 
@@ -109,9 +130,17 @@ def _find_longest_common_sequence(sequences, tokenizer):
     # We actually have a really good property which is that the total sequence
     # MUST be those subsequences in order.
     # Also the algorithm should be more tolerant to errors.
-    sequence = [tok_id for tok_id in sequences[0][0].tolist() if tok_id not in tokenizer.all_special_ids]
+    sequence = [
+        tok_id
+        for tok_id in sequences[0][0].tolist()
+        if tok_id not in tokenizer.all_special_ids
+    ]
     for new_seq in sequences[1:]:
-        new_sequence = [tok_id for tok_id in new_seq[0].tolist() if tok_id not in tokenizer.all_special_ids]
+        new_sequence = [
+            tok_id
+            for tok_id in new_seq[0].tolist()
+            if tok_id not in tokenizer.all_special_ids
+        ]
 
         index = 0
         max_ = 0.0
@@ -218,9 +247,16 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
             self.type = "ctc"
 
         if self.framework == "tf":
-            raise ValueError("The AutomaticSpeechRecognitionPipeline is only available in PyTorch.")
+            raise ValueError(
+                "The AutomaticSpeechRecognitionPipeline is only available in PyTorch."
+            )
 
-        self.check_model_type(dict(MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING.items() + MODEL_FOR_CTC_MAPPING.items()))
+        self.check_model_type(
+            dict(
+                MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING.items()
+                + MODEL_FOR_CTC_MAPPING.items()
+            )
+        )
 
     def __call__(
         self,
@@ -313,7 +349,9 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
 
         return preprocess_params, forward_params, postprocess_params
 
-    def preprocess(self, inputs, chunk_length_s=0, stride_length_s=None, ignore_warning=False):
+    def preprocess(
+        self, inputs, chunk_length_s=0, stride_length_s=None, ignore_warning=False
+    ):
         if isinstance(inputs, str):
             if inputs.startswith("http://") or inputs.startswith("https://"):
                 # We need to actually check for a real protocol, otherwise it's impossible to use a local file
@@ -332,7 +370,9 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
             stride = inputs.pop("stride", None)
             # Accepting `"array"` which is the key defined in `datasets` for
             # better integration
-            if not ("sampling_rate" in inputs and ("raw" in inputs or "array" in inputs)):
+            if not (
+                "sampling_rate" in inputs and ("raw" in inputs or "array" in inputs)
+            ):
                 raise ValueError(
                     "When passing a dictionary to AutomaticSpeechRecognitionPipeline, the dict needs to contain a "
                     '"raw" key containing the numpy array representing the audio and a "sampling_rate" key, '
@@ -352,7 +392,9 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
                 from torchaudio import functional as F
 
                 inputs = F.resample(
-                    torch.from_numpy(inputs), in_sampling_rate, self.feature_extractor.sampling_rate
+                    torch.from_numpy(inputs),
+                    in_sampling_rate,
+                    self.feature_extractor.sampling_rate,
                 ).numpy()
                 ratio = self.feature_extractor.sampling_rate / in_sampling_rate
             else:
@@ -365,11 +407,19 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
                 # swallowed by the `feature_extractor` later, and then batching
                 # can add extra data in the inputs, so we need to keep track
                 # of the original length in the stride so we can cut properly.
-                stride = (inputs.shape[0], int(round(stride[0] * ratio)), int(round(stride[1] * ratio)))
+                stride = (
+                    inputs.shape[0],
+                    int(round(stride[0] * ratio)),
+                    int(round(stride[1] * ratio)),
+                )
         if not isinstance(inputs, np.ndarray):
-            raise ValueError(f"We expect a numpy ndarray as input, got `{type(inputs)}`")
+            raise ValueError(
+                f"We expect a numpy ndarray as input, got `{type(inputs)}`"
+            )
         if len(inputs.shape) != 1:
-            raise ValueError("We expect a single channel audio input for AutomaticSpeechRecognitionPipeline")
+            raise ValueError(
+                "We expect a single channel audio input for AutomaticSpeechRecognitionPipeline"
+            )
 
         if chunk_length_s:
             if self.type == "seq2seq" and not ignore_warning:
@@ -390,9 +440,22 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
             # Currently chunking is not possible at this level for `seq2seq` so
             # it's ok.
             align_to = getattr(self.model.config, "inputs_to_logits_ratio", 1)
-            chunk_len = int(round(chunk_length_s * self.feature_extractor.sampling_rate / align_to) * align_to)
-            stride_left = int(round(stride_length_s[0] * self.feature_extractor.sampling_rate / align_to) * align_to)
-            stride_right = int(round(stride_length_s[1] * self.feature_extractor.sampling_rate / align_to) * align_to)
+            chunk_len = int(
+                round(chunk_length_s * self.feature_extractor.sampling_rate / align_to)
+                * align_to
+            )
+            stride_left = int(
+                round(
+                    stride_length_s[0] * self.feature_extractor.sampling_rate / align_to
+                )
+                * align_to
+            )
+            stride_right = int(
+                round(
+                    stride_length_s[1] * self.feature_extractor.sampling_rate / align_to
+                )
+                * align_to
+            )
 
             if chunk_len < stride_left + stride_right:
                 raise ValueError("Chunk length must be superior to stride length")
@@ -400,18 +463,28 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
             rescale = self.type != "seq2seq_whisper"
             # make sure that
             for item in chunk_iter(
-                inputs, self.feature_extractor, chunk_len, stride_left, stride_right, rescale, self.torch_dtype
+                inputs,
+                self.feature_extractor,
+                chunk_len,
+                stride_left,
+                stride_right,
+                rescale,
+                self.torch_dtype,
             ):
                 yield item
         else:
             processed = self.feature_extractor(
-                inputs, sampling_rate=self.feature_extractor.sampling_rate, return_tensors="pt"
+                inputs,
+                sampling_rate=self.feature_extractor.sampling_rate,
+                return_tensors="pt",
             )
             if self.torch_dtype is not None:
                 processed = processed.to(dtype=self.torch_dtype)
             if stride is not None:
                 if self.type == "seq2seq":
-                    raise ValueError("Stride is only usable with CTC models, try removing it !")
+                    raise ValueError(
+                        "Stride is only usable with CTC models, try removing it !"
+                    )
 
                 processed["stride"] = stride
             yield {"is_last": True, **processed, **extra}
@@ -457,7 +530,9 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
             stride = model_inputs.pop("stride", None)
             input_values = model_inputs.pop("input_values")
             attention_mask = model_inputs.pop("attention_mask", None)
-            outputs = self.model(input_values=input_values, attention_mask=attention_mask)
+            outputs = self.model(
+                input_values=input_values, attention_mask=attention_mask
+            )
             logits = outputs.logits
 
             if self.type == "ctc_with_lm":
@@ -478,17 +553,27 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
         return {"is_last": is_last, **out, **extra}
 
     def postprocess(
-        self, model_outputs, decoder_kwargs: Optional[Dict] = None, return_timestamps=None, return_language=None
+        self,
+        model_outputs,
+        decoder_kwargs: Optional[Dict] = None,
+        return_timestamps=None,
+        return_language=None,
     ):
         # Optional return types
         optional = {}
 
         if return_timestamps and self.type == "seq2seq":
-            raise ValueError("We cannot return_timestamps yet on non-ctc models apart from Whisper !")
+            raise ValueError(
+                "We cannot return_timestamps yet on non-ctc models apart from Whisper !"
+            )
         if return_timestamps == "char" and self.type == "ctc_with_lm":
-            raise ValueError("CTC with LM cannot return `char` timestamps, only `words`")
+            raise ValueError(
+                "CTC with LM cannot return `char` timestamps, only `words`"
+            )
         if return_timestamps in {"char", "words"} and self.type == "seq2seq_whisper":
-            raise ValueError("Whisper cannot return `char` nor `words` timestamps, use `True` instead.")
+            raise ValueError(
+                "Whisper cannot return `char` nor `words` timestamps, use `True` instead."
+            )
 
         if return_language is not None and self.type != "seq2seq_whisper":
             raise ValueError("Only whisper can return language for now.")
@@ -512,7 +597,10 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
         if stride and self.type == "seq2seq":
             items = _find_longest_common_sequence(final_items, self.tokenizer)
         elif self.type == "seq2seq_whisper":
-            time_precision = self.feature_extractor.chunk_length / self.model.config.max_source_positions
+            time_precision = (
+                self.feature_extractor.chunk_length
+                / self.model.config.max_source_positions
+            )
             # Send the chunking back to seconds, it's easier to handle in whisper
             sampling_rate = self.feature_extractor.sampling_rate
             for output in model_outputs:
@@ -545,16 +633,26 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
                 chunk_offset = beams[0][2]
                 offsets = []
                 for word, (start_offset, end_offset) in chunk_offset:
-                    offsets.append({"word": word, "start_offset": start_offset, "end_offset": end_offset})
+                    offsets.append(
+                        {
+                            "word": word,
+                            "start_offset": start_offset,
+                            "end_offset": end_offset,
+                        }
+                    )
         elif self.type != "seq2seq_whisper":
             skip_special_tokens = self.type != "ctc"
             text = self.tokenizer.decode(items, skip_special_tokens=skip_special_tokens)
             if return_timestamps:
                 offsets = self.tokenizer.decode(
-                    items, skip_special_tokens=skip_special_tokens, output_char_offsets=True
+                    items,
+                    skip_special_tokens=skip_special_tokens,
+                    output_char_offsets=True,
                 )["char_offsets"]
                 if return_timestamps == "word":
-                    offsets = self.tokenizer._get_word_offsets(offsets, self.tokenizer.replace_word_delimiter_char)
+                    offsets = self.tokenizer._get_word_offsets(
+                        offsets, self.tokenizer.replace_word_delimiter_char
+                    )
 
         if return_timestamps and self.type not in {"seq2seq", "seq2seq_whisper"}:
             chunks = []
@@ -565,7 +663,9 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
                 stop = item["end_offset"] * self.model.config.inputs_to_logits_ratio
                 stop /= self.feature_extractor.sampling_rate
 
-                chunks.append({"text": item[return_timestamps], "timestamp": (start, stop)})
+                chunks.append(
+                    {"text": item[return_timestamps], "timestamp": (start, stop)}
+                )
             optional["chunks"] = chunks
 
         extra = defaultdict(list)
@@ -579,7 +679,9 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
         return {"text": text, **optional, **extra}
 
 
-def _find_timestamp_sequence(sequences, tokenizer, feature_extractor, max_source_positions):
+def _find_timestamp_sequence(
+    sequences, tokenizer, feature_extractor, max_source_positions
+):
     """
     Computes the final sequences by merging the end of the nth sequence with the beginning of the n+1th sequence. Since
     `WhisperForConditionalGeneration` produces the timestamps pairwise, we filter the consecutive timestamps and only
@@ -600,33 +702,54 @@ def _find_timestamp_sequence(sequences, tokenizer, feature_extractor, max_source
         chunk_len, stride_left, stride_right = stride
         sequence = sequence.squeeze(0)
         # get rid of the `forced_decoder_idx` that are use to parametrize the generation
-        begin_idx = np.where(sequence == timestamp_begin)[0][0] if timestamp_begin in sequence else 0
+        begin_idx = (
+            np.where(sequence == timestamp_begin)[0][0]
+            if timestamp_begin in sequence
+            else 0
+        )
         sequence = sequence[begin_idx:]
 
         timestamp_tokens = sequence >= timestamp_begin
         if seq_idx != 0 and sum(timestamp_tokens) > 0:
             consecutive = np.where(timestamp_tokens[:-1] & timestamp_tokens[1:])[0] + 1
             last_timestamp = np.where(timestamp_tokens)[0][-1]
-            consecutive = np.append(consecutive, last_timestamp) if last_timestamp not in consecutive else consecutive
+            consecutive = (
+                np.append(consecutive, last_timestamp)
+                if last_timestamp not in consecutive
+                else consecutive
+            )
             time -= stride_left + stride_right
             offset = int((time / feature_extractor.sampling_rate) / time_precision)
-            overlap_time = int((stride_left / feature_extractor.sampling_rate) / time_precision)
+            overlap_time = int(
+                (stride_left / feature_extractor.sampling_rate) / time_precision
+            )
             # relevant timestamps are in the overlapping part
-            relevant_timestamp = np.where(sequence[consecutive] >= timestamp_begin + overlap_time)[0]
+            relevant_timestamp = np.where(
+                sequence[consecutive] >= timestamp_begin + overlap_time
+            )[0]
             if relevant_timestamp.shape[0] > 0:
                 relevant_timestamp = (
-                    consecutive[relevant_timestamp[0] - 1] if relevant_timestamp[0] > 0 else consecutive[0]
+                    consecutive[relevant_timestamp[0] - 1]
+                    if relevant_timestamp[0] > 0
+                    else consecutive[0]
                 )
                 # if a big stride is used, we need to check some of the previous items for the best overlap
                 best_match = 0
                 sliced_sequence = []
                 for idx, previous_sequence in enumerate(reversed(items)):
                     previous_tokens = previous_sequence[1:-1]
-                    if previous_sequence[0] < (timestamp_begin + offset - overlap_time) and idx != 0:
+                    if (
+                        previous_sequence[0] < (timestamp_begin + offset - overlap_time)
+                        and idx != 0
+                    ):
                         break  # the previous sequence is too far in the past
                     if len(previous_tokens) > 0:
                         # find the longest common sequence between the overlapping parts
-                        index_left, index_right, match_length = _fast_find_longest_common_sequence(
+                        (
+                            index_left,
+                            index_right,
+                            match_length,
+                        ) = _fast_find_longest_common_sequence(
                             sequence[1:relevant_timestamp], previous_tokens
                         )
                         # don't do anything if only 1 token was matched
@@ -634,23 +757,36 @@ def _find_timestamp_sequence(sequences, tokenizer, feature_extractor, max_source
                             best_match = match_length
                             best_idx = idx
                             end_of_curr_sequence_idx = (
-                                np.where(sequence[index_left + 1 :] >= timestamp_begin)[0][0] + 1
+                                np.where(sequence[index_left + 1 :] >= timestamp_begin)[
+                                    0
+                                ][0]
+                                + 1
                             )
-                            end_of_curr_sequence_idx = end_of_curr_sequence_idx + 1 + index_left
+                            end_of_curr_sequence_idx = (
+                                end_of_curr_sequence_idx + 1 + index_left
+                            )
                             # if all the tokens are matched, suffix
                             if index_left == 0 and match_length == len(previous_tokens):
                                 sliced_sequence = np.insert(
-                                    sequence[index_left + 1 : end_of_curr_sequence_idx], 0, previous_sequence[0]
+                                    sequence[index_left + 1 : end_of_curr_sequence_idx],
+                                    0,
+                                    previous_sequence[0],
                                 )
                                 sliced_sequence[-1] = previous_sequence[-1]
                             # if part of the previous sequence is not taken
                             elif index_left >= 0:
-                                sliced_sequence = sequence[index_left + 1 : end_of_curr_sequence_idx]
+                                sliced_sequence = sequence[
+                                    index_left + 1 : end_of_curr_sequence_idx
+                                ]
                                 # let's insert the missing part of the previous sequence
                                 previous_slice = (
-                                    previous_sequence[: index_right + 1] if index_right > 0 else [previous_sequence[0]]
+                                    previous_sequence[: index_right + 1]
+                                    if index_right > 0
+                                    else [previous_sequence[0]]
                                 )
-                                sliced_sequence = np.insert(sliced_sequence, 0, previous_slice)
+                                sliced_sequence = np.insert(
+                                    sliced_sequence, 0, previous_slice
+                                )
                                 sliced_sequence[-1] += offset
 
                 if len(sliced_sequence) > 0:
@@ -664,13 +800,17 @@ def _find_timestamp_sequence(sequences, tokenizer, feature_extractor, max_source
         if sum(timestamp_tokens) > 0:
             last_timestamp = np.where(timestamp_tokens)[0][-1]
             consecutive = (
-                np.append(consecutive, last_timestamp + 1) if last_timestamp not in consecutive else consecutive
+                np.append(consecutive, last_timestamp + 1)
+                if last_timestamp not in consecutive
+                else consecutive
             )
 
         if len(consecutive) > 0:
             last_slice = 0
             for current_slice in consecutive:
-                actual_offset = items[-1][-1] if seq_idx != 0 or last_slice != 0 else sequence[0]
+                actual_offset = (
+                    items[-1][-1] if seq_idx != 0 or last_slice != 0 else sequence[0]
+                )
                 sliced_tokens = sequence[last_slice:current_slice]
                 duration = sliced_tokens[-1] - sliced_tokens[0]
                 sliced_tokens[0] = actual_offset

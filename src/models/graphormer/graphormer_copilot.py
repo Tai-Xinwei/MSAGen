@@ -9,27 +9,31 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from ..modules import (
-    init_bert_params,
-    GraphormerSentenceEncoder,
-)
-from ..modules.graphormer_layers_pp import GraphNodeFeaturePipe, GraphAttnBiasPipe, Graph3DBiasPipe, NodeTaskHeadPipe
-from ..modules.graphormer_sentence_encoder import Pre_sentence_encoder_layer, Post_sentence_encoder_layer
-from graphormer.modules.graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer, GraphormerSentenceEncoderLayer_PP
-
-from ..utils.mypp_module import LayerSpec
-from ..utils.layer_norm import LayerNorm
-from ..utils.quant_noise import quant_noise
-from ..utils.get_activation_fn import get_activation_fn
-from ..utils.pretrained_layer_spec import PretrainedLayerSpec, LoraLayerSpec
-
-from transformers.models.llama.modeling_llama import LlamaModel_PP, hybrid_emb, LlamaDecoderLayerPP, LlamaClassifier
+from graphormer.modules.graphormer_sentence_encoder_layer import (
+    GraphormerSentenceEncoderLayer, GraphormerSentenceEncoderLayer_PP)
 from transformers.models.llama.configuration_llama import LlamaConfig
+from transformers.models.llama.modeling_llama import (LlamaClassifier,
+                                                      LlamaDecoderLayerPP,
+                                                      LlamaModel_PP,
+                                                      hybrid_emb)
+
+from ..modules import GraphormerSentenceEncoder, init_bert_params
+from ..modules.graphormer_layers_pp import (Graph3DBiasPipe, GraphAttnBiasPipe,
+                                            GraphNodeFeaturePipe,
+                                            NodeTaskHeadPipe)
+from ..modules.graphormer_sentence_encoder import (Post_sentence_encoder_layer,
+                                                   Pre_sentence_encoder_layer)
+from ..utils.get_activation_fn import get_activation_fn
+from ..utils.layer_norm import LayerNorm
+from ..utils.mypp_module import LayerSpec
+from ..utils.pretrained_layer_spec import LoraLayerSpec, PretrainedLayerSpec
+from ..utils.quant_noise import quant_noise
+
 # from peft import LoraConfig, get_peft_model, prepare_model_for_int8_training
 # from peft.peft_model import PeftModel
 
 logger = logging.getLogger(__name__)
+
 
 class GraphormerModelCopilotPP(nn.Module):
     """
@@ -61,14 +65,17 @@ class GraphormerModelCopilotPP(nn.Module):
         logger.info(args)
         # self.classifer = nn.Linear(4000,4000)
 
-        self.encoder = GraphormerEncoderCopilotPP(args, config, checkpoint_list, load_ckp=load_ckp)
+        self.encoder = GraphormerEncoderCopilotPP(
+            args, config, checkpoint_list, load_ckp=load_ckp
+        )
 
     def forward(self, batched_data, **kwargs):
         return self.encoder(batched_data, **kwargs)
-    
+
     def to_layers(self):
         # return self.encoder.to_layers()
         return self.encoder.layers
+
 
 class GraphormerEncoderCopilotPP(nn.Module):
     """
@@ -80,59 +87,68 @@ class GraphormerEncoderCopilotPP(nn.Module):
         self.max_positions = args.max_positions
 
         self.layers = []
-        
+
         if load_ckp:
             layer_idx = 0
-            
-            self.layers.extend([PretrainedLayerSpec(Pre_sentence_encoder_layer, 
-                                    num_atoms=args.num_atoms,
-                                    num_in_degree=args.num_in_degree,
-                                    num_out_degree=args.num_out_degree,
-                                    num_edges=args.num_edges,
-                                    num_spatial=args.num_spatial,
-                                    num_edge_dis=args.num_edge_dis,
-                                    edge_type=args.edge_type,
-                                    multi_hop_max_dist=args.multi_hop_max_dist,
-                                    num_encoder_layers=args.encoder_layers,
-                                    embedding_dim=args.encoder_embed_dim,
-                                    ffn_embedding_dim=args.encoder_ffn_embed_dim,
-                                    num_attention_heads=args.encoder_attention_heads,
-                                    dropout=args.dropout,
-                                    attention_dropout=args.attention_dropout,
-                                    activation_dropout=args.act_dropout,
-                                    max_seq_len=self.max_positions,
-                                    num_segments=args.num_segment,
-                                    use_position_embeddings=not args.no_token_positional_embeddings,
-                                    encoder_normalize_before=args.encoder_normalize_before,
-                                    apply_bert_init=args.apply_bert_init,
-                                    activation_fn=args.activation_fn,
-                                    learned_pos_embedding=args.encoder_learned_pos,
-                                    sandwich_ln=args.sandwich_ln,
-                                    droppath_prob=args.droppath_prob,
-                                    add_3d=args.add_3d,
-                                    num_3d_bias_kernel=args.num_3d_bias_kernel,
-                                    no_2d=args.no_2d,
-                                    args=args,
-                                    pretrained_ckpt_path=checkpoint_list[layer_idx])])
+
+            self.layers.extend(
+                [
+                    PretrainedLayerSpec(
+                        Pre_sentence_encoder_layer,
+                        num_atoms=args.num_atoms,
+                        num_in_degree=args.num_in_degree,
+                        num_out_degree=args.num_out_degree,
+                        num_edges=args.num_edges,
+                        num_spatial=args.num_spatial,
+                        num_edge_dis=args.num_edge_dis,
+                        edge_type=args.edge_type,
+                        multi_hop_max_dist=args.multi_hop_max_dist,
+                        num_encoder_layers=args.encoder_layers,
+                        embedding_dim=args.encoder_embed_dim,
+                        ffn_embedding_dim=args.encoder_ffn_embed_dim,
+                        num_attention_heads=args.encoder_attention_heads,
+                        dropout=args.dropout,
+                        attention_dropout=args.attention_dropout,
+                        activation_dropout=args.act_dropout,
+                        max_seq_len=self.max_positions,
+                        num_segments=args.num_segment,
+                        use_position_embeddings=not args.no_token_positional_embeddings,
+                        encoder_normalize_before=args.encoder_normalize_before,
+                        apply_bert_init=args.apply_bert_init,
+                        activation_fn=args.activation_fn,
+                        learned_pos_embedding=args.encoder_learned_pos,
+                        sandwich_ln=args.sandwich_ln,
+                        droppath_prob=args.droppath_prob,
+                        add_3d=args.add_3d,
+                        num_3d_bias_kernel=args.num_3d_bias_kernel,
+                        no_2d=args.no_2d,
+                        args=args,
+                        pretrained_ckpt_path=checkpoint_list[layer_idx],
+                    )
+                ]
+            )
             layer_idx += 1
             for nl in range(args.encoder_layers):
                 # if config.mfm_lora:
-                self.layers.append(LoraLayerSpec(GraphormerSentenceEncoderLayer_PP,
-                                            ifload=True,
-                                            lora=config.mfm_lora,
-                                            embedding_dim=args.encoder_embed_dim,
-                                            ffn_embedding_dim=args.encoder_ffn_embed_dim,
-                                            num_attention_heads=args.encoder_attention_heads,
-                                            dropout=args.dropout,
-                                            attention_dropout=args.attention_dropout,
-                                            activation_dropout=args.act_dropout,
-                                            activation_fn=args.activation_fn,
-                                            sandwich_ln=args.sandwich_ln,
-                                            droppath_prob=args.droppath_prob,
-                                            nl=nl,
-                                            args=args,
-                                            pretrained_ckpt_path=checkpoint_list[layer_idx]),
-                                            )
+                self.layers.append(
+                    LoraLayerSpec(
+                        GraphormerSentenceEncoderLayer_PP,
+                        ifload=True,
+                        lora=config.mfm_lora,
+                        embedding_dim=args.encoder_embed_dim,
+                        ffn_embedding_dim=args.encoder_ffn_embed_dim,
+                        num_attention_heads=args.encoder_attention_heads,
+                        dropout=args.dropout,
+                        attention_dropout=args.attention_dropout,
+                        activation_dropout=args.act_dropout,
+                        activation_fn=args.activation_fn,
+                        sandwich_ln=args.sandwich_ln,
+                        droppath_prob=args.droppath_prob,
+                        nl=nl,
+                        args=args,
+                        pretrained_ckpt_path=checkpoint_list[layer_idx],
+                    ),
+                )
                 # else:
                 #     self.layers.append(PretrainedLayerSpec(GraphormerSentenceEncoderLayer_PP,
                 #                 embedding_dim=args.encoder_embed_dim,
@@ -149,73 +165,113 @@ class GraphormerEncoderCopilotPP(nn.Module):
                 #                 pretrained_ckpt_path=checkpoint_list[layer_idx]),
                 #                 )
                 layer_idx += 1
-            self.layers.extend([PretrainedLayerSpec(Post_sentence_encoder_layer,
-                                            args=args,
-                                            embedding_dim=args.encoder_embed_dim, 
-                                            num_attention_heads=args.encoder_attention_heads, 
-                                            num_pred_attn_layer=args.num_pred_attn_layer, 
-                                            num_3d_bias_kernel=args.num_3d_bias_kernel,
-                                            pretrained_ckpt_path=checkpoint_list[layer_idx],
-                                            )])
+            self.layers.extend(
+                [
+                    PretrainedLayerSpec(
+                        Post_sentence_encoder_layer,
+                        args=args,
+                        embedding_dim=args.encoder_embed_dim,
+                        num_attention_heads=args.encoder_attention_heads,
+                        num_pred_attn_layer=args.num_pred_attn_layer,
+                        num_3d_bias_kernel=args.num_3d_bias_kernel,
+                        pretrained_ckpt_path=checkpoint_list[layer_idx],
+                    )
+                ]
+            )
             layer_idx += 1
-            self.layers.extend([PretrainedLayerSpec(Post_decoder, args, pretrained_ckpt_path=checkpoint_list[layer_idx])])
+            self.layers.extend(
+                [
+                    PretrainedLayerSpec(
+                        Post_decoder,
+                        args,
+                        pretrained_ckpt_path=checkpoint_list[layer_idx],
+                    )
+                ]
+            )
             layer_idx += 1
 
-            self.layers.append(PretrainedLayerSpec(hybrid_emb, config, pretrained_ckpt_path=checkpoint_list[layer_idx]))
+            self.layers.append(
+                PretrainedLayerSpec(
+                    hybrid_emb, config, pretrained_ckpt_path=checkpoint_list[layer_idx]
+                )
+            )
             layer_idx += 1
             for l in range(config.num_hidden_layers):
-                self.layers.append(PretrainedLayerSpec(LlamaDecoderLayerPP, config, l, pretrained_ckpt_path=checkpoint_list[layer_idx]))
+                self.layers.append(
+                    PretrainedLayerSpec(
+                        LlamaDecoderLayerPP,
+                        config,
+                        l,
+                        pretrained_ckpt_path=checkpoint_list[layer_idx],
+                    )
+                )
                 layer_idx += 1
-            self.layers.append(PretrainedLayerSpec(LlamaClassifier, config, pretrained_ckpt_path=checkpoint_list[layer_idx]))
+            self.layers.append(
+                PretrainedLayerSpec(
+                    LlamaClassifier,
+                    config,
+                    pretrained_ckpt_path=checkpoint_list[layer_idx],
+                )
+            )
             layer_idx += 1
-            
+
         else:
-            self.layers.extend([LayerSpec(Pre_sentence_encoder_layer, 
-                                            num_atoms=args.num_atoms,
-                                            num_in_degree=args.num_in_degree,
-                                            num_out_degree=args.num_out_degree,
-                                            num_edges=args.num_edges,
-                                            num_spatial=args.num_spatial,
-                                            num_edge_dis=args.num_edge_dis,
-                                            edge_type=args.edge_type,
-                                            multi_hop_max_dist=args.multi_hop_max_dist,
-                                            num_encoder_layers=args.encoder_layers,
-                                            embedding_dim=args.encoder_embed_dim,
-                                            ffn_embedding_dim=args.encoder_ffn_embed_dim,
-                                            num_attention_heads=args.encoder_attention_heads,
-                                            dropout=args.dropout,
-                                            attention_dropout=args.attention_dropout,
-                                            activation_dropout=args.act_dropout,
-                                            max_seq_len=self.max_positions,
-                                            num_segments=args.num_segment,
-                                            use_position_embeddings=not args.no_token_positional_embeddings,
-                                            encoder_normalize_before=args.encoder_normalize_before,
-                                            apply_bert_init=args.apply_bert_init,
-                                            activation_fn=args.activation_fn,
-                                            learned_pos_embedding=args.encoder_learned_pos,
-                                            sandwich_ln=args.sandwich_ln,
-                                            droppath_prob=args.droppath_prob,
-                                            add_3d=args.add_3d,
-                                            num_3d_bias_kernel=args.num_3d_bias_kernel,
-                                            no_2d=args.no_2d,
-                                            args=args,)])
+            self.layers.extend(
+                [
+                    LayerSpec(
+                        Pre_sentence_encoder_layer,
+                        num_atoms=args.num_atoms,
+                        num_in_degree=args.num_in_degree,
+                        num_out_degree=args.num_out_degree,
+                        num_edges=args.num_edges,
+                        num_spatial=args.num_spatial,
+                        num_edge_dis=args.num_edge_dis,
+                        edge_type=args.edge_type,
+                        multi_hop_max_dist=args.multi_hop_max_dist,
+                        num_encoder_layers=args.encoder_layers,
+                        embedding_dim=args.encoder_embed_dim,
+                        ffn_embedding_dim=args.encoder_ffn_embed_dim,
+                        num_attention_heads=args.encoder_attention_heads,
+                        dropout=args.dropout,
+                        attention_dropout=args.attention_dropout,
+                        activation_dropout=args.act_dropout,
+                        max_seq_len=self.max_positions,
+                        num_segments=args.num_segment,
+                        use_position_embeddings=not args.no_token_positional_embeddings,
+                        encoder_normalize_before=args.encoder_normalize_before,
+                        apply_bert_init=args.apply_bert_init,
+                        activation_fn=args.activation_fn,
+                        learned_pos_embedding=args.encoder_learned_pos,
+                        sandwich_ln=args.sandwich_ln,
+                        droppath_prob=args.droppath_prob,
+                        add_3d=args.add_3d,
+                        num_3d_bias_kernel=args.num_3d_bias_kernel,
+                        no_2d=args.no_2d,
+                        args=args,
+                    )
+                ]
+            )
             for nl in range(args.encoder_layers):
                 # if config.mfm_lora:
-                self.layers.append(LoraLayerSpec(GraphormerSentenceEncoderLayer_PP,
-                                            lora=config.mfm_lora,
-                                            embedding_dim=args.encoder_embed_dim,
-                                            ffn_embedding_dim=args.encoder_ffn_embed_dim,
-                                            num_attention_heads=args.encoder_attention_heads,
-                                            dropout=args.dropout,
-                                            attention_dropout=args.attention_dropout,
-                                            activation_dropout=args.act_dropout,
-                                            activation_fn=args.activation_fn,
-                                            sandwich_ln=args.sandwich_ln,
-                                            droppath_prob=args.droppath_prob,
-                                            nl=nl,
-                                            args=args,))
+                self.layers.append(
+                    LoraLayerSpec(
+                        GraphormerSentenceEncoderLayer_PP,
+                        lora=config.mfm_lora,
+                        embedding_dim=args.encoder_embed_dim,
+                        ffn_embedding_dim=args.encoder_ffn_embed_dim,
+                        num_attention_heads=args.encoder_attention_heads,
+                        dropout=args.dropout,
+                        attention_dropout=args.attention_dropout,
+                        activation_dropout=args.act_dropout,
+                        activation_fn=args.activation_fn,
+                        sandwich_ln=args.sandwich_ln,
+                        droppath_prob=args.droppath_prob,
+                        nl=nl,
+                        args=args,
+                    )
+                )
                 # else:
-                #     self.layers.append(LayerSpec(GraphormerSentenceEncoderLayer_PP, 
+                #     self.layers.append(LayerSpec(GraphormerSentenceEncoderLayer_PP,
                 #                                 embedding_dim=args.encoder_embed_dim,
                 #                                 ffn_embedding_dim=args.encoder_ffn_embed_dim,
                 #                                 num_attention_heads=args.encoder_attention_heads,
@@ -227,26 +283,34 @@ class GraphormerEncoderCopilotPP(nn.Module):
                 #                                 droppath_prob=args.droppath_prob,
                 #                                 nl=nl,
                 #                                 args=args,))
-            self.layers.extend([LayerSpec(Post_sentence_encoder_layer,
-                                            args=args,
-                                            embedding_dim=args.encoder_embed_dim, 
-                                            num_attention_heads=args.encoder_attention_heads, 
-                                            num_pred_attn_layer=args.num_pred_attn_layer, 
-                                            num_3d_bias_kernel=args.num_3d_bias_kernel
-                                            )])
+            self.layers.extend(
+                [
+                    LayerSpec(
+                        Post_sentence_encoder_layer,
+                        args=args,
+                        embedding_dim=args.encoder_embed_dim,
+                        num_attention_heads=args.encoder_attention_heads,
+                        num_pred_attn_layer=args.num_pred_attn_layer,
+                        num_3d_bias_kernel=args.num_3d_bias_kernel,
+                    )
+                ]
+            )
             self.layers.extend([LayerSpec(Post_decoder, args)])
-            
 
             self.layers.append(LayerSpec(hybrid_emb, config))
             for l in range(config.num_hidden_layers):
                 self.layers.append(LayerSpec(LlamaDecoderLayerPP, config, l))
             self.layers.append(LayerSpec(LlamaClassifier, config))
-        
-        
 
-    def forward(self, batched_data, perturb=None, segment_labels=None, masked_tokens=None, **unused):
+    def forward(
+        self,
+        batched_data,
+        perturb=None,
+        segment_labels=None,
+        masked_tokens=None,
+        **unused
+    ):
         raise Exception("Forward of GraphormerEncoderPP should not be used")
-    
 
     def to_layers(self):
         g_encoder_layers = []
@@ -279,27 +343,42 @@ class GraphormerEncoderCopilotPP(nn.Module):
                     print("Removing", k, "(because load_softmax is False)")
                     tmp_dict[k] = state_dict[k]
                     del state_dict[k]
-            proj_weight = torch.rand(
-                self.proj_out.weight.shape
-            )
+            proj_weight = torch.rand(self.proj_out.weight.shape)
             proj_bias = torch.rand(self.proj_out.bias.shape)
 
             # lm_head_transform_weight_weight = torch.rand(self.lm_head_transform_weight.weight.shape)
             # lm_head_transform_weight_bias = torch.rand(self.lm_head_transform_weight.bias.shape)
-            lm_head_transform_weight_weight = tmp_dict.get("encoder.regression_lm_head_list.0.weight", None)
-            lm_head_transform_weight_bias = tmp_dict.get("encoder.regression_lm_head_list.0.bias", None)
+            lm_head_transform_weight_weight = tmp_dict.get(
+                "encoder.regression_lm_head_list.0.weight", None
+            )
+            lm_head_transform_weight_bias = tmp_dict.get(
+                "encoder.regression_lm_head_list.0.bias", None
+            )
             ln_weight = tmp_dict.get("encoder.regression_ln_list.0.weight", None)
             ln_bias = tmp_dict.get("encoder.regression_ln_list.0.bias", None)
 
             self.init_state_dict_weight(proj_weight, proj_bias)
             # self.init_state_dict_weight(lm_head_transform_weight_weight, lm_head_transform_weight_bias)
 
-            state_dict["encoder.proj_out.weight"] = state_dict.get("encoder.proj_out.weight", proj_weight)
-            state_dict["encoder.proj_out.bias"] = state_dict.get("encoder.proj_out.bias", proj_bias)
-            state_dict["encoder.lm_head_transform_weight.weight"] = state_dict.get("encoder.lm_head_transform_weight.weight", lm_head_transform_weight_weight)
-            state_dict["encoder.lm_head_transform_weight.bias"] = state_dict.get("encoder.lm_head_transform_weight.bias", lm_head_transform_weight_bias)
-            state_dict["encoder.layer_norm.weight"] = state_dict.get("encoder.layer_norm.weight", ln_weight)
-            state_dict["encoder.layer_norm.bias"] = state_dict.get("encoder.layer_norm.bias", ln_bias)
+            state_dict["encoder.proj_out.weight"] = state_dict.get(
+                "encoder.proj_out.weight", proj_weight
+            )
+            state_dict["encoder.proj_out.bias"] = state_dict.get(
+                "encoder.proj_out.bias", proj_bias
+            )
+            state_dict["encoder.lm_head_transform_weight.weight"] = state_dict.get(
+                "encoder.lm_head_transform_weight.weight",
+                lm_head_transform_weight_weight,
+            )
+            state_dict["encoder.lm_head_transform_weight.bias"] = state_dict.get(
+                "encoder.lm_head_transform_weight.bias", lm_head_transform_weight_bias
+            )
+            state_dict["encoder.layer_norm.weight"] = state_dict.get(
+                "encoder.layer_norm.weight", ln_weight
+            )
+            state_dict["encoder.layer_norm.bias"] = state_dict.get(
+                "encoder.layer_norm.bias", ln_bias
+            )
         return state_dict
 
     def init_state_dict_weight(self, weight, bias):
@@ -319,7 +398,7 @@ class Post_decoder(nn.Module):
         self.proj_out = None
         self.args = args
         # Remove head is set to true during fine-tuning
-        self.load_softmax = not args.ft #getattr(args, "remove_head", False)
+        self.load_softmax = not args.ft  # getattr(args, "remove_head", False)
         print("if finetune:", args.ft)
         # self.layer_norm = layer_norm
         self.activation_fn = get_activation_fn(args.activation_fn)
@@ -335,50 +414,71 @@ class Post_decoder(nn.Module):
 
         self.lm_output_learned_bias = None
         if self.load_softmax:
-            self.lm_output_learned_bias = nn.Parameter(torch.zeros(1, requires_grad=True))
+            self.lm_output_learned_bias = nn.Parameter(
+                torch.zeros(1, requires_grad=True)
+            )
 
             if not self.share_input_output_embed:
                 self.embed_out = nn.Linear(
                     args.encoder_embed_dim, args.num_classes, bias=False
                 )
-                nn.init.uniform_(self.embed_out.weight, -1.0/(math.sqrt(768.) * args.d_tilde), 1.0/(math.sqrt(768.) * args.d_tilde))
+                nn.init.uniform_(
+                    self.embed_out.weight,
+                    -1.0 / (math.sqrt(768.0) * args.d_tilde),
+                    1.0 / (math.sqrt(768.0) * args.d_tilde),
+                )
 
             if args.sent_loss:
                 self.sentence_projection_layer = nn.Linear(
                     args.encoder_embed_dim, self.sentence_out_dim, bias=False
                 )
-                nn.init.uniform_(self.sentence_projection_layer.weight, -1.0/(math.sqrt(768.) * args.d_tilde), 1.0/(math.sqrt(768.) * args.d_tilde))
+                nn.init.uniform_(
+                    self.sentence_projection_layer.weight,
+                    -1.0 / (math.sqrt(768.0) * args.d_tilde),
+                    1.0 / (math.sqrt(768.0) * args.d_tilde),
+                )
         else:
             if isinstance(args.num_classes, int):
                 self.proj_out = nn.Linear(
                     args.encoder_embed_dim, args.num_classes, bias=True
                 )
-                nn.init.uniform_(self.proj_out.weight, -1.0/(math.sqrt(768.) * args.d_tilde), 1.0/(math.sqrt(768.) * args.d_tilde))
+                nn.init.uniform_(
+                    self.proj_out.weight,
+                    -1.0 / (math.sqrt(768.0) * args.d_tilde),
+                    1.0 / (math.sqrt(768.0) * args.d_tilde),
+                )
                 # self.proj_out = RobertaClassificationHead(
                 #     args.encoder_embed_dim, args.encoder_embed_dim, args.num_classes, args.activation_fn
                 # )
             else:
                 raise NotImplementedError
-        
+
         self.reset_parameters()
-            
+
     def reset_parameters(self):
         self.masked_lm_pooler.reset_parameters()
         self.lm_head_transform_weight.reset_parameters()
 
-
     def tensors_decode(self, value_tensor, shape_tensor):
-        x_len = shape_tensor[0]*shape_tensor[1]*shape_tensor[2]
+        x_len = shape_tensor[0] * shape_tensor[1] * shape_tensor[2]
         x = value_tensor[:x_len].view(shape_tensor[0], shape_tensor[1], shape_tensor[2])
-        node_output = value_tensor[x_len:].view(shape_tensor[3], shape_tensor[4], shape_tensor[5])
-        
+        node_output = value_tensor[x_len:].view(
+            shape_tensor[3], shape_tensor[4], shape_tensor[5]
+        )
+
         return x, node_output
 
     def tensors_encode(self, x, node_output):
-        shape_tensor = torch.cat([torch.tensor(x.contiguous().shape), torch.tensor(node_output.contiguous().shape)], dim=-1)
+        shape_tensor = torch.cat(
+            [
+                torch.tensor(x.contiguous().shape),
+                torch.tensor(node_output.contiguous().shape),
+            ],
+            dim=-1,
+        )
         output = torch.cat([x.view(-1), node_output.view(-1)], dim=-1)
 
-        return output, shape_tensor.to(x.device) #, torch.tensor(shape_list)
+        return output, shape_tensor.to(x.device)  # , torch.tensor(shape_list)
 
     # def forward(self, inner_states, masked_tokens, sentence_rep, embed_tokens):
     def forward(self, input_tensor: tuple):
@@ -406,33 +506,31 @@ class Post_decoder(nn.Module):
             # print("Post_decoder:", x.shape, padding_mask.shape, input_ids.shape, llm_mask.shape)
             # print("Post_decoder:", x.dtype, padding_mask.dtype, input_ids.dtype, llm_mask.dtype)
             return (x, padding_mask, input_ids, llm_mask)
-            
+
         # FIXME: not compatible with batched_data
 
         # project masked tokens only
         # if masked_tokens is not None:
-            # x = x[masked_tokens, :]
+        # x = x[masked_tokens, :]
         x = self.layer_norm(self.activation_fn(self.lm_head_transform_weight(x)))
 
         # pooled_output = self.pooler_activation(self.masked_lm_pooler(sentence_rep))
 
         # project back to size of vocabulary
         # if self.share_input_output_embed and embed_tokens is not None:
-            # x = F.linear(x, embed_tokens.weight)
+        # x = F.linear(x, embed_tokens.weight)
         # elif self.embed_out is not None:
-            # x = self.embed_out(x)
+        # x = self.embed_out(x)
 
         if self.embed_out is not None:
             x = self.embed_out(x)
-        
+
         if self.lm_output_learned_bias is not None and self.load_softmax:
             x = x + self.lm_output_learned_bias
-            
-        #finetuning
+
+        # finetuning
         if self.proj_out is not None:
             x = self.proj_out(x)
-        
-
 
         # sentence_logits = None
         # if self.sentence_projection_layer:
@@ -442,10 +540,13 @@ class Post_decoder(nn.Module):
         # value_tensor, shape_tensor = self.tensors_encode(x, node_output)
         # return(value_tensor, shape_tensor)
 
+
 class RobertaClassificationHead(nn.Module):
     """Head for sentence-level classification tasks."""
 
-    def __init__(self, input_dim, inner_dim, num_classes, activation_fn, pooler_dropout=0.0):
+    def __init__(
+        self, input_dim, inner_dim, num_classes, activation_fn, pooler_dropout=0.0
+    ):
         super().__init__()
         self.dense = nn.Linear(input_dim, inner_dim)
         self.activation_fn = get_activation_fn(activation_fn)
@@ -461,6 +562,7 @@ class RobertaClassificationHead(nn.Module):
         x = self.ln(x)
         x = self.out_proj(x)
         return x
+
 
 def base_architecture(args):
     args.dropout = getattr(args, "dropout", 0.1)
@@ -566,8 +668,8 @@ def graphormer_base_architecture(args):
     args.encoder_normalize_before = getattr(args, "encoder_normalize_before", True)
     args.apply_graphormer_init = getattr(args, "apply_graphormer_init", True)
     args.share_encoder_input_output_embed = getattr(
-            args, "share_encoder_input_output_embed", False
-        )
+        args, "share_encoder_input_output_embed", False
+    )
     args.no_token_positional_embeddings = getattr(
         args, "no_token_positional_embeddings", False
     )

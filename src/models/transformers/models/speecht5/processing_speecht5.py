@@ -74,13 +74,20 @@ class SpeechT5Processor(ProcessorMixin):
             raise ValueError(
                 "Cannot process both `audio_target` and `text_target` inputs. Did you mean `audio` or `text`?"
             )
-        if audio is None and audio_target is None and text is None and text_target is None:
+        if (
+            audio is None
+            and audio_target is None
+            and text is None
+            and text_target is None
+        ):
             raise ValueError(
                 "You need to specify either an `audio`, `audio_target`, `text`, or `text_target` input to process."
             )
 
         if audio is not None:
-            inputs = self.feature_extractor(audio, *args, sampling_rate=sampling_rate, **kwargs)
+            inputs = self.feature_extractor(
+                audio, *args, sampling_rate=sampling_rate, **kwargs
+            )
         elif text is not None:
             inputs = self.tokenizer(text, **kwargs)
         else:

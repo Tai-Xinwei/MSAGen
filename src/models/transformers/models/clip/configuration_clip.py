@@ -110,7 +110,12 @@ class CLIPTextConfig(PretrainedConfig):
         eos_token_id=2,
         **kwargs,
     ):
-        super().__init__(pad_token_id=pad_token_id, bos_token_id=bos_token_id, eos_token_id=eos_token_id, **kwargs)
+        super().__init__(
+            pad_token_id=pad_token_id,
+            bos_token_id=bos_token_id,
+            eos_token_id=eos_token_id,
+            **kwargs,
+        )
 
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
@@ -126,14 +131,22 @@ class CLIPTextConfig(PretrainedConfig):
         self.attention_dropout = attention_dropout
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PretrainedConfig":
-        config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
+    def from_pretrained(
+        cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
+    ) -> "PretrainedConfig":
+        config_dict, kwargs = cls.get_config_dict(
+            pretrained_model_name_or_path, **kwargs
+        )
 
         # get the text config dict if we are loading from CLIPConfig
         if config_dict.get("model_type") == "clip":
             config_dict = config_dict["text_config"]
 
-        if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
+        if (
+            "model_type" in config_dict
+            and hasattr(cls, "model_type")
+            and config_dict["model_type"] != cls.model_type
+        ):
             logger.warning(
                 f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
                 f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
@@ -229,14 +242,22 @@ class CLIPVisionConfig(PretrainedConfig):
         self.hidden_act = hidden_act
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PretrainedConfig":
-        config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
+    def from_pretrained(
+        cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
+    ) -> "PretrainedConfig":
+        config_dict, kwargs = cls.get_config_dict(
+            pretrained_model_name_or_path, **kwargs
+        )
 
         # get the vision config dict if we are loading from CLIPConfig
         if config_dict.get("model_type") == "clip":
             config_dict = config_dict["vision_config"]
 
-        if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
+        if (
+            "model_type" in config_dict
+            and hasattr(cls, "model_type")
+            and config_dict["model_type"] != cls.model_type
+        ):
             logger.warning(
                 f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
                 f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
@@ -295,7 +316,12 @@ class CLIPConfig(PretrainedConfig):
     is_composition = True
 
     def __init__(
-        self, text_config=None, vision_config=None, projection_dim=512, logit_scale_init_value=2.6592, **kwargs
+        self,
+        text_config=None,
+        vision_config=None,
+        projection_dim=512,
+        logit_scale_init_value=2.6592,
+        **kwargs,
     ):
         # If `_config_dict` exist, we use them for the backward compatibility.
         # We pop out these 2 attributes before calling `super().__init__` to avoid them being saved (which causes a lot
@@ -317,7 +343,11 @@ class CLIPConfig(PretrainedConfig):
 
             # Give a warning if the values exist in both `_text_config_dict` and `text_config` but being different.
             for key, value in _text_config_dict.items():
-                if key in text_config and value != text_config[key] and key not in ["transformers_version"]:
+                if (
+                    key in text_config
+                    and value != text_config[key]
+                    and key not in ["transformers_version"]
+                ):
                     # If specified in `text_config_dict`
                     if key in text_config_dict:
                         message = (
@@ -344,12 +374,17 @@ class CLIPConfig(PretrainedConfig):
             # convert keys to string instead of integer
             if "id2label" in _vision_config_dict:
                 _vision_config_dict["id2label"] = {
-                    str(key): value for key, value in _vision_config_dict["id2label"].items()
+                    str(key): value
+                    for key, value in _vision_config_dict["id2label"].items()
                 }
 
             # Give a warning if the values exist in both `_vision_config_dict` and `vision_config` but being different.
             for key, value in _vision_config_dict.items():
-                if key in vision_config and value != vision_config[key] and key not in ["transformers_version"]:
+                if (
+                    key in vision_config
+                    and value != vision_config[key]
+                    and key not in ["transformers_version"]
+                ):
                     # If specified in `vision_config_dict`
                     if key in vision_config_dict:
                         message = (
@@ -369,11 +404,15 @@ class CLIPConfig(PretrainedConfig):
 
         if text_config is None:
             text_config = {}
-            logger.info("`text_config` is `None`. Initializing the `CLIPTextConfig` with default values.")
+            logger.info(
+                "`text_config` is `None`. Initializing the `CLIPTextConfig` with default values."
+            )
 
         if vision_config is None:
             vision_config = {}
-            logger.info("`vision_config` is `None`. initializing the `CLIPVisionConfig` with default values.")
+            logger.info(
+                "`vision_config` is `None`. initializing the `CLIPVisionConfig` with default values."
+            )
 
         self.text_config = CLIPTextConfig(**text_config)
         self.vision_config = CLIPVisionConfig(**vision_config)
@@ -383,7 +422,9 @@ class CLIPConfig(PretrainedConfig):
         self.initializer_factor = 1.0
 
     @classmethod
-    def from_text_vision_configs(cls, text_config: CLIPTextConfig, vision_config: CLIPVisionConfig, **kwargs):
+    def from_text_vision_configs(
+        cls, text_config: CLIPTextConfig, vision_config: CLIPVisionConfig, **kwargs
+    ):
         r"""
         Instantiate a [`CLIPConfig`] (or a derived class) from clip text model configuration and clip vision model
         configuration.
@@ -392,7 +433,11 @@ class CLIPConfig(PretrainedConfig):
             [`CLIPConfig`]: An instance of a configuration object
         """
 
-        return cls(text_config=text_config.to_dict(), vision_config=vision_config.to_dict(), **kwargs)
+        return cls(
+            text_config=text_config.to_dict(),
+            vision_config=vision_config.to_dict(),
+            **kwargs,
+        )
 
     def to_dict(self):
         """
@@ -414,7 +459,10 @@ class CLIPOnnxConfig(OnnxConfig):
         return OrderedDict(
             [
                 ("input_ids", {0: "batch", 1: "sequence"}),
-                ("pixel_values", {0: "batch", 1: "num_channels", 2: "height", 3: "width"}),
+                (
+                    "pixel_values",
+                    {0: "batch", 1: "num_channels", 2: "height", 3: "width"},
+                ),
                 ("attention_mask", {0: "batch", 1: "sequence"}),
             ]
         )
@@ -442,7 +490,10 @@ class CLIPOnnxConfig(OnnxConfig):
         framework: Optional["TensorType"] = None,
     ) -> Mapping[str, Any]:
         text_input_dict = super().generate_dummy_inputs(
-            processor.tokenizer, batch_size=batch_size, seq_length=seq_length, framework=framework
+            processor.tokenizer,
+            batch_size=batch_size,
+            seq_length=seq_length,
+            framework=framework,
         )
         image_input_dict = super().generate_dummy_inputs(
             processor.feature_extractor, batch_size=batch_size, framework=framework

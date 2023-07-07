@@ -24,7 +24,11 @@ from ...utils import (
 
 
 _import_structure = {
-    "configuration_whisper": ["WHISPER_PRETRAINED_CONFIG_ARCHIVE_MAP", "WhisperConfig", "WhisperOnnxConfig"],
+    "configuration_whisper": [
+        "WHISPER_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "WhisperConfig",
+        "WhisperOnnxConfig",
+    ],
     "feature_extraction_whisper": ["WhisperFeatureExtractor"],
     "processing_whisper": ["WhisperProcessor"],
     "tokenization_whisper": ["WhisperTokenizer"],
@@ -79,7 +83,11 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_whisper import WHISPER_PRETRAINED_CONFIG_ARCHIVE_MAP, WhisperConfig, WhisperOnnxConfig
+    from .configuration_whisper import (
+        WHISPER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        WhisperConfig,
+        WhisperOnnxConfig,
+    )
     from .feature_extraction_whisper import WhisperFeatureExtractor
     from .processing_whisper import WhisperProcessor
     from .tokenization_whisper import WhisperTokenizer
@@ -134,4 +142,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

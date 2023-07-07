@@ -13,11 +13,19 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available, is_vision_available
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_torch_available,
+    is_vision_available,
+)
 
 
 _import_structure = {
-    "configuration_oneformer": ["ONEFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP", "OneFormerConfig"],
+    "configuration_oneformer": [
+        "ONEFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "OneFormerConfig",
+    ],
     "processing_oneformer": ["OneFormerProcessor"],
 }
 
@@ -43,7 +51,10 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_oneformer import ONEFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, OneFormerConfig
+    from .configuration_oneformer import (
+        ONEFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        OneFormerConfig,
+    )
     from .processing_oneformer import OneFormerProcessor
 
     try:
@@ -70,4 +81,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure
+    )

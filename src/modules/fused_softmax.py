@@ -18,7 +18,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import torch
-
 from apex._autocast_utils import _cast_if_autocast_enabled
 from apex.transformer.enums import AttnMaskType
 
@@ -114,17 +113,21 @@ class GenericScaledMaskedSoftmax(torch.autograd.Function):
         import generic_scaled_masked_softmax_cuda
 
         scale_t = torch.tensor([scale])
-        softmax_results = generic_scaled_masked_softmax_cuda.forward(inputs, mask, scale_t[0])
+        softmax_results = generic_scaled_masked_softmax_cuda.forward(
+            inputs, mask, scale_t[0]
+        )
         ctx.save_for_backward(softmax_results, scale_t)
         return softmax_results
 
     @staticmethod
     def backward(ctx, output_grads):
-        import generic_scaled_masked_softmax_cuda_new
+        import generic_scaled_masked_softmax_cuda
 
         softmax_results, scale_t = ctx.saved_tensors
 
-        input_grads = generic_scaled_masked_softmax_cuda.backward(output_grads, softmax_results, scale_t[0])
+        input_grads = generic_scaled_masked_softmax_cuda.backward(
+            output_grads, softmax_results, scale_t[0]
+        )
         return input_grads, None, None
 
 
@@ -148,9 +151,7 @@ class ScaledSoftmax(torch.autograd.Function):
 
         scale_t = torch.tensor([scale])
 
-        softmax_results = scaled_softmax_cuda.forward(
-            inputs, scale_t[0]
-        )
+        softmax_results = scaled_softmax_cuda.forward(inputs, scale_t[0])
         ctx.save_for_backward(softmax_results, scale_t)
         return softmax_results
 
@@ -278,6 +279,7 @@ class FusedScaleMaskSoftmax(torch.nn.Module):
 
         return scaled_masked_softmax_cuda.get_batch_per_block(sq, sk, b, np)
 
+
 class GenericFusedScaleMaskSoftmax(FusedScaleMaskSoftmax):
     """
     Generic version of FusedSacleMaskSoftmax.
@@ -295,21 +297,37 @@ class GenericFusedScaleMaskSoftmax(FusedScaleMaskSoftmax):
     """
 
     def __init__(
-        self, input_in_fp16, input_in_bf16, scaled_masked_softmax_fusion, mask_func, softmax_in_fp32, scale,
+        self,
+        input_in_fp16,
+        input_in_bf16,
+        scaled_masked_softmax_fusion,
+        mask_func,
+        softmax_in_fp32,
+        scale,
     ):
-        super().__init__(input_in_fp16, input_in_bf16, AttnMaskType.padding, scaled_masked_softmax_fusion, mask_func, softmax_in_fp32, scale)
+        super().__init__(
+            input_in_fp16,
+            input_in_bf16,
+            AttnMaskType.padding,
+            scaled_masked_softmax_fusion,
+            mask_func,
+            softmax_in_fp32,
+            scale,
+        )
         self.scaled_masked_softmax_fusion = generic_scaled_masked_softmax
 
     def is_kernel_available(self, mask, b, np, sq, sk):
-        if self.scaled_masked_softmax_fusion and 0 < sk:  # user want to fuse  # sk must be 1 ~
+        if (
+            self.scaled_masked_softmax_fusion and 0 < sk
+        ):  # user want to fuse  # sk must be 1 ~
             return True
         return False
 
 
 import torch
-
 import triton
 import triton.language as tl
+
 
 @triton.jit
 def fusedsoftmaxtriton():

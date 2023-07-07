@@ -31,7 +31,13 @@ from ...image_utils import (
     to_numpy_array,
     valid_images,
 )
-from ...utils import TensorType, is_torch_available, is_torch_tensor, is_vision_available, logging
+from ...utils import (
+    TensorType,
+    is_torch_available,
+    is_torch_tensor,
+    is_vision_available,
+    logging,
+)
 
 
 if is_vision_available():
@@ -112,7 +118,9 @@ class SegformerImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_factor
         self.do_normalize = do_normalize
-        self.image_mean = image_mean if image_mean is not None else IMAGENET_DEFAULT_MEAN
+        self.image_mean = (
+            image_mean if image_mean is not None else IMAGENET_DEFAULT_MEAN
+        )
         self.image_std = image_std if image_std is not None else IMAGENET_DEFAULT_STD
         self.do_reduce_labels = do_reduce_labels
 
@@ -160,9 +168,15 @@ class SegformerImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(f"The `size` dictionary must contain the keys `height` and `width`. Got {size.keys()}")
+            raise ValueError(
+                f"The `size` dictionary must contain the keys `height` and `width`. Got {size.keys()}"
+            )
         return resize(
-            image, size=(size["height"], size["width"]), resample=resample, data_format=data_format, **kwargs
+            image,
+            size=(size["height"], size["width"]),
+            resample=resample,
+            data_format=data_format,
+            **kwargs,
         )
 
     def rescale(
@@ -375,10 +389,14 @@ class SegformerImageProcessor(BaseImageProcessor):
         do_resize = do_resize if do_resize is not None else self.do_resize
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
-        do_reduce_labels = do_reduce_labels if do_reduce_labels is not None else self.do_reduce_labels
+        do_reduce_labels = (
+            do_reduce_labels if do_reduce_labels is not None else self.do_reduce_labels
+        )
         resample = resample if resample is not None else self.resample
         size = size if size is not None else self.size
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
 
@@ -399,13 +417,17 @@ class SegformerImageProcessor(BaseImageProcessor):
             )
 
         if do_resize and size is None or resample is None:
-            raise ValueError("Size and resample must be specified if do_resize is True.")
+            raise ValueError(
+                "Size and resample must be specified if do_resize is True."
+            )
 
         if do_rescale and rescale_factor is None:
             raise ValueError("Rescale factor must be specified if do_rescale is True.")
 
         if do_normalize and (image_mean is None or image_std is None):
-            raise ValueError("Image mean and std must be specified if do_normalize is True.")
+            raise ValueError(
+                "Image mean and std must be specified if do_normalize is True."
+            )
 
         images = [
             self._preprocess_image(
@@ -439,7 +461,9 @@ class SegformerImageProcessor(BaseImageProcessor):
 
         return BatchFeature(data=data, tensor_type=return_tensors)
 
-    def post_process_semantic_segmentation(self, outputs, target_sizes: List[Tuple] = None):
+    def post_process_semantic_segmentation(
+        self, outputs, target_sizes: List[Tuple] = None
+    ):
         """
         Converts the output of [`SegformerForSemanticSegmentation`] into semantic segmentation maps. Only supports
         PyTorch.
@@ -472,12 +496,17 @@ class SegformerImageProcessor(BaseImageProcessor):
 
             for idx in range(len(logits)):
                 resized_logits = torch.nn.functional.interpolate(
-                    logits[idx].unsqueeze(dim=0), size=target_sizes[idx], mode="bilinear", align_corners=False
+                    logits[idx].unsqueeze(dim=0),
+                    size=target_sizes[idx],
+                    mode="bilinear",
+                    align_corners=False,
                 )
                 semantic_map = resized_logits[0].argmax(dim=0)
                 semantic_segmentation.append(semantic_map)
         else:
             semantic_segmentation = logits.argmax(dim=1)
-            semantic_segmentation = [semantic_segmentation[i] for i in range(semantic_segmentation.shape[0])]
+            semantic_segmentation = [
+                semantic_segmentation[i] for i in range(semantic_segmentation.shape[0])
+            ]
 
         return semantic_segmentation

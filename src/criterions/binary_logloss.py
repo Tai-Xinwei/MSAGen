@@ -1,13 +1,13 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from fairseq.dataclass.configs import FairseqDataclass
-
 import torch
-from torch.nn import functional
 from fairseq import metrics
 from fairseq.criterions import FairseqCriterion, register_criterion
+from fairseq.dataclass.configs import FairseqDataclass
 from sklearn.metrics import roc_auc_score
+from torch.nn import functional
+
 
 @register_criterion("binary_logloss", dataclass=FairseqDataclass)
 class GraphPredictionBinaryLogLoss(FairseqCriterion):
@@ -32,7 +32,7 @@ class GraphPredictionBinaryLogLoss(FairseqCriterion):
         logits = logits[:, 0, :]
         targets = model.get_targets(sample, [logits])
         preds = torch.where(torch.sigmoid(logits) < 0.5, 0, 1)
-        
+
         logits_flatten = logits.reshape(-1)
         targets_flatten = targets[: logits.size(0)].reshape(-1)
         mask = ~torch.isnan(targets_flatten)
@@ -45,7 +45,7 @@ class GraphPredictionBinaryLogLoss(FairseqCriterion):
             "sample_size": torch.sum(mask.type(torch.int64)),
             "nsentences": sample_size,
             "ntokens": natoms,
-            "ncorrect": (preds == targets[:preds.size(0)]).sum(),
+            "ncorrect": (preds == targets[: preds.size(0)]).sum(),
         }
         return loss, sample_size, logging_output
 
@@ -95,7 +95,7 @@ class GraphPredictionBinaryLogLossWithFlag(GraphPredictionBinaryLogLoss):
         logits = model(**sample["net_input"], perturb=perturb)[0][:, 0, :]
         targets = model.get_targets(sample, [logits])
         preds = torch.where(torch.sigmoid(logits) < 0.5, 0, 1)
-        
+
         logits_flatten = logits.reshape(-1)
         targets_flatten = targets[: logits.size(0)].reshape(-1)
         mask = ~torch.isnan(targets_flatten)
@@ -108,6 +108,6 @@ class GraphPredictionBinaryLogLossWithFlag(GraphPredictionBinaryLogLoss):
             "sample_size": logits.size(0),
             "nsentences": sample_size,
             "ntokens": natoms,
-            "ncorrect": (preds == targets[:preds.size(0)]).sum(),
+            "ncorrect": (preds == targets[: preds.size(0)]).sum(),
         }
         return loss, sample_size, logging_output

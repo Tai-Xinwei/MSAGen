@@ -3,24 +3,29 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+import math
 from typing import Optional, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
-import math
 
-from .multihead_attention import MultiheadAttention
-from .graphormer_layers import GraphNodeFeature, GraphAttnBias, Graph3DBias, NodeTaskHead, RobertaClassificationHead
-from .graphormer_layers_pp import GraphNodeFeaturePipe, GraphAttnBiasPipe, Graph3DBiasPipe, NodeTaskHeadPipe
-from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
-from .graphormer_layers import EquivariantMultiHeadAttention, EquivariantLayerNorm, Distance, EquivariantVectorOutput, ExpNormalSmearing
-
-from .layer_norm import LayerNorm
-from .quant_noise import quant_noise as apply_quant_noise_
-from .get_activation_fn import get_activation_fn
-from .FairseqDropout import FairseqDropout
 from utils.LayerDropModuleList import LayerDropModuleList
+
+from .FairseqDropout import FairseqDropout
+from .get_activation_fn import get_activation_fn
+from .graphormer_layers import (Distance, EquivariantLayerNorm,
+                                EquivariantMultiHeadAttention,
+                                EquivariantVectorOutput, ExpNormalSmearing,
+                                Graph3DBias, GraphAttnBias, GraphNodeFeature,
+                                NodeTaskHead, RobertaClassificationHead)
+from .graphormer_layers_pp import (Graph3DBiasPipe, GraphAttnBiasPipe,
+                                   GraphNodeFeaturePipe, NodeTaskHeadPipe)
+from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
+from .layer_norm import LayerNorm
+from .multihead_attention import MultiheadAttention
+from .quant_noise import quant_noise as apply_quant_noise_
+
 
 def init_bert_params(module):
     """
@@ -39,9 +44,7 @@ def init_bert_params(module):
     def normal_(data):
         # with FSDP, module params will be on CUDA, so we cast them back to CPU
         # so that the RNG is consistent with and without FSDP
-        data.copy_(
-            data.cpu().normal_(mean=0.0, std=0.02).to(data.device)
-        )
+        data.copy_(data.cpu().normal_(mean=0.0, std=0.02).to(data.device))
 
     if isinstance(module, nn.Linear):
         normal_(module.weight.data)
@@ -122,7 +125,6 @@ class GraphormerSentenceEncoder(nn.Module):
         args=None,
         # num_pred_attn_layer: int = 4,
     ) -> None:
-
         super().__init__()
         self.dropout_module = FairseqDropout(
             dropout, module_name=self.__class__.__name__
@@ -165,20 +167,23 @@ class GraphormerSentenceEncoder(nn.Module):
             # args=args,
         )
 
-        self.graph_3d_bias = Graph3DBias(
-            args,
-            num_heads=num_attention_heads * (num_encoder_layers + 1),
-            num_edges=num_edges,
-            n_layers=num_encoder_layers,
-            embed_dim=embedding_dim,
-            num_kernel=num_3d_bias_kernel,
-            no_share_rpe=False,
-            # args=args,
-        ) if add_3d else None
+        self.graph_3d_bias = (
+            Graph3DBias(
+                args,
+                num_heads=num_attention_heads * (num_encoder_layers + 1),
+                num_edges=num_edges,
+                n_layers=num_encoder_layers,
+                embed_dim=embedding_dim,
+                num_kernel=num_3d_bias_kernel,
+                no_share_rpe=False,
+                # args=args,
+            )
+            if add_3d
+            else None
+        )
 
         # self.node_proc = NodeTaskHead(embedding_dim, num_attention_heads)
 
-        
         self.embed_scale = embed_scale
 
         if q_noise > 0:
@@ -221,9 +226,8 @@ class GraphormerSentenceEncoder(nn.Module):
                         sandwich_ln=sandwich_ln,
                         droppath_prob=droppath_probs[nl],
                         nl=nl,
-                        args=args
+                        args=args,
                     )
-                    
                 ]
             )
 
@@ -240,16 +244,11 @@ class GraphormerSentenceEncoder(nn.Module):
 
         for layer in range(n_trans_layers_to_freeze):
             freeze_module_params(self.layers[layer])
-        
+
         # @ shengjie added: initialization from Foundation Transformer
         init_scale = math.sqrt(math.log(num_encoder_layers))
         for name, p in self.named_parameters():
-            if (
-                    "fc1" in name
-                    or "fc2" in name
-                    or "out_proj" in name
-                    or "v_proj" in name
-            ):
+            if "fc1" in name or "fc2" in name or "out_proj" in name or "v_proj" in name:
                 p.data.mul_(init_scale)
 
         self.args = args
@@ -272,7 +271,6 @@ class GraphormerSentenceEncoder(nn.Module):
         #     )
         #     # layer = EquivariantMultiHeadAttention()
         #     self.attention_layers.append(layer)
-
 
     def build_transformer_sentence_encoder_layer(
         self,
@@ -308,7 +306,6 @@ class GraphormerSentenceEncoder(nn.Module):
             args=args,
         )
 
-
     def forward(
         self,
         batched_data,
@@ -319,14 +316,16 @@ class GraphormerSentenceEncoder(nn.Module):
         token_embeddings: Optional[torch.Tensor] = None,
         attn_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        is_tpu = False
         # compute padding mask. This is needed for multi-head attention
         if not self.args.ft:
-            ori_pos = batched_data['pos']
-            node_mask = batched_data['node_mask']
-            noise = torch.randn(ori_pos.shape, device=ori_pos.device) * self.args.noise_scale
+            ori_pos = batched_data["pos"]
+            node_mask = batched_data["node_mask"]
+            noise = (
+                torch.randn(ori_pos.shape, device=ori_pos.device)
+                * self.args.noise_scale
+            )
             noise = noise.masked_fill_(~node_mask.bool(), 0.0)
-            batched_data['pos'] = ori_pos + noise
+            batched_data["pos"] = ori_pos + noise
         # else:
         #     ori_pos = batched_data['pos']
         #     noise = torch.randn(ori_pos.shape, device=ori_pos.device) * self.args.noise_scale
@@ -334,8 +333,10 @@ class GraphormerSentenceEncoder(nn.Module):
 
         data_x = batched_data["x"]
         n_graph, n_node = data_x.size()[:2]
-        padding_mask = (data_x[:,:,0]).eq(0) # B x T x 1
-        padding_mask_cls = torch.zeros(n_graph, 1, device=padding_mask.device, dtype=padding_mask.dtype)
+        padding_mask = (data_x[:, :, 0]).eq(0)  # B x T x 1
+        padding_mask_cls = torch.zeros(
+            n_graph, 1, device=padding_mask.device, dtype=padding_mask.dtype
+        )
         padding_mask = torch.cat((padding_mask_cls, padding_mask), dim=1)
         # B x (T+1) x 1
         # mask_dict = {0: [1, 1], 1: [1, 0], 2: [0, 1]}
@@ -361,10 +362,21 @@ class GraphormerSentenceEncoder(nn.Module):
         # @ Roger added: 3D attn bias
         delta_pos = None
         if self.graph_3d_bias is not None and not (batched_data["pos"] == 0).all():
-            attn_bias_3d, merged_edge_features, delta_pos = self.graph_3d_bias(batched_data)
+            attn_bias_3d, merged_edge_features, delta_pos = self.graph_3d_bias(
+                batched_data
+            )
             if mask_3d is not None:
-                merged_edge_features, delta_pos = merged_edge_features * mask_3d[:, None, None], delta_pos * mask_3d[:, None, None, None]
-                attn_bias_3d = attn_bias_3d.masked_fill_(((attn_bias_3d != float('-inf')) * (1 - mask_3d[:, None, None, None])).bool(), 0.0)
+                merged_edge_features, delta_pos = (
+                    merged_edge_features * mask_3d[:, None, None],
+                    delta_pos * mask_3d[:, None, None, None],
+                )
+                attn_bias_3d = attn_bias_3d.masked_fill_(
+                    (
+                        (attn_bias_3d != float("-inf"))
+                        * (1 - mask_3d[:, None, None, None])
+                    ).bool(),
+                    0.0,
+                )
             attn_bias[:, :, 1:, 1:] = attn_bias[:, :, 1:, 1:] + attn_bias_3d
             x[:, 1:, :] = x[:, 1:, :] + merged_edge_features * 0.01
 
@@ -387,10 +399,19 @@ class GraphormerSentenceEncoder(nn.Module):
         inner_states = []
         if not last_state_only:
             inner_states.append(x)
-        
-        attn_bias = attn_bias.contiguous().view(n_graph, len(self.layers)+1, -1, n_node+1, n_node+1).contiguous()
+
+        attn_bias = (
+            attn_bias.contiguous()
+            .view(n_graph, len(self.layers) + 1, -1, n_node + 1, n_node + 1)
+            .contiguous()
+        )
         for nl, layer in enumerate(self.layers):
-            x, _ = layer(x, self_attn_padding_mask=padding_mask, self_attn_mask=attn_mask, self_attn_bias=attn_bias[:, nl, :, :, :])
+            x, _ = layer(
+                x,
+                self_attn_padding_mask=padding_mask,
+                self_attn_mask=attn_mask,
+                self_attn_bias=attn_bias[:, nl, :, :, :],
+            )
             if not last_state_only:
                 inner_states.append(x)
 
@@ -398,12 +419,13 @@ class GraphormerSentenceEncoder(nn.Module):
 
 
 class Node_decoder(nn.Module):
-    def __init__(self,
-                 embedding_dim: int = 768,
-                 num_attention_heads: int = 8,
-                 last_state_only: bool = True,
-                 args = None,
-                 ):
+    def __init__(
+        self,
+        embedding_dim: int = 768,
+        num_attention_heads: int = 8,
+        last_state_only: bool = True,
+        args=None,
+    ):
         super().__init__()
         if not args.ft:
             self.node_proc = NodeTaskHead(embedding_dim, num_attention_heads)
@@ -415,7 +437,9 @@ class Node_decoder(nn.Module):
 
         node_output = None
         if delta_pos is not None and not self.args.ft:
-            node_output = self.node_proc(x[1:, :, :], attn_bias[:, -1, :, 1:, 1:], delta_pos)
+            node_output = self.node_proc(
+                x[1:, :, :], attn_bias[:, -1, :, 1:, 1:], delta_pos
+            )
 
         if self.last_state_only:
             inner_states = [x]
@@ -427,7 +451,8 @@ class Node_decoder(nn.Module):
 
 
 class Pre_sentence_encoder_layer(nn.Module):
-    def __init__(self,
+    def __init__(
+        self,
         num_atoms: int,
         num_in_degree: int,
         num_out_degree: int,
@@ -466,7 +491,6 @@ class Pre_sentence_encoder_layer(nn.Module):
         no_2d: bool = False,
         args=None,
     ):
-
         super().__init__()
 
         self.embed_scale = embed_scale
@@ -480,7 +504,6 @@ class Pre_sentence_encoder_layer(nn.Module):
             )
         else:
             self.quant_noise = None
-
 
         self.inner_states = None
         self.args = args
@@ -522,7 +545,6 @@ class Pre_sentence_encoder_layer(nn.Module):
             # args=args,
         )
 
-
         self.graph_3d_bias = Graph3DBiasPipe(
             args,
             num_heads=num_attention_heads * (num_encoder_layers + 1),
@@ -532,13 +554,26 @@ class Pre_sentence_encoder_layer(nn.Module):
             num_kernel=num_3d_bias_kernel,
             no_share_rpe=False,
             # args=args,
-        ) #if args.add_3d else None
-
+        )  # if args.add_3d else None
 
     def forward(self, input_batchdata: tuple):
         # batched_data, perturb, segment_labels, last_state_only, positions, token_embeddings, token_embeddings, attn_mask = input
-        idx, attn_bias, attn_edge_type, spatial_pos, in_degree, output_degree, x_0, edge_input, y, \
-              pos, node_type_edge, node_mask, input_ids, llm_mask = input_batchdata
+        (
+            idx,
+            attn_bias,
+            attn_edge_type,
+            spatial_pos,
+            in_degree,
+            output_degree,
+            x_0,
+            edge_input,
+            y,
+            pos,
+            node_type_edge,
+            node_mask,
+            input_ids,
+            llm_mask,
+        ) = input_batchdata
 
         assert type(idx) == torch.Tensor
         assert type(attn_bias) == torch.Tensor
@@ -564,11 +599,13 @@ class Pre_sentence_encoder_layer(nn.Module):
         last_state_only = False
 
         n_graph, n_node = x_0.size()[:2]
-        padding_mask = (x_0[:,:,0]).eq(0) # B x T x 1
-        padding_mask_cls = torch.zeros(n_graph, 1, device=padding_mask.device, dtype=padding_mask.dtype)
+        padding_mask = (x_0[:, :, 0]).eq(0)  # B x T x 1
+        padding_mask_cls = torch.zeros(
+            n_graph, 1, device=padding_mask.device, dtype=padding_mask.dtype
+        )
         padding_mask = torch.cat((padding_mask_cls, padding_mask), dim=1)
 
-        mask_2d = None 
+        mask_2d = None
         mask_3d = None
 
         if token_embeddings is not None:
@@ -581,20 +618,38 @@ class Pre_sentence_encoder_layer(nn.Module):
             x[:, 1:, :] = x[:, 1:, :] + perturb
 
         # x: B x T x C
-        input_tuple2 = (attn_bias, spatial_pos, x_0, edge_input, attn_edge_type, node_mask, mask_2d)
+        input_tuple2 = (
+            attn_bias,
+            spatial_pos,
+            x_0,
+            edge_input,
+            attn_edge_type,
+            node_mask,
+            mask_2d,
+        )
         attn_bias = self.graph_attn_bias(input_tuple2)
 
         # @ Roger added: 3D attn bias
         delta_pos = None
         if self.graph_3d_bias is not None and not (pos == 0).all() and self.args.add_3d:
             input_tuple3 = (pos, x_0, node_type_edge, node_mask)
-            attn_bias_3d, merged_edge_features, delta_pos = self.graph_3d_bias(input_tuple3)
+            attn_bias_3d, merged_edge_features, delta_pos = self.graph_3d_bias(
+                input_tuple3
+            )
             if mask_3d is not None:
-                merged_edge_features, delta_pos = merged_edge_features * mask_3d[:, None, None], delta_pos * mask_3d[:, None, None, None]
-                attn_bias_3d = attn_bias_3d.masked_fill_(((attn_bias_3d != float('-inf')) * (1 - mask_3d[:, None, None, None])).bool(), 0.0)
+                merged_edge_features, delta_pos = (
+                    merged_edge_features * mask_3d[:, None, None],
+                    delta_pos * mask_3d[:, None, None, None],
+                )
+                attn_bias_3d = attn_bias_3d.masked_fill_(
+                    (
+                        (attn_bias_3d != float("-inf"))
+                        * (1 - mask_3d[:, None, None, None])
+                    ).bool(),
+                    0.0,
+                )
             attn_bias[:, :, 1:, 1:] = attn_bias[:, :, 1:, 1:] + attn_bias_3d
             x[:, 1:, :] = x[:, 1:, :] + merged_edge_features * 0.01
-
 
         if self.embed_scale is not None:
             x = x * self.embed_scale
@@ -615,7 +670,11 @@ class Pre_sentence_encoder_layer(nn.Module):
         if not last_state_only:
             self.inner_states = x[None, ...]
 
-        attn_bias = attn_bias.contiguous().view(n_graph, self.args.encoder_layers+1, -1, n_node+1, n_node+1).contiguous()
+        attn_bias = (
+            attn_bias.contiguous()
+            .view(n_graph, self.args.encoder_layers + 1, -1, n_node + 1, n_node + 1)
+            .contiguous()
+        )
 
         if self.args.infer:
             return x, padding_mask, attn_bias, input_ids, llm_mask.bool()
@@ -624,17 +683,37 @@ class Pre_sentence_encoder_layer(nn.Module):
 
         # output, shape_tensor = self.tensors_encode(x, attn_bias, delta_pos)
         # return (output, padding_mask, shape_tensor)
-    
+
     def tensors_encode(self, x, self_attn_bias, delta_pos):
-        shape_tensor = torch.cat([torch.tensor(x.shape), torch.tensor(self_attn_bias.shape), torch.tensor(delta_pos.shape)], dim=-1)
-        output = torch.cat([x.contiguous().view(-1), self_attn_bias.contiguous().view(-1), delta_pos.contiguous().view(-1)], dim=-1)
+        shape_tensor = torch.cat(
+            [
+                torch.tensor(x.shape),
+                torch.tensor(self_attn_bias.shape),
+                torch.tensor(delta_pos.shape),
+            ],
+            dim=-1,
+        )
+        output = torch.cat(
+            [
+                x.contiguous().view(-1),
+                self_attn_bias.contiguous().view(-1),
+                delta_pos.contiguous().view(-1),
+            ],
+            dim=-1,
+        )
 
-        return output, shape_tensor.to(x.device) #, torch.tensor(shape_list)
-
+        return output, shape_tensor.to(x.device)  # , torch.tensor(shape_list)
 
 
 class Post_sentence_encoder_layer(nn.Module):
-    def __init__(self, args, embedding_dim, num_attention_heads, num_pred_attn_layer, num_3d_bias_kernel):
+    def __init__(
+        self,
+        args,
+        embedding_dim,
+        num_attention_heads,
+        num_pred_attn_layer,
+        num_3d_bias_kernel,
+    ):
         super().__init__()
 
         self.last_state_only = False
@@ -661,26 +740,41 @@ class Post_sentence_encoder_layer(nn.Module):
         #     self.attention_layers.append(layer)
 
         self.args = args
-        
 
     def tensors_encode(self, x, node_output):
-        
-        shape_tensor = torch.cat([torch.tensor(x.shape), torch.tensor(node_output.shape)], dim=-1)
-        output = torch.cat([x.contiguous().view(-1), node_output.contiguous().view(-1)], dim=-1)
+        shape_tensor = torch.cat(
+            [torch.tensor(x.shape), torch.tensor(node_output.shape)], dim=-1
+        )
+        output = torch.cat(
+            [x.contiguous().view(-1), node_output.contiguous().view(-1)], dim=-1
+        )
 
-        return output, shape_tensor.to(x.device) #, torch.tensor(shape_list)
-        
+        return output, shape_tensor.to(x.device)  # , torch.tensor(shape_list)
+
     def tensors_decode(self, output, shape_tensor):
-        
-        x_len = shape_tensor[0]*shape_tensor[1]*shape_tensor[2]
-        self_attn_bias_len = shape_tensor[3]*shape_tensor[4]*shape_tensor[5]*shape_tensor[6]*shape_tensor[7]
+        x_len = shape_tensor[0] * shape_tensor[1] * shape_tensor[2]
+        self_attn_bias_len = (
+            shape_tensor[3]
+            * shape_tensor[4]
+            * shape_tensor[5]
+            * shape_tensor[6]
+            * shape_tensor[7]
+        )
 
         x = output[:x_len].view(shape_tensor[0], shape_tensor[1], shape_tensor[2])
-        self_attn_bias = output[x_len:x_len+self_attn_bias_len].view(shape_tensor[3], shape_tensor[4], shape_tensor[5], shape_tensor[6], shape_tensor[7])
-        delta_pos = output[x_len+self_attn_bias_len:].view(shape_tensor[8], shape_tensor[9], shape_tensor[10], shape_tensor[11])
-        
+        self_attn_bias = output[x_len : x_len + self_attn_bias_len].view(
+            shape_tensor[3],
+            shape_tensor[4],
+            shape_tensor[5],
+            shape_tensor[6],
+            shape_tensor[7],
+        )
+        delta_pos = output[x_len + self_attn_bias_len :].view(
+            shape_tensor[8], shape_tensor[9], shape_tensor[10], shape_tensor[11]
+        )
+
         return x, self_attn_bias, delta_pos
-    
+
     def forward(self, input_tuple: tuple):
         # print("post1")
         # x, attn_bias, padding_mask, delta_pos, inner_states = input
@@ -759,6 +853,6 @@ class Post_sentence_encoder_layer(nn.Module):
 
         # x [T, Bs, emb], node_output [Bs, T-1, 3],
         return (x, node_output, sentence_rep)
-    
+
         # value_tensor, shape_tensor = self.tensors_encode(x, node_output)
         # return (value_tensor, shape_tensor)

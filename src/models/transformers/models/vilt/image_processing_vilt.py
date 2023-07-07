@@ -20,7 +20,14 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import numpy as np
 
 from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
-from ...image_transforms import PaddingMode, normalize, pad, rescale, resize, to_channel_dimension_format
+from ...image_transforms import (
+    PaddingMode,
+    normalize,
+    pad,
+    rescale,
+    resize,
+    to_channel_dimension_format,
+)
 from ...image_utils import (
     IMAGENET_STANDARD_MEAN,
     IMAGENET_STANDARD_STD,
@@ -82,7 +89,10 @@ def get_max_height_width(images: List[np.ndarray]) -> List[int]:
 
 
 def get_resize_output_image_size(
-    input_image: np.ndarray, shorter: int = 800, longer: int = 1333, size_divisor: int = 32
+    input_image: np.ndarray,
+    shorter: int = 800,
+    longer: int = 1333,
+    size_divisor: int = 32,
 ) -> Tuple[int, int]:
     input_height, input_width = get_image_size(input_image)
     min_size, max_size = shorter, longer
@@ -178,7 +188,9 @@ class ViltImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_factor
         self.do_normalize = do_normalize
-        self.image_mean = image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        self.image_mean = (
+            image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        )
         self.image_std = image_std if image_std is not None else IMAGENET_STANDARD_STD
         self.do_pad = do_pad
 
@@ -191,7 +203,9 @@ class ViltImageProcessor(BaseImageProcessor):
         """
         image_processor_dict = image_processor_dict.copy()
         if "pad_and_return_pixel_mask" in kwargs:
-            image_processor_dict["pad_and_return_pixel_mask"] = kwargs.pop("pad_and_return_pixel_mask")
+            image_processor_dict["pad_and_return_pixel_mask"] = kwargs.pop(
+                "pad_and_return_pixel_mask"
+            )
         return super().from_dict(image_processor_dict, **kwargs)
 
     def resize(
@@ -224,11 +238,21 @@ class ViltImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size, default_to_square=False)
         if "shortest_edge" not in size:
-            raise ValueError(f"The `size` dictionary must contain the key `shortest_edge`. Got {size.keys()}")
+            raise ValueError(
+                f"The `size` dictionary must contain the key `shortest_edge`. Got {size.keys()}"
+            )
         shorter = size["shortest_edge"]
         longer = int(1333 / 800 * shorter)
-        output_size = get_resize_output_image_size(image, shorter=shorter, longer=longer, size_divisor=size_divisor)
-        return resize(image, size=output_size, resample=resample, data_format=data_format, **kwargs)
+        output_size = get_resize_output_image_size(
+            image, shorter=shorter, longer=longer, size_divisor=size_divisor
+        )
+        return resize(
+            image,
+            size=output_size,
+            resample=resample,
+            data_format=data_format,
+            **kwargs,
+        )
 
     def rescale(
         self,
@@ -290,7 +314,11 @@ class ViltImageProcessor(BaseImageProcessor):
         pad_right = output_width - input_width
         padding = ((0, pad_bottom), (0, pad_right))
         padded_image = pad(
-            image, padding, mode=PaddingMode.CONSTANT, constant_values=constant_values, data_format=data_format
+            image,
+            padding,
+            mode=PaddingMode.CONSTANT,
+            constant_values=constant_values,
+            data_format=data_format,
         )
         return padded_image
 
@@ -322,11 +350,14 @@ class ViltImageProcessor(BaseImageProcessor):
         """
         pad_size = get_max_height_width(images)
         padded_images = [
-            self._pad_image(image=image, output_size=pad_size, data_format=data_format) for image in images
+            self._pad_image(image=image, output_size=pad_size, data_format=data_format)
+            for image in images
         ]
         data = {"pixel_values": padded_images}
         if return_pixel_mask:
-            masks = [make_pixel_mask(image=image, output_size=pad_size) for image in images]
+            masks = [
+                make_pixel_mask(image=image, output_size=pad_size) for image in images
+            ]
             data["pixel_mask"] = masks
 
         return BatchFeature(data=data, tensor_type=return_tensors)
@@ -355,7 +386,8 @@ class ViltImageProcessor(BaseImageProcessor):
                 The channel dimension format of the image. If not provided, it will be the same as the input image.
         """
         warnings.warn(
-            "This method is deprecated and will be removed in v4.26.0. Please use pad instead.", FutureWarning
+            "This method is deprecated and will be removed in v4.26.0. Please use pad instead.",
+            FutureWarning,
         )
         # pad expects a list of np.ndarray, but the previous feature extractors expected torch tensors
         images = [to_numpy_array(image) for image in pixel_values_list]
@@ -429,7 +461,9 @@ class ViltImageProcessor(BaseImageProcessor):
         size_divisor = size_divisor if size_divisor is not None else self.size_divisor
         resample = resample if resample is not None else self.resample
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
@@ -447,33 +481,49 @@ class ViltImageProcessor(BaseImageProcessor):
             )
 
         if do_resize and size is None or resample is None:
-            raise ValueError("Size and resample must be specified if do_resize is True.")
+            raise ValueError(
+                "Size and resample must be specified if do_resize is True."
+            )
 
         if do_rescale and rescale_factor is None:
             raise ValueError("Rescale factor must be specified if do_rescale is True.")
 
         if do_normalize and (image_mean is None or image_std is None):
-            raise ValueError("Image mean and std must be specified if do_normalize is True.")
+            raise ValueError(
+                "Image mean and std must be specified if do_normalize is True."
+            )
 
         # All transformations expect numpy arrays.
         images = [to_numpy_array(image) for image in images]
 
         if do_resize:
             images = [
-                self.resize(image=image, size=size, size_divisor=size_divisor, resample=resample) for image in images
+                self.resize(
+                    image=image, size=size, size_divisor=size_divisor, resample=resample
+                )
+                for image in images
             ]
 
         if do_rescale:
-            images = [self.rescale(image=image, scale=rescale_factor) for image in images]
+            images = [
+                self.rescale(image=image, scale=rescale_factor) for image in images
+            ]
 
         if do_normalize:
-            images = [self.normalize(image=image, mean=image_mean, std=image_std) for image in images]
+            images = [
+                self.normalize(image=image, mean=image_mean, std=image_std)
+                for image in images
+            ]
 
         images = [to_channel_dimension_format(image, data_format) for image in images]
 
         if do_pad:
-            encoded_outputs = self.pad(images, return_pixel_mask=True, return_tensors=return_tensors)
+            encoded_outputs = self.pad(
+                images, return_pixel_mask=True, return_tensors=return_tensors
+            )
         else:
-            encoded_outputs = BatchFeature(data={"pixel_values": images}, tensor_type=return_tensors)
+            encoded_outputs = BatchFeature(
+                data={"pixel_values": images}, tensor_type=return_tensors
+            )
 
         return encoded_outputs
