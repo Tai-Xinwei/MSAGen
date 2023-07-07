@@ -6,21 +6,17 @@ from deepspeed.runtime.utils import see_memory_usage
 
 import os
 from models.graphormer import GraphormerModel
-# from graphormer.data.dataset import PCQPreprocessedData, BatchedDataDataset
-# from graphormer.data.wrapper import MyPygPCQM4MDataset
-# from torch.nn.parallel import DistributedDataParallel as DDP
 from utils.move_to_device import move_to_device
 from torch.utils.data import DataLoader, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
 import torch.optim as optim
 import math
 
-# from tqdm import tqdm
-# import logging
 import psutil
 from utils.get_paranum import count_paranum
 from criterions.mae3d import MAE3d_criterions
 
+from sfm_logging.loggers import sfm_logger
 
 class Trainer():
     def __init__(self, args, train_data, train_loader=None):
@@ -38,8 +34,6 @@ class Trainer():
 
         self.criterion_3d = MAE3d_criterions(args)
         self.criterion_2d = nn.L1Loss(reduction="mean")
-        # scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps = 50, 
-        #                                     num_training_steps = total_steps)
 
         self.model_engine, optimizer, self.train_loader, _ = deepspeed.initialize(args=args, 
                                                                                   model=net, 
@@ -51,12 +45,11 @@ class Trainer():
 
         
     def __call__(self):
-        print("start training")
+        sfm_logger.info("start training")
         self.model_engine.module.train()
         running_loss = 0.0
         global_step = 0
         for epoch in range(self.args.epochs):
-
             for i, batch_data in enumerate(self.train_loader):
                 batch_data = move_to_device(batch_data, device=self.args.local_rank, non_blocking=True)
 
@@ -77,7 +70,7 @@ class Trainer():
                     if self.args.local_rank == 0:
                         virt_mem = psutil.virtual_memory()
                         # swap = psutil.swap_memory()
-                        print("epoch={}, micro_step={}, vm %: {}, global_rank: {}".format(epoch, i, virt_mem.percent, self.args.rank))
+                        sfm_logger.info("epoch={}, micro_step={}, vm %: {}, global_rank: {}".format(epoch, i, virt_mem.percent, self.args.rank))
 
                 global_step += 1
 
@@ -95,5 +88,3 @@ class Trainer():
             # torch.save(self.model_engine.module.state_dict(), path)
         self.writer.flush()
         self.writer.close()
-
-        
