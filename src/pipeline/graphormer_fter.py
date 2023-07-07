@@ -76,67 +76,73 @@ class Finetuner():
                                                                     batch_size=self.model_engine.train_micro_batch_size_per_gpu(),
                                                                     collate_fn=val_data.collaterft)
             
+    def run(self, dataloader, iftrain=True):
+        if iftrain:
+            self.model_engine.module.train()
+        else:
+            self.model_engine.module.eval()
+
+        running_loss = 0.0
+        for i, batch_data in enumerate(dataloader):
+            batch_data = move_to_device(batch_data, device=self.args.local_rank, non_blocking=True)
+
+            if iftrain:
+                model_output = self.model_engine(batch_data)
+            else:
+                with torch.no_grad():
+                    model_output = self.model_engine(batch_data)
+
+            logits, node_output = model_output[0], model_output[1]
+
+            loss = self.L1loss(batch_data, logits, node_output)
+            running_loss += loss.detach().item()
+
+            if iftrain:
+                self.model_engine.backward(loss)
+                self.model_engine.step()
+
+            del loss
+            torch.cuda.empty_cache()
+
+        return running_loss/len(dataloader)
+
+
     def __call__(self, iftrain=True):
         print("start training")
         global_step = 0
         best_val_loss = 100000
         best_test_loss = 100000
         for ep in range(self.args.epochs):
-            running_loss = 0.0
-            self.model_engine.module.train()
-            for i, batch_data in enumerate(self.train_loader):
-                batch_data = move_to_device(batch_data, device=self.args.local_rank, non_blocking=True)
 
-                model_output = self.model_engine(batch_data)
-                logits, node_output = model_output[0], model_output[1]
-
-                loss = self.L1loss(batch_data, logits, node_output)
-
-                self.model_engine.backward(loss)
-                self.model_engine.step()
-
-                running_loss += loss.detach().item()
-
-                del loss
-                torch.cuda.empty_cache()
+            # train
+            running_loss = self.run(self.train_loader, iftrain=True)
 
             if self.args.rank==0:
-                print("Epoch: {}, Total train loss: {}, Avg Train loss: {}".format(ep, running_loss, running_loss/self.len_train))
+                print("Epoch: {}, Avg Train loss: {}".format(ep, running_loss))
 
-            self.model_engine.module.eval()
-            vallaoder = copy.deepcopy(self.valid_dataloader)
-            running_loss = 0.0
-            for i, batch_data in enumerate(vallaoder):
-                batch_data = move_to_device(batch_data, device=self.args.local_rank, non_blocking=True)
+            # valid
+            if self.len_val != 0:
+                vallaoder = copy.deepcopy(self.valid_dataloader)
+                running_loss = self.run(vallaoder, iftrain=False)
+                del vallaoder
 
-                model_output = self.model_engine(batch_data)
-                logits, node_output = model_output[0], model_output[1]
+                if running_loss < best_val_loss: 
+                    best_val_loss = running_loss
 
-                loss = self.L1loss(batch_data, logits, node_output)
-                running_loss += loss.detach().item()
+                if self.args.rank==0 and self.len_val != 0:
+                    print("Epoch: {}, Avg eval loss: {}, best eval loss: {}".format(ep, running_loss, best_val_loss))
 
-                if running_loss/self.len_val < best_val_loss: 
-                    best_val_loss = running_loss/self.len_val
+            # test
+            if self.len_test != 0:
+                testloader = copy.deepcopy(self.test_dataloader)
+                running_loss = self.run(testloader, iftrain=False)
+                del testloader
 
-            if self.args.rank==0 and self.len_val != 0:
-                print("Epoch: {}, Total eval loss: {}, Avg eval loss: {}, best eval loss: {}".format(ep, running_loss, running_loss/self.len_val, best_val_loss))
-
-            testlaoder = copy.deepcopy(self.test_dataloader)
-            running_loss = 0.0
-            for i, batch_data in enumerate(testlaoder):
-                batch_data = move_to_device(batch_data, device=self.args.local_rank, non_blocking=True)
-
-                model_output = self.model_engine(batch_data)
-                logits, node_output = model_output[0], model_output[1]
-
-                loss = self.L1loss(batch_data, logits, node_output)
-                running_loss += loss.detach().item()
-
-                if running_loss/self.len_test < best_test_loss:
-                    best_test_loss = running_loss/self.len_test
-    
-            if self.args.rank==0 and self.len_test != 0:
-                print("Epoch: {}, Total test loss: {}, Avg test loss: {}, best test loss: {}".format(ep, running_loss, running_loss/self.len_test, best_test_loss))
+                if running_loss < best_test_loss:
+                    best_test_loss = running_loss
+                
+                if self.args.rank==0 and self.len_test != 0:
+                    print("Epoch: {}, Avg test loss: {}, best test loss: {}".format(ep, running_loss, best_test_loss))
 
             torch.cuda.empty_cache()
 
