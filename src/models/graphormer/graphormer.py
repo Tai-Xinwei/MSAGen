@@ -13,6 +13,7 @@ import torch.nn.functional as F
 from modules import (
     init_bert_params,
     GraphormerSentenceEncoder,
+    Node_decoder,
 )
 from modules.layer_norm import LayerNorm
 from modules.quant_noise import quant_noise
@@ -106,6 +107,7 @@ class GraphormerEncoder(nn.Module):
         # Remove head is set to true during fine-tuning
         self.load_softmax = not args.ft #getattr(args, "remove_head", False)
         print("if finetune:", args.ft)
+        self.decoder = Node_decoder(args.encoder_embed_dim, args.encoder_attention_heads, args=args) 
 
         self.masked_lm_pooler = nn.Linear(
             args.encoder_embed_dim, args.encoder_embed_dim
@@ -170,11 +172,13 @@ class GraphormerEncoder(nn.Module):
 
         # batched_data = {"x": x, "pos": pos, "node_type_edge": node_type_edge, "node_mask": node_mask, "attn_bias": attn_bias, "spatial_pos": spatial_pos, "edge_input": edge_input, "attn_edge_type": attn_edge_type}
 
-        inner_states, node_output, sentence_rep = self.sentence_encoder(
+        x, attn_bias, delta_pos, inner_states = self.sentence_encoder(
             batched_data,
             segment_labels=segment_labels,
             perturb=perturb,
         )
+
+        inner_states, node_output, sentence_rep = self.decoder(x, attn_bias, delta_pos, inner_states)
 
         x = inner_states[-1].transpose(0, 1)
 
