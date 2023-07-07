@@ -19,7 +19,6 @@ from typing import List, Optional, Union
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 INFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP = {

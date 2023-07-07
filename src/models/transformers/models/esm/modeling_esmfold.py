@@ -25,31 +25,17 @@ from torch.nn import LayerNorm
 
 from ...deepspeed import is_deepspeed_available
 from ...modeling_outputs import ModelOutput
-from ...utils import (
-    ContextManagers,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_scipy_available,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import (ContextManagers, add_start_docstrings,
+                      add_start_docstrings_to_model_forward,
+                      is_scipy_available, logging, replace_return_docstrings)
 from .configuration_esm import EsmConfig
 from .modeling_esm import ESM_START_DOCSTRING, EsmModel, EsmPreTrainedModel
-from .openfold_utils import (
-    OFProtein,
-    Rigid,
-    Rotation,
-    atom14_to_atom37,
-    chunk_layer,
-    compute_predicted_aligned_error,
-    compute_tm,
-    frames_and_literature_positions_to_atom14_pos,
-    make_atom14_masks,
-    residue_constants,
-    to_pdb,
-    torsion_angles_to_frames,
-)
-
+from .openfold_utils import (OFProtein, Rigid, Rotation, atom14_to_atom37,
+                             chunk_layer, compute_predicted_aligned_error,
+                             compute_tm,
+                             frames_and_literature_positions_to_atom14_pos,
+                             make_atom14_masks, residue_constants, to_pdb,
+                             torsion_angles_to_frames)
 
 logger = logging.get_logger(__name__)
 _CHECKPOINT_FOR_DOC = "facebook/esmfold_v1"

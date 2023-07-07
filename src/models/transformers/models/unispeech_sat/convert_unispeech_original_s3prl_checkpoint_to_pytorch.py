@@ -18,16 +18,11 @@
 import argparse
 
 import torch
-
-from transformers import (
-    UniSpeechSatConfig,
-    UniSpeechSatForAudioFrameClassification,
-    UniSpeechSatForSequenceClassification,
-    UniSpeechSatForXVector,
-    Wav2Vec2FeatureExtractor,
-    logging,
-)
-
+from transformers import (UniSpeechSatConfig,
+                          UniSpeechSatForAudioFrameClassification,
+                          UniSpeechSatForSequenceClassification,
+                          UniSpeechSatForXVector, Wav2Vec2FeatureExtractor,
+                          logging)
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

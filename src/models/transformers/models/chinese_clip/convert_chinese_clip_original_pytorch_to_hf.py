@@ -16,7 +16,6 @@
 import argparse
 
 import torch
-
 from transformers import ChineseCLIPConfig, ChineseCLIPModel
 
 

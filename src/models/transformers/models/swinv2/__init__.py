@@ -13,8 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_swinv2": ["SWINV2_PRETRAINED_CONFIG_ARCHIVE_MAP", "Swinv2Config"],
@@ -37,7 +37,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_swinv2 import SWINV2_PRETRAINED_CONFIG_ARCHIVE_MAP, Swinv2Config
+    from .configuration_swinv2 import (SWINV2_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                       Swinv2Config)
 
     try:
         if not is_torch_available():
@@ -45,13 +46,10 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_swinv2 import (
-            SWINV2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Swinv2ForImageClassification,
-            Swinv2ForMaskedImageModeling,
-            Swinv2Model,
-            Swinv2PreTrainedModel,
-        )
+        from .modeling_swinv2 import (SWINV2_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      Swinv2ForImageClassification,
+                                      Swinv2ForMaskedImageModeling,
+                                      Swinv2Model, Swinv2PreTrainedModel)
 
 
 else:

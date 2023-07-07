@@ -14,8 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_lilt": ["LILT_PRETRAINED_CONFIG_ARCHIVE_MAP", "LiltConfig"],
@@ -37,7 +37,8 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_lilt import LILT_PRETRAINED_CONFIG_ARCHIVE_MAP, LiltConfig
+    from .configuration_lilt import (LILT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                     LiltConfig)
 
     try:
         if not is_torch_available():
@@ -45,14 +46,11 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_lilt import (
-            LILT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            LiltForQuestionAnswering,
-            LiltForSequenceClassification,
-            LiltForTokenClassification,
-            LiltModel,
-            LiltPreTrainedModel,
-        )
+        from .modeling_lilt import (LILT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    LiltForQuestionAnswering,
+                                    LiltForSequenceClassification,
+                                    LiltForTokenClassification, LiltModel,
+                                    LiltPreTrainedModel)
 
 else:
     import sys

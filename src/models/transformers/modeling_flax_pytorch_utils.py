@@ -22,13 +22,11 @@ from typing import Dict, Tuple
 import jax
 import jax.numpy as jnp
 import numpy as np
+import transformers
 from flax.serialization import from_bytes
 from flax.traverse_util import flatten_dict, unflatten_dict
 
-import transformers
-
 from .utils import logging
-
 
 logger = logging.get_logger(__name__)
 

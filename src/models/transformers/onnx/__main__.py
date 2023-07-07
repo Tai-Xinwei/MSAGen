@@ -26,7 +26,6 @@ from .convert import export, validate_model_outputs
 from .features import FeaturesManager
 from .utils import get_preprocessor
 
-
 MIN_OPTIMUM_VERSION = "1.5.0"
 
 ENCODER_DECODER_MODELS = ["vision-encoder-decoder"]

@@ -37,61 +37,34 @@ from .configuration_utils import PretrainedConfig
 from .deepspeed import deepspeed_config, is_deepspeed_zero3_enabled
 from .dynamic_module_utils import custom_object_save
 from .generation import GenerationConfig, GenerationMixin
-from .pytorch_utils import (  # noqa: F401
-    Conv1D,
-    apply_chunking_to_forward,
-    find_pruneable_heads_and_indices,
-    prune_conv1d_layer,
-    prune_layer,
-    prune_linear_layer,
-)
-from .utils import (
-    DUMMY_INPUTS,
-    FLAX_WEIGHTS_NAME,
-    SAFE_WEIGHTS_INDEX_NAME,
-    SAFE_WEIGHTS_NAME,
-    TF2_WEIGHTS_NAME,
-    TF_WEIGHTS_NAME,
-    WEIGHTS_INDEX_NAME,
-    WEIGHTS_NAME,
-    ContextManagers,
-    ModelOutput,
-    PushToHubMixin,
-    cached_file,
-    copy_func,
-    download_url,
-    has_file,
-    is_accelerate_available,
-    is_bitsandbytes_available,
-    is_offline_mode,
-    is_remote_url,
-    is_safetensors_available,
-    is_torch_tpu_available,
-    logging,
-    replace_return_docstrings,
-)
+from .pytorch_utils import (Conv1D, apply_chunking_to_forward,  # noqa: F401
+                            find_pruneable_heads_and_indices,
+                            prune_conv1d_layer, prune_layer,
+                            prune_linear_layer)
+from .utils import (DUMMY_INPUTS, FLAX_WEIGHTS_NAME, SAFE_WEIGHTS_INDEX_NAME,
+                    SAFE_WEIGHTS_NAME, TF2_WEIGHTS_NAME, TF_WEIGHTS_NAME,
+                    WEIGHTS_INDEX_NAME, WEIGHTS_NAME, ContextManagers,
+                    ModelOutput, PushToHubMixin, cached_file, copy_func,
+                    download_url, has_file, is_accelerate_available,
+                    is_bitsandbytes_available, is_offline_mode, is_remote_url,
+                    is_safetensors_available, is_torch_tpu_available, logging,
+                    replace_return_docstrings)
 from .utils.hub import convert_file_size_to_int, get_checkpoint_shard_files
-from .utils.import_utils import (
-    ENV_VARS_TRUE_VALUES,
-    importlib_metadata,
-    is_sagemaker_mp_enabled,
-)
+from .utils.import_utils import (ENV_VARS_TRUE_VALUES, importlib_metadata,
+                                 is_sagemaker_mp_enabled)
 from .utils.quantization_config import BitsAndBytesConfig
 from .utils.versions import require_version_core
-
 
 XLA_USE_BF16 = os.environ.get("XLA_USE_BF16", "0").upper()
 XLA_DOWNCAST_BF16 = os.environ.get("XLA_DOWNCAST_BF16", "0").upper()
 
 if is_accelerate_available():
     from accelerate import __version__ as accelerate_version
-    from accelerate import dispatch_model, infer_auto_device_map, init_empty_weights
-    from accelerate.utils import (
-        load_offloaded_weights,
-        offload_weight,
-        save_offload_index,
-        set_module_tensor_to_device,
-    )
+    from accelerate import (dispatch_model, infer_auto_device_map,
+                            init_empty_weights)
+    from accelerate.utils import (load_offloaded_weights, offload_weight,
+                                  save_offload_index,
+                                  set_module_tensor_to_device)
 
     if version.parse(accelerate_version) > version.parse("0.11.0"):
         from accelerate.utils import get_balanced_memory
@@ -2965,7 +2938,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             keep_in_fp32_modules = []
 
         if load_in_8bit:
-            from .utils.bitsandbytes import get_keys_to_not_convert, replace_8bit_linear
+            from .utils.bitsandbytes import (get_keys_to_not_convert,
+                                             replace_8bit_linear)
 
             load_in_8bit_skip_modules = quantization_config.llm_int8_skip_modules
             load_in_8bit_threshold = quantization_config.llm_int8_threshold
@@ -3109,9 +3083,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             else:
                 # Load from our TensorFlow 2.0 checkpoints
                 try:
-                    from .modeling_tf_pytorch_utils import (
-                        load_tf2_checkpoint_in_pytorch_model,
-                    )
+                    from .modeling_tf_pytorch_utils import \
+                        load_tf2_checkpoint_in_pytorch_model
 
                     model, loading_info = load_tf2_checkpoint_in_pytorch_model(
                         model,
@@ -3128,9 +3101,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                     raise
         elif from_flax:
             try:
-                from .modeling_flax_pytorch_utils import (
-                    load_flax_checkpoint_in_pytorch_model,
-                )
+                from .modeling_flax_pytorch_utils import \
+                    load_flax_checkpoint_in_pytorch_model
 
                 model = load_flax_checkpoint_in_pytorch_model(
                     model, resolved_archive_file

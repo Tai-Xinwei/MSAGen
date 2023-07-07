@@ -22,25 +22,16 @@ import jax
 import jax.numpy as jnp
 from flax.core.frozen_dict import FrozenDict, freeze, unfreeze
 from flax.traverse_util import flatten_dict, unflatten_dict
-
 from transformers import RegNetConfig
 from transformers.modeling_flax_outputs import (
-    FlaxBaseModelOutputWithNoAttention,
-    FlaxBaseModelOutputWithPooling,
+    FlaxBaseModelOutputWithNoAttention, FlaxBaseModelOutputWithPooling,
     FlaxBaseModelOutputWithPoolingAndNoAttention,
-    FlaxImageClassifierOutputWithNoAttention,
-)
-from transformers.modeling_flax_utils import (
-    ACT2FN,
-    FlaxPreTrainedModel,
-    append_replace_return_docstrings,
-    overwrite_call_docstring,
-)
-from transformers.utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-)
-
+    FlaxImageClassifierOutputWithNoAttention)
+from transformers.modeling_flax_utils import (ACT2FN, FlaxPreTrainedModel,
+                                              append_replace_return_docstrings,
+                                              overwrite_call_docstring)
+from transformers.utils import (add_start_docstrings,
+                                add_start_docstrings_to_model_forward)
 
 REGNET_START_DOCSTRING = r"""
 

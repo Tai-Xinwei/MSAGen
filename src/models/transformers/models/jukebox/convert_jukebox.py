@@ -21,10 +21,8 @@ from pathlib import Path
 
 import requests
 import torch
-
 from transformers import JukeboxConfig, JukeboxModel
 from transformers.utils import logging
-
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

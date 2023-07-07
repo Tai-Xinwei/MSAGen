@@ -22,7 +22,6 @@ from typing import Optional, Tuple
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import is_sentencepiece_available, logging
 
-
 if is_sentencepiece_available():
     from .tokenization_reformer import ReformerTokenizer
 else:

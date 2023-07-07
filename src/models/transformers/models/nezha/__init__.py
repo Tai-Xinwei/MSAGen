@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_nezha": ["NEZHA_PRETRAINED_CONFIG_ARCHIVE_MAP", "NezhaConfig"],
@@ -46,7 +41,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_nezha import NEZHA_PRETRAINED_CONFIG_ARCHIVE_MAP, NezhaConfig
+    from .configuration_nezha import (NEZHA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                      NezhaConfig)
 
     try:
         if not is_torch_available():
@@ -54,18 +50,14 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_nezha import (
-            NEZHA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            NezhaForMaskedLM,
-            NezhaForMultipleChoice,
-            NezhaForNextSentencePrediction,
-            NezhaForPreTraining,
-            NezhaForQuestionAnswering,
-            NezhaForSequenceClassification,
-            NezhaForTokenClassification,
-            NezhaModel,
-            NezhaPreTrainedModel,
-        )
+        from .modeling_nezha import (NEZHA_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     NezhaForMaskedLM, NezhaForMultipleChoice,
+                                     NezhaForNextSentencePrediction,
+                                     NezhaForPreTraining,
+                                     NezhaForQuestionAnswering,
+                                     NezhaForSequenceClassification,
+                                     NezhaForTokenClassification, NezhaModel,
+                                     NezhaPreTrainedModel)
 
 
 else:

@@ -14,8 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_xlm_roberta_xl": [
@@ -45,10 +45,8 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_xlm_roberta_xl import (
-        XLM_ROBERTA_XL_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        XLMRobertaXLConfig,
-        XLMRobertaXLOnnxConfig,
-    )
+        XLM_ROBERTA_XL_PRETRAINED_CONFIG_ARCHIVE_MAP, XLMRobertaXLConfig,
+        XLMRobertaXLOnnxConfig)
 
     try:
         if not is_torch_available():
@@ -58,15 +56,11 @@ if TYPE_CHECKING:
     else:
         from .modeling_xlm_roberta_xl import (
             XLM_ROBERTA_XL_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XLMRobertaXLForCausalLM,
-            XLMRobertaXLForMaskedLM,
-            XLMRobertaXLForMultipleChoice,
-            XLMRobertaXLForQuestionAnswering,
+            XLMRobertaXLForCausalLM, XLMRobertaXLForMaskedLM,
+            XLMRobertaXLForMultipleChoice, XLMRobertaXLForQuestionAnswering,
             XLMRobertaXLForSequenceClassification,
-            XLMRobertaXLForTokenClassification,
-            XLMRobertaXLModel,
-            XLMRobertaXLPreTrainedModel,
-        )
+            XLMRobertaXLForTokenClassification, XLMRobertaXLModel,
+            XLMRobertaXLPreTrainedModel)
 
 else:
     import sys

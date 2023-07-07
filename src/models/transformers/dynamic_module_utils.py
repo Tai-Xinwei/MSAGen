@@ -22,15 +22,8 @@ import sys
 from pathlib import Path
 from typing import Dict, Optional, Union
 
-from .utils import (
-    HF_MODULES_CACHE,
-    TRANSFORMERS_DYNAMIC_MODULE_NAME,
-    cached_file,
-    extract_commit_hash,
-    is_offline_mode,
-    logging,
-)
-
+from .utils import (HF_MODULES_CACHE, TRANSFORMERS_DYNAMIC_MODULE_NAME,
+                    cached_file, extract_commit_hash, is_offline_mode, logging)
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

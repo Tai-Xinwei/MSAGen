@@ -27,41 +27,24 @@ from ...activations_tf import get_tf_activation
 from ...modeling_tf_outputs import (
     TFBaseModelOutputWithPastAndCrossAttentions,
     TFBaseModelOutputWithPoolingAndCrossAttentions,
-    TFCausalLMOutputWithCrossAttentions,
-    TFMaskedLMOutput,
-    TFMultipleChoiceModelOutput,
-    TFNextSentencePredictorOutput,
-    TFQuestionAnsweringModelOutput,
-    TFSequenceClassifierOutput,
-    TFTokenClassifierOutput,
-)
-from ...modeling_tf_utils import (
-    TFCausalLanguageModelingLoss,
-    TFMaskedLanguageModelingLoss,
-    TFModelInputType,
-    TFMultipleChoiceLoss,
-    TFNextSentencePredictionLoss,
-    TFPreTrainedModel,
-    TFQuestionAnsweringLoss,
-    TFSequenceClassificationLoss,
-    TFTokenClassificationLoss,
-    get_initializer,
-    keras_serializable,
-    unpack_inputs,
-)
+    TFCausalLMOutputWithCrossAttentions, TFMaskedLMOutput,
+    TFMultipleChoiceModelOutput, TFNextSentencePredictorOutput,
+    TFQuestionAnsweringModelOutput, TFSequenceClassifierOutput,
+    TFTokenClassifierOutput)
+from ...modeling_tf_utils import (TFCausalLanguageModelingLoss,
+                                  TFMaskedLanguageModelingLoss,
+                                  TFModelInputType, TFMultipleChoiceLoss,
+                                  TFNextSentencePredictionLoss,
+                                  TFPreTrainedModel, TFQuestionAnsweringLoss,
+                                  TFSequenceClassificationLoss,
+                                  TFTokenClassificationLoss, get_initializer,
+                                  keras_serializable, unpack_inputs)
 from ...tf_utils import shape_list, stable_softmax
-from ...utils import (
-    DUMMY_INPUTS,
-    MULTIPLE_CHOICE_DUMMY_INPUTS,
-    ModelOutput,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import (DUMMY_INPUTS, MULTIPLE_CHOICE_DUMMY_INPUTS, ModelOutput,
+                      add_code_sample_docstrings, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from .configuration_bert import BertConfig
-
 
 logger = logging.get_logger(__name__)
 

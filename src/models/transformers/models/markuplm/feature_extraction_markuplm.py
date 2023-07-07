@@ -21,7 +21,6 @@ import html
 from ...feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from ...utils import is_bs4_available, logging, requires_backends
 
-
 if is_bs4_available():
     import bs4
     from bs4 import BeautifulSoup

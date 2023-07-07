@@ -22,22 +22,14 @@ import argparse
 
 import requests
 import torch
-
 # pip3 install salesforce-lavis
 # I'm actually installing a slightly modified version: pip3 install git+https://github.com/nielsrogge/LAVIS.git@fix_lavis
 from lavis.models import load_model_and_preprocess
 from PIL import Image
-
-from transformers import (
-    AutoTokenizer,
-    Blip2Config,
-    Blip2ForConditionalGeneration,
-    Blip2Processor,
-    Blip2VisionConfig,
-    BlipImageProcessor,
-    OPTConfig,
-    T5Config,
-)
+from transformers import (AutoTokenizer, Blip2Config,
+                          Blip2ForConditionalGeneration, Blip2Processor,
+                          Blip2VisionConfig, BlipImageProcessor, OPTConfig,
+                          T5Config)
 from transformers.utils.constants import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD
 
 

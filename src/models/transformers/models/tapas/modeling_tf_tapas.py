@@ -24,32 +24,19 @@ import tensorflow as tf
 
 from ...activations_tf import get_tf_activation
 from ...modeling_tf_outputs import (
-    TFBaseModelOutputWithPastAndCrossAttentions,
-    TFBaseModelOutputWithPooling,
-    TFMaskedLMOutput,
-    TFSequenceClassifierOutput,
-)
-from ...modeling_tf_utils import (
-    TFMaskedLanguageModelingLoss,
-    TFModelInputType,
-    TFPreTrainedModel,
-    TFSequenceClassificationLoss,
-    get_initializer,
-    keras_serializable,
-    unpack_inputs,
-)
+    TFBaseModelOutputWithPastAndCrossAttentions, TFBaseModelOutputWithPooling,
+    TFMaskedLMOutput, TFSequenceClassifierOutput)
+from ...modeling_tf_utils import (TFMaskedLanguageModelingLoss,
+                                  TFModelInputType, TFPreTrainedModel,
+                                  TFSequenceClassificationLoss,
+                                  get_initializer, keras_serializable,
+                                  unpack_inputs)
 from ...tf_utils import shape_list, stable_softmax
-from ...utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_tensorflow_probability_available,
-    logging,
-    replace_return_docstrings,
-    requires_backends,
-)
+from ...utils import (ModelOutput, add_start_docstrings,
+                      add_start_docstrings_to_model_forward,
+                      is_tensorflow_probability_available, logging,
+                      replace_return_docstrings, requires_backends)
 from .configuration_tapas import TapasConfig
-
 
 logger = logging.get_logger(__name__)
 

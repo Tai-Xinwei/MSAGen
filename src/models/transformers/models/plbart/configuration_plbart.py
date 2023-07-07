@@ -20,7 +20,6 @@ from ...configuration_utils import PretrainedConfig
 from ...onnx import OnnxConfigWithPast
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 PLBART_PRETRAINED_CONFIG_ARCHIVE_MAP = {

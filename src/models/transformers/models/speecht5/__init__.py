@@ -13,14 +13,9 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_sentencepiece_available,
-    is_speech_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_sentencepiece_available, is_speech_available,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_speecht5": [
@@ -67,10 +62,8 @@ else:
 if TYPE_CHECKING:
     from .configuration_speecht5 import (
         SPEECHT5_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        SPEECHT5_PRETRAINED_HIFIGAN_CONFIG_ARCHIVE_MAP,
-        SpeechT5Config,
-        SpeechT5HifiGanConfig,
-    )
+        SPEECHT5_PRETRAINED_HIFIGAN_CONFIG_ARCHIVE_MAP, SpeechT5Config,
+        SpeechT5HifiGanConfig)
     from .processing_speecht5 import SpeechT5Processor
 
     try:
@@ -95,15 +88,12 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_speecht5 import (
-            SPEECHT5_PRETRAINED_MODEL_ARCHIVE_LIST,
-            SpeechT5ForSpeechToSpeech,
-            SpeechT5ForSpeechToText,
-            SpeechT5ForTextToSpeech,
-            SpeechT5HifiGan,
-            SpeechT5Model,
-            SpeechT5PreTrainedModel,
-        )
+        from .modeling_speecht5 import (SPEECHT5_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                        SpeechT5ForSpeechToSpeech,
+                                        SpeechT5ForSpeechToText,
+                                        SpeechT5ForTextToSpeech,
+                                        SpeechT5HifiGan, SpeechT5Model,
+                                        SpeechT5PreTrainedModel)
 
 else:
     import sys

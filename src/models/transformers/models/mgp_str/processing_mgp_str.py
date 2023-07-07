@@ -22,7 +22,6 @@ from transformers.utils.generic import ExplicitEnum
 
 from ...processing_utils import ProcessorMixin
 
-
 if is_torch_available():
     import torch
 

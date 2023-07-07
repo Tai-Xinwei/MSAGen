@@ -14,8 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_prophetnet": [
@@ -44,9 +44,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_prophetnet import (
-        PROPHETNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        ProphetNetConfig,
-    )
+        PROPHETNET_PRETRAINED_CONFIG_ARCHIVE_MAP, ProphetNetConfig)
     from .tokenization_prophetnet import ProphetNetTokenizer
 
     try:
@@ -56,14 +54,10 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_prophetnet import (
-            PROPHETNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ProphetNetDecoder,
-            ProphetNetEncoder,
-            ProphetNetForCausalLM,
-            ProphetNetForConditionalGeneration,
-            ProphetNetModel,
-            ProphetNetPreTrainedModel,
-        )
+            PROPHETNET_PRETRAINED_MODEL_ARCHIVE_LIST, ProphetNetDecoder,
+            ProphetNetEncoder, ProphetNetForCausalLM,
+            ProphetNetForConditionalGeneration, ProphetNetModel,
+            ProphetNetPreTrainedModel)
 
 else:
     import sys

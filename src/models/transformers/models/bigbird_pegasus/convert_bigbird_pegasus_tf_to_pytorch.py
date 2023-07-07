@@ -19,9 +19,8 @@ from typing import Dict
 import tensorflow as tf
 import torch
 from tqdm import tqdm
-
-from transformers import BigBirdPegasusConfig, BigBirdPegasusForConditionalGeneration
-
+from transformers import (BigBirdPegasusConfig,
+                          BigBirdPegasusForConditionalGeneration)
 
 INIT_COMMON = [
     # tf -> hf

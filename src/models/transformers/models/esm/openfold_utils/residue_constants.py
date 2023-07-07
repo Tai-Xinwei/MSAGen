@@ -23,7 +23,6 @@ from typing import Dict, List, Mapping, Sequence, Tuple
 
 import numpy as np
 
-
 # Internal import (35fd).
 
 

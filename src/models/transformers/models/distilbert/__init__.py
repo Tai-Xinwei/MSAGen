@@ -14,15 +14,9 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_tf_available,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_distilbert": [
@@ -95,10 +89,8 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_distilbert import (
-        DISTILBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        DistilBertConfig,
-        DistilBertOnnxConfig,
-    )
+        DISTILBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, DistilBertConfig,
+        DistilBertOnnxConfig)
     from .tokenization_distilbert import DistilBertTokenizer
 
     try:
@@ -116,15 +108,11 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_distilbert import (
-            DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DistilBertForMaskedLM,
-            DistilBertForMultipleChoice,
-            DistilBertForQuestionAnswering,
+            DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST, DistilBertForMaskedLM,
+            DistilBertForMultipleChoice, DistilBertForQuestionAnswering,
             DistilBertForSequenceClassification,
-            DistilBertForTokenClassification,
-            DistilBertModel,
-            DistilBertPreTrainedModel,
-        )
+            DistilBertForTokenClassification, DistilBertModel,
+            DistilBertPreTrainedModel)
 
     try:
         if not is_tf_available():
@@ -134,15 +122,11 @@ if TYPE_CHECKING:
     else:
         from .modeling_tf_distilbert import (
             TF_DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFDistilBertForMaskedLM,
-            TFDistilBertForMultipleChoice,
+            TFDistilBertForMaskedLM, TFDistilBertForMultipleChoice,
             TFDistilBertForQuestionAnswering,
             TFDistilBertForSequenceClassification,
-            TFDistilBertForTokenClassification,
-            TFDistilBertMainLayer,
-            TFDistilBertModel,
-            TFDistilBertPreTrainedModel,
-        )
+            TFDistilBertForTokenClassification, TFDistilBertMainLayer,
+            TFDistilBertModel, TFDistilBertPreTrainedModel)
 
     try:
         if not is_flax_available():
@@ -151,14 +135,11 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_flax_distilbert import (
-            FlaxDistilBertForMaskedLM,
-            FlaxDistilBertForMultipleChoice,
+            FlaxDistilBertForMaskedLM, FlaxDistilBertForMultipleChoice,
             FlaxDistilBertForQuestionAnswering,
             FlaxDistilBertForSequenceClassification,
-            FlaxDistilBertForTokenClassification,
-            FlaxDistilBertModel,
-            FlaxDistilBertPreTrainedModel,
-        )
+            FlaxDistilBertForTokenClassification, FlaxDistilBertModel,
+            FlaxDistilBertPreTrainedModel)
 
 else:
     import sys

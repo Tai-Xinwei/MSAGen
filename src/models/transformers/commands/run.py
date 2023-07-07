@@ -14,10 +14,10 @@
 
 from argparse import ArgumentParser
 
-from ..pipelines import Pipeline, PipelineDataFormat, get_supported_tasks, pipeline
+from ..pipelines import (Pipeline, PipelineDataFormat, get_supported_tasks,
+                         pipeline)
 from ..utils import logging
 from . import BaseTransformersCLICommand
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

@@ -14,8 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_luke": ["LUKE_PRETRAINED_CONFIG_ARCHIVE_MAP", "LukeConfig"],
@@ -44,7 +44,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_luke import LUKE_PRETRAINED_CONFIG_ARCHIVE_MAP, LukeConfig
+    from .configuration_luke import (LUKE_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                     LukeConfig)
     from .tokenization_luke import LukeTokenizer
 
     try:
@@ -53,19 +54,15 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_luke import (
-            LUKE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            LukeForEntityClassification,
-            LukeForEntityPairClassification,
-            LukeForEntitySpanClassification,
-            LukeForMaskedLM,
-            LukeForMultipleChoice,
-            LukeForQuestionAnswering,
-            LukeForSequenceClassification,
-            LukeForTokenClassification,
-            LukeModel,
-            LukePreTrainedModel,
-        )
+        from .modeling_luke import (LUKE_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    LukeForEntityClassification,
+                                    LukeForEntityPairClassification,
+                                    LukeForEntitySpanClassification,
+                                    LukeForMaskedLM, LukeForMultipleChoice,
+                                    LukeForQuestionAnswering,
+                                    LukeForSequenceClassification,
+                                    LukeForTokenClassification, LukeModel,
+                                    LukePreTrainedModel)
 
 else:
     import sys

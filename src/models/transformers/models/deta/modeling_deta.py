@@ -26,21 +26,16 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from ...activations import ACT2FN
-from ...file_utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_scipy_available,
-    is_vision_available,
-    replace_return_docstrings,
-)
+from ...file_utils import (ModelOutput, add_start_docstrings,
+                           add_start_docstrings_to_model_forward,
+                           is_scipy_available, is_vision_available,
+                           replace_return_docstrings)
 from ...modeling_outputs import BaseModelOutput
 from ...modeling_utils import PreTrainedModel
 from ...pytorch_utils import meshgrid
 from ...utils import is_torchvision_available, logging, requires_backends
 from ..auto import AutoBackbone
 from .configuration_deta import DetaConfig
-
 
 logger = logging.get_logger(__name__)
 

@@ -14,14 +14,9 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tf_available, is_tokenizers_available,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_longformer": [
@@ -79,10 +74,8 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_longformer import (
-        LONGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        LongformerConfig,
-        LongformerOnnxConfig,
-    )
+        LONGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, LongformerConfig,
+        LongformerOnnxConfig)
     from .tokenization_longformer import LongformerTokenizer
 
     try:
@@ -100,16 +93,11 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_longformer import (
-            LONGFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            LongformerForMaskedLM,
-            LongformerForMultipleChoice,
-            LongformerForQuestionAnswering,
+            LONGFORMER_PRETRAINED_MODEL_ARCHIVE_LIST, LongformerForMaskedLM,
+            LongformerForMultipleChoice, LongformerForQuestionAnswering,
             LongformerForSequenceClassification,
-            LongformerForTokenClassification,
-            LongformerModel,
-            LongformerPreTrainedModel,
-            LongformerSelfAttention,
-        )
+            LongformerForTokenClassification, LongformerModel,
+            LongformerPreTrainedModel, LongformerSelfAttention)
 
     try:
         if not is_tf_available():
@@ -119,15 +107,11 @@ if TYPE_CHECKING:
     else:
         from .modeling_tf_longformer import (
             TF_LONGFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFLongformerForMaskedLM,
-            TFLongformerForMultipleChoice,
+            TFLongformerForMaskedLM, TFLongformerForMultipleChoice,
             TFLongformerForQuestionAnswering,
             TFLongformerForSequenceClassification,
-            TFLongformerForTokenClassification,
-            TFLongformerModel,
-            TFLongformerPreTrainedModel,
-            TFLongformerSelfAttention,
-        )
+            TFLongformerForTokenClassification, TFLongformerModel,
+            TFLongformerPreTrainedModel, TFLongformerSelfAttention)
 
 else:
     import sys

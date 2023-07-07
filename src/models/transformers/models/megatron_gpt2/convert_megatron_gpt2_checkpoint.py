@@ -38,9 +38,7 @@ import re
 import zipfile
 
 import torch
-
 from transformers import AutoTokenizer, GPT2Config
-
 
 ####################################################################################################
 

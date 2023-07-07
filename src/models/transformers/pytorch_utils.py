@@ -20,7 +20,6 @@ from torch import nn
 
 from .utils import logging
 
-
 ALL_LAYERNORM_LAYERS = [nn.LayerNorm]
 
 logger = logging.get_logger(__name__)

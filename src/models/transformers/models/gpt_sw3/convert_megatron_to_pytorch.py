@@ -18,7 +18,6 @@ import os
 from os.path import isfile
 
 import torch
-
 from transformers import GPT2Config
 
 

@@ -17,12 +17,12 @@
 import dataclasses
 import re
 import string
-from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
+from typing import (Any, Dict, Iterator, List, Mapping, Optional, Sequence,
+                    Tuple)
 
 import numpy as np
 
 from . import residue_constants
-
 
 FeatureDict = Mapping[str, np.ndarray]
 ModelOutput = Mapping[str, Any]  # Is a nested dict.

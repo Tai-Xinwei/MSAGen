@@ -24,16 +24,11 @@ import requests
 import torch
 from huggingface_hub import hf_hub_download
 from PIL import Image
-
-from transformers import (
-    MobileNetV2Config,
-    MobileNetV2ForImageClassification,
-    MobileNetV2ForSemanticSegmentation,
-    MobileNetV2ImageProcessor,
-    load_tf_weights_in_mobilenet_v2,
-)
+from transformers import (MobileNetV2Config, MobileNetV2ForImageClassification,
+                          MobileNetV2ForSemanticSegmentation,
+                          MobileNetV2ImageProcessor,
+                          load_tf_weights_in_mobilenet_v2)
 from transformers.utils import logging
-
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

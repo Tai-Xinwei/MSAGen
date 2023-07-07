@@ -14,14 +14,9 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tf_available, is_tokenizers_available,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_lxmert": ["LXMERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "LxmertConfig"],
@@ -69,7 +64,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_lxmert import LXMERT_PRETRAINED_CONFIG_ARCHIVE_MAP, LxmertConfig
+    from .configuration_lxmert import (LXMERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                       LxmertConfig)
     from .tokenization_lxmert import LxmertTokenizer
 
     try:
@@ -86,15 +82,10 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_lxmert import (
-            LxmertEncoder,
-            LxmertForPreTraining,
-            LxmertForQuestionAnswering,
-            LxmertModel,
-            LxmertPreTrainedModel,
-            LxmertVisualFeatureEncoder,
-            LxmertXLayer,
-        )
+        from .modeling_lxmert import (LxmertEncoder, LxmertForPreTraining,
+                                      LxmertForQuestionAnswering, LxmertModel,
+                                      LxmertPreTrainedModel,
+                                      LxmertVisualFeatureEncoder, LxmertXLayer)
 
     try:
         if not is_tf_available():
@@ -103,13 +94,9 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_tf_lxmert import (
-            TF_LXMERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFLxmertForPreTraining,
-            TFLxmertMainLayer,
-            TFLxmertModel,
-            TFLxmertPreTrainedModel,
-            TFLxmertVisualFeatureEncoder,
-        )
+            TF_LXMERT_PRETRAINED_MODEL_ARCHIVE_LIST, TFLxmertForPreTraining,
+            TFLxmertMainLayer, TFLxmertModel, TFLxmertPreTrainedModel,
+            TFLxmertVisualFeatureEncoder)
 
 else:
     import sys

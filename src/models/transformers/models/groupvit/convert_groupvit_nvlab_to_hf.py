@@ -24,7 +24,6 @@ import argparse
 import requests
 import torch
 from PIL import Image
-
 from transformers import CLIPProcessor, GroupViTConfig, GroupViTModel
 
 

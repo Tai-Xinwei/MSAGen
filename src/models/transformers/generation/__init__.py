@@ -14,14 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ..utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_tf_available,
-    is_torch_available,
-)
-
+from ..utils import (OptionalDependencyNotAvailable, _LazyModule,
+                     is_flax_available, is_tf_available, is_torch_available)
 
 _import_structure = {
     "configuration_utils": ["GenerationConfig"],
@@ -166,65 +160,43 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .beam_constraints import (
-            Constraint,
-            ConstraintListState,
-            DisjunctiveConstraint,
-            PhrasalConstraint,
-        )
-        from .beam_search import (
-            BeamHypotheses,
-            BeamScorer,
-            BeamSearchScorer,
-            ConstrainedBeamSearchScorer,
-        )
-        from .logits_process import (
-            EncoderNoRepeatNGramLogitsProcessor,
-            EncoderRepetitionPenaltyLogitsProcessor,
-            EpsilonLogitsWarper,
-            EtaLogitsWarper,
-            ExponentialDecayLengthPenalty,
-            ForcedBOSTokenLogitsProcessor,
-            ForcedEOSTokenLogitsProcessor,
-            HammingDiversityLogitsProcessor,
-            InfNanRemoveLogitsProcessor,
-            LogitNormalization,
-            LogitsProcessor,
-            LogitsProcessorList,
-            LogitsWarper,
-            MinLengthLogitsProcessor,
-            MinNewTokensLengthLogitsProcessor,
-            NoBadWordsLogitsProcessor,
-            NoRepeatNGramLogitsProcessor,
-            PrefixConstrainedLogitsProcessor,
-            RepetitionPenaltyLogitsProcessor,
-            TemperatureLogitsWarper,
-            TopKLogitsWarper,
-            TopPLogitsWarper,
-            TypicalLogitsWarper,
-        )
-        from .stopping_criteria import (
-            MaxLengthCriteria,
-            MaxNewTokensCriteria,
-            MaxTimeCriteria,
-            StoppingCriteria,
-            StoppingCriteriaList,
-            validate_stopping_criteria,
-        )
-        from .utils import (
-            BeamSampleDecoderOnlyOutput,
-            BeamSampleEncoderDecoderOutput,
-            BeamSearchDecoderOnlyOutput,
-            BeamSearchEncoderDecoderOutput,
-            ContrastiveSearchDecoderOnlyOutput,
-            ContrastiveSearchEncoderDecoderOutput,
-            GenerationMixin,
-            GreedySearchDecoderOnlyOutput,
-            GreedySearchEncoderDecoderOutput,
-            SampleDecoderOnlyOutput,
-            SampleEncoderDecoderOutput,
-            top_k_top_p_filtering,
-        )
+        from .beam_constraints import (Constraint, ConstraintListState,
+                                       DisjunctiveConstraint,
+                                       PhrasalConstraint)
+        from .beam_search import (BeamHypotheses, BeamScorer, BeamSearchScorer,
+                                  ConstrainedBeamSearchScorer)
+        from .logits_process import (EncoderNoRepeatNGramLogitsProcessor,
+                                     EncoderRepetitionPenaltyLogitsProcessor,
+                                     EpsilonLogitsWarper, EtaLogitsWarper,
+                                     ExponentialDecayLengthPenalty,
+                                     ForcedBOSTokenLogitsProcessor,
+                                     ForcedEOSTokenLogitsProcessor,
+                                     HammingDiversityLogitsProcessor,
+                                     InfNanRemoveLogitsProcessor,
+                                     LogitNormalization, LogitsProcessor,
+                                     LogitsProcessorList, LogitsWarper,
+                                     MinLengthLogitsProcessor,
+                                     MinNewTokensLengthLogitsProcessor,
+                                     NoBadWordsLogitsProcessor,
+                                     NoRepeatNGramLogitsProcessor,
+                                     PrefixConstrainedLogitsProcessor,
+                                     RepetitionPenaltyLogitsProcessor,
+                                     TemperatureLogitsWarper, TopKLogitsWarper,
+                                     TopPLogitsWarper, TypicalLogitsWarper)
+        from .stopping_criteria import (MaxLengthCriteria,
+                                        MaxNewTokensCriteria, MaxTimeCriteria,
+                                        StoppingCriteria, StoppingCriteriaList,
+                                        validate_stopping_criteria)
+        from .utils import (BeamSampleDecoderOnlyOutput,
+                            BeamSampleEncoderDecoderOutput,
+                            BeamSearchDecoderOnlyOutput,
+                            BeamSearchEncoderDecoderOutput,
+                            ContrastiveSearchDecoderOnlyOutput,
+                            ContrastiveSearchEncoderDecoderOutput,
+                            GenerationMixin, GreedySearchDecoderOnlyOutput,
+                            GreedySearchEncoderDecoderOutput,
+                            SampleDecoderOnlyOutput,
+                            SampleEncoderDecoderOutput, top_k_top_p_filtering)
 
     try:
         if not is_tf_available():
@@ -232,37 +204,31 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .tf_logits_process import (
-            TFForcedBOSTokenLogitsProcessor,
-            TFForcedEOSTokenLogitsProcessor,
-            TFForceTokensLogitsProcessor,
-            TFLogitsProcessor,
-            TFLogitsProcessorList,
-            TFLogitsWarper,
-            TFMinLengthLogitsProcessor,
-            TFNoBadWordsLogitsProcessor,
-            TFNoRepeatNGramLogitsProcessor,
-            TFRepetitionPenaltyLogitsProcessor,
-            TFSuppressTokensAtBeginLogitsProcessor,
-            TFSuppressTokensLogitsProcessor,
-            TFTemperatureLogitsWarper,
-            TFTopKLogitsWarper,
-            TFTopPLogitsWarper,
-        )
-        from .tf_utils import (
-            TFBeamSampleDecoderOnlyOutput,
-            TFBeamSampleEncoderDecoderOutput,
-            TFBeamSearchDecoderOnlyOutput,
-            TFBeamSearchEncoderDecoderOutput,
-            TFContrastiveSearchDecoderOnlyOutput,
-            TFContrastiveSearchEncoderDecoderOutput,
-            TFGenerationMixin,
-            TFGreedySearchDecoderOnlyOutput,
-            TFGreedySearchEncoderDecoderOutput,
-            TFSampleDecoderOnlyOutput,
-            TFSampleEncoderDecoderOutput,
-            tf_top_k_top_p_filtering,
-        )
+        from .tf_logits_process import (TFForcedBOSTokenLogitsProcessor,
+                                        TFForcedEOSTokenLogitsProcessor,
+                                        TFForceTokensLogitsProcessor,
+                                        TFLogitsProcessor,
+                                        TFLogitsProcessorList, TFLogitsWarper,
+                                        TFMinLengthLogitsProcessor,
+                                        TFNoBadWordsLogitsProcessor,
+                                        TFNoRepeatNGramLogitsProcessor,
+                                        TFRepetitionPenaltyLogitsProcessor,
+                                        TFSuppressTokensAtBeginLogitsProcessor,
+                                        TFSuppressTokensLogitsProcessor,
+                                        TFTemperatureLogitsWarper,
+                                        TFTopKLogitsWarper, TFTopPLogitsWarper)
+        from .tf_utils import (TFBeamSampleDecoderOnlyOutput,
+                               TFBeamSampleEncoderDecoderOutput,
+                               TFBeamSearchDecoderOnlyOutput,
+                               TFBeamSearchEncoderDecoderOutput,
+                               TFContrastiveSearchDecoderOnlyOutput,
+                               TFContrastiveSearchEncoderDecoderOutput,
+                               TFGenerationMixin,
+                               TFGreedySearchDecoderOnlyOutput,
+                               TFGreedySearchEncoderDecoderOutput,
+                               TFSampleDecoderOnlyOutput,
+                               TFSampleEncoderDecoderOutput,
+                               tf_top_k_top_p_filtering)
 
     try:
         if not is_flax_available():
@@ -270,23 +236,17 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .flax_logits_process import (
-            FlaxForcedBOSTokenLogitsProcessor,
-            FlaxForcedEOSTokenLogitsProcessor,
-            FlaxLogitsProcessor,
-            FlaxLogitsProcessorList,
-            FlaxLogitsWarper,
-            FlaxMinLengthLogitsProcessor,
-            FlaxTemperatureLogitsWarper,
-            FlaxTopKLogitsWarper,
-            FlaxTopPLogitsWarper,
-        )
-        from .flax_utils import (
-            FlaxBeamSearchOutput,
-            FlaxGenerationMixin,
-            FlaxGreedySearchOutput,
-            FlaxSampleOutput,
-        )
+        from .flax_logits_process import (FlaxForcedBOSTokenLogitsProcessor,
+                                          FlaxForcedEOSTokenLogitsProcessor,
+                                          FlaxLogitsProcessor,
+                                          FlaxLogitsProcessorList,
+                                          FlaxLogitsWarper,
+                                          FlaxMinLengthLogitsProcessor,
+                                          FlaxTemperatureLogitsWarper,
+                                          FlaxTopKLogitsWarper,
+                                          FlaxTopPLogitsWarper)
+        from .flax_utils import (FlaxBeamSearchOutput, FlaxGenerationMixin,
+                                 FlaxGreedySearchOutput, FlaxSampleOutput)
 else:
     import sys
 

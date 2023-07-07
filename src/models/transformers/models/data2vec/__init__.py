@@ -14,13 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tf_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tf_available, is_torch_available)
 
 _import_structure = {
     "configuration_data2vec_audio": [
@@ -84,19 +79,13 @@ if is_tf_available():
 
 if TYPE_CHECKING:
     from .configuration_data2vec_audio import (
-        DATA2VEC_AUDIO_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Data2VecAudioConfig,
-    )
+        DATA2VEC_AUDIO_PRETRAINED_CONFIG_ARCHIVE_MAP, Data2VecAudioConfig)
     from .configuration_data2vec_text import (
-        DATA2VEC_TEXT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Data2VecTextConfig,
-        Data2VecTextOnnxConfig,
-    )
+        DATA2VEC_TEXT_PRETRAINED_CONFIG_ARCHIVE_MAP, Data2VecTextConfig,
+        Data2VecTextOnnxConfig)
     from .configuration_data2vec_vision import (
-        DATA2VEC_VISION_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Data2VecVisionConfig,
-        Data2VecVisionOnnxConfig,
-    )
+        DATA2VEC_VISION_PRETRAINED_CONFIG_ARCHIVE_MAP, Data2VecVisionConfig,
+        Data2VecVisionOnnxConfig)
 
     try:
         if not is_torch_available():
@@ -106,39 +95,27 @@ if TYPE_CHECKING:
     else:
         from .modeling_data2vec_audio import (
             DATA2VEC_AUDIO_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Data2VecAudioForAudioFrameClassification,
-            Data2VecAudioForCTC,
-            Data2VecAudioForSequenceClassification,
-            Data2VecAudioForXVector,
-            Data2VecAudioModel,
-            Data2VecAudioPreTrainedModel,
-        )
+            Data2VecAudioForAudioFrameClassification, Data2VecAudioForCTC,
+            Data2VecAudioForSequenceClassification, Data2VecAudioForXVector,
+            Data2VecAudioModel, Data2VecAudioPreTrainedModel)
         from .modeling_data2vec_text import (
             DATA2VEC_TEXT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Data2VecTextForCausalLM,
-            Data2VecTextForMaskedLM,
-            Data2VecTextForMultipleChoice,
-            Data2VecTextForQuestionAnswering,
+            Data2VecTextForCausalLM, Data2VecTextForMaskedLM,
+            Data2VecTextForMultipleChoice, Data2VecTextForQuestionAnswering,
             Data2VecTextForSequenceClassification,
-            Data2VecTextForTokenClassification,
-            Data2VecTextModel,
-            Data2VecTextPreTrainedModel,
-        )
+            Data2VecTextForTokenClassification, Data2VecTextModel,
+            Data2VecTextPreTrainedModel)
         from .modeling_data2vec_vision import (
             DATA2VEC_VISION_PRETRAINED_MODEL_ARCHIVE_LIST,
             Data2VecVisionForImageClassification,
             Data2VecVisionForMaskedImageModeling,
-            Data2VecVisionForSemanticSegmentation,
-            Data2VecVisionModel,
-            Data2VecVisionPreTrainedModel,
-        )
+            Data2VecVisionForSemanticSegmentation, Data2VecVisionModel,
+            Data2VecVisionPreTrainedModel)
     if is_tf_available():
         from .modeling_tf_data2vec_vision import (
             TFData2VecVisionForImageClassification,
-            TFData2VecVisionForSemanticSegmentation,
-            TFData2VecVisionModel,
-            TFData2VecVisionPreTrainedModel,
-        )
+            TFData2VecVisionForSemanticSegmentation, TFData2VecVisionModel,
+            TFData2VecVisionPreTrainedModel)
 
 else:
     import sys

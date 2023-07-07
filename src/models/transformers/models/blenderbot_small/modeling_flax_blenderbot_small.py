@@ -32,22 +32,15 @@ from jax import lax
 from jax.random import PRNGKey
 
 from ...modeling_flax_outputs import (
-    FlaxBaseModelOutput,
-    FlaxBaseModelOutputWithPastAndCrossAttentions,
-    FlaxCausalLMOutputWithCrossAttentions,
-    FlaxSeq2SeqLMOutput,
-    FlaxSeq2SeqModelOutput,
-)
-from ...modeling_flax_utils import (
-    ACT2FN,
-    FlaxPreTrainedModel,
-    append_call_sample_docstring,
-    append_replace_return_docstrings,
-    overwrite_call_docstring,
-)
+    FlaxBaseModelOutput, FlaxBaseModelOutputWithPastAndCrossAttentions,
+    FlaxCausalLMOutputWithCrossAttentions, FlaxSeq2SeqLMOutput,
+    FlaxSeq2SeqModelOutput)
+from ...modeling_flax_utils import (ACT2FN, FlaxPreTrainedModel,
+                                    append_call_sample_docstring,
+                                    append_replace_return_docstrings,
+                                    overwrite_call_docstring)
 from ...utils import add_start_docstrings, logging, replace_return_docstrings
 from .configuration_blenderbot_small import BlenderbotSmallConfig
-
 
 logger = logging.get_logger(__name__)
 

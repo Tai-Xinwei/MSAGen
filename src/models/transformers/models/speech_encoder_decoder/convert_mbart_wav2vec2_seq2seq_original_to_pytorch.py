@@ -20,19 +20,10 @@ import argparse
 import fairseq
 import torch
 from torch import nn
-
-from transformers import (
-    MBart50Tokenizer,
-    MBartConfig,
-    MBartForCausalLM,
-    SpeechEncoderDecoderConfig,
-    SpeechEncoderDecoderModel,
-    Wav2Vec2Config,
-    Wav2Vec2FeatureExtractor,
-    Wav2Vec2Model,
-    logging,
-)
-
+from transformers import (MBart50Tokenizer, MBartConfig, MBartForCausalLM,
+                          SpeechEncoderDecoderConfig,
+                          SpeechEncoderDecoderModel, Wav2Vec2Config,
+                          Wav2Vec2FeatureExtractor, Wav2Vec2Model, logging)
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

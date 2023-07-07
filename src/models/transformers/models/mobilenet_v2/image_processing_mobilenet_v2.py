@@ -18,27 +18,15 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
-from ...image_transforms import (
-    center_crop,
-    get_resize_output_image_size,
-    normalize,
-    rescale,
-    resize,
-    to_channel_dimension_format,
-)
-from ...image_utils import (
-    IMAGENET_STANDARD_MEAN,
-    IMAGENET_STANDARD_STD,
-    ChannelDimension,
-    ImageInput,
-    PILImageResampling,
-    make_list_of_images,
-    to_numpy_array,
-    valid_images,
-)
+from ...image_processing_utils import (BaseImageProcessor, BatchFeature,
+                                       get_size_dict)
+from ...image_transforms import (center_crop, get_resize_output_image_size,
+                                 normalize, rescale, resize,
+                                 to_channel_dimension_format)
+from ...image_utils import (IMAGENET_STANDARD_MEAN, IMAGENET_STANDARD_STD,
+                            ChannelDimension, ImageInput, PILImageResampling,
+                            make_list_of_images, to_numpy_array, valid_images)
 from ...utils import TensorType, is_torch_available, is_torch_tensor, logging
-
 
 if is_torch_available():
     import torch

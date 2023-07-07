@@ -27,20 +27,14 @@ from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from ...activations import ACT2FN
 from ...modeling_outputs import BackboneOutput
 from ...modeling_utils import BackboneMixin, PreTrainedModel
-from ...pytorch_utils import find_pruneable_heads_and_indices, prune_linear_layer
-from ...utils import (
-    ModelOutput,
-    OptionalDependencyNotAvailable,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_natten_available,
-    logging,
-    replace_return_docstrings,
-    requires_backends,
-)
+from ...pytorch_utils import (find_pruneable_heads_and_indices,
+                              prune_linear_layer)
+from ...utils import (ModelOutput, OptionalDependencyNotAvailable,
+                      add_code_sample_docstrings, add_start_docstrings,
+                      add_start_docstrings_to_model_forward,
+                      is_natten_available, logging, replace_return_docstrings,
+                      requires_backends)
 from .configuration_dinat import DinatConfig
-
 
 if is_natten_available():
     from natten.functional import natten2dav, natten2dqkrpb

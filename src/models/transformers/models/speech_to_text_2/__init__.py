@@ -13,14 +13,9 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_sentencepiece_available,
-    is_speech_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_sentencepiece_available, is_speech_available,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_speech_to_text_2": [
@@ -47,9 +42,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_speech_to_text_2 import (
-        SPEECH_TO_TEXT_2_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Speech2Text2Config,
-    )
+        SPEECH_TO_TEXT_2_PRETRAINED_CONFIG_ARCHIVE_MAP, Speech2Text2Config)
     from .processing_speech_to_text_2 import Speech2Text2Processor
     from .tokenization_speech_to_text_2 import Speech2Text2Tokenizer
 
@@ -61,9 +54,7 @@ if TYPE_CHECKING:
     else:
         from .modeling_speech_to_text_2 import (
             SPEECH_TO_TEXT_2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Speech2Text2ForCausalLM,
-            Speech2Text2PreTrainedModel,
-        )
+            Speech2Text2ForCausalLM, Speech2Text2PreTrainedModel)
 
 else:
     import sys

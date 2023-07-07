@@ -16,12 +16,8 @@ import argparse
 
 import torch
 from torch import nn
-
-from transformers import (
-    PLBartConfig,
-    PLBartForConditionalGeneration,
-    PLBartForSequenceClassification,
-)
+from transformers import (PLBartConfig, PLBartForConditionalGeneration,
+                          PLBartForSequenceClassification)
 
 
 def remove_ignore_keys_(state_dict):

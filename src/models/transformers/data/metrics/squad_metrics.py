@@ -30,7 +30,6 @@ import string
 from ...models.bert import BasicTokenizer
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 

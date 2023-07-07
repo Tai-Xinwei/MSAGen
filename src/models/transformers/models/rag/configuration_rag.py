@@ -19,7 +19,6 @@ import copy
 from ...configuration_utils import PretrainedConfig
 from ...utils import add_start_docstrings
 
-
 RAG_CONFIG_DOC = r"""
     [`RagConfig`] stores the configuration of a *RagModel*. Configuration objects inherit from [`PretrainedConfig`] and
     can be used to control the model outputs. Read the documentation from [`PretrainedConfig`] for more information.

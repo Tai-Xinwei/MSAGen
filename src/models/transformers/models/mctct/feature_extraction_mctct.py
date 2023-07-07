@@ -28,7 +28,6 @@ from ...feature_extraction_utils import BatchFeature
 from ...file_utils import PaddingStrategy, TensorType
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 parsed_torchaudio_version_base = version.parse(

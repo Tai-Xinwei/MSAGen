@@ -14,13 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_sentencepiece_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_sentencepiece_available, is_torch_available)
 
 _import_structure = {"configuration_bert_generation": ["BertGenerationConfig"]}
 
@@ -64,11 +59,8 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_bert_generation import (
-            BertGenerationDecoder,
-            BertGenerationEncoder,
-            BertGenerationPreTrainedModel,
-            load_tf_weights_in_bert_generation,
-        )
+            BertGenerationDecoder, BertGenerationEncoder,
+            BertGenerationPreTrainedModel, load_tf_weights_in_bert_generation)
 
 else:
     import sys

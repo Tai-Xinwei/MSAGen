@@ -23,27 +23,19 @@ import torch.utils.checkpoint
 from torch import nn
 
 from ...activations import ACT2FN
-from ...modeling_outputs import (
-    BaseModelOutputWithNoAttention,
-    BaseModelOutputWithPastAndCrossAttentions,
-    BaseModelOutputWithPoolingAndCrossAttentions,
-    BaseModelOutputWithPoolingAndNoAttention,
-)
+from ...modeling_outputs import (BaseModelOutputWithNoAttention,
+                                 BaseModelOutputWithPastAndCrossAttentions,
+                                 BaseModelOutputWithPoolingAndCrossAttentions,
+                                 BaseModelOutputWithPoolingAndNoAttention)
 from ...modeling_utils import PreTrainedModel
-from ...pytorch_utils import (
-    apply_chunking_to_forward,
-    find_pruneable_heads_and_indices,
-    prune_linear_layer,
-)
-from ...utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-from .configuration_align import AlignConfig, AlignTextConfig, AlignVisionConfig
-
+from ...pytorch_utils import (apply_chunking_to_forward,
+                              find_pruneable_heads_and_indices,
+                              prune_linear_layer)
+from ...utils import (ModelOutput, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
+from .configuration_align import (AlignConfig, AlignTextConfig,
+                                  AlignVisionConfig)
 
 logger = logging.get_logger(__name__)
 

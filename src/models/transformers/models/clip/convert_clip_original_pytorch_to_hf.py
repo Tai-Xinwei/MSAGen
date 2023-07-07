@@ -17,7 +17,6 @@ import argparse
 
 import torch
 from clip import load
-
 from transformers import CLIPConfig, CLIPModel
 
 

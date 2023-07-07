@@ -19,16 +19,10 @@ import re
 import torch
 from flax.traverse_util import flatten_dict
 from t5x import checkpoints
-
-from transformers import (
-    AutoTokenizer,
-    Pix2StructConfig,
-    Pix2StructForConditionalGeneration,
-    Pix2StructImageProcessor,
-    Pix2StructProcessor,
-    Pix2StructTextConfig,
-    Pix2StructVisionConfig,
-)
+from transformers import (AutoTokenizer, Pix2StructConfig,
+                          Pix2StructForConditionalGeneration,
+                          Pix2StructImageProcessor, Pix2StructProcessor,
+                          Pix2StructTextConfig, Pix2StructVisionConfig)
 
 
 def get_flax_param(t5x_checkpoint_path):

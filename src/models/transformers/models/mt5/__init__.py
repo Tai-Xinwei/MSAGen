@@ -14,16 +14,10 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_sentencepiece_available,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_sentencepiece_available,
+                      is_tf_available, is_tokenizers_available,
+                      is_torch_available)
 
 if is_sentencepiece_available():
     from ..t5.tokenization_t5 import T5Tokenizer
@@ -89,13 +83,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_mt5 import (
-            MT5EncoderModel,
-            MT5ForConditionalGeneration,
-            MT5Model,
-            MT5PreTrainedModel,
-            MT5Stack,
-        )
+        from .modeling_mt5 import (MT5EncoderModel,
+                                   MT5ForConditionalGeneration, MT5Model,
+                                   MT5PreTrainedModel, MT5Stack)
 
     try:
         if not is_tf_available():
@@ -103,11 +93,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_mt5 import (
-            TFMT5EncoderModel,
-            TFMT5ForConditionalGeneration,
-            TFMT5Model,
-        )
+        from .modeling_tf_mt5 import (TFMT5EncoderModel,
+                                      TFMT5ForConditionalGeneration,
+                                      TFMT5Model)
 
     try:
         if not is_flax_available():
@@ -115,11 +103,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_flax_mt5 import (
-            FlaxMT5EncoderModel,
-            FlaxMT5ForConditionalGeneration,
-            FlaxMT5Model,
-        )
+        from .modeling_flax_mt5 import (FlaxMT5EncoderModel,
+                                        FlaxMT5ForConditionalGeneration,
+                                        FlaxMT5Model)
 
 else:
     import sys

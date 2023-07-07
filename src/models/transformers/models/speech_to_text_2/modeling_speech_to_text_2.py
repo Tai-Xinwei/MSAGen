@@ -25,14 +25,11 @@ from torch import nn
 from torch.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
-from ...modeling_outputs import (
-    BaseModelOutputWithPastAndCrossAttentions,
-    CausalLMOutputWithCrossAttentions,
-)
+from ...modeling_outputs import (BaseModelOutputWithPastAndCrossAttentions,
+                                 CausalLMOutputWithCrossAttentions)
 from ...modeling_utils import PreTrainedModel
 from ...utils import add_start_docstrings, logging, replace_return_docstrings
 from .configuration_speech_to_text_2 import Speech2Text2Config
-
 
 logger = logging.get_logger(__name__)
 

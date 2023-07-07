@@ -23,7 +23,6 @@ import torch
 from ..training_args import TrainingArguments
 from ..utils import cached_property, is_sagemaker_dp_enabled, logging
 
-
 logger = logging.get_logger(__name__)
 
 # TODO: should be moved to `utils` after refactoring of SageMakerTrainer

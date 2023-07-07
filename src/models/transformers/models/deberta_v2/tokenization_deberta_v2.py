@@ -22,7 +22,6 @@ import sentencepiece as sp
 
 from ...tokenization_utils import PreTrainedTokenizer
 
-
 PRETRAINED_VOCAB_FILES_MAP = {
     "vocab_file": {
         "microsoft/deberta-v2-xlarge": "https://huggingface.co/microsoft/deberta-v2-xlarge/resolve/main/spm.model",

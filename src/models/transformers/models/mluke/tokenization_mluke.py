@@ -26,20 +26,12 @@ import numpy as np
 import sentencepiece as spm
 
 from ...tokenization_utils import PreTrainedTokenizer
-from ...tokenization_utils_base import (
-    ENCODE_KWARGS_DOCSTRING,
-    AddedToken,
-    BatchEncoding,
-    EncodedInput,
-    PaddingStrategy,
-    TensorType,
-    TextInput,
-    TextInputPair,
-    TruncationStrategy,
-    to_py_obj,
-)
+from ...tokenization_utils_base import (ENCODE_KWARGS_DOCSTRING, AddedToken,
+                                        BatchEncoding, EncodedInput,
+                                        PaddingStrategy, TensorType, TextInput,
+                                        TextInputPair, TruncationStrategy,
+                                        to_py_obj)
 from ...utils import add_end_docstrings, is_tf_tensor, is_torch_tensor, logging
-
 
 logger = logging.get_logger(__name__)
 

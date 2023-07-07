@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_torch_available,
-    is_vision_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available, is_vision_available)
 
 _import_structure = {
     "configuration_oneformer": [
@@ -52,9 +47,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_oneformer import (
-        ONEFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        OneFormerConfig,
-    )
+        ONEFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, OneFormerConfig)
     from .processing_oneformer import OneFormerProcessor
 
     try:
@@ -72,10 +65,8 @@ if TYPE_CHECKING:
     else:
         from .modeling_oneformer import (
             ONEFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            OneFormerForUniversalSegmentation,
-            OneFormerModel,
-            OneFormerPreTrainedModel,
-        )
+            OneFormerForUniversalSegmentation, OneFormerModel,
+            OneFormerPreTrainedModel)
 
 
 else:

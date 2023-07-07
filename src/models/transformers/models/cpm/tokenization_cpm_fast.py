@@ -20,7 +20,6 @@ from typing import List, Optional, Tuple
 from ...tokenization_utils_fast import AddedToken, PreTrainedTokenizerFast
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 VOCAB_FILES_NAMES = {"vocab_file": "spiece.model", "tokenizer_file": "tokenizer.json"}

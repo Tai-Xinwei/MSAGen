@@ -27,21 +27,13 @@ from torch.nn import CrossEntropyLoss, LayerNorm
 
 from ...activations import ACT2FN
 from ...deepspeed import is_deepspeed_zero3_enabled
-from ...modeling_outputs import (
-    BaseModelOutput,
-    CausalLMOutput,
-    SequenceClassifierOutput,
-)
+from ...modeling_outputs import (BaseModelOutput, CausalLMOutput,
+                                 SequenceClassifierOutput)
 from ...modeling_utils import PreTrainedModel
 from ...pytorch_utils import softmax_backward_data
-from ...utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-)
+from ...utils import (add_code_sample_docstrings, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging)
 from .configuration_sew_d import SEWDConfig
-
 
 logger = logging.get_logger(__name__)
 

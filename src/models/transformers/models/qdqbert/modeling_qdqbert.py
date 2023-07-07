@@ -27,30 +27,22 @@ from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
-from ...modeling_outputs import (
-    BaseModelOutputWithPastAndCrossAttentions,
-    BaseModelOutputWithPoolingAndCrossAttentions,
-    CausalLMOutputWithCrossAttentions,
-    MaskedLMOutput,
-    MultipleChoiceModelOutput,
-    NextSentencePredictorOutput,
-    QuestionAnsweringModelOutput,
-    SequenceClassifierOutput,
-    TokenClassifierOutput,
-)
+from ...modeling_outputs import (BaseModelOutputWithPastAndCrossAttentions,
+                                 BaseModelOutputWithPoolingAndCrossAttentions,
+                                 CausalLMOutputWithCrossAttentions,
+                                 MaskedLMOutput, MultipleChoiceModelOutput,
+                                 NextSentencePredictorOutput,
+                                 QuestionAnsweringModelOutput,
+                                 SequenceClassifierOutput,
+                                 TokenClassifierOutput)
 from ...modeling_utils import PreTrainedModel
-from ...pytorch_utils import find_pruneable_heads_and_indices, prune_linear_layer
-from ...utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_pytorch_quantization_available,
-    logging,
-    replace_return_docstrings,
-    requires_backends,
-)
+from ...pytorch_utils import (find_pruneable_heads_and_indices,
+                              prune_linear_layer)
+from ...utils import (add_code_sample_docstrings, add_start_docstrings,
+                      add_start_docstrings_to_model_forward,
+                      is_pytorch_quantization_available, logging,
+                      replace_return_docstrings, requires_backends)
 from .configuration_qdqbert import QDQBertConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -58,7 +50,8 @@ logger = logging.get_logger(__name__)
 if is_pytorch_quantization_available():
     try:
         from pytorch_quantization import nn as quant_nn
-        from pytorch_quantization.nn.modules.tensor_quantizer import TensorQuantizer
+        from pytorch_quantization.nn.modules.tensor_quantizer import \
+            TensorQuantizer
     except OSError:
         logger.error(
             "QDQBERT model are not usable since `pytorch_quantization` can't be loaded. Please try to reinstall it"

@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tf_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tf_available, is_torch_available)
 
 _import_structure = {
     "configuration_cvt": ["CVT_PRETRAINED_CONFIG_ARCHIVE_MAP", "CvtConfig"]
@@ -61,12 +56,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_cvt import (
-            CVT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            CvtForImageClassification,
-            CvtModel,
-            CvtPreTrainedModel,
-        )
+        from .modeling_cvt import (CVT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                   CvtForImageClassification, CvtModel,
+                                   CvtPreTrainedModel)
 
     try:
         if not is_tf_available():
@@ -74,12 +66,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_cvt import (
-            TF_CVT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFCvtForImageClassification,
-            TFCvtModel,
-            TFCvtPreTrainedModel,
-        )
+        from .modeling_tf_cvt import (TF_CVT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      TFCvtForImageClassification, TFCvtModel,
+                                      TFCvtPreTrainedModel)
 
 
 else:

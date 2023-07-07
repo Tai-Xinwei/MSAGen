@@ -19,11 +19,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from packaging.version import Version, parse
-
 from transformers.pipelines import Pipeline, pipeline
 from transformers.tokenization_utils import BatchEncoding
 from transformers.utils import ModelOutput, is_tf_available, is_torch_available
-
 
 # This is the minimal required version to
 # support some ONNX Runtime features
@@ -307,7 +305,6 @@ def convert_pytorch(nlp: Pipeline, opset: int, output: Path, use_external_format
 
     import torch
     from torch.onnx import export
-
     from transformers.pytorch_utils import is_torch_less_than_1_11
 
     print(f"Using framework PyTorch: {torch.__version__}")

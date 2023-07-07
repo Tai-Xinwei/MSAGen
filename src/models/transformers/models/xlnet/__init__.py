@@ -14,15 +14,9 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_sentencepiece_available,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_sentencepiece_available, is_tf_available,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_xlnet": ["XLNET_PRETRAINED_CONFIG_ARCHIVE_MAP", "XLNetConfig"]
@@ -83,7 +77,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_xlnet import XLNET_PRETRAINED_CONFIG_ARCHIVE_MAP, XLNetConfig
+    from .configuration_xlnet import (XLNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                      XLNetConfig)
 
     try:
         if not is_sentencepiece_available():
@@ -107,18 +102,15 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_xlnet import (
-            XLNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XLNetForMultipleChoice,
-            XLNetForQuestionAnswering,
-            XLNetForQuestionAnsweringSimple,
-            XLNetForSequenceClassification,
-            XLNetForTokenClassification,
-            XLNetLMHeadModel,
-            XLNetModel,
-            XLNetPreTrainedModel,
-            load_tf_weights_in_xlnet,
-        )
+        from .modeling_xlnet import (XLNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     XLNetForMultipleChoice,
+                                     XLNetForQuestionAnswering,
+                                     XLNetForQuestionAnsweringSimple,
+                                     XLNetForSequenceClassification,
+                                     XLNetForTokenClassification,
+                                     XLNetLMHeadModel, XLNetModel,
+                                     XLNetPreTrainedModel,
+                                     load_tf_weights_in_xlnet)
 
     try:
         if not is_tf_available():
@@ -126,17 +118,13 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_xlnet import (
-            TF_XLNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFXLNetForMultipleChoice,
-            TFXLNetForQuestionAnsweringSimple,
-            TFXLNetForSequenceClassification,
-            TFXLNetForTokenClassification,
-            TFXLNetLMHeadModel,
-            TFXLNetMainLayer,
-            TFXLNetModel,
-            TFXLNetPreTrainedModel,
-        )
+        from .modeling_tf_xlnet import (TF_XLNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                        TFXLNetForMultipleChoice,
+                                        TFXLNetForQuestionAnsweringSimple,
+                                        TFXLNetForSequenceClassification,
+                                        TFXLNetForTokenClassification,
+                                        TFXLNetLMHeadModel, TFXLNetMainLayer,
+                                        TFXLNetModel, TFXLNetPreTrainedModel)
 
 else:
     import sys

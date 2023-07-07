@@ -14,14 +14,9 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tf_available, is_tokenizers_available,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_mobilebert": [
@@ -84,10 +79,8 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_mobilebert import (
-        MOBILEBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MobileBertConfig,
-        MobileBertOnnxConfig,
-    )
+        MOBILEBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MobileBertConfig,
+        MobileBertOnnxConfig)
     from .tokenization_mobilebert import MobileBertTokenizer
 
     try:
@@ -105,19 +98,12 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_mobilebert import (
-            MOBILEBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MobileBertForMaskedLM,
-            MobileBertForMultipleChoice,
-            MobileBertForNextSentencePrediction,
-            MobileBertForPreTraining,
-            MobileBertForQuestionAnswering,
+            MOBILEBERT_PRETRAINED_MODEL_ARCHIVE_LIST, MobileBertForMaskedLM,
+            MobileBertForMultipleChoice, MobileBertForNextSentencePrediction,
+            MobileBertForPreTraining, MobileBertForQuestionAnswering,
             MobileBertForSequenceClassification,
-            MobileBertForTokenClassification,
-            MobileBertLayer,
-            MobileBertModel,
-            MobileBertPreTrainedModel,
-            load_tf_weights_in_mobilebert,
-        )
+            MobileBertForTokenClassification, MobileBertLayer, MobileBertModel,
+            MobileBertPreTrainedModel, load_tf_weights_in_mobilebert)
 
     try:
         if not is_tf_available():
@@ -127,17 +113,12 @@ if TYPE_CHECKING:
     else:
         from .modeling_tf_mobilebert import (
             TF_MOBILEBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFMobileBertForMaskedLM,
-            TFMobileBertForMultipleChoice,
-            TFMobileBertForNextSentencePrediction,
-            TFMobileBertForPreTraining,
+            TFMobileBertForMaskedLM, TFMobileBertForMultipleChoice,
+            TFMobileBertForNextSentencePrediction, TFMobileBertForPreTraining,
             TFMobileBertForQuestionAnswering,
             TFMobileBertForSequenceClassification,
-            TFMobileBertForTokenClassification,
-            TFMobileBertMainLayer,
-            TFMobileBertModel,
-            TFMobileBertPreTrainedModel,
-        )
+            TFMobileBertForTokenClassification, TFMobileBertMainLayer,
+            TFMobileBertModel, TFMobileBertPreTrainedModel)
 
 else:
     import sys

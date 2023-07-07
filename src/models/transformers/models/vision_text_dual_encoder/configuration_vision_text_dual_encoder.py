@@ -21,7 +21,6 @@ from ...utils import logging
 from ..auto.configuration_auto import AutoConfig
 from ..clip.configuration_clip import CLIPVisionConfig
 
-
 logger = logging.get_logger(__name__)
 
 

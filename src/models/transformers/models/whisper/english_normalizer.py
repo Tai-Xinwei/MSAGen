@@ -20,7 +20,6 @@ from typing import Iterator, List, Match, Optional, Union
 
 import regex
 
-
 # non-ASCII letters that are not separated by "NFKD" normalization
 ADDITIONAL_DIACRITICS = {
     "œ": "oe",

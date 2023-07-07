@@ -2,15 +2,9 @@ from typing import Any, Dict, List, Union
 
 import numpy as np
 
-from ..utils import (
-    add_end_docstrings,
-    is_torch_available,
-    is_vision_available,
-    logging,
-    requires_backends,
-)
+from ..utils import (add_end_docstrings, is_torch_available,
+                     is_vision_available, logging, requires_backends)
 from .base import PIPELINE_INIT_ARGS, Pipeline
-
 
 if is_vision_available():
     from PIL import Image
@@ -22,8 +16,7 @@ if is_torch_available():
         MODEL_FOR_IMAGE_SEGMENTATION_MAPPING,
         MODEL_FOR_INSTANCE_SEGMENTATION_MAPPING,
         MODEL_FOR_SEMANTIC_SEGMENTATION_MAPPING,
-        MODEL_FOR_UNIVERSAL_SEGMENTATION_MAPPING,
-    )
+        MODEL_FOR_UNIVERSAL_SEGMENTATION_MAPPING)
 
 
 logger = logging.get_logger(__name__)

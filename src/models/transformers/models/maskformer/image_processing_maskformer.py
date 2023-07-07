@@ -16,39 +16,21 @@
 
 import math
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set,
+                    Tuple, Union)
 
 import numpy as np
 
-from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
-from ...image_transforms import (
-    PaddingMode,
-    get_resize_output_image_size,
-    normalize,
-    pad,
-    rescale,
-    resize,
-    to_channel_dimension_format,
-    to_numpy_array,
-)
-from ...image_utils import (
-    ChannelDimension,
-    ImageInput,
-    PILImageResampling,
-    get_image_size,
-    infer_channel_dimension_format,
-    make_list_of_images,
-    valid_images,
-)
-from ...utils import (
-    IMAGENET_DEFAULT_MEAN,
-    IMAGENET_DEFAULT_STD,
-    TensorType,
-    is_torch_available,
-    is_torch_tensor,
-    logging,
-)
-
+from ...image_processing_utils import (BaseImageProcessor, BatchFeature,
+                                       get_size_dict)
+from ...image_transforms import (PaddingMode, get_resize_output_image_size,
+                                 normalize, pad, rescale, resize,
+                                 to_channel_dimension_format, to_numpy_array)
+from ...image_utils import (ChannelDimension, ImageInput, PILImageResampling,
+                            get_image_size, infer_channel_dimension_format,
+                            make_list_of_images, valid_images)
+from ...utils import (IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, TensorType,
+                      is_torch_available, is_torch_tensor, logging)
 
 logger = logging.get_logger(__name__)
 

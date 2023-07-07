@@ -19,7 +19,6 @@ from ..pipelines import Pipeline, get_supported_tasks, pipeline
 from ..utils import logging
 from . import BaseTransformersCLICommand
 
-
 try:
     from fastapi import Body, FastAPI, HTTPException
     from fastapi.routing import APIRoute

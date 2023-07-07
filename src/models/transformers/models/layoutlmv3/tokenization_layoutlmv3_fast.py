@@ -22,24 +22,15 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from tokenizers import pre_tokenizers, processors
 
-from ...tokenization_utils_base import (
-    BatchEncoding,
-    EncodedInput,
-    PaddingStrategy,
-    PreTokenizedInput,
-    TensorType,
-    TextInput,
-    TextInputPair,
-    TruncationStrategy,
-)
+from ...tokenization_utils_base import (BatchEncoding, EncodedInput,
+                                        PaddingStrategy, PreTokenizedInput,
+                                        TensorType, TextInput, TextInputPair,
+                                        TruncationStrategy)
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import add_end_docstrings, logging
 from .tokenization_layoutlmv3 import (
     LAYOUTLMV3_ENCODE_KWARGS_DOCSTRING,
-    LAYOUTLMV3_ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING,
-    LayoutLMv3Tokenizer,
-)
-
+    LAYOUTLMV3_ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING, LayoutLMv3Tokenizer)
 
 logger = logging.get_logger(__name__)
 

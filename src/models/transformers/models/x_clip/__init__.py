@@ -13,8 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_x_clip": [
@@ -41,12 +41,9 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_x_clip import (
-        XCLIP_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        XCLIPConfig,
-        XCLIPTextConfig,
-        XCLIPVisionConfig,
-    )
+    from .configuration_x_clip import (XCLIP_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                       XCLIPConfig, XCLIPTextConfig,
+                                       XCLIPVisionConfig)
     from .processing_x_clip import XCLIPProcessor
 
     try:
@@ -55,13 +52,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_x_clip import (
-            XCLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XCLIPModel,
-            XCLIPPreTrainedModel,
-            XCLIPTextModel,
-            XCLIPVisionModel,
-        )
+        from .modeling_x_clip import (XCLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      XCLIPModel, XCLIPPreTrainedModel,
+                                      XCLIPTextModel, XCLIPVisionModel)
 
 else:
     import sys

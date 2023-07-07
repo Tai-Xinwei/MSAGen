@@ -25,21 +25,14 @@ from torch import nn
 
 from ...activations import ACT2FN
 from ...deepspeed import is_deepspeed_zero3_enabled
-from ...file_utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-)
+from ...file_utils import (add_code_sample_docstrings, add_start_docstrings,
+                           add_start_docstrings_to_model_forward)
 from ...modeling_outputs import BaseModelOutput, CausalLMOutput
-from ...modeling_utils import (
-    PreTrainedModel,
-    apply_chunking_to_forward,
-    find_pruneable_heads_and_indices,
-    prune_linear_layer,
-)
+from ...modeling_utils import (PreTrainedModel, apply_chunking_to_forward,
+                               find_pruneable_heads_and_indices,
+                               prune_linear_layer)
 from ...utils import logging
 from .configuration_mctct import MCTCTConfig
-
 
 logger = logging.get_logger(__name__)
 

@@ -16,7 +16,6 @@ import sys
 from .dependency_versions_table import deps
 from .utils.versions import require_version, require_version_core
 
-
 # define which module versions we always want to check at run time
 # (usually the ones defined in `install_requires` in setup.py)
 #

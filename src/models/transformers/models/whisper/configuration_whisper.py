@@ -21,7 +21,6 @@ from ...configuration_utils import PretrainedConfig
 from ...onnx import OnnxConfig, OnnxSeq2SeqConfigWithPast
 from ...utils import logging
 
-
 if TYPE_CHECKING:
     from ...feature_extraction_utils import FeatureExtractionMixin
     from ...tokenization_utils_base import PreTrainedTokenizerBase

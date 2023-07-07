@@ -17,17 +17,11 @@
 
 import argparse
 
-from transformers import (
-    TapasConfig,
-    TapasForMaskedLM,
-    TapasForQuestionAnswering,
-    TapasForSequenceClassification,
-    TapasModel,
-    TapasTokenizer,
-    load_tf_weights_in_tapas,
-)
+from transformers import (TapasConfig, TapasForMaskedLM,
+                          TapasForQuestionAnswering,
+                          TapasForSequenceClassification, TapasModel,
+                          TapasTokenizer, load_tf_weights_in_tapas)
 from transformers.utils import logging
-
 
 logging.set_verbosity_info()
 

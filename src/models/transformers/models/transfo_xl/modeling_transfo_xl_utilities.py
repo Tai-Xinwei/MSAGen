@@ -21,7 +21,6 @@
 import torch
 from torch import nn
 
-
 # CUDA_MAJOR = int(torch.version.cuda.split('.')[0])
 # CUDA_MINOR = int(torch.version.cuda.split('.')[1])
 

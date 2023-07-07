@@ -13,15 +13,9 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_tf_available,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_blenderbot_small": [
@@ -82,10 +76,8 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_blenderbot_small import (
-        BLENDERBOT_SMALL_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        BlenderbotSmallConfig,
-        BlenderbotSmallOnnxConfig,
-    )
+        BLENDERBOT_SMALL_PRETRAINED_CONFIG_ARCHIVE_MAP, BlenderbotSmallConfig,
+        BlenderbotSmallOnnxConfig)
     from .tokenization_blenderbot_small import BlenderbotSmallTokenizer
 
     try:
@@ -94,7 +86,8 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .tokenization_blenderbot_small_fast import BlenderbotSmallTokenizerFast
+        from .tokenization_blenderbot_small_fast import \
+            BlenderbotSmallTokenizerFast
 
     try:
         if not is_torch_available():
@@ -105,10 +98,8 @@ if TYPE_CHECKING:
         from .modeling_blenderbot_small import (
             BLENDERBOT_SMALL_PRETRAINED_MODEL_ARCHIVE_LIST,
             BlenderbotSmallForCausalLM,
-            BlenderbotSmallForConditionalGeneration,
-            BlenderbotSmallModel,
-            BlenderbotSmallPreTrainedModel,
-        )
+            BlenderbotSmallForConditionalGeneration, BlenderbotSmallModel,
+            BlenderbotSmallPreTrainedModel)
 
     try:
         if not is_tf_available():
@@ -117,10 +108,8 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_tf_blenderbot_small import (
-            TFBlenderbotSmallForConditionalGeneration,
-            TFBlenderbotSmallModel,
-            TFBlenderbotSmallPreTrainedModel,
-        )
+            TFBlenderbotSmallForConditionalGeneration, TFBlenderbotSmallModel,
+            TFBlenderbotSmallPreTrainedModel)
 
     try:
         if not is_flax_available():
@@ -130,9 +119,7 @@ if TYPE_CHECKING:
     else:
         from .modeling_flax_blenderbot_small import (
             FlaxBlenderbotSmallForConditionalGeneration,
-            FlaxBlenderbotSmallModel,
-            FlaxBlenderbotSmallPreTrainedModel,
-        )
+            FlaxBlenderbotSmallModel, FlaxBlenderbotSmallPreTrainedModel)
 
 else:
     import sys

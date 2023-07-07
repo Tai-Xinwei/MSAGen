@@ -31,23 +31,17 @@ from torch import nn
 from torch.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
-from ...file_utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    replace_return_docstrings,
-)
-from ...modeling_outputs import (
-    BaseModelOutput,
-    DepthEstimatorOutput,
-    SemanticSegmenterOutput,
-)
+from ...file_utils import (add_code_sample_docstrings, add_start_docstrings,
+                           add_start_docstrings_to_model_forward,
+                           replace_return_docstrings)
+from ...modeling_outputs import (BaseModelOutput, DepthEstimatorOutput,
+                                 SemanticSegmenterOutput)
 from ...modeling_utils import PreTrainedModel
-from ...pytorch_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from ...pytorch_utils import (find_pruneable_heads_and_indices,
+                              prune_linear_layer)
 from ...utils import ModelOutput, logging
 from ..auto import AutoBackbone
 from .configuration_dpt import DPTConfig
-
 
 logger = logging.get_logger(__name__)
 

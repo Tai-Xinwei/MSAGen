@@ -19,17 +19,9 @@ import gdown
 import numpy as np
 import torch
 from huggingface_hub import hf_hub_download
-
-from transformers import (
-    CLIPTokenizer,
-    CLIPTokenizerFast,
-    VideoMAEFeatureExtractor,
-    XCLIPConfig,
-    XCLIPModel,
-    XCLIPProcessor,
-    XCLIPTextConfig,
-    XCLIPVisionConfig,
-)
+from transformers import (CLIPTokenizer, CLIPTokenizerFast,
+                          VideoMAEFeatureExtractor, XCLIPConfig, XCLIPModel,
+                          XCLIPProcessor, XCLIPTextConfig, XCLIPVisionConfig)
 
 
 def get_xclip_config(model_name, num_frames):

@@ -25,7 +25,6 @@ from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import logging
 from .tokenization_gpt2 import GPT2Tokenizer
 
-
 if TYPE_CHECKING:
     from transformers.pipelines.conversational import Conversation
 

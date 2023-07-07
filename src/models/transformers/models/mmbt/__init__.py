@@ -14,8 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {"configuration_mmbt": ["MMBTConfig"]}
 
@@ -41,7 +41,8 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_mmbt import MMBTForClassification, MMBTModel, ModalEmbeddings
+        from .modeling_mmbt import (MMBTForClassification, MMBTModel,
+                                    ModalEmbeddings)
 
 else:
     import sys

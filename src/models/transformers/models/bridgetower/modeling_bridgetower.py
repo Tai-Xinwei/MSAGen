@@ -25,31 +25,20 @@ from torch import nn
 from torch.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN, QuickGELUActivation
-from ...modeling_outputs import (
-    BaseModelOutputWithPastAndCrossAttentions,
-    BaseModelOutputWithPoolingAndCrossAttentions,
-    MaskedLMOutput,
-    ModelOutput,
-    SequenceClassifierOutput,
-)
+from ...modeling_outputs import (BaseModelOutputWithPastAndCrossAttentions,
+                                 BaseModelOutputWithPoolingAndCrossAttentions,
+                                 MaskedLMOutput, ModelOutput,
+                                 SequenceClassifierOutput)
 from ...modeling_utils import PreTrainedModel, apply_chunking_to_forward
-from ...pytorch_utils import (
-    find_pruneable_heads_and_indices,
-    is_torch_greater_or_equal_than_1_10,
-    prune_linear_layer,
-)
-from ...utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-from .configuration_bridgetower import (
-    BridgeTowerConfig,
-    BridgeTowerTextConfig,
-    BridgeTowerVisionConfig,
-)
-
+from ...pytorch_utils import (find_pruneable_heads_and_indices,
+                              is_torch_greater_or_equal_than_1_10,
+                              prune_linear_layer)
+from ...utils import (add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
+from .configuration_bridgetower import (BridgeTowerConfig,
+                                        BridgeTowerTextConfig,
+                                        BridgeTowerVisionConfig)
 
 logger = logging.get_logger(__name__)
 

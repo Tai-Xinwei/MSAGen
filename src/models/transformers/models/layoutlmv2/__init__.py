@@ -14,14 +14,9 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tokenizers_available,
-    is_torch_available,
-    is_vision_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tokenizers_available, is_torch_available,
+                      is_vision_available)
 
 _import_structure = {
     "configuration_layoutlmv2": [
@@ -67,9 +62,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_layoutlmv2 import (
-        LAYOUTLMV2_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        LayoutLMv2Config,
-    )
+        LAYOUTLMV2_PRETRAINED_CONFIG_ARCHIVE_MAP, LayoutLMv2Config)
     from .processing_layoutlmv2 import LayoutLMv2Processor
     from .tokenization_layoutlmv2 import LayoutLMv2Tokenizer
 
@@ -87,10 +80,8 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .feature_extraction_layoutlmv2 import (
-            LayoutLMv2FeatureExtractor,
-            LayoutLMv2ImageProcessor,
-        )
+        from .feature_extraction_layoutlmv2 import (LayoutLMv2FeatureExtractor,
+                                                    LayoutLMv2ImageProcessor)
 
     try:
         if not is_torch_available():
@@ -102,11 +93,8 @@ if TYPE_CHECKING:
             LAYOUTLMV2_PRETRAINED_MODEL_ARCHIVE_LIST,
             LayoutLMv2ForQuestionAnswering,
             LayoutLMv2ForSequenceClassification,
-            LayoutLMv2ForTokenClassification,
-            LayoutLMv2Layer,
-            LayoutLMv2Model,
-            LayoutLMv2PreTrainedModel,
-        )
+            LayoutLMv2ForTokenClassification, LayoutLMv2Layer, LayoutLMv2Model,
+            LayoutLMv2PreTrainedModel)
 else:
     import sys
 

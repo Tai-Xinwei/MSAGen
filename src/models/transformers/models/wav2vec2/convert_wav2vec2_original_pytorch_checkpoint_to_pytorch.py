@@ -22,17 +22,9 @@ import os
 import fairseq
 import torch
 from fairseq.data import Dictionary
-
-from transformers import (
-    Wav2Vec2Config,
-    Wav2Vec2CTCTokenizer,
-    Wav2Vec2FeatureExtractor,
-    Wav2Vec2ForCTC,
-    Wav2Vec2ForPreTraining,
-    Wav2Vec2Processor,
-    logging,
-)
-
+from transformers import (Wav2Vec2Config, Wav2Vec2CTCTokenizer,
+                          Wav2Vec2FeatureExtractor, Wav2Vec2ForCTC,
+                          Wav2Vec2ForPreTraining, Wav2Vec2Processor, logging)
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

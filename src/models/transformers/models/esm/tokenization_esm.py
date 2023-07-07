@@ -20,7 +20,6 @@ from ...tokenization_utils import PreTrainedTokenizer
 from ...tokenization_utils_base import AddedToken
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 VOCAB_FILES_NAMES = {"vocab_file": "vocab.txt"}

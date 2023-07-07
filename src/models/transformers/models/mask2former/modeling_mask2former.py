@@ -26,19 +26,15 @@ from torch import Tensor, nn
 
 from ... import AutoBackbone, SwinConfig
 from ...activations import ACT2FN
-from ...file_utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_scipy_available,
-    replace_return_docstrings,
-    requires_backends,
-)
-from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithCrossAttentions
+from ...file_utils import (ModelOutput, add_start_docstrings,
+                           add_start_docstrings_to_model_forward,
+                           is_scipy_available, replace_return_docstrings,
+                           requires_backends)
+from ...modeling_outputs import (BaseModelOutput,
+                                 BaseModelOutputWithCrossAttentions)
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
 from .configuration_mask2former import Mask2FormerConfig
-
 
 if is_scipy_available():
     from scipy.optimize import linear_sum_assignment

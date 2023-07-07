@@ -23,29 +23,17 @@ import tensorflow as tf
 
 from ...activations_tf import get_tf_activation, glu
 from ...modeling_tf_outputs import (
-    TFBaseModelOutput,
-    TFBaseModelOutputWithPastAndCrossAttentions,
-    TFSeq2SeqLMOutput,
-    TFSeq2SeqModelOutput,
-)
-from ...modeling_tf_utils import (
-    TFCausalLanguageModelingLoss,
-    TFModelInputType,
-    TFPreTrainedModel,
-    TFSharedEmbeddings,
-    keras_serializable,
-    unpack_inputs,
-)
+    TFBaseModelOutput, TFBaseModelOutputWithPastAndCrossAttentions,
+    TFSeq2SeqLMOutput, TFSeq2SeqModelOutput)
+from ...modeling_tf_utils import (TFCausalLanguageModelingLoss,
+                                  TFModelInputType, TFPreTrainedModel,
+                                  TFSharedEmbeddings, keras_serializable,
+                                  unpack_inputs)
 from ...tf_utils import shape_list, stable_softmax
-from ...utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import (add_code_sample_docstrings, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from .configuration_speech_to_text import Speech2TextConfig
-
 
 logger = logging.get_logger(__name__)
 

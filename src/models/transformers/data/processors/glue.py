@@ -25,7 +25,6 @@ from ...tokenization_utils import PreTrainedTokenizer
 from ...utils import is_tf_available, logging
 from .utils import DataProcessor, InputExample, InputFeatures
 
-
 if is_tf_available():
     import tensorflow as tf
 

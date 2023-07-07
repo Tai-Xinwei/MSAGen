@@ -13,16 +13,10 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_sentencepiece_available,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_sentencepiece_available,
+                      is_tf_available, is_tokenizers_available,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_xglm": ["XGLM_PRETRAINED_CONFIG_ARCHIVE_MAP", "XGLMConfig"]
@@ -86,7 +80,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_xglm import XGLM_PRETRAINED_CONFIG_ARCHIVE_MAP, XGLMConfig
+    from .configuration_xglm import (XGLM_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                     XGLMConfig)
 
     try:
         if not is_sentencepiece_available():
@@ -110,12 +105,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_xglm import (
-            XGLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            XGLMForCausalLM,
-            XGLMModel,
-            XGLMPreTrainedModel,
-        )
+        from .modeling_xglm import (XGLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    XGLMForCausalLM, XGLMModel,
+                                    XGLMPreTrainedModel)
 
     try:
         if not is_flax_available():
@@ -123,11 +115,8 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_flax_xglm import (
-            FlaxXGLMForCausalLM,
-            FlaxXGLMModel,
-            FlaxXGLMPreTrainedModel,
-        )
+        from .modeling_flax_xglm import (FlaxXGLMForCausalLM, FlaxXGLMModel,
+                                         FlaxXGLMPreTrainedModel)
 
     try:
         if not is_tf_available():
@@ -135,12 +124,9 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_xglm import (
-            TF_XGLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFXGLMForCausalLM,
-            TFXGLMModel,
-            TFXGLMPreTrainedModel,
-        )
+        from .modeling_tf_xglm import (TF_XGLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                       TFXGLMForCausalLM, TFXGLMModel,
+                                       TFXGLMPreTrainedModel)
 
 
 else:

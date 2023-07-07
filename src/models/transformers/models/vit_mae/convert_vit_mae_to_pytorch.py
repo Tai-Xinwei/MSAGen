@@ -19,8 +19,8 @@ import argparse
 import requests
 import torch
 from PIL import Image
-
-from transformers import ViTMAEConfig, ViTMAEFeatureExtractor, ViTMAEForPreTraining
+from transformers import (ViTMAEConfig, ViTMAEFeatureExtractor,
+                          ViTMAEForPreTraining)
 
 
 def rename_key(name):

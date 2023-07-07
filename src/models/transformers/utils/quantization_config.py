@@ -22,7 +22,6 @@ from typing import Any, Dict, Union
 
 from ..utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 

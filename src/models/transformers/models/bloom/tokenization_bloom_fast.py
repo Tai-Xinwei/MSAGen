@@ -24,7 +24,6 @@ from ...tokenization_utils_base import BatchEncoding
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import logging
 
-
 if TYPE_CHECKING:
     from transformers.pipelines.conversational import Conversation
 

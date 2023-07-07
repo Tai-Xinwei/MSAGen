@@ -13,8 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_megatron_bert": [
@@ -45,9 +45,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_megatron_bert import (
-        MEGATRON_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        MegatronBertConfig,
-    )
+        MEGATRON_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MegatronBertConfig)
 
     try:
         if not is_torch_available():
@@ -57,17 +55,13 @@ if TYPE_CHECKING:
     else:
         from .modeling_megatron_bert import (
             MEGATRON_BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MegatronBertForCausalLM,
-            MegatronBertForMaskedLM,
+            MegatronBertForCausalLM, MegatronBertForMaskedLM,
             MegatronBertForMultipleChoice,
-            MegatronBertForNextSentencePrediction,
-            MegatronBertForPreTraining,
+            MegatronBertForNextSentencePrediction, MegatronBertForPreTraining,
             MegatronBertForQuestionAnswering,
             MegatronBertForSequenceClassification,
-            MegatronBertForTokenClassification,
-            MegatronBertModel,
-            MegatronBertPreTrainedModel,
-        )
+            MegatronBertForTokenClassification, MegatronBertModel,
+            MegatronBertPreTrainedModel)
 
 else:
     import sys

@@ -24,7 +24,6 @@ import numpy as np
 from ...tokenization_utils_fast import PreTrainedTokenizer
 from ...utils import logging
 
-
 if TYPE_CHECKING:
     from transformers.pipelines.conversational import Conversation
 

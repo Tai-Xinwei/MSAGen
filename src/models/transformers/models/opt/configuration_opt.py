@@ -16,7 +16,6 @@
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 OPT_PRETRAINED_CONFIG_ARCHIVE_MAP = {

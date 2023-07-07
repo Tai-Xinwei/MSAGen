@@ -21,21 +21,14 @@ import tensorflow as tf
 from ...modeling_tf_outputs import (
     TFBaseModelOutputWithPastAndCrossAttentions,
     TFBaseModelOutputWithPoolingAndCrossAttentions,
-    TFCausalLMOutputWithCrossAttentions,
-)
-from ...modeling_tf_utils import (
-    DUMMY_INPUTS,
-    TFPreTrainedModel,
-    get_initializer,
-    get_tf_activation,
-    keras_serializable,
-    shape_list,
-    unpack_inputs,
-)
+    TFCausalLMOutputWithCrossAttentions)
+from ...modeling_tf_utils import (DUMMY_INPUTS, TFPreTrainedModel,
+                                  get_initializer, get_tf_activation,
+                                  keras_serializable, shape_list,
+                                  unpack_inputs)
 from ...tf_utils import invert_attention_mask, stable_softmax
 from ...utils import add_start_docstrings_to_model_forward, logging
 from .configuration_blip import BlipTextConfig
-
 
 logger = logging.get_logger(__name__)
 

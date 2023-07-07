@@ -18,14 +18,12 @@ from typing import TYPE_CHECKING, Any, List, Mapping, Optional
 
 from packaging import version
 
-
 if TYPE_CHECKING:
     from ... import PreTrainedTokenizer, TensorType
 
 from ...configuration_utils import PretrainedConfig
 from ...onnx import OnnxConfigWithPast, PatchingSpec
 from ...utils import is_torch_available, logging
-
 
 logger = logging.get_logger(__name__)
 

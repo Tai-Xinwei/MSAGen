@@ -1,14 +1,8 @@
 from typing import Any, Dict, List, Union
 
-from ..utils import (
-    add_end_docstrings,
-    is_torch_available,
-    is_vision_available,
-    logging,
-    requires_backends,
-)
+from ..utils import (add_end_docstrings, is_torch_available,
+                     is_vision_available, logging, requires_backends)
 from .base import PIPELINE_INIT_ARGS, ChunkPipeline
-
 
 if is_vision_available():
     from PIL import Image
@@ -17,10 +11,10 @@ if is_vision_available():
 
 if is_torch_available():
     import torch
-
     from transformers.modeling_outputs import BaseModelOutput
 
-    from ..models.auto.modeling_auto import MODEL_FOR_ZERO_SHOT_OBJECT_DETECTION_MAPPING
+    from ..models.auto.modeling_auto import \
+        MODEL_FOR_ZERO_SHOT_OBJECT_DETECTION_MAPPING
 
 logger = logging.get_logger(__name__)
 

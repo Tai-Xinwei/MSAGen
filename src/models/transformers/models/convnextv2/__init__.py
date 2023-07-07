@@ -18,12 +18,8 @@
 from typing import TYPE_CHECKING
 
 # rely on isort to merge the imports
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_convnextv2": [
@@ -49,9 +45,7 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_convnextv2 import (
-        CONVNEXTV2_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        ConvNextV2Config,
-    )
+        CONVNEXTV2_PRETRAINED_CONFIG_ARCHIVE_MAP, ConvNextV2Config)
 
     try:
         if not is_torch_available():
@@ -60,12 +54,9 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_convnextv2 import (
-            CONVNEXTV2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ConvNextV2Backbone,
-            ConvNextV2ForImageClassification,
-            ConvNextV2Model,
-            ConvNextV2PreTrainedModel,
-        )
+            CONVNEXTV2_PRETRAINED_MODEL_ARCHIVE_LIST, ConvNextV2Backbone,
+            ConvNextV2ForImageClassification, ConvNextV2Model,
+            ConvNextV2PreTrainedModel)
 
 else:
     import sys

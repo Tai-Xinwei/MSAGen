@@ -14,16 +14,10 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_sentencepiece_available,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_sentencepiece_available,
+                      is_tf_available, is_tokenizers_available,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_albert": [
@@ -105,11 +99,8 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_albert import (
-        ALBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        AlbertConfig,
-        AlbertOnnxConfig,
-    )
+    from .configuration_albert import (ALBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                       AlbertConfig, AlbertOnnxConfig)
 
     try:
         if not is_sentencepiece_available():
@@ -133,18 +124,15 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_albert import (
-            ALBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            AlbertForMaskedLM,
-            AlbertForMultipleChoice,
-            AlbertForPreTraining,
-            AlbertForQuestionAnswering,
-            AlbertForSequenceClassification,
-            AlbertForTokenClassification,
-            AlbertModel,
-            AlbertPreTrainedModel,
-            load_tf_weights_in_albert,
-        )
+        from .modeling_albert import (ALBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      AlbertForMaskedLM,
+                                      AlbertForMultipleChoice,
+                                      AlbertForPreTraining,
+                                      AlbertForQuestionAnswering,
+                                      AlbertForSequenceClassification,
+                                      AlbertForTokenClassification,
+                                      AlbertModel, AlbertPreTrainedModel,
+                                      load_tf_weights_in_albert)
 
     try:
         if not is_tf_available():
@@ -153,17 +141,11 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_tf_albert import (
-            TF_ALBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFAlbertForMaskedLM,
-            TFAlbertForMultipleChoice,
-            TFAlbertForPreTraining,
-            TFAlbertForQuestionAnswering,
-            TFAlbertForSequenceClassification,
-            TFAlbertForTokenClassification,
-            TFAlbertMainLayer,
-            TFAlbertModel,
-            TFAlbertPreTrainedModel,
-        )
+            TF_ALBERT_PRETRAINED_MODEL_ARCHIVE_LIST, TFAlbertForMaskedLM,
+            TFAlbertForMultipleChoice, TFAlbertForPreTraining,
+            TFAlbertForQuestionAnswering, TFAlbertForSequenceClassification,
+            TFAlbertForTokenClassification, TFAlbertMainLayer, TFAlbertModel,
+            TFAlbertPreTrainedModel)
 
     try:
         if not is_flax_available():
@@ -171,16 +153,14 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_flax_albert import (
-            FlaxAlbertForMaskedLM,
-            FlaxAlbertForMultipleChoice,
-            FlaxAlbertForPreTraining,
-            FlaxAlbertForQuestionAnswering,
-            FlaxAlbertForSequenceClassification,
-            FlaxAlbertForTokenClassification,
-            FlaxAlbertModel,
-            FlaxAlbertPreTrainedModel,
-        )
+        from .modeling_flax_albert import (FlaxAlbertForMaskedLM,
+                                           FlaxAlbertForMultipleChoice,
+                                           FlaxAlbertForPreTraining,
+                                           FlaxAlbertForQuestionAnswering,
+                                           FlaxAlbertForSequenceClassification,
+                                           FlaxAlbertForTokenClassification,
+                                           FlaxAlbertModel,
+                                           FlaxAlbertPreTrainedModel)
 else:
     import sys
 

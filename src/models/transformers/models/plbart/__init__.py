@@ -13,14 +13,9 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_sentencepiece_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_sentencepiece_available, is_tokenizers_available,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_plbart": ["PLBART_PRETRAINED_CONFIG_ARCHIVE_MAP", "PLBartConfig"]
@@ -51,7 +46,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_plbart import PLBART_PRETRAINED_CONFIG_ARCHIVE_MAP, PLBartConfig
+    from .configuration_plbart import (PLBART_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                       PLBartConfig)
 
     try:
         if not is_sentencepiece_available():
@@ -67,14 +63,11 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_plbart import (
-            PLBART_PRETRAINED_MODEL_ARCHIVE_LIST,
-            PLBartForCausalLM,
-            PLBartForConditionalGeneration,
-            PLBartForSequenceClassification,
-            PLBartModel,
-            PLBartPreTrainedModel,
-        )
+        from .modeling_plbart import (PLBART_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      PLBartForCausalLM,
+                                      PLBartForConditionalGeneration,
+                                      PLBartForSequenceClassification,
+                                      PLBartModel, PLBartPreTrainedModel)
 
 
 else:

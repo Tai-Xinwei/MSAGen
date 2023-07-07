@@ -14,13 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tf_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tf_available, is_torch_available)
 
 _import_structure = {
     "configuration_ctrl": ["CTRL_PRETRAINED_CONFIG_ARCHIVE_MAP", "CTRLConfig"],
@@ -57,7 +52,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_ctrl import CTRL_PRETRAINED_CONFIG_ARCHIVE_MAP, CTRLConfig
+    from .configuration_ctrl import (CTRL_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                     CTRLConfig)
     from .tokenization_ctrl import CTRLTokenizer
 
     try:
@@ -66,13 +62,10 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_ctrl import (
-            CTRL_PRETRAINED_MODEL_ARCHIVE_LIST,
-            CTRLForSequenceClassification,
-            CTRLLMHeadModel,
-            CTRLModel,
-            CTRLPreTrainedModel,
-        )
+        from .modeling_ctrl import (CTRL_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                    CTRLForSequenceClassification,
+                                    CTRLLMHeadModel, CTRLModel,
+                                    CTRLPreTrainedModel)
 
     try:
         if not is_tf_available():
@@ -80,13 +73,10 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_ctrl import (
-            TF_CTRL_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFCTRLForSequenceClassification,
-            TFCTRLLMHeadModel,
-            TFCTRLModel,
-            TFCTRLPreTrainedModel,
-        )
+        from .modeling_tf_ctrl import (TF_CTRL_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                       TFCTRLForSequenceClassification,
+                                       TFCTRLLMHeadModel, TFCTRLModel,
+                                       TFCTRLPreTrainedModel)
 
 else:
     import sys

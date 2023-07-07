@@ -28,21 +28,13 @@ from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from ...activations import ACT2FN
 from ...modeling_outputs import BackboneOutput
 from ...modeling_utils import BackboneMixin, PreTrainedModel
-from ...pytorch_utils import (
-    find_pruneable_heads_and_indices,
-    meshgrid,
-    prune_linear_layer,
-)
-from ...utils import (
-    ModelOutput,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...pytorch_utils import (find_pruneable_heads_and_indices, meshgrid,
+                              prune_linear_layer)
+from ...utils import (ModelOutput, add_code_sample_docstrings,
+                      add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from .configuration_swin import SwinConfig
-
 
 logger = logging.get_logger(__name__)
 

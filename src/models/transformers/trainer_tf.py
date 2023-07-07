@@ -21,7 +21,6 @@ from typing import Callable, Dict, Optional, Tuple
 
 from .utils import ENV_VARS_TRUE_VALUES
 
-
 # Integrations must be imported before ML frameworks:
 # isort: off
 from .integrations import (
@@ -37,17 +36,11 @@ from tensorflow.python.distribute.values import PerReplica
 
 from .modeling_tf_utils import TFPreTrainedModel
 from .optimization_tf import GradientAccumulator, create_optimizer
-from .trainer_utils import (
-    PREFIX_CHECKPOINT_DIR,
-    EvalPrediction,
-    IntervalStrategy,
-    PredictionOutput,
-    enable_full_determinism,
-    set_seed,
-)
+from .trainer_utils import (PREFIX_CHECKPOINT_DIR, EvalPrediction,
+                            IntervalStrategy, PredictionOutput,
+                            enable_full_determinism, set_seed)
 from .training_args_tf import TFTrainingArguments
 from .utils import logging
-
 
 if is_wandb_available():
     import wandb

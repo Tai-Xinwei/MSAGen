@@ -13,8 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_bigbird_pegasus": [
@@ -43,10 +43,8 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_bigbird_pegasus import (
-        BIGBIRD_PEGASUS_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        BigBirdPegasusConfig,
-        BigBirdPegasusOnnxConfig,
-    )
+        BIGBIRD_PEGASUS_PRETRAINED_CONFIG_ARCHIVE_MAP, BigBirdPegasusConfig,
+        BigBirdPegasusOnnxConfig)
 
     try:
         if not is_torch_available():
@@ -56,13 +54,10 @@ if TYPE_CHECKING:
     else:
         from .modeling_bigbird_pegasus import (
             BIGBIRD_PEGASUS_PRETRAINED_MODEL_ARCHIVE_LIST,
-            BigBirdPegasusForCausalLM,
-            BigBirdPegasusForConditionalGeneration,
+            BigBirdPegasusForCausalLM, BigBirdPegasusForConditionalGeneration,
             BigBirdPegasusForQuestionAnswering,
-            BigBirdPegasusForSequenceClassification,
-            BigBirdPegasusModel,
-            BigBirdPegasusPreTrainedModel,
-        )
+            BigBirdPegasusForSequenceClassification, BigBirdPegasusModel,
+            BigBirdPegasusPreTrainedModel)
 
 
 else:

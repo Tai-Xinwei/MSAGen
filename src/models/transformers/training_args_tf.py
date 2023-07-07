@@ -19,7 +19,6 @@ from typing import Optional, Tuple
 from .training_args import TrainingArguments
 from .utils import cached_property, is_tf_available, logging, requires_backends
 
-
 logger = logging.get_logger(__name__)
 
 if is_tf_available():

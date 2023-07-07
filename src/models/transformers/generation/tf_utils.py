@@ -25,31 +25,25 @@ import tensorflow as tf
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
 
 from ..modeling_tf_outputs import TFCausalLMOutputWithPast, TFSeq2SeqLMOutput
-from ..models.auto import (
-    TF_MODEL_FOR_CAUSAL_LM_MAPPING,
-    TF_MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
-    TF_MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING,
-    TF_MODEL_FOR_VISION_2_SEQ_MAPPING,
-)
+from ..models.auto import (TF_MODEL_FOR_CAUSAL_LM_MAPPING,
+                           TF_MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
+                           TF_MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING,
+                           TF_MODEL_FOR_VISION_2_SEQ_MAPPING)
 from ..tf_utils import shape_list, stable_softmax
 from ..utils import ModelOutput, logging
 from .configuration_utils import GenerationConfig
-from .tf_logits_process import (
-    TFForcedBOSTokenLogitsProcessor,
-    TFForcedEOSTokenLogitsProcessor,
-    TFForceTokensLogitsProcessor,
-    TFLogitsProcessorList,
-    TFMinLengthLogitsProcessor,
-    TFNoBadWordsLogitsProcessor,
-    TFNoRepeatNGramLogitsProcessor,
-    TFRepetitionPenaltyLogitsProcessor,
-    TFSuppressTokensAtBeginLogitsProcessor,
-    TFSuppressTokensLogitsProcessor,
-    TFTemperatureLogitsWarper,
-    TFTopKLogitsWarper,
-    TFTopPLogitsWarper,
-)
-
+from .tf_logits_process import (TFForcedBOSTokenLogitsProcessor,
+                                TFForcedEOSTokenLogitsProcessor,
+                                TFForceTokensLogitsProcessor,
+                                TFLogitsProcessorList,
+                                TFMinLengthLogitsProcessor,
+                                TFNoBadWordsLogitsProcessor,
+                                TFNoRepeatNGramLogitsProcessor,
+                                TFRepetitionPenaltyLogitsProcessor,
+                                TFSuppressTokensAtBeginLogitsProcessor,
+                                TFSuppressTokensLogitsProcessor,
+                                TFTemperatureLogitsWarper, TFTopKLogitsWarper,
+                                TFTopPLogitsWarper)
 
 logger = logging.get_logger(__name__)
 

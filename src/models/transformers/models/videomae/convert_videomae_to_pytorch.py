@@ -21,13 +21,9 @@ import gdown
 import numpy as np
 import torch
 from huggingface_hub import hf_hub_download
-
-from transformers import (
-    VideoMAEConfig,
-    VideoMAEFeatureExtractor,
-    VideoMAEForPreTraining,
-    VideoMAEForVideoClassification,
-)
+from transformers import (VideoMAEConfig, VideoMAEFeatureExtractor,
+                          VideoMAEForPreTraining,
+                          VideoMAEForVideoClassification)
 
 
 def get_videomae_config(model_name):

@@ -20,15 +20,9 @@ from typing import Callable, Dict, Optional, Tuple
 
 import torch
 from torch import nn
-from torch.distributions import (
-    AffineTransform,
-    Distribution,
-    Independent,
-    NegativeBinomial,
-    Normal,
-    StudentT,
-    TransformedDistribution,
-)
+from torch.distributions import (AffineTransform, Distribution, Independent,
+                                 NegativeBinomial, Normal, StudentT,
+                                 TransformedDistribution)
 
 
 class AffineTransformed(TransformedDistribution):

@@ -21,12 +21,10 @@ import re
 import shutil
 
 import torch
-
 from transformers import BioGptConfig, BioGptForCausalLM
 from transformers.models.biogpt.tokenization_biogpt import VOCAB_FILES_NAMES
 from transformers.tokenization_utils_base import TOKENIZER_CONFIG_FILE
 from transformers.utils import WEIGHTS_NAME, logging
-
 
 logging.set_verbosity_warning()
 

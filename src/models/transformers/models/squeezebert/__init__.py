@@ -14,13 +14,8 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_squeezebert": [
@@ -60,10 +55,8 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_squeezebert import (
-        SQUEEZEBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        SqueezeBertConfig,
-        SqueezeBertOnnxConfig,
-    )
+        SQUEEZEBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, SqueezeBertConfig,
+        SqueezeBertOnnxConfig)
     from .tokenization_squeezebert import SqueezeBertTokenizer
 
     try:
@@ -81,16 +74,11 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_squeezebert import (
-            SQUEEZEBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            SqueezeBertForMaskedLM,
-            SqueezeBertForMultipleChoice,
-            SqueezeBertForQuestionAnswering,
+            SQUEEZEBERT_PRETRAINED_MODEL_ARCHIVE_LIST, SqueezeBertForMaskedLM,
+            SqueezeBertForMultipleChoice, SqueezeBertForQuestionAnswering,
             SqueezeBertForSequenceClassification,
-            SqueezeBertForTokenClassification,
-            SqueezeBertModel,
-            SqueezeBertModule,
-            SqueezeBertPreTrainedModel,
-        )
+            SqueezeBertForTokenClassification, SqueezeBertModel,
+            SqueezeBertModule, SqueezeBertPreTrainedModel)
 
 else:
     import sys

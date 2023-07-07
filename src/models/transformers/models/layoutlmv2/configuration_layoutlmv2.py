@@ -17,7 +17,6 @@
 from ...configuration_utils import PretrainedConfig
 from ...utils import is_detectron2_available, logging
 
-
 logger = logging.get_logger(__name__)
 
 LAYOUTLMV2_PRETRAINED_CONFIG_ARCHIVE_MAP = {

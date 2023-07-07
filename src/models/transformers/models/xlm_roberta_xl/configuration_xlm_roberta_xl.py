@@ -21,7 +21,6 @@ from ...configuration_utils import PretrainedConfig
 from ...onnx import OnnxConfig
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 XLM_ROBERTA_XL_PRETRAINED_CONFIG_ARCHIVE_MAP = {

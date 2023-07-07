@@ -25,7 +25,6 @@ Hyperparameters are taken from run_task_main.py and hparam_utils.py of the origi
 
 from ...configuration_utils import PretrainedConfig
 
-
 TAPAS_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     "google/tapas-base-finetuned-sqa": (
         "https://huggingface.co/google/tapas-base-finetuned-sqa/resolve/main/config.json"

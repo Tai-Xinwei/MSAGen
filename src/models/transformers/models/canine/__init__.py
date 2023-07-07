@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_canine": ["CANINE_PRETRAINED_CONFIG_ARCHIVE_MAP", "CanineConfig"],
@@ -46,7 +41,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_canine import CANINE_PRETRAINED_CONFIG_ARCHIVE_MAP, CanineConfig
+    from .configuration_canine import (CANINE_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                       CanineConfig)
     from .tokenization_canine import CanineTokenizer
 
     try:
@@ -55,17 +51,14 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_canine import (
-            CANINE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            CanineForMultipleChoice,
-            CanineForQuestionAnswering,
-            CanineForSequenceClassification,
-            CanineForTokenClassification,
-            CanineLayer,
-            CanineModel,
-            CaninePreTrainedModel,
-            load_tf_weights_in_canine,
-        )
+        from .modeling_canine import (CANINE_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      CanineForMultipleChoice,
+                                      CanineForQuestionAnswering,
+                                      CanineForSequenceClassification,
+                                      CanineForTokenClassification,
+                                      CanineLayer, CanineModel,
+                                      CaninePreTrainedModel,
+                                      load_tf_weights_in_canine)
 
 
 else:

@@ -13,8 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_torch_available)
 
 _import_structure = {
     "configuration_wav2vec2_conformer": [
@@ -44,8 +44,7 @@ else:
 if TYPE_CHECKING:
     from .configuration_wav2vec2_conformer import (
         WAV2VEC2_CONFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        Wav2Vec2ConformerConfig,
-    )
+        Wav2Vec2ConformerConfig)
 
     try:
         if not is_torch_available():
@@ -56,13 +55,10 @@ if TYPE_CHECKING:
         from .modeling_wav2vec2_conformer import (
             WAV2VEC2_CONFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
             Wav2Vec2ConformerForAudioFrameClassification,
-            Wav2Vec2ConformerForCTC,
-            Wav2Vec2ConformerForPreTraining,
+            Wav2Vec2ConformerForCTC, Wav2Vec2ConformerForPreTraining,
             Wav2Vec2ConformerForSequenceClassification,
-            Wav2Vec2ConformerForXVector,
-            Wav2Vec2ConformerModel,
-            Wav2Vec2ConformerPreTrainedModel,
-        )
+            Wav2Vec2ConformerForXVector, Wav2Vec2ConformerModel,
+            Wav2Vec2ConformerPreTrainedModel)
 
 else:
     import sys

@@ -36,14 +36,8 @@ from ..image_processing_utils import BaseImageProcessor
 from ..modelcard import ModelCard
 from ..models.auto.configuration_auto import AutoConfig
 from ..tokenization_utils import PreTrainedTokenizer
-from ..utils import (
-    ModelOutput,
-    add_end_docstrings,
-    is_tf_available,
-    is_torch_available,
-    logging,
-)
-
+from ..utils import (ModelOutput, add_end_docstrings, is_tf_available,
+                     is_torch_available, logging)
 
 GenericTensor = Union[List["GenericTensor"], "torch.Tensor", "tf.Tensor"]
 
@@ -57,7 +51,6 @@ if is_torch_available():
     from torch.utils.data import DataLoader, Dataset
 
     from ..models.auto.modeling_auto import AutoModel
-
     # Re-export for backward compatibility
     from .pt_utils import KeyDataset
 else:
@@ -762,12 +755,10 @@ PIPELINE_INIT_ARGS = r"""
 """
 
 if is_torch_available():
-    from transformers.pipelines.pt_utils import (
-        PipelineChunkIterator,
-        PipelineDataset,
-        PipelineIterator,
-        PipelinePackIterator,
-    )
+    from transformers.pipelines.pt_utils import (PipelineChunkIterator,
+                                                 PipelineDataset,
+                                                 PipelineIterator,
+                                                 PipelinePackIterator)
 
 
 @add_end_docstrings(PIPELINE_INIT_ARGS)

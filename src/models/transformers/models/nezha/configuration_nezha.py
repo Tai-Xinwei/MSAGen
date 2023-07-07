@@ -1,6 +1,5 @@
 from ... import PretrainedConfig
 
-
 NEZHA_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     "sijunhe/nezha-cn-base": "https://huggingface.co/sijunhe/nezha-cn-base/resolve/main/config.json",
 }

@@ -1,9 +1,9 @@
 import uuid
 from typing import Any, Dict, List, Optional, Union
 
-from ..utils import add_end_docstrings, is_tf_available, is_torch_available, logging
+from ..utils import (add_end_docstrings, is_tf_available, is_torch_available,
+                     logging)
 from .base import PIPELINE_INIT_ARGS, Pipeline
-
 
 if is_tf_available():
     import tensorflow as tf

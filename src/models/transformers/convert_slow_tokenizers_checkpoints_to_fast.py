@@ -22,7 +22,6 @@ import transformers
 from .convert_slow_tokenizer import SLOW_TO_FAST_CONVERTERS
 from .utils import logging
 
-
 logging.set_verbosity_info()
 
 logger = logging.get_logger(__name__)

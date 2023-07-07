@@ -20,16 +20,11 @@ from collections import OrderedDict
 from pathlib import Path
 
 import torch
-
-from transformers import (
-    VisualBertConfig,
-    VisualBertForMultipleChoice,
-    VisualBertForPreTraining,
-    VisualBertForQuestionAnswering,
-    VisualBertForVisualReasoning,
-)
+from transformers import (VisualBertConfig, VisualBertForMultipleChoice,
+                          VisualBertForPreTraining,
+                          VisualBertForQuestionAnswering,
+                          VisualBertForVisualReasoning)
 from transformers.utils import logging
-
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

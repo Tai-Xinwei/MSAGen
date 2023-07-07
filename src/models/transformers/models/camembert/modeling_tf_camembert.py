@@ -26,37 +26,21 @@ from ...activations_tf import get_tf_activation
 from ...modeling_tf_outputs import (
     TFBaseModelOutputWithPastAndCrossAttentions,
     TFBaseModelOutputWithPoolingAndCrossAttentions,
-    TFCausalLMOutputWithCrossAttentions,
-    TFMaskedLMOutput,
-    TFMultipleChoiceModelOutput,
-    TFQuestionAnsweringModelOutput,
-    TFSequenceClassifierOutput,
-    TFTokenClassifierOutput,
-)
-from ...modeling_tf_utils import (
-    TFCausalLanguageModelingLoss,
-    TFMaskedLanguageModelingLoss,
-    TFModelInputType,
-    TFMultipleChoiceLoss,
-    TFPreTrainedModel,
-    TFQuestionAnsweringLoss,
-    TFSequenceClassificationLoss,
-    TFTokenClassificationLoss,
-    get_initializer,
-    keras_serializable,
-    unpack_inputs,
-)
+    TFCausalLMOutputWithCrossAttentions, TFMaskedLMOutput,
+    TFMultipleChoiceModelOutput, TFQuestionAnsweringModelOutput,
+    TFSequenceClassifierOutput, TFTokenClassifierOutput)
+from ...modeling_tf_utils import (TFCausalLanguageModelingLoss,
+                                  TFMaskedLanguageModelingLoss,
+                                  TFModelInputType, TFMultipleChoiceLoss,
+                                  TFPreTrainedModel, TFQuestionAnsweringLoss,
+                                  TFSequenceClassificationLoss,
+                                  TFTokenClassificationLoss, get_initializer,
+                                  keras_serializable, unpack_inputs)
 from ...tf_utils import shape_list, stable_softmax
-from ...utils import (
-    DUMMY_INPUTS,
-    MULTIPLE_CHOICE_DUMMY_INPUTS,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-)
+from ...utils import (DUMMY_INPUTS, MULTIPLE_CHOICE_DUMMY_INPUTS,
+                      add_code_sample_docstrings, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging)
 from .configuration_camembert import CamembertConfig
-
 
 logger = logging.get_logger(__name__)
 

@@ -22,22 +22,14 @@ import torch
 from fairseq.models.roberta import RobertaModel as FairseqRobertaModel
 from fairseq.modules import TransformerSentenceEncoderLayer
 from packaging import version
-
-from transformers import (
-    XLMRobertaConfig,
-    XLMRobertaXLForMaskedLM,
-    XLMRobertaXLForSequenceClassification,
-)
-from transformers.models.bert.modeling_bert import (
-    BertIntermediate,
-    BertLayer,
-    BertOutput,
-    BertSelfAttention,
-    BertSelfOutput,
-)
+from transformers import (XLMRobertaConfig, XLMRobertaXLForMaskedLM,
+                          XLMRobertaXLForSequenceClassification)
+from transformers.models.bert.modeling_bert import (BertIntermediate,
+                                                    BertLayer, BertOutput,
+                                                    BertSelfAttention,
+                                                    BertSelfOutput)
 from transformers.models.roberta.modeling_roberta import RobertaAttention
 from transformers.utils import logging
-
 
 if version.parse(fairseq.__version__) < version.parse("1.0.0a"):
     raise Exception("requires fairseq >= 1.0.0a")

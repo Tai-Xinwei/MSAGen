@@ -26,11 +26,10 @@ from PIL import Image
 from timm import create_model
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
-
-from transformers import BitConfig, BitForImageClassification, BitImageProcessor
+from transformers import (BitConfig, BitForImageClassification,
+                          BitImageProcessor)
 from transformers.image_utils import PILImageResampling
 from transformers.utils import logging
-
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

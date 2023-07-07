@@ -22,17 +22,9 @@ import numpy as np
 
 from .dynamic_module_utils import custom_object_save
 from .feature_extraction_utils import BatchFeature as BaseBatchFeature
-from .utils import (
-    IMAGE_PROCESSOR_NAME,
-    PushToHubMixin,
-    cached_file,
-    copy_func,
-    download_url,
-    is_offline_mode,
-    is_remote_url,
-    logging,
-)
-
+from .utils import (IMAGE_PROCESSOR_NAME, PushToHubMixin, cached_file,
+                    copy_func, download_url, is_offline_mode, is_remote_url,
+                    logging)
 
 logger = logging.get_logger(__name__)
 

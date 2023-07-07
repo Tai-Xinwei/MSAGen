@@ -25,16 +25,9 @@ import torch.nn as nn
 from clip.model import CLIP
 from flax.training import checkpoints
 from huggingface_hub import Repository
-
-from transformers import (
-    CLIPTokenizer,
-    OwlViTConfig,
-    OwlViTFeatureExtractor,
-    OwlViTForObjectDetection,
-    OwlViTModel,
-    OwlViTProcessor,
-)
-
+from transformers import (CLIPTokenizer, OwlViTConfig, OwlViTFeatureExtractor,
+                          OwlViTForObjectDetection, OwlViTModel,
+                          OwlViTProcessor)
 
 CONFIGS = {
     "vit_b32": {

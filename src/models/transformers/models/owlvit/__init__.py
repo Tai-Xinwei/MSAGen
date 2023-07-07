@@ -13,16 +13,10 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-    is_vision_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_tf_available,
+                      is_tokenizers_available, is_torch_available,
+                      is_vision_available)
 
 _import_structure = {
     "configuration_owlvit": [
@@ -61,13 +55,9 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_owlvit import (
-        OWLVIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        OwlViTConfig,
-        OwlViTOnnxConfig,
-        OwlViTTextConfig,
-        OwlViTVisionConfig,
-    )
+    from .configuration_owlvit import (OWLVIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                       OwlViTConfig, OwlViTOnnxConfig,
+                                       OwlViTTextConfig, OwlViTVisionConfig)
     from .processing_owlvit import OwlViTProcessor
 
     try:
@@ -85,14 +75,10 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_owlvit import (
-            OWLVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            OwlViTForObjectDetection,
-            OwlViTModel,
-            OwlViTPreTrainedModel,
-            OwlViTTextModel,
-            OwlViTVisionModel,
-        )
+        from .modeling_owlvit import (OWLVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                      OwlViTForObjectDetection, OwlViTModel,
+                                      OwlViTPreTrainedModel, OwlViTTextModel,
+                                      OwlViTVisionModel)
 
 else:
     import sys

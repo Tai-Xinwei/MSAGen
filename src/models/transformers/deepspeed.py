@@ -23,7 +23,6 @@ from functools import partialmethod
 from .dependency_versions_check import dep_version_check
 from .utils import is_accelerate_available, is_torch_available, logging
 
-
 if is_torch_available():
     import torch
 

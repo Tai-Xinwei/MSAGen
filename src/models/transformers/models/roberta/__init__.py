@@ -14,15 +14,9 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_tf_available,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_roberta": [
@@ -97,11 +91,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_roberta import (
-        ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        RobertaConfig,
-        RobertaOnnxConfig,
-    )
+    from .configuration_roberta import (ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                        RobertaConfig, RobertaOnnxConfig)
     from .tokenization_roberta import RobertaTokenizer
 
     try:
@@ -118,17 +109,13 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_roberta import (
-            ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            RobertaForCausalLM,
-            RobertaForMaskedLM,
-            RobertaForMultipleChoice,
-            RobertaForQuestionAnswering,
-            RobertaForSequenceClassification,
-            RobertaForTokenClassification,
-            RobertaModel,
-            RobertaPreTrainedModel,
-        )
+        from .modeling_roberta import (ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                       RobertaForCausalLM, RobertaForMaskedLM,
+                                       RobertaForMultipleChoice,
+                                       RobertaForQuestionAnswering,
+                                       RobertaForSequenceClassification,
+                                       RobertaForTokenClassification,
+                                       RobertaModel, RobertaPreTrainedModel)
 
     try:
         if not is_tf_available():
@@ -137,17 +124,11 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_tf_roberta import (
-            TF_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFRobertaForCausalLM,
-            TFRobertaForMaskedLM,
-            TFRobertaForMultipleChoice,
-            TFRobertaForQuestionAnswering,
-            TFRobertaForSequenceClassification,
-            TFRobertaForTokenClassification,
-            TFRobertaMainLayer,
-            TFRobertaModel,
-            TFRobertaPreTrainedModel,
-        )
+            TF_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST, TFRobertaForCausalLM,
+            TFRobertaForMaskedLM, TFRobertaForMultipleChoice,
+            TFRobertaForQuestionAnswering, TFRobertaForSequenceClassification,
+            TFRobertaForTokenClassification, TFRobertaMainLayer,
+            TFRobertaModel, TFRobertaPreTrainedModel)
 
     try:
         if not is_flax_available():
@@ -156,15 +137,11 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_flax_roberta import (
-            FlaxRobertaForCausalLM,
-            FlaxRobertaForMaskedLM,
-            FlaxRobertaForMultipleChoice,
-            FlaxRobertaForQuestionAnswering,
+            FlaxRobertaForCausalLM, FlaxRobertaForMaskedLM,
+            FlaxRobertaForMultipleChoice, FlaxRobertaForQuestionAnswering,
             FlaxRobertaForSequenceClassification,
-            FlaxRobertaForTokenClassification,
-            FlaxRobertaModel,
-            FlaxRobertaPreTrainedModel,
-        )
+            FlaxRobertaForTokenClassification, FlaxRobertaModel,
+            FlaxRobertaPreTrainedModel)
 
 else:
     import sys

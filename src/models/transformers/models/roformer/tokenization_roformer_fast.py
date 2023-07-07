@@ -24,7 +24,6 @@ from ...utils import logging
 from .tokenization_roformer import RoFormerTokenizer
 from .tokenization_utils import JiebaPreTokenizer
 
-
 logger = logging.get_logger(__name__)
 
 VOCAB_FILES_NAMES = {"vocab_file": "vocab.txt", "tokenizer_file": "tokenizer.json"}

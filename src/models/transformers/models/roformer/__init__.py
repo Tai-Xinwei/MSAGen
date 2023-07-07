@@ -13,15 +13,9 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_tf_available,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_flax_available, is_tf_available,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_roformer": [
@@ -101,10 +95,8 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_roformer import (
-        ROFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        RoFormerConfig,
-        RoFormerOnnxConfig,
-    )
+        ROFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, RoFormerConfig,
+        RoFormerOnnxConfig)
     from .tokenization_roformer import RoFormerTokenizer
 
     try:
@@ -121,19 +113,16 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_roformer import (
-            ROFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            RoFormerForCausalLM,
-            RoFormerForMaskedLM,
-            RoFormerForMultipleChoice,
-            RoFormerForQuestionAnswering,
-            RoFormerForSequenceClassification,
-            RoFormerForTokenClassification,
-            RoFormerLayer,
-            RoFormerModel,
-            RoFormerPreTrainedModel,
-            load_tf_weights_in_roformer,
-        )
+        from .modeling_roformer import (ROFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                        RoFormerForCausalLM,
+                                        RoFormerForMaskedLM,
+                                        RoFormerForMultipleChoice,
+                                        RoFormerForQuestionAnswering,
+                                        RoFormerForSequenceClassification,
+                                        RoFormerForTokenClassification,
+                                        RoFormerLayer, RoFormerModel,
+                                        RoFormerPreTrainedModel,
+                                        load_tf_weights_in_roformer)
 
     try:
         if not is_tf_available():
@@ -142,17 +131,12 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_tf_roformer import (
-            TF_ROFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFRoFormerForCausalLM,
-            TFRoFormerForMaskedLM,
-            TFRoFormerForMultipleChoice,
+            TF_ROFORMER_PRETRAINED_MODEL_ARCHIVE_LIST, TFRoFormerForCausalLM,
+            TFRoFormerForMaskedLM, TFRoFormerForMultipleChoice,
             TFRoFormerForQuestionAnswering,
             TFRoFormerForSequenceClassification,
-            TFRoFormerForTokenClassification,
-            TFRoFormerLayer,
-            TFRoFormerModel,
-            TFRoFormerPreTrainedModel,
-        )
+            TFRoFormerForTokenClassification, TFRoFormerLayer, TFRoFormerModel,
+            TFRoFormerPreTrainedModel)
 
     try:
         if not is_flax_available():
@@ -162,14 +146,11 @@ if TYPE_CHECKING:
     else:
         from .modeling_flax_roformer import (
             FLAX_ROFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            FlaxRoFormerForMaskedLM,
-            FlaxRoFormerForMultipleChoice,
+            FlaxRoFormerForMaskedLM, FlaxRoFormerForMultipleChoice,
             FlaxRoFormerForQuestionAnswering,
             FlaxRoFormerForSequenceClassification,
-            FlaxRoFormerForTokenClassification,
-            FlaxRoFormerModel,
-            FlaxRoFormerPreTrainedModel,
-        )
+            FlaxRoFormerForTokenClassification, FlaxRoFormerModel,
+            FlaxRoFormerPreTrainedModel)
 
 
 else:

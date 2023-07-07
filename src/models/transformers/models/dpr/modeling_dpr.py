@@ -23,16 +23,11 @@ from torch import Tensor, nn
 
 from ...modeling_outputs import BaseModelOutputWithPooling
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import (ModelOutput, add_start_docstrings,
+                      add_start_docstrings_to_model_forward, logging,
+                      replace_return_docstrings)
 from ..bert.modeling_bert import BertEncoder, BertModel
 from .configuration_dpr import DPRConfig
-
 
 logger = logging.get_logger(__name__)
 

@@ -21,7 +21,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from ...tokenization_utils import PreTrainedTokenizer
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 SPIECE_UNDERLINE = "▁"

@@ -22,7 +22,6 @@ from ...utils import logging
 from ..auto.configuration_auto import CONFIG_MAPPING
 from ..bit import BitConfig
 
-
 logger = logging.get_logger(__name__)
 
 VIT_HYBRID_PRETRAINED_CONFIG_ARCHIVE_MAP = {

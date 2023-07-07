@@ -18,16 +18,10 @@
 import argparse
 
 import torch
-
-from transformers import (
-    Wav2Vec2Config,
-    Wav2Vec2FeatureExtractor,
-    Wav2Vec2ForAudioFrameClassification,
-    Wav2Vec2ForSequenceClassification,
-    Wav2Vec2ForXVector,
-    logging,
-)
-
+from transformers import (Wav2Vec2Config, Wav2Vec2FeatureExtractor,
+                          Wav2Vec2ForAudioFrameClassification,
+                          Wav2Vec2ForSequenceClassification,
+                          Wav2Vec2ForXVector, logging)
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

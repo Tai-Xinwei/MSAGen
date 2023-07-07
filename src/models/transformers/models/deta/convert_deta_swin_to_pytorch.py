@@ -25,15 +25,9 @@ import requests
 import torch
 from huggingface_hub import cached_download, hf_hub_download, hf_hub_url
 from PIL import Image
-
-from transformers import (
-    DetaConfig,
-    DetaForObjectDetection,
-    DetaImageProcessor,
-    SwinConfig,
-)
+from transformers import (DetaConfig, DetaForObjectDetection,
+                          DetaImageProcessor, SwinConfig)
 from transformers.utils import logging
-
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

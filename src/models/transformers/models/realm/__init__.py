@@ -13,13 +13,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tokenizers_available,
-    is_torch_available,
-)
-
+from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
+                      is_tokenizers_available, is_torch_available)
 
 _import_structure = {
     "configuration_realm": ["REALM_PRETRAINED_CONFIG_ARCHIVE_MAP", "RealmConfig"],
@@ -54,7 +49,8 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_realm import REALM_PRETRAINED_CONFIG_ARCHIVE_MAP, RealmConfig
+    from .configuration_realm import (REALM_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                      RealmConfig)
     from .tokenization_realm import RealmTokenizer
 
     try:
@@ -71,16 +67,11 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_realm import (
-            REALM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            RealmEmbedder,
-            RealmForOpenQA,
-            RealmKnowledgeAugEncoder,
-            RealmPreTrainedModel,
-            RealmReader,
-            RealmScorer,
-            load_tf_weights_in_realm,
-        )
+        from .modeling_realm import (REALM_PRETRAINED_MODEL_ARCHIVE_LIST,
+                                     RealmEmbedder, RealmForOpenQA,
+                                     RealmKnowledgeAugEncoder,
+                                     RealmPreTrainedModel, RealmReader,
+                                     RealmScorer, load_tf_weights_in_realm)
         from .retrieval_realm import RealmRetriever
 
 

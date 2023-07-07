@@ -25,7 +25,6 @@ Requirements:
     * use this location as the path for pretrained weights
 """
 import argparse
-
 # utilities to import the model weights and config file
 import os
 import pickle as pkl
@@ -33,9 +32,7 @@ import pickle as pkl
 # PyTorch + new model classes
 import torch
 from torch import nn
-
 from transformers import AutoTokenizer, MegaConfig, MegaForMaskedLM
-
 
 # import the EncoderLayer class used to pretrain
 # !! NOTE !! this requires the version of fairseq that is built when you install the Mega source
