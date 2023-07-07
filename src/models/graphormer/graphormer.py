@@ -10,13 +10,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.modules import (
+from modules import (
     init_bert_params,
     GraphormerSentenceEncoder,
+    Node_decoder,
 )
-from src.modules.layer_norm import LayerNorm
-from src.modules.quant_noise import quant_noise
-from src.modules.get_activation_fn import get_activation_fn
+from modules.layer_norm import LayerNorm
+from modules.quant_noise import quant_noise
+from modules.get_activation_fn import get_activation_fn
 
 
 logger = logging.getLogger(__name__)
@@ -106,6 +107,7 @@ class GraphormerEncoder(nn.Module):
         # Remove head is set to true during fine-tuning
         self.load_softmax = not args.ft #getattr(args, "remove_head", False)
         print("if finetune:", args.ft)
+        self.decoder = Node_decoder(args.encoder_embed_dim, args.encoder_attention_heads, args=args) 
 
         self.masked_lm_pooler = nn.Linear(
             args.encoder_embed_dim, args.encoder_embed_dim
@@ -170,11 +172,13 @@ class GraphormerEncoder(nn.Module):
 
         # batched_data = {"x": x, "pos": pos, "node_type_edge": node_type_edge, "node_mask": node_mask, "attn_bias": attn_bias, "spatial_pos": spatial_pos, "edge_input": edge_input, "attn_edge_type": attn_edge_type}
 
-        inner_states, node_output, sentence_rep = self.sentence_encoder(
+        x, attn_bias, delta_pos, inner_states = self.sentence_encoder(
             batched_data,
             segment_labels=segment_labels,
             perturb=perturb,
         )
+
+        inner_states, node_output, sentence_rep = self.decoder(x, attn_bias, delta_pos, inner_states)
 
         x = inner_states[-1].transpose(0, 1)
 
@@ -183,6 +187,7 @@ class GraphormerEncoder(nn.Module):
         # project masked tokens only
         if masked_tokens is not None:
             x = x[masked_tokens, :]
+            
         x = self.layer_norm(self.activation_fn(self.lm_head_transform_weight(x)))
 
         pooled_output = self.pooler_activation(self.masked_lm_pooler(sentence_rep))

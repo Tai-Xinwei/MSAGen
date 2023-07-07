@@ -62,8 +62,6 @@ def main() -> None:
         args=args,
     )
 
-
-
     print("add-3d", args.add_3d, "no-2d", args.no_2d)
     # if args.pipeline_parallelism > 0:
     #     trainer_pp = Trainer_pp(args, train_data, val_data, stage_num=args.pipeline_parallelism)

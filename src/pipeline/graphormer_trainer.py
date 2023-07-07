@@ -2,38 +2,48 @@ import torch
 import torch.nn as nn
 import deepspeed
 from torch.utils.tensorboard import SummaryWriter
+from deepspeed.runtime.utils import see_memory_usage
 
-from src.models.graphormer.graphormer import GraphormerModel
-from src.utils.move_to_device import move_to_device
+import os
+from models.graphormer import GraphormerModel
+from utils.move_to_device import move_to_device
+from torch.utils.data import DataLoader, RandomSampler
+from torch.utils.data.distributed import DistributedSampler
+import torch.optim as optim
+import math
 
 import psutil
-from src.utils.get_paranum import count_paranum
-from src.criterions.mae3d import MAE3d_criterions
+from utils.get_paranum import count_paranum
+from criterions.mae3d import MAE3d_criterions
 
-from src.logging import sfm_logger
+from sfm_logging.loggers import sfm_logger
 
 class Trainer():
     def __init__(self, args, train_data, train_loader=None):
         super().__init__()
+
         net = GraphormerModel(args)
         count_paranum(net)
         self.args = args
         if args.rank == 0:
-            self.writer = SummaryWriter("output")
+            self.writer = SummaryWriter("../output")
+
+        see_memory_usage(f"Model built", force=True)
 
         parameters = filter(lambda p: p.requires_grad, net.parameters())
 
         self.criterion_3d = MAE3d_criterions(args)
-        self.criterion_2d = nn.L1Loss(reduction="sum")
+        self.criterion_2d = nn.L1Loss(reduction="mean")
 
         self.model_engine, optimizer, self.train_loader, _ = deepspeed.initialize(args=args, 
-                                                                       model=net, 
-                                                                       model_parameters=parameters,
-                                                                    #    dist_init_required=False,
-                                                                       training_data=train_data, 
-                                                                       collate_fn=train_data.collater2,
-                                                                      )
+                                                                                  model=net, 
+                                                                                  model_parameters=parameters,
+                                                                                  training_data=train_data, 
+                                                                                  collate_fn=train_data.collater2,
+                                                                                 )
+        
 
+        
     def __call__(self):
         sfm_logger.info("start training")
         self.model_engine.module.train()
@@ -55,16 +65,12 @@ class Trainer():
 
                 self.model_engine.backward(loss)
                 self.model_engine.step()
-                # self.scheduler.step()
 
                 if (i + 1) % 1000 == 0:
                     if self.args.local_rank == 0:
                         virt_mem = psutil.virtual_memory()
                         # swap = psutil.swap_memory()
                         sfm_logger.info("epoch={}, micro_step={}, vm %: {}, global_rank: {}".format(epoch, i, virt_mem.percent, self.args.rank))
-
-                # if (i + 1) % 40000 == 0:
-                # running_loss += loss.detach().item()
 
                 global_step += 1
 

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from typing import Callable, Tuple
 
-from ..utils.get_activation_fn import get_activation_fn
+from .get_activation_fn import get_activation_fn
 from .graphormer_layers import GraphNodeFeature, GraphAttnBias, Graph3DBias, NodeTaskHead
 
 

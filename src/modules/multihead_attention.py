@@ -8,9 +8,9 @@ from typing import Optional, Tuple
 
 import torch
 from torch import Tensor, nn
-from ..utils.quant_noise import quant_noise
-from ..utils.layer_norm import LayerNorm, Fp32LayerNorm
-from ..utils.FairseqDropout import FairseqDropout
+from modules.quant_noise import quant_noise
+from modules.layer_norm import LayerNorm, Fp32LayerNorm
+from modules.FairseqDropout import FairseqDropout
 
 class MultiheadAttention(nn.Module):
     """Multi-headed attention.
@@ -80,7 +80,7 @@ class MultiheadAttention(nn.Module):
     def prepare_for_onnx_export_(self):
         raise NotImplementedError
 
-    def reset_parameters(self, d_tilde):
+    def reset_parameters(self, d_tilde=1):
         if self.qkv_same_dim:
             # Empirically observed the convergence to be much better with
             # the scaled initialization

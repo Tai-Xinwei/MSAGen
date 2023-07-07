@@ -79,10 +79,10 @@ def convert_to_single_emb(x, offset: int = 512):
     x = x + feature_offset
     return x
 
-def collator(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
+def collator(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
     # return 0
-    items = [
-        item for item in items if item is not None and item.x.size(0) <= max_node]
+    items = [item for item in items if item is not None and item.x.size(0) <= max_node and item.x.size(0) > min_node]
+
     items = [(item.idx, item.attn_bias, item.attn_edge_type, item.spatial_pos, item.in_degree,
               item.out_degree, item.x, item.edge_input[:, :, :multi_hop_max_dist, :], item.y,
 
@@ -108,12 +108,6 @@ def collator(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
     spatial_pos = torch.cat([pad_spatial_pos_unsqueeze(i, max_node_num) for i in spatial_poses])
     in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num)for i in in_degrees])
 
-    # spd_count, full_path_information
-    # node_input = torch.cat([pad_3d_unsqueeze(
-    #     i, max_node_num, max_node_num, max_dist + 1) for i in node_inputs])
-    # spatial_pos_count = torch.cat([pad_spatial_pos_unsqueeze(i, max_node_num)
-    #                                for i in spatial_pos_counts])
-
     return dict(
         idx=torch.LongTensor(idxs),
         attn_bias=attn_bias,
@@ -130,7 +124,7 @@ def collator(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
     )
 
 # @profile(precision=4, stream=open('/home/peiran/MFM_DS/memory_profiler.log','w+'))      
-def collator_3d(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
+def collator_3d(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20, infer=False):
     items = [item for item in items if item is not None and item.x.size(0) <= max_node and item.x.size(0) > min_node]
     
     items = [(item.idx, item.attn_bias, item.attn_edge_type, item.spatial_pos, item.in_degree,
@@ -191,7 +185,6 @@ def collator_3d(items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial
         node_type_edges.append(node_atom_edge.long())
  
     node_type_edge = torch.cat(node_type_edges)
-    
 
     return dict(
         idx=torch.LongTensor(idxs),

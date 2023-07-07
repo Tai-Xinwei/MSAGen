@@ -16,11 +16,11 @@ from .graphormer_layers_pp import GraphNodeFeaturePipe, GraphAttnBiasPipe, Graph
 from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
 from .graphormer_layers import EquivariantMultiHeadAttention, EquivariantLayerNorm, Distance, EquivariantVectorOutput, ExpNormalSmearing
 
-from ..utils.layer_norm import LayerNorm
-from ..utils.quant_noise import quant_noise as apply_quant_noise_
-from ..utils.get_activation_fn import get_activation_fn
-from ..utils.FairseqDropout import FairseqDropout
-from ..utils.LayerDropModuleList import LayerDropModuleList
+from .layer_norm import LayerNorm
+from .quant_noise import quant_noise as apply_quant_noise_
+from .get_activation_fn import get_activation_fn
+from .FairseqDropout import FairseqDropout
+from utils.LayerDropModuleList import LayerDropModuleList
 
 def init_bert_params(module):
     """
@@ -176,7 +176,7 @@ class GraphormerSentenceEncoder(nn.Module):
             # args=args,
         ) if add_3d else None
 
-        self.node_proc = NodeTaskHead(embedding_dim, num_attention_heads)
+        # self.node_proc = NodeTaskHead(embedding_dim, num_attention_heads)
 
         
         self.embed_scale = embed_scale
@@ -394,58 +394,33 @@ class GraphormerSentenceEncoder(nn.Module):
             if not last_state_only:
                 inner_states.append(x)
 
+        return x, attn_bias, delta_pos, inner_states
+
+
+class Node_decoder(nn.Module):
+    def __init__(self,
+                 embedding_dim: int = 768,
+                 num_attention_heads: int = 8,
+                 last_state_only: bool = True,
+                 args = None,
+                 ):
+        super().__init__()
+        if not args.ft:
+            self.node_proc = NodeTaskHead(embedding_dim, num_attention_heads)
+        self.args = args
+        self.last_state_only = last_state_only
+
+    def forward(self, x, attn_bias, delta_pos, inner_states):
         sentence_rep = x[0, :, :]
-
-        # node_output = None
-        # if delta_pos is not None:
-        #     pos = batched_data['pos']
-        #     is_not_pad = ~(padding_mask[:, 1:].reshape(-1))
-        #     pos = pos.reshape(-1, 3)[is_not_pad]
-        #     cnt = (~padding_mask[:, 1:]).sum(-1)
-        #     cnt_cumsum = cnt.cumsum(0)
-        #     batch = torch.zeros(pos.shape[0]).to(cnt)
-        #     batch[cnt_cumsum[:-1]] = 1
-        #     batch = batch.cumsum(0)
-
-        #     edge_index, edge_weight, edge_vec = self.distance(pos.to(torch.float32), batch)
-        #     assert (
-        #             edge_vec is not None
-        #     ), "Distance module did not return directional information"
-
-        #     edge_attr = self.distance_expansion(edge_weight)
-        #     edge_mask = edge_index[0] != edge_index[1]
-        #     edge_vec[edge_mask] = edge_vec[edge_mask] / (torch.norm(edge_vec[edge_mask], dim=1).unsqueeze(1) + 1e-3)
-
-        #     x_feat = x.contiguous().transpose(0, 1)[:, 1:, :].reshape(-1, self.embedding_dim)[is_not_pad]
-        #     vec_feat = torch.zeros(x_feat.size(0), 3, x_feat.size(1)).to(x_feat)
-        #     edge_weight, edge_vec, edge_attr = \
-        #         edge_weight.to(x_feat), edge_vec.to(x_feat), edge_attr.to(x_feat)
-
-        #     for attn in self.attention_layers:
-        #         dx, dvec = attn(x_feat, vec_feat, edge_index, edge_weight, edge_attr, edge_vec)
-        #         x_feat = x_feat + dx
-        #         vec_feat = vec_feat + dvec
-        #     x_feat = self.out_norm(x_feat)
-        #     if self.out_norm_vec is not None:
-        #         vec_feat = self.out_norm_vec(vec_feat)
-
-        #     new_atom_output = self.output_model_noise(x_feat, vec_feat)
-
-        #     node_output = torch.zeros(n_graph, n_node, 3).to(new_atom_output)
-        #     total = 0
-        #     for atom_idx in range(n_graph):
-        #         cur_valid_atoms = int((~padding_mask[atom_idx, 1:]).sum())
-        #         node_output[atom_idx, :cur_valid_atoms, :] = new_atom_output[total:total + cur_valid_atoms, :]
-        #         total += cur_valid_atoms
 
         node_output = None
         if delta_pos is not None and not self.args.ft:
             node_output = self.node_proc(x[1:, :, :], attn_bias[:, -1, :, 1:, 1:], delta_pos)
 
-        if last_state_only:
+        if self.last_state_only:
             inner_states = [x]
 
-        if self.traceable:
+        if not self.last_state_only:
             return torch.stack(inner_states), node_output, sentence_rep
         else:
             return inner_states, node_output, sentence_rep
