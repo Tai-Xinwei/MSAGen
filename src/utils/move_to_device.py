@@ -1,10 +1,13 @@
 from typing import Any, Callable, Dict, List, Tuple, Union
+
 import torch
+
 
 class OutputMixIn:
     """
     MixIn to give namedtuple some access capabilities of a dictionary
     """
+
     def __getitem__(self, k):
         if isinstance(k, str):
             return getattr(self, k)
@@ -31,6 +34,7 @@ class OutputMixIn:
         """
         return self.__class__(*(x[idx] for x in self))
 
+
 def move_to_device(
     x: Union[
         Dict[str, Union[torch.Tensor, List[torch.Tensor], Tuple[torch.Tensor]]],
@@ -39,7 +43,7 @@ def move_to_device(
         Tuple[torch.Tensor],
     ],
     device: Union[str, torch.DeviceObjType],
-    non_blocking: bool=False,
+    non_blocking: bool = False,
 ) -> Union[
     Dict[str, Union[torch.Tensor, List[torch.Tensor], Tuple[torch.Tensor]]],
     torch.Tensor,

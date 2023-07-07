@@ -1,14 +1,15 @@
-from torch.utils.data import Data
-from torch import LongTensor, FloatTensor
-from typing import Union
-import numpy as np
-from rdkit import Chem
 from pathlib import Path
-from ogb.utils.features import atom_to_feature_vector, bond_to_feature_vector
+from typing import Union
+
+import numpy as np
 import rdkit
-from rdkit.Chem.rdmolops import RemoveHs
 import torch
+from ogb.utils.features import atom_to_feature_vector, bond_to_feature_vector
+from rdkit import Chem
 from rdkit.Chem.rdchem import RWMol
+from rdkit.Chem.rdmolops import RemoveHs
+from torch import FloatTensor, LongTensor
+from torch.utils.data import Data
 
 ATOM_FEAT_T = Union[LongTensor, np.array]
 BOND_FEAT_T = Union[LongTensor, np.array]
@@ -39,7 +40,7 @@ bond_dict = {
     18: rdkit.Chem.rdchem.BondType.DATIVEL,
     19: rdkit.Chem.rdchem.BondType.DATIVER,
     20: rdkit.Chem.rdchem.BondType.OTHER,
-    21: rdkit.Chem.rdchem.BondType.ZERO
+    21: rdkit.Chem.rdchem.BondType.ZERO,
 }
 
 
@@ -57,11 +58,11 @@ def mol2graph(mol):
     for i, atom in enumerate(mol.GetAtoms()):
         atom_features_list.append(atom_to_feature_vector(atom))
         pos.append(list(mol.GetConformer().GetAtomPosition(i)))
-    x = np.array(atom_features_list, dtype = np.int64)
+    x = np.array(atom_features_list, dtype=np.int64)
 
     # bonds
     num_bond_features = 3  # bond type, bond stereo, is_conjugated
-    if len(mol.GetBonds()) > 0: # mol has bonds
+    if len(mol.GetBonds()) > 0:  # mol has bonds
         edges_list = []
         edge_features_list = []
         for bond in mol.GetBonds():
@@ -77,28 +78,23 @@ def mol2graph(mol):
             edge_features_list.append(edge_feature)
 
         # data.edge_index: Graph connectivity in COO format with shape [2, num_edges]
-        edge_index = np.array(edges_list, dtype = np.int64).T
+        edge_index = np.array(edges_list, dtype=np.int64).T
 
         # data.edge_attr: Edge feature matrix with shape [num_edges, num_edge_features]
-        edge_attr = np.array(edge_features_list, dtype = np.int64)
+        edge_attr = np.array(edge_features_list, dtype=np.int64)
 
-    else:   # mol has no bonds
-        edge_index = np.empty((2, 0), dtype = np.int64)
-        edge_attr = np.empty((0, num_bond_features), dtype = np.int64)
+    else:  # mol has no bonds
+        edge_index = np.empty((2, 0), dtype=np.int64)
+        edge_attr = np.empty((0, num_bond_features), dtype=np.int64)
 
     graph = dict()
-    graph['bond_index'] = edge_index
-    graph['bond_feat'] = edge_attr
-    graph['atom_feat'] = x
-    graph['num_atoms'] = len(x)
-    graph['atom_pos'] = np.array(pos)
+    graph["bond_index"] = edge_index
+    graph["bond_feat"] = edge_attr
+    graph["atom_feat"] = x
+    graph["num_atoms"] = len(x)
+    graph["atom_pos"] = np.array(pos)
 
     return graph
-
-
-class Data():
-    def __init__(self) -> None:
-        pass
 
 
 class Molecule(Data):
@@ -107,13 +103,15 @@ class Molecule(Data):
     Stores the features extracted from ogb.utils.smiles2mol, and atom positions.
     Can be constructed from raw SMILES strings, or XYZ files with bond connection.
     """
+
     def __init__(
-            self,
-            atom_feat: ATOM_FEAT_T = None,
-            bond_feat: BOND_FEAT_T = None,
-            bond_index: BOND_INDEX_T = None,
-            atom_pos: ATOM_POS_T = None,
-            **kwargs) -> None:
+        self,
+        atom_feat: ATOM_FEAT_T = None,
+        bond_feat: BOND_FEAT_T = None,
+        bond_index: BOND_INDEX_T = None,
+        atom_pos: ATOM_POS_T = None,
+        **kwargs,
+    ) -> None:
         super().__init__()
         self.atom_feat = atom_feat
         self.bond_feat = bond_feat
@@ -123,7 +121,9 @@ class Molecule(Data):
             self.__dict__[key] = value
 
     @classmethod
-    def from_smiles(cls, smiles: str, remove_hs: bool = True, keep_mol: bool = False, **kwargs) -> 'Molecule':
+    def from_smiles(
+        cls, smiles: str, remove_hs: bool = True, keep_mol: bool = False, **kwargs
+    ) -> "Molecule":
         mol = Chem.MolFromSmiles(smiles)
         if remove_hs:
             mol = RemoveHs(mol)
@@ -134,21 +134,35 @@ class Molecule(Data):
         return molecule
 
     @classmethod
-    def from_xyz_and_bond_index(cls, xyz_path: Path, bond_index: BOND_INDEX_T, bond_order: BOND_FEAT_T, remove_hs: bool, keep_mol: bool = False, **kwargs) -> 'Molecule':
+    def from_xyz_and_bond_index(
+        cls,
+        xyz_path: Path,
+        bond_index: BOND_INDEX_T,
+        bond_order: BOND_FEAT_T,
+        remove_hs: bool,
+        keep_mol: bool = False,
+        **kwargs,
+    ) -> "Molecule":
         # check type and shape of bond_index
         if isinstance(bond_index, np.array):
             bond_index = torch.tensor(bond_index).long()
         bond_index_size = bond_index.size()
-        assert len(bond_index_size) == 2 and bond_index_size[0] == 2, f"Bond index should have size [2, num_bonds], but {bond_index_size} found."
+        assert (
+            len(bond_index_size) == 2 and bond_index_size[0] == 2
+        ), f"Bond index should have size [2, num_bonds], but {bond_index_size} found."
         bond_order_size = bond_order.size()
         assert len(bond_order_size) == 1
-        assert bond_index_size[1] == bond_order_size[0], f"Numbers of bonds in bond_index and bond_order do not match."
+        assert (
+            bond_index_size[1] == bond_order_size[0]
+        ), "Numbers of bonds in bond_index and bond_order do not match."
 
         mol = rdkit.Chem.rdmolfiles.MolFromXYZFile(xyz_path)
         editable_mol = RWMol(mol)
         for connection, order in zip(bond_index.T, bond_order):
             # assuming that atom index starts from 0
-            editable_mol.AddBond(int(connection[0]), int(connection[1]), bond_dict[order])
+            editable_mol.AddBond(
+                int(connection[0]), int(connection[1]), bond_dict[order]
+            )
         if remove_hs:
             editable_mol = RemoveHs(editable_mol)
         graph = mol2graph(editable_mol)

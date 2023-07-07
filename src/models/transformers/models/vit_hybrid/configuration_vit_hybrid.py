@@ -112,7 +112,9 @@ class ViTHybridConfig(PretrainedConfig):
         super().__init__(**kwargs)
 
         if backbone_config is None:
-            logger.info("`backbone_config` is `None`. Initializing the config with a `BiT` backbone.")
+            logger.info(
+                "`backbone_config` is `None`. Initializing the config with a `BiT` backbone."
+            )
             backbone_config = {
                 "global_padding": "same",
                 "layer_type": "bottleneck",

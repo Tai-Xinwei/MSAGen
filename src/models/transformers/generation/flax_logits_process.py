@@ -77,7 +77,9 @@ class FlaxLogitsProcessorList(list):
     """
 
     @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int, **kwargs) -> jnp.ndarray:
+    def __call__(
+        self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int, **kwargs
+    ) -> jnp.ndarray:
         for processor in self:
             function_args = inspect.signature(processor.__call__).parameters
             if len(function_args) > 3:
@@ -103,11 +105,15 @@ class FlaxTemperatureLogitsWarper(FlaxLogitsWarper):
 
     def __init__(self, temperature: float):
         if not isinstance(temperature, float) or not (temperature > 0):
-            raise ValueError(f"`temperature` has to be a strictly positive float, but is {temperature}")
+            raise ValueError(
+                f"`temperature` has to be a strictly positive float, but is {temperature}"
+            )
 
         self.temperature = temperature
 
-    def __call__(self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int) -> jnp.ndarray:
+    def __call__(
+        self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int
+    ) -> jnp.ndarray:
         scores = scores / self.temperature
         return scores
 
@@ -126,7 +132,12 @@ class FlaxTopPLogitsWarper(FlaxLogitsWarper):
             Minimum number of tokens that cannot be filtered.
     """
 
-    def __init__(self, top_p: float, filter_value: float = -float("Inf"), min_tokens_to_keep: int = 1):
+    def __init__(
+        self,
+        top_p: float,
+        filter_value: float = -float("Inf"),
+        min_tokens_to_keep: int = 1,
+    ):
         if not isinstance(top_p, float) or (top_p < 0 or top_p > 1.0):
             raise ValueError(f"`top_p` has to be a float > 0 and < 1, but is {top_p}")
 
@@ -134,7 +145,9 @@ class FlaxTopPLogitsWarper(FlaxLogitsWarper):
         self.filter_value = filter_value
         self.min_tokens_to_keep = min_tokens_to_keep
 
-    def __call__(self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int) -> jnp.ndarray:
+    def __call__(
+        self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int
+    ) -> jnp.ndarray:
         topk_scores, topk_indices = lax.top_k(scores, scores.shape[-1])
 
         mask_scores = jnp.full_like(scores, self.filter_value)
@@ -167,20 +180,31 @@ class FlaxTopKLogitsWarper(FlaxLogitsWarper):
             Minimum number of tokens that cannot be filtered.
     """
 
-    def __init__(self, top_k: int, filter_value: float = -float("Inf"), min_tokens_to_keep: int = 1):
+    def __init__(
+        self,
+        top_k: int,
+        filter_value: float = -float("Inf"),
+        min_tokens_to_keep: int = 1,
+    ):
         if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(f"`top_k` has to be a strictly positive integer, but is {top_k}")
+            raise ValueError(
+                f"`top_k` has to be a strictly positive integer, but is {top_k}"
+            )
 
         self.top_k = max(top_k, min_tokens_to_keep)
         self.filter_value = filter_value
 
-    def __call__(self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int) -> jnp.ndarray:
+    def __call__(
+        self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int
+    ) -> jnp.ndarray:
         batch_size, vocab_size = scores.shape
         next_scores_flat = jnp.full(batch_size * vocab_size, self.filter_value)
 
         topk = min(self.top_k, scores.shape[-1])  # Safety check
         topk_scores, topk_indices = lax.top_k(scores, topk)
-        shift = jnp.broadcast_to((jnp.arange(batch_size) * vocab_size)[:, None], (batch_size, topk)).flatten()
+        shift = jnp.broadcast_to(
+            (jnp.arange(batch_size) * vocab_size)[:, None], (batch_size, topk)
+        ).flatten()
         topk_scores_flat = topk_scores.flatten()
         topk_indices_flat = topk_indices.flatten() + shift
 
@@ -201,12 +225,16 @@ class FlaxForcedBOSTokenLogitsProcessor(FlaxLogitsProcessor):
     def __init__(self, bos_token_id: int):
         self.bos_token_id = bos_token_id
 
-    def __call__(self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int) -> jnp.ndarray:
+    def __call__(
+        self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int
+    ) -> jnp.ndarray:
         new_scores = jnp.full(scores.shape, -float("inf"))
 
         apply_penalty = 1 - jnp.bool_(cur_len - 1)
 
-        scores = jnp.where(apply_penalty, new_scores.at[:, self.bos_token_id].set(0), scores)
+        scores = jnp.where(
+            apply_penalty, new_scores.at[:, self.bos_token_id].set(0), scores
+        )
 
         return scores
 
@@ -226,12 +254,16 @@ class FlaxForcedEOSTokenLogitsProcessor(FlaxLogitsProcessor):
         self.max_length = max_length
         self.eos_token_id = eos_token_id
 
-    def __call__(self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int) -> jnp.ndarray:
+    def __call__(
+        self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int
+    ) -> jnp.ndarray:
         new_scores = jnp.full(scores.shape, -float("inf"))
 
         apply_penalty = 1 - jnp.bool_(cur_len - self.max_length + 1)
 
-        scores = jnp.where(apply_penalty, new_scores.at[:, self.eos_token_id].set(0), scores)
+        scores = jnp.where(
+            apply_penalty, new_scores.at[:, self.eos_token_id].set(0), scores
+        )
 
         return scores
 
@@ -249,19 +281,27 @@ class FlaxMinLengthLogitsProcessor(FlaxLogitsProcessor):
 
     def __init__(self, min_length: int, eos_token_id: int):
         if not isinstance(min_length, int) or min_length < 0:
-            raise ValueError(f"`min_length` has to be a positive integer, but is {min_length}")
+            raise ValueError(
+                f"`min_length` has to be a positive integer, but is {min_length}"
+            )
 
         if not isinstance(eos_token_id, int) or eos_token_id < 0:
-            raise ValueError(f"`eos_token_id` has to be a positive integer, but is {eos_token_id}")
+            raise ValueError(
+                f"`eos_token_id` has to be a positive integer, but is {eos_token_id}"
+            )
 
         self.min_length = min_length
         self.eos_token_id = eos_token_id
 
-    def __call__(self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int) -> jnp.ndarray:
+    def __call__(
+        self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int
+    ) -> jnp.ndarray:
         # create boolean flag to decide if min length penalty should be applied
         apply_penalty = 1 - jnp.clip(cur_len - self.min_length, 0, 1)
 
-        scores = jnp.where(apply_penalty, scores.at[:, self.eos_token_id].set(-float("inf")), scores)
+        scores = jnp.where(
+            apply_penalty, scores.at[:, self.eos_token_id].set(-float("inf")), scores
+        )
 
         return scores
 
@@ -286,7 +326,11 @@ class FlaxSuppressTokensAtBeginLogitsProcessor(FlaxLogitsProcessor):
     def __call__(self, input_ids, scores, cur_len: int):
         apply_penalty = 1 - jnp.bool_(cur_len - self.begin_index)
 
-        scores = jnp.where(apply_penalty, scores.at[:, self.begin_suppress_tokens].set(-float("inf")), scores)
+        scores = jnp.where(
+            apply_penalty,
+            scores.at[:, self.begin_suppress_tokens].set(-float("inf")),
+            scores,
+        )
 
         return scores
 
@@ -304,7 +348,9 @@ class FlaxSuppressTokensLogitsProcessor(FlaxLogitsProcessor):
     def __init__(self, suppress_tokens: list):
         self.suppress_tokens = list(suppress_tokens)
 
-    def __call__(self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int) -> jnp.ndarray:
+    def __call__(
+        self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int
+    ) -> jnp.ndarray:
         scores = scores.at[..., self.suppress_tokens].set(-float("inf"))
 
         return scores
@@ -326,20 +372,26 @@ class FlaxForceTokensLogitsProcessor(FlaxLogitsProcessor):
         # Converts the dictionary of format {index: token} containing the tokens to be forced to an array, where the
         # index of the array corresponds to the index of the token to be forced, for XLA compatibility.
         # Indexes without forced tokens will have a negative value.
-        force_token_array = jnp.ones((max(force_token_map.keys()) + 1), dtype=jnp.int32) * -1
+        force_token_array = (
+            jnp.ones((max(force_token_map.keys()) + 1), dtype=jnp.int32) * -1
+        )
         for index, token in force_token_map.items():
             if token is not None:
                 force_token_array = force_token_array.at[index].set(token)
         self.force_token_array = jnp.int32(force_token_array)
 
-    def __call__(self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int) -> jnp.ndarray:
+    def __call__(
+        self, input_ids: jnp.ndarray, scores: jnp.ndarray, cur_len: int
+    ) -> jnp.ndarray:
         def _force_token(generation_idx):
             batch_size = scores.shape[0]
             current_token = self.force_token_array[generation_idx]
 
             new_scores = jnp.ones_like(scores, dtype=scores.dtype) * -float("inf")
             updates = jnp.zeros((batch_size, 1), dtype=scores.dtype)
-            new_scores = lax.dynamic_update_slice(new_scores, updates, (0, current_token))
+            new_scores = lax.dynamic_update_slice(
+                new_scores, updates, (0, current_token)
+            )
             return new_scores
 
         scores = lax.cond(
@@ -386,7 +438,9 @@ class FlaxWhisperTimeStampLogitsProcessor(FlaxLogitsProcessor):
             # room for language token and task token
             self.begin_index += 2
         if hasattr(generate_config, "max_initial_timestamp_index"):
-            self.max_initial_timestamp_index = generate_config.max_initial_timestamp_index
+            self.max_initial_timestamp_index = (
+                generate_config.max_initial_timestamp_index
+            )
         else:
             self.max_initial_timestamp_index = model_config.vocab_size
         if self.max_initial_timestamp_index is None:
@@ -397,14 +451,18 @@ class FlaxWhisperTimeStampLogitsProcessor(FlaxLogitsProcessor):
         scores = scores.at[:, self.no_timestamps_token_id].set(-float("inf"))
 
         def handle_pairs(input_ids_k, scores_k):
-            last_was_timestamp = jnp.where((cur_len - self.begin_index) >= 1, True, False)
+            last_was_timestamp = jnp.where(
+                (cur_len - self.begin_index) >= 1, True, False
+            )
             last_was_timestamp = jnp.where(
                 input_ids_k[cur_len - 1] >= self.timestamp_begin,
                 True and last_was_timestamp,
                 False,
             )
 
-            penultimate_was_timestamp = jnp.where((cur_len - self.begin_index) < 2, True, False)
+            penultimate_was_timestamp = jnp.where(
+                (cur_len - self.begin_index) < 2, True, False
+            )
             penultimate_was_timestamp = jnp.where(
                 input_ids_k[cur_len - 2] >= self.timestamp_begin,
                 True,
@@ -423,7 +481,9 @@ class FlaxWhisperTimeStampLogitsProcessor(FlaxLogitsProcessor):
 
         scores = jax.vmap(handle_pairs)(input_ids, scores)
 
-        apply_max_initial_timestamp = jnp.where(cur_len == self.begin_index, True, False)
+        apply_max_initial_timestamp = jnp.where(
+            cur_len == self.begin_index, True, False
+        )
         apply_max_initial_timestamp = jnp.where(
             self.max_initial_timestamp_index is not None,
             True and apply_max_initial_timestamp,
@@ -442,7 +502,9 @@ class FlaxWhisperTimeStampLogitsProcessor(FlaxLogitsProcessor):
         logprobs = jax.nn.log_softmax(scores, axis=-1)
 
         def handle_cumulative_probs(logprobs_k, scores_k):
-            timestamp_logprob = jax.nn.logsumexp(logprobs_k[self.timestamp_begin :], axis=-1)
+            timestamp_logprob = jax.nn.logsumexp(
+                logprobs_k[self.timestamp_begin :], axis=-1
+            )
             max_text_token_logprob = jnp.max(logprobs_k[: self.timestamp_begin])
             return jnp.where(
                 timestamp_logprob > max_text_token_logprob,

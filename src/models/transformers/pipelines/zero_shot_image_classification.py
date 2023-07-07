@@ -18,10 +18,14 @@ if is_vision_available():
     from ..image_utils import load_image
 
 if is_torch_available():
-    from ..models.auto.modeling_auto import MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING
+    from ..models.auto.modeling_auto import (
+        MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING,
+    )
 
 if is_tf_available():
-    from ..models.auto.modeling_tf_auto import TF_MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING
+    from ..models.auto.modeling_tf_auto import (
+        TF_MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING,
+    )
     from ..tf_utils import stable_softmax
 
 logger = logging.get_logger(__name__)
@@ -109,12 +113,16 @@ class ZeroShotImageClassificationPipeline(Pipeline):
 
         return preprocess_params, {}, {}
 
-    def preprocess(self, image, candidate_labels=None, hypothesis_template="This is a photo of {}."):
+    def preprocess(
+        self, image, candidate_labels=None, hypothesis_template="This is a photo of {}."
+    ):
         image = load_image(image)
         inputs = self.image_processor(images=[image], return_tensors=self.framework)
         inputs["candidate_labels"] = candidate_labels
         sequences = [hypothesis_template.format(x) for x in candidate_labels]
-        text_inputs = self.tokenizer(sequences, return_tensors=self.framework, padding=True)
+        text_inputs = self.tokenizer(
+            sequences, return_tensors=self.framework, padding=True
+        )
         inputs["text_inputs"] = [text_inputs]
         return inputs
 
@@ -149,6 +157,8 @@ class ZeroShotImageClassificationPipeline(Pipeline):
 
         result = [
             {"score": score, "label": candidate_label}
-            for score, candidate_label in sorted(zip(scores, candidate_labels), key=lambda x: -x[0])
+            for score, candidate_label in sorted(
+                zip(scores, candidate_labels), key=lambda x: -x[0]
+            )
         ]
         return result

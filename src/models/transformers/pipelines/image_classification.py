@@ -68,7 +68,11 @@ class ImageClassificationPipeline(Pipeline):
             postprocess_params["top_k"] = top_k
         return {}, {}, postprocess_params
 
-    def __call__(self, images: Union[str, List[str], "Image.Image", List["Image.Image"]], **kwargs):
+    def __call__(
+        self,
+        images: Union[str, List[str], "Image.Image", List["Image.Image"]],
+        **kwargs,
+    ):
         """
         Assign labels to the image(s) passed as inputs.
 
@@ -124,4 +128,7 @@ class ImageClassificationPipeline(Pipeline):
 
         scores = scores.tolist()
         ids = ids.tolist()
-        return [{"score": score, "label": self.model.config.id2label[_id]} for score, _id in zip(scores, ids)]
+        return [
+            {"score": score, "label": self.model.config.id2label[_id]}
+            for score, _id in zip(scores, ids)
+        ]

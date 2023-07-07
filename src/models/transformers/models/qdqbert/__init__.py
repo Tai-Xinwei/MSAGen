@@ -16,7 +16,9 @@ from typing import TYPE_CHECKING
 from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
 
 
-_import_structure = {"configuration_qdqbert": ["QDQBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "QDQBertConfig"]}
+_import_structure = {
+    "configuration_qdqbert": ["QDQBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "QDQBertConfig"]
+}
 
 try:
     if not is_torch_available():
@@ -41,7 +43,10 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_qdqbert import QDQBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, QDQBertConfig
+    from .configuration_qdqbert import (
+        QDQBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        QDQBertConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -68,4 +73,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

@@ -57,7 +57,9 @@ class FeatureExtractionPipeline(Pipeline):
             Additional dictionary of keyword arguments passed along to the tokenizer.
     """
 
-    def _sanitize_parameters(self, truncation=None, tokenize_kwargs=None, return_tensors=None, **kwargs):
+    def _sanitize_parameters(
+        self, truncation=None, tokenize_kwargs=None, return_tensors=None, **kwargs
+    ):
         if tokenize_kwargs is None:
             tokenize_kwargs = {}
 
@@ -78,7 +80,9 @@ class FeatureExtractionPipeline(Pipeline):
 
     def preprocess(self, inputs, **tokenize_kwargs) -> Dict[str, GenericTensor]:
         return_tensors = self.framework
-        model_inputs = self.tokenizer(inputs, return_tensors=return_tensors, **tokenize_kwargs)
+        model_inputs = self.tokenizer(
+            inputs, return_tensors=return_tensors, **tokenize_kwargs
+        )
         return model_inputs
 
     def _forward(self, model_inputs):

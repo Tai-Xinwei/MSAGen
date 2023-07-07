@@ -102,7 +102,9 @@ class LevitImageProcessor(BaseImageProcessor):
         super().__init__(**kwargs)
         size = size if size is not None else {"shortest_edge": 224}
         size = get_size_dict(size, default_to_square=False)
-        crop_size = crop_size if crop_size is not None else {"height": 224, "width": 224}
+        crop_size = (
+            crop_size if crop_size is not None else {"height": 224, "width": 224}
+        )
         crop_size = get_size_dict(crop_size, param_name="crop_size")
 
         self.do_resize = do_resize
@@ -113,7 +115,9 @@ class LevitImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_factor
         self.do_normalize = do_normalize
-        self.image_mean = image_mean if image_mean is not None else IMAGENET_DEFAULT_MEAN
+        self.image_mean = (
+            image_mean if image_mean is not None else IMAGENET_DEFAULT_MEAN
+        )
         self.image_std = image_std if image_std is not None else IMAGENET_DEFAULT_STD
 
     def resize(
@@ -151,14 +155,20 @@ class LevitImageProcessor(BaseImageProcessor):
         # size_dict is a dict with either keys "height" and "width" or "shortest_edge"
         if "shortest_edge" in size:
             shortest_edge = int((256 / 224) * size["shortest_edge"])
-            output_size = get_resize_output_image_size(image, size=shortest_edge, default_to_square=False)
+            output_size = get_resize_output_image_size(
+                image, size=shortest_edge, default_to_square=False
+            )
             size_dict = {"height": output_size[0], "width": output_size[1]}
         if "height" not in size_dict or "width" not in size_dict:
             raise ValueError(
                 f"Size dict must have keys 'height' and 'width' or 'shortest_edge'. Got {size_dict.keys()}"
             )
         return resize(
-            image, size=(size_dict["height"], size_dict["width"]), resample=resample, data_format=data_format, **kwargs
+            image,
+            size=(size_dict["height"], size_dict["width"]),
+            resample=resample,
+            data_format=data_format,
+            **kwargs,
         )
 
     def center_crop(
@@ -181,8 +191,15 @@ class LevitImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(f"Size dict must have keys 'height' and 'width'. Got {size.keys()}")
-        return center_crop(image, size=(size["height"], size["width"]), data_format=data_format, **kwargs)
+            raise ValueError(
+                f"Size dict must have keys 'height' and 'width'. Got {size.keys()}"
+            )
+        return center_crop(
+            image,
+            size=(size["height"], size["width"]),
+            data_format=data_format,
+            **kwargs,
+        )
 
     def rescale(
         self,
@@ -289,9 +306,13 @@ class LevitImageProcessor(BaseImageProcessor):
         """
         do_resize = do_resize if do_resize is not None else self.do_resize
         resample = resample if resample is not None else self.resample
-        do_center_crop = do_center_crop if do_center_crop is not None else self.do_center_crop
+        do_center_crop = (
+            do_center_crop if do_center_crop is not None else self.do_center_crop
+        )
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
@@ -319,7 +340,9 @@ class LevitImageProcessor(BaseImageProcessor):
             raise ValueError("Rescale factor must be specified if do_rescale is True.")
 
         if do_normalize and (image_mean is None or image_std is None):
-            raise ValueError("Image mean and std must be specified if do_normalize is True.")
+            raise ValueError(
+                "Image mean and std must be specified if do_normalize is True."
+            )
 
         # All transformations expect numpy arrays.
         images = [to_numpy_array(image) for image in images]

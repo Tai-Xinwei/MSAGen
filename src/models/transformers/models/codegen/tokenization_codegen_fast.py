@@ -39,7 +39,11 @@ from .tokenization_codegen import CodeGenTokenizer
 
 logger = logging.get_logger(__name__)
 
-VOCAB_FILES_NAMES = {"vocab_file": "vocab.json", "merges_file": "merges.txt", "tokenizer_file": "tokenizer.json"}
+VOCAB_FILES_NAMES = {
+    "vocab_file": "vocab.json",
+    "merges_file": "merges.txt",
+    "tokenizer_file": "tokenizer.json",
+}
 
 PRETRAINED_VOCAB_FILES_MAP = {
     "vocab_file": {
@@ -179,7 +183,9 @@ class CodeGenTokenizerFast(PreTrainedTokenizerFast):
 
         return super()._encode_plus(*args, **kwargs)
 
-    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
+    def save_vocabulary(
+        self, save_directory: str, filename_prefix: Optional[str] = None
+    ) -> Tuple[str]:
         files = self._tokenizer.model.save(save_directory, name=filename_prefix)
         return tuple(files)
 
@@ -233,7 +239,9 @@ class CodeGenTokenizerFast(PreTrainedTokenizerFast):
             m = pattern.search(string, start_pos)
             return m.start() if m else -1
 
-        terminals = [re.compile(pattern, re.MULTILINE) for pattern in truncate_before_pattern]
+        terminals = [
+            re.compile(pattern, re.MULTILINE) for pattern in truncate_before_pattern
+        ]
 
         prints = list(re.finditer("^print", completion, re.MULTILINE))
 
@@ -248,7 +256,11 @@ class CodeGenTokenizerFast(PreTrainedTokenizerFast):
         start_pos = 0
 
         terminals_pos = [
-            pos for pos in [find_re(completion, terminal, start_pos) for terminal in terminals] if pos != -1
+            pos
+            for pos in [
+                find_re(completion, terminal, start_pos) for terminal in terminals
+            ]
+            if pos != -1
         ]
 
         if len(terminals_pos) > 0:

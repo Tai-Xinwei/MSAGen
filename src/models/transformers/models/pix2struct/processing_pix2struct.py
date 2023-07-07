@@ -19,7 +19,13 @@ Processor class for Pix2Struct.
 from typing import List, Optional, Union
 
 from ...processing_utils import ProcessorMixin
-from ...tokenization_utils_base import BatchEncoding, PaddingStrategy, PreTokenizedInput, TextInput, TruncationStrategy
+from ...tokenization_utils_base import (
+    BatchEncoding,
+    PaddingStrategy,
+    PreTokenizedInput,
+    TextInput,
+    TruncationStrategy,
+)
 from ...utils import TensorType
 
 
@@ -48,7 +54,9 @@ class Pix2StructProcessor(ProcessorMixin):
     def __call__(
         self,
         images=None,
-        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
+        text: Union[
+            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
+        ] = None,
         add_special_tokens: bool = False,
         padding: Union[bool, str, PaddingStrategy] = False,
         truncation: Union[bool, str, TruncationStrategy] = None,
@@ -106,7 +114,11 @@ class Pix2StructProcessor(ProcessorMixin):
         else:
             # add pixel_values and bbox
             encoding_image_processor = self.image_processor(
-                images, return_tensors=return_tensors, max_patches=max_patches, header_text=text, **kwargs
+                images,
+                return_tensors=return_tensors,
+                max_patches=max_patches,
+                header_text=text,
+                **kwargs,
             )
 
         if text is not None and not self.image_processor.is_vqa:
@@ -130,7 +142,9 @@ class Pix2StructProcessor(ProcessorMixin):
             )
 
             if "attention_mask" in text_encoding:
-                text_encoding["decoder_attention_mask"] = text_encoding.pop("attention_mask")
+                text_encoding["decoder_attention_mask"] = text_encoding.pop(
+                    "attention_mask"
+                )
             if "input_ids" in text_encoding:
                 text_encoding["decoder_input_ids"] = text_encoding.pop("input_ids")
         else:

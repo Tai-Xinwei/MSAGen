@@ -254,7 +254,9 @@ class GenerationConfig(PushToHubMixin):
         self.forced_bos_token_id = kwargs.pop("forced_bos_token_id", None)
         self.forced_eos_token_id = kwargs.pop("forced_eos_token_id", None)
         self.remove_invalid_values = kwargs.pop("remove_invalid_values", False)
-        self.exponential_decay_length_penalty = kwargs.pop("exponential_decay_length_penalty", None)
+        self.exponential_decay_length_penalty = kwargs.pop(
+            "exponential_decay_length_penalty", None
+        )
         self.suppress_tokens = kwargs.pop("suppress_tokens", None)
         self.begin_suppress_tokens = kwargs.pop("begin_suppress_tokens", None)
         self.forced_decoder_ids = kwargs.pop("forced_decoder_ids", None)
@@ -272,7 +274,9 @@ class GenerationConfig(PushToHubMixin):
         self.eos_token_id = kwargs.pop("eos_token_id", None)
 
         # Generation parameters exclusive to encoder-decoder models
-        self.encoder_no_repeat_ngram_size = kwargs.pop("encoder_no_repeat_ngram_size", 0)
+        self.encoder_no_repeat_ngram_size = kwargs.pop(
+            "encoder_no_repeat_ngram_size", 0
+        )
         self.decoder_start_token_id = kwargs.pop("decoder_start_token_id", None)
 
         # Wild card
@@ -304,7 +308,11 @@ class GenerationConfig(PushToHubMixin):
         self_dict = self.__dict__.copy()
         other_dict = other.__dict__.copy()
         # ignore metadata
-        for metadata_field in ("_from_model_config", "_commit_hash", "transformers_version"):
+        for metadata_field in (
+            "_from_model_config",
+            "_commit_hash",
+            "transformers_version",
+        ):
             self_dict.pop(metadata_field, None)
             other_dict.pop(metadata_field, None)
         return self_dict == other_dict
@@ -318,7 +326,9 @@ class GenerationConfig(PushToHubMixin):
         the values are invalid.
         """
         if self.early_stopping not in {True, False, "never"}:
-            raise ValueError(f"`early_stopping` must be a boolean or 'never', but is {self.early_stopping}.")
+            raise ValueError(
+                f"`early_stopping` must be a boolean or 'never', but is {self.early_stopping}."
+            )
 
     def save_pretrained(
         self,
@@ -343,10 +353,14 @@ class GenerationConfig(PushToHubMixin):
             kwargs:
                 Additional key word arguments passed along to the [`~utils.PushToHubMixin.push_to_hub`] method.
         """
-        config_file_name = config_file_name if config_file_name is not None else GENERATION_CONFIG_NAME
+        config_file_name = (
+            config_file_name if config_file_name is not None else GENERATION_CONFIG_NAME
+        )
 
         if os.path.isfile(save_directory):
-            raise AssertionError(f"Provided path ({save_directory}) should be a directory, not a file")
+            raise AssertionError(
+                f"Provided path ({save_directory}) should be a directory, not a file"
+            )
 
         os.makedirs(save_directory, exist_ok=True)
 
@@ -461,7 +475,9 @@ class GenerationConfig(PushToHubMixin):
         >>> unused_kwargs
         {'foo': False}
         ```"""
-        config_file_name = config_file_name if config_file_name is not None else GENERATION_CONFIG_NAME
+        config_file_name = (
+            config_file_name if config_file_name is not None else GENERATION_CONFIG_NAME
+        )
 
         cache_dir = kwargs.pop("cache_dir", None)
         force_download = kwargs.pop("force_download", False)
@@ -534,7 +550,9 @@ class GenerationConfig(PushToHubMixin):
         if is_local:
             logger.info(f"loading configuration file {resolved_config_file}")
         else:
-            logger.info(f"loading configuration file {configuration_file} from cache at {resolved_config_file}")
+            logger.info(
+                f"loading configuration file {configuration_file} from cache at {resolved_config_file}"
+            )
 
         return cls.from_dict(config_dict, **kwargs)
 
@@ -584,7 +602,9 @@ class GenerationConfig(PushToHubMixin):
         converts torch.dtype to a string of just the type. For example, `torch.float32` get converted into *"float32"*
         string, which can then be stored in the json format.
         """
-        if d.get("torch_dtype", None) is not None and not isinstance(d["torch_dtype"], str):
+        if d.get("torch_dtype", None) is not None and not isinstance(
+            d["torch_dtype"], str
+        ):
             d["torch_dtype"] = str(d["torch_dtype"]).split(".")[1]
         for value in d.values():
             if isinstance(value, dict):
@@ -607,7 +627,11 @@ class GenerationConfig(PushToHubMixin):
 
         # only serialize values that differ from the default config
         for key, value in config_dict.items():
-            if key not in default_config_dict or key == "transformers_version" or value != default_config_dict[key]:
+            if (
+                key not in default_config_dict
+                or key == "transformers_version"
+                or value != default_config_dict[key]
+            ):
                 serializable_config_dict[key] = value
 
         self.dict_torch_dtype_to_str(serializable_config_dict)
@@ -648,7 +672,9 @@ class GenerationConfig(PushToHubMixin):
             config_dict = self.to_dict()
         return json.dumps(config_dict, indent=2, sort_keys=True) + "\n"
 
-    def to_json_file(self, json_file_path: Union[str, os.PathLike], use_diff: bool = True):
+    def to_json_file(
+        self, json_file_path: Union[str, os.PathLike], use_diff: bool = True
+    ):
         """
         Save this instance to a JSON file.
 
@@ -677,7 +703,9 @@ class GenerationConfig(PushToHubMixin):
         """
         config_dict = model_config.to_dict()
         config_dict.pop("_from_model_config", None)
-        config = cls.from_dict(config_dict, return_unused_kwargs=False, _from_model_config=True)
+        config = cls.from_dict(
+            config_dict, return_unused_kwargs=False, _from_model_config=True
+        )
 
         # Special case: some models have generation attributes set in the decoder. Use them if still unset in the
         # generation config.
@@ -686,7 +714,9 @@ class GenerationConfig(PushToHubMixin):
                 default_generation_config = GenerationConfig()
                 decoder_config = config_dict[decoder_name]
                 for attr in config.to_dict().keys():
-                    if attr in decoder_config and getattr(config, attr) == getattr(default_generation_config, attr):
+                    if attr in decoder_config and getattr(config, attr) == getattr(
+                        default_generation_config, attr
+                    ):
                         setattr(config, attr, decoder_config[attr])
 
         return config
@@ -710,5 +740,7 @@ class GenerationConfig(PushToHubMixin):
                 to_remove.append(key)
 
         # remove all the attributes that were updated, without modifying the input dict
-        unused_kwargs = {key: value for key, value in kwargs.items() if key not in to_remove}
+        unused_kwargs = {
+            key: value for key, value in kwargs.items() if key not in to_remove
+        }
         return unused_kwargs

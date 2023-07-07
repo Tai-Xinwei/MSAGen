@@ -157,7 +157,9 @@ class Mask2FormerConfig(PretrainedConfig):
         **kwargs,
     ):
         if backbone_config is None:
-            logger.info("`backbone_config` is `None`. Initializing the config with the default `Swin` backbone.")
+            logger.info(
+                "`backbone_config` is `None`. Initializing the config with the default `Swin` backbone."
+            )
             backbone_config = CONFIG_MAPPING["swin"](
                 image_size=224,
                 in_channels=3,

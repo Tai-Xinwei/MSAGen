@@ -29,7 +29,13 @@ from ...image_utils import (
     to_numpy_array,
     valid_images,
 )
-from ...utils import TensorType, is_pytesseract_available, is_vision_available, logging, requires_backends
+from ...utils import (
+    TensorType,
+    is_pytesseract_available,
+    is_vision_available,
+    logging,
+    requires_backends,
+)
 
 
 if is_vision_available():
@@ -51,15 +57,25 @@ def normalize_box(box, width, height):
     ]
 
 
-def apply_tesseract(image: np.ndarray, lang: Optional[str], tesseract_config: Optional[str] = None):
+def apply_tesseract(
+    image: np.ndarray, lang: Optional[str], tesseract_config: Optional[str] = None
+):
     """Applies Tesseract OCR on a document image, and returns recognized words + normalized bounding boxes."""
     tesseract_config = tesseract_config if tesseract_config is not None else ""
 
     # apply OCR
     pil_image = to_pil_image(image)
     image_width, image_height = pil_image.size
-    data = pytesseract.image_to_data(pil_image, lang=lang, output_type="dict", config=tesseract_config)
-    words, left, top, width, height = data["text"], data["left"], data["top"], data["width"], data["height"]
+    data = pytesseract.image_to_data(
+        pil_image, lang=lang, output_type="dict", config=tesseract_config
+    )
+    words, left, top, width, height = (
+        data["text"],
+        data["left"],
+        data["top"],
+        data["width"],
+        data["height"],
+    )
 
     # filter empty words and corresponding coordinates
     irrelevant_indices = [idx for idx, word in enumerate(words) if not word.strip()]
@@ -67,7 +83,9 @@ def apply_tesseract(image: np.ndarray, lang: Optional[str], tesseract_config: Op
     left = [coord for idx, coord in enumerate(left) if idx not in irrelevant_indices]
     top = [coord for idx, coord in enumerate(top) if idx not in irrelevant_indices]
     width = [coord for idx, coord in enumerate(width) if idx not in irrelevant_indices]
-    height = [coord for idx, coord in enumerate(height) if idx not in irrelevant_indices]
+    height = [
+        coord for idx, coord in enumerate(height) if idx not in irrelevant_indices
+    ]
 
     # turn coordinates into (left, top, left+width, top+height) format
     actual_boxes = []
@@ -80,12 +98,16 @@ def apply_tesseract(image: np.ndarray, lang: Optional[str], tesseract_config: Op
     for box in actual_boxes:
         normalized_boxes.append(normalize_box(box, image_width, image_height))
 
-    assert len(words) == len(normalized_boxes), "Not as many words as there are bounding boxes"
+    assert len(words) == len(
+        normalized_boxes
+    ), "Not as many words as there are bounding boxes"
 
     return words, normalized_boxes
 
 
-def flip_channel_order(image: np.ndarray, data_format: Optional[ChannelDimension] = None) -> np.ndarray:
+def flip_channel_order(
+    image: np.ndarray, data_format: Optional[ChannelDimension] = None
+) -> np.ndarray:
     input_data_format = infer_channel_dimension_format(image)
     if input_data_format == ChannelDimension.LAST:
         image = image[..., ::-1]
@@ -169,9 +191,17 @@ class LayoutLMv2ImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(f"The size dictionary must contain the keys 'height' and 'width'. Got {size.keys()}")
+            raise ValueError(
+                f"The size dictionary must contain the keys 'height' and 'width'. Got {size.keys()}"
+            )
         output_size = (size["height"], size["width"])
-        return resize(image, size=output_size, resample=resample, data_format=data_format, **kwargs)
+        return resize(
+            image,
+            size=output_size,
+            resample=resample,
+            data_format=data_format,
+            **kwargs,
+        )
 
     def preprocess(
         self,
@@ -225,7 +255,9 @@ class LayoutLMv2ImageProcessor(BaseImageProcessor):
         resample = resample if resample is not None else self.resample
         apply_ocr = apply_ocr if apply_ocr is not None else self.apply_ocr
         ocr_lang = ocr_lang if ocr_lang is not None else self.ocr_lang
-        tesseract_config = tesseract_config if tesseract_config is not None else self.tesseract_config
+        tesseract_config = (
+            tesseract_config if tesseract_config is not None else self.tesseract_config
+        )
 
         images = make_list_of_images(images)
 
@@ -251,7 +283,10 @@ class LayoutLMv2ImageProcessor(BaseImageProcessor):
                 boxes_batch.append(boxes)
 
         if do_resize:
-            images = [self.resize(image=image, size=size, resample=resample) for image in images]
+            images = [
+                self.resize(image=image, size=size, resample=resample)
+                for image in images
+            ]
 
         # flip color channels from RGB to BGR (as Detectron2 requires this)
         images = [flip_channel_order(image) for image in images]

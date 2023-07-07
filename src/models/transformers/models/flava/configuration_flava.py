@@ -130,14 +130,22 @@ class FlavaImageConfig(PretrainedConfig):
         self.vocab_size = vocab_size
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PretrainedConfig":
-        config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
+    def from_pretrained(
+        cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
+    ) -> "PretrainedConfig":
+        config_dict, kwargs = cls.get_config_dict(
+            pretrained_model_name_or_path, **kwargs
+        )
 
         # get the image config dict if we are loading from FlavaConfig
         if config_dict.get("model_type") == "flava":
             config_dict = config_dict["image_config"]
 
-        if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
+        if (
+            "model_type" in config_dict
+            and hasattr(cls, "model_type")
+            and config_dict["model_type"] != cls.model_type
+        ):
             logger.warning(
                 f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
                 f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
@@ -257,14 +265,22 @@ class FlavaTextConfig(PretrainedConfig):
         self.pad_token_id = pad_token_id
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PretrainedConfig":
-        config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
+    def from_pretrained(
+        cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
+    ) -> "PretrainedConfig":
+        config_dict, kwargs = cls.get_config_dict(
+            pretrained_model_name_or_path, **kwargs
+        )
 
         # get the text config dict if we are loading from FlavaConfig
         if config_dict.get("model_type") == "flava":
             config_dict = config_dict["text_config"]
 
-        if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
+        if (
+            "model_type" in config_dict
+            and hasattr(cls, "model_type")
+            and config_dict["model_type"] != cls.model_type
+        ):
             logger.warning(
                 f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
                 f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
@@ -358,14 +374,22 @@ class FlavaMultimodalConfig(PretrainedConfig):
         self.use_cls_token = use_cls_token
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PretrainedConfig":
-        config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
+    def from_pretrained(
+        cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
+    ) -> "PretrainedConfig":
+        config_dict, kwargs = cls.get_config_dict(
+            pretrained_model_name_or_path, **kwargs
+        )
 
         # get the multimodal config dict if we are loading from FlavaConfig
         if config_dict.get("model_type") == "flava":
             config_dict = config_dict["multimodal_config"]
 
-        if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
+        if (
+            "model_type" in config_dict
+            and hasattr(cls, "model_type")
+            and config_dict["model_type"] != cls.model_type
+        ):
             logger.warning(
                 f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
                 f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
@@ -441,14 +465,22 @@ class FlavaImageCodebookConfig(PretrainedConfig):
         self.initializer_range = initializer_range
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PretrainedConfig":
-        config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
+    def from_pretrained(
+        cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
+    ) -> "PretrainedConfig":
+        config_dict, kwargs = cls.get_config_dict(
+            pretrained_model_name_or_path, **kwargs
+        )
 
         # get the image codebook config dict if we are loading from FlavaConfig
         if config_dict.get("model_type") == "flava":
             config_dict = config_dict["image_codebook_config"]
 
-        if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
+        if (
+            "model_type" in config_dict
+            and hasattr(cls, "model_type")
+            and config_dict["model_type"] != cls.model_type
+        ):
             logger.warning(
                 f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
                 f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
@@ -576,7 +608,11 @@ class FlavaConfig(PretrainedConfig):
 
             # Give a warning if the values exist in both `_text_config_dict` and `text_config` but being different.
             for key, value in _text_config_dict.items():
-                if key in text_config and value != text_config[key] and key not in ["transformers_version"]:
+                if (
+                    key in text_config
+                    and value != text_config[key]
+                    and key not in ["transformers_version"]
+                ):
                     # If specified in `text_config_dict`
                     if key in text_config_dict:
                         message = (
@@ -603,12 +639,17 @@ class FlavaConfig(PretrainedConfig):
             # convert keys to string instead of integer
             if "id2label" in _image_config_dict:
                 _image_config_dict["id2label"] = {
-                    str(key): value for key, value in _image_config_dict["id2label"].items()
+                    str(key): value
+                    for key, value in _image_config_dict["id2label"].items()
                 }
 
             # Give a warning if the values exist in both `_image_config_dict` and `image_config` but being different.
             for key, value in _image_config_dict.items():
-                if key in image_config and value != image_config[key] and key not in ["transformers_version"]:
+                if (
+                    key in image_config
+                    and value != image_config[key]
+                    and key not in ["transformers_version"]
+                ):
                     # If specified in `image_config_dict`
                     if key in image_config_dict:
                         message = (
@@ -631,7 +672,9 @@ class FlavaConfig(PretrainedConfig):
                 multimodal_config = {}
 
             # This is the complete result when using `multimodal_config_dict`.
-            _multimodal_config_dict = FlavaMultimodalConfig(**multimodal_config_dict).to_dict()
+            _multimodal_config_dict = FlavaMultimodalConfig(
+                **multimodal_config_dict
+            ).to_dict()
 
             # Give a warning if the values exist in both `_multimodal_config_dict` and `multimodal_config` but being
             # different.
@@ -663,7 +706,9 @@ class FlavaConfig(PretrainedConfig):
                 image_codebook_config = {}
 
             # This is the complete result when using `image_codebook_config_dict`.
-            _image_codebook_config_dict = FlavaImageCodebookConfig(**image_codebook_config_dict).to_dict()
+            _image_codebook_config_dict = FlavaImageCodebookConfig(
+                **image_codebook_config_dict
+            ).to_dict()
 
             # Give a warning if the values exist in both `_image_codebook_config_dict` and `image_codebook_config` but
             # being different.
@@ -693,15 +738,21 @@ class FlavaConfig(PretrainedConfig):
 
         if image_config is None:
             image_config = {}
-            logger.info("`image_config` is `None`. initializing the `FlavaImageConfig` with default values.")
+            logger.info(
+                "`image_config` is `None`. initializing the `FlavaImageConfig` with default values."
+            )
 
         if text_config is None:
             text_config = {}
-            logger.info("`text_config` is `None`. Initializing the `FlavaTextConfig` with default values.")
+            logger.info(
+                "`text_config` is `None`. Initializing the `FlavaTextConfig` with default values."
+            )
 
         if multimodal_config is None:
             multimodal_config = {}
-            logger.info("`multimodal_config` is `None`. initializing the `FlavaMultimodalConfig` with default values.")
+            logger.info(
+                "`multimodal_config` is `None`. initializing the `FlavaMultimodalConfig` with default values."
+            )
 
         if image_codebook_config is None:
             image_codebook_config = {}

@@ -24,7 +24,10 @@ from ...utils import (
 
 
 _import_structure = {
-    "configuration_gptsan_japanese": ["GPTSAN_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP", "GPTSanJapaneseConfig"],
+    "configuration_gptsan_japanese": [
+        "GPTSAN_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "GPTSanJapaneseConfig",
+    ],
     "tokenization_gptsan_japanese": ["GPTSanJapaneseTokenizer"],
 }
 
@@ -46,7 +49,10 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_gptsan_japanese import GPTSAN_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP, GPTSanJapaneseConfig
+    from .configuration_gptsan_japanese import (
+        GPTSAN_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        GPTSanJapaneseConfig,
+    )
     from .tokenization_gptsan_japanese import GPTSanJapaneseTokenizer
 
     try:
@@ -67,4 +73,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

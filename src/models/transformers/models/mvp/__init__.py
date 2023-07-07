@@ -13,11 +13,20 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_tokenizers_available, is_torch_available
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 
 _import_structure = {
-    "configuration_mvp": ["MVP_PRETRAINED_CONFIG_ARCHIVE_MAP", "MvpConfig", "MvpOnnxConfig"],
+    "configuration_mvp": [
+        "MVP_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "MvpConfig",
+        "MvpOnnxConfig",
+    ],
     "tokenization_mvp": ["MvpTokenizer"],
 }
 
@@ -46,7 +55,11 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_mvp import MVP_PRETRAINED_CONFIG_ARCHIVE_MAP, MvpConfig, MvpOnnxConfig
+    from .configuration_mvp import (
+        MVP_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        MvpConfig,
+        MvpOnnxConfig,
+    )
     from .tokenization_mvp import MvpTokenizer
 
     try:
@@ -76,4 +89,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

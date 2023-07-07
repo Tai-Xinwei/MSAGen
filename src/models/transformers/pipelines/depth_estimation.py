@@ -2,7 +2,13 @@ from typing import List, Union
 
 import numpy as np
 
-from ..utils import add_end_docstrings, is_torch_available, is_vision_available, logging, requires_backends
+from ..utils import (
+    add_end_docstrings,
+    is_torch_available,
+    is_vision_available,
+    logging,
+    requires_backends,
+)
 from .base import PIPELINE_INIT_ARGS, Pipeline
 
 
@@ -50,7 +56,11 @@ class DepthEstimationPipeline(Pipeline):
         requires_backends(self, "vision")
         self.check_model_type(MODEL_FOR_DEPTH_ESTIMATION_MAPPING)
 
-    def __call__(self, images: Union[str, List[str], "Image.Image", List["Image.Image"]], **kwargs):
+    def __call__(
+        self,
+        images: Union[str, List[str], "Image.Image", List["Image.Image"]],
+        **kwargs
+    ):
         """
         Assign labels to the image(s) passed as inputs.
 
@@ -97,7 +107,10 @@ class DepthEstimationPipeline(Pipeline):
     def postprocess(self, model_outputs):
         predicted_depth = model_outputs.predicted_depth
         prediction = torch.nn.functional.interpolate(
-            predicted_depth.unsqueeze(1), size=self.image_size[::-1], mode="bicubic", align_corners=False
+            predicted_depth.unsqueeze(1),
+            size=self.image_size[::-1],
+            mode="bicubic",
+            align_corners=False,
         )
         output = prediction.squeeze().cpu().numpy()
         formatted = (output * 255 / np.max(output)).astype("uint8")

@@ -48,7 +48,10 @@ logger = logging.get_logger(__name__)
 
 
 def get_resize_output_image_size(
-    input_image: np.ndarray, output_size: Union[int, Iterable[int]], keep_aspect_ratio: bool, multiple: int
+    input_image: np.ndarray,
+    output_size: Union[int, Iterable[int]],
+    keep_aspect_ratio: bool,
+    multiple: int,
 ) -> Tuple[int, int]:
     def constraint_to_multiple_of(val, multiple, min_val=0, max_val=None):
         x = round(val / multiple) * multiple
@@ -61,7 +64,9 @@ def get_resize_output_image_size(
 
         return x
 
-    output_size = (output_size, output_size) if isinstance(output_size, int) else output_size
+    output_size = (
+        (output_size, output_size) if isinstance(output_size, int) else output_size
+    )
 
     input_height, input_width = get_image_size(input_image)
     output_height, output_width = output_size
@@ -79,7 +84,9 @@ def get_resize_output_image_size(
             # fit height
             scale_width = scale_height
 
-    new_height = constraint_to_multiple_of(scale_height * input_height, multiple=multiple)
+    new_height = constraint_to_multiple_of(
+        scale_height * input_height, multiple=multiple
+    )
     new_width = constraint_to_multiple_of(scale_width * input_width, multiple=multiple)
 
     return (new_height, new_width)
@@ -145,7 +152,9 @@ class DPTImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_factor
         self.do_normalize = do_normalize
-        self.image_mean = image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        self.image_mean = (
+            image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        )
         self.image_std = image_std if image_std is not None else IMAGENET_STANDARD_STD
 
     def resize(
@@ -182,14 +191,22 @@ class DPTImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(f"The size dictionary must contain the keys 'height' and 'width'. Got {size.keys()}")
+            raise ValueError(
+                f"The size dictionary must contain the keys 'height' and 'width'. Got {size.keys()}"
+            )
         output_size = get_resize_output_image_size(
             image,
             output_size=(size["height"], size["width"]),
             keep_aspect_ratio=keep_aspect_ratio,
             multiple=ensure_multiple_of,
         )
-        return resize(image, size=output_size, resample=resample, data_format=data_format, **kwargs)
+        return resize(
+            image,
+            size=output_size,
+            resample=resample,
+            data_format=data_format,
+            **kwargs,
+        )
 
     def rescale(
         self,
@@ -296,11 +313,21 @@ class DPTImageProcessor(BaseImageProcessor):
         do_resize = do_resize if do_resize is not None else self.do_resize
         size = size if size is not None else self.size
         size = get_size_dict(size)
-        keep_aspect_ratio = keep_aspect_ratio if keep_aspect_ratio is not None else self.keep_aspect_ratio
-        ensure_multiple_of = ensure_multiple_of if ensure_multiple_of is not None else self.ensure_multiple_of
+        keep_aspect_ratio = (
+            keep_aspect_ratio
+            if keep_aspect_ratio is not None
+            else self.keep_aspect_ratio
+        )
+        ensure_multiple_of = (
+            ensure_multiple_of
+            if ensure_multiple_of is not None
+            else self.ensure_multiple_of
+        )
         resample = resample if resample is not None else self.resample
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
@@ -314,32 +341,46 @@ class DPTImageProcessor(BaseImageProcessor):
             )
 
         if do_resize and size is None or resample is None:
-            raise ValueError("Size and resample must be specified if do_resize is True.")
+            raise ValueError(
+                "Size and resample must be specified if do_resize is True."
+            )
 
         if do_rescale and rescale_factor is None:
             raise ValueError("Rescale factor must be specified if do_rescale is True.")
 
         if do_normalize and (image_mean is None or image_std is None):
-            raise ValueError("Image mean and std must be specified if do_normalize is True.")
+            raise ValueError(
+                "Image mean and std must be specified if do_normalize is True."
+            )
 
         # All transformations expect numpy arrays.
         images = [to_numpy_array(image) for image in images]
 
         if do_resize:
-            images = [self.resize(image=image, size=size, resample=resample) for image in images]
+            images = [
+                self.resize(image=image, size=size, resample=resample)
+                for image in images
+            ]
 
         if do_rescale:
-            images = [self.rescale(image=image, scale=rescale_factor) for image in images]
+            images = [
+                self.rescale(image=image, scale=rescale_factor) for image in images
+            ]
 
         if do_normalize:
-            images = [self.normalize(image=image, mean=image_mean, std=image_std) for image in images]
+            images = [
+                self.normalize(image=image, mean=image_mean, std=image_std)
+                for image in images
+            ]
 
         images = [to_channel_dimension_format(image, data_format) for image in images]
 
         data = {"pixel_values": images}
         return BatchFeature(data=data, tensor_type=return_tensors)
 
-    def post_process_semantic_segmentation(self, outputs, target_sizes: List[Tuple] = None):
+    def post_process_semantic_segmentation(
+        self, outputs, target_sizes: List[Tuple] = None
+    ):
         """
         Converts the output of [`DPTForSemanticSegmentation`] into semantic segmentation maps. Only supports PyTorch.
 
@@ -372,12 +413,17 @@ class DPTImageProcessor(BaseImageProcessor):
 
             for idx in range(len(logits)):
                 resized_logits = torch.nn.functional.interpolate(
-                    logits[idx].unsqueeze(dim=0), size=target_sizes[idx], mode="bilinear", align_corners=False
+                    logits[idx].unsqueeze(dim=0),
+                    size=target_sizes[idx],
+                    mode="bilinear",
+                    align_corners=False,
                 )
                 semantic_map = resized_logits[0].argmax(dim=0)
                 semantic_segmentation.append(semantic_map)
         else:
             semantic_segmentation = logits.argmax(dim=1)
-            semantic_segmentation = [semantic_segmentation[i] for i in range(semantic_segmentation.shape[0])]
+            semantic_segmentation = [
+                semantic_segmentation[i] for i in range(semantic_segmentation.shape[0])
+            ]
 
         return semantic_segmentation

@@ -25,7 +25,11 @@ from ...utils import (
 
 
 _import_structure = {
-    "configuration_marian": ["MARIAN_PRETRAINED_CONFIG_ARCHIVE_MAP", "MarianConfig", "MarianOnnxConfig"],
+    "configuration_marian": [
+        "MARIAN_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "MarianConfig",
+        "MarianOnnxConfig",
+    ],
 }
 
 try:
@@ -56,7 +60,11 @@ try:
 except OptionalDependencyNotAvailable:
     pass
 else:
-    _import_structure["modeling_tf_marian"] = ["TFMarianModel", "TFMarianMTModel", "TFMarianPreTrainedModel"]
+    _import_structure["modeling_tf_marian"] = [
+        "TFMarianModel",
+        "TFMarianMTModel",
+        "TFMarianPreTrainedModel",
+    ]
 
 try:
     if not is_flax_available():
@@ -64,10 +72,18 @@ try:
 except OptionalDependencyNotAvailable:
     pass
 else:
-    _import_structure["modeling_flax_marian"] = ["FlaxMarianModel", "FlaxMarianMTModel", "FlaxMarianPreTrainedModel"]
+    _import_structure["modeling_flax_marian"] = [
+        "FlaxMarianModel",
+        "FlaxMarianMTModel",
+        "FlaxMarianPreTrainedModel",
+    ]
 
 if TYPE_CHECKING:
-    from .configuration_marian import MARIAN_PRETRAINED_CONFIG_ARCHIVE_MAP, MarianConfig, MarianOnnxConfig
+    from .configuration_marian import (
+        MARIAN_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        MarianConfig,
+        MarianOnnxConfig,
+    )
 
     try:
         if not is_sentencepiece_available():
@@ -97,7 +113,11 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_marian import TFMarianModel, TFMarianMTModel, TFMarianPreTrainedModel
+        from .modeling_tf_marian import (
+            TFMarianModel,
+            TFMarianMTModel,
+            TFMarianPreTrainedModel,
+        )
 
     try:
         if not is_flax_available():
@@ -105,9 +125,15 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_flax_marian import FlaxMarianModel, FlaxMarianMTModel, FlaxMarianPreTrainedModel
+        from .modeling_flax_marian import (
+            FlaxMarianModel,
+            FlaxMarianMTModel,
+            FlaxMarianPreTrainedModel,
+        )
 
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

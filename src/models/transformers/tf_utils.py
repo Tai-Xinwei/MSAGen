@@ -46,7 +46,9 @@ def shape_list(tensor: Union[tf.Tensor, np.ndarray]) -> List[int]:
     return [dynamic[i] if s is None else s for i, s in enumerate(static)]
 
 
-def stable_softmax(logits: tf.Tensor, axis: Optional[int] = None, name: Optional[str] = None) -> tf.Tensor:
+def stable_softmax(
+    logits: tf.Tensor, axis: Optional[int] = None, name: Optional[str] = None
+) -> tf.Tensor:
     """
     Stable wrapper that returns the same output as `tf.nn.softmax`, but that works reliably with XLA on CPU. It is
     meant as a workaround for the [following issue](https://github.com/tensorflow/tensorflow/issues/55682), and will be
@@ -81,7 +83,9 @@ def invert_attention_mask(encoder_attention_mask: tf.Tensor) -> tf.Tensor:
         `tf.Tensor`: The inverted attention mask.
     """
     if not isinstance(encoder_attention_mask, tf.Tensor):
-        encoder_attention_mask = tf.convert_to_tensor(encoder_attention_mask)  # Catches stray NumPy inputs
+        encoder_attention_mask = tf.convert_to_tensor(
+            encoder_attention_mask
+        )  # Catches stray NumPy inputs
     if encoder_attention_mask.shape.rank == 3:
         encoder_extended_attention_mask = encoder_attention_mask[:, None, :, :]
     if encoder_attention_mask.shape.rank == 2:

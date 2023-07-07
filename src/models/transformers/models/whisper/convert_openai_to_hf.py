@@ -105,11 +105,17 @@ def _download(url: str, root: str) -> bytes:
         if hashlib.sha256(model_bytes).hexdigest() == expected_sha256:
             return model_bytes
         else:
-            warnings.warn(f"{download_target} exists, but the SHA256 checksum does not match; re-downloading the file")
+            warnings.warn(
+                f"{download_target} exists, but the SHA256 checksum does not match; re-downloading the file"
+            )
 
     with urllib.request.urlopen(url) as source, open(download_target, "wb") as output:
         with tqdm(
-            total=int(source.info().get("Content-Length")), ncols=80, unit="iB", unit_scale=True, unit_divisor=1024
+            total=int(source.info().get("Content-Length")),
+            ncols=80,
+            unit="iB",
+            unit_scale=True,
+            unit_divisor=1024,
         ) as loop:
             while True:
                 buffer = source.read(8192)
@@ -177,8 +183,15 @@ def convert_openai_whisper_to_tfms(checkpoint_path, pytorch_dump_folder_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # # Required parameters
-    parser.add_argument("--checkpoint_path", type=str, help="Patht to the downloaded checkpoints")
-    parser.add_argument("--pytorch_dump_folder_path", default=None, type=str, help="Path to the output PyTorch model.")
+    parser.add_argument(
+        "--checkpoint_path", type=str, help="Patht to the downloaded checkpoints"
+    )
+    parser.add_argument(
+        "--pytorch_dump_folder_path",
+        default=None,
+        type=str,
+        help="Path to the output PyTorch model.",
+    )
     args = parser.parse_args()
 
     convert_openai_whisper_to_tfms(args.checkpoint_path, args.pytorch_dump_folder_path)

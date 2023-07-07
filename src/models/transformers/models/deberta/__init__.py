@@ -24,7 +24,11 @@ from ...utils import (
 
 
 _import_structure = {
-    "configuration_deberta": ["DEBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP", "DebertaConfig", "DebertaOnnxConfig"],
+    "configuration_deberta": [
+        "DEBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "DebertaConfig",
+        "DebertaOnnxConfig",
+    ],
     "tokenization_deberta": ["DebertaTokenizer"],
 }
 
@@ -70,7 +74,11 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_deberta import DEBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP, DebertaConfig, DebertaOnnxConfig
+    from .configuration_deberta import (
+        DEBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        DebertaConfig,
+        DebertaOnnxConfig,
+    )
     from .tokenization_deberta import DebertaTokenizer
 
     try:
@@ -117,4 +125,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

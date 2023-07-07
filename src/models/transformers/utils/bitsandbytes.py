@@ -2,7 +2,11 @@ from copy import deepcopy
 
 from packaging import version
 
-from .import_utils import importlib_metadata, is_accelerate_available, is_bitsandbytes_available
+from .import_utils import (
+    importlib_metadata,
+    is_accelerate_available,
+    is_bitsandbytes_available,
+)
 
 
 if is_bitsandbytes_available():
@@ -15,7 +19,9 @@ if is_accelerate_available():
     from accelerate.utils import find_tied_parameters
 
 
-def set_module_8bit_tensor_to_device(module, tensor_name, device, value=None, fp16_statistics=None):
+def set_module_8bit_tensor_to_device(
+    module, tensor_name, device, value=None, fp16_statistics=None
+):
     """
     A helper function to set a given tensor (parameter of buffer) of a module on a specific device (note that doing
     `param.to(device)` creates a new tensor not linked to the parameter, which is why we need this function). The
@@ -45,17 +51,27 @@ def set_module_8bit_tensor_to_device(module, tensor_name, device, value=None, fp
         tensor_name = splits[-1]
 
     if tensor_name not in module._parameters and tensor_name not in module._buffers:
-        raise ValueError(f"{module} does not have a parameter or a buffer named {tensor_name}.")
+        raise ValueError(
+            f"{module} does not have a parameter or a buffer named {tensor_name}."
+        )
     is_buffer = tensor_name in module._buffers
     old_value = getattr(module, tensor_name)
 
-    if old_value.device == torch.device("meta") and device not in ["meta", torch.device("meta")] and value is None:
-        raise ValueError(f"{tensor_name} is on the meta device, we need a `value` to put in on {device}.")
+    if (
+        old_value.device == torch.device("meta")
+        and device not in ["meta", torch.device("meta")]
+        and value is None
+    ):
+        raise ValueError(
+            f"{tensor_name} is on the meta device, we need a `value` to put in on {device}."
+        )
 
     if is_buffer:
         has_fp16_weights = None
     else:
-        has_fp16_weights = getattr(module._parameters[tensor_name], "has_fp16_weights", None)
+        has_fp16_weights = getattr(
+            module._parameters[tensor_name], "has_fp16_weights", None
+        )
 
     if has_fp16_weights is not None:
         param = module._parameters[tensor_name]
@@ -65,9 +81,9 @@ def set_module_8bit_tensor_to_device(module, tensor_name, device, value=None, fp
             elif isinstance(value, torch.Tensor):
                 new_value = value.to("cpu")
                 if value.dtype == torch.int8:
-                    is_8bit_serializable = version.parse(importlib_metadata.version("bitsandbytes")) > version.parse(
-                        "0.37.2"
-                    )
+                    is_8bit_serializable = version.parse(
+                        importlib_metadata.version("bitsandbytes")
+                    ) > version.parse("0.37.2")
                     if not is_8bit_serializable:
                         raise ValueError(
                             "Detected int8 weights but the version of bitsandbytes is not compatible with int8 serialization. "
@@ -75,7 +91,9 @@ def set_module_8bit_tensor_to_device(module, tensor_name, device, value=None, fp
                         )
             else:
                 new_value = torch.tensor(value, device="cpu")
-            new_value = bnb.nn.Int8Params(new_value, requires_grad=False, has_fp16_weights=has_fp16_weights).to(device)
+            new_value = bnb.nn.Int8Params(
+                new_value, requires_grad=False, has_fp16_weights=has_fp16_weights
+            ).to(device)
             module._parameters[tensor_name] = new_value
 
             if fp16_statistics is not None:
@@ -95,7 +113,9 @@ def set_module_8bit_tensor_to_device(module, tensor_name, device, value=None, fp
             module._parameters[tensor_name] = new_value
 
 
-def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert=None, current_key_name=None):
+def replace_8bit_linear(
+    model, threshold=6.0, modules_to_not_convert=None, current_key_name=None
+):
     """
     A helper function to replace all `torch.nn.Linear` modules by `bnb.nn.Linear8bit` modules from the `bitsandbytes`
     library. This will enable running your models using mixed int8 precision as described by the paper `GPT3.int8():
@@ -124,18 +144,24 @@ def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert=None, curre
             it) is not in the list of modules to not convert (for instances modules that are offloaded to `cpu` or
             `disk`).
     """
-    modules_to_not_convert = ["lm_head"] if modules_to_not_convert is None else modules_to_not_convert
+    modules_to_not_convert = (
+        ["lm_head"] if modules_to_not_convert is None else modules_to_not_convert
+    )
     for name, module in model.named_children():
         if current_key_name is None:
             current_key_name = []
         current_key_name.append(name)
 
         if len(list(module.children())) > 0:
-            replace_8bit_linear(module, threshold, modules_to_not_convert, current_key_name)
+            replace_8bit_linear(
+                module, threshold, modules_to_not_convert, current_key_name
+            )
 
         if isinstance(module, nn.Linear) and name not in modules_to_not_convert:
             # Check if the current key is not in the `modules_to_not_convert`
-            if not any(key in ".".join(current_key_name) for key in modules_to_not_convert):
+            if not any(
+                key in ".".join(current_key_name) for key in modules_to_not_convert
+            ):
                 with init_empty_weights():
                     model._modules[name] = bnb.nn.Linear8bitLt(
                         module.in_features,
@@ -164,7 +190,9 @@ def get_keys_to_not_convert(model):
     """
     # Create a copy of the model and tie the weights, then
     # check if it contains tied weights
-    tied_model = deepcopy(model)  # this has 0 cost since it is done inside `init_empty_weights` context manager`
+    tied_model = deepcopy(
+        model
+    )  # this has 0 cost since it is done inside `init_empty_weights` context manager`
     tied_model.tie_weights()
 
     tied_params = find_tied_parameters(tied_model)

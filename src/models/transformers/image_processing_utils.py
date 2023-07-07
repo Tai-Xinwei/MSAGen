@@ -80,7 +80,9 @@ class ImageProcessingMixin(PushToHubMixin):
         self._processor_class = processor_class
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs):
+    def from_pretrained(
+        cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
+    ):
         r"""
         Instantiate a type of [`~image_processing_utils.ImageProcessingMixin`] from an image processor.
 
@@ -161,11 +163,18 @@ class ImageProcessingMixin(PushToHubMixin):
         assert image_processor.do_normalize is False
         assert unused_kwargs == {"foo": False}
         ```"""
-        image_processor_dict, kwargs = cls.get_image_processor_dict(pretrained_model_name_or_path, **kwargs)
+        image_processor_dict, kwargs = cls.get_image_processor_dict(
+            pretrained_model_name_or_path, **kwargs
+        )
 
         return cls.from_dict(image_processor_dict, **kwargs)
 
-    def save_pretrained(self, save_directory: Union[str, os.PathLike], push_to_hub: bool = False, **kwargs):
+    def save_pretrained(
+        self,
+        save_directory: Union[str, os.PathLike],
+        push_to_hub: bool = False,
+        **kwargs,
+    ):
         """
         Save an image processor object to the directory `save_directory`, so that it can be re-loaded using the
         [`~image_processing_utils.ImageProcessingMixin.from_pretrained`] class method.
@@ -181,7 +190,9 @@ class ImageProcessingMixin(PushToHubMixin):
                 Additional key word arguments passed along to the [`~utils.PushToHubMixin.push_to_hub`] method.
         """
         if os.path.isfile(save_directory):
-            raise AssertionError(f"Provided path ({save_directory}) should be a directory, not a file")
+            raise AssertionError(
+                f"Provided path ({save_directory}) should be a directory, not a file"
+            )
 
         os.makedirs(save_directory, exist_ok=True)
 
@@ -243,7 +254,10 @@ class ImageProcessingMixin(PushToHubMixin):
         from_pipeline = kwargs.pop("_from_pipeline", None)
         from_auto_class = kwargs.pop("_from_auto", False)
 
-        user_agent = {"file_type": "image processor", "from_auto_class": from_auto_class}
+        user_agent = {
+            "file_type": "image processor",
+            "from_auto_class": from_auto_class,
+        }
         if from_pipeline is not None:
             user_agent["using_pipeline"] = from_pipeline
 
@@ -254,7 +268,9 @@ class ImageProcessingMixin(PushToHubMixin):
         pretrained_model_name_or_path = str(pretrained_model_name_or_path)
         is_local = os.path.isdir(pretrained_model_name_or_path)
         if os.path.isdir(pretrained_model_name_or_path):
-            image_processor_file = os.path.join(pretrained_model_name_or_path, IMAGE_PROCESSOR_NAME)
+            image_processor_file = os.path.join(
+                pretrained_model_name_or_path, IMAGE_PROCESSOR_NAME
+            )
         if os.path.isfile(pretrained_model_name_or_path):
             resolved_image_processor_file = pretrained_model_name_or_path
             is_local = True
@@ -458,10 +474,16 @@ class BaseImageProcessor(ImageProcessingMixin):
         return self.preprocess(images, **kwargs)
 
     def preprocess(self, images, **kwargs) -> BatchFeature:
-        raise NotImplementedError("Each image processor must implement its own preprocess method")
+        raise NotImplementedError(
+            "Each image processor must implement its own preprocess method"
+        )
 
 
-VALID_SIZE_DICT_KEYS = ({"height", "width"}, {"shortest_edge"}, {"shortest_edge", "longest_edge"})
+VALID_SIZE_DICT_KEYS = (
+    {"height", "width"},
+    {"shortest_edge"},
+    {"shortest_edge", "longest_edge"},
+)
 
 
 def is_valid_size_dict(size_dict):
@@ -476,12 +498,17 @@ def is_valid_size_dict(size_dict):
 
 
 def convert_to_size_dict(
-    size, max_size: Optional[int] = None, default_to_square: bool = True, height_width_order: bool = True
+    size,
+    max_size: Optional[int] = None,
+    default_to_square: bool = True,
+    height_width_order: bool = True,
 ):
     # By default, if size is an int we assume it represents a tuple of (size, size).
     if isinstance(size, int) and default_to_square:
         if max_size is not None:
-            raise ValueError("Cannot specify both size as an int, with default_to_square=True and max_size")
+            raise ValueError(
+                "Cannot specify both size as an int, with default_to_square=True and max_size"
+            )
         return {"height": size, "width": size}
     # In other configs, if size is an int and default_to_square is False, size represents the length of
     # the shortest edge after resizing.
@@ -528,7 +555,9 @@ def get_size_dict(
             If `size` is an int, whether to default to a square image or not.
     """
     if not isinstance(size, dict):
-        size_dict = convert_to_size_dict(size, max_size, default_to_square, height_width_order)
+        size_dict = convert_to_size_dict(
+            size, max_size, default_to_square, height_width_order
+        )
         logger.info(
             f"{param_name} should be a dictionary on of the following set of keys: {VALID_SIZE_DICT_KEYS}, got {size}."
             f" Converted to {size_dict}.",
@@ -545,6 +574,10 @@ def get_size_dict(
 
 ImageProcessingMixin.push_to_hub = copy_func(ImageProcessingMixin.push_to_hub)
 if ImageProcessingMixin.push_to_hub.__doc__ is not None:
-    ImageProcessingMixin.push_to_hub.__doc__ = ImageProcessingMixin.push_to_hub.__doc__.format(
-        object="image processor", object_class="AutoImageProcessor", object_files="image processor file"
+    ImageProcessingMixin.push_to_hub.__doc__ = (
+        ImageProcessingMixin.push_to_hub.__doc__.format(
+            object="image processor",
+            object_class="AutoImageProcessor",
+            object_files="image processor file",
+        )
     )

@@ -175,7 +175,11 @@ def is_pt_flax_cross_test(test_case):
     variable to a truthy value and selecting the is_pt_flax_cross_test pytest mark.
 
     """
-    if not _run_pt_flax_cross_tests or not is_torch_available() or not is_flax_available():
+    if (
+        not _run_pt_flax_cross_tests
+        or not is_torch_available()
+        or not is_flax_available()
+    ):
         return unittest.skip("test is PT+FLAX test")(test_case)
     else:
         try:
@@ -247,28 +251,36 @@ def custom_tokenizers(test_case):
     Custom tokenizers require additional dependencies, and are skipped by default. Set the RUN_CUSTOM_TOKENIZERS
     environment variable to a truthy value to run them.
     """
-    return unittest.skipUnless(_run_custom_tokenizers, "test of custom tokenizers")(test_case)
+    return unittest.skipUnless(_run_custom_tokenizers, "test of custom tokenizers")(
+        test_case
+    )
 
 
 def require_bs4(test_case):
     """
     Decorator marking a test that requires BeautifulSoup4. These tests are skipped when BeautifulSoup4 isn't installed.
     """
-    return unittest.skipUnless(is_bs4_available(), "test requires BeautifulSoup4")(test_case)
+    return unittest.skipUnless(is_bs4_available(), "test requires BeautifulSoup4")(
+        test_case
+    )
 
 
 def require_accelerate(test_case):
     """
     Decorator marking a test that requires accelerate. These tests are skipped when accelerate isn't installed.
     """
-    return unittest.skipUnless(is_accelerate_available(), "test requires accelerate")(test_case)
+    return unittest.skipUnless(is_accelerate_available(), "test requires accelerate")(
+        test_case
+    )
 
 
 def require_safetensors(test_case):
     """
     Decorator marking a test that requires safetensors. These tests are skipped when safetensors isn't installed.
     """
-    return unittest.skipUnless(is_safetensors_available(), "test requires safetensors")(test_case)
+    return unittest.skipUnless(is_safetensors_available(), "test requires safetensors")(
+        test_case
+    )
 
 
 def require_rjieba(test_case):
@@ -286,7 +298,9 @@ def require_jieba(test_case):
 
 
 def require_tf2onnx(test_case):
-    return unittest.skipUnless(is_tf2onnx_available(), "test requires tf2onnx")(test_case)
+    return unittest.skipUnless(is_tf2onnx_available(), "test requires tf2onnx")(
+        test_case
+    )
 
 
 def require_onnx(test_case):
@@ -330,7 +344,9 @@ def require_torchvision(test_case):
     These tests are skipped when Torchvision isn't installed.
 
     """
-    return unittest.skipUnless(is_torchvision_available(), "test requires Torchvision")(test_case)
+    return unittest.skipUnless(is_torchvision_available(), "test requires Torchvision")(
+        test_case
+    )
 
 
 def require_torch_or_tf(test_case):
@@ -340,9 +356,9 @@ def require_torch_or_tf(test_case):
     These tests are skipped when neither PyTorch not TensorFlow is installed.
 
     """
-    return unittest.skipUnless(is_torch_available() or is_tf_available(), "test requires PyTorch or TensorFlow")(
-        test_case
-    )
+    return unittest.skipUnless(
+        is_torch_available() or is_tf_available(), "test requires PyTorch or TensorFlow"
+    )(test_case)
 
 
 def require_intel_extension_for_pytorch(test_case):
@@ -367,16 +383,18 @@ def require_tensorflow_probability(test_case):
     These tests are skipped when TensorFlow probability isn't installed.
 
     """
-    return unittest.skipUnless(is_tensorflow_probability_available(), "test requires TensorFlow probability")(
-        test_case
-    )
+    return unittest.skipUnless(
+        is_tensorflow_probability_available(), "test requires TensorFlow probability"
+    )(test_case)
 
 
 def require_torchaudio(test_case):
     """
     Decorator marking a test that requires torchaudio. These tests are skipped when torchaudio isn't installed.
     """
-    return unittest.skipUnless(is_torchaudio_available(), "test requires torchaudio")(test_case)
+    return unittest.skipUnless(is_torchaudio_available(), "test requires torchaudio")(
+        test_case
+    )
 
 
 def require_tf(test_case):
@@ -390,14 +408,18 @@ def require_flax(test_case):
     """
     Decorator marking a test that requires JAX & Flax. These tests are skipped when one / both are not installed
     """
-    return unittest.skipUnless(is_flax_available(), "test requires JAX & Flax")(test_case)
+    return unittest.skipUnless(is_flax_available(), "test requires JAX & Flax")(
+        test_case
+    )
 
 
 def require_sentencepiece(test_case):
     """
     Decorator marking a test that requires SentencePiece. These tests are skipped when SentencePiece isn't installed.
     """
-    return unittest.skipUnless(is_sentencepiece_available(), "test requires SentencePiece")(test_case)
+    return unittest.skipUnless(
+        is_sentencepiece_available(), "test requires SentencePiece"
+    )(test_case)
 
 
 def require_scipy(test_case):
@@ -411,7 +433,9 @@ def require_tokenizers(test_case):
     """
     Decorator marking a test that requires 🤗 Tokenizers. These tests are skipped when 🤗 Tokenizers isn't installed.
     """
-    return unittest.skipUnless(is_tokenizers_available(), "test requires tokenizers")(test_case)
+    return unittest.skipUnless(is_tokenizers_available(), "test requires tokenizers")(
+        test_case
+    )
 
 
 def require_tensorflow_text(test_case):
@@ -419,14 +443,18 @@ def require_tensorflow_text(test_case):
     Decorator marking a test that requires tensorflow_text. These tests are skipped when tensroflow_text isn't
     installed.
     """
-    return unittest.skipUnless(is_tensorflow_text_available(), "test requires tensorflow_text")(test_case)
+    return unittest.skipUnless(
+        is_tensorflow_text_available(), "test requires tensorflow_text"
+    )(test_case)
 
 
 def require_keras_nlp(test_case):
     """
     Decorator marking a test that requires keras_nlp. These tests are skipped when keras_nlp isn't installed.
     """
-    return unittest.skipUnless(is_keras_nlp_available(), "test requires keras_nlp")(test_case)
+    return unittest.skipUnless(is_keras_nlp_available(), "test requires keras_nlp")(
+        test_case
+    )
 
 
 def require_pandas(test_case):
@@ -440,7 +468,9 @@ def require_pytesseract(test_case):
     """
     Decorator marking a test that requires PyTesseract. These tests are skipped when PyTesseract isn't installed.
     """
-    return unittest.skipUnless(is_pytesseract_available(), "test requires PyTesseract")(test_case)
+    return unittest.skipUnless(is_pytesseract_available(), "test requires PyTesseract")(
+        test_case
+    )
 
 
 def require_pytorch_quantization(test_case):
@@ -448,9 +478,10 @@ def require_pytorch_quantization(test_case):
     Decorator marking a test that requires PyTorch Quantization Toolkit. These tests are skipped when PyTorch
     Quantization Toolkit isn't installed.
     """
-    return unittest.skipUnless(is_pytorch_quantization_available(), "test requires PyTorch Quantization Toolkit")(
-        test_case
-    )
+    return unittest.skipUnless(
+        is_pytorch_quantization_available(),
+        "test requires PyTorch Quantization Toolkit",
+    )(test_case)
 
 
 def require_vision(test_case):
@@ -494,7 +525,9 @@ def require_torch_multi_gpu(test_case):
 
     import torch
 
-    return unittest.skipUnless(torch.cuda.device_count() > 1, "test requires multiple GPUs")(test_case)
+    return unittest.skipUnless(
+        torch.cuda.device_count() > 1, "test requires multiple GPUs"
+    )(test_case)
 
 
 def require_torch_non_multi_gpu(test_case):
@@ -506,7 +539,9 @@ def require_torch_non_multi_gpu(test_case):
 
     import torch
 
-    return unittest.skipUnless(torch.cuda.device_count() < 2, "test requires 0 or 1 GPU")(test_case)
+    return unittest.skipUnless(
+        torch.cuda.device_count() < 2, "test requires 0 or 1 GPU"
+    )(test_case)
 
 
 def require_torch_up_to_2_gpus(test_case):
@@ -518,23 +553,28 @@ def require_torch_up_to_2_gpus(test_case):
 
     import torch
 
-    return unittest.skipUnless(torch.cuda.device_count() < 3, "test requires 0 or 1 or 2 GPUs")(test_case)
+    return unittest.skipUnless(
+        torch.cuda.device_count() < 3, "test requires 0 or 1 or 2 GPUs"
+    )(test_case)
 
 
 def require_torch_tpu(test_case):
     """
     Decorator marking a test that requires a TPU (in PyTorch).
     """
-    return unittest.skipUnless(is_torch_tpu_available(check_device=False), "test requires PyTorch TPU")(test_case)
+    return unittest.skipUnless(
+        is_torch_tpu_available(check_device=False), "test requires PyTorch TPU"
+    )(test_case)
 
 
 def require_torch_neuroncore(test_case):
     """
     Decorator marking a test that requires NeuronCore (in PyTorch).
     """
-    return unittest.skipUnless(is_torch_neuroncore_available(check_device=False), "test requires PyTorch NeuronCore")(
-        test_case
-    )
+    return unittest.skipUnless(
+        is_torch_neuroncore_available(check_device=False),
+        "test requires PyTorch NeuronCore",
+    )(test_case)
 
 
 if is_torch_available():
@@ -558,12 +598,16 @@ else:
 
 def require_torchdynamo(test_case):
     """Decorator marking a test that requires TorchDynamo"""
-    return unittest.skipUnless(is_torchdynamo_available(), "test requires TorchDynamo")(test_case)
+    return unittest.skipUnless(is_torchdynamo_available(), "test requires TorchDynamo")(
+        test_case
+    )
 
 
 def require_torch_tensorrt_fx(test_case):
     """Decorator marking a test that requires Torch-TensorRT FX"""
-    return unittest.skipUnless(is_torch_tensorrt_fx_available(), "test requires Torch-TensorRT FX")(test_case)
+    return unittest.skipUnless(
+        is_torch_tensorrt_fx_available(), "test requires Torch-TensorRT FX"
+    )(test_case)
 
 
 def require_torch_gpu(test_case):
@@ -590,13 +634,16 @@ def require_torch_bf16_cpu(test_case):
 def require_torch_tf32(test_case):
     """Decorator marking a test that requires Ampere or a newer GPU arch, cuda>=11 and torch>=1.7."""
     return unittest.skipUnless(
-        is_torch_tf32_available(), "test requires Ampere or a newer GPU arch, cuda>=11 and torch>=1.7"
+        is_torch_tf32_available(),
+        "test requires Ampere or a newer GPU arch, cuda>=11 and torch>=1.7",
     )(test_case)
 
 
 def require_detectron2(test_case):
     """Decorator marking a test that requires detectron2."""
-    return unittest.skipUnless(is_detectron2_available(), "test requires `detectron2`")(test_case)
+    return unittest.skipUnless(is_detectron2_available(), "test requires `detectron2`")(
+        test_case
+    )
 
 
 def require_faiss(test_case):
@@ -651,7 +698,9 @@ def require_clearml(test_case):
     These tests are skipped when clearml isn't installed.
 
     """
-    return unittest.skipUnless(is_clearml_available(), "test requires clearml")(test_case)
+    return unittest.skipUnless(is_clearml_available(), "test requires clearml")(
+        test_case
+    )
 
 
 def require_soundfile(test_case):
@@ -661,21 +710,27 @@ def require_soundfile(test_case):
     These tests are skipped when soundfile isn't installed.
 
     """
-    return unittest.skipUnless(is_soundfile_availble(), "test requires soundfile")(test_case)
+    return unittest.skipUnless(is_soundfile_availble(), "test requires soundfile")(
+        test_case
+    )
 
 
 def require_deepspeed(test_case):
     """
     Decorator marking a test that requires deepspeed
     """
-    return unittest.skipUnless(is_deepspeed_available(), "test requires deepspeed")(test_case)
+    return unittest.skipUnless(is_deepspeed_available(), "test requires deepspeed")(
+        test_case
+    )
 
 
 def require_fairscale(test_case):
     """
     Decorator marking a test that requires fairscale
     """
-    return unittest.skipUnless(is_fairscale_available(), "test requires fairscale")(test_case)
+    return unittest.skipUnless(is_fairscale_available(), "test requires fairscale")(
+        test_case
+    )
 
 
 def require_apex(test_case):
@@ -689,28 +744,36 @@ def require_bitsandbytes(test_case):
     """
     Decorator for bits and bytes (bnb) dependency
     """
-    return unittest.skipUnless(is_bitsandbytes_available(), "test requires bnb")(test_case)
+    return unittest.skipUnless(is_bitsandbytes_available(), "test requires bnb")(
+        test_case
+    )
 
 
 def require_phonemizer(test_case):
     """
     Decorator marking a test that requires phonemizer
     """
-    return unittest.skipUnless(is_phonemizer_available(), "test requires phonemizer")(test_case)
+    return unittest.skipUnless(is_phonemizer_available(), "test requires phonemizer")(
+        test_case
+    )
 
 
 def require_pyctcdecode(test_case):
     """
     Decorator marking a test that requires pyctcdecode
     """
-    return unittest.skipUnless(is_pyctcdecode_available(), "test requires pyctcdecode")(test_case)
+    return unittest.skipUnless(is_pyctcdecode_available(), "test requires pyctcdecode")(
+        test_case
+    )
 
 
 def require_librosa(test_case):
     """
     Decorator marking a test that requires librosa
     """
-    return unittest.skipUnless(is_librosa_available(), "test requires librosa")(test_case)
+    return unittest.skipUnless(is_librosa_available(), "test requires librosa")(
+        test_case
+    )
 
 
 def cmd_exists(cmd):
@@ -721,21 +784,27 @@ def require_usr_bin_time(test_case):
     """
     Decorator marking a test that requires `/usr/bin/time`
     """
-    return unittest.skipUnless(cmd_exists("/usr/bin/time"), "test requires /usr/bin/time")(test_case)
+    return unittest.skipUnless(
+        cmd_exists("/usr/bin/time"), "test requires /usr/bin/time"
+    )(test_case)
 
 
 def require_sudachi(test_case):
     """
     Decorator marking a test that requires sudachi
     """
-    return unittest.skipUnless(is_sudachi_available(), "test requires sudachi")(test_case)
+    return unittest.skipUnless(is_sudachi_available(), "test requires sudachi")(
+        test_case
+    )
 
 
 def require_jumanpp(test_case):
     """
     Decorator marking a test that requires jumanpp
     """
-    return unittest.skipUnless(is_jumanpp_available(), "test requires jumanpp")(test_case)
+    return unittest.skipUnless(is_jumanpp_available(), "test requires jumanpp")(
+        test_case
+    )
 
 
 def require_cython(test_case):
@@ -1114,7 +1183,9 @@ class TestCasePlus(unittest.TestCase):
         if tmp_dir:
             self._repo_root_dir = tmp_dir
         else:
-            raise ValueError(f"can't figure out the root of the repo from {self._test_file_path}")
+            raise ValueError(
+                f"can't figure out the root of the repo from {self._test_file_path}"
+            )
         self._tests_dir = self._repo_root_dir / "tests"
         self._examples_dir = self._repo_root_dir / "examples"
         self._src_dir = self._repo_root_dir / "src"
@@ -1279,7 +1350,9 @@ class TestCasePlus(unittest.TestCase):
         """
 
         if not cmd_exists("/usr/bin/time"):
-            raise ValueError("/usr/bin/time is required, install with `apt install time`")
+            raise ValueError(
+                "/usr/bin/time is required, install with `apt install time`"
+            )
 
         cmd = shlex.split(f"/usr/bin/time -f %M python -c '{one_liner_str}'")
         with CaptureStd() as cs:
@@ -1425,7 +1498,9 @@ def pytest_terminal_summary_main(tr, id):
             f.write("slowest durations\n")
             for i, rep in enumerate(dlist):
                 if rep.duration < durations_min:
-                    f.write(f"{len(dlist)-i} durations < {durations_min} secs were omitted")
+                    f.write(
+                        f"{len(dlist)-i} durations < {durations_min} secs were omitted"
+                    )
                     break
                 f.write(f"{rep.duration:02.2f}s {rep.when:<8} {rep.nodeid}\n")
 
@@ -1439,7 +1514,9 @@ def pytest_terminal_summary_main(tr, id):
             msg = tr._getfailureheadline(rep)
             tr.write_sep("_", msg, red=True, bold=True)
             # chop off the optional leading extra frames, leaving only the last one
-            longrepr = re.sub(r".*_ _ _ (_ ){10,}_ _ ", "", rep.longreprtext, 0, re.M | re.S)
+            longrepr = re.sub(
+                r".*_ _ _ (_ ){10,}_ _ ", "", rep.longreprtext, 0, re.M | re.S
+            )
             tr._tw.line(longrepr)
             # note: not printing out any rep.sections to keep the report short
 
@@ -1473,7 +1550,9 @@ def pytest_terminal_summary_main(tr, id):
         tr.summary_warnings()  # normal warnings
         tr.summary_warnings()  # final warnings
 
-    tr.reportchars = "wPpsxXEf"  # emulate -rA (used in summary_passes() and short_test_summary())
+    tr.reportchars = (
+        "wPpsxXEf"  # emulate -rA (used in summary_passes() and short_test_summary())
+    )
 
     # Skip the `passes` report, as it starts to take more than 5 minutes, and sometimes it timeouts on CircleCI if it
     # takes > 10 minutes (as this part doesn't generate any output on the terminal).
@@ -1518,7 +1597,9 @@ async def _read_stream(stream, callback):
             break
 
 
-async def _stream_subprocess(cmd, env=None, stdin=None, timeout=None, quiet=False, echo=False) -> _RunOutput:
+async def _stream_subprocess(
+    cmd, env=None, stdin=None, timeout=None, quiet=False, echo=False
+) -> _RunOutput:
     if echo:
         print("\nRunning: ", " ".join(cmd))
 
@@ -1559,10 +1640,14 @@ async def _stream_subprocess(cmd, env=None, stdin=None, timeout=None, quiet=Fals
     return _RunOutput(await p.wait(), out, err)
 
 
-def execute_subprocess_async(cmd, env=None, stdin=None, timeout=180, quiet=False, echo=True) -> _RunOutput:
+def execute_subprocess_async(
+    cmd, env=None, stdin=None, timeout=180, quiet=False, echo=True
+) -> _RunOutput:
     loop = asyncio.get_event_loop()
     result = loop.run_until_complete(
-        _stream_subprocess(cmd, env=env, stdin=stdin, timeout=timeout, quiet=quiet, echo=echo)
+        _stream_subprocess(
+            cmd, env=env, stdin=stdin, timeout=timeout, quiet=quiet, echo=echo
+        )
     )
 
     cmd_str = " ".join(cmd)
@@ -1617,7 +1702,10 @@ def nested_simplify(obj, decimals=3):
     elif isinstance(obj, np.ndarray):
         return nested_simplify(obj.tolist())
     elif isinstance(obj, Mapping):
-        return {nested_simplify(k, decimals): nested_simplify(v, decimals) for k, v in obj.items()}
+        return {
+            nested_simplify(k, decimals): nested_simplify(v, decimals)
+            for k, v in obj.items()
+        }
     elif isinstance(obj, (str, int, np.int64)):
         return obj
     elif obj is None:
@@ -1706,7 +1794,11 @@ class RequestCounter:
         return self.old_request(method=method, **kwargs)
 
 
-def is_flaky(max_attempts: int = 5, wait_before_retry: Optional[float] = None, description: Optional[str] = None):
+def is_flaky(
+    max_attempts: int = 5,
+    wait_before_retry: Optional[float] = None,
+    description: Optional[str] = None,
+):
     """
     To decorate flaky tests. They will be retried on failures.
 
@@ -1730,7 +1822,10 @@ def is_flaky(max_attempts: int = 5, wait_before_retry: Optional[float] = None, d
                     return test_func_ref(*args, **kwargs)
 
                 except Exception as err:
-                    print(f"Test failed with {err} at try {retry_count}/{max_attempts}.", file=sys.stderr)
+                    print(
+                        f"Test failed with {err} at try {retry_count}/{max_attempts}.",
+                        file=sys.stderr,
+                    )
                     if wait_before_retry is not None:
                         time.sleep(wait_before_retry)
                     retry_count += 1

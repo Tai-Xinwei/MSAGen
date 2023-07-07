@@ -1,6 +1,12 @@
 from typing import Any, Dict, List, Union
 
-from ..utils import add_end_docstrings, is_torch_available, is_vision_available, logging, requires_backends
+from ..utils import (
+    add_end_docstrings,
+    is_torch_available,
+    is_vision_available,
+    logging,
+    requires_backends,
+)
 from .base import PIPELINE_INIT_ARGS, ChunkPipeline
 
 
@@ -164,7 +170,12 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
 
         outputs = self.model(**model_inputs)
 
-        model_outputs = {"target_size": target_size, "candidate_label": candidate_label, "is_last": is_last, **outputs}
+        model_outputs = {
+            "target_size": target_size,
+            "candidate_label": candidate_label,
+            "is_last": is_last,
+            **outputs,
+        }
         return model_outputs
 
     def postprocess(self, model_outputs, threshold=0.1, top_k=None):
@@ -173,7 +184,9 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
             label = model_output["candidate_label"]
             model_output = BaseModelOutput(model_output)
             outputs = self.image_processor.post_process_object_detection(
-                outputs=model_output, threshold=threshold, target_sizes=model_output["target_size"]
+                outputs=model_output,
+                threshold=threshold,
+                target_sizes=model_output["target_size"],
             )[0]
 
             for index in outputs["scores"].nonzero():
@@ -200,7 +213,9 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
             bbox (`Dict[str, int]`): Dict containing the coordinates in corners format.
         """
         if self.framework != "pt":
-            raise ValueError("The ZeroShotObjectDetectionPipeline is only available in PyTorch.")
+            raise ValueError(
+                "The ZeroShotObjectDetectionPipeline is only available in PyTorch."
+            )
         xmin, ymin, xmax, ymax = box.int().tolist()
         bbox = {
             "xmin": xmin,

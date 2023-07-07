@@ -123,9 +123,15 @@ class ImageGPTImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(f"Size dictionary must contain both height and width keys. Got {size.keys()}")
+            raise ValueError(
+                f"Size dictionary must contain both height and width keys. Got {size.keys()}"
+            )
         return resize(
-            image, size=(size["height"], size["width"]), resample=resample, data_format=data_format, **kwargs
+            image,
+            size=(size["height"], size["width"]),
+            resample=resample,
+            data_format=data_format,
+            **kwargs,
         )
 
     def normalize(
@@ -197,7 +203,11 @@ class ImageGPTImageProcessor(BaseImageProcessor):
         size = get_size_dict(size)
         resample = resample if resample is not None else self.resample
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
-        do_color_quantize = do_color_quantize if do_color_quantize is not None else self.do_color_quantize
+        do_color_quantize = (
+            do_color_quantize
+            if do_color_quantize is not None
+            else self.do_color_quantize
+        )
         clusters = clusters if clusters is not None else self.clusters
 
         images = make_list_of_images(images)
@@ -209,7 +219,9 @@ class ImageGPTImageProcessor(BaseImageProcessor):
             )
 
         if do_resize and size is None or resample is None:
-            raise ValueError("Size and resample must be specified if do_resize is True.")
+            raise ValueError(
+                "Size and resample must be specified if do_resize is True."
+            )
 
         if do_color_quantize and clusters is None:
             raise ValueError("Clusters must be specified if do_color_quantize is True.")
@@ -218,13 +230,19 @@ class ImageGPTImageProcessor(BaseImageProcessor):
         images = [to_numpy_array(image) for image in images]
 
         if do_resize:
-            images = [self.resize(image=image, size=size, resample=resample) for image in images]
+            images = [
+                self.resize(image=image, size=size, resample=resample)
+                for image in images
+            ]
 
         if do_normalize:
             images = [self.normalize(image=image) for image in images]
 
         if do_color_quantize:
-            images = [to_channel_dimension_format(image, ChannelDimension.LAST) for image in images]
+            images = [
+                to_channel_dimension_format(image, ChannelDimension.LAST)
+                for image in images
+            ]
             # color quantize from (batch_size, height, width, 3) to (batch_size, height, width)
             images = np.array(images)
             clusters = np.array(clusters)
@@ -237,7 +255,9 @@ class ImageGPTImageProcessor(BaseImageProcessor):
             # We need to convert back to a list of images to keep consistent behaviour across processors.
             images = list(images)
         else:
-            images = [to_channel_dimension_format(image, data_format) for image in images]
+            images = [
+                to_channel_dimension_format(image, data_format) for image in images
+            ]
 
         data = {"input_ids": images}
         return BatchFeature(data=data, tensor_type=return_tensors)

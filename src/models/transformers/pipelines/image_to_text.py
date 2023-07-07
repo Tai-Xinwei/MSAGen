@@ -53,7 +53,9 @@ class ImageToTextPipeline(Pipeline):
         super().__init__(*args, **kwargs)
         requires_backends(self, "vision")
         self.check_model_type(
-            TF_MODEL_FOR_VISION_2_SEQ_MAPPING if self.framework == "tf" else MODEL_FOR_VISION_2_SEQ_MAPPING
+            TF_MODEL_FOR_VISION_2_SEQ_MAPPING
+            if self.framework == "tf"
+            else MODEL_FOR_VISION_2_SEQ_MAPPING
         )
 
     def _sanitize_parameters(self, max_new_tokens=None, generate_kwargs=None):
@@ -71,7 +73,11 @@ class ImageToTextPipeline(Pipeline):
             forward_kwargs["generate_kwargs"]["max_new_tokens"] = max_new_tokens
         return {}, forward_kwargs, {}
 
-    def __call__(self, images: Union[str, List[str], "Image.Image", List["Image.Image"]], **kwargs):
+    def __call__(
+        self,
+        images: Union[str, List[str], "Image.Image", List["Image.Image"]],
+        **kwargs
+    ):
         """
         Assign labels to the image(s) passed as inputs.
 

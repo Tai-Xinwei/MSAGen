@@ -23,7 +23,11 @@ from ...utils import (
 
 
 _import_structure = {
-    "configuration_perceiver": ["PERCEIVER_PRETRAINED_CONFIG_ARCHIVE_MAP", "PerceiverConfig", "PerceiverOnnxConfig"],
+    "configuration_perceiver": [
+        "PERCEIVER_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "PerceiverConfig",
+        "PerceiverOnnxConfig",
+    ],
     "tokenization_perceiver": ["PerceiverTokenizer"],
 }
 
@@ -58,7 +62,11 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_perceiver import PERCEIVER_PRETRAINED_CONFIG_ARCHIVE_MAP, PerceiverConfig, PerceiverOnnxConfig
+    from .configuration_perceiver import (
+        PERCEIVER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        PerceiverConfig,
+        PerceiverOnnxConfig,
+    )
     from .tokenization_perceiver import PerceiverTokenizer
 
     try:
@@ -93,4 +101,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

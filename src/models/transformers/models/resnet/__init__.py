@@ -23,7 +23,11 @@ from ...utils import (
 
 
 _import_structure = {
-    "configuration_resnet": ["RESNET_PRETRAINED_CONFIG_ARCHIVE_MAP", "ResNetConfig", "ResNetOnnxConfig"]
+    "configuration_resnet": [
+        "RESNET_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "ResNetConfig",
+        "ResNetOnnxConfig",
+    ]
 }
 
 try:
@@ -66,7 +70,11 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_resnet import RESNET_PRETRAINED_CONFIG_ARCHIVE_MAP, ResNetConfig, ResNetOnnxConfig
+    from .configuration_resnet import (
+        RESNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        ResNetConfig,
+        ResNetOnnxConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -101,10 +109,16 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_flax_resnet import FlaxResNetForImageClassification, FlaxResNetModel, FlaxResNetPreTrainedModel
+        from .modeling_flax_resnet import (
+            FlaxResNetForImageClassification,
+            FlaxResNetModel,
+            FlaxResNetPreTrainedModel,
+        )
 
 
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure
+    )

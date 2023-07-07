@@ -26,7 +26,13 @@ from .image_utils import (
     infer_channel_dimension_format,
     to_numpy_array,
 )
-from .utils import ExplicitEnum, TensorType, is_jax_tensor, is_tf_tensor, is_torch_tensor
+from .utils import (
+    ExplicitEnum,
+    TensorType,
+    is_jax_tensor,
+    is_tf_tensor,
+    is_torch_tensor,
+)
 from .utils.import_utils import (
     is_flax_available,
     is_tf_available,
@@ -89,7 +95,10 @@ def to_channel_dimension_format(
 
 
 def rescale(
-    image: np.ndarray, scale: float, data_format: Optional[ChannelDimension] = None, dtype=np.float32
+    image: np.ndarray,
+    scale: float,
+    data_format: Optional[ChannelDimension] = None,
+    dtype=np.float32,
 ) -> np.ndarray:
     """
     Rescales `image` by `scale`.
@@ -146,7 +155,9 @@ def _rescale_for_pil_conversion(image):
 
 
 def to_pil_image(
-    image: Union[np.ndarray, "PIL.Image.Image", "torch.Tensor", "tf.Tensor", "jnp.ndarray"],
+    image: Union[
+        np.ndarray, "PIL.Image.Image", "torch.Tensor", "tf.Tensor", "jnp.ndarray"
+    ],
     do_rescale: Optional[bool] = None,
 ) -> "PIL.Image.Image":
     """
@@ -184,7 +195,9 @@ def to_pil_image(
     image = np.squeeze(image, axis=-1) if image.shape[-1] == 1 else image
 
     # PIL.Image can only store uint8 values so we rescale the image to be between 0 and 255 if needed.
-    do_rescale = _rescale_for_pil_conversion(image) if do_rescale is None else do_rescale
+    do_rescale = (
+        _rescale_for_pil_conversion(image) if do_rescale is None else do_rescale
+    )
 
     if do_rescale:
         image = rescale(image, 255)
@@ -297,7 +310,9 @@ def resize(
 
     # For all transformations, we want to keep the same data format as the input image unless otherwise specified.
     # The resized image from PIL will always have channels last, so find the input format first.
-    data_format = infer_channel_dimension_format(image) if data_format is None else data_format
+    data_format = (
+        infer_channel_dimension_format(image) if data_format is None else data_format
+    )
 
     # To maintain backwards compatibility with the resizing done in previous image feature extractors, we use
     # the pillow library to resize the image and then convert back to numpy
@@ -307,13 +322,19 @@ def resize(
         image = to_pil_image(image, do_rescale=do_rescale)
     height, width = size
     # PIL images are in the format (width, height)
-    resized_image = image.resize((width, height), resample=resample, reducing_gap=reducing_gap)
+    resized_image = image.resize(
+        (width, height), resample=resample, reducing_gap=reducing_gap
+    )
 
     if return_numpy:
         resized_image = np.array(resized_image)
         # If the input image channel dimension was of size 1, then it is dropped when converting to a PIL image
         # so we need to add it back if necessary.
-        resized_image = np.expand_dims(resized_image, axis=-1) if resized_image.ndim == 2 else resized_image
+        resized_image = (
+            np.expand_dims(resized_image, axis=-1)
+            if resized_image.ndim == 2
+            else resized_image
+        )
         # The image is always in channels last format after converting from a PIL image
         resized_image = to_channel_dimension_format(
             resized_image, data_format, input_channel_dim=ChannelDimension.LAST
@@ -366,14 +387,18 @@ def normalize(
 
     if isinstance(mean, Iterable):
         if len(mean) != num_channels:
-            raise ValueError(f"mean must have {num_channels} elements if it is an iterable, got {len(mean)}")
+            raise ValueError(
+                f"mean must have {num_channels} elements if it is an iterable, got {len(mean)}"
+            )
     else:
         mean = [mean] * num_channels
     mean = np.array(mean, dtype=image.dtype)
 
     if isinstance(std, Iterable):
         if len(std) != num_channels:
-            raise ValueError(f"std must have {num_channels} elements if it is an iterable, got {len(std)}")
+            raise ValueError(
+                f"std must have {num_channels} elements if it is an iterable, got {len(std)}"
+            )
     else:
         std = [std] * num_channels
     std = np.array(std, dtype=image.dtype)
@@ -383,7 +408,11 @@ def normalize(
     else:
         image = ((image.T - mean) / std).T
 
-    image = to_channel_dimension_format(image, data_format) if data_format is not None else image
+    image = (
+        to_channel_dimension_format(image, data_format)
+        if data_format is not None
+        else image
+    )
     return image
 
 
@@ -432,7 +461,9 @@ def center_crop(
         raise ValueError(f"Input image must be of type np.ndarray, got {type(image)}")
 
     if not isinstance(size, Iterable) or len(size) != 2:
-        raise ValueError("size must have 2 elements representing the height and width of the output image")
+        raise ValueError(
+            "size must have 2 elements representing the height and width of the output image"
+        )
 
     input_data_format = infer_channel_dimension_format(image)
     output_data_format = data_format if data_format is not None else input_data_format
@@ -475,7 +506,9 @@ def center_crop(
     left += left_pad
     right += left_pad
 
-    new_image = new_image[..., max(0, top) : min(new_height, bottom), max(0, left) : min(new_width, right)]
+    new_image = new_image[
+        ..., max(0, top) : min(new_height, bottom), max(0, left) : min(new_width, right)
+    ]
     new_image = to_channel_dimension_format(new_image, output_data_format)
 
     if not return_numpy:
@@ -488,7 +521,12 @@ def _center_to_corners_format_torch(bboxes_center: "torch.Tensor") -> "torch.Ten
     center_x, center_y, width, height = bboxes_center.unbind(-1)
     bbox_corners = torch.stack(
         # top left x, top left y, bottom right x, bottom right y
-        [(center_x - 0.5 * width), (center_y - 0.5 * height), (center_x + 0.5 * width), (center_y + 0.5 * height)],
+        [
+            (center_x - 0.5 * width),
+            (center_y - 0.5 * height),
+            (center_x + 0.5 * width),
+            (center_y + 0.5 * height),
+        ],
         dim=-1,
     )
     return bbox_corners
@@ -498,7 +536,12 @@ def _center_to_corners_format_numpy(bboxes_center: np.ndarray) -> np.ndarray:
     center_x, center_y, width, height = bboxes_center.T
     bboxes_corners = np.stack(
         # top left x, top left y, bottom right x, bottom right y
-        [center_x - 0.5 * width, center_y - 0.5 * height, center_x + 0.5 * width, center_y + 0.5 * height],
+        [
+            center_x - 0.5 * width,
+            center_y - 0.5 * height,
+            center_x + 0.5 * width,
+            center_y + 0.5 * height,
+        ],
         axis=-1,
     )
     return bboxes_corners
@@ -508,7 +551,12 @@ def _center_to_corners_format_tf(bboxes_center: "tf.Tensor") -> "tf.Tensor":
     center_x, center_y, width, height = tf.unstack(bboxes_center, axis=-1)
     bboxes_corners = tf.stack(
         # top left x, top left y, bottom right x, bottom right y
-        [center_x - 0.5 * width, center_y - 0.5 * height, center_x + 0.5 * width, center_y + 0.5 * height],
+        [
+            center_x - 0.5 * width,
+            center_y - 0.5 * height,
+            center_x + 0.5 * width,
+            center_y + 0.5 * height,
+        ],
         axis=-1,
     )
     return bboxes_corners
@@ -562,7 +610,9 @@ def _corners_to_center_format_numpy(bboxes_corners: np.ndarray) -> np.ndarray:
 
 
 def _corners_to_center_format_tf(bboxes_corners: "tf.Tensor") -> "tf.Tensor":
-    top_left_x, top_left_y, bottom_right_x, bottom_right_y = tf.unstack(bboxes_corners, axis=-1)
+    top_left_x, top_left_y, bottom_right_x, bottom_right_y = tf.unstack(
+        bboxes_corners, axis=-1
+    )
     bboxes_center = tf.stack(
         [
             (top_left_x + bottom_right_x) / 2,  # center x
@@ -693,15 +743,27 @@ def pad(
             values = ((values, values), (values, values))
         elif isinstance(values, tuple) and len(values) == 1:
             values = ((values[0], values[0]), (values[0], values[0]))
-        elif isinstance(values, tuple) and len(values) == 2 and isinstance(values[0], int):
+        elif (
+            isinstance(values, tuple)
+            and len(values) == 2
+            and isinstance(values[0], int)
+        ):
             values = (values, values)
-        elif isinstance(values, tuple) and len(values) == 2 and isinstance(values[0], tuple):
+        elif (
+            isinstance(values, tuple)
+            and len(values) == 2
+            and isinstance(values[0], tuple)
+        ):
             values = values
         else:
             raise ValueError(f"Unsupported format: {values}")
 
         # add 0 for channel dimension
-        values = ((0, 0), *values) if input_data_format == ChannelDimension.FIRST else (*values, (0, 0))
+        values = (
+            ((0, 0), *values)
+            if input_data_format == ChannelDimension.FIRST
+            else (*values, (0, 0))
+        )
 
         # Add additional padding if there's a batch dimension
         values = (0, *values) if image.ndim == 4 else values
@@ -721,7 +783,11 @@ def pad(
     else:
         raise ValueError(f"Invalid padding mode: {mode}")
 
-    image = to_channel_dimension_format(image, data_format) if data_format is not None else image
+    image = (
+        to_channel_dimension_format(image, data_format)
+        if data_format is not None
+        else image
+    )
     return image
 
 

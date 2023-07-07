@@ -118,7 +118,9 @@ class PoolFormerImageProcessor(BaseImageProcessor):
         super().__init__(**kwargs)
         size = size if size is not None else {"shortest_edge": 224}
         size = get_size_dict(size, default_to_square=False)
-        crop_size = crop_size if crop_size is not None else {"height": 224, "width": 224}
+        crop_size = (
+            crop_size if crop_size is not None else {"height": 224, "width": 224}
+        )
         crop_size = get_size_dict(crop_size, param_name="crop_size")
 
         self.do_resize = do_resize
@@ -130,7 +132,9 @@ class PoolFormerImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_factor
         self.do_normalize = do_normalize
-        self.image_mean = image_mean if image_mean is not None else IMAGENET_DEFAULT_MEAN
+        self.image_mean = (
+            image_mean if image_mean is not None else IMAGENET_DEFAULT_MEAN
+        )
         self.image_std = image_std if image_std is not None else IMAGENET_DEFAULT_STD
 
     def resize(
@@ -171,8 +175,12 @@ class PoolFormerImageProcessor(BaseImageProcessor):
                 The channel dimension format of the image. If not provided, it will be the same as the input image.
         """
         size = get_size_dict(size, default_to_square=False)
-        if "shortest_edge" not in size and ("height" not in size or "width" not in size):
-            raise ValueError(f"size must contain 'height' and 'width' or 'shortest_edge' as keys. Got {size.keys()}")
+        if "shortest_edge" not in size and (
+            "height" not in size or "width" not in size
+        ):
+            raise ValueError(
+                f"size must contain 'height' and 'width' or 'shortest_edge' as keys. Got {size.keys()}"
+            )
         if crop_pct is not None:
             if "shortest_edge" in size:
                 scale_size = int(size["shortest_edge"] / crop_pct)
@@ -180,20 +188,33 @@ class PoolFormerImageProcessor(BaseImageProcessor):
                 if size["height"] == size["width"]:
                     scale_size = int(size["height"] / crop_pct)
                 else:
-                    scale_size = (int(size["height"] / crop_pct), int(size["width"] / crop_pct))
+                    scale_size = (
+                        int(size["height"] / crop_pct),
+                        int(size["width"] / crop_pct),
+                    )
             else:
                 raise ValueError("Invalid size for resize: {}".format(size))
 
-            output_size = get_resize_output_image_size(image, size=scale_size, default_to_square=False)
+            output_size = get_resize_output_image_size(
+                image, size=scale_size, default_to_square=False
+            )
         else:
             if "shortest_edge" in size:
-                output_size = get_resize_output_image_size(image, size=size["shortest_edge"], default_to_square=False)
+                output_size = get_resize_output_image_size(
+                    image, size=size["shortest_edge"], default_to_square=False
+                )
             elif "height" in size and "width" in size:
                 output_size = (size["height"], size["width"])
             else:
                 raise ValueError("Invalid size for resize: {}".format(size))
 
-        return resize(image, size=output_size, resample=resample, data_format=data_format, **kwargs)
+        return resize(
+            image,
+            size=output_size,
+            resample=resample,
+            data_format=data_format,
+            **kwargs,
+        )
 
     def center_crop(
         self,
@@ -216,8 +237,15 @@ class PoolFormerImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(f"size must contain 'height' and 'width' as keys. Got {size.keys()}")
-        return center_crop(image, size=(size["height"], size["width"]), data_format=data_format, **kwargs)
+            raise ValueError(
+                f"size must contain 'height' and 'width' as keys. Got {size.keys()}"
+            )
+        return center_crop(
+            image,
+            size=(size["height"], size["width"]),
+            data_format=data_format,
+            **kwargs,
+        )
 
     def rescale(
         self,
@@ -324,9 +352,13 @@ class PoolFormerImageProcessor(BaseImageProcessor):
         do_resize = do_resize if do_resize is not None else self.do_resize
         crop_pct = crop_pct if crop_pct is not None else self.crop_pct
         resample = resample if resample is not None else self.resample
-        do_center_crop = do_center_crop if do_center_crop is not None else self.do_center_crop
+        do_center_crop = (
+            do_center_crop if do_center_crop is not None else self.do_center_crop
+        )
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
@@ -345,7 +377,9 @@ class PoolFormerImageProcessor(BaseImageProcessor):
             )
 
         if do_resize and size is None or resample is None:
-            raise ValueError("Size and resample must be specified if do_resize is True.")
+            raise ValueError(
+                "Size and resample must be specified if do_resize is True."
+            )
 
         if do_center_crop and crop_pct is None:
             raise ValueError("Crop_pct must be specified if do_center_crop is True.")
@@ -354,22 +388,34 @@ class PoolFormerImageProcessor(BaseImageProcessor):
             raise ValueError("Rescale factor must be specified if do_rescale is True.")
 
         if do_normalize and (image_mean is None or image_std is None):
-            raise ValueError("Image mean and std must be specified if do_normalize is True.")
+            raise ValueError(
+                "Image mean and std must be specified if do_normalize is True."
+            )
 
         # All transformations expect numpy arrays.
         images = [to_numpy_array(image) for image in images]
 
         if do_resize:
-            images = [self.resize(image=image, size=size, crop_pct=crop_pct, resample=resample) for image in images]
+            images = [
+                self.resize(
+                    image=image, size=size, crop_pct=crop_pct, resample=resample
+                )
+                for image in images
+            ]
 
         if do_center_crop:
             images = [self.center_crop(image=image, size=crop_size) for image in images]
 
         if do_rescale:
-            images = [self.rescale(image=image, scale=rescale_factor) for image in images]
+            images = [
+                self.rescale(image=image, scale=rescale_factor) for image in images
+            ]
 
         if do_normalize:
-            images = [self.normalize(image=image, mean=image_mean, std=image_std) for image in images]
+            images = [
+                self.normalize(image=image, mean=image_mean, std=image_std)
+                for image in images
+            ]
 
         images = [to_channel_dimension_format(image, data_format) for image in images]
 

@@ -41,7 +41,11 @@ from ...utils import (
     logging,
     replace_return_docstrings,
 )
-from .configuration_pix2struct import Pix2StructConfig, Pix2StructTextConfig, Pix2StructVisionConfig
+from .configuration_pix2struct import (
+    Pix2StructConfig,
+    Pix2StructTextConfig,
+    Pix2StructVisionConfig,
+)
 
 
 logger = logging.get_logger(__name__)
@@ -103,12 +107,16 @@ try:
 
     Pix2StructLayerNorm = FusedRMSNorm  # noqa
 
-    logger.info("Discovered apex.normalization.FusedRMSNorm - will use it instead of Pix2StructLayerNorm")
+    logger.info(
+        "Discovered apex.normalization.FusedRMSNorm - will use it instead of Pix2StructLayerNorm"
+    )
 except ImportError:
     # using the normal Pix2StructLayerNorm
     pass
 except Exception:
-    logger.warning("Discovered apex but it failed to load, falling back to Pix2StructLayerNorm")
+    logger.warning(
+        "Discovered apex but it failed to load, falling back to Pix2StructLayerNorm"
+    )
     pass
 
 ALL_LAYERNORM_LAYERS.append(Pix2StructLayerNorm)
@@ -123,7 +131,9 @@ class Pix2StructVisionEmbeddings(nn.Module):
 
     def __init__(self, config: Pix2StructConfig) -> None:
         super().__init__()
-        self.patch_projection = nn.Linear(config.patch_embed_hidden_size, config.hidden_size)
+        self.patch_projection = nn.Linear(
+            config.patch_embed_hidden_size, config.hidden_size
+        )
 
         self.row_embedder = nn.Embedding(config.seq_len, config.hidden_size)
         self.column_embedder = nn.Embedding(config.seq_len, config.hidden_size)
@@ -185,7 +195,11 @@ class Pix2StructVisionAttention(nn.Module):
 
         def to_projection_shape(states):
             """projection"""
-            return states.contiguous().view(batch_size, -1, self.n_heads, self.key_value_proj_dim).transpose(1, 2)
+            return (
+                states.contiguous()
+                .view(batch_size, -1, self.n_heads, self.key_value_proj_dim)
+                .transpose(1, 2)
+            )
 
         # get query states
         # (batch_size, n_heads, seq_length, dim_per_head)
@@ -201,30 +215,42 @@ class Pix2StructVisionAttention(nn.Module):
 
         if position_bias is None:
             position_bias = torch.zeros(
-                (1, self.n_heads, seq_length, seq_length), device=scores.device, dtype=scores.dtype
+                (1, self.n_heads, seq_length, seq_length),
+                device=scores.device,
+                dtype=scores.dtype,
             )
             if self.gradient_checkpointing and self.training:
                 position_bias.requires_grad = True
 
             if attention_mask is None:
-                attention_mask = torch.ones((batch_size, seq_length), device=scores.device, dtype=scores.dtype)
+                attention_mask = torch.ones(
+                    (batch_size, seq_length), device=scores.device, dtype=scores.dtype
+                )
 
             if attention_mask.dim() == 2:
-                position_bias = position_bias + attention_mask[:, None, :, None].to(position_bias.device)
+                position_bias = position_bias + attention_mask[:, None, :, None].to(
+                    position_bias.device
+                )
             else:
                 # (batch_size, n_heads, seq_length, key_length)
                 position_bias = position_bias + attention_mask.to(position_bias.device)
             position_bias = 1 - position_bias
 
-        position_bias_masked = position_bias.masked_fill(position_bias == 1, torch.finfo(scores.dtype).min)
+        position_bias_masked = position_bias.masked_fill(
+            position_bias == 1, torch.finfo(scores.dtype).min
+        )
         scores += position_bias_masked
         scores = torch.max(scores, torch.tensor(torch.finfo(scores.dtype).min))
 
         # (batch_size, n_heads, seq_length, key_length)
-        attn_weights = nn.functional.softmax(scores, dim=-1, dtype=torch.float32).type_as(scores)
+        attn_weights = nn.functional.softmax(
+            scores, dim=-1, dtype=torch.float32
+        ).type_as(scores)
 
         # (batch_size, n_heads, seq_length, key_length)
-        attn_weights = nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
+        attn_weights = nn.functional.dropout(
+            attn_weights, p=self.dropout, training=self.training
+        )
 
         # Mask heads if we want to
         if layer_head_mask is not None:
@@ -233,7 +259,11 @@ class Pix2StructVisionAttention(nn.Module):
         attn_output = torch.matmul(attn_weights, value_states)
 
         # (batch_size, seq_length, dim)
-        attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, -1, self.inner_dim)
+        attn_output = (
+            attn_output.transpose(1, 2)
+            .contiguous()
+            .view(batch_size, -1, self.inner_dim)
+        )
 
         attn_output = self.output(attn_output)
 
@@ -281,8 +311,12 @@ class Pix2StructVisionLayer(nn.Module):
         self.seq_len_dim = 1
         self.attention = Pix2StructVisionAttention(config)
         self.mlp = Pix2StructVisionMlp(config)
-        self.pre_mlp_layer_norm = Pix2StructLayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.pre_attention_layer_norm = Pix2StructLayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.pre_mlp_layer_norm = Pix2StructLayerNorm(
+            config.hidden_size, eps=config.layer_norm_eps
+        )
+        self.pre_attention_layer_norm = Pix2StructLayerNorm(
+            config.hidden_size, eps=config.layer_norm_eps
+        )
 
     def forward(
         self,
@@ -303,14 +337,18 @@ class Pix2StructVisionLayer(nn.Module):
             output_attentions=output_attentions,
         )
         attention_output = self_attention_outputs[0]
-        outputs = self_attention_outputs[1:]  # add self attentions if we output attention weights
+        outputs = self_attention_outputs[
+            1:
+        ]  # add self attentions if we output attention weights
 
         # first residual connection
         hidden_states = attention_output + residual
 
         # in Pix2StructVision, layernorm is also applied after self-attention
         layer_output = self.pre_mlp_layer_norm(hidden_states)
-        layer_output = self.mlp(layer_output) + hidden_states  # second residual connection
+        layer_output = (
+            self.mlp(layer_output) + hidden_states
+        )  # second residual connection
 
         outputs = (layer_output,) + outputs
 
@@ -321,7 +359,9 @@ class Pix2StructVisionEncoder(nn.Module):
     def __init__(self, config: Pix2StructConfig) -> None:
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList([Pix2StructVisionLayer(config) for _ in range(config.num_hidden_layers)])
+        self.layer = nn.ModuleList(
+            [Pix2StructVisionLayer(config) for _ in range(config.num_hidden_layers)]
+        )
         self.gradient_checkpointing = False
 
     def forward(
@@ -357,7 +397,9 @@ class Pix2StructVisionEncoder(nn.Module):
                     layer_head_mask,
                 )
             else:
-                layer_outputs = layer_module(hidden_states, attention_mask, layer_head_mask, output_attentions)
+                layer_outputs = layer_module(
+                    hidden_states, attention_mask, layer_head_mask, output_attentions
+                )
 
             hidden_states = layer_outputs[0]
 
@@ -368,7 +410,11 @@ class Pix2StructVisionEncoder(nn.Module):
             all_hidden_states = all_hidden_states + (hidden_states,)
 
         if not return_dict:
-            return tuple(v for v in [hidden_states, all_hidden_states, all_self_attentions] if v is not None)
+            return tuple(
+                v
+                for v in [hidden_states, all_hidden_states, all_self_attentions]
+                if v is not None
+            )
         return BaseModelOutput(
             last_hidden_state=hidden_states,
             hidden_states=all_hidden_states,
@@ -397,7 +443,9 @@ class Pix2StructPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         """Initialize the weights"""
-        factor = self.config.initializer_factor  # Used for testing weights initialization
+        factor = (
+            self.config.initializer_factor
+        )  # Used for testing weights initialization
         if isinstance(module, Pix2StructLayerNorm):
             module.weight.data.fill_(factor * 1.0)
         elif isinstance(module, Pix2StructTextDenseGatedActDense):
@@ -406,12 +454,20 @@ class Pix2StructPreTrainedModel(PreTrainedModel):
                 if isinstance(self.config, Pix2StructConfig)
                 else self.config.hidden_size
             )
-            d_ff = self.config.text_config.d_ff if isinstance(self.config, Pix2StructConfig) else self.config.d_ff
+            d_ff = (
+                self.config.text_config.d_ff
+                if isinstance(self.config, Pix2StructConfig)
+                else self.config.d_ff
+            )
 
-            module.wi_0.weight.data.normal_(mean=0.0, std=factor * ((hidden_size) ** -0.5))
+            module.wi_0.weight.data.normal_(
+                mean=0.0, std=factor * ((hidden_size) ** -0.5)
+            )
             if hasattr(module.wi_0, "bias") and module.wi_0.bias is not None:
                 module.wi_0.bias.data.zero_()
-            module.wi_1.weight.data.normal_(mean=0.0, std=factor * ((hidden_size) ** -0.5))
+            module.wi_1.weight.data.normal_(
+                mean=0.0, std=factor * ((hidden_size) ** -0.5)
+            )
             if hasattr(module.wi_1, "bias") and module.wi_1.bias is not None:
                 module.wi_1.bias.data.zero_()
             module.wo.weight.data.normal_(mean=0.0, std=factor * ((d_ff) ** -0.5))
@@ -426,7 +482,9 @@ class Pix2StructPreTrainedModel(PreTrainedModel):
                 else self.config.hidden_size
             )
             key_value_proj_dim = (
-                self.config.text_config.d_kv if isinstance(self.config, Pix2StructConfig) else self.config.hidden_size
+                self.config.text_config.d_kv
+                if isinstance(self.config, Pix2StructConfig)
+                else self.config.hidden_size
             )
             n_heads = (
                 self.config.text_config.num_heads
@@ -434,12 +492,20 @@ class Pix2StructPreTrainedModel(PreTrainedModel):
                 else self.config.num_heads
             )
 
-            module.query.weight.data.normal_(mean=0.0, std=factor * ((hidden_size * key_value_proj_dim) ** -0.5))
+            module.query.weight.data.normal_(
+                mean=0.0, std=factor * ((hidden_size * key_value_proj_dim) ** -0.5)
+            )
             module.key.weight.data.normal_(mean=0.0, std=factor * (hidden_size**-0.5))
-            module.value.weight.data.normal_(mean=0.0, std=factor * (hidden_size**-0.5))
-            module.output.weight.data.normal_(mean=0.0, std=factor * ((n_heads * key_value_proj_dim) ** -0.5))
+            module.value.weight.data.normal_(
+                mean=0.0, std=factor * (hidden_size**-0.5)
+            )
+            module.output.weight.data.normal_(
+                mean=0.0, std=factor * ((n_heads * key_value_proj_dim) ** -0.5)
+            )
             if module.has_relative_attention_bias:
-                module.relative_attention_bias.weight.data.normal_(mean=0.0, std=factor * ((hidden_size) ** -0.5))
+                module.relative_attention_bias.weight.data.normal_(
+                    mean=0.0, std=factor * ((hidden_size) ** -0.5)
+                )
         elif isinstance(module, nn.Embedding):
             hidden_size = (
                 self.config.text_config.hidden_size
@@ -457,12 +523,16 @@ class Pix2StructPreTrainedModel(PreTrainedModel):
                 else self.config.hidden_size
             )
 
-            module.lm_head.weight.data.normal_(mean=0.0, std=factor * ((hidden_size) ** -0.5))
+            module.lm_head.weight.data.normal_(
+                mean=0.0, std=factor * ((hidden_size) ** -0.5)
+            )
         elif isinstance(module, (nn.Linear, nn.Conv2d)):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
             module.weight.data = nn.init.trunc_normal_(
-                module.weight.data.to(torch.float32), mean=0.0, std=self.config.initializer_range
+                module.weight.data.to(torch.float32),
+                mean=0.0,
+                std=self.config.initializer_range,
             ).to(module.weight.dtype)
             if module.bias is not None:
                 module.bias.data.zero_()
@@ -487,14 +557,20 @@ class Pix2StructPreTrainedModel(PreTrainedModel):
         # shift inputs to the right
         if is_torch_fx_proxy(input_ids):
             # Item assignment is not supported natively for proxies.
-            shifted_input_ids = torch.full(input_ids.shape[:-1] + (1,), decoder_start_token_id)
-            shifted_input_ids = torch.cat([shifted_input_ids, input_ids[..., :-1]], dim=-1)
+            shifted_input_ids = torch.full(
+                input_ids.shape[:-1] + (1,), decoder_start_token_id
+            )
+            shifted_input_ids = torch.cat(
+                [shifted_input_ids, input_ids[..., :-1]], dim=-1
+            )
         else:
             shifted_input_ids = input_ids.new_zeros(input_ids.shape)
             shifted_input_ids[..., 1:] = input_ids[..., :-1].clone()
             shifted_input_ids[..., 0] = decoder_start_token_id
 
-        assert pad_token_id is not None, "self.model.config.pad_token_id has to be defined."
+        assert (
+            pad_token_id is not None
+        ), "self.model.config.pad_token_id has to be defined."
         # replace possible -100 values in labels by `pad_token_id`
         shifted_input_ids.masked_fill_(shifted_input_ids == -100, pad_token_id)
 
@@ -556,12 +632,16 @@ class Pix2StructVisionModel(Pix2StructPreTrainedModel):
         self.embeddings = Pix2StructVisionEmbeddings(config)
         self.encoder = Pix2StructVisionEncoder(config)
 
-        self.layernorm = Pix2StructLayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.layernorm = Pix2StructLayerNorm(
+            config.hidden_size, eps=config.layer_norm_eps
+        )
 
         # Initialize weights and apply final processing
         self.post_init()
 
-    def _set_gradient_checkpointing(self, module: Pix2StructVisionEncoder, value: bool = False) -> None:
+    def _set_gradient_checkpointing(
+        self, module: Pix2StructVisionEncoder, value: bool = False
+    ) -> None:
         if isinstance(module, Pix2StructVisionEncoder):
             module.gradient_checkpointing = value
 
@@ -577,7 +657,9 @@ class Pix2StructVisionModel(Pix2StructPreTrainedModel):
             self.encoder.layer[layer].attention.prune_heads(heads)
 
     @add_start_docstrings_to_model_forward(PIX2STRUCT_VISION_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=BaseModelOutputWithPooling, config_class=_CONFIG_FOR_DOC)
+    @replace_return_docstrings(
+        output_type=BaseModelOutputWithPooling, config_class=_CONFIG_FOR_DOC
+    )
     def forward(
         self,
         flattened_patches: Optional[torch.Tensor] = None,
@@ -612,11 +694,19 @@ class Pix2StructVisionModel(Pix2StructPreTrainedModel):
         [1, 2048, 768]
         ```
         """
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
         )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        output_hidden_states = (
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
+        )
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         if flattened_patches is None:
             raise ValueError("You have to specify flattened_patches")
@@ -691,7 +781,9 @@ class Pix2StructTextLayerFF(nn.Module):
         super().__init__()
         self.DenseReluDense = Pix2StructTextDenseGatedActDense(config)
 
-        self.layer_norm = Pix2StructLayerNorm(config.hidden_size, eps=config.layer_norm_epsilon)
+        self.layer_norm = Pix2StructLayerNorm(
+            config.hidden_size, eps=config.layer_norm_epsilon
+        )
         self.dropout = nn.Dropout(config.dropout_rate)
 
     # Copied from transformers.models.t5.modeling_t5.T5LayerFF.forward
@@ -721,13 +813,17 @@ class Pix2StructTextAttention(nn.Module):
         self.output = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
 
         if self.has_relative_attention_bias:
-            self.relative_attention_bias = nn.Embedding(self.relative_attention_num_buckets, self.n_heads)
+            self.relative_attention_bias = nn.Embedding(
+                self.relative_attention_num_buckets, self.n_heads
+            )
         self.pruned_heads = set()
         self.gradient_checkpointing = False
 
     @staticmethod
     # Copied from transformers.models.t5.modeling_t5.T5Attention._relative_position_bucket
-    def _relative_position_bucket(relative_position, bidirectional=True, num_buckets=32, max_distance=128):
+    def _relative_position_bucket(
+        relative_position, bidirectional=True, num_buckets=32, max_distance=128
+    ):
         """
         Adapted from Mesh Tensorflow:
         https://github.com/tensorflow/mesh/blob/0cb87fe07da627bf0b7e60475d59f95ed6b5be3d/mesh_tensorflow/transformer/transformer_layers.py#L593
@@ -754,7 +850,9 @@ class Pix2StructTextAttention(nn.Module):
             relative_buckets += (relative_position > 0).to(torch.long) * num_buckets
             relative_position = torch.abs(relative_position)
         else:
-            relative_position = -torch.min(relative_position, torch.zeros_like(relative_position))
+            relative_position = -torch.min(
+                relative_position, torch.zeros_like(relative_position)
+            )
         # now relative_position is in the range [0, inf)
 
         # half of the buckets are for exact increments in positions
@@ -768,10 +866,13 @@ class Pix2StructTextAttention(nn.Module):
             * (num_buckets - max_exact)
         ).to(torch.long)
         relative_position_if_large = torch.min(
-            relative_position_if_large, torch.full_like(relative_position_if_large, num_buckets - 1)
+            relative_position_if_large,
+            torch.full_like(relative_position_if_large, num_buckets - 1),
         )
 
-        relative_buckets += torch.where(is_small, relative_position, relative_position_if_large)
+        relative_buckets += torch.where(
+            is_small, relative_position, relative_position_if_large
+        )
         return relative_buckets
 
     # Adapted from transformers.models.t5.modeling_t5.T5Attention.compute_bias
@@ -779,17 +880,27 @@ class Pix2StructTextAttention(nn.Module):
         """Compute binned relative position bias"""
         if device is None:
             device = self.relative_attention_bias.weight.device
-        context_position = torch.arange(query_length, dtype=torch.long, device=device)[:, None]
-        memory_position = torch.arange(key_length, dtype=torch.long, device=device)[None, :]
-        relative_position = memory_position - context_position  # shape (query_length, key_length)
+        context_position = torch.arange(query_length, dtype=torch.long, device=device)[
+            :, None
+        ]
+        memory_position = torch.arange(key_length, dtype=torch.long, device=device)[
+            None, :
+        ]
+        relative_position = (
+            memory_position - context_position
+        )  # shape (query_length, key_length)
         relative_position_bucket = self._relative_position_bucket(
             relative_position,  # shape (query_length, key_length)
             bidirectional=False,
             num_buckets=self.relative_attention_num_buckets,
             max_distance=self.relative_attention_max_distance,
         )
-        values = self.relative_attention_bias(relative_position_bucket)  # shape (query_length, key_length, num_heads)
-        values = values.permute([2, 0, 1]).unsqueeze(0)  # shape (1, num_heads, query_length, key_length)
+        values = self.relative_attention_bias(
+            relative_position_bucket
+        )  # shape (query_length, key_length, num_heads)
+        values = values.permute([2, 0, 1]).unsqueeze(
+            0
+        )  # shape (1, num_heads, query_length, key_length)
         return values
 
     def forward(
@@ -819,13 +930,21 @@ class Pix2StructTextAttention(nn.Module):
                 raise ValueError(
                     f"past_key_value should have 2 past states: keys and values. Got { len(past_key_value)} past states"
                 )
-            real_seq_length += past_key_value[0].shape[2] if query_length is None else query_length
+            real_seq_length += (
+                past_key_value[0].shape[2] if query_length is None else query_length
+            )
 
-        key_length = real_seq_length if key_value_states is None else key_value_states.shape[1]
+        key_length = (
+            real_seq_length if key_value_states is None else key_value_states.shape[1]
+        )
 
         def to_projection_shape(states):
             """projection"""
-            return states.contiguous().view(batch_size, -1, self.n_heads, self.key_value_proj_dim).transpose(1, 2)
+            return (
+                states.contiguous()
+                .view(batch_size, -1, self.n_heads, self.key_value_proj_dim)
+                .transpose(1, 2)
+            )
 
         def project(hidden_states, proj_layer, key_value_states, past_key_value):
             """projects hidden states correctly to key/query states"""
@@ -860,10 +979,16 @@ class Pix2StructTextAttention(nn.Module):
 
         # get key/value states
         key_states = project(
-            hidden_states, self.key, key_value_states, past_key_value[0] if past_key_value is not None else None
+            hidden_states,
+            self.key,
+            key_value_states,
+            past_key_value[0] if past_key_value is not None else None,
         )
         value_states = project(
-            hidden_states, self.value, key_value_states, past_key_value[1] if past_key_value is not None else None
+            hidden_states,
+            self.value,
+            key_value_states,
+            past_key_value[1] if past_key_value is not None else None,
         )
 
         # compute scores
@@ -874,12 +999,16 @@ class Pix2StructTextAttention(nn.Module):
         if position_bias is None:
             if not self.has_relative_attention_bias:
                 position_bias = torch.zeros(
-                    (1, self.n_heads, real_seq_length, key_length), device=scores.device, dtype=scores.dtype
+                    (1, self.n_heads, real_seq_length, key_length),
+                    device=scores.device,
+                    dtype=scores.dtype,
                 )
                 if self.gradient_checkpointing and self.training:
                     position_bias.requires_grad = True
             else:
-                position_bias = self.compute_bias(real_seq_length, key_length, device=scores.device)
+                position_bias = self.compute_bias(
+                    real_seq_length, key_length, device=scores.device
+                )
 
             # if key and values are already calculated
             # we want only the last query position bias
@@ -887,7 +1016,9 @@ class Pix2StructTextAttention(nn.Module):
                 position_bias = position_bias[:, :, -hidden_states.size(1) :, :]
 
             if mask is not None:
-                position_bias = position_bias + mask  # (batch_size, n_heads, seq_length, key_length)
+                position_bias = (
+                    position_bias + mask
+                )  # (batch_size, n_heads, seq_length, key_length)
 
         if self.pruned_heads:
             mask = torch.ones(position_bias.shape[1])
@@ -901,7 +1032,9 @@ class Pix2StructTextAttention(nn.Module):
         attn_weights = nn.functional.softmax(scores.float(), dim=-1).type_as(scores)
 
         # (batch_size, n_heads, seq_length, key_length)
-        attn_weights = nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
+        attn_weights = nn.functional.dropout(
+            attn_weights, p=self.dropout, training=self.training
+        )
 
         # Mask heads if we want to
         if layer_head_mask is not None:
@@ -909,7 +1042,11 @@ class Pix2StructTextAttention(nn.Module):
 
         attn_output = torch.matmul(attn_weights, value_states)
         # (batch_size, seq_length, dim)
-        attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, -1, self.inner_dim)
+        attn_output = (
+            attn_output.transpose(1, 2)
+            .contiguous()
+            .view(batch_size, -1, self.inner_dim)
+        )
 
         attn_output = self.output(attn_output)
 
@@ -925,8 +1062,12 @@ class Pix2StructTextAttention(nn.Module):
 class Pix2StructTextLayerSelfAttention(nn.Module):
     def __init__(self, config, has_relative_attention_bias=False):
         super().__init__()
-        self.attention = Pix2StructTextAttention(config, has_relative_attention_bias=has_relative_attention_bias)
-        self.layer_norm = Pix2StructLayerNorm(config.hidden_size, eps=config.layer_norm_epsilon)
+        self.attention = Pix2StructTextAttention(
+            config, has_relative_attention_bias=has_relative_attention_bias
+        )
+        self.layer_norm = Pix2StructLayerNorm(
+            config.hidden_size, eps=config.layer_norm_epsilon
+        )
         self.dropout = nn.Dropout(config.dropout_rate)
 
     def forward(
@@ -950,7 +1091,9 @@ class Pix2StructTextLayerSelfAttention(nn.Module):
             output_attentions=output_attentions,
         )
         hidden_states = hidden_states + self.dropout(attention_output[0])
-        outputs = (hidden_states,) + attention_output[1:]  # add attentions if we output them
+        outputs = (hidden_states,) + attention_output[
+            1:
+        ]  # add attentions if we output them
         return outputs
 
 
@@ -958,8 +1101,12 @@ class Pix2StructTextLayerSelfAttention(nn.Module):
 class Pix2StructTextLayerCrossAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.attention = Pix2StructTextAttention(config, has_relative_attention_bias=False)
-        self.layer_norm = Pix2StructLayerNorm(config.hidden_size, eps=config.layer_norm_epsilon)
+        self.attention = Pix2StructTextAttention(
+            config, has_relative_attention_bias=False
+        )
+        self.layer_norm = Pix2StructLayerNorm(
+            config.hidden_size, eps=config.layer_norm_epsilon
+        )
         self.dropout = nn.Dropout(config.dropout_rate)
 
     def forward(
@@ -987,7 +1134,9 @@ class Pix2StructTextLayerCrossAttention(nn.Module):
             output_attentions=output_attentions,
         )
         layer_output = hidden_states + self.dropout(attention_output[0])
-        outputs = (layer_output,) + attention_output[1:]  # add attentions if we output them
+        outputs = (layer_output,) + attention_output[
+            1:
+        ]  # add attentions if we output them
         return outputs
 
 
@@ -1043,12 +1192,16 @@ class Pix2StructTextBlock(nn.Module):
             output_attentions=output_attentions,
         )
         hidden_states, present_key_value_state = self_attention_outputs[:2]
-        attention_outputs = self_attention_outputs[2:]  # Keep self-attention outputs and relative position weights
+        attention_outputs = self_attention_outputs[
+            2:
+        ]  # Keep self-attention outputs and relative position weights
 
         # clamp inf values to enable fp16 training
         if hidden_states.dtype == torch.float16 and torch.isinf(hidden_states).any():
             clamp_value = torch.finfo(hidden_states.dtype).max - 1000
-            hidden_states = torch.clamp(hidden_states, min=-clamp_value, max=clamp_value)
+            hidden_states = torch.clamp(
+                hidden_states, min=-clamp_value, max=clamp_value
+            )
 
         do_cross_attention = encoder_hidden_states is not None
         if do_cross_attention:
@@ -1073,13 +1226,20 @@ class Pix2StructTextBlock(nn.Module):
             hidden_states = cross_attention_outputs[0]
 
             # clamp inf values to enable fp16 training
-            if hidden_states.dtype == torch.float16 and torch.isinf(hidden_states).any():
+            if (
+                hidden_states.dtype == torch.float16
+                and torch.isinf(hidden_states).any()
+            ):
                 clamp_value = torch.finfo(hidden_states.dtype).max - 1000
-                hidden_states = torch.clamp(hidden_states, min=-clamp_value, max=clamp_value)
+                hidden_states = torch.clamp(
+                    hidden_states, min=-clamp_value, max=clamp_value
+                )
 
             # Combine self attn and cross attn key value states
             if present_key_value_state is not None:
-                present_key_value_state = present_key_value_state + cross_attention_outputs[1]
+                present_key_value_state = (
+                    present_key_value_state + cross_attention_outputs[1]
+                )
 
             # Keep cross-attention outputs and relative position weights
             attention_outputs = attention_outputs + cross_attention_outputs[2:]
@@ -1090,7 +1250,9 @@ class Pix2StructTextBlock(nn.Module):
         # clamp inf values to enable fp16 training
         if hidden_states.dtype == torch.float16 and torch.isinf(hidden_states).any():
             clamp_value = torch.finfo(hidden_states.dtype).max - 1000
-            hidden_states = torch.clamp(hidden_states, min=-clamp_value, max=clamp_value)
+            hidden_states = torch.clamp(
+                hidden_states, min=-clamp_value, max=clamp_value
+            )
 
         outputs = (hidden_states,)
 
@@ -1326,9 +1488,14 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size)
 
         self.layer = nn.ModuleList(
-            [Pix2StructTextBlock(config, has_relative_attention_bias=bool(i == 0)) for i in range(config.num_layers)]
+            [
+                Pix2StructTextBlock(config, has_relative_attention_bias=bool(i == 0))
+                for i in range(config.num_layers)
+            ]
         )
-        self.final_layer_norm = Pix2StructLayerNorm(config.hidden_size, eps=config.layer_norm_epsilon)
+        self.final_layer_norm = Pix2StructLayerNorm(
+            config.hidden_size, eps=config.layer_norm_epsilon
+        )
         self.dropout = nn.Dropout(config.dropout_rate)
 
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
@@ -1342,7 +1509,9 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
         # if decoder past is not included in output
         # speedy decoding is disabled and no need to reorder
         if past_key_values is None:
-            logger.warning("You might want to consider setting `use_cache=True` to speed up decoding")
+            logger.warning(
+                "You might want to consider setting `use_cache=True` to speed up decoding"
+            )
             return past_key_values
 
         reordered_decoder_past = ()
@@ -1353,13 +1522,17 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
             for layer_past_state in layer_past_states:
                 # need to set correct `past` for each of the four key / value states
                 reordered_layer_past_states = reordered_layer_past_states + (
-                    layer_past_state.index_select(0, beam_idx.to(layer_past_state.device)),
+                    layer_past_state.index_select(
+                        0, beam_idx.to(layer_past_state.device)
+                    ),
                 )
 
             assert reordered_layer_past_states[0].shape == layer_past_states[0].shape
             assert len(reordered_layer_past_states) == len(layer_past_states)
 
-            reordered_decoder_past = reordered_decoder_past + (reordered_layer_past_states,)
+            reordered_decoder_past = reordered_decoder_past + (
+                reordered_layer_past_states,
+            )
         return reordered_decoder_past
 
     def get_input_embeddings(self):
@@ -1375,7 +1548,9 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
         self.lm_head = new_embeddings
 
     @add_start_docstrings_to_model_forward(PIX2STRUCT_TEXT_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=CausalLMOutputWithCrossAttentions, config_class=_CONFIG_FOR_DOC)
+    @replace_return_docstrings(
+        output_type=CausalLMOutputWithCrossAttentions, config_class=_CONFIG_FOR_DOC
+    )
     def forward(
         self,
         input_ids=None,
@@ -1410,37 +1585,60 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
         ```
         """
         use_cache = use_cache if use_cache is not None else self.config.use_cache
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
         )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        output_hidden_states = (
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
+        )
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         if input_ids is not None and inputs_embeds is not None:
-            raise ValueError("You cannot specify both decoder_input_ids and decoder_inputs_embeds at the same time")
+            raise ValueError(
+                "You cannot specify both decoder_input_ids and decoder_inputs_embeds at the same time"
+            )
         elif input_ids is not None:
             input_shape = input_ids.size()
             input_ids = input_ids.view(-1, input_shape[-1])
         elif inputs_embeds is not None:
             input_shape = inputs_embeds.size()[:-1]
         else:
-            raise ValueError("You have to specify either decoder_input_ids or decoder_inputs_embeds")
+            raise ValueError(
+                "You have to specify either decoder_input_ids or decoder_inputs_embeds"
+            )
 
         if inputs_embeds is None:
-            assert self.embed_tokens is not None, "You have to initialize the model with valid token embeddings"
+            assert (
+                self.embed_tokens is not None
+            ), "You have to initialize the model with valid token embeddings"
             inputs_embeds = self.embed_tokens(input_ids)
 
         batch_size, seq_length = input_shape
 
         # required mask seq length can be calculated via length of past
-        mask_seq_length = past_key_values[0][0].shape[2] + seq_length if past_key_values is not None else seq_length
+        mask_seq_length = (
+            past_key_values[0][0].shape[2] + seq_length
+            if past_key_values is not None
+            else seq_length
+        )
 
         if attention_mask is None:
-            attention_mask = torch.ones(batch_size, mask_seq_length, device=inputs_embeds.device)
+            attention_mask = torch.ones(
+                batch_size, mask_seq_length, device=inputs_embeds.device
+            )
         if encoder_attention_mask is None and encoder_hidden_states is not None:
             encoder_seq_length = encoder_hidden_states.shape[1]
             encoder_attention_mask = torch.ones(
-                batch_size, encoder_seq_length, device=inputs_embeds.device, dtype=torch.long
+                batch_size,
+                encoder_seq_length,
+                device=inputs_embeds.device,
+                dtype=torch.long,
             )
 
         # initialize past_key_values with `None` if past does not exist
@@ -1449,22 +1647,34 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
-        extended_attention_mask = self.get_extended_attention_mask(attention_mask, input_shape)
+        extended_attention_mask = self.get_extended_attention_mask(
+            attention_mask, input_shape
+        )
 
         # If a 2D or 3D attention mask is provided for the cross-attention
         # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
         if encoder_hidden_states is not None:
-            encoder_batch_size, encoder_sequence_length, _ = encoder_hidden_states.size()
+            (
+                encoder_batch_size,
+                encoder_sequence_length,
+                _,
+            ) = encoder_hidden_states.size()
             encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
             if encoder_attention_mask is None:
-                encoder_attention_mask = torch.ones(encoder_hidden_shape, device=inputs_embeds.device)
-            encoder_extended_attention_mask = self.invert_attention_mask(encoder_attention_mask)
+                encoder_attention_mask = torch.ones(
+                    encoder_hidden_shape, device=inputs_embeds.device
+                )
+            encoder_extended_attention_mask = self.invert_attention_mask(
+                encoder_attention_mask
+            )
         else:
             encoder_extended_attention_mask = None
 
         # Prepare head mask if needed
         head_mask = self.get_head_mask(head_mask, self.config.num_layers)
-        cross_attn_head_mask = self.get_head_mask(cross_attn_head_mask, self.config.num_layers)
+        cross_attn_head_mask = self.get_head_mask(
+            cross_attn_head_mask, self.config.num_layers
+        )
         present_key_value_states = () if use_cache else None
         all_hidden_states = () if output_hidden_states else None
         all_attentions = () if output_attentions else None
@@ -1474,7 +1684,9 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
 
         hidden_states = self.dropout(inputs_embeds)
 
-        for i, (layer_module, past_key_value) in enumerate(zip(self.layer, past_key_values)):
+        for i, (layer_module, past_key_value) in enumerate(
+            zip(self.layer, past_key_values)
+        ):
             layer_head_mask = head_mask[i]
             cross_attn_layer_head_mask = cross_attn_head_mask[i]
             if output_hidden_states:
@@ -1532,10 +1744,14 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
             # (cross-attention position bias), (cross-attention weights)
             position_bias = layer_outputs[2]
             if encoder_hidden_states is not None:
-                encoder_decoder_position_bias = layer_outputs[4 if output_attentions else 3]
+                encoder_decoder_position_bias = layer_outputs[
+                    4 if output_attentions else 3
+                ]
             # append next layer key value states
             if use_cache:
-                present_key_value_states = present_key_value_states + (present_key_value_state,)
+                present_key_value_states = present_key_value_states + (
+                    present_key_value_state,
+                )
 
             if output_attentions:
                 all_attentions = all_attentions + (layer_outputs[2],)
@@ -1552,10 +1768,15 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
 
         loss = None
         if labels is not None:
-            loss_fct = nn.CrossEntropyLoss(ignore_index=-100, reduction="mean", label_smoothing=0.1)
+            loss_fct = nn.CrossEntropyLoss(
+                ignore_index=-100, reduction="mean", label_smoothing=0.1
+            )
             masked_labels = labels.masked_fill(labels == self.config.pad_token_id, -100)
 
-            loss = loss_fct(logits.contiguous().view(-1, logits.size(-1)), masked_labels.contiguous().view(-1))
+            loss = loss_fct(
+                logits.contiguous().view(-1, logits.size(-1)),
+                masked_labels.contiguous().view(-1),
+            )
 
         if not return_dict:
             return tuple(
@@ -1619,7 +1840,9 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel):
     def set_output_embeddings(self, new_embeddings):
         self.decoder.set_output_embeddings(new_embeddings)
 
-    def resize_token_embeddings(self, new_num_tokens: Optional[int] = None) -> nn.Embedding:
+    def resize_token_embeddings(
+        self, new_num_tokens: Optional[int] = None
+    ) -> nn.Embedding:
         model_embeds = self.decoder.resize_token_embeddings(new_num_tokens)
 
         # update vocab size
@@ -1634,7 +1857,9 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel):
         return self.encoder
 
     @add_start_docstrings_to_model_forward(PIX2STRUCT_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=Seq2SeqModelOutput, config_class=_CONFIG_FOR_DOC)
+    @replace_return_docstrings(
+        output_type=Seq2SeqModelOutput, config_class=_CONFIG_FOR_DOC
+    )
     def forward(
         self,
         flattened_patches: Optional[torch.FloatTensor] = None,
@@ -1703,8 +1928,12 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel):
         >>> print(loss.item())
         5.239729881286621
         ```"""
-        use_cache = use_cache if use_cache is not None else self.config.text_config.use_cache
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        use_cache = (
+            use_cache if use_cache is not None else self.config.text_config.use_cache
+        )
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         # Encode if needed (training, first prediction pass)
         if encoder_outputs is None:
@@ -1719,7 +1948,11 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel):
 
         hidden_states = encoder_outputs[0]
 
-        if labels is not None and decoder_input_ids is None and decoder_inputs_embeds is None:
+        if (
+            labels is not None
+            and decoder_input_ids is None
+            and decoder_inputs_embeds is None
+        ):
             # get decoder inputs from shifting lm labels to the right
             decoder_input_ids = self._shift_right(labels)
             decoder_attention_mask = (
@@ -1782,7 +2015,11 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel):
                 # add `input_ids` as first token to `input_ids`
                 input_ids = torch.cat(
                     [
-                        torch.ones((input_ids.shape[0], 1), dtype=torch.long, device=input_ids.device)
+                        torch.ones(
+                            (input_ids.shape[0], 1),
+                            dtype=torch.long,
+                            device=input_ids.device,
+                        )
                         * self.config.decoder_start_token_id,
                         input_ids,
                     ],
@@ -1803,7 +2040,11 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel):
                     )
         elif input_ids is None:
             batch_size = flattened_patches.shape[0]
-            input_ids = torch.LongTensor([[self.input_ids]]).repeat(batch_size, 1).to(input_ids.device)
+            input_ids = (
+                torch.LongTensor([[self.input_ids]])
+                .repeat(batch_size, 1)
+                .to(input_ids.device)
+            )
 
         if decoder_attention_mask is None:
             decoder_attention_mask = torch.ones_like(input_ids).to(input_ids.device)

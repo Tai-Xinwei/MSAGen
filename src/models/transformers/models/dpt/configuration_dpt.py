@@ -184,7 +184,9 @@ class DPTConfig(PretrainedConfig):
             self.neck_ignore_stages = neck_ignore_stages
 
             if readout_type != "project":
-                raise ValueError("Readout type must be 'project' when using `DPT-hybrid` mode.")
+                raise ValueError(
+                    "Readout type must be 'project' when using `DPT-hybrid` mode."
+                )
         else:
             self.backbone_config = None
             self.backbone_featmap_shape = None

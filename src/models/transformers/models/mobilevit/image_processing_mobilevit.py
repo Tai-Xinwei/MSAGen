@@ -19,7 +19,13 @@ from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 
 from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
-from ...image_transforms import center_crop, get_resize_output_image_size, rescale, resize, to_channel_dimension_format
+from ...image_transforms import (
+    center_crop,
+    get_resize_output_image_size,
+    rescale,
+    resize,
+    to_channel_dimension_format,
+)
 from ...image_utils import (
     ChannelDimension,
     ImageInput,
@@ -29,7 +35,13 @@ from ...image_utils import (
     to_numpy_array,
     valid_images,
 )
-from ...utils import TensorType, is_torch_available, is_torch_tensor, is_vision_available, logging
+from ...utils import (
+    TensorType,
+    is_torch_available,
+    is_torch_tensor,
+    is_vision_available,
+    logging,
+)
 
 
 if is_vision_available():
@@ -42,7 +54,9 @@ if is_torch_available():
 logger = logging.get_logger(__name__)
 
 
-def flip_channel_order(image: np.ndarray, data_format: Optional[ChannelDimension]) -> np.ndarray:
+def flip_channel_order(
+    image: np.ndarray, data_format: Optional[ChannelDimension]
+) -> np.ndarray:
     """
     Flip the color channels from RGB to BGR or vice versa.
 
@@ -119,7 +133,9 @@ class MobileViTImageProcessor(BaseImageProcessor):
         super().__init__(**kwargs)
         size = size if size is not None else {"shortest_edge": 224}
         size = get_size_dict(size, default_to_square=False)
-        crop_size = crop_size if crop_size is not None else {"height": 256, "width": 256}
+        crop_size = (
+            crop_size if crop_size is not None else {"height": 256, "width": 256}
+        )
         crop_size = get_size_dict(crop_size, param_name="crop_size")
 
         self.do_resize = do_resize
@@ -155,9 +171,19 @@ class MobileViTImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size, default_to_square=False)
         if "shortest_edge" not in size:
-            raise ValueError(f"The `size` dictionary must contain the key `shortest_edge`. Got {size.keys()}")
-        output_size = get_resize_output_image_size(image, size=size["shortest_edge"], default_to_square=False)
-        return resize(image, size=output_size, resample=resample, data_format=data_format, **kwargs)
+            raise ValueError(
+                f"The `size` dictionary must contain the key `shortest_edge`. Got {size.keys()}"
+            )
+        output_size = get_resize_output_image_size(
+            image, size=size["shortest_edge"], default_to_square=False
+        )
+        return resize(
+            image,
+            size=output_size,
+            resample=resample,
+            data_format=data_format,
+            **kwargs,
+        )
 
     def center_crop(
         self,
@@ -180,8 +206,15 @@ class MobileViTImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(f"The `size` dictionary must contain the keys `height` and `width`. Got {size.keys()}")
-        return center_crop(image, size=(size["height"], size["width"]), data_format=data_format, **kwargs)
+            raise ValueError(
+                f"The `size` dictionary must contain the keys `height` and `width`. Got {size.keys()}"
+            )
+        return center_crop(
+            image,
+            size=(size["height"], size["width"]),
+            data_format=data_format,
+            **kwargs,
+        )
 
     def rescale(
         self,
@@ -204,7 +237,9 @@ class MobileViTImageProcessor(BaseImageProcessor):
         return rescale(image, scale=scale, data_format=data_format, **kwargs)
 
     def flip_channel_order(
-        self, image: np.ndarray, data_format: Optional[Union[str, ChannelDimension]] = None
+        self,
+        image: np.ndarray,
+        data_format: Optional[Union[str, ChannelDimension]] = None,
     ) -> np.ndarray:
         """
         Flip the color channels from RGB to BGR or vice versa.
@@ -270,10 +305,16 @@ class MobileViTImageProcessor(BaseImageProcessor):
         do_resize = do_resize if do_resize is not None else self.do_resize
         resample = resample if resample is not None else self.resample
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
-        do_center_crop = do_center_crop if do_center_crop is not None else self.do_center_crop
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
+        do_center_crop = (
+            do_center_crop if do_center_crop is not None else self.do_center_crop
+        )
         do_flip_channel_order = (
-            do_flip_channel_order if do_flip_channel_order is not None else self.do_flip_channel_order
+            do_flip_channel_order
+            if do_flip_channel_order is not None
+            else self.do_flip_channel_order
         )
 
         size = size if size is not None else self.size
@@ -302,13 +343,18 @@ class MobileViTImageProcessor(BaseImageProcessor):
         images = [to_numpy_array(image) for image in images]
 
         if do_resize:
-            images = [self.resize(image=image, size=size, resample=resample) for image in images]
+            images = [
+                self.resize(image=image, size=size, resample=resample)
+                for image in images
+            ]
 
         if do_center_crop:
             images = [self.center_crop(image=image, size=crop_size) for image in images]
 
         if do_rescale:
-            images = [self.rescale(image=image, scale=rescale_factor) for image in images]
+            images = [
+                self.rescale(image=image, scale=rescale_factor) for image in images
+            ]
 
         # the pretrained checkpoints assume images are BGR, not RGB
         if do_flip_channel_order:
@@ -319,7 +365,9 @@ class MobileViTImageProcessor(BaseImageProcessor):
         data = {"pixel_values": images}
         return BatchFeature(data=data, tensor_type=return_tensors)
 
-    def post_process_semantic_segmentation(self, outputs, target_sizes: List[Tuple] = None):
+    def post_process_semantic_segmentation(
+        self, outputs, target_sizes: List[Tuple] = None
+    ):
         """
         Converts the output of [`MobileViTForSemanticSegmentation`] into semantic segmentation maps. Only supports
         PyTorch.
@@ -354,12 +402,17 @@ class MobileViTImageProcessor(BaseImageProcessor):
 
             for idx in range(len(logits)):
                 resized_logits = torch.nn.functional.interpolate(
-                    logits[idx].unsqueeze(dim=0), size=target_sizes[idx], mode="bilinear", align_corners=False
+                    logits[idx].unsqueeze(dim=0),
+                    size=target_sizes[idx],
+                    mode="bilinear",
+                    align_corners=False,
                 )
                 semantic_map = resized_logits[0].argmax(dim=0)
                 semantic_segmentation.append(semantic_map)
         else:
             semantic_segmentation = logits.argmax(dim=1)
-            semantic_segmentation = [semantic_segmentation[i] for i in range(semantic_segmentation.shape[0])]
+            semantic_segmentation = [
+                semantic_segmentation[i] for i in range(semantic_segmentation.shape[0])
+            ]
 
         return semantic_segmentation

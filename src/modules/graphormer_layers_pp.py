@@ -1,15 +1,14 @@
 import math
+from typing import Callable, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-
 from torch import Tensor
-from typing import Callable, Tuple
 
 from .get_activation_fn import get_activation_fn
-from .graphormer_layers import GraphNodeFeature, GraphAttnBias, Graph3DBias, NodeTaskHead
+from .graphormer_layers import (Graph3DBias, GraphAttnBias, GraphNodeFeature,
+                                NodeTaskHead)
 
 
 def init_params(module, n_layers):
@@ -51,28 +50,30 @@ class GraphNodeFeaturePipe(GraphNodeFeature):
     #     self.apply(lambda module: init_params(module, n_layers=n_layers))
     #     self.args = args
 
-
-
     def forward(self, inputs_tuple: tuple):
         x, in_degree, out_degree, node_mask, mask_2d = inputs_tuple
 
         n_graph, n_node = x.size()[:2]
 
         # node feauture + graph token
-        node_feature = self.atom_encoder(x).sum(dim=-2) # [n_graph, n_node, n_hidden]
+        node_feature = self.atom_encoder(x).sum(dim=-2)  # [n_graph, n_node, n_hidden]
         # node_feature = self.atom_encoder(x)[:, :, 0, :]
 
         if not self.no_2d:
-            degree_feature = self.in_degree_encoder(in_degree) + self.out_degree_encoder(out_degree)
+            degree_feature = self.in_degree_encoder(
+                in_degree
+            ) + self.out_degree_encoder(out_degree)
             if mask_2d is not None:
                 degree_feature = degree_feature * mask_2d[:, None, None]
             node_feature = node_feature + degree_feature
 
         # if self.add_3d: ## should be modified to self.add_3d
-            # @ Roger added: mask atom
+        # @ Roger added: mask atom
         if not self.no_2d and not self.args.ft and not self.args.infer:
             mask_embedding = self.atom_mask_embedding.weight.sum(dim=0)
-            node_feature[node_mask.bool().squeeze(-1).contiguous()] = mask_embedding.contiguous()
+            node_feature[
+                node_mask.bool().squeeze(-1).contiguous()
+            ] = mask_embedding.contiguous()
 
         graph_token_feature = self.graph_token.weight.unsqueeze(0).repeat(n_graph, 1, 1)
 
@@ -121,14 +122,22 @@ class GraphAttnBiasPipe(GraphAttnBias):
     #     self.apply(lambda module: init_params(module, n_layers=n_layers))
     #     self.args = args
 
-
     def forward(self, input_tuple):
-        attn_bias, spatial_pos, x, edge_input, attn_edge_type, node_mask, mask_2d = input_tuple
+        (
+            attn_bias,
+            spatial_pos,
+            x,
+            edge_input,
+            attn_edge_type,
+            node_mask,
+            mask_2d,
+        ) = input_tuple
 
         n_graph, n_node = x.size()[:2]
         graph_attn_bias = attn_bias.clone()
         graph_attn_bias = graph_attn_bias.unsqueeze(1).repeat(
-            1, self.num_heads, 1, 1)  # [n_graph, n_head, n_node+1, n_node+1]
+            1, self.num_heads, 1, 1
+        )  # [n_graph, n_head, n_node+1, n_node+1]
 
         # spatial pos
         # [n_graph, n_node, n_node, n_head] -> [n_graph, n_head, n_node, n_node]
@@ -136,13 +145,16 @@ class GraphAttnBiasPipe(GraphAttnBias):
             if not self.args.ft and not self.args.infer:
                 # @ Roger added: mask atom
                 mask_spatial_pos_value = self.spatial_pos_encoder.weight.shape[0] - 1
-                spatial_pos = spatial_pos.masked_fill_(node_mask.squeeze(-1).unsqueeze(1).bool(), mask_spatial_pos_value)
+                spatial_pos = spatial_pos.masked_fill_(
+                    node_mask.squeeze(-1).unsqueeze(1).bool(), mask_spatial_pos_value
+                )
 
             spatial_pos_bias = self.spatial_pos_encoder(spatial_pos).permute(0, 3, 1, 2)
             if mask_2d is not None:
                 spatial_pos_bias = spatial_pos_bias * mask_2d[:, None, None, None]
-            graph_attn_bias[:, :, 1:, 1:] = graph_attn_bias[:,
-                                                        :, 1:, 1:] + spatial_pos_bias
+            graph_attn_bias[:, :, 1:, 1:] = (
+                graph_attn_bias[:, :, 1:, 1:] + spatial_pos_bias
+            )
 
         # reset spatial pos here
         t = self.graph_token_virtual_distance.weight.view(1, self.num_heads, 1)
@@ -150,40 +162,50 @@ class GraphAttnBiasPipe(GraphAttnBias):
         graph_attn_bias[:, :, 0, :] = graph_attn_bias[:, :, 0, :] + t
 
         if not self.no_2d:
-
-            if self.edge_type == 'multi_hop':
+            if self.edge_type == "multi_hop":
                 spatial_pos_ = spatial_pos.clone()
                 spatial_pos_[spatial_pos_ == 0] = 1  # set pad to 1
                 # set 1 to 1, x > 1 to x - 1
-                spatial_pos_ = torch.where(spatial_pos_ > 1, spatial_pos_ - 1, spatial_pos_)
+                spatial_pos_ = torch.where(
+                    spatial_pos_ > 1, spatial_pos_ - 1, spatial_pos_
+                )
                 if self.multi_hop_max_dist > 0:
                     spatial_pos_ = spatial_pos_.clamp(0, self.multi_hop_max_dist)
-                    edge_input = edge_input[:, :, :, :self.multi_hop_max_dist, :]
+                    edge_input = edge_input[:, :, :, : self.multi_hop_max_dist, :]
                 # [n_graph, n_node, n_node, max_dist, n_head]
                 edge_input = self.edge_encoder(edge_input).mean(-2)
                 max_dist = edge_input.size(-2)
-                edge_input_flat = edge_input.permute(
-                    3, 0, 1, 2, 4).reshape(max_dist, n_node*n_node*n_graph, self.edge_hidden_dim)
-                edge_input_flat = torch.bmm(edge_input_flat, self.edge_dis_encoder.weight.reshape(
-                    -1, self.edge_hidden_dim, self.num_heads)[:max_dist, :, :])
+                edge_input_flat = edge_input.permute(3, 0, 1, 2, 4).reshape(
+                    max_dist, n_node * n_node * n_graph, self.edge_hidden_dim
+                )
+                edge_input_flat = torch.bmm(
+                    edge_input_flat,
+                    self.edge_dis_encoder.weight.reshape(
+                        -1, self.edge_hidden_dim, self.num_heads
+                    )[:max_dist, :, :],
+                )
                 edge_input = edge_input_flat.reshape(
-                    max_dist, n_graph, n_node, n_node, self.num_heads).permute(1, 2, 3, 0, 4)
-                edge_input = (edge_input.sum(-2) /
-                              (spatial_pos_.float().unsqueeze(-1))).permute(0, 3, 1, 2)
+                    max_dist, n_graph, n_node, n_node, self.num_heads
+                ).permute(1, 2, 3, 0, 4)
+                edge_input = (
+                    edge_input.sum(-2) / (spatial_pos_.float().unsqueeze(-1))
+                ).permute(0, 3, 1, 2)
             else:
                 # [n_graph, n_node, n_node, n_head] -> [n_graph, n_head, n_node, n_node]
-                edge_input = self.edge_encoder(
-                    attn_edge_type).mean(-2).permute(0, 3, 1, 2)
+                edge_input = (
+                    self.edge_encoder(attn_edge_type).mean(-2).permute(0, 3, 1, 2)
+                )
 
             if mask_2d is not None:
                 edge_input = edge_input * mask_2d[:, None, None, None]
 
             # @ Roger added: mask atom
             if not self.args.ft and not self.args.infer:
-                edge_input = edge_input.masked_fill_(node_mask.squeeze(-1)[:, None, None, :].bool(), 0.0)
+                edge_input = edge_input.masked_fill_(
+                    node_mask.squeeze(-1)[:, None, None, :].bool(), 0.0
+                )
 
-            graph_attn_bias[:, :, 1:, 1:] = graph_attn_bias[:,
-                                                            :, 1:, 1:] + edge_input
+            graph_attn_bias[:, :, 1:, 1:] = graph_attn_bias[:, :, 1:, 1:] + edge_input
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
 
         return graph_attn_bias
@@ -191,8 +213,8 @@ class GraphAttnBiasPipe(GraphAttnBias):
 
 class Graph3DBiasPipe(Graph3DBias):
     """
-        Compute 3D attention bias according to the position information for each head.
-        """
+    Compute 3D attention bias according to the position information for each head.
+    """
 
     # def __init__(self, num_heads, num_edges, n_layers, embed_dim, num_kernel, no_share_rpe=False, args=None):
     #     super().__init__(num_heads, num_edges, n_layers, embed_dim, num_kernel)
@@ -202,7 +224,6 @@ class Graph3DBiasPipe(Graph3DBias):
     #     self.no_share_rpe = no_share_rpe
     #     self.num_kernel = num_kernel
     #     self.embed_dim = embed_dim
-
 
     #     rpe_heads = self.num_heads * self.n_layers if self.no_share_rpe else self.num_heads
     #     self.gbf = GaussianLayer(self.num_kernel, num_edges)
@@ -237,9 +258,16 @@ class Graph3DBiasPipe(Graph3DBias):
             node_mask_i = node_mask.unsqueeze(-2).repeat(1, 1, n_node, 1)
             node_mask_j = node_mask.unsqueeze(1).repeat(1, n_node, 1, 1)
             new_node_mask = torch.cat([node_mask_i, node_mask_j], dim=-1).bool()
-            node_type_edge = node_type_edge.masked_fill(new_node_mask, 0).to(node_type_edge)
+            node_type_edge = node_type_edge.masked_fill(new_node_mask, 0).to(
+                node_type_edge
+            )
 
-        edge_feature = self.gbf(dist, torch.zeros_like(dist).long() if node_type_edge is None else node_type_edge.long())
+        edge_feature = self.gbf(
+            dist,
+            torch.zeros_like(dist).long()
+            if node_type_edge is None
+            else node_type_edge.long(),
+        )
         gbf_result = self.gbf_proj(edge_feature)
         graph_attn_bias = gbf_result
 
@@ -249,7 +277,7 @@ class Graph3DBiasPipe(Graph3DBias):
 
         graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous()
         graph_attn_bias.masked_fill_(
-            padding_mask.unsqueeze(1).unsqueeze(2), float('-inf')
+            padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
         )
 
         edge_feature = edge_feature.masked_fill(
@@ -260,10 +288,14 @@ class Graph3DBiasPipe(Graph3DBias):
         merge_edge_features = self.edge_proj(sum_edge_features)
 
         if not self.args.ft and not self.args.infer:
-            merge_edge_features = merge_edge_features.masked_fill_(padding_mask.unsqueeze(-1) + node_mask.bool(), 0.0)
+            merge_edge_features = merge_edge_features.masked_fill_(
+                padding_mask.unsqueeze(-1) + node_mask.bool(), 0.0
+            )
         else:
-            merge_edge_features = merge_edge_features.masked_fill_(padding_mask.unsqueeze(-1), 0.0)
-        # pos_3d_factor = self.pos_3d_dropout(self.pos_3d_factor)   
+            merge_edge_features = merge_edge_features.masked_fill_(
+                padding_mask.unsqueeze(-1), 0.0
+            )
+        # pos_3d_factor = self.pos_3d_dropout(self.pos_3d_factor)
 
         return graph_attn_bias, merge_edge_features, delta_pos
 
@@ -271,11 +303,12 @@ class Graph3DBiasPipe(Graph3DBias):
 @torch.jit.script
 def gaussian(x, mean, std):
     pi = 3.14159
-    a = (2*pi) ** 0.5
+    a = (2 * pi) ** 0.5
     return torch.exp(-0.5 * (((x - mean) / std) ** 2)) / (a * std)
 
+
 class GaussianLayer(nn.Module):
-    def __init__(self, K=128, edge_types=512*3):
+    def __init__(self, K=128, edge_types=512 * 3):
         super().__init__()
         self.K = K
         self.means = nn.Embedding(1, K)
@@ -295,6 +328,7 @@ class GaussianLayer(nn.Module):
         mean = self.means.weight.float().view(-1)
         std = self.stds.weight.float().view(-1).abs() + 1e-2
         return gaussian(x.float(), mean, std).type_as(self.means.weight)
+
 
 class NonLinear(nn.Module):
     def __init__(self, input, output_size, hidden=None):
@@ -349,12 +383,18 @@ class NodeTaskHeadPipe(NodeTaskHead):
         v = self.v_proj(query).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
         attn = q @ k.transpose(-1, -2)  # [bsz, head, n, n]
         # attn_probs_float = utils.softmax(attn.view(-1, n_node, n_node) + attn_bias.contiguous().view(-1, n_node, n_node), dim=-1, onnx_trace=False)
-        attn_probs_float = nn.functional.softmax(attn.view(-1, n_node, n_node) + attn_bias.contiguous().view(-1, n_node, n_node), dim=-1)
+        attn_probs_float = nn.functional.softmax(
+            attn.view(-1, n_node, n_node)
+            + attn_bias.contiguous().view(-1, n_node, n_node),
+            dim=-1,
+        )
 
         # print("396:", q, k, v)
         # print("397", attn, attn_probs_float)
         attn_probs = attn_probs_float.type_as(attn)
-        attn_probs = self.dropout_module(attn_probs).view(bsz, self.num_heads, n_node, n_node)
+        attn_probs = self.dropout_module(attn_probs).view(
+            bsz, self.num_heads, n_node, n_node
+        )
         rot_attn_probs = attn_probs.unsqueeze(-1) * delta_pos.unsqueeze(1).type_as(
             attn_probs
         )  # [bsz, head, n, n, 3]
@@ -380,7 +420,9 @@ class NodeTaskHeadPipe(NodeTaskHead):
 class RobertaClassificationHead(nn.Module):
     """Head for sentence-level classification tasks."""
 
-    def __init__(self, input_dim, inner_dim, num_classes, activation_fn, pooler_dropout=0.0):
+    def __init__(
+        self, input_dim, inner_dim, num_classes, activation_fn, pooler_dropout=0.0
+    ):
         super().__init__()
         self.dense = nn.Linear(input_dim, inner_dim)
         self.activation_fn = get_activation_fn(activation_fn)

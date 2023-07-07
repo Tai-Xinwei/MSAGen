@@ -19,7 +19,12 @@ from argparse import ArgumentParser
 import huggingface_hub
 
 from .. import __version__ as version
-from ..utils import is_flax_available, is_safetensors_available, is_tf_available, is_torch_available
+from ..utils import (
+    is_flax_available,
+    is_safetensors_available,
+    is_tf_available,
+    is_torch_available,
+)
 from . import BaseTransformersCLICommand
 
 
@@ -94,7 +99,9 @@ class EnvironmentCommand(BaseTransformersCLICommand):
             "Using distributed or parallel set-up in script?": "<fill in>",
         }
 
-        print("\nCopy-and-paste the text below in your GitHub issue and FILL OUT the two last points.\n")
+        print(
+            "\nCopy-and-paste the text below in your GitHub issue and FILL OUT the two last points.\n"
+        )
         print(self.format_dict(info))
 
         return info

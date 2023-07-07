@@ -2,7 +2,13 @@ from typing import Any, Dict, List, Union
 
 import numpy as np
 
-from ..utils import add_end_docstrings, is_torch_available, is_vision_available, logging, requires_backends
+from ..utils import (
+    add_end_docstrings,
+    is_torch_available,
+    is_vision_available,
+    logging,
+    requires_backends,
+)
 from .base import PIPELINE_INIT_ARGS, Pipeline
 
 
@@ -91,7 +97,9 @@ class ImageSegmentationPipeline(Pipeline):
         if "mask_threshold" in kwargs:
             postprocess_kwargs["mask_threshold"] = kwargs["mask_threshold"]
         if "overlap_mask_area_threshold" in kwargs:
-            postprocess_kwargs["overlap_mask_area_threshold"] = kwargs["overlap_mask_area_threshold"]
+            postprocess_kwargs["overlap_mask_area_threshold"] = kwargs[
+                "overlap_mask_area_threshold"
+            ]
 
         return preprocessor_kwargs, {}, postprocess_kwargs
 
@@ -163,12 +171,21 @@ class ImageSegmentationPipeline(Pipeline):
         return model_outputs
 
     def postprocess(
-        self, model_outputs, subtask=None, threshold=0.9, mask_threshold=0.5, overlap_mask_area_threshold=0.5
+        self,
+        model_outputs,
+        subtask=None,
+        threshold=0.9,
+        mask_threshold=0.5,
+        overlap_mask_area_threshold=0.5,
     ):
         fn = None
-        if subtask in {"panoptic", None} and hasattr(self.image_processor, "post_process_panoptic_segmentation"):
+        if subtask in {"panoptic", None} and hasattr(
+            self.image_processor, "post_process_panoptic_segmentation"
+        ):
             fn = self.image_processor.post_process_panoptic_segmentation
-        elif subtask in {"instance", None} and hasattr(self.image_processor, "post_process_instance_segmentation"):
+        elif subtask in {"instance", None} and hasattr(
+            self.image_processor, "post_process_instance_segmentation"
+        ):
             fn = self.image_processor.post_process_instance_segmentation
 
         if fn is not None:
@@ -190,7 +207,9 @@ class ImageSegmentationPipeline(Pipeline):
                 score = segment["score"]
                 annotation.append({"score": score, "label": label, "mask": mask})
 
-        elif subtask in {"semantic", None} and hasattr(self.image_processor, "post_process_semantic_segmentation"):
+        elif subtask in {"semantic", None} and hasattr(
+            self.image_processor, "post_process_semantic_segmentation"
+        ):
             outputs = self.image_processor.post_process_semantic_segmentation(
                 model_outputs, target_sizes=model_outputs["target_size"]
             )[0]
@@ -205,5 +224,7 @@ class ImageSegmentationPipeline(Pipeline):
                 label = self.model.config.id2label[label]
                 annotation.append({"score": None, "label": label, "mask": mask})
         else:
-            raise ValueError(f"Subtask {subtask} is not supported for model {type(self.model)}")
+            raise ValueError(
+                f"Subtask {subtask} is not supported for model {type(self.model)}"
+            )
         return annotation

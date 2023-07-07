@@ -110,7 +110,9 @@ class ConvNextConfig(PretrainedConfig):
         self.num_channels = num_channels
         self.patch_size = patch_size
         self.num_stages = num_stages
-        self.hidden_sizes = [96, 192, 384, 768] if hidden_sizes is None else hidden_sizes
+        self.hidden_sizes = (
+            [96, 192, 384, 768] if hidden_sizes is None else hidden_sizes
+        )
         self.depths = [3, 3, 9, 3] if depths is None else depths
         self.hidden_act = hidden_act
         self.initializer_range = initializer_range
@@ -118,13 +120,19 @@ class ConvNextConfig(PretrainedConfig):
         self.layer_scale_init_value = layer_scale_init_value
         self.drop_path_rate = drop_path_rate
         self.image_size = image_size
-        self.stage_names = ["stem"] + [f"stage{idx}" for idx in range(1, len(self.depths) + 1)]
+        self.stage_names = ["stem"] + [
+            f"stage{idx}" for idx in range(1, len(self.depths) + 1)
+        ]
 
         if out_features is not None and out_indices is not None:
             if len(out_features) != len(out_indices):
-                raise ValueError("out_features and out_indices should have the same length if both are set")
+                raise ValueError(
+                    "out_features and out_indices should have the same length if both are set"
+                )
             elif out_features != [self.stage_names[idx] for idx in out_indices]:
-                raise ValueError("out_features and out_indices should correspond to the same stages if both are set")
+                raise ValueError(
+                    "out_features and out_indices should correspond to the same stages if both are set"
+                )
 
         if out_features is None and out_indices is not None:
             out_features = [self.stage_names[idx] for idx in out_indices]
@@ -147,7 +155,9 @@ class ConvNextConfig(PretrainedConfig):
                 raise ValueError("out_indices should be a list or tuple")
             for idx in out_indices:
                 if idx >= len(self.stage_names):
-                    raise ValueError(f"Index {idx} is not a valid index for a list of length {len(self.stage_names)}")
+                    raise ValueError(
+                        f"Index {idx} is not a valid index for a list of length {len(self.stage_names)}"
+                    )
 
         self.out_features = out_features
         self.out_indices = out_indices
@@ -160,7 +170,10 @@ class ConvNextOnnxConfig(OnnxConfig):
     def inputs(self) -> Mapping[str, Mapping[int, str]]:
         return OrderedDict(
             [
-                ("pixel_values", {0: "batch", 1: "num_channels", 2: "height", 3: "width"}),
+                (
+                    "pixel_values",
+                    {0: "batch", 1: "num_channels", 2: "height", 3: "width"},
+                ),
             ]
         )
 

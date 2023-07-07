@@ -4,13 +4,15 @@
 # LICENSE file in the root directory of this source tree.
 
 import logging
+
 import numpy as np
 import torch.utils.data
+
 try:
     from collections.abc import Iterable
 except ImportError:
     from collections import Iterable
-    
+
 logger = logging.getLogger(__name__)
 
 
@@ -184,10 +186,10 @@ class FairseqDataset(torch.utils.data.Dataset, EpochListening):
             required_batch_size_multiple=required_batch_size_multiple,
             fixed_shapes=fixed_shapes,
         )
-    
 
-
-    def _filter_by_size_dynamic(self, indices, size_fn, max_positions, raise_exception=False):
+    def _filter_by_size_dynamic(
+        self, indices, size_fn, max_positions, raise_exception=False
+    ):
         def compare_leq(a, b):
             return a <= b if not isinstance(a, tuple) else max(a) <= b
 

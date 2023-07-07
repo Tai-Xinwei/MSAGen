@@ -10,17 +10,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from modules import (
-    init_bert_params,
-    GraphormerSentenceEncoder,
-    Node_decoder,
-)
+from modules import GraphormerSentenceEncoder, Node_decoder, init_bert_params
+from modules.get_activation_fn import get_activation_fn
 from modules.layer_norm import LayerNorm
 from modules.quant_noise import quant_noise
-from modules.get_activation_fn import get_activation_fn
-
 
 logger = logging.getLogger(__name__)
+
 
 class GraphormerModel(nn.Module):
     """
@@ -105,9 +101,11 @@ class GraphormerEncoder(nn.Module):
         self.args = args
 
         # Remove head is set to true during fine-tuning
-        self.load_softmax = not args.ft #getattr(args, "remove_head", False)
+        self.load_softmax = not args.ft  # getattr(args, "remove_head", False)
         print("if finetune:", args.ft)
-        self.decoder = Node_decoder(args.encoder_embed_dim, args.encoder_attention_heads, args=args) 
+        self.decoder = Node_decoder(
+            args.encoder_embed_dim, args.encoder_attention_heads, args=args
+        )
 
         self.masked_lm_pooler = nn.Linear(
             args.encoder_embed_dim, args.encoder_embed_dim
@@ -119,7 +117,6 @@ class GraphormerEncoder(nn.Module):
         )
         self.activation_fn = get_activation_fn(args.activation_fn)
         self.layer_norm = LayerNorm(args.encoder_embed_dim)
-
 
         self.lm_output_learned_bias = None
 
@@ -142,9 +139,15 @@ class GraphormerEncoder(nn.Module):
                 )
             else:
                 raise NotImplementedError
-        
 
-    def forward(self, batched_data, perturb=None, segment_labels=None, masked_tokens=None, **unused):
+    def forward(
+        self,
+        batched_data,
+        perturb=None,
+        segment_labels=None,
+        masked_tokens=None,
+        **unused
+    ):
         """
         Forward pass for Masked LM encoder. This first computes the token
         embedding using the token embedding matrix, position embeddings (if
@@ -178,7 +181,9 @@ class GraphormerEncoder(nn.Module):
             perturb=perturb,
         )
 
-        inner_states, node_output, sentence_rep = self.decoder(x, attn_bias, delta_pos, inner_states)
+        inner_states, node_output, sentence_rep = self.decoder(
+            x, attn_bias, delta_pos, inner_states
+        )
 
         x = inner_states[-1].transpose(0, 1)
 
@@ -187,27 +192,28 @@ class GraphormerEncoder(nn.Module):
         # project masked tokens only
         if masked_tokens is not None:
             x = x[masked_tokens, :]
-            
+
         x = self.layer_norm(self.activation_fn(self.lm_head_transform_weight(x)))
 
         pooled_output = self.pooler_activation(self.masked_lm_pooler(sentence_rep))
 
         # project back to size of vocabulary
-        if self.share_input_output_embed and hasattr(self.sentence_encoder.embed_tokens, "weight"):
+        if self.share_input_output_embed and hasattr(
+            self.sentence_encoder.embed_tokens, "weight"
+        ):
             x = F.linear(x, self.sentence_encoder.embed_tokens.weight)
         elif self.embed_out is not None:
             x = self.embed_out(x)
-        
+
         if self.lm_output_learned_bias is not None and self.load_softmax:
             x = x + self.lm_output_learned_bias
 
-        #finetuning
+        # finetuning
         if self.proj_out is not None:
             x = self.proj_out(x)
 
-        sentence_logits = None
         if self.sentence_projection_layer:
-            sentence_logits = self.sentence_projection_layer(pooled_output)
+            self.sentence_projection_layer(pooled_output)
 
         return x, node_output
         # return x, node_output, {
@@ -215,7 +221,6 @@ class GraphormerEncoder(nn.Module):
         #     "pooled_output": pooled_output,
         #     "sentence_logits": sentence_logits,
         # }
-    
 
     def max_positions(self):
         """Maximum output length supported by the encoder."""
@@ -239,27 +244,42 @@ class GraphormerEncoder(nn.Module):
                     print("Removing", k, "(because load_softmax is False)")
                     tmp_dict[k] = state_dict[k]
                     del state_dict[k]
-            proj_weight = torch.rand(
-                self.proj_out.weight.shape
-            )
+            proj_weight = torch.rand(self.proj_out.weight.shape)
             proj_bias = torch.rand(self.proj_out.bias.shape)
 
             # lm_head_transform_weight_weight = torch.rand(self.lm_head_transform_weight.weight.shape)
             # lm_head_transform_weight_bias = torch.rand(self.lm_head_transform_weight.bias.shape)
-            lm_head_transform_weight_weight = tmp_dict.get("encoder.regression_lm_head_list.0.weight", None)
-            lm_head_transform_weight_bias = tmp_dict.get("encoder.regression_lm_head_list.0.bias", None)
+            lm_head_transform_weight_weight = tmp_dict.get(
+                "encoder.regression_lm_head_list.0.weight", None
+            )
+            lm_head_transform_weight_bias = tmp_dict.get(
+                "encoder.regression_lm_head_list.0.bias", None
+            )
             ln_weight = tmp_dict.get("encoder.regression_ln_list.0.weight", None)
             ln_bias = tmp_dict.get("encoder.regression_ln_list.0.bias", None)
 
             self.init_state_dict_weight(proj_weight, proj_bias)
             # self.init_state_dict_weight(lm_head_transform_weight_weight, lm_head_transform_weight_bias)
 
-            state_dict["encoder.proj_out.weight"] = state_dict.get("encoder.proj_out.weight", proj_weight)
-            state_dict["encoder.proj_out.bias"] = state_dict.get("encoder.proj_out.bias", proj_bias)
-            state_dict["encoder.lm_head_transform_weight.weight"] = state_dict.get("encoder.lm_head_transform_weight.weight", lm_head_transform_weight_weight)
-            state_dict["encoder.lm_head_transform_weight.bias"] = state_dict.get("encoder.lm_head_transform_weight.bias", lm_head_transform_weight_bias)
-            state_dict["encoder.layer_norm.weight"] = state_dict.get("encoder.layer_norm.weight", ln_weight)
-            state_dict["encoder.layer_norm.bias"] = state_dict.get("encoder.layer_norm.bias", ln_bias)
+            state_dict["encoder.proj_out.weight"] = state_dict.get(
+                "encoder.proj_out.weight", proj_weight
+            )
+            state_dict["encoder.proj_out.bias"] = state_dict.get(
+                "encoder.proj_out.bias", proj_bias
+            )
+            state_dict["encoder.lm_head_transform_weight.weight"] = state_dict.get(
+                "encoder.lm_head_transform_weight.weight",
+                lm_head_transform_weight_weight,
+            )
+            state_dict["encoder.lm_head_transform_weight.bias"] = state_dict.get(
+                "encoder.lm_head_transform_weight.bias", lm_head_transform_weight_bias
+            )
+            state_dict["encoder.layer_norm.weight"] = state_dict.get(
+                "encoder.layer_norm.weight", ln_weight
+            )
+            state_dict["encoder.layer_norm.bias"] = state_dict.get(
+                "encoder.layer_norm.bias", ln_bias
+            )
         return state_dict
 
     def init_state_dict_weight(self, weight, bias):
@@ -375,8 +395,8 @@ def graphormer_base_architecture(args):
     args.encoder_normalize_before = getattr(args, "encoder_normalize_before", True)
     args.apply_graphormer_init = getattr(args, "apply_graphormer_init", True)
     args.share_encoder_input_output_embed = getattr(
-            args, "share_encoder_input_output_embed", False
-        )
+        args, "share_encoder_input_output_embed", False
+    )
     args.no_token_positional_embeddings = getattr(
         args, "no_token_positional_embeddings", False
     )

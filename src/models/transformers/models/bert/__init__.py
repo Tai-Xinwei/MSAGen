@@ -26,7 +26,11 @@ from ...utils import (
 
 
 _import_structure = {
-    "configuration_bert": ["BERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "BertConfig", "BertOnnxConfig"],
+    "configuration_bert": [
+        "BERT_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "BertConfig",
+        "BertOnnxConfig",
+    ],
     "tokenization_bert": ["BasicTokenizer", "BertTokenizer", "WordpieceTokenizer"],
 }
 
@@ -109,7 +113,11 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_bert import BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, BertConfig, BertOnnxConfig
+    from .configuration_bert import (
+        BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        BertConfig,
+        BertOnnxConfig,
+    )
     from .tokenization_bert import BasicTokenizer, BertTokenizer, WordpieceTokenizer
 
     try:
@@ -194,4 +202,6 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)
+    sys.modules[__name__] = _LazyModule(
+        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
+    )

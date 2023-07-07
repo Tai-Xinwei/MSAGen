@@ -1,5 +1,4 @@
 import torch
-
 import triton
 import triton.language as tl
 
@@ -7,6 +6,7 @@ try:
     # This is https://github.com/NVIDIA/apex, NOT the apex on PyPi, so it
     # should not be added to extras_require in setup.py.
     import apex
+
     HAS_APEX = True
 except ModuleNotFoundError:
     HAS_APEX = False
@@ -34,15 +34,15 @@ def _layer_norm_fwd_fused(
     _mean = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
     for off in range(0, N, BLOCK_SIZE):
         cols = off + tl.arange(0, BLOCK_SIZE)
-        a = tl.load(X + cols, mask=cols < N, other=0.).to(tl.float32)
+        a = tl.load(X + cols, mask=cols < N, other=0.0).to(tl.float32)
         _mean += a
     mean = tl.sum(_mean, axis=0) / N
     # Compute variance
     _var = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
     for off in range(0, N, BLOCK_SIZE):
         cols = off + tl.arange(0, BLOCK_SIZE)
-        x = tl.load(X + cols, mask=cols < N, other=0.).to(tl.float32)
-        x = tl.where(cols < N, x - mean, 0.)
+        x = tl.load(X + cols, mask=cols < N, other=0.0).to(tl.float32)
+        x = tl.where(cols < N, x - mean, 0.0)
         _var += x * x
     var = tl.sum(_var, axis=0) / N
     rstd = 1 / tl.sqrt(var + eps)
@@ -55,7 +55,7 @@ def _layer_norm_fwd_fused(
         mask = cols < N
         w = tl.load(W + cols, mask=mask)
         b = tl.load(B + cols, mask=mask)
-        x = tl.load(X + cols, mask=mask, other=0.).to(tl.float32)
+        x = tl.load(X + cols, mask=mask, other=0.0).to(tl.float32)
         x_hat = (x - mean) * rstd
         y = x_hat * w + b
         # Write output
@@ -68,17 +68,17 @@ def _layer_norm_bwd_dx_fused(
     DY,  # pointer to the output gradient
     DW,  # pointer to the partial sum of weights gradient
     DB,  # pointer to the partial sum of biases gradient
-    X,   # pointer to the input
-    W,   # pointer to the weights
-    B,   # pointer to the biases
-    Mean,   # pointer to the mean
-    Rstd,   # pointer to the 1/std
+    X,  # pointer to the input
+    W,  # pointer to the weights
+    B,  # pointer to the biases
+    Mean,  # pointer to the mean
+    Rstd,  # pointer to the 1/std
     Lock,  # pointer to the lock
     stride,  # how much to increase the pointer when moving by 1 row
     N,  # number of columns in X
     eps,  # epsilon to avoid division by zero
     GROUP_SIZE_M: tl.constexpr,
-    BLOCK_SIZE_N: tl.constexpr
+    BLOCK_SIZE_N: tl.constexpr,
 ):
     # Map the program id to the elements of X, DX, and DY it should compute.
     row = tl.program_id(0)
@@ -102,8 +102,8 @@ def _layer_norm_bwd_dx_fused(
     # Compute dx
     xhat = (x - mean) * rstd
     wdy = w * dy
-    xhat = tl.where(mask, xhat, 0.)
-    wdy = tl.where(mask, wdy, 0.)
+    xhat = tl.where(mask, xhat, 0.0)
+    wdy = tl.where(mask, wdy, 0.0)
     c1 = tl.sum(xhat * wdy, axis=0) / N
     c2 = tl.sum(wdy, axis=0) / N
     dx = (wdy - (xhat * c1 + c2)) * rstd
@@ -136,7 +136,7 @@ def _layer_norm_bwd_dwdb(
     M,  # GROUP_SIZE_M
     N,  # number of columns
     BLOCK_SIZE_M: tl.constexpr,
-    BLOCK_SIZE_N: tl.constexpr
+    BLOCK_SIZE_N: tl.constexpr,
 ):
     # Map the program id to the elements of DW and DB it should compute.
     pid = tl.program_id(0)
@@ -148,8 +148,8 @@ def _layer_norm_bwd_dwdb(
         rows = i + tl.arange(0, BLOCK_SIZE_M)
         mask = (rows[:, None] < M) & (cols[None, :] < N)
         offs = rows[:, None] * N + cols[None, :]
-        dw += tl.load(DW + offs, mask=mask, other=0.)
-        db += tl.load(DB + offs, mask=mask, other=0.)
+        dw += tl.load(DW + offs, mask=mask, other=0.0)
+        db += tl.load(DB + offs, mask=mask, other=0.0)
     # Write the final sum to the output.
     sum_dw = tl.sum(dw, axis=0)
     sum_db = tl.sum(db, axis=0)
@@ -157,9 +157,7 @@ def _layer_norm_bwd_dwdb(
     tl.store(FINAL_DB + cols, sum_db, mask=cols < N)
 
 
-
 class _LayerNorm(torch.autograd.Function):
-
     @staticmethod
     def forward(ctx, x, normalized_shape, weight, bias, eps):
         # allocate output
@@ -167,8 +165,8 @@ class _LayerNorm(torch.autograd.Function):
         # reshape input data into 2D tensor
         x_arg = x.reshape(-1, x.shape[-1])
         M, N = x_arg.shape
-        mean = torch.empty((M, ), dtype=torch.float32, device='cuda')
-        rstd = torch.empty((M, ), dtype=torch.float32, device='cuda')
+        mean = torch.empty((M,), dtype=torch.float32, device="cuda")
+        rstd = torch.empty((M,), dtype=torch.float32, device="cuda")
         # Less than 64KB per feature: enqueue fused kernel
         MAX_FUSED_SIZE = 65536 // x.element_size()
         BLOCK_SIZE = min(MAX_FUSED_SIZE, triton.next_power_of_2(N))
@@ -177,9 +175,19 @@ class _LayerNorm(torch.autograd.Function):
         # heuristics for number of warps
         num_warps = min(max(BLOCK_SIZE // 256, 1), 8)
         # enqueue kernel
-        _layer_norm_fwd_fused[(M,)](x_arg, y, weight, bias, mean, rstd,
-                                    x_arg.stride(0), N, eps,
-                                    BLOCK_SIZE=BLOCK_SIZE, num_warps=num_warps)
+        _layer_norm_fwd_fused[(M,)](
+            x_arg,
+            y,
+            weight,
+            bias,
+            mean,
+            rstd,
+            x_arg.stride(0),
+            N,
+            eps,
+            BLOCK_SIZE=BLOCK_SIZE,
+            num_warps=num_warps,
+        )
         ctx.save_for_backward(x, weight, bias, mean, rstd)
         ctx.BLOCK_SIZE = BLOCK_SIZE
         ctx.num_warps = num_warps
@@ -192,11 +200,14 @@ class _LayerNorm(torch.autograd.Function):
         # heuristics for amount of parallel reduction stream for DW/DB
         N = w.shape[0]
         GROUP_SIZE_M = 64
-        if N <= 8192: GROUP_SIZE_M = 96
-        if N <= 4096: GROUP_SIZE_M = 128
-        if N <= 1024: GROUP_SIZE_M = 256
+        if N <= 8192:
+            GROUP_SIZE_M = 96
+        if N <= 4096:
+            GROUP_SIZE_M = 128
+        if N <= 1024:
+            GROUP_SIZE_M = 256
         # allocate output
-        locks = torch.zeros(2 * GROUP_SIZE_M, dtype=torch.int32, device='cuda')
+        locks = torch.zeros(2 * GROUP_SIZE_M, dtype=torch.int32, device="cuda")
         _dw = torch.empty((GROUP_SIZE_M, w.shape[0]), dtype=x.dtype, device=w.device)
         _db = torch.empty((GROUP_SIZE_M, w.shape[0]), dtype=x.dtype, device=w.device)
         dw = torch.empty((w.shape[0],), dtype=w.dtype, device=w.device)
@@ -206,16 +217,32 @@ class _LayerNorm(torch.autograd.Function):
         # also compute partial sums for DW and DB
         x_arg = x.reshape(-1, x.shape[-1])
         M, N = x_arg.shape
-        _layer_norm_bwd_dx_fused[(M,)](dx, dy, _dw, _db, x, w, b, m, v, locks,
-                                       x_arg.stride(0), N, ctx.eps,
-                                       BLOCK_SIZE_N=ctx.BLOCK_SIZE,
-                                       GROUP_SIZE_M=GROUP_SIZE_M,
-                                       num_warps=ctx.num_warps)
-        grid = lambda meta: [triton.cdiv(N, meta['BLOCK_SIZE_N'])]
+        _layer_norm_bwd_dx_fused[(M,)](
+            dx,
+            dy,
+            _dw,
+            _db,
+            x,
+            w,
+            b,
+            m,
+            v,
+            locks,
+            x_arg.stride(0),
+            N,
+            ctx.eps,
+            BLOCK_SIZE_N=ctx.BLOCK_SIZE,
+            GROUP_SIZE_M=GROUP_SIZE_M,
+            num_warps=ctx.num_warps,
+        )
+
+        def grid(meta):
+            return [triton.cdiv(N, meta["BLOCK_SIZE_N"])]
+
         # accumulate partial sums in separate kernel
-        _layer_norm_bwd_dwdb[grid](_dw, _db, dw, db, GROUP_SIZE_M, N,
-                                   BLOCK_SIZE_M=32,
-                                   BLOCK_SIZE_N=128)
+        _layer_norm_bwd_dwdb[grid](
+            _dw, _db, dw, db, GROUP_SIZE_M, N, BLOCK_SIZE_M=32, BLOCK_SIZE_N=128
+        )
         return dx, None, dw, db, None
 
 
@@ -234,19 +261,19 @@ class fusedLayerNorm(torch.nn.LayerNorm):
         return output.type_as(input)
 
 
-def test_layer_norm(M, N, dtype, eps=1e-5, device='cuda'):
+def test_layer_norm(M, N, dtype, eps=1e-5, device="cuda"):
     # create data
     layer_norm = _LayerNorm.apply
     x_shape = (M, N)
-    w_shape = (x_shape[-1], )
-    weight = torch.rand(w_shape, dtype=dtype, device='cuda', requires_grad=True)
-    bias = torch.rand(w_shape, dtype=dtype, device='cuda', requires_grad=True)
-    x = -2.3 + 0.5 * torch.randn(x_shape, dtype=dtype, device='cuda')
-    dy = .1 * torch.randn_like(x)
+    w_shape = (x_shape[-1],)
+    weight = torch.rand(w_shape, dtype=dtype, device="cuda", requires_grad=True)
+    bias = torch.rand(w_shape, dtype=dtype, device="cuda", requires_grad=True)
+    x = -2.3 + 0.5 * torch.randn(x_shape, dtype=dtype, device="cuda")
+    dy = 0.1 * torch.randn_like(x)
     x.requires_grad_(True)
     # forward pass
     y_tri = layer_norm(x, w_shape, weight, bias, eps)
-    # backward pass 
+    # backward pass
     y_tri.backward(dy, retain_graph=True)
     x.grad, weight.grad, bias.grad = None, None, None
 

@@ -3,10 +3,13 @@
 # cython: language_level=3
 
 import cython
-from cython.parallel cimport prange, parallel
+
 cimport numpy
-import numpy
+from cython.parallel cimport parallel, prange
+
 import networkx as nx
+import numpy
+
 
 def floyd_warshall(adjacency_matrix):
 

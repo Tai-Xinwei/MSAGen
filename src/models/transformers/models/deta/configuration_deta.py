@@ -173,8 +173,12 @@ class DetaConfig(PretrainedConfig):
         **kwargs,
     ):
         if backbone_config is None:
-            logger.info("`backbone_config` is `None`. Initializing the config with the default `ResNet` backbone.")
-            backbone_config = CONFIG_MAPPING["resnet"](out_features=["stage2", "stage3", "stage4"])
+            logger.info(
+                "`backbone_config` is `None`. Initializing the config with the default `ResNet` backbone."
+            )
+            backbone_config = CONFIG_MAPPING["resnet"](
+                out_features=["stage2", "stage3", "stage4"]
+            )
         else:
             if isinstance(backbone_config, dict):
                 backbone_model_type = backbone_config.pop("model_type")

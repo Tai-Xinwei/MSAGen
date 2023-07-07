@@ -19,7 +19,13 @@ Processor class for BLIP-2.
 from typing import List, Optional, Union
 
 from ...processing_utils import ProcessorMixin
-from ...tokenization_utils_base import BatchEncoding, PaddingStrategy, PreTokenizedInput, TextInput, TruncationStrategy
+from ...tokenization_utils_base import (
+    BatchEncoding,
+    PaddingStrategy,
+    PreTokenizedInput,
+    TextInput,
+    TruncationStrategy,
+)
 from ...utils import TensorType
 
 
@@ -50,7 +56,9 @@ class Blip2Processor(ProcessorMixin):
     def __call__(
         self,
         images=None,
-        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
+        text: Union[
+            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
+        ] = None,
         add_special_tokens: bool = True,
         padding: Union[bool, str, PaddingStrategy] = False,
         truncation: Union[bool, str, TruncationStrategy] = None,
@@ -100,7 +108,9 @@ class Blip2Processor(ProcessorMixin):
             return text_encoding
 
         # add pixel_values
-        encoding_image_processor = self.image_processor(images, return_tensors=return_tensors)
+        encoding_image_processor = self.image_processor(
+            images, return_tensors=return_tensors
+        )
 
         if text is not None:
             text_encoding = self.tokenizer(

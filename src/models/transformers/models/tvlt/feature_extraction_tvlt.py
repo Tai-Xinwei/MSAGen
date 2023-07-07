@@ -83,7 +83,9 @@ class TvltFeatureExtractor(SequenceFeatureExtractor):
         self.hop_length = sampling_rate // hop_length_to_sampling_rate
         self.sampling_rate = sampling_rate
         self.padding_value = padding_value
-        self.mel_filters = self.get_mel_filters(sampling_rate, n_fft, n_mels=feature_size)
+        self.mel_filters = self.get_mel_filters(
+            sampling_rate, n_fft, n_mels=feature_size
+        )
 
     # Copied from transformers.models.whisper.feature_extraction_whisper.WhisperFeatureExtractor.get_mel_filters with 45.245640471924965->59.99247463746737
     def get_mel_filters(self, sr, n_fft, n_mels=128, dtype=np.float32):
@@ -149,7 +151,11 @@ class TvltFeatureExtractor(SequenceFeatureExtractor):
             half_window = (self.n_fft - 1) // 2 + 1
             if center:
                 start = i - half_window if i > half_window else 0
-                end = i + half_window if i < waveform.shape[0] - half_window else waveform.shape[0]
+                end = (
+                    i + half_window
+                    if i < waveform.shape[0] - half_window
+                    else waveform.shape[0]
+                )
 
                 frame = waveform[start:end]
 
@@ -166,7 +172,10 @@ class TvltFeatureExtractor(SequenceFeatureExtractor):
                 frame_width = frame.shape[0]
                 if frame_width < waveform.shape[0]:
                     frame = np.lib.pad(
-                        frame, pad_width=(0, self.n_fft - frame_width), mode="constant", constant_values=0
+                        frame,
+                        pad_width=(0, self.n_fft - frame_width),
+                        mode="constant",
+                        constant_values=0,
                     )
 
             frames.append(frame)
@@ -287,13 +296,20 @@ class TvltFeatureExtractor(SequenceFeatureExtractor):
 
         is_batched = bool(
             isinstance(raw_speech, (list, tuple))
-            and (isinstance(raw_speech[0], np.ndarray) or isinstance(raw_speech[0], (tuple, list)))
+            and (
+                isinstance(raw_speech[0], np.ndarray)
+                or isinstance(raw_speech[0], (tuple, list))
+            )
         )
         if is_batched:
-            raw_speech = [np.asarray([speech], dtype=np.float32).T for speech in raw_speech]
+            raw_speech = [
+                np.asarray([speech], dtype=np.float32).T for speech in raw_speech
+            ]
         elif not is_batched and not isinstance(raw_speech, np.ndarray):
             raw_speech = np.asarray(raw_speech, dtype=np.float32)
-        elif isinstance(raw_speech, np.ndarray) and raw_speech.dtype is np.dtype(np.float64):
+        elif isinstance(raw_speech, np.ndarray) and raw_speech.dtype is np.dtype(
+            np.float64
+        ):
             raw_speech = raw_speech.astype(np.float32)
         # always return batch
         if not is_batched:
@@ -301,26 +317,42 @@ class TvltFeatureExtractor(SequenceFeatureExtractor):
 
         # Convert audio signals to log mel spectrograms, truncate by time axis
         audio_features = [
-            self._np_extract_fbank_features(waveform.squeeze()).T[: self.spectrogram_length] for waveform in raw_speech
+            self._np_extract_fbank_features(waveform.squeeze()).T[
+                : self.spectrogram_length
+            ]
+            for waveform in raw_speech
         ]
         if isinstance(audio_features[0], List):
-            audio_features = [np.asarray(feature, dtype=np.float32) for feature in audio_features]
+            audio_features = [
+                np.asarray(feature, dtype=np.float32) for feature in audio_features
+            ]
 
         # Create audio attention mask
         max_patch_len = max(
-            [ceil(feature.shape[0] / self.patch_size[0]) * self.freq_len for feature in audio_features]
+            [
+                ceil(feature.shape[0] / self.patch_size[0]) * self.freq_len
+                for feature in audio_features
+            ]
         )  # The maximum number of audio patches in a batch
         if return_attention_mask:
             audio_mask = [
                 (ceil(feature.shape[0] / self.patch_size[0]) * self.freq_len) * [1]
-                + (max_patch_len - ceil(feature.shape[0] / self.patch_size[0]) * self.freq_len) * [0]
+                + (
+                    max_patch_len
+                    - ceil(feature.shape[0] / self.patch_size[0]) * self.freq_len
+                )
+                * [0]
                 for feature in audio_features
             ]
             audio_mask = np.array(audio_mask).astype(np.float32)
 
         # convert into correct format for padding
-        max_time_len = max_patch_len // self.freq_len * self.patch_size[0]  # The maximum audio size in a batch
-        padded_audio_features = np.ones([len(audio_features), 1, max_time_len, self.feature_size]).astype(np.float32)
+        max_time_len = (
+            max_patch_len // self.freq_len * self.patch_size[0]
+        )  # The maximum audio size in a batch
+        padded_audio_features = np.ones(
+            [len(audio_features), 1, max_time_len, self.feature_size]
+        ).astype(np.float32)
         padded_audio_features = padded_audio_features * self.padding_value
         for i in range(len(audio_features)):
             feature = audio_features[i]
