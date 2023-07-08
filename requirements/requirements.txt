@@ -1,0 +1,5 @@
+deepspeed==0.9.5
+rdkit-pypi==2021.9.3
+torch==2.0.1
+Cython==0.29.32
+torchvision==0.15.2
