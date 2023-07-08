@@ -2,6 +2,8 @@ import os
 import subprocess
 import sys
 
+import numpy
+from Cython.Build import cythonize
 from setuptools import find_packages, setup
 from setuptools.command import egg_info
 
@@ -22,7 +24,10 @@ setup(
     author_email="sfm.core@microsoft.com",
     install_requires=install_requires,
     extras_require=extras_require,
+    ext_modules=cythonize("src/data/mol_data/algos.pyx"),
+    include_dirs=[numpy.get_include()],
 )
+
 
 if __name__ == "__main__":
     pass

@@ -73,8 +73,8 @@ if TYPE_CHECKING and _has_neptune:
             _has_neptune = False
 
 from .trainer_callback import ProgressCallback, TrainerCallback  # noqa: E402
-from .trainer_utils import (PREFIX_CHECKPOINT_DIR, BestRun,  # noqa: E402
-                            IntervalStrategy)
+from .trainer_utils import BestRun  # noqa: E402
+from .trainer_utils import PREFIX_CHECKPOINT_DIR, IntervalStrategy
 from .training_args import ParallelMode  # noqa: E402
 from .utils import ENV_VARS_TRUE_VALUES, is_torch_tpu_available  # noqa: E402
 
