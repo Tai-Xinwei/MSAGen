@@ -1,2 +1,14 @@
 __pycache__
 .ruff_cache
+
+# Build + installation data
+build/
+dist/
+*.so
+
+# Dev/IDE data
+.vscode
+.theia
+
+# Log
+wandb/
