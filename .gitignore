@@ -9,3 +9,6 @@ dist/
 # Dev/IDE data
 .vscode
 .theia
+
+# Log
+wandb/
