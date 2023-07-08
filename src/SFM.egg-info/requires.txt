@@ -3,6 +3,10 @@ rdkit-pypi==2021.9.3
 torch==2.0.1
 Cython==0.29.32
 torchvision==0.15.2
+torch-scatter@ https://data.pyg.org/whl/torch-2.0.0%2Bcu117/torch_scatter-2.1.1%2Bpt20cu117-cp39-cp39-win_amd64.whl
+torch-sparse@ https://data.pyg.org/whl/torch-2.0.0%2Bcu117/torch_sparse-0.6.17%2Bpt20cu117-cp39-cp39-linux_x86_64.whl
+torch_cluster@ https://data.pyg.org/whl/torch-2.0.0%2Bcu117/torch_cluster-1.6.1%2Bpt20cu117-cp39-cp39-linux_x86_64.whl
+torch-geometric==2.3.0
 
 [train]
 ogb==1.3.6
@@ -10,7 +14,3 @@ tensorboard
 numba
 lmdb
 networkx
-torch-scatter==2.1.1
-torch-sparse==0.6.17
-torch-geometric==2.3.0
-torch_cluster==1.6.1

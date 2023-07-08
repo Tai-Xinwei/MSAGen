@@ -1,8 +1,8 @@
 __pycache__
+.ruff_cache
 
 # Build + installation data
 build/
-.ruff_cache
 dist/
 *.so
 
