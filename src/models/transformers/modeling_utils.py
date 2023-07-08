@@ -37,8 +37,8 @@ from .configuration_utils import PretrainedConfig
 from .deepspeed import deepspeed_config, is_deepspeed_zero3_enabled
 from .dynamic_module_utils import custom_object_save
 from .generation import GenerationConfig, GenerationMixin
-from .pytorch_utils import (Conv1D, apply_chunking_to_forward,  # noqa: F401
-                            find_pruneable_heads_and_indices,
+from .pytorch_utils import apply_chunking_to_forward  # noqa: F401
+from .pytorch_utils import (Conv1D, find_pruneable_heads_and_indices,
                             prune_conv1d_layer, prune_layer,
                             prune_linear_layer)
 from .utils import (DUMMY_INPUTS, FLAX_WEIGHTS_NAME, SAFE_WEIGHTS_INDEX_NAME,

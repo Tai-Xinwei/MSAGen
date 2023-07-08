@@ -1,0 +1,8 @@
+README.md
+setup.py
+SFM.egg-info/PKG-INFO
+SFM.egg-info/SOURCES.txt
+SFM.egg-info/dependency_links.txt
+SFM.egg-info/requires.txt
+SFM.egg-info/top_level.txt
+src/data/mol_data/algos.c
