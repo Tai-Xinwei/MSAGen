@@ -3,6 +3,8 @@ __pycache__
 # Build + installation data
 build/
 .ruff_cache
+dist/
+*.so
 
 # Dev/IDE data
 .vscode
