@@ -11,6 +11,7 @@ from ogb.graphproppred import PygGraphPropPredDataset
 
 pyximport.install(setup_args={"include_dirs": np.get_include()})
 import copy
+
 # from memory_profiler import profile
 import json
 import os
@@ -28,15 +29,19 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
-from ogb.utils.features import (allowable_features,
-                                atom_feature_vector_to_dict,
-                                atom_to_feature_vector,
-                                bond_feature_vector_to_dict,
-                                bond_to_feature_vector)
+from ogb.utils.features import (
+    allowable_features,
+    atom_feature_vector_to_dict,
+    atom_to_feature_vector,
+    bond_feature_vector_to_dict,
+    bond_to_feature_vector,
+)
+
 # from ogb.utils import smiles2graph
 from ogb.utils.torch_util import replace_numpy_with_torchtensor
 from ogb.utils.url import decide_download, download_url, extract_zip
 from rdkit import Chem
+
 # import numpy as np
 from rdkit.Chem import AllChem, MACCSkeys
 from rdkit.Chem import rdDistGeom as molDG

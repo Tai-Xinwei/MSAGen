@@ -13,8 +13,7 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available)
+from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
 
 _import_structure = {
     "configuration_dinat": ["DINAT_PRETRAINED_CONFIG_ARCHIVE_MAP", "DinatConfig"]
@@ -36,8 +35,7 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_dinat import (DINAT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                      DinatConfig)
+    from .configuration_dinat import DINAT_PRETRAINED_CONFIG_ARCHIVE_MAP, DinatConfig
 
     try:
         if not is_torch_available():
@@ -45,10 +43,13 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_dinat import (DINAT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                     DinatBackbone,
-                                     DinatForImageClassification, DinatModel,
-                                     DinatPreTrainedModel)
+        from .modeling_dinat import (
+            DINAT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            DinatBackbone,
+            DinatForImageClassification,
+            DinatModel,
+            DinatPreTrainedModel,
+        )
 
 else:
     import sys

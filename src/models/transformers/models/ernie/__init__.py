@@ -14,8 +14,12 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tensorflow_text_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tensorflow_text_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_ernie": [
@@ -46,8 +50,11 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_ernie import (ERNIE_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                      ErnieConfig, ErnieOnnxConfig)
+    from .configuration_ernie import (
+        ERNIE_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        ErnieConfig,
+        ErnieOnnxConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -55,15 +62,19 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_ernie import (ERNIE_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                     ErnieForCausalLM, ErnieForMaskedLM,
-                                     ErnieForMultipleChoice,
-                                     ErnieForNextSentencePrediction,
-                                     ErnieForPreTraining,
-                                     ErnieForQuestionAnswering,
-                                     ErnieForSequenceClassification,
-                                     ErnieForTokenClassification, ErnieModel,
-                                     ErniePreTrainedModel)
+        from .modeling_ernie import (
+            ERNIE_PRETRAINED_MODEL_ARCHIVE_LIST,
+            ErnieForCausalLM,
+            ErnieForMaskedLM,
+            ErnieForMultipleChoice,
+            ErnieForNextSentencePrediction,
+            ErnieForPreTraining,
+            ErnieForQuestionAnswering,
+            ErnieForSequenceClassification,
+            ErnieForTokenClassification,
+            ErnieModel,
+            ErniePreTrainedModel,
+        )
 
 else:
     import sys

@@ -14,8 +14,7 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available)
+from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
 
 _import_structure = {
     "configuration_fsmt": ["FSMT_PRETRAINED_CONFIG_ARCHIVE_MAP", "FSMTConfig"],
@@ -36,8 +35,7 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_fsmt import (FSMT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                     FSMTConfig)
+    from .configuration_fsmt import FSMT_PRETRAINED_CONFIG_ARCHIVE_MAP, FSMTConfig
     from .tokenization_fsmt import FSMTTokenizer
 
     try:
@@ -46,8 +44,11 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_fsmt import (FSMTForConditionalGeneration, FSMTModel,
-                                    PretrainedFSMTModel)
+        from .modeling_fsmt import (
+            FSMTForConditionalGeneration,
+            FSMTModel,
+            PretrainedFSMTModel,
+        )
 
 else:
     import sys

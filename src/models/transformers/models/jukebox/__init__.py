@@ -14,8 +14,7 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available)
+from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
 
 _import_structure = {
     "configuration_jukebox": [
@@ -42,9 +41,12 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_jukebox import (JUKEBOX_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                        JukeboxConfig, JukeboxPriorConfig,
-                                        JukeboxVQVAEConfig)
+    from .configuration_jukebox import (
+        JUKEBOX_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        JukeboxConfig,
+        JukeboxPriorConfig,
+        JukeboxVQVAEConfig,
+    )
     from .tokenization_jukebox import JukeboxTokenizer
 
     try:
@@ -53,9 +55,13 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_jukebox import (JUKEBOX_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                       JukeboxModel, JukeboxPreTrainedModel,
-                                       JukeboxPrior, JukeboxVQVAE)
+        from .modeling_jukebox import (
+            JUKEBOX_PRETRAINED_MODEL_ARCHIVE_LIST,
+            JukeboxModel,
+            JukeboxPreTrainedModel,
+            JukeboxPrior,
+            JukeboxVQVAE,
+        )
 
 else:
     import sys

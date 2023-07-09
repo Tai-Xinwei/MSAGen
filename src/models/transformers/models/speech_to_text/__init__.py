@@ -13,9 +13,14 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_sentencepiece_available, is_speech_available,
-                      is_tf_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_sentencepiece_available,
+    is_speech_available,
+    is_tf_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_speech_to_text": [
@@ -72,7 +77,9 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_speech_to_text import (
-        SPEECH_TO_TEXT_PRETRAINED_CONFIG_ARCHIVE_MAP, Speech2TextConfig)
+        SPEECH_TO_TEXT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        Speech2TextConfig,
+    )
     from .processing_speech_to_text import Speech2TextProcessor
 
     try:
@@ -89,8 +96,7 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .feature_extraction_speech_to_text import \
-            Speech2TextFeatureExtractor
+        from .feature_extraction_speech_to_text import Speech2TextFeatureExtractor
 
     try:
         if not is_tf_available():
@@ -100,8 +106,10 @@ if TYPE_CHECKING:
     else:
         from .modeling_tf_speech_to_text import (
             TF_SPEECH_TO_TEXT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFSpeech2TextForConditionalGeneration, TFSpeech2TextModel,
-            TFSpeech2TextPreTrainedModel)
+            TFSpeech2TextForConditionalGeneration,
+            TFSpeech2TextModel,
+            TFSpeech2TextPreTrainedModel,
+        )
 
     try:
         if not is_torch_available():
@@ -111,8 +119,10 @@ if TYPE_CHECKING:
     else:
         from .modeling_speech_to_text import (
             SPEECH_TO_TEXT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Speech2TextForConditionalGeneration, Speech2TextModel,
-            Speech2TextPreTrainedModel)
+            Speech2TextForConditionalGeneration,
+            Speech2TextModel,
+            Speech2TextPreTrainedModel,
+        )
 
 else:
     import sys

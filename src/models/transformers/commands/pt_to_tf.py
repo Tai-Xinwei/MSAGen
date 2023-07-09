@@ -21,11 +21,20 @@ import huggingface_hub
 import numpy as np
 from packaging import version
 
-from .. import (FEATURE_EXTRACTOR_MAPPING, IMAGE_PROCESSOR_MAPPING,
-                PROCESSOR_MAPPING, TOKENIZER_MAPPING, AutoConfig,
-                AutoFeatureExtractor, AutoImageProcessor, AutoProcessor,
-                AutoTokenizer, is_datasets_available, is_tf_available,
-                is_torch_available)
+from .. import (
+    FEATURE_EXTRACTOR_MAPPING,
+    IMAGE_PROCESSOR_MAPPING,
+    PROCESSOR_MAPPING,
+    TOKENIZER_MAPPING,
+    AutoConfig,
+    AutoFeatureExtractor,
+    AutoImageProcessor,
+    AutoProcessor,
+    AutoTokenizer,
+    is_datasets_available,
+    is_tf_available,
+    is_torch_available,
+)
 from ..utils import TF2_WEIGHTS_INDEX_NAME, TF2_WEIGHTS_NAME, logging
 from . import BaseTransformersCLICommand
 

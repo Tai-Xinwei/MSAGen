@@ -14,8 +14,12 @@
 from typing import TYPE_CHECKING
 
 # rely on isort to merge the imports
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_sentencepiece_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_sentencepiece_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_ernie_m": ["ERNIE_M_PRETRAINED_CONFIG_ARCHIVE_MAP", "ErnieMConfig"],
@@ -48,8 +52,10 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_ernie_m import (ERNIE_M_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                        ErnieMConfig)
+    from .configuration_ernie_m import (
+        ERNIE_M_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        ErnieMConfig,
+    )
 
     try:
         if not is_sentencepiece_available():
@@ -65,13 +71,16 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_ernie_m import (ERNIE_M_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                       ErnieMForInformationExtraction,
-                                       ErnieMForMultipleChoice,
-                                       ErnieMForQuestionAnswering,
-                                       ErnieMForSequenceClassification,
-                                       ErnieMForTokenClassification,
-                                       ErnieMModel, ErnieMPreTrainedModel)
+        from .modeling_ernie_m import (
+            ERNIE_M_PRETRAINED_MODEL_ARCHIVE_LIST,
+            ErnieMForInformationExtraction,
+            ErnieMForMultipleChoice,
+            ErnieMForQuestionAnswering,
+            ErnieMForSequenceClassification,
+            ErnieMForTokenClassification,
+            ErnieMModel,
+            ErnieMPreTrainedModel,
+        )
 
 
 else:

@@ -2,8 +2,11 @@ from copy import deepcopy
 
 from packaging import version
 
-from .import_utils import (importlib_metadata, is_accelerate_available,
-                           is_bitsandbytes_available)
+from .import_utils import (
+    importlib_metadata,
+    is_accelerate_available,
+    is_bitsandbytes_available,
+)
 
 if is_bitsandbytes_available():
     import bitsandbytes as bnb

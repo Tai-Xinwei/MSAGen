@@ -7,8 +7,12 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from .get_activation_fn import get_activation_fn
-from .graphormer_layers import (Graph3DBias, GraphAttnBias, GraphNodeFeature,
-                                NodeTaskHead)
+from .graphormer_layers import (
+    Graph3DBias,
+    GraphAttnBias,
+    GraphNodeFeature,
+    NodeTaskHead,
+)
 
 
 def init_params(module, n_layers):

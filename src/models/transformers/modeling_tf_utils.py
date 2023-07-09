@@ -39,13 +39,28 @@ from .configuration_utils import PretrainedConfig
 from .dynamic_module_utils import custom_object_save
 from .generation import GenerationConfig, TFGenerationMixin
 from .tf_utils import shape_list
-from .utils import (DUMMY_INPUTS, SAFE_WEIGHTS_INDEX_NAME, SAFE_WEIGHTS_NAME,
-                    TF2_WEIGHTS_INDEX_NAME, TF2_WEIGHTS_NAME, TF_WEIGHTS_NAME,
-                    WEIGHTS_INDEX_NAME, WEIGHTS_NAME, ModelOutput,
-                    PushToHubMixin, cached_file, download_url, find_labels,
-                    has_file, is_offline_mode, is_remote_url,
-                    is_safetensors_available, logging, requires_backends,
-                    working_or_temp_dir)
+from .utils import (
+    DUMMY_INPUTS,
+    SAFE_WEIGHTS_INDEX_NAME,
+    SAFE_WEIGHTS_NAME,
+    TF2_WEIGHTS_INDEX_NAME,
+    TF2_WEIGHTS_NAME,
+    TF_WEIGHTS_NAME,
+    WEIGHTS_INDEX_NAME,
+    WEIGHTS_NAME,
+    ModelOutput,
+    PushToHubMixin,
+    cached_file,
+    download_url,
+    find_labels,
+    has_file,
+    is_offline_mode,
+    is_remote_url,
+    is_safetensors_available,
+    logging,
+    requires_backends,
+    working_or_temp_dir,
+)
 from .utils.hub import convert_file_size_to_int, get_checkpoint_shard_files
 
 if parse(tf.__version__) >= parse("2.11.0"):
@@ -3070,8 +3085,7 @@ class TFPreTrainedModel(
         model = cls(config, *model_args, **model_kwargs)
 
         if from_pt:
-            from .modeling_tf_pytorch_utils import \
-                load_pytorch_checkpoint_in_tf2_model
+            from .modeling_tf_pytorch_utils import load_pytorch_checkpoint_in_tf2_model
 
             # Load from a PyTorch checkpoint
             return load_pytorch_checkpoint_in_tf2_model(
@@ -3091,8 +3105,7 @@ class TFPreTrainedModel(
             model(model.dummy_inputs)  # build the network with dummy inputs
 
         if safetensors_from_pt:
-            from .modeling_tf_pytorch_utils import \
-                load_pytorch_state_dict_in_tf2_model
+            from .modeling_tf_pytorch_utils import load_pytorch_state_dict_in_tf2_model
 
             state_dict = safe_load_file(resolved_archive_file)
             # Load from a PyTorch checkpoint

@@ -14,10 +14,15 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_flax_available, is_sentencepiece_available,
-                      is_tf_available, is_tokenizers_available,
-                      is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_flax_available,
+    is_sentencepiece_available,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_xlm_roberta": [
@@ -99,8 +104,10 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_xlm_roberta import (
-        XLM_ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP, XLMRobertaConfig,
-        XLMRobertaOnnxConfig)
+        XLM_ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        XLMRobertaConfig,
+        XLMRobertaOnnxConfig,
+    )
 
     try:
         if not is_sentencepiece_available():
@@ -125,12 +132,16 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_xlm_roberta import (
-            XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST, XLMRobertaForCausalLM,
-            XLMRobertaForMaskedLM, XLMRobertaForMultipleChoice,
+            XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
+            XLMRobertaForCausalLM,
+            XLMRobertaForMaskedLM,
+            XLMRobertaForMultipleChoice,
             XLMRobertaForQuestionAnswering,
             XLMRobertaForSequenceClassification,
-            XLMRobertaForTokenClassification, XLMRobertaModel,
-            XLMRobertaPreTrainedModel)
+            XLMRobertaForTokenClassification,
+            XLMRobertaModel,
+            XLMRobertaPreTrainedModel,
+        )
 
     try:
         if not is_tf_available():
@@ -140,11 +151,15 @@ if TYPE_CHECKING:
     else:
         from .modeling_tf_xlm_roberta import (
             TF_XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFXLMRobertaForCausalLM, TFXLMRobertaForMaskedLM,
-            TFXLMRobertaForMultipleChoice, TFXLMRobertaForQuestionAnswering,
+            TFXLMRobertaForCausalLM,
+            TFXLMRobertaForMaskedLM,
+            TFXLMRobertaForMultipleChoice,
+            TFXLMRobertaForQuestionAnswering,
             TFXLMRobertaForSequenceClassification,
-            TFXLMRobertaForTokenClassification, TFXLMRobertaModel,
-            TFXLMRobertaPreTrainedModel)
+            TFXLMRobertaForTokenClassification,
+            TFXLMRobertaModel,
+            TFXLMRobertaPreTrainedModel,
+        )
 
     try:
         if not is_flax_available():
@@ -154,12 +169,15 @@ if TYPE_CHECKING:
     else:
         from .modeling_flax_xlm_roberta import (
             FLAX_XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-            FlaxXLMRobertaForCausalLM, FlaxXLMRobertaForMaskedLM,
+            FlaxXLMRobertaForCausalLM,
+            FlaxXLMRobertaForMaskedLM,
             FlaxXLMRobertaForMultipleChoice,
             FlaxXLMRobertaForQuestionAnswering,
             FlaxXLMRobertaForSequenceClassification,
-            FlaxXLMRobertaForTokenClassification, FlaxXLMRobertaModel,
-            FlaxXLMRobertaPreTrainedModel)
+            FlaxXLMRobertaForTokenClassification,
+            FlaxXLMRobertaModel,
+            FlaxXLMRobertaPreTrainedModel,
+        )
 
 else:
     import sys

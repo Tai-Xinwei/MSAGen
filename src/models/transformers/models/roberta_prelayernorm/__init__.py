@@ -14,8 +14,13 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_flax_available, is_tf_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_flax_available,
+    is_tf_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_roberta_prelayernorm": [
@@ -83,7 +88,9 @@ else:
 if TYPE_CHECKING:
     from .configuration_roberta_prelayernorm import (
         ROBERTA_PRELAYERNORM_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        RobertaPreLayerNormConfig, RobertaPreLayerNormOnnxConfig)
+        RobertaPreLayerNormConfig,
+        RobertaPreLayerNormOnnxConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -93,12 +100,15 @@ if TYPE_CHECKING:
     else:
         from .modeling_roberta_prelayernorm import (
             ROBERTA_PRELAYERNORM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            RobertaPreLayerNormForCausalLM, RobertaPreLayerNormForMaskedLM,
+            RobertaPreLayerNormForCausalLM,
+            RobertaPreLayerNormForMaskedLM,
             RobertaPreLayerNormForMultipleChoice,
             RobertaPreLayerNormForQuestionAnswering,
             RobertaPreLayerNormForSequenceClassification,
             RobertaPreLayerNormForTokenClassification,
-            RobertaPreLayerNormModel, RobertaPreLayerNormPreTrainedModel)
+            RobertaPreLayerNormModel,
+            RobertaPreLayerNormPreTrainedModel,
+        )
 
     try:
         if not is_tf_available():
@@ -108,13 +118,16 @@ if TYPE_CHECKING:
     else:
         from .modeling_tf_roberta_prelayernorm import (
             TF_ROBERTA_PRELAYERNORM_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFRobertaPreLayerNormForCausalLM, TFRobertaPreLayerNormForMaskedLM,
+            TFRobertaPreLayerNormForCausalLM,
+            TFRobertaPreLayerNormForMaskedLM,
             TFRobertaPreLayerNormForMultipleChoice,
             TFRobertaPreLayerNormForQuestionAnswering,
             TFRobertaPreLayerNormForSequenceClassification,
             TFRobertaPreLayerNormForTokenClassification,
-            TFRobertaPreLayerNormMainLayer, TFRobertaPreLayerNormModel,
-            TFRobertaPreLayerNormPreTrainedModel)
+            TFRobertaPreLayerNormMainLayer,
+            TFRobertaPreLayerNormModel,
+            TFRobertaPreLayerNormPreTrainedModel,
+        )
 
     try:
         if not is_flax_available():
@@ -130,7 +143,8 @@ if TYPE_CHECKING:
             FlaxRobertaPreLayerNormForSequenceClassification,
             FlaxRobertaPreLayerNormForTokenClassification,
             FlaxRobertaPreLayerNormModel,
-            FlaxRobertaPreLayerNormPreTrainedModel)
+            FlaxRobertaPreLayerNormPreTrainedModel,
+        )
 
 else:
     import sys

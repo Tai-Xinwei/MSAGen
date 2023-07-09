@@ -14,8 +14,7 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available)
+from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
 
 _import_structure = {
     "configuration_git": [
@@ -41,8 +40,11 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_git import (GIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                    GitConfig, GitVisionConfig)
+    from .configuration_git import (
+        GIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        GitConfig,
+        GitVisionConfig,
+    )
     from .processing_git import GitProcessor
 
     try:
@@ -51,9 +53,13 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_git import (GIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                   GitForCausalLM, GitModel,
-                                   GitPreTrainedModel, GitVisionModel)
+        from .modeling_git import (
+            GIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            GitForCausalLM,
+            GitModel,
+            GitPreTrainedModel,
+            GitVisionModel,
+        )
 
 else:
     import sys

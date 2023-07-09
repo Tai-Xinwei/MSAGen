@@ -13,9 +13,13 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tokenizers_available, is_torch_available,
-                      is_vision_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tokenizers_available,
+    is_torch_available,
+    is_vision_available,
+)
 
 _import_structure = {
     "configuration_perceiver": [
@@ -58,8 +62,10 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_perceiver import (
-        PERCEIVER_PRETRAINED_CONFIG_ARCHIVE_MAP, PerceiverConfig,
-        PerceiverOnnxConfig)
+        PERCEIVER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        PerceiverConfig,
+        PerceiverOnnxConfig,
+    )
     from .tokenization_perceiver import PerceiverTokenizer
 
     try:
@@ -81,10 +87,15 @@ if TYPE_CHECKING:
             PERCEIVER_PRETRAINED_MODEL_ARCHIVE_LIST,
             PerceiverForImageClassificationConvProcessing,
             PerceiverForImageClassificationFourier,
-            PerceiverForImageClassificationLearned, PerceiverForMaskedLM,
-            PerceiverForMultimodalAutoencoding, PerceiverForOpticalFlow,
-            PerceiverForSequenceClassification, PerceiverLayer, PerceiverModel,
-            PerceiverPreTrainedModel)
+            PerceiverForImageClassificationLearned,
+            PerceiverForMaskedLM,
+            PerceiverForMultimodalAutoencoding,
+            PerceiverForOpticalFlow,
+            PerceiverForSequenceClassification,
+            PerceiverLayer,
+            PerceiverModel,
+            PerceiverPreTrainedModel,
+        )
 
 else:
     import sys

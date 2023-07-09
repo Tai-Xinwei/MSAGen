@@ -14,9 +14,13 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tf_available, is_tokenizers_available,
-                      is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_dpr": ["DPR_PRETRAINED_CONFIG_ARCHIVE_MAP", "DPRConfig"],
@@ -81,9 +85,12 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_dpr import DPR_PRETRAINED_CONFIG_ARCHIVE_MAP, DPRConfig
-    from .tokenization_dpr import (DPRContextEncoderTokenizer,
-                                   DPRQuestionEncoderTokenizer,
-                                   DPRReaderOutput, DPRReaderTokenizer)
+    from .tokenization_dpr import (
+        DPRContextEncoderTokenizer,
+        DPRQuestionEncoderTokenizer,
+        DPRReaderOutput,
+        DPRReaderTokenizer,
+    )
 
     try:
         if not is_tokenizers_available():
@@ -91,9 +98,11 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .tokenization_dpr_fast import (DPRContextEncoderTokenizerFast,
-                                            DPRQuestionEncoderTokenizerFast,
-                                            DPRReaderTokenizerFast)
+        from .tokenization_dpr_fast import (
+            DPRContextEncoderTokenizerFast,
+            DPRQuestionEncoderTokenizerFast,
+            DPRReaderTokenizerFast,
+        )
 
     try:
         if not is_torch_available():
@@ -104,10 +113,15 @@ if TYPE_CHECKING:
         from .modeling_dpr import (
             DPR_CONTEXT_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST,
             DPR_QUESTION_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DPR_READER_PRETRAINED_MODEL_ARCHIVE_LIST, DPRContextEncoder,
-            DPRPretrainedContextEncoder, DPRPreTrainedModel,
-            DPRPretrainedQuestionEncoder, DPRPretrainedReader,
-            DPRQuestionEncoder, DPRReader)
+            DPR_READER_PRETRAINED_MODEL_ARCHIVE_LIST,
+            DPRContextEncoder,
+            DPRPretrainedContextEncoder,
+            DPRPreTrainedModel,
+            DPRPretrainedQuestionEncoder,
+            DPRPretrainedReader,
+            DPRQuestionEncoder,
+            DPRReader,
+        )
 
     try:
         if not is_tf_available():
@@ -118,9 +132,14 @@ if TYPE_CHECKING:
         from .modeling_tf_dpr import (
             TF_DPR_CONTEXT_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST,
             TF_DPR_QUESTION_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TF_DPR_READER_PRETRAINED_MODEL_ARCHIVE_LIST, TFDPRContextEncoder,
-            TFDPRPretrainedContextEncoder, TFDPRPretrainedQuestionEncoder,
-            TFDPRPretrainedReader, TFDPRQuestionEncoder, TFDPRReader)
+            TF_DPR_READER_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TFDPRContextEncoder,
+            TFDPRPretrainedContextEncoder,
+            TFDPRPretrainedQuestionEncoder,
+            TFDPRPretrainedReader,
+            TFDPRQuestionEncoder,
+            TFDPRReader,
+        )
 
 else:
     import sys

@@ -14,8 +14,11 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_sentencepiece_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_sentencepiece_available,
+)
 
 _import_structure = {}
 

@@ -14,8 +14,7 @@
 
 from copy import deepcopy
 from pathlib import Path
-from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
-                    Union)
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import nn

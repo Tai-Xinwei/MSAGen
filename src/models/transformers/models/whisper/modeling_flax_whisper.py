@@ -28,19 +28,27 @@ from flax.traverse_util import flatten_dict, unflatten_dict
 from jax import lax
 from jax.random import PRNGKey
 
-from ...generation.flax_logits_process import \
-    FlaxWhisperTimeStampLogitsProcessor
+from ...generation.flax_logits_process import FlaxWhisperTimeStampLogitsProcessor
 from ...modeling_flax_outputs import (
-    FlaxBaseModelOutput, FlaxBaseModelOutputWithPastAndCrossAttentions,
-    FlaxCausalLMOutputWithCrossAttentions, FlaxSeq2SeqLMOutput,
-    FlaxSeq2SeqModelOutput)
-from ...modeling_flax_utils import (ACT2FN, FlaxPreTrainedModel,
-                                    append_call_sample_docstring,
-                                    append_replace_return_docstrings,
-                                    overwrite_call_docstring)
-from ...utils import (add_start_docstrings,
-                      add_start_docstrings_to_model_forward, logging,
-                      replace_return_docstrings)
+    FlaxBaseModelOutput,
+    FlaxBaseModelOutputWithPastAndCrossAttentions,
+    FlaxCausalLMOutputWithCrossAttentions,
+    FlaxSeq2SeqLMOutput,
+    FlaxSeq2SeqModelOutput,
+)
+from ...modeling_flax_utils import (
+    ACT2FN,
+    FlaxPreTrainedModel,
+    append_call_sample_docstring,
+    append_replace_return_docstrings,
+    overwrite_call_docstring,
+)
+from ...utils import (
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
 from .configuration_whisper import WhisperConfig
 
 logger = logging.get_logger(__name__)

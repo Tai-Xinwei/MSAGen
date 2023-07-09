@@ -18,8 +18,7 @@ import copy
 import inspect
 import warnings
 from dataclasses import dataclass
-from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple,
-                    Union)
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.distributed as dist
@@ -27,38 +26,50 @@ from torch import nn
 
 from ..deepspeed import is_deepspeed_zero3_enabled
 from ..modeling_outputs import CausalLMOutputWithPast, Seq2SeqLMOutput
-from ..models.auto import (MODEL_FOR_CAUSAL_IMAGE_MODELING_MAPPING,
-                           MODEL_FOR_CAUSAL_LM_MAPPING,
-                           MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
-                           MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING,
-                           MODEL_FOR_VISION_2_SEQ_MAPPING)
+from ..models.auto import (
+    MODEL_FOR_CAUSAL_IMAGE_MODELING_MAPPING,
+    MODEL_FOR_CAUSAL_LM_MAPPING,
+    MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
+    MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING,
+    MODEL_FOR_VISION_2_SEQ_MAPPING,
+)
 from ..utils import ModelOutput, logging
 from .beam_constraints import DisjunctiveConstraint, PhrasalConstraint
-from .beam_search import (BeamScorer, BeamSearchScorer,
-                          ConstrainedBeamSearchScorer)
+from .beam_search import BeamScorer, BeamSearchScorer, ConstrainedBeamSearchScorer
 from .configuration_utils import GenerationConfig
-from .logits_process import (EncoderNoRepeatNGramLogitsProcessor,
-                             EncoderRepetitionPenaltyLogitsProcessor,
-                             EpsilonLogitsWarper, EtaLogitsWarper,
-                             ExponentialDecayLengthPenalty,
-                             ForcedBOSTokenLogitsProcessor,
-                             ForcedEOSTokenLogitsProcessor,
-                             ForceTokensLogitsProcessor,
-                             HammingDiversityLogitsProcessor,
-                             InfNanRemoveLogitsProcessor, LogitNormalization,
-                             LogitsProcessorList, MinLengthLogitsProcessor,
-                             MinNewTokensLengthLogitsProcessor,
-                             NoBadWordsLogitsProcessor,
-                             NoRepeatNGramLogitsProcessor,
-                             PrefixConstrainedLogitsProcessor,
-                             RepetitionPenaltyLogitsProcessor,
-                             SuppressTokensAtBeginLogitsProcessor,
-                             SuppressTokensLogitsProcessor,
-                             TemperatureLogitsWarper, TopKLogitsWarper,
-                             TopPLogitsWarper, TypicalLogitsWarper)
-from .stopping_criteria import (MaxLengthCriteria, MaxTimeCriteria,
-                                StoppingCriteria, StoppingCriteriaList,
-                                validate_stopping_criteria)
+from .logits_process import (
+    EncoderNoRepeatNGramLogitsProcessor,
+    EncoderRepetitionPenaltyLogitsProcessor,
+    EpsilonLogitsWarper,
+    EtaLogitsWarper,
+    ExponentialDecayLengthPenalty,
+    ForcedBOSTokenLogitsProcessor,
+    ForcedEOSTokenLogitsProcessor,
+    ForceTokensLogitsProcessor,
+    HammingDiversityLogitsProcessor,
+    InfNanRemoveLogitsProcessor,
+    LogitNormalization,
+    LogitsProcessorList,
+    MinLengthLogitsProcessor,
+    MinNewTokensLengthLogitsProcessor,
+    NoBadWordsLogitsProcessor,
+    NoRepeatNGramLogitsProcessor,
+    PrefixConstrainedLogitsProcessor,
+    RepetitionPenaltyLogitsProcessor,
+    SuppressTokensAtBeginLogitsProcessor,
+    SuppressTokensLogitsProcessor,
+    TemperatureLogitsWarper,
+    TopKLogitsWarper,
+    TopPLogitsWarper,
+    TypicalLogitsWarper,
+)
+from .stopping_criteria import (
+    MaxLengthCriteria,
+    MaxTimeCriteria,
+    StoppingCriteria,
+    StoppingCriteriaList,
+    validate_stopping_criteria,
+)
 
 if TYPE_CHECKING:
     from .streamers import BaseStreamer

@@ -14,8 +14,13 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_flax_available, is_tf_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_flax_available,
+    is_tf_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_vision_encoder_decoder": [
@@ -54,7 +59,9 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_vision_encoder_decoder import (
-        VisionEncoderDecoderConfig, VisionEncoderDecoderOnnxConfig)
+        VisionEncoderDecoderConfig,
+        VisionEncoderDecoderOnnxConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -70,8 +77,7 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_vision_encoder_decoder import \
-            TFVisionEncoderDecoderModel
+        from .modeling_tf_vision_encoder_decoder import TFVisionEncoderDecoderModel
 
     try:
         if not is_flax_available():
@@ -79,8 +85,7 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_flax_vision_encoder_decoder import \
-            FlaxVisionEncoderDecoderModel
+        from .modeling_flax_vision_encoder_decoder import FlaxVisionEncoderDecoderModel
 
 else:
     import sys

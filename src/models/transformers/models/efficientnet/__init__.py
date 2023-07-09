@@ -18,8 +18,12 @@
 from typing import TYPE_CHECKING
 
 # rely on isort to merge the imports
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available, is_vision_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_torch_available,
+    is_vision_available,
+)
 
 _import_structure = {
     "configuration_efficientnet": [
@@ -52,8 +56,10 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_efficientnet import (
-        EFFICIENTNET_PRETRAINED_CONFIG_ARCHIVE_MAP, EfficientNetConfig,
-        EfficientNetOnnxConfig)
+        EFFICIENTNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        EfficientNetConfig,
+        EfficientNetOnnxConfig,
+    )
 
     try:
         if not is_vision_available():
@@ -71,8 +77,10 @@ if TYPE_CHECKING:
     else:
         from .modeling_efficientnet import (
             EFFICIENTNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-            EfficientNetForImageClassification, EfficientNetModel,
-            EfficientNetPreTrainedModel)
+            EfficientNetForImageClassification,
+            EfficientNetModel,
+            EfficientNetPreTrainedModel,
+        )
 
 else:
     import sys

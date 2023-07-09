@@ -23,16 +23,29 @@ from torch import nn
 from torch.utils.checkpoint import checkpoint
 
 from ...activations import ACT2FN
-from ...modeling_outputs import (BaseModelOutput, BaseModelOutputWithPooling,
-                                 CausalLMOutputWithCrossAttentions,
-                                 Seq2SeqLMOutput, Seq2SeqModelOutput)
+from ...modeling_outputs import (
+    BaseModelOutput,
+    BaseModelOutputWithPooling,
+    CausalLMOutputWithCrossAttentions,
+    Seq2SeqLMOutput,
+    Seq2SeqModelOutput,
+)
 from ...modeling_utils import PreTrainedModel
 from ...pytorch_utils import ALL_LAYERNORM_LAYERS
-from ...utils import (DUMMY_INPUTS, DUMMY_MASK, add_start_docstrings,
-                      add_start_docstrings_to_model_forward, is_torch_fx_proxy,
-                      logging, replace_return_docstrings)
-from .configuration_pix2struct import (Pix2StructConfig, Pix2StructTextConfig,
-                                       Pix2StructVisionConfig)
+from ...utils import (
+    DUMMY_INPUTS,
+    DUMMY_MASK,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    is_torch_fx_proxy,
+    logging,
+    replace_return_docstrings,
+)
+from .configuration_pix2struct import (
+    Pix2StructConfig,
+    Pix2StructTextConfig,
+    Pix2StructVisionConfig,
+)
 
 logger = logging.get_logger(__name__)
 

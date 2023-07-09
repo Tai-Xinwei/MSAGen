@@ -18,8 +18,12 @@
 import argparse
 
 import torch
-from transformers import (HubertConfig, HubertForSequenceClassification,
-                          Wav2Vec2FeatureExtractor, logging)
+from transformers import (
+    HubertConfig,
+    HubertForSequenceClassification,
+    Wav2Vec2FeatureExtractor,
+    logging,
+)
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

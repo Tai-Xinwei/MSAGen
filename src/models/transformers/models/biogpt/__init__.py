@@ -13,8 +13,12 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tokenizers_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_biogpt": ["BIOGPT_PRETRAINED_CONFIG_ARCHIVE_MAP", "BioGptConfig"],
@@ -37,8 +41,7 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_biogpt import (BIOGPT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                       BioGptConfig)
+    from .configuration_biogpt import BIOGPT_PRETRAINED_CONFIG_ARCHIVE_MAP, BioGptConfig
     from .tokenization_biogpt import BioGptTokenizer
 
     try:
@@ -47,10 +50,13 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_biogpt import (BIOGPT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                      BioGptForCausalLM,
-                                      BioGptForTokenClassification,
-                                      BioGptModel, BioGptPreTrainedModel)
+        from .modeling_biogpt import (
+            BIOGPT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            BioGptForCausalLM,
+            BioGptForTokenClassification,
+            BioGptModel,
+            BioGptPreTrainedModel,
+        )
 
 
 else:

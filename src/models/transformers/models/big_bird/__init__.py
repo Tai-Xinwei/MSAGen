@@ -13,10 +13,15 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_flax_available, is_sentencepiece_available,
-                      is_tf_available, is_tokenizers_available,
-                      is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_flax_available,
+    is_sentencepiece_available,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_big_bird": [
@@ -83,8 +88,10 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_big_bird import (
-        BIG_BIRD_PRETRAINED_CONFIG_ARCHIVE_MAP, BigBirdConfig,
-        BigBirdOnnxConfig)
+        BIG_BIRD_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        BigBirdConfig,
+        BigBirdOnnxConfig,
+    )
 
     try:
         if not is_sentencepiece_available():
@@ -108,16 +115,20 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_big_bird import (BIG_BIRD_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                        BigBirdForCausalLM, BigBirdForMaskedLM,
-                                        BigBirdForMultipleChoice,
-                                        BigBirdForPreTraining,
-                                        BigBirdForQuestionAnswering,
-                                        BigBirdForSequenceClassification,
-                                        BigBirdForTokenClassification,
-                                        BigBirdLayer, BigBirdModel,
-                                        BigBirdPreTrainedModel,
-                                        load_tf_weights_in_big_bird)
+        from .modeling_big_bird import (
+            BIG_BIRD_PRETRAINED_MODEL_ARCHIVE_LIST,
+            BigBirdForCausalLM,
+            BigBirdForMaskedLM,
+            BigBirdForMultipleChoice,
+            BigBirdForPreTraining,
+            BigBirdForQuestionAnswering,
+            BigBirdForSequenceClassification,
+            BigBirdForTokenClassification,
+            BigBirdLayer,
+            BigBirdModel,
+            BigBirdPreTrainedModel,
+            load_tf_weights_in_big_bird,
+        )
 
     try:
         if not is_flax_available():
@@ -126,12 +137,16 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_flax_big_bird import (
-            FlaxBigBirdForCausalLM, FlaxBigBirdForMaskedLM,
-            FlaxBigBirdForMultipleChoice, FlaxBigBirdForPreTraining,
+            FlaxBigBirdForCausalLM,
+            FlaxBigBirdForMaskedLM,
+            FlaxBigBirdForMultipleChoice,
+            FlaxBigBirdForPreTraining,
             FlaxBigBirdForQuestionAnswering,
             FlaxBigBirdForSequenceClassification,
-            FlaxBigBirdForTokenClassification, FlaxBigBirdModel,
-            FlaxBigBirdPreTrainedModel)
+            FlaxBigBirdForTokenClassification,
+            FlaxBigBirdModel,
+            FlaxBigBirdPreTrainedModel,
+        )
 
 else:
     import sys

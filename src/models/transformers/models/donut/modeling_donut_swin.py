@@ -28,11 +28,18 @@ from torch import nn
 
 from ...activations import ACT2FN
 from ...modeling_utils import PreTrainedModel
-from ...pytorch_utils import (find_pruneable_heads_and_indices, meshgrid,
-                              prune_linear_layer)
-from ...utils import (ModelOutput, add_code_sample_docstrings,
-                      add_start_docstrings,
-                      add_start_docstrings_to_model_forward, logging)
+from ...pytorch_utils import (
+    find_pruneable_heads_and_indices,
+    meshgrid,
+    prune_linear_layer,
+)
+from ...utils import (
+    ModelOutput,
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+)
 from .configuration_donut_swin import DonutSwinConfig
 
 logger = logging.get_logger(__name__)

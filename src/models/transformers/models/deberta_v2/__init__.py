@@ -14,9 +14,13 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tf_available, is_tokenizers_available,
-                      is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_deberta_v2": [
@@ -71,8 +75,10 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_deberta_v2 import (
-        DEBERTA_V2_PRETRAINED_CONFIG_ARCHIVE_MAP, DebertaV2Config,
-        DebertaV2OnnxConfig)
+        DEBERTA_V2_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        DebertaV2Config,
+        DebertaV2OnnxConfig,
+    )
     from .tokenization_deberta_v2 import DebertaV2Tokenizer
 
     try:
@@ -91,10 +97,13 @@ if TYPE_CHECKING:
     else:
         from .modeling_tf_deberta_v2 import (
             TF_DEBERTA_V2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFDebertaV2ForMaskedLM, TFDebertaV2ForQuestionAnswering,
+            TFDebertaV2ForMaskedLM,
+            TFDebertaV2ForQuestionAnswering,
             TFDebertaV2ForSequenceClassification,
-            TFDebertaV2ForTokenClassification, TFDebertaV2Model,
-            TFDebertaV2PreTrainedModel)
+            TFDebertaV2ForTokenClassification,
+            TFDebertaV2Model,
+            TFDebertaV2PreTrainedModel,
+        )
 
     try:
         if not is_torch_available():
@@ -103,11 +112,15 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_deberta_v2 import (
-            DEBERTA_V2_PRETRAINED_MODEL_ARCHIVE_LIST, DebertaV2ForMaskedLM,
-            DebertaV2ForMultipleChoice, DebertaV2ForQuestionAnswering,
+            DEBERTA_V2_PRETRAINED_MODEL_ARCHIVE_LIST,
+            DebertaV2ForMaskedLM,
+            DebertaV2ForMultipleChoice,
+            DebertaV2ForQuestionAnswering,
             DebertaV2ForSequenceClassification,
-            DebertaV2ForTokenClassification, DebertaV2Model,
-            DebertaV2PreTrainedModel)
+            DebertaV2ForTokenClassification,
+            DebertaV2Model,
+            DebertaV2PreTrainedModel,
+        )
 
 else:
     import sys

@@ -21,8 +21,7 @@ from ..utils import add_end_docstrings, is_torch_available, logging
 from .base import PIPELINE_INIT_ARGS, Pipeline
 
 if is_torch_available():
-    from ..models.auto.modeling_auto import \
-        MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING
+    from ..models.auto.modeling_auto import MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING
 
 logger = logging.get_logger(__name__)
 

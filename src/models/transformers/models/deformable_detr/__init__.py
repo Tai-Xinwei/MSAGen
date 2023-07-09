@@ -14,8 +14,12 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available, is_vision_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_torch_available,
+    is_vision_available,
+)
 
 _import_structure = {
     "configuration_deformable_detr": [
@@ -53,7 +57,9 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_deformable_detr import (
-        DEFORMABLE_DETR_PRETRAINED_CONFIG_ARCHIVE_MAP, DeformableDetrConfig)
+        DEFORMABLE_DETR_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        DeformableDetrConfig,
+    )
 
     try:
         if not is_vision_available():
@@ -61,10 +67,8 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .feature_extraction_deformable_detr import \
-            DeformableDetrFeatureExtractor
-        from .image_processing_deformable_detr import \
-            DeformableDetrImageProcessor
+        from .feature_extraction_deformable_detr import DeformableDetrFeatureExtractor
+        from .image_processing_deformable_detr import DeformableDetrImageProcessor
 
     try:
         if not is_torch_available():
@@ -74,8 +78,10 @@ if TYPE_CHECKING:
     else:
         from .modeling_deformable_detr import (
             DEFORMABLE_DETR_PRETRAINED_MODEL_ARCHIVE_LIST,
-            DeformableDetrForObjectDetection, DeformableDetrModel,
-            DeformableDetrPreTrainedModel)
+            DeformableDetrForObjectDetection,
+            DeformableDetrModel,
+            DeformableDetrPreTrainedModel,
+        )
 
 else:
     import sys

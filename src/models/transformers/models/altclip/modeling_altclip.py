@@ -22,19 +22,26 @@ import torch.nn as nn
 import torch.utils.checkpoint
 
 from ...activations import ACT2FN
-from ...modeling_outputs import (BaseModelOutput,
-                                 BaseModelOutputWithPastAndCrossAttentions,
-                                 BaseModelOutputWithPooling,
-                                 BaseModelOutputWithPoolingAndCrossAttentions,
-                                 BaseModelOutputWithPoolingAndProjection)
+from ...modeling_outputs import (
+    BaseModelOutput,
+    BaseModelOutputWithPastAndCrossAttentions,
+    BaseModelOutputWithPooling,
+    BaseModelOutputWithPoolingAndCrossAttentions,
+    BaseModelOutputWithPoolingAndProjection,
+)
 from ...modeling_utils import PreTrainedModel
-from ...pytorch_utils import (apply_chunking_to_forward,
-                              find_pruneable_heads_and_indices,
-                              prune_linear_layer)
-from ...utils import (ModelOutput, add_start_docstrings_to_model_forward,
-                      logging, replace_return_docstrings)
-from .configuration_altclip import (AltCLIPConfig, AltCLIPTextConfig,
-                                    AltCLIPVisionConfig)
+from ...pytorch_utils import (
+    apply_chunking_to_forward,
+    find_pruneable_heads_and_indices,
+    prune_linear_layer,
+)
+from ...utils import (
+    ModelOutput,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+from .configuration_altclip import AltCLIPConfig, AltCLIPTextConfig, AltCLIPVisionConfig
 
 logger = logging.get_logger(__name__)
 

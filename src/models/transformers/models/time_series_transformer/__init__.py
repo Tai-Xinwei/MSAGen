@@ -13,8 +13,7 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available)
+from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
 
 _import_structure = {
     "configuration_time_series_transformer": [
@@ -40,7 +39,8 @@ else:
 if TYPE_CHECKING:
     from .configuration_time_series_transformer import (
         TIME_SERIES_TRANSFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        TimeSeriesTransformerConfig)
+        TimeSeriesTransformerConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -50,8 +50,10 @@ if TYPE_CHECKING:
     else:
         from .modeling_time_series_transformer import (
             TIME_SERIES_TRANSFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TimeSeriesTransformerForPrediction, TimeSeriesTransformerModel,
-            TimeSeriesTransformerPreTrainedModel)
+            TimeSeriesTransformerForPrediction,
+            TimeSeriesTransformerModel,
+            TimeSeriesTransformerPreTrainedModel,
+        )
 
 else:
     import sys

@@ -10,19 +10,28 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from graphormer.modules.graphormer_sentence_encoder_layer import (
-    GraphormerSentenceEncoderLayer, GraphormerSentenceEncoderLayer_PP)
+    GraphormerSentenceEncoderLayer,
+    GraphormerSentenceEncoderLayer_PP,
+)
 from transformers.models.llama.configuration_llama import LlamaConfig
-from transformers.models.llama.modeling_llama import (LlamaClassifier,
-                                                      LlamaDecoderLayerPP,
-                                                      LlamaModel_PP,
-                                                      hybrid_emb)
+from transformers.models.llama.modeling_llama import (
+    LlamaClassifier,
+    LlamaDecoderLayerPP,
+    LlamaModel_PP,
+    hybrid_emb,
+)
 
 from ..modules import GraphormerSentenceEncoder, init_bert_params
-from ..modules.graphormer_layers_pp import (Graph3DBiasPipe, GraphAttnBiasPipe,
-                                            GraphNodeFeaturePipe,
-                                            NodeTaskHeadPipe)
-from ..modules.graphormer_sentence_encoder import (Post_sentence_encoder_layer,
-                                                   Pre_sentence_encoder_layer)
+from ..modules.graphormer_layers_pp import (
+    Graph3DBiasPipe,
+    GraphAttnBiasPipe,
+    GraphNodeFeaturePipe,
+    NodeTaskHeadPipe,
+)
+from ..modules.graphormer_sentence_encoder import (
+    Post_sentence_encoder_layer,
+    Pre_sentence_encoder_layer,
+)
 from ..utils.get_activation_fn import get_activation_fn
 from ..utils.layer_norm import LayerNorm
 from ..utils.mypp_module import LayerSpec

@@ -13,8 +13,12 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tokenizers_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_yoso": ["YOSO_PRETRAINED_CONFIG_ARCHIVE_MAP", "YosoConfig"]
@@ -40,8 +44,7 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_yoso import (YOSO_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                     YosoConfig)
+    from .configuration_yoso import YOSO_PRETRAINED_CONFIG_ARCHIVE_MAP, YosoConfig
 
     try:
         if not is_torch_available():
@@ -49,12 +52,17 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_yoso import (YOSO_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                    YosoForMaskedLM, YosoForMultipleChoice,
-                                    YosoForQuestionAnswering,
-                                    YosoForSequenceClassification,
-                                    YosoForTokenClassification, YosoLayer,
-                                    YosoModel, YosoPreTrainedModel)
+        from .modeling_yoso import (
+            YOSO_PRETRAINED_MODEL_ARCHIVE_LIST,
+            YosoForMaskedLM,
+            YosoForMultipleChoice,
+            YosoForQuestionAnswering,
+            YosoForSequenceClassification,
+            YosoForTokenClassification,
+            YosoLayer,
+            YosoModel,
+            YosoPreTrainedModel,
+        )
 
 
 else:

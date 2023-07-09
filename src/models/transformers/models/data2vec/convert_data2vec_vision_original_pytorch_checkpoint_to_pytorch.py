@@ -6,9 +6,12 @@ import torch
 from huggingface_hub import hf_hub_download
 from PIL import Image
 from timm.models import create_model
-from transformers import (BeitFeatureExtractor, Data2VecVisionConfig,
-                          Data2VecVisionForImageClassification,
-                          Data2VecVisionModel)
+from transformers import (
+    BeitFeatureExtractor,
+    Data2VecVisionConfig,
+    Data2VecVisionForImageClassification,
+    Data2VecVisionModel,
+)
 
 
 def create_rename_keys(

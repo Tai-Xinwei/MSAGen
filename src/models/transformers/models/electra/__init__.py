@@ -14,9 +14,14 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_flax_available, is_tf_available,
-                      is_tokenizers_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_flax_available,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_electra": [
@@ -93,8 +98,11 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_electra import (ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                        ElectraConfig, ElectraOnnxConfig)
+    from .configuration_electra import (
+        ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        ElectraConfig,
+        ElectraOnnxConfig,
+    )
     from .tokenization_electra import ElectraTokenizer
 
     try:
@@ -111,15 +119,19 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_electra import (ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                       ElectraForCausalLM, ElectraForMaskedLM,
-                                       ElectraForMultipleChoice,
-                                       ElectraForPreTraining,
-                                       ElectraForQuestionAnswering,
-                                       ElectraForSequenceClassification,
-                                       ElectraForTokenClassification,
-                                       ElectraModel, ElectraPreTrainedModel,
-                                       load_tf_weights_in_electra)
+        from .modeling_electra import (
+            ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST,
+            ElectraForCausalLM,
+            ElectraForMaskedLM,
+            ElectraForMultipleChoice,
+            ElectraForPreTraining,
+            ElectraForQuestionAnswering,
+            ElectraForSequenceClassification,
+            ElectraForTokenClassification,
+            ElectraModel,
+            ElectraPreTrainedModel,
+            load_tf_weights_in_electra,
+        )
 
     try:
         if not is_tf_available():
@@ -128,11 +140,16 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_tf_electra import (
-            TF_ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST, TFElectraForMaskedLM,
-            TFElectraForMultipleChoice, TFElectraForPreTraining,
-            TFElectraForQuestionAnswering, TFElectraForSequenceClassification,
-            TFElectraForTokenClassification, TFElectraModel,
-            TFElectraPreTrainedModel)
+            TF_ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TFElectraForMaskedLM,
+            TFElectraForMultipleChoice,
+            TFElectraForPreTraining,
+            TFElectraForQuestionAnswering,
+            TFElectraForSequenceClassification,
+            TFElectraForTokenClassification,
+            TFElectraModel,
+            TFElectraPreTrainedModel,
+        )
 
     try:
         if not is_flax_available():
@@ -141,12 +158,16 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_flax_electra import (
-            FlaxElectraForCausalLM, FlaxElectraForMaskedLM,
-            FlaxElectraForMultipleChoice, FlaxElectraForPreTraining,
+            FlaxElectraForCausalLM,
+            FlaxElectraForMaskedLM,
+            FlaxElectraForMultipleChoice,
+            FlaxElectraForPreTraining,
             FlaxElectraForQuestionAnswering,
             FlaxElectraForSequenceClassification,
-            FlaxElectraForTokenClassification, FlaxElectraModel,
-            FlaxElectraPreTrainedModel)
+            FlaxElectraForTokenClassification,
+            FlaxElectraModel,
+            FlaxElectraPreTrainedModel,
+        )
 
 else:
     import sys

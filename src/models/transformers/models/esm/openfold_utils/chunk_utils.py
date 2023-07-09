@@ -14,8 +14,7 @@
 import logging
 import math
 from functools import partial
-from typing import (Any, Callable, Dict, Iterable, List, Optional, Sequence,
-                    Tuple, Union)
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import torch
 

@@ -13,8 +13,13 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_flax_available, is_tf_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_flax_available,
+    is_tf_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_wav2vec2": [
@@ -74,7 +79,9 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_wav2vec2 import (
-        WAV_2_VEC_2_PRETRAINED_CONFIG_ARCHIVE_MAP, Wav2Vec2Config)
+        WAV_2_VEC_2_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        Wav2Vec2Config,
+    )
     from .feature_extraction_wav2vec2 import Wav2Vec2FeatureExtractor
     from .processing_wav2vec2 import Wav2Vec2Processor
     from .tokenization_wav2vec2 import Wav2Vec2CTCTokenizer, Wav2Vec2Tokenizer
@@ -87,10 +94,15 @@ if TYPE_CHECKING:
     else:
         from .modeling_wav2vec2 import (
             WAV_2_VEC_2_PRETRAINED_MODEL_ARCHIVE_LIST,
-            Wav2Vec2ForAudioFrameClassification, Wav2Vec2ForCTC,
-            Wav2Vec2ForMaskedLM, Wav2Vec2ForPreTraining,
-            Wav2Vec2ForSequenceClassification, Wav2Vec2ForXVector,
-            Wav2Vec2Model, Wav2Vec2PreTrainedModel)
+            Wav2Vec2ForAudioFrameClassification,
+            Wav2Vec2ForCTC,
+            Wav2Vec2ForMaskedLM,
+            Wav2Vec2ForPreTraining,
+            Wav2Vec2ForSequenceClassification,
+            Wav2Vec2ForXVector,
+            Wav2Vec2Model,
+            Wav2Vec2PreTrainedModel,
+        )
 
     try:
         if not is_tf_available():
@@ -99,8 +111,11 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_tf_wav2vec2 import (
-            TF_WAV_2_VEC_2_PRETRAINED_MODEL_ARCHIVE_LIST, TFWav2Vec2ForCTC,
-            TFWav2Vec2Model, TFWav2Vec2PreTrainedModel)
+            TF_WAV_2_VEC_2_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TFWav2Vec2ForCTC,
+            TFWav2Vec2Model,
+            TFWav2Vec2PreTrainedModel,
+        )
 
     try:
         if not is_flax_available():
@@ -108,10 +123,12 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_wav2vec2 import (FlaxWav2Vec2ForCTC,
-                                           FlaxWav2Vec2ForPreTraining,
-                                           FlaxWav2Vec2Model,
-                                           FlaxWav2Vec2PreTrainedModel)
+        from .modeling_tf_wav2vec2 import (
+            FlaxWav2Vec2ForCTC,
+            FlaxWav2Vec2ForPreTraining,
+            FlaxWav2Vec2Model,
+            FlaxWav2Vec2PreTrainedModel,
+        )
 
 
 else:

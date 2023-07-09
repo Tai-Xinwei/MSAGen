@@ -14,8 +14,12 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available, is_vision_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_torch_available,
+    is_vision_available,
+)
 
 _import_structure = {
     "configuration_detr": [
@@ -50,8 +54,11 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_detr import (DETR_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                     DetrConfig, DetrOnnxConfig)
+    from .configuration_detr import (
+        DETR_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        DetrConfig,
+        DetrOnnxConfig,
+    )
 
     try:
         if not is_vision_available():
@@ -68,10 +75,13 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_detr import (DETR_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                    DetrForObjectDetection,
-                                    DetrForSegmentation, DetrModel,
-                                    DetrPreTrainedModel)
+        from .modeling_detr import (
+            DETR_PRETRAINED_MODEL_ARCHIVE_LIST,
+            DetrForObjectDetection,
+            DetrForSegmentation,
+            DetrModel,
+            DetrPreTrainedModel,
+        )
 
 else:
     import sys

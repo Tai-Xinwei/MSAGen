@@ -19,9 +19,13 @@ Processor class for Pix2Struct.
 from typing import List, Optional, Union
 
 from ...processing_utils import ProcessorMixin
-from ...tokenization_utils_base import (BatchEncoding, PaddingStrategy,
-                                        PreTokenizedInput, TextInput,
-                                        TruncationStrategy)
+from ...tokenization_utils_base import (
+    BatchEncoding,
+    PaddingStrategy,
+    PreTokenizedInput,
+    TextInput,
+    TruncationStrategy,
+)
 from ...utils import TensorType
 
 

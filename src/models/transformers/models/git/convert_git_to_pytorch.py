@@ -25,11 +25,16 @@ import requests
 import torch
 from huggingface_hub import hf_hub_download
 from PIL import Image
-from torchvision.transforms import (CenterCrop, Compose, Normalize, Resize,
-                                    ToTensor)
-from transformers import (AutoTokenizer, CLIPImageProcessor, GitConfig,
-                          GitForCausalLM, GitProcessor, GitVisionConfig,
-                          VideoMAEImageProcessor)
+from torchvision.transforms import CenterCrop, Compose, Normalize, Resize, ToTensor
+from transformers import (
+    AutoTokenizer,
+    CLIPImageProcessor,
+    GitConfig,
+    GitForCausalLM,
+    GitProcessor,
+    GitVisionConfig,
+    VideoMAEImageProcessor,
+)
 from transformers.utils import logging
 
 logging.set_verbosity_info()

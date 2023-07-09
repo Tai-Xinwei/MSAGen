@@ -23,11 +23,14 @@ import argparse
 import tensorflow as tf
 import torch
 from transformers import BertConfig, BertForMaskedLM
-from transformers.models.bert.modeling_bert import (BertIntermediate,
-                                                    BertLayer, BertOutput,
-                                                    BertPooler,
-                                                    BertSelfAttention,
-                                                    BertSelfOutput)
+from transformers.models.bert.modeling_bert import (
+    BertIntermediate,
+    BertLayer,
+    BertOutput,
+    BertPooler,
+    BertSelfAttention,
+    BertSelfOutput,
+)
 from transformers.utils import logging
 
 logging.set_verbosity_info()

@@ -13,9 +13,13 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_sentencepiece_available, is_tokenizers_available,
-                      is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_sentencepiece_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_fnet": ["FNET_PRETRAINED_CONFIG_ARCHIVE_MAP", "FNetConfig"]
@@ -59,8 +63,7 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_fnet import (FNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                     FNetConfig)
+    from .configuration_fnet import FNET_PRETRAINED_CONFIG_ARCHIVE_MAP, FNetConfig
 
     try:
         if not is_sentencepiece_available():
@@ -84,14 +87,19 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_fnet import (FNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                    FNetForMaskedLM, FNetForMultipleChoice,
-                                    FNetForNextSentencePrediction,
-                                    FNetForPreTraining,
-                                    FNetForQuestionAnswering,
-                                    FNetForSequenceClassification,
-                                    FNetForTokenClassification, FNetLayer,
-                                    FNetModel, FNetPreTrainedModel)
+        from .modeling_fnet import (
+            FNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+            FNetForMaskedLM,
+            FNetForMultipleChoice,
+            FNetForNextSentencePrediction,
+            FNetForPreTraining,
+            FNetForQuestionAnswering,
+            FNetForSequenceClassification,
+            FNetForTokenClassification,
+            FNetLayer,
+            FNetModel,
+            FNetPreTrainedModel,
+        )
 
 
 else:

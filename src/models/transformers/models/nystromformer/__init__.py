@@ -13,8 +13,12 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tokenizers_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_nystromformer": [
@@ -44,7 +48,9 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_nystromformer import (
-        NYSTROMFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, NystromformerConfig)
+        NYSTROMFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        NystromformerConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -54,11 +60,15 @@ if TYPE_CHECKING:
     else:
         from .modeling_nystromformer import (
             NYSTROMFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-            NystromformerForMaskedLM, NystromformerForMultipleChoice,
+            NystromformerForMaskedLM,
+            NystromformerForMultipleChoice,
             NystromformerForQuestionAnswering,
             NystromformerForSequenceClassification,
-            NystromformerForTokenClassification, NystromformerLayer,
-            NystromformerModel, NystromformerPreTrainedModel)
+            NystromformerForTokenClassification,
+            NystromformerLayer,
+            NystromformerModel,
+            NystromformerPreTrainedModel,
+        )
 
 
 else:

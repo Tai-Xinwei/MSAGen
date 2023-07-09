@@ -26,9 +26,11 @@ _import_structure = {
 
 
 if TYPE_CHECKING:
-    from .tokenization_bert_japanese import (BertJapaneseTokenizer,
-                                             CharacterTokenizer,
-                                             MecabTokenizer)
+    from .tokenization_bert_japanese import (
+        BertJapaneseTokenizer,
+        CharacterTokenizer,
+        MecabTokenizer,
+    )
 
 else:
     import sys

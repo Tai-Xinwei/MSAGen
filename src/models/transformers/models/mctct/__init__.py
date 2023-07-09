@@ -13,8 +13,12 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_speech_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_speech_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_mctct": ["MCTCT_PRETRAINED_CONFIG_ARCHIVE_MAP", "MCTCTConfig"],
@@ -46,8 +50,7 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_mctct import (MCTCT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                      MCTCTConfig)
+    from .configuration_mctct import MCTCT_PRETRAINED_CONFIG_ARCHIVE_MAP, MCTCTConfig
     from .processing_mctct import MCTCTProcessor
 
     try:
@@ -64,9 +67,12 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_mctct import (MCTCT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                     MCTCTForCTC, MCTCTModel,
-                                     MCTCTPreTrainedModel)
+        from .modeling_mctct import (
+            MCTCT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            MCTCTForCTC,
+            MCTCTModel,
+            MCTCTPreTrainedModel,
+        )
 
 else:
     import sys

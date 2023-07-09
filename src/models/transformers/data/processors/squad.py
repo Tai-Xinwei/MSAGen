@@ -21,8 +21,11 @@ import numpy as np
 from tqdm import tqdm
 
 from ...models.bert.tokenization_bert import whitespace_tokenize
-from ...tokenization_utils_base import (BatchEncoding, PreTrainedTokenizerBase,
-                                        TruncationStrategy)
+from ...tokenization_utils_base import (
+    BatchEncoding,
+    PreTrainedTokenizerBase,
+    TruncationStrategy,
+)
 from ...utils import is_tf_available, is_torch_available, logging
 from .utils import DataProcessor
 

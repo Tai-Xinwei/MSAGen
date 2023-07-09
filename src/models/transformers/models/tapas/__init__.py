@@ -14,8 +14,12 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tf_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tf_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_tapas": ["TAPAS_PRETRAINED_CONFIG_ARCHIVE_MAP", "TapasConfig"],
@@ -54,8 +58,7 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_tapas import (TAPAS_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                      TapasConfig)
+    from .configuration_tapas import TAPAS_PRETRAINED_CONFIG_ARCHIVE_MAP, TapasConfig
     from .tokenization_tapas import TapasTokenizer
 
     try:
@@ -64,12 +67,15 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tapas import (TAPAS_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                     TapasForMaskedLM,
-                                     TapasForQuestionAnswering,
-                                     TapasForSequenceClassification,
-                                     TapasModel, TapasPreTrainedModel,
-                                     load_tf_weights_in_tapas)
+        from .modeling_tapas import (
+            TAPAS_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TapasForMaskedLM,
+            TapasForQuestionAnswering,
+            TapasForSequenceClassification,
+            TapasModel,
+            TapasPreTrainedModel,
+            load_tf_weights_in_tapas,
+        )
 
     try:
         if not is_tf_available():
@@ -77,11 +83,14 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_tapas import (TF_TAPAS_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                        TFTapasForMaskedLM,
-                                        TFTapasForQuestionAnswering,
-                                        TFTapasForSequenceClassification,
-                                        TFTapasModel, TFTapasPreTrainedModel)
+        from .modeling_tf_tapas import (
+            TF_TAPAS_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TFTapasForMaskedLM,
+            TFTapasForQuestionAnswering,
+            TFTapasForSequenceClassification,
+            TFTapasModel,
+            TFTapasPreTrainedModel,
+        )
 
 
 else:

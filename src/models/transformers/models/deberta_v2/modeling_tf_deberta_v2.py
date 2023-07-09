@@ -21,19 +21,30 @@ import numpy as np
 import tensorflow as tf
 
 from ...activations_tf import get_tf_activation
-from ...modeling_tf_outputs import (TFBaseModelOutput, TFMaskedLMOutput,
-                                    TFQuestionAnsweringModelOutput,
-                                    TFSequenceClassifierOutput,
-                                    TFTokenClassifierOutput)
-from ...modeling_tf_utils import (TFMaskedLanguageModelingLoss,
-                                  TFModelInputType, TFPreTrainedModel,
-                                  TFQuestionAnsweringLoss,
-                                  TFSequenceClassificationLoss,
-                                  TFTokenClassificationLoss, get_initializer,
-                                  unpack_inputs)
+from ...modeling_tf_outputs import (
+    TFBaseModelOutput,
+    TFMaskedLMOutput,
+    TFQuestionAnsweringModelOutput,
+    TFSequenceClassifierOutput,
+    TFTokenClassifierOutput,
+)
+from ...modeling_tf_utils import (
+    TFMaskedLanguageModelingLoss,
+    TFModelInputType,
+    TFPreTrainedModel,
+    TFQuestionAnsweringLoss,
+    TFSequenceClassificationLoss,
+    TFTokenClassificationLoss,
+    get_initializer,
+    unpack_inputs,
+)
 from ...tf_utils import shape_list, stable_softmax
-from ...utils import (add_code_sample_docstrings, add_start_docstrings,
-                      add_start_docstrings_to_model_forward, logging)
+from ...utils import (
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+)
 from .configuration_deberta_v2 import DebertaV2Config
 
 logger = logging.get_logger(__name__)

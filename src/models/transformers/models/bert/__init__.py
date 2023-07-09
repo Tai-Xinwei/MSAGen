@@ -14,10 +14,15 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_flax_available, is_tensorflow_text_available,
-                      is_tf_available, is_tokenizers_available,
-                      is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_flax_available,
+    is_tensorflow_text_available,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_bert": [
@@ -107,10 +112,12 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_bert import (BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                     BertConfig, BertOnnxConfig)
-    from .tokenization_bert import (BasicTokenizer, BertTokenizer,
-                                    WordpieceTokenizer)
+    from .configuration_bert import (
+        BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        BertConfig,
+        BertOnnxConfig,
+    )
+    from .tokenization_bert import BasicTokenizer, BertTokenizer, WordpieceTokenizer
 
     try:
         if not is_tokenizers_available():
@@ -126,16 +133,21 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_bert import (BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                    BertForMaskedLM, BertForMultipleChoice,
-                                    BertForNextSentencePrediction,
-                                    BertForPreTraining,
-                                    BertForQuestionAnswering,
-                                    BertForSequenceClassification,
-                                    BertForTokenClassification, BertLayer,
-                                    BertLMHeadModel, BertModel,
-                                    BertPreTrainedModel,
-                                    load_tf_weights_in_bert)
+        from .modeling_bert import (
+            BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            BertForMaskedLM,
+            BertForMultipleChoice,
+            BertForNextSentencePrediction,
+            BertForPreTraining,
+            BertForQuestionAnswering,
+            BertForSequenceClassification,
+            BertForTokenClassification,
+            BertLayer,
+            BertLMHeadModel,
+            BertModel,
+            BertPreTrainedModel,
+            load_tf_weights_in_bert,
+        )
 
     try:
         if not is_tf_available():
@@ -143,16 +155,21 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_bert import (TF_BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                       TFBertEmbeddings, TFBertForMaskedLM,
-                                       TFBertForMultipleChoice,
-                                       TFBertForNextSentencePrediction,
-                                       TFBertForPreTraining,
-                                       TFBertForQuestionAnswering,
-                                       TFBertForSequenceClassification,
-                                       TFBertForTokenClassification,
-                                       TFBertLMHeadModel, TFBertMainLayer,
-                                       TFBertModel, TFBertPreTrainedModel)
+        from .modeling_tf_bert import (
+            TF_BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TFBertEmbeddings,
+            TFBertForMaskedLM,
+            TFBertForMultipleChoice,
+            TFBertForNextSentencePrediction,
+            TFBertForPreTraining,
+            TFBertForQuestionAnswering,
+            TFBertForSequenceClassification,
+            TFBertForTokenClassification,
+            TFBertLMHeadModel,
+            TFBertMainLayer,
+            TFBertModel,
+            TFBertPreTrainedModel,
+        )
 
     try:
         if not is_tensorflow_text_available():
@@ -168,16 +185,18 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_flax_bert import (FlaxBertForCausalLM,
-                                         FlaxBertForMaskedLM,
-                                         FlaxBertForMultipleChoice,
-                                         FlaxBertForNextSentencePrediction,
-                                         FlaxBertForPreTraining,
-                                         FlaxBertForQuestionAnswering,
-                                         FlaxBertForSequenceClassification,
-                                         FlaxBertForTokenClassification,
-                                         FlaxBertModel,
-                                         FlaxBertPreTrainedModel)
+        from .modeling_flax_bert import (
+            FlaxBertForCausalLM,
+            FlaxBertForMaskedLM,
+            FlaxBertForMultipleChoice,
+            FlaxBertForNextSentencePrediction,
+            FlaxBertForPreTraining,
+            FlaxBertForQuestionAnswering,
+            FlaxBertForSequenceClassification,
+            FlaxBertForTokenClassification,
+            FlaxBertModel,
+            FlaxBertPreTrainedModel,
+        )
 
 else:
     import sys

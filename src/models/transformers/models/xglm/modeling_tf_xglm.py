@@ -23,18 +23,28 @@ import numpy as np
 import tensorflow as tf
 
 from ...activations_tf import get_tf_activation
+
 # Public API
-from ...file_utils import (DUMMY_INPUTS, add_code_sample_docstrings,
-                           add_start_docstrings,
-                           add_start_docstrings_to_model_forward,
-                           replace_return_docstrings)
+from ...file_utils import (
+    DUMMY_INPUTS,
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    replace_return_docstrings,
+)
 from ...modeling_tf_outputs import (
     TFBaseModelOutputWithPastAndCrossAttentions,
-    TFCausalLMOutputWithCrossAttentions)
-from ...modeling_tf_utils import (TFCausalLanguageModelingLoss,
-                                  TFModelInputType, TFPreTrainedModel,
-                                  TFSharedEmbeddings, get_initializer,
-                                  keras_serializable, unpack_inputs)
+    TFCausalLMOutputWithCrossAttentions,
+)
+from ...modeling_tf_utils import (
+    TFCausalLanguageModelingLoss,
+    TFModelInputType,
+    TFPreTrainedModel,
+    TFSharedEmbeddings,
+    get_initializer,
+    keras_serializable,
+    unpack_inputs,
+)
 from ...tf_utils import shape_list, stable_softmax
 from ...utils import logging
 from .configuration_xglm import XGLMConfig
