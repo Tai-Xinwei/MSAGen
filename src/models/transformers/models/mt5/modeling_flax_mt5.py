@@ -17,8 +17,11 @@
 import numpy as np
 
 from ...utils import logging
-from ..t5.modeling_flax_t5 import (FlaxT5EncoderModel,
-                                   FlaxT5ForConditionalGeneration, FlaxT5Model)
+from ..t5.modeling_flax_t5 import (
+    FlaxT5EncoderModel,
+    FlaxT5ForConditionalGeneration,
+    FlaxT5Model,
+)
 from .configuration_mt5 import MT5Config
 
 logger = logging.get_logger(__name__)

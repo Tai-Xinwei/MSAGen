@@ -14,9 +14,14 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_sentencepiece_available, is_tf_available,
-                      is_tokenizers_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_sentencepiece_available,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_rembert": [
@@ -84,8 +89,11 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_rembert import (REMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                        RemBertConfig, RemBertOnnxConfig)
+    from .configuration_rembert import (
+        REMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        RemBertConfig,
+        RemBertOnnxConfig,
+    )
 
     try:
         if not is_sentencepiece_available():
@@ -109,15 +117,19 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_rembert import (REMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                       RemBertForCausalLM, RemBertForMaskedLM,
-                                       RemBertForMultipleChoice,
-                                       RemBertForQuestionAnswering,
-                                       RemBertForSequenceClassification,
-                                       RemBertForTokenClassification,
-                                       RemBertLayer, RemBertModel,
-                                       RemBertPreTrainedModel,
-                                       load_tf_weights_in_rembert)
+        from .modeling_rembert import (
+            REMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            RemBertForCausalLM,
+            RemBertForMaskedLM,
+            RemBertForMultipleChoice,
+            RemBertForQuestionAnswering,
+            RemBertForSequenceClassification,
+            RemBertForTokenClassification,
+            RemBertLayer,
+            RemBertModel,
+            RemBertPreTrainedModel,
+            load_tf_weights_in_rembert,
+        )
 
     try:
         if not is_tf_available():
@@ -126,11 +138,17 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_tf_rembert import (
-            TF_REMBERT_PRETRAINED_MODEL_ARCHIVE_LIST, TFRemBertForCausalLM,
-            TFRemBertForMaskedLM, TFRemBertForMultipleChoice,
-            TFRemBertForQuestionAnswering, TFRemBertForSequenceClassification,
-            TFRemBertForTokenClassification, TFRemBertLayer, TFRemBertModel,
-            TFRemBertPreTrainedModel)
+            TF_REMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TFRemBertForCausalLM,
+            TFRemBertForMaskedLM,
+            TFRemBertForMultipleChoice,
+            TFRemBertForQuestionAnswering,
+            TFRemBertForSequenceClassification,
+            TFRemBertForTokenClassification,
+            TFRemBertLayer,
+            TFRemBertModel,
+            TFRemBertPreTrainedModel,
+        )
 
 
 else:

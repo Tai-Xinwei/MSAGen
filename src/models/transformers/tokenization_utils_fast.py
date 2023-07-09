@@ -26,17 +26,27 @@ import tokenizers.pre_tokenizers as pre_tokenizers_fast
 from tokenizers import Encoding as EncodingFast
 from tokenizers import Tokenizer as TokenizerFast
 from tokenizers.decoders import Decoder as DecoderFast
-from tokenizers.trainers import (BpeTrainer, UnigramTrainer, WordLevelTrainer,
-                                 WordPieceTrainer)
+from tokenizers.trainers import (
+    BpeTrainer,
+    UnigramTrainer,
+    WordLevelTrainer,
+    WordPieceTrainer,
+)
 
 from .convert_slow_tokenizer import convert_slow_tokenizer
 from .tokenization_utils import PreTrainedTokenizer
-from .tokenization_utils_base import (INIT_TOKENIZER_DOCSTRING, AddedToken,
-                                      BatchEncoding, PreTokenizedInput,
-                                      PreTokenizedInputPair,
-                                      PreTrainedTokenizerBase,
-                                      SpecialTokensMixin, TextInput,
-                                      TextInputPair, TruncationStrategy)
+from .tokenization_utils_base import (
+    INIT_TOKENIZER_DOCSTRING,
+    AddedToken,
+    BatchEncoding,
+    PreTokenizedInput,
+    PreTokenizedInputPair,
+    PreTrainedTokenizerBase,
+    SpecialTokensMixin,
+    TextInput,
+    TextInputPair,
+    TruncationStrategy,
+)
 from .utils import PaddingStrategy, add_end_docstrings, logging
 
 logger = logging.get_logger(__name__)

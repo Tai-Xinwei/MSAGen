@@ -13,9 +13,13 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tf_available, is_tokenizers_available,
-                      is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_led": ["LED_PRETRAINED_CONFIG_ARCHIVE_MAP", "LEDConfig"],
@@ -77,11 +81,14 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_led import (LED_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                   LEDForConditionalGeneration,
-                                   LEDForQuestionAnswering,
-                                   LEDForSequenceClassification, LEDModel,
-                                   LEDPreTrainedModel)
+        from .modeling_led import (
+            LED_PRETRAINED_MODEL_ARCHIVE_LIST,
+            LEDForConditionalGeneration,
+            LEDForQuestionAnswering,
+            LEDForSequenceClassification,
+            LEDModel,
+            LEDPreTrainedModel,
+        )
 
     try:
         if not is_tf_available():
@@ -89,8 +96,11 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_led import (TFLEDForConditionalGeneration,
-                                      TFLEDModel, TFLEDPreTrainedModel)
+        from .modeling_tf_led import (
+            TFLEDForConditionalGeneration,
+            TFLEDModel,
+            TFLEDPreTrainedModel,
+        )
 
 else:
     import sys

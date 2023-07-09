@@ -13,9 +13,13 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tf_available, is_tokenizers_available,
-                      is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_convbert": [
@@ -75,8 +79,10 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_convbert import (
-        CONVBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, ConvBertConfig,
-        ConvBertOnnxConfig)
+        CONVBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        ConvBertConfig,
+        ConvBertOnnxConfig,
+    )
     from .tokenization_convbert import ConvBertTokenizer
 
     try:
@@ -93,15 +99,18 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_convbert import (CONVBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                        ConvBertForMaskedLM,
-                                        ConvBertForMultipleChoice,
-                                        ConvBertForQuestionAnswering,
-                                        ConvBertForSequenceClassification,
-                                        ConvBertForTokenClassification,
-                                        ConvBertLayer, ConvBertModel,
-                                        ConvBertPreTrainedModel,
-                                        load_tf_weights_in_convbert)
+        from .modeling_convbert import (
+            CONVBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            ConvBertForMaskedLM,
+            ConvBertForMultipleChoice,
+            ConvBertForQuestionAnswering,
+            ConvBertForSequenceClassification,
+            ConvBertForTokenClassification,
+            ConvBertLayer,
+            ConvBertModel,
+            ConvBertPreTrainedModel,
+            load_tf_weights_in_convbert,
+        )
 
     try:
         if not is_tf_available():
@@ -110,11 +119,16 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_tf_convbert import (
-            TF_CONVBERT_PRETRAINED_MODEL_ARCHIVE_LIST, TFConvBertForMaskedLM,
-            TFConvBertForMultipleChoice, TFConvBertForQuestionAnswering,
+            TF_CONVBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TFConvBertForMaskedLM,
+            TFConvBertForMultipleChoice,
+            TFConvBertForQuestionAnswering,
             TFConvBertForSequenceClassification,
-            TFConvBertForTokenClassification, TFConvBertLayer, TFConvBertModel,
-            TFConvBertPreTrainedModel)
+            TFConvBertForTokenClassification,
+            TFConvBertLayer,
+            TFConvBertModel,
+            TFConvBertPreTrainedModel,
+        )
 
 
 else:

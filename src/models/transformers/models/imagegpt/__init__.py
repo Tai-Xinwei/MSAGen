@@ -14,8 +14,12 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available, is_vision_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_torch_available,
+    is_vision_available,
+)
 
 _import_structure = {
     "configuration_imagegpt": [
@@ -52,8 +56,10 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_imagegpt import (
-        IMAGEGPT_PRETRAINED_CONFIG_ARCHIVE_MAP, ImageGPTConfig,
-        ImageGPTOnnxConfig)
+        IMAGEGPT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        ImageGPTConfig,
+        ImageGPTOnnxConfig,
+    )
 
     try:
         if not is_vision_available():
@@ -70,11 +76,14 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_imagegpt import (IMAGEGPT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                        ImageGPTForCausalImageModeling,
-                                        ImageGPTForImageClassification,
-                                        ImageGPTModel, ImageGPTPreTrainedModel,
-                                        load_tf_weights_in_imagegpt)
+        from .modeling_imagegpt import (
+            IMAGEGPT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            ImageGPTForCausalImageModeling,
+            ImageGPTForImageClassification,
+            ImageGPTModel,
+            ImageGPTPreTrainedModel,
+            load_tf_weights_in_imagegpt,
+        )
 
 else:
     import sys

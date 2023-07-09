@@ -22,8 +22,7 @@ from pathlib import Path
 import requests
 import torch
 from PIL import Image
-from transformers import (GLPNConfig, GLPNFeatureExtractor,
-                          GLPNForDepthEstimation)
+from transformers import GLPNConfig, GLPNFeatureExtractor, GLPNForDepthEstimation
 from transformers.utils import logging
 
 logging.set_verbosity_info()

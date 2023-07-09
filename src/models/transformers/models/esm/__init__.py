@@ -13,8 +13,12 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tf_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tf_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_esm": ["ESM_PRETRAINED_CONFIG_ARCHIVE_MAP", "EsmConfig"],
@@ -65,13 +69,15 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_esm import (ESM_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                   EsmForMaskedLM,
-                                   EsmForSequenceClassification,
-                                   EsmForTokenClassification, EsmModel,
-                                   EsmPreTrainedModel)
-        from .modeling_esmfold import (EsmFoldPreTrainedModel,
-                                       EsmForProteinFolding)
+        from .modeling_esm import (
+            ESM_PRETRAINED_MODEL_ARCHIVE_LIST,
+            EsmForMaskedLM,
+            EsmForSequenceClassification,
+            EsmForTokenClassification,
+            EsmModel,
+            EsmPreTrainedModel,
+        )
+        from .modeling_esmfold import EsmFoldPreTrainedModel, EsmForProteinFolding
 
     try:
         if not is_tf_available():
@@ -79,11 +85,14 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_esm import (TF_ESM_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                      TFEsmForMaskedLM,
-                                      TFEsmForSequenceClassification,
-                                      TFEsmForTokenClassification, TFEsmModel,
-                                      TFEsmPreTrainedModel)
+        from .modeling_tf_esm import (
+            TF_ESM_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TFEsmForMaskedLM,
+            TFEsmForSequenceClassification,
+            TFEsmForTokenClassification,
+            TFEsmModel,
+            TFEsmPreTrainedModel,
+        )
 
 
 else:

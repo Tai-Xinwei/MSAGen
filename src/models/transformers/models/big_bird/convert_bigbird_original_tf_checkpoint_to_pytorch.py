@@ -17,9 +17,12 @@
 
 import argparse
 
-from transformers import (BigBirdConfig, BigBirdForPreTraining,
-                          BigBirdForQuestionAnswering,
-                          load_tf_weights_in_big_bird)
+from transformers import (
+    BigBirdConfig,
+    BigBirdForPreTraining,
+    BigBirdForQuestionAnswering,
+    load_tf_weights_in_big_bird,
+)
 from transformers.utils import logging
 
 logging.set_verbosity_info()

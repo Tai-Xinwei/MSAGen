@@ -19,10 +19,19 @@ from typing import Optional, Union
 import numpy as np
 
 from ...image_processing_utils import BaseImageProcessor, BatchFeature
-from ...image_transforms import (get_image_size, pad, rescale,
-                                 to_channel_dimension_format)
-from ...image_utils import (ChannelDimension, ImageInput, make_list_of_images,
-                            to_numpy_array, valid_images)
+from ...image_transforms import (
+    get_image_size,
+    pad,
+    rescale,
+    to_channel_dimension_format,
+)
+from ...image_utils import (
+    ChannelDimension,
+    ImageInput,
+    make_list_of_images,
+    to_numpy_array,
+    valid_images,
+)
 from ...utils import TensorType, logging
 
 logger = logging.get_logger(__name__)

@@ -14,9 +14,13 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_sentencepiece_available, is_tokenizers_available,
-                      is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_sentencepiece_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_reformer": [
@@ -62,7 +66,9 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_reformer import (
-        REFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, ReformerConfig)
+        REFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        ReformerConfig,
+    )
 
     try:
         if not is_sentencepiece_available():
@@ -86,13 +92,17 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_reformer import (REFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                        ReformerAttention, ReformerForMaskedLM,
-                                        ReformerForQuestionAnswering,
-                                        ReformerForSequenceClassification,
-                                        ReformerLayer, ReformerModel,
-                                        ReformerModelWithLMHead,
-                                        ReformerPreTrainedModel)
+        from .modeling_reformer import (
+            REFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
+            ReformerAttention,
+            ReformerForMaskedLM,
+            ReformerForQuestionAnswering,
+            ReformerForSequenceClassification,
+            ReformerLayer,
+            ReformerModel,
+            ReformerModelWithLMHead,
+            ReformerPreTrainedModel,
+        )
 
 else:
     import sys

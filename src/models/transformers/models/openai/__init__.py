@@ -14,9 +14,13 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tf_available, is_tokenizers_available,
-                      is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_openai": [
@@ -69,7 +73,9 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_openai import (
-        OPENAI_GPT_PRETRAINED_CONFIG_ARCHIVE_MAP, OpenAIGPTConfig)
+        OPENAI_GPT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        OpenAIGPTConfig,
+    )
     from .tokenization_openai import OpenAIGPTTokenizer
 
     try:
@@ -86,12 +92,15 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_openai import (OPENAI_GPT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                      OpenAIGPTDoubleHeadsModel,
-                                      OpenAIGPTForSequenceClassification,
-                                      OpenAIGPTLMHeadModel, OpenAIGPTModel,
-                                      OpenAIGPTPreTrainedModel,
-                                      load_tf_weights_in_openai_gpt)
+        from .modeling_openai import (
+            OPENAI_GPT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            OpenAIGPTDoubleHeadsModel,
+            OpenAIGPTForSequenceClassification,
+            OpenAIGPTLMHeadModel,
+            OpenAIGPTModel,
+            OpenAIGPTPreTrainedModel,
+            load_tf_weights_in_openai_gpt,
+        )
 
     try:
         if not is_tf_available():
@@ -101,9 +110,13 @@ if TYPE_CHECKING:
     else:
         from .modeling_tf_openai import (
             TF_OPENAI_GPT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            TFOpenAIGPTDoubleHeadsModel, TFOpenAIGPTForSequenceClassification,
-            TFOpenAIGPTLMHeadModel, TFOpenAIGPTMainLayer, TFOpenAIGPTModel,
-            TFOpenAIGPTPreTrainedModel)
+            TFOpenAIGPTDoubleHeadsModel,
+            TFOpenAIGPTForSequenceClassification,
+            TFOpenAIGPTLMHeadModel,
+            TFOpenAIGPTMainLayer,
+            TFOpenAIGPTModel,
+            TFOpenAIGPTPreTrainedModel,
+        )
 
 else:
     import sys

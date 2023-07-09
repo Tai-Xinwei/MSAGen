@@ -5,6 +5,7 @@ __pycache__
 build/
 dist/
 *.so
+SFM.egg-info/
 
 # Dev/IDE data
 .vscode

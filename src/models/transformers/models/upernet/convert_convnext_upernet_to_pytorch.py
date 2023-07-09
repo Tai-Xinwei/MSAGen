@@ -21,8 +21,12 @@ import requests
 import torch
 from huggingface_hub import hf_hub_download
 from PIL import Image
-from transformers import (ConvNextConfig, SegformerImageProcessor,
-                          UperNetConfig, UperNetForSemanticSegmentation)
+from transformers import (
+    ConvNextConfig,
+    SegformerImageProcessor,
+    UperNetConfig,
+    UperNetForSemanticSegmentation,
+)
 
 
 def get_upernet_config(model_name):

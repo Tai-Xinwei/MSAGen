@@ -14,9 +14,13 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tf_available, is_tokenizers_available,
-                      is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_deberta": [
@@ -69,8 +73,11 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_deberta import (DEBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                        DebertaConfig, DebertaOnnxConfig)
+    from .configuration_deberta import (
+        DEBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        DebertaConfig,
+        DebertaOnnxConfig,
+    )
     from .tokenization_deberta import DebertaTokenizer
 
     try:
@@ -87,12 +94,15 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_deberta import (DEBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                       DebertaForMaskedLM,
-                                       DebertaForQuestionAnswering,
-                                       DebertaForSequenceClassification,
-                                       DebertaForTokenClassification,
-                                       DebertaModel, DebertaPreTrainedModel)
+        from .modeling_deberta import (
+            DEBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
+            DebertaForMaskedLM,
+            DebertaForQuestionAnswering,
+            DebertaForSequenceClassification,
+            DebertaForTokenClassification,
+            DebertaModel,
+            DebertaPreTrainedModel,
+        )
 
     try:
         if not is_tf_available():
@@ -101,10 +111,14 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_tf_deberta import (
-            TF_DEBERTA_PRETRAINED_MODEL_ARCHIVE_LIST, TFDebertaForMaskedLM,
-            TFDebertaForQuestionAnswering, TFDebertaForSequenceClassification,
-            TFDebertaForTokenClassification, TFDebertaModel,
-            TFDebertaPreTrainedModel)
+            TF_DEBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TFDebertaForMaskedLM,
+            TFDebertaForQuestionAnswering,
+            TFDebertaForSequenceClassification,
+            TFDebertaForTokenClassification,
+            TFDebertaModel,
+            TFDebertaPreTrainedModel,
+        )
 
 
 else:

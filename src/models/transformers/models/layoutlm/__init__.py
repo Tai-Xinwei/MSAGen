@@ -14,9 +14,13 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tf_available, is_tokenizers_available,
-                      is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_layoutlm": [
@@ -71,8 +75,10 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_layoutlm import (
-        LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP, LayoutLMConfig,
-        LayoutLMOnnxConfig)
+        LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        LayoutLMConfig,
+        LayoutLMOnnxConfig,
+    )
     from .tokenization_layoutlm import LayoutLMTokenizer
 
     try:
@@ -89,12 +95,15 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_layoutlm import (LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                        LayoutLMForMaskedLM,
-                                        LayoutLMForQuestionAnswering,
-                                        LayoutLMForSequenceClassification,
-                                        LayoutLMForTokenClassification,
-                                        LayoutLMModel, LayoutLMPreTrainedModel)
+        from .modeling_layoutlm import (
+            LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+            LayoutLMForMaskedLM,
+            LayoutLMForQuestionAnswering,
+            LayoutLMForSequenceClassification,
+            LayoutLMForTokenClassification,
+            LayoutLMModel,
+            LayoutLMPreTrainedModel,
+        )
     try:
         if not is_tf_available():
             raise OptionalDependencyNotAvailable()
@@ -102,11 +111,15 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_tf_layoutlm import (
-            TF_LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_LIST, TFLayoutLMForMaskedLM,
+            TF_LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TFLayoutLMForMaskedLM,
             TFLayoutLMForQuestionAnswering,
             TFLayoutLMForSequenceClassification,
-            TFLayoutLMForTokenClassification, TFLayoutLMMainLayer,
-            TFLayoutLMModel, TFLayoutLMPreTrainedModel)
+            TFLayoutLMForTokenClassification,
+            TFLayoutLMMainLayer,
+            TFLayoutLMModel,
+            TFLayoutLMPreTrainedModel,
+        )
 
 else:
     import sys

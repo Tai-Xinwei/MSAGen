@@ -28,12 +28,16 @@ from detectron2.data import MetadataCatalog
 from detectron2.projects.deeplab import add_deeplab_config
 from PIL import Image
 from torch import Tensor, nn
-from transformers.models.maskformer.feature_extraction_maskformer import \
-    MaskFormerFeatureExtractor
+from transformers.models.maskformer.feature_extraction_maskformer import (
+    MaskFormerFeatureExtractor,
+)
 from transformers.models.maskformer.modeling_maskformer import (
-    MaskFormerConfig, MaskFormerForInstanceSegmentation,
-    MaskFormerForInstanceSegmentationOutput, MaskFormerModel,
-    MaskFormerModelOutput)
+    MaskFormerConfig,
+    MaskFormerForInstanceSegmentation,
+    MaskFormerForInstanceSegmentationOutput,
+    MaskFormerModel,
+    MaskFormerModelOutput,
+)
 from transformers.utils import logging
 
 StateDict = Dict[str, Tensor]
@@ -826,8 +830,9 @@ if __name__ == "__main__":
     sys.path.append(str(maskformer_dir.parent))
     # and import what's needed
     from MaskFormer.mask_former import add_mask_former_config
-    from MaskFormer.mask_former.mask_former_model import \
-        MaskFormer as OriginalMaskFormer
+    from MaskFormer.mask_former.mask_former_model import (
+        MaskFormer as OriginalMaskFormer,
+    )
 
     if not save_directory.exists():
         save_directory.mkdir(parents=True)

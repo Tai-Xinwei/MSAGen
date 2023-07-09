@@ -21,13 +21,26 @@ import os
 import unicodedata
 from typing import Dict, List, Optional, Tuple, Union
 
-from ...tokenization_utils import (PreTrainedTokenizer, _is_control,
-                                   _is_punctuation, _is_whitespace)
+from ...tokenization_utils import (
+    PreTrainedTokenizer,
+    _is_control,
+    _is_punctuation,
+    _is_whitespace,
+)
 from ...tokenization_utils_base import (
-    ENCODE_KWARGS_DOCSTRING, ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING,
-    BatchEncoding, EncodedInput, EncodedInputPair, PaddingStrategy,
-    PreTokenizedInput, PreTokenizedInputPair, TensorType, TextInput,
-    TextInputPair, TruncationStrategy)
+    ENCODE_KWARGS_DOCSTRING,
+    ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING,
+    BatchEncoding,
+    EncodedInput,
+    EncodedInputPair,
+    PaddingStrategy,
+    PreTokenizedInput,
+    PreTokenizedInputPair,
+    TensorType,
+    TextInput,
+    TextInputPair,
+    TruncationStrategy,
+)
 from ...utils import add_end_docstrings, logging
 
 logger = logging.get_logger(__name__)

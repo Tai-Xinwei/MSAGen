@@ -20,10 +20,15 @@ import argparse
 import requests
 import torch
 from PIL import Image
-from transformers import (CLIPSegConfig, CLIPSegForImageSegmentation,
-                          CLIPSegProcessor, CLIPSegTextConfig,
-                          CLIPSegVisionConfig, CLIPTokenizer,
-                          ViTFeatureExtractor)
+from transformers import (
+    CLIPSegConfig,
+    CLIPSegForImageSegmentation,
+    CLIPSegProcessor,
+    CLIPSegTextConfig,
+    CLIPSegVisionConfig,
+    CLIPTokenizer,
+    ViTFeatureExtractor,
+)
 
 
 def get_clipseg_config(model_name):

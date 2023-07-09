@@ -13,8 +13,12 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tokenizers_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_altclip": [
@@ -42,9 +46,12 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_altclip import (ALTCLIP_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                        AltCLIPConfig, AltCLIPTextConfig,
-                                        AltCLIPVisionConfig)
+    from .configuration_altclip import (
+        ALTCLIP_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        AltCLIPConfig,
+        AltCLIPTextConfig,
+        AltCLIPVisionConfig,
+    )
     from .processing_altclip import AltCLIPProcessor
 
     try:
@@ -53,9 +60,13 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_altclip import (ALTCLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                       AltCLIPModel, AltCLIPPreTrainedModel,
-                                       AltCLIPTextModel, AltCLIPVisionModel)
+        from .modeling_altclip import (
+            ALTCLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
+            AltCLIPModel,
+            AltCLIPPreTrainedModel,
+            AltCLIPTextModel,
+            AltCLIPVisionModel,
+        )
 
 
 else:

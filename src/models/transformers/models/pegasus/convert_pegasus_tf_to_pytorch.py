@@ -21,10 +21,15 @@ from typing import Dict
 import tensorflow as tf
 import torch
 from tqdm import tqdm
-from transformers import (PegasusConfig, PegasusForConditionalGeneration,
-                          PegasusTokenizer)
+from transformers import (
+    PegasusConfig,
+    PegasusForConditionalGeneration,
+    PegasusTokenizer,
+)
 from transformers.models.pegasus.configuration_pegasus import (
-    DEFAULTS, task_specific_params)
+    DEFAULTS,
+    task_specific_params,
+)
 
 PATTERNS = [
     # replace left string with right string to get the relevant state_dict key (identical state dict to bart)

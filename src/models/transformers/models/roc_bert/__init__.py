@@ -13,8 +13,12 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tokenizers_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_roc_bert": [
@@ -55,7 +59,9 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_roc_bert import (
-        ROC_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, RoCBertConfig)
+        ROC_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        RoCBertConfig,
+    )
     from .tokenization_roc_bert import RoCBertTokenizer
 
     try:
@@ -72,16 +78,20 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_roc_bert import (ROC_BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                        RoCBertForCausalLM, RoCBertForMaskedLM,
-                                        RoCBertForMultipleChoice,
-                                        RoCBertForPreTraining,
-                                        RoCBertForQuestionAnswering,
-                                        RoCBertForSequenceClassification,
-                                        RoCBertForTokenClassification,
-                                        RoCBertLayer, RoCBertModel,
-                                        RoCBertPreTrainedModel,
-                                        load_tf_weights_in_roc_bert)
+        from .modeling_roc_bert import (
+            ROC_BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            RoCBertForCausalLM,
+            RoCBertForMaskedLM,
+            RoCBertForMultipleChoice,
+            RoCBertForPreTraining,
+            RoCBertForQuestionAnswering,
+            RoCBertForSequenceClassification,
+            RoCBertForTokenClassification,
+            RoCBertLayer,
+            RoCBertModel,
+            RoCBertPreTrainedModel,
+            load_tf_weights_in_roc_bert,
+        )
 
 
 else:

@@ -27,21 +27,48 @@ from collections import OrderedDict, UserDict
 from collections.abc import Mapping, Sized
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import (TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional,
-                    Sequence, Tuple, Union)
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import numpy as np
 from packaging import version
 
 from . import __version__
 from .dynamic_module_utils import custom_object_save
-from .utils import (ExplicitEnum, PaddingStrategy, PushToHubMixin, TensorType,
-                    add_end_docstrings, cached_file, copy_func, download_url,
-                    extract_commit_hash, is_flax_available, is_jax_tensor,
-                    is_numpy_array, is_offline_mode, is_remote_url,
-                    is_tf_available, is_tf_tensor, is_tokenizers_available,
-                    is_torch_available, is_torch_device, is_torch_tensor,
-                    logging, requires_backends, to_py_obj)
+from .utils import (
+    ExplicitEnum,
+    PaddingStrategy,
+    PushToHubMixin,
+    TensorType,
+    add_end_docstrings,
+    cached_file,
+    copy_func,
+    download_url,
+    extract_commit_hash,
+    is_flax_available,
+    is_jax_tensor,
+    is_numpy_array,
+    is_offline_mode,
+    is_remote_url,
+    is_tf_available,
+    is_tf_tensor,
+    is_tokenizers_available,
+    is_torch_available,
+    is_torch_device,
+    is_torch_tensor,
+    logging,
+    requires_backends,
+    to_py_obj,
+)
 
 if TYPE_CHECKING:
     if is_torch_available():
@@ -1986,8 +2013,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
             init_kwargs = init_configuration
 
         if config_tokenizer_class is None:
-            from .models.auto.configuration_auto import \
-                AutoConfig  # tests_ignore
+            from .models.auto.configuration_auto import AutoConfig  # tests_ignore
 
             # Second attempt. If we have not yet found tokenizer_class, let's try to use the config.
             try:
@@ -2005,8 +2031,9 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
             if config_tokenizer_class is None:
                 # Third attempt. If we have not yet found the original type of the tokenizer,
                 # we are loading we see if we can infer it from the type of the configuration file
-                from .models.auto.tokenization_auto import \
-                    TOKENIZER_MAPPING_NAMES  # tests_ignore
+                from .models.auto.tokenization_auto import (
+                    TOKENIZER_MAPPING_NAMES,
+                )  # tests_ignore
 
                 if hasattr(config, "model_type"):
                     model_type = config.model_type

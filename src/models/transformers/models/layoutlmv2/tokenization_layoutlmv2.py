@@ -20,11 +20,20 @@ import sys
 import unicodedata
 from typing import Dict, List, Optional, Tuple, Union
 
-from ...tokenization_utils import (PreTrainedTokenizer, _is_control,
-                                   _is_punctuation, _is_whitespace)
-from ...tokenization_utils_base import (BatchEncoding, EncodedInput,
-                                        PreTokenizedInput, TextInput,
-                                        TextInputPair, TruncationStrategy)
+from ...tokenization_utils import (
+    PreTrainedTokenizer,
+    _is_control,
+    _is_punctuation,
+    _is_whitespace,
+)
+from ...tokenization_utils_base import (
+    BatchEncoding,
+    EncodedInput,
+    PreTokenizedInput,
+    TextInput,
+    TextInputPair,
+    TruncationStrategy,
+)
 from ...utils import PaddingStrategy, TensorType, add_end_docstrings, logging
 
 logger = logging.get_logger(__name__)

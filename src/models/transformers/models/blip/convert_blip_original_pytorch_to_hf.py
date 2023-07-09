@@ -21,9 +21,13 @@ import torch
 from PIL import Image
 from torchvision import transforms
 from torchvision.transforms.functional import InterpolationMode
-from transformers import (BertTokenizer, BlipConfig,
-                          BlipForConditionalGeneration,
-                          BlipForImageTextRetrieval, BlipForQuestionAnswering)
+from transformers import (
+    BertTokenizer,
+    BlipConfig,
+    BlipForConditionalGeneration,
+    BlipForImageTextRetrieval,
+    BlipForQuestionAnswering,
+)
 
 # git clone https://github.com/salesforce/BLIP.git
 from models.blip import blip_decoder

@@ -20,13 +20,24 @@ import numpy as np
 import requests
 from packaging import version
 
-from .utils import (ExplicitEnum, is_jax_tensor, is_tf_tensor,
-                    is_torch_available, is_torch_tensor, is_vision_available,
-                    requires_backends, to_numpy)
+from .utils import (
+    ExplicitEnum,
+    is_jax_tensor,
+    is_tf_tensor,
+    is_torch_available,
+    is_torch_tensor,
+    is_vision_available,
+    requires_backends,
+    to_numpy,
+)
 from .utils.constants import IMAGENET_DEFAULT_MEAN  # noqa: F401
-from .utils.constants import (IMAGENET_DEFAULT_STD, IMAGENET_STANDARD_MEAN,
-                              IMAGENET_STANDARD_STD, OPENAI_CLIP_MEAN,
-                              OPENAI_CLIP_STD)
+from .utils.constants import (
+    IMAGENET_DEFAULT_STD,
+    IMAGENET_STANDARD_MEAN,
+    IMAGENET_STANDARD_STD,
+    OPENAI_CLIP_MEAN,
+    OPENAI_CLIP_STD,
+)
 
 if is_vision_available():
     import PIL.Image

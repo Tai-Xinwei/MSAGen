@@ -17,8 +17,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Optional, Union
 
 if TYPE_CHECKING:
-    from .. import (AutoFeatureExtractor, AutoProcessor,  # tests_ignore
-                    AutoTokenizer)
+    from .. import AutoFeatureExtractor, AutoProcessor, AutoTokenizer  # tests_ignore
 
 
 class ParameterFormat(Enum):
@@ -88,8 +87,7 @@ def get_preprocessor(
             `None` if no preprocessor is found.
     """
     # Avoid circular imports by only importing this here.
-    from .. import (AutoFeatureExtractor, AutoProcessor,  # tests_ignore
-                    AutoTokenizer)
+    from .. import AutoFeatureExtractor, AutoProcessor, AutoTokenizer  # tests_ignore
 
     try:
         return AutoProcessor.from_pretrained(model_name)

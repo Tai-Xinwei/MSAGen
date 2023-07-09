@@ -9,15 +9,17 @@ from deepspeed.accelerator import get_accelerator
 from deepspeed.runtime import zero
 from deepspeed.runtime.config import DeepSpeedConfig
 from deepspeed.runtime.dataloader import RepeatingLoader
-from deepspeed.runtime.engine import (MEMORY_OPT_ALLREDUCE_SIZE,
-                                      DeepSpeedEngine,
-                                      DeepSpeedOptimizerCallable,
-                                      DeepSpeedSchedulerCallable)
+from deepspeed.runtime.engine import (
+    MEMORY_OPT_ALLREDUCE_SIZE,
+    DeepSpeedEngine,
+    DeepSpeedOptimizerCallable,
+    DeepSpeedSchedulerCallable,
+)
+
 # from deepspeed.runtime.pipe.module import PipelineModule, PipelineError
 # from deepspeed.runtime.pipe.engine import PipelineEngine
 from deepspeed.runtime.pipe import p2p, schedule
-from deepspeed.runtime.utils import (DummyOptim, PartitionedTensor,
-                                     clip_grad_norm_)
+from deepspeed.runtime.utils import DummyOptim, PartitionedTensor, clip_grad_norm_
 from deepspeed.runtime.zero.config import ZeroStageEnum
 from deepspeed.runtime.zero.parameter_offload import DeepSpeedZeRoOffload
 from deepspeed.utils import OnDevice, instrument_w_nvtx, log_dist, logger
@@ -172,8 +174,7 @@ class CopilotPipeEngine(myPipeEngine):
                     f"Creating {model_dtype} ZeRO stage {zero_stage} optimizer",
                     ranks=[0],
                 )
-                from deepspeed.runtime.zero.stage3 import \
-                    DeepSpeedZeroOptimizer_Stage3
+                from deepspeed.runtime.zero.stage3 import DeepSpeedZeroOptimizer_Stage3
 
                 optimizer = DeepSpeedZeroOptimizer_Stage3(
                     self.module,

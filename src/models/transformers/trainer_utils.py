@@ -29,9 +29,15 @@ from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
 import numpy as np
 
-from .utils import (ExplicitEnum, is_psutil_available, is_tf_available,
-                    is_torch_available, is_torch_cuda_available,
-                    is_torch_tpu_available, requires_backends)
+from .utils import (
+    ExplicitEnum,
+    is_psutil_available,
+    is_tf_available,
+    is_torch_available,
+    is_torch_cuda_available,
+    is_torch_tpu_available,
+    requires_backends,
+)
 
 if is_torch_available():
     import torch
@@ -669,8 +675,9 @@ def find_executable_batch_size(
 
     if auto_find_batch_size:
         requires_backends(find_executable_batch_size, "accelerate")
-        from accelerate.utils import \
-            find_executable_batch_size as accelerate_find_executable_batch_size
+        from accelerate.utils import (
+            find_executable_batch_size as accelerate_find_executable_batch_size,
+        )
 
         return accelerate_find_executable_batch_size(
             function=function, starting_batch_size=starting_batch_size

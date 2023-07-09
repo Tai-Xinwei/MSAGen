@@ -31,16 +31,27 @@ from ...modeling_flax_outputs import (
     FlaxBaseModelOutputWithPastAndCrossAttentions,
     FlaxBaseModelOutputWithPooling,
     FlaxBaseModelOutputWithPoolingAndCrossAttentions,
-    FlaxCausalLMOutputWithCrossAttentions, FlaxMaskedLMOutput,
-    FlaxMultipleChoiceModelOutput, FlaxNextSentencePredictorOutput,
-    FlaxQuestionAnsweringModelOutput, FlaxSequenceClassifierOutput,
-    FlaxTokenClassifierOutput)
-from ...modeling_flax_utils import (ACT2FN, FlaxPreTrainedModel,
-                                    append_call_sample_docstring,
-                                    append_replace_return_docstrings,
-                                    overwrite_call_docstring)
-from ...utils import (ModelOutput, add_start_docstrings,
-                      add_start_docstrings_to_model_forward, logging)
+    FlaxCausalLMOutputWithCrossAttentions,
+    FlaxMaskedLMOutput,
+    FlaxMultipleChoiceModelOutput,
+    FlaxNextSentencePredictorOutput,
+    FlaxQuestionAnsweringModelOutput,
+    FlaxSequenceClassifierOutput,
+    FlaxTokenClassifierOutput,
+)
+from ...modeling_flax_utils import (
+    ACT2FN,
+    FlaxPreTrainedModel,
+    append_call_sample_docstring,
+    append_replace_return_docstrings,
+    overwrite_call_docstring,
+)
+from ...utils import (
+    ModelOutput,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+)
 from .configuration_bert import BertConfig
 
 logger = logging.get_logger(__name__)

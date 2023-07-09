@@ -13,8 +13,13 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tf_available, is_torch_available, is_vision_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tf_available,
+    is_torch_available,
+    is_vision_available,
+)
 
 _import_structure = {
     "configuration_mobilevit": [
@@ -63,8 +68,10 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_mobilevit import (
-        MOBILEVIT_PRETRAINED_CONFIG_ARCHIVE_MAP, MobileViTConfig,
-        MobileViTOnnxConfig)
+        MOBILEVIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        MobileViTConfig,
+        MobileViTOnnxConfig,
+    )
 
     try:
         if not is_vision_available():
@@ -83,8 +90,11 @@ if TYPE_CHECKING:
     else:
         from .modeling_mobilevit import (
             MOBILEVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            MobileViTForImageClassification, MobileViTForSemanticSegmentation,
-            MobileViTModel, MobileViTPreTrainedModel)
+            MobileViTForImageClassification,
+            MobileViTForSemanticSegmentation,
+            MobileViTModel,
+            MobileViTPreTrainedModel,
+        )
 
     try:
         if not is_tf_available():
@@ -95,8 +105,10 @@ if TYPE_CHECKING:
         from .modeling_tf_mobilevit import (
             TF_MOBILEVIT_PRETRAINED_MODEL_ARCHIVE_LIST,
             TFMobileViTForImageClassification,
-            TFMobileViTForSemanticSegmentation, TFMobileViTModel,
-            TFMobileViTPreTrainedModel)
+            TFMobileViTForSemanticSegmentation,
+            TFMobileViTModel,
+            TFMobileViTPreTrainedModel,
+        )
 
 
 else:

@@ -13,8 +13,7 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available)
+from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
 
 _import_structure = {
     "configuration_decision_transformer": [
@@ -41,7 +40,8 @@ else:
 if TYPE_CHECKING:
     from .configuration_decision_transformer import (
         DECISION_TRANSFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        DecisionTransformerConfig)
+        DecisionTransformerConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -52,8 +52,10 @@ if TYPE_CHECKING:
         from .modeling_decision_transformer import (
             DECISION_TRANSFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,
             DecisionTransformerGPT2Model,
-            DecisionTransformerGPT2PreTrainedModel, DecisionTransformerModel,
-            DecisionTransformerPreTrainedModel)
+            DecisionTransformerGPT2PreTrainedModel,
+            DecisionTransformerModel,
+            DecisionTransformerPreTrainedModel,
+        )
 
 
 else:

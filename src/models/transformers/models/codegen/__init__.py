@@ -13,8 +13,12 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tokenizers_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_codegen": [
@@ -47,8 +51,11 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_codegen import (CODEGEN_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                        CodeGenConfig, CodeGenOnnxConfig)
+    from .configuration_codegen import (
+        CODEGEN_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        CodeGenConfig,
+        CodeGenOnnxConfig,
+    )
     from .tokenization_codegen import CodeGenTokenizer
 
     try:
@@ -65,9 +72,12 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_codegen import (CODEGEN_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                       CodeGenForCausalLM, CodeGenModel,
-                                       CodeGenPreTrainedModel)
+        from .modeling_codegen import (
+            CODEGEN_PRETRAINED_MODEL_ARCHIVE_LIST,
+            CodeGenForCausalLM,
+            CodeGenModel,
+            CodeGenPreTrainedModel,
+        )
 
 else:
     import sys

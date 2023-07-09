@@ -14,10 +14,16 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_flax_available, is_keras_nlp_available,
-                      is_tensorflow_text_available, is_tf_available,
-                      is_tokenizers_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_flax_available,
+    is_keras_nlp_available,
+    is_tensorflow_text_available,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_gpt2": [
@@ -90,8 +96,11 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_gpt2 import (GPT2_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                     GPT2Config, GPT2OnnxConfig)
+    from .configuration_gpt2 import (
+        GPT2_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        GPT2Config,
+        GPT2OnnxConfig,
+    )
     from .tokenization_gpt2 import GPT2Tokenizer
 
     try:
@@ -108,13 +117,16 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_gpt2 import (GPT2_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                    GPT2DoubleHeadsModel,
-                                    GPT2ForSequenceClassification,
-                                    GPT2ForTokenClassification,
-                                    GPT2LMHeadModel, GPT2Model,
-                                    GPT2PreTrainedModel,
-                                    load_tf_weights_in_gpt2)
+        from .modeling_gpt2 import (
+            GPT2_PRETRAINED_MODEL_ARCHIVE_LIST,
+            GPT2DoubleHeadsModel,
+            GPT2ForSequenceClassification,
+            GPT2ForTokenClassification,
+            GPT2LMHeadModel,
+            GPT2Model,
+            GPT2PreTrainedModel,
+            load_tf_weights_in_gpt2,
+        )
 
     try:
         if not is_tf_available():
@@ -122,11 +134,15 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_gpt2 import (TF_GPT2_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                       TFGPT2DoubleHeadsModel,
-                                       TFGPT2ForSequenceClassification,
-                                       TFGPT2LMHeadModel, TFGPT2MainLayer,
-                                       TFGPT2Model, TFGPT2PreTrainedModel)
+        from .modeling_tf_gpt2 import (
+            TF_GPT2_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TFGPT2DoubleHeadsModel,
+            TFGPT2ForSequenceClassification,
+            TFGPT2LMHeadModel,
+            TFGPT2MainLayer,
+            TFGPT2Model,
+            TFGPT2PreTrainedModel,
+        )
 
     try:
         if not is_keras_nlp_available():
@@ -142,8 +158,11 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_flax_gpt2 import (FlaxGPT2LMHeadModel, FlaxGPT2Model,
-                                         FlaxGPT2PreTrainedModel)
+        from .modeling_flax_gpt2 import (
+            FlaxGPT2LMHeadModel,
+            FlaxGPT2Model,
+            FlaxGPT2PreTrainedModel,
+        )
 
 else:
     import sys

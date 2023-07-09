@@ -13,8 +13,7 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...file_utils import (_LazyModule, is_tokenizers_available,
-                           is_torch_available)
+from ...file_utils import _LazyModule, is_tokenizers_available, is_torch_available
 from ...utils import OptionalDependencyNotAvailable
 
 _import_structure = {
@@ -50,7 +49,9 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_gpt_neox import (
-        GPT_NEOX_PRETRAINED_CONFIG_ARCHIVE_MAP, GPTNeoXConfig)
+        GPT_NEOX_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        GPTNeoXConfig,
+    )
 
     try:
         if not is_tokenizers_available():
@@ -66,11 +67,14 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_gpt_neox import (GPT_NEOX_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                        GPTNeoXForCausalLM,
-                                        GPTNeoXForSequenceClassification,
-                                        GPTNeoXLayer, GPTNeoXModel,
-                                        GPTNeoXPreTrainedModel)
+        from .modeling_gpt_neox import (
+            GPT_NEOX_PRETRAINED_MODEL_ARCHIVE_LIST,
+            GPTNeoXForCausalLM,
+            GPTNeoXForSequenceClassification,
+            GPTNeoXLayer,
+            GPTNeoXModel,
+            GPTNeoXPreTrainedModel,
+        )
 
 
 else:

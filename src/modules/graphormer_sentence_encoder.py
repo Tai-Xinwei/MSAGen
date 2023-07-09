@@ -14,13 +14,24 @@ from utils.LayerDropModuleList import LayerDropModuleList
 
 from .FairseqDropout import FairseqDropout
 from .get_activation_fn import get_activation_fn
-from .graphormer_layers import (Distance, EquivariantLayerNorm,
-                                EquivariantMultiHeadAttention,
-                                EquivariantVectorOutput, ExpNormalSmearing,
-                                Graph3DBias, GraphAttnBias, GraphNodeFeature,
-                                NodeTaskHead, RobertaClassificationHead)
-from .graphormer_layers_pp import (Graph3DBiasPipe, GraphAttnBiasPipe,
-                                   GraphNodeFeaturePipe, NodeTaskHeadPipe)
+from .graphormer_layers import (
+    Distance,
+    EquivariantLayerNorm,
+    EquivariantMultiHeadAttention,
+    EquivariantVectorOutput,
+    ExpNormalSmearing,
+    Graph3DBias,
+    GraphAttnBias,
+    GraphNodeFeature,
+    NodeTaskHead,
+    RobertaClassificationHead,
+)
+from .graphormer_layers_pp import (
+    Graph3DBiasPipe,
+    GraphAttnBiasPipe,
+    GraphNodeFeaturePipe,
+    NodeTaskHeadPipe,
+)
 from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
 from .layer_norm import LayerNorm
 from .multihead_attention import MultiheadAttention
@@ -415,7 +426,7 @@ class GraphormerSentenceEncoder(nn.Module):
             if not last_state_only:
                 inner_states.append(x)
 
-        return x, attn_bias, delta_pos, inner_states
+        return x, attn_bias, delta_pos, inner_states, padding_mask
 
 
 class Node_decoder(nn.Module):

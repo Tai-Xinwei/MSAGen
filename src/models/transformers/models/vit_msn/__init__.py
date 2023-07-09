@@ -13,8 +13,7 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available)
+from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
 
 _import_structure = {
     "configuration_vit_msn": ["VIT_MSN_PRETRAINED_CONFIG_ARCHIVE_MAP", "ViTMSNConfig"]
@@ -34,8 +33,10 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_vit_msn import (VIT_MSN_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                        ViTMSNConfig)
+    from .configuration_vit_msn import (
+        VIT_MSN_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        ViTMSNConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -43,9 +44,12 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_vit_msn import (VIT_MSN_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                       ViTMSNForImageClassification,
-                                       ViTMSNModel, ViTMSNPreTrainedModel)
+        from .modeling_vit_msn import (
+            VIT_MSN_PRETRAINED_MODEL_ARCHIVE_LIST,
+            ViTMSNForImageClassification,
+            ViTMSNModel,
+            ViTMSNPreTrainedModel,
+        )
 
 else:
     import sys

@@ -13,8 +13,7 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available)
+from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
 
 _import_structure = {
     "configuration_align": [
@@ -41,9 +40,12 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_align import (ALIGN_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                      AlignConfig, AlignTextConfig,
-                                      AlignVisionConfig)
+    from .configuration_align import (
+        ALIGN_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        AlignConfig,
+        AlignTextConfig,
+        AlignVisionConfig,
+    )
     from .processing_align import AlignProcessor
 
     try:
@@ -52,9 +54,13 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_align import (ALIGN_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                     AlignModel, AlignPreTrainedModel,
-                                     AlignTextModel, AlignVisionModel)
+        from .modeling_align import (
+            ALIGN_PRETRAINED_MODEL_ARCHIVE_LIST,
+            AlignModel,
+            AlignPreTrainedModel,
+            AlignTextModel,
+            AlignVisionModel,
+        )
 
 else:
     import sys

@@ -14,9 +14,14 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_flax_available, is_tf_available,
-                      is_tokenizers_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_flax_available,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_mpnet": ["MPNET_PRETRAINED_CONFIG_ARCHIVE_MAP", "MPNetConfig"],
@@ -70,8 +75,7 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_mpnet import (MPNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                      MPNetConfig)
+    from .configuration_mpnet import MPNET_PRETRAINED_CONFIG_ARCHIVE_MAP, MPNetConfig
     from .tokenization_mpnet import MPNetTokenizer
 
     try:
@@ -88,12 +92,17 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_mpnet import (MPNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                     MPNetForMaskedLM, MPNetForMultipleChoice,
-                                     MPNetForQuestionAnswering,
-                                     MPNetForSequenceClassification,
-                                     MPNetForTokenClassification, MPNetLayer,
-                                     MPNetModel, MPNetPreTrainedModel)
+        from .modeling_mpnet import (
+            MPNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+            MPNetForMaskedLM,
+            MPNetForMultipleChoice,
+            MPNetForQuestionAnswering,
+            MPNetForSequenceClassification,
+            MPNetForTokenClassification,
+            MPNetLayer,
+            MPNetModel,
+            MPNetPreTrainedModel,
+        )
 
     try:
         if not is_tf_available():
@@ -101,14 +110,18 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_tf_mpnet import (TF_MPNET_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                        TFMPNetEmbeddings, TFMPNetForMaskedLM,
-                                        TFMPNetForMultipleChoice,
-                                        TFMPNetForQuestionAnswering,
-                                        TFMPNetForSequenceClassification,
-                                        TFMPNetForTokenClassification,
-                                        TFMPNetMainLayer, TFMPNetModel,
-                                        TFMPNetPreTrainedModel)
+        from .modeling_tf_mpnet import (
+            TF_MPNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TFMPNetEmbeddings,
+            TFMPNetForMaskedLM,
+            TFMPNetForMultipleChoice,
+            TFMPNetForQuestionAnswering,
+            TFMPNetForSequenceClassification,
+            TFMPNetForTokenClassification,
+            TFMPNetMainLayer,
+            TFMPNetModel,
+            TFMPNetPreTrainedModel,
+        )
 
 else:
     import sys

@@ -28,8 +28,12 @@ from ...activations import ACT2FN
 from ...modeling_utils import PreTrainedModel
 from ...utils import add_start_docstrings, logging
 from ...utils.logging import tqdm
-from .configuration_jukebox import (ATTENTION_PATTERNS, JukeboxConfig,
-                                    JukeboxPriorConfig, JukeboxVQVAEConfig)
+from .configuration_jukebox import (
+    ATTENTION_PATTERNS,
+    JukeboxConfig,
+    JukeboxPriorConfig,
+    JukeboxVQVAEConfig,
+)
 
 logger = logging.get_logger(__name__)
 

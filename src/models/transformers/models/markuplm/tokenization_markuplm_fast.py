@@ -24,14 +24,21 @@ from typing import Dict, List, Optional, Tuple, Union
 from tokenizers import pre_tokenizers, processors
 
 from ...file_utils import PaddingStrategy, TensorType, add_end_docstrings
-from ...tokenization_utils_base import (ENCODE_KWARGS_DOCSTRING, BatchEncoding,
-                                        EncodedInput, PreTokenizedInput,
-                                        TextInput, TextInputPair,
-                                        TruncationStrategy)
+from ...tokenization_utils_base import (
+    ENCODE_KWARGS_DOCSTRING,
+    BatchEncoding,
+    EncodedInput,
+    PreTokenizedInput,
+    TextInput,
+    TextInputPair,
+    TruncationStrategy,
+)
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import logging
 from .tokenization_markuplm import (
-    MARKUPLM_ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING, MarkupLMTokenizer)
+    MARKUPLM_ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING,
+    MarkupLMTokenizer,
+)
 
 logger = logging.get_logger(__name__)
 

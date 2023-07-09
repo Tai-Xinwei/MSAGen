@@ -18,15 +18,24 @@ from typing import Dict, Optional, Union
 
 import numpy as np
 
-from ...image_processing_utils import (BaseImageProcessor, BatchFeature,
-                                       get_size_dict)
-from ...image_transforms import (resize, to_channel_dimension_format,
-                                 to_pil_image)
-from ...image_utils import (ChannelDimension, ImageInput, PILImageResampling,
-                            infer_channel_dimension_format,
-                            make_list_of_images, to_numpy_array, valid_images)
-from ...utils import (TensorType, is_pytesseract_available,
-                      is_vision_available, logging, requires_backends)
+from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
+from ...image_transforms import resize, to_channel_dimension_format, to_pil_image
+from ...image_utils import (
+    ChannelDimension,
+    ImageInput,
+    PILImageResampling,
+    infer_channel_dimension_format,
+    make_list_of_images,
+    to_numpy_array,
+    valid_images,
+)
+from ...utils import (
+    TensorType,
+    is_pytesseract_available,
+    is_vision_available,
+    logging,
+    requires_backends,
+)
 
 if is_vision_available():
     import PIL

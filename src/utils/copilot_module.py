@@ -10,12 +10,10 @@ from deepspeed.runtime import utils as ds_utils
 from deepspeed.runtime.activation_checkpointing import checkpointing
 from deepspeed.runtime.state_dict_factory import SDLoaderFactory
 from deepspeed.utils import logger
-from graphormer.utils.pretrained_layer_spec import (LoraLayerSpec,
-                                                    PretrainedLayerSpec)
+from graphormer.utils.pretrained_layer_spec import LoraLayerSpec, PretrainedLayerSpec
 
 # from deepspeed.runtime.pipe.topology import PipeDataParallelTopology, PipelineParallelGrid
-from .myPipelineParallelGrid import (PipeDataParallelTopology,
-                                     myPipelineParallelGrid)
+from .myPipelineParallelGrid import PipeDataParallelTopology, myPipelineParallelGrid
 from .mypp_module import PipelineModule
 
 

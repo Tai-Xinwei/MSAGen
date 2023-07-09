@@ -25,13 +25,17 @@ from pathlib import Path
 import requests
 import torch
 from PIL import Image
-from torchvision.transforms import (CenterCrop, Compose, Normalize, Resize,
-                                    ToTensor)
-from transformers import (EfficientFormerConfig,
-                          EfficientFormerForImageClassificationWithTeacher,
-                          EfficientFormerImageProcessor)
-from transformers.image_utils import (IMAGENET_DEFAULT_MEAN,
-                                      IMAGENET_DEFAULT_STD, PILImageResampling)
+from torchvision.transforms import CenterCrop, Compose, Normalize, Resize, ToTensor
+from transformers import (
+    EfficientFormerConfig,
+    EfficientFormerForImageClassificationWithTeacher,
+    EfficientFormerImageProcessor,
+)
+from transformers.image_utils import (
+    IMAGENET_DEFAULT_MEAN,
+    IMAGENET_DEFAULT_STD,
+    PILImageResampling,
+)
 
 
 def rename_key(old_name, num_meta4D_last_stage):

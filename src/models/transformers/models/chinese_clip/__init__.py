@@ -13,8 +13,12 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available, is_vision_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_torch_available,
+    is_vision_available,
+)
 
 _import_structure = {
     "configuration_chinese_clip": [
@@ -54,8 +58,12 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_chinese_clip import (
-        CHINESE_CLIP_PRETRAINED_CONFIG_ARCHIVE_MAP, ChineseCLIPConfig,
-        ChineseCLIPOnnxConfig, ChineseCLIPTextConfig, ChineseCLIPVisionConfig)
+        CHINESE_CLIP_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        ChineseCLIPConfig,
+        ChineseCLIPOnnxConfig,
+        ChineseCLIPTextConfig,
+        ChineseCLIPVisionConfig,
+    )
     from .processing_chinese_clip import ChineseCLIPProcessor
 
     try:
@@ -65,7 +73,9 @@ if TYPE_CHECKING:
         pass
     else:
         from .feature_extraction_chinese_clip import (
-            ChineseCLIPFeatureExtractor, ChineseCLIPImageProcessor)
+            ChineseCLIPFeatureExtractor,
+            ChineseCLIPImageProcessor,
+        )
 
     try:
         if not is_torch_available():
@@ -74,9 +84,12 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_chinese_clip import (
-            CHINESE_CLIP_PRETRAINED_MODEL_ARCHIVE_LIST, ChineseCLIPModel,
-            ChineseCLIPPreTrainedModel, ChineseCLIPTextModel,
-            ChineseCLIPVisionModel)
+            CHINESE_CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
+            ChineseCLIPModel,
+            ChineseCLIPPreTrainedModel,
+            ChineseCLIPTextModel,
+            ChineseCLIPVisionModel,
+        )
 
 else:
     import sys

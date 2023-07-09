@@ -25,17 +25,27 @@ from torch import nn
 from torch.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
-from ...modeling_outputs import (BaseModelOutput, BaseModelOutputWithPooling,
-                                 MaskedLMOutput, ModelOutput,
-                                 SequenceClassifierOutput,
-                                 TokenClassifierOutput)
+from ...modeling_outputs import (
+    BaseModelOutput,
+    BaseModelOutputWithPooling,
+    MaskedLMOutput,
+    ModelOutput,
+    SequenceClassifierOutput,
+    TokenClassifierOutput,
+)
 from ...modeling_utils import PreTrainedModel
-from ...pytorch_utils import (find_pruneable_heads_and_indices,
-                              is_torch_greater_or_equal_than_1_10, meshgrid,
-                              prune_linear_layer)
-from ...utils import (add_start_docstrings,
-                      add_start_docstrings_to_model_forward, logging,
-                      replace_return_docstrings)
+from ...pytorch_utils import (
+    find_pruneable_heads_and_indices,
+    is_torch_greater_or_equal_than_1_10,
+    meshgrid,
+    prune_linear_layer,
+)
+from ...utils import (
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
 from .configuration_vilt import ViltConfig
 
 logger = logging.get_logger(__name__)

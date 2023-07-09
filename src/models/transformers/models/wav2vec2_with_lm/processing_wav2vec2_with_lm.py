@@ -201,8 +201,7 @@ class Wav2Vec2ProcessorWithLM(ProcessorMixin):
 
     @staticmethod
     def get_missing_alphabet_tokens(decoder, tokenizer):
-        from pyctcdecode.alphabet import (BLANK_TOKEN_PTN, UNK_TOKEN,
-                                          UNK_TOKEN_PTN)
+        from pyctcdecode.alphabet import BLANK_TOKEN_PTN, UNK_TOKEN, UNK_TOKEN_PTN
 
         # we need to make sure that all of the tokenizer's except the special tokens
         # are present in the decoder's alphabet. Retrieve missing alphabet token
@@ -390,10 +389,12 @@ class Wav2Vec2ProcessorWithLM(ProcessorMixin):
             See [Decoding multiple audios](#decoding-multiple-audios).
         """
 
-        from pyctcdecode.constants import (DEFAULT_BEAM_WIDTH,
-                                           DEFAULT_HOTWORD_WEIGHT,
-                                           DEFAULT_MIN_TOKEN_LOGP,
-                                           DEFAULT_PRUNE_LOGP)
+        from pyctcdecode.constants import (
+            DEFAULT_BEAM_WIDTH,
+            DEFAULT_HOTWORD_WEIGHT,
+            DEFAULT_MIN_TOKEN_LOGP,
+            DEFAULT_PRUNE_LOGP,
+        )
 
         # set defaults
         beam_width = beam_width if beam_width is not None else DEFAULT_BEAM_WIDTH
@@ -600,10 +601,12 @@ class Wav2Vec2ProcessorWithLM(ProcessorMixin):
         [{'word': 'WHY', 'start_time': 1.42, 'end_time': 1.54}, {'word': 'DOES', 'start_time': 1.66, 'end_time': 1.9}, {'word': 'MILISANDRA', 'start_time': 2.26, 'end_time': 2.9}, {'word': 'LOOK', 'start_time': 3.0, 'end_time': 3.16}]
         ```"""
 
-        from pyctcdecode.constants import (DEFAULT_BEAM_WIDTH,
-                                           DEFAULT_HOTWORD_WEIGHT,
-                                           DEFAULT_MIN_TOKEN_LOGP,
-                                           DEFAULT_PRUNE_LOGP)
+        from pyctcdecode.constants import (
+            DEFAULT_BEAM_WIDTH,
+            DEFAULT_HOTWORD_WEIGHT,
+            DEFAULT_MIN_TOKEN_LOGP,
+            DEFAULT_PRUNE_LOGP,
+        )
 
         # set defaults
         beam_width = beam_width if beam_width is not None else DEFAULT_BEAM_WIDTH

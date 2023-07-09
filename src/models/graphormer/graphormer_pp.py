@@ -11,13 +11,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..modules import GraphormerSentenceEncoder, init_bert_params
-from ..modules.graphormer_layers_pp import (Graph3DBiasPipe, GraphAttnBiasPipe,
-                                            GraphNodeFeaturePipe,
-                                            NodeTaskHeadPipe)
-from ..modules.graphormer_sentence_encoder import (Post_sentence_encoder_layer,
-                                                   Pre_sentence_encoder_layer)
+from ..modules.graphormer_layers_pp import (
+    Graph3DBiasPipe,
+    GraphAttnBiasPipe,
+    GraphNodeFeaturePipe,
+    NodeTaskHeadPipe,
+)
+from ..modules.graphormer_sentence_encoder import (
+    Post_sentence_encoder_layer,
+    Pre_sentence_encoder_layer,
+)
 from ..modules.graphormer_sentence_encoder_layer import (
-    GraphormerSentenceEncoderLayer, GraphormerSentenceEncoderLayer_PP)
+    GraphormerSentenceEncoderLayer,
+    GraphormerSentenceEncoderLayer_PP,
+)
 from ..utils.get_activation_fn import get_activation_fn
 from ..utils.layer_norm import LayerNorm
 from ..utils.mypp_module import LayerSpec

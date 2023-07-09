@@ -14,9 +14,13 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tf_available, is_tokenizers_available,
-                      is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tf_available,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_funnel": ["FUNNEL_PRETRAINED_CONFIG_ARCHIVE_MAP", "FunnelConfig"],
@@ -73,8 +77,7 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_funnel import (FUNNEL_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                       FunnelConfig)
+    from .configuration_funnel import FUNNEL_PRETRAINED_CONFIG_ARCHIVE_MAP, FunnelConfig
     from .tokenization_funnel import FunnelTokenizer
 
     try:
@@ -91,15 +94,19 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_funnel import (FUNNEL_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                      FunnelBaseModel, FunnelForMaskedLM,
-                                      FunnelForMultipleChoice,
-                                      FunnelForPreTraining,
-                                      FunnelForQuestionAnswering,
-                                      FunnelForSequenceClassification,
-                                      FunnelForTokenClassification,
-                                      FunnelModel, FunnelPreTrainedModel,
-                                      load_tf_weights_in_funnel)
+        from .modeling_funnel import (
+            FUNNEL_PRETRAINED_MODEL_ARCHIVE_LIST,
+            FunnelBaseModel,
+            FunnelForMaskedLM,
+            FunnelForMultipleChoice,
+            FunnelForPreTraining,
+            FunnelForQuestionAnswering,
+            FunnelForSequenceClassification,
+            FunnelForTokenClassification,
+            FunnelModel,
+            FunnelPreTrainedModel,
+            load_tf_weights_in_funnel,
+        )
 
     try:
         if not is_tf_available():
@@ -108,11 +115,17 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_tf_funnel import (
-            TF_FUNNEL_PRETRAINED_MODEL_ARCHIVE_LIST, TFFunnelBaseModel,
-            TFFunnelForMaskedLM, TFFunnelForMultipleChoice,
-            TFFunnelForPreTraining, TFFunnelForQuestionAnswering,
-            TFFunnelForSequenceClassification, TFFunnelForTokenClassification,
-            TFFunnelModel, TFFunnelPreTrainedModel)
+            TF_FUNNEL_PRETRAINED_MODEL_ARCHIVE_LIST,
+            TFFunnelBaseModel,
+            TFFunnelForMaskedLM,
+            TFFunnelForMultipleChoice,
+            TFFunnelForPreTraining,
+            TFFunnelForQuestionAnswering,
+            TFFunnelForSequenceClassification,
+            TFFunnelForTokenClassification,
+            TFFunnelModel,
+            TFFunnelPreTrainedModel,
+        )
 
 else:
     import sys

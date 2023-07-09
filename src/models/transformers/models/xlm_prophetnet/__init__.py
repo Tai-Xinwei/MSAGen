@@ -13,8 +13,12 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_sentencepiece_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_sentencepiece_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_xlm_prophetnet": [
@@ -50,7 +54,9 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_xlm_prophetnet import (
-        XLM_PROPHETNET_PRETRAINED_CONFIG_ARCHIVE_MAP, XLMProphetNetConfig)
+        XLM_PROPHETNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        XLMProphetNetConfig,
+    )
 
     try:
         if not is_sentencepiece_available():
@@ -67,10 +73,14 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_xlm_prophetnet import (
-            XLM_PROPHETNET_PRETRAINED_MODEL_ARCHIVE_LIST, XLMProphetNetDecoder,
-            XLMProphetNetEncoder, XLMProphetNetForCausalLM,
-            XLMProphetNetForConditionalGeneration, XLMProphetNetModel,
-            XLMProphetNetPreTrainedModel)
+            XLM_PROPHETNET_PRETRAINED_MODEL_ARCHIVE_LIST,
+            XLMProphetNetDecoder,
+            XLMProphetNetEncoder,
+            XLMProphetNetForCausalLM,
+            XLMProphetNetForConditionalGeneration,
+            XLMProphetNetModel,
+            XLMProphetNetPreTrainedModel,
+        )
 
 else:
     import sys

@@ -14,8 +14,7 @@
 
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available)
+from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
 
 _import_structure = {
     "configuration_mega": [
@@ -44,8 +43,11 @@ else:
     ]
 
 if TYPE_CHECKING:
-    from .configuration_mega import (MEGA_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                     MegaConfig, MegaOnnxConfig)
+    from .configuration_mega import (
+        MEGA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        MegaConfig,
+        MegaOnnxConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -53,13 +55,17 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_mega import (MEGA_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                    MegaForCausalLM, MegaForMaskedLM,
-                                    MegaForMultipleChoice,
-                                    MegaForQuestionAnswering,
-                                    MegaForSequenceClassification,
-                                    MegaForTokenClassification, MegaModel,
-                                    MegaPreTrainedModel)
+        from .modeling_mega import (
+            MEGA_PRETRAINED_MODEL_ARCHIVE_LIST,
+            MegaForCausalLM,
+            MegaForMaskedLM,
+            MegaForMultipleChoice,
+            MegaForQuestionAnswering,
+            MegaForSequenceClassification,
+            MegaForTokenClassification,
+            MegaModel,
+            MegaPreTrainedModel,
+        )
 
 else:
     import sys

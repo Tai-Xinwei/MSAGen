@@ -9,10 +9,13 @@ from deepspeed.accelerator import get_accelerator
 from deepspeed.runtime import zero
 from deepspeed.runtime.config import DeepSpeedConfig
 from deepspeed.runtime.dataloader import RepeatingLoader
-from deepspeed.runtime.engine import (MEMORY_OPT_ALLREDUCE_SIZE,
-                                      DeepSpeedEngine,
-                                      DeepSpeedOptimizerCallable,
-                                      DeepSpeedSchedulerCallable)
+from deepspeed.runtime.engine import (
+    MEMORY_OPT_ALLREDUCE_SIZE,
+    DeepSpeedEngine,
+    DeepSpeedOptimizerCallable,
+    DeepSpeedSchedulerCallable,
+)
+
 # from deepspeed.runtime.pipe.module import PipelineModule, PipelineError
 # from deepspeed.runtime.pipe.engine import PipelineEngine
 from deepspeed.runtime.pipe import p2p, schedule

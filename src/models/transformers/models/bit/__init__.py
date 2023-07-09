@@ -13,8 +13,12 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available, is_vision_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_torch_available,
+    is_vision_available,
+)
 
 _import_structure = {
     "configuration_bit": [
@@ -49,8 +53,11 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_bit import (BIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                    BitConfig, BitOnnxConfig)
+    from .configuration_bit import (
+        BIT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        BitConfig,
+        BitOnnxConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -58,9 +65,13 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_bit import (BIT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                   BitBackbone, BitForImageClassification,
-                                   BitModel, BitPreTrainedModel)
+        from .modeling_bit import (
+            BIT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            BitBackbone,
+            BitForImageClassification,
+            BitModel,
+            BitPreTrainedModel,
+        )
 
     try:
         if not is_vision_available():

@@ -13,8 +13,13 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_flax_available, is_tf_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_flax_available,
+    is_tf_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_unispeech": [
@@ -40,7 +45,9 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_unispeech import (
-        UNISPEECH_PRETRAINED_CONFIG_ARCHIVE_MAP, UniSpeechConfig)
+        UNISPEECH_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        UniSpeechConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -49,9 +56,13 @@ if TYPE_CHECKING:
         pass
     else:
         from .modeling_unispeech import (
-            UNISPEECH_PRETRAINED_MODEL_ARCHIVE_LIST, UniSpeechForCTC,
-            UniSpeechForPreTraining, UniSpeechForSequenceClassification,
-            UniSpeechModel, UniSpeechPreTrainedModel)
+            UNISPEECH_PRETRAINED_MODEL_ARCHIVE_LIST,
+            UniSpeechForCTC,
+            UniSpeechForPreTraining,
+            UniSpeechForSequenceClassification,
+            UniSpeechModel,
+            UniSpeechPreTrainedModel,
+        )
 
 else:
     import sys

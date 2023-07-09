@@ -18,14 +18,28 @@ from typing import Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
-from .image_utils import (ChannelDimension, ImageInput,
-                          get_channel_dimension_axis, get_image_size,
-                          infer_channel_dimension_format, to_numpy_array)
-from .utils import (ExplicitEnum, TensorType, is_jax_tensor, is_tf_tensor,
-                    is_torch_tensor)
-from .utils.import_utils import (is_flax_available, is_tf_available,
-                                 is_torch_available, is_vision_available,
-                                 requires_backends)
+from .image_utils import (
+    ChannelDimension,
+    ImageInput,
+    get_channel_dimension_axis,
+    get_image_size,
+    infer_channel_dimension_format,
+    to_numpy_array,
+)
+from .utils import (
+    ExplicitEnum,
+    TensorType,
+    is_jax_tensor,
+    is_tf_tensor,
+    is_torch_tensor,
+)
+from .utils.import_utils import (
+    is_flax_available,
+    is_tf_available,
+    is_torch_available,
+    is_vision_available,
+    requires_backends,
+)
 
 if is_vision_available():
     import PIL

@@ -25,9 +25,12 @@ from torch.utils.data import Dataset
 from ...models.auto.modeling_auto import MODEL_FOR_QUESTION_ANSWERING_MAPPING
 from ...tokenization_utils import PreTrainedTokenizer
 from ...utils import logging
-from ..processors.squad import (SquadFeatures, SquadV1Processor,
-                                SquadV2Processor,
-                                squad_convert_examples_to_features)
+from ..processors.squad import (
+    SquadFeatures,
+    SquadV1Processor,
+    SquadV2Processor,
+    squad_convert_examples_to_features,
+)
 
 logger = logging.get_logger(__name__)
 

@@ -10,12 +10,16 @@ import torch.nn as nn
 from deepspeed import comm as dist
 from deepspeed.accelerator import get_accelerator
 from deepspeed.checkpoint import enable_universal_checkpoint
-from deepspeed.checkpoint.constants import (BASE_OPTIMIZER_STATE, CLIP_GRAD,
-                                            DS_VERSION, GROUP_PADDINGS,
-                                            PARAM_SLICE_MAPPINGS,
-                                            PARTITION_COUNT,
-                                            SINGLE_PARTITION_OF_FP32_GROUPS,
-                                            ZERO_STAGE)
+from deepspeed.checkpoint.constants import (
+    BASE_OPTIMIZER_STATE,
+    CLIP_GRAD,
+    DS_VERSION,
+    GROUP_PADDINGS,
+    PARAM_SLICE_MAPPINGS,
+    PARTITION_COUNT,
+    SINGLE_PARTITION_OF_FP32_GROUPS,
+    ZERO_STAGE,
+)
 from deepspeed.git_version_info import version
 from deepspeed.moe.utils import is_moe_param
 from deepspeed.ops.adam import DeepSpeedCPUAdam
@@ -23,11 +27,16 @@ from deepspeed.ops.op_builder import UtilsBuilder
 from deepspeed.runtime import ZeROOptimizer
 from deepspeed.runtime.constants import PIPE_REPLICATED
 from deepspeed.runtime.fp16.loss_scaler import CreateLossScaler
-from deepspeed.runtime.utils import (align_dense_tensors, all_gather_dp_groups,
-                                     bwc_tensor_model_parallel_rank,
-                                     empty_cache, get_global_norm, inf,
-                                     is_model_parallel_parameter,
-                                     see_memory_usage)
+from deepspeed.runtime.utils import (
+    align_dense_tensors,
+    all_gather_dp_groups,
+    bwc_tensor_model_parallel_rank,
+    empty_cache,
+    get_global_norm,
+    inf,
+    is_model_parallel_parameter,
+    see_memory_usage,
+)
 from deepspeed.runtime.zero.config import ZeroStageEnum
 from deepspeed.runtime.zero.offload_config import OffloadDeviceEnum
 from deepspeed.runtime.zero.stage_1_and_2 import DeepSpeedZeroOptimizer

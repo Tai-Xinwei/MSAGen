@@ -13,8 +13,7 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available)
+from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
 
 _import_structure = {
     "configuration_qdqbert": ["QDQBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "QDQBertConfig"]
@@ -43,8 +42,10 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_qdqbert import (QDQBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                        QDQBertConfig)
+    from .configuration_qdqbert import (
+        QDQBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        QDQBertConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -52,16 +53,20 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_qdqbert import (QDQBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                       QDQBertForMaskedLM,
-                                       QDQBertForMultipleChoice,
-                                       QDQBertForNextSentencePrediction,
-                                       QDQBertForQuestionAnswering,
-                                       QDQBertForSequenceClassification,
-                                       QDQBertForTokenClassification,
-                                       QDQBertLayer, QDQBertLMHeadModel,
-                                       QDQBertModel, QDQBertPreTrainedModel,
-                                       load_tf_weights_in_qdqbert)
+        from .modeling_qdqbert import (
+            QDQBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            QDQBertForMaskedLM,
+            QDQBertForMultipleChoice,
+            QDQBertForNextSentencePrediction,
+            QDQBertForQuestionAnswering,
+            QDQBertForSequenceClassification,
+            QDQBertForTokenClassification,
+            QDQBertLayer,
+            QDQBertLMHeadModel,
+            QDQBertModel,
+            QDQBertPreTrainedModel,
+            load_tf_weights_in_qdqbert,
+        )
 
 
 else:

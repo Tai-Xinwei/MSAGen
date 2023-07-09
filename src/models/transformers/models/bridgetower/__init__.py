@@ -13,8 +13,12 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_torch_available, is_vision_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_torch_available,
+    is_vision_available,
+)
 
 _import_structure = {
     "configuration_bridgetower": [
@@ -52,8 +56,11 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_bridgetower import (
-        BRIDGETOWER_PRETRAINED_CONFIG_ARCHIVE_MAP, BridgeTowerConfig,
-        BridgeTowerTextConfig, BridgeTowerVisionConfig)
+        BRIDGETOWER_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        BridgeTowerConfig,
+        BridgeTowerTextConfig,
+        BridgeTowerVisionConfig,
+    )
     from .processing_bridgetower import BridgeTowerProcessor
 
     try:
@@ -73,8 +80,11 @@ if TYPE_CHECKING:
         from .modeling_bridgetower import (
             BRIDGETOWER_PRETRAINED_MODEL_ARCHIVE_LIST,
             BridgeTowerForContrastiveLearning,
-            BridgeTowerForImageAndTextRetrieval, BridgeTowerForMaskedLM,
-            BridgeTowerModel, BridgeTowerPreTrainedModel)
+            BridgeTowerForImageAndTextRetrieval,
+            BridgeTowerForMaskedLM,
+            BridgeTowerModel,
+            BridgeTowerPreTrainedModel,
+        )
 
 
 else:

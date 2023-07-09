@@ -18,8 +18,12 @@
 from typing import TYPE_CHECKING
 
 # rely on isort to merge the imports
-from ...utils import (OptionalDependencyNotAvailable, _LazyModule,
-                      is_tokenizers_available, is_torch_available)
+from ...utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_tokenizers_available,
+    is_torch_available,
+)
 
 _import_structure = {
     "configuration_cpmant": ["CPMANT_PRETRAINED_CONFIG_ARCHIVE_MAP", "CpmAntConfig"],
@@ -41,8 +45,7 @@ else:
 
 
 if TYPE_CHECKING:
-    from .configuration_cpmant import (CPMANT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-                                       CpmAntConfig)
+    from .configuration_cpmant import CPMANT_PRETRAINED_CONFIG_ARCHIVE_MAP, CpmAntConfig
     from .tokenization_cpmant import CpmAntTokenizer
 
     try:
@@ -51,9 +54,12 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .modeling_cpmant import (CPMANT_PRETRAINED_MODEL_ARCHIVE_LIST,
-                                      CpmAntForCausalLM, CpmAntModel,
-                                      CpmAntPreTrainedModel)
+        from .modeling_cpmant import (
+            CPMANT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            CpmAntForCausalLM,
+            CpmAntModel,
+            CpmAntPreTrainedModel,
+        )
 
 
 else:

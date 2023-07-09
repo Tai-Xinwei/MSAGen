@@ -21,8 +21,7 @@ import argparse
 import requests
 import torch
 from PIL import Image
-from transformers import (SwinConfig, SwinForMaskedImageModeling,
-                          ViTFeatureExtractor)
+from transformers import SwinConfig, SwinForMaskedImageModeling, ViTFeatureExtractor
 
 
 def get_swin_config(model_name):

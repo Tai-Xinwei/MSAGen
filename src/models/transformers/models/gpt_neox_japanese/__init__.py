@@ -41,7 +41,9 @@ else:
 
 if TYPE_CHECKING:
     from .configuration_gpt_neox_japanese import (
-        GPT_NEOX_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP, GPTNeoXJapaneseConfig)
+        GPT_NEOX_JAPANESE_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        GPTNeoXJapaneseConfig,
+    )
     from .tokenization_gpt_neox_japanese import GPTNeoXJapaneseTokenizer
 
     try:
@@ -52,8 +54,11 @@ if TYPE_CHECKING:
     else:
         from .modeling_gpt_neox_japanese import (
             GPT_NEOX_JAPANESE_PRETRAINED_MODEL_ARCHIVE_LIST,
-            GPTNeoXJapaneseForCausalLM, GPTNeoXJapaneseLayer,
-            GPTNeoXJapaneseModel, GPTNeoXJapanesePreTrainedModel)
+            GPTNeoXJapaneseForCausalLM,
+            GPTNeoXJapaneseLayer,
+            GPTNeoXJapaneseModel,
+            GPTNeoXJapanesePreTrainedModel,
+        )
 
 
 else:

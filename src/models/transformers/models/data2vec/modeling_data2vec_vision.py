@@ -26,15 +26,25 @@ from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
-from ...modeling_outputs import (BaseModelOutput, BaseModelOutputWithPooling,
-                                 ImageClassifierOutput,
-                                 SemanticSegmenterOutput)
+from ...modeling_outputs import (
+    BaseModelOutput,
+    BaseModelOutputWithPooling,
+    ImageClassifierOutput,
+    SemanticSegmenterOutput,
+)
 from ...modeling_utils import PreTrainedModel
-from ...pytorch_utils import (find_pruneable_heads_and_indices, meshgrid,
-                              prune_linear_layer)
-from ...utils import (add_code_sample_docstrings, add_start_docstrings,
-                      add_start_docstrings_to_model_forward, logging,
-                      replace_return_docstrings)
+from ...pytorch_utils import (
+    find_pruneable_heads_and_indices,
+    meshgrid,
+    prune_linear_layer,
+)
+from ...utils import (
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
 from .configuration_data2vec_vision import Data2VecVisionConfig
 
 logger = logging.get_logger(__name__)
