@@ -10,8 +10,6 @@ import torch
 import torch.nn as nn
 
 # import pytorch_forecasting
-
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import subprocess
