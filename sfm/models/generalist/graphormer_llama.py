@@ -139,10 +139,10 @@ class GraphormerLlamaModel:
             hidden_act=Llama_config.hidden_act,
             rms_norm_eps=Llama_config.rms_norm_eps,
             mfm_hidden_size=args.encoder_embed_dim,
-            pool_mode="multimol",  # args.pool_mode
+            pool_mode=args.pool_mode,  # args.pool_mode
             btn_adaptor=False,
             hidden_dropout_prob=args.dropout,
-            embedding_length=20,  # args.embedding_length
+            embedding_length=args.embedding_length,  # args.embedding_length
         )
 
         return config
