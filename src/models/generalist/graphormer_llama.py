@@ -14,7 +14,7 @@ from transformers.models.llama.configuration_llama import LlamaConfig
 from src.models.transformers import AutoModelForCausalLM, LlamaForCausalLM
 from src.models.transformers.modeling_utils import PreTrainedModel
 from src.modules import GraphormerSentenceEncoder, init_bert_params
-from src.modules.hybrid_emb import Hybrid_emb
+from src.modules.hybrid_emb import Hybrid_emb, AdaptorConfig
 from src.sfm_logging.loggers import sfm_logger as logger
 
 
@@ -27,20 +27,12 @@ class GraphormerLlamaModel:
     def __init__(
         self,
         args,
-        model_name_or_path: Optional[str] = None,
-        Llamma_config: Optional[LlamaConfig] = None,
+        Llama_model_name_or_path: Optional[str] = None,
         checkpoint_list: Optional[list] = None,
         load_ckp: bool = False,
     ):
         super().__init__()
         self.args = args
-
-        assert (
-            model_name_or_path is not None or Llamma_config is not None
-        ), "You have to specify either a pretrained model name/path or a configuration."
-        assert (
-            model_name_or_path is None or Llamma_config is None
-        ), "You cannot specify both a pretrained model name/path and a configuration."
 
         # if specified then apply bert initialization on the model. We need
         # to explictly call this to make sure that the output embeddings
@@ -93,12 +85,11 @@ class GraphormerLlamaModel:
             args=args,
         )
 
-        self.adaptor = Hybrid_emb(Llamma_config)
+        Llama_config = LlamaConfig.from_pretrained(Llama_model_name_or_path)
+        self.decoder = AutoModelForCausalLM.from_pretrained(Llama_model_name_or_path)
 
-        if Llamma_config is not None:
-            self.decoder = LlamaForCausalLM(Llamma_config)
-        else:
-            self.decoder = AutoModelForCausalLM.from_pretrained(model_name_or_path)
+        adaptorconfig = self.init_adaptor_param(args, Llama_config)
+        self.adaptor = Hybrid_emb(adaptorconfig)
 
     def load_state_dict(self, graphormer_ckppth, llama_ckppth=None, strict=True):
         pass
@@ -137,6 +128,23 @@ class GraphormerLlamaModel:
         )[0]
 
         return logits
+
+    def init_adaptor_param(self, args, Llama_config):
+        config = AdaptorConfig(
+            vocab_size=32001,
+            hidden_size=Llama_config.hidden_size,
+            intermediate_size=Llama_config.intermediate_size,
+            num_attention_heads=Llama_config.num_attention_heads,
+            hidden_act=Llama_config.hidden_act,
+            rms_norm_eps=Llama_config.rms_norm_eps,
+            mfm_hidden_size=args.encoder_embed_dim,
+            pool_mode="multimol",  # args.pool_mode
+            btn_adaptor=False,
+            hidden_dropout_prob=args.dropout,
+            embedding_length=20,  # args.embedding_length
+        )
+
+        return config
 
 
 def base_architecture(args):
