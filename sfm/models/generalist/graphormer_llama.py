@@ -12,11 +12,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers.models.llama.configuration_llama import LlamaConfig
 
+from sfm.logging.loggers import sfm_logger as logger
 from sfm.models.transformers import AutoModelForCausalLM, LlamaForCausalLM
 from sfm.models.transformers.modeling_utils import PreTrainedModel
 from sfm.modules import GraphormerSentenceEncoder, init_bert_params
 from sfm.modules.hybrid_emb import AdaptorConfig, Hybrid_emb
-from sfm.sfm_logging.loggers import sfm_logger as logger
 
 
 class GraphormerLlamaModel:

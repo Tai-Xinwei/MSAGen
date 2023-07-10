@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import math
 import os
+from logging.loggers import sfm_logger
 
 import deepspeed
 import psutil
@@ -10,7 +11,6 @@ import torch.optim as optim
 from criterions.mae3d import MAE3d_criterions
 from deepspeed.runtime.utils import see_memory_usage
 from models.graphormer import GraphormerModel
-from sfm_logging.loggers import sfm_logger
 from torch.utils.data import DataLoader, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter

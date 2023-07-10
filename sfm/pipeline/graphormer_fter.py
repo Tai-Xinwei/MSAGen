@@ -11,7 +11,6 @@ import psutil
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from criterions.L1ft import Binary_criterions, L1_criterions
 from criterions.mae3d import MAE3d_criterions
 from deepspeed.runtime.utils import see_memory_usage
 from models.graphormer import GraphormerModel
@@ -24,6 +23,8 @@ from utils.get_paranum import count_paranum
 # from graphormer.data.wrapper import MyPygPCQM4MDataset
 # from torch.nn.parallel import DistributedDataParallel as DDP
 from utils.move_to_device import move_to_device
+
+from sfm.criterions.l1ft import Binary_criterions, L1_criterions
 
 
 class Finetuner:

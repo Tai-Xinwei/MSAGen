@@ -14,16 +14,17 @@ from dataclasses import dataclass, field
 from multiprocessing import Pool
 from typing import Dict, Optional, Sequence
 
-import algos
 import lmdb
 import numpy as np
 import transformers
-from graphormer.data.wrapper import smiles2graph
-from graphormer.utils.jload import jload
 from torch.utils.data import Dataset
 from torch_geometric.data import Data, InMemoryDataset
 from tqdm import tqdm
 
+from sfm.data.mol_data.wrapper import smiles2graph
+from sfm.utils.jload import jload
+
+from . import algos
 from .collator import collator_copilot, collator_copilot_multi_mol
 from .wrapper import preprocess_item
 
