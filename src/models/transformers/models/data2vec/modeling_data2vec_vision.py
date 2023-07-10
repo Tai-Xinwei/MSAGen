@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Meta Platforms and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -294,8 +294,8 @@ class Data2VecVisionSelfAttention(nn.Module):
 
         # Add relative position bias if present.
         if self.relative_position_bias is not None:
-            attention_scores = attention_scores + self.relative_position_bias().unsqueeze(
-                0
+            attention_scores = (
+                attention_scores + self.relative_position_bias().unsqueeze(0)
             )
 
         # Add shared relative position bias if provided.
@@ -623,7 +623,9 @@ class Data2VecVisionEncoder(nn.Module):
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module), hidden_states, layer_head_mask,
+                    create_custom_forward(layer_module),
+                    hidden_states,
+                    layer_head_mask,
                 )
             else:
                 relative_position_bias = (

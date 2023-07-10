@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -482,7 +482,11 @@ class LiltAttention(nn.Module):
         output_attentions: Optional[bool] = False,
     ) -> Tuple[torch.Tensor]:
         self_outputs = self.self(
-            hidden_states, layout_inputs, attention_mask, head_mask, output_attentions,
+            hidden_states,
+            layout_inputs,
+            attention_mask,
+            head_mask,
+            output_attentions,
         )
         attention_output = self.output(self_outputs[0][0], hidden_states)
         layout_attention_output = self.layout_output(self_outputs[0][1], layout_inputs)
@@ -660,7 +664,11 @@ class LiltEncoder(nn.Module):
         if not return_dict:
             return tuple(
                 v
-                for v in [hidden_states, all_hidden_states, all_self_attentions,]
+                for v in [
+                    hidden_states,
+                    all_hidden_states,
+                    all_self_attentions,
+                ]
                 if v is not None
             )
         return BaseModelOutput(

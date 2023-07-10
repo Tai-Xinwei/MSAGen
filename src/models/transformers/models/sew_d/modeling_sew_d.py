@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 ASAPP Inc. and the HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -512,7 +512,8 @@ class SEWDFeatureEncoder(nn.Module):
                     return custom_forward
 
                 hidden_states = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(conv_layer), hidden_states,
+                    create_custom_forward(conv_layer),
+                    hidden_states,
                 )
             else:
                 hidden_states = conv_layer(hidden_states)

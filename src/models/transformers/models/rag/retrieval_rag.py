@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2020, The RAG Authors and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -442,7 +442,8 @@ class RagRetriever:
     def _build_index(config):
         if config.index_name == "legacy":
             return LegacyIndex(
-                config.retrieval_vector_size, config.index_path or LEGACY_INDEX_PATH,
+                config.retrieval_vector_size,
+                config.index_path or LEGACY_INDEX_PATH,
             )
         elif config.index_name == "custom":
             return CustomHFIndex.load_from_disk(
@@ -551,7 +552,10 @@ class RagRetriever:
 
         rag_input_strings = [
             cat_input_and_doc(
-                docs[i]["title"][j], docs[i]["text"][j], input_strings[i], prefix,
+                docs[i]["title"][j],
+                docs[i]["text"][j],
+                input_strings[i],
+                prefix,
             )
             for i in range(len(docs))
             for j in range(n_docs)

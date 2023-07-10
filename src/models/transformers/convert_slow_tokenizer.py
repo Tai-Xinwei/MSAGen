@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2018 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -118,7 +118,10 @@ class BertConverter(Converter):
         tokenizer.post_processor = processors.TemplateProcessing(
             single=f"{cls}:0 $A:0 {sep}:0",
             pair=f"{cls}:0 $A:0 {sep}:0 $B:1 {sep}:1",
-            special_tokens=[(cls, cls_token_id), (sep, sep_token_id),],
+            special_tokens=[
+                (cls, cls_token_id),
+                (sep, sep_token_id),
+            ],
         )
         tokenizer.decoder = decoders.WordPiece(prefix="##")
 
@@ -212,7 +215,10 @@ class FunnelConverter(Converter):
         tokenizer.post_processor = processors.TemplateProcessing(
             single=f"{cls}:2 $A:0 {sep}:0",  # token_type_id is 2 for Funnel transformer
             pair=f"{cls}:2 $A:0 {sep}:0 $B:1 {sep}:1",
-            special_tokens=[(cls, cls_token_id), (sep, sep_token_id),],
+            special_tokens=[
+                (cls, cls_token_id),
+                (sep, sep_token_id),
+            ],
         )
         tokenizer.decoder = decoders.WordPiece(prefix="##")
 
@@ -252,7 +258,10 @@ class MPNetConverter(Converter):
         tokenizer.post_processor = processors.TemplateProcessing(
             single=f"{cls}:0 $A:0 {sep}:0",
             pair=f"{cls}:0 $A:0 {sep}:0 {sep}:0 $B:1 {sep}:1",  # MPNet uses two [SEP] tokens
-            special_tokens=[(cls, cls_token_id), (sep, sep_token_id),],
+            special_tokens=[
+                (cls, cls_token_id),
+                (sep, sep_token_id),
+            ],
         )
         tokenizer.decoder = decoders.WordPiece(prefix="##")
 
@@ -312,7 +321,9 @@ class GPT2Converter(Converter):
             tokenizer.post_processor = processors.TemplateProcessing(
                 single=f"{bos}:0 $A:0",
                 pair=f"{bos}:0 $A:0 $B:1",
-                special_tokens=[(bos, bos_token_id),],
+                special_tokens=[
+                    (bos, bos_token_id),
+                ],
             )
         else:
             # XXX trim_offsets=False actually means this post_processor doesn't
@@ -424,7 +435,10 @@ class RoFormerConverter(Converter):
         tokenizer.post_processor = processors.TemplateProcessing(
             single=f"{cls}:0 $A:0 {sep}:0",
             pair=f"{cls}:0 $A:0 {sep}:0 $B:1 {sep}:1",
-            special_tokens=[(cls, cls_token_id), (sep, sep_token_id),],
+            special_tokens=[
+                (cls, cls_token_id),
+                (sep, sep_token_id),
+            ],
         )
         tokenizer.decoder = decoders.WordPiece(prefix="##")
 
@@ -987,7 +1001,10 @@ class WhisperConverter(Converter):
         tokenizer.post_processor = processors.TemplateProcessing(
             single=f"{prefix_template} $A:0 {eos}:0",
             pair=f"{prefix_template} $A:0 $B:1 {eos}:1",
-            special_tokens=[(eos, eos_token_id), *zip(prefixes, prefix_token_ids),],
+            special_tokens=[
+                (eos, eos_token_id),
+                *zip(prefixes, prefix_token_ids),
+            ],
         )
 
         return tokenizer
@@ -1093,7 +1110,10 @@ class LayoutLMv2Converter(Converter):
         tokenizer.post_processor = processors.TemplateProcessing(
             single=f"{cls}:0 $A:0 {sep}:0",
             pair=f"{cls}:0 $A:0 {sep}:0 $B:1 {sep}:1",
-            special_tokens=[(cls, cls_token_id), (sep, sep_token_id),],
+            special_tokens=[
+                (cls, cls_token_id),
+                (sep, sep_token_id),
+            ],
         )
         tokenizer.decoder = decoders.WordPiece(prefix="##")
 
@@ -1123,7 +1143,9 @@ class BlenderbotConverter(Converter):
         tokenizer.decoder = decoders.ByteLevel()
         tokenizer.post_processor = processors.TemplateProcessing(
             single=f"$A:0 {ot.eos_token}:0",
-            special_tokens=[(ot.eos_token, ot.eos_token_id),],
+            special_tokens=[
+                (ot.eos_token, ot.eos_token_id),
+            ],
         )
 
         return tokenizer
@@ -1269,7 +1291,10 @@ class MarkupLMConverter(Converter):
         tokenizer.post_processor = processors.TemplateProcessing(
             single=f"{cls} $A {sep}",
             pair=f"{cls} $A {sep} $B {sep}",
-            special_tokens=[(cls, cls_token_id), (sep, sep_token_id),],
+            special_tokens=[
+                (cls, cls_token_id),
+                (sep, sep_token_id),
+            ],
         )
 
         return tokenizer

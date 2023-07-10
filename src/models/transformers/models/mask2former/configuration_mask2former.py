@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Meta Platforms, Inc.and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -219,7 +219,10 @@ class Mask2FormerConfig(PretrainedConfig):
         Returns:
             [`Mask2FormerConfig`]: An instance of a configuration object
         """
-        return cls(backbone_config=backbone_config, **kwargs,)
+        return cls(
+            backbone_config=backbone_config,
+            **kwargs,
+        )
 
     def to_dict(self) -> Dict[str, any]:
         """

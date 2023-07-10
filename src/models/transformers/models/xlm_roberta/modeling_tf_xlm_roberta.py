@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2019 Facebook AI Research and the HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
@@ -956,7 +956,10 @@ class TFXLMRobertaMainLayer(tf.keras.layers.Layer):
         )
 
         if not return_dict:
-            return (sequence_output, pooled_output,) + encoder_outputs[1:]
+            return (
+                sequence_output,
+                pooled_output,
+            ) + encoder_outputs[1:]
 
         return TFBaseModelOutputWithPoolingAndCrossAttentions(
             last_hidden_state=sequence_output,

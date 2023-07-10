@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The Fairseq Authors and The Google Flax Team Authors And The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -519,7 +519,10 @@ class FlaxBartEncoderLayerCollection(nn.Module):
                 layer_outputs = (None, None)
             else:
                 layer_outputs = encoder_layer(
-                    hidden_states, attention_mask, output_attentions, deterministic,
+                    hidden_states,
+                    attention_mask,
+                    output_attentions,
+                    deterministic,
                 )
             hidden_states = layer_outputs[0]
             if output_attentions:

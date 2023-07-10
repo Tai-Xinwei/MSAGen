@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2020 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -624,7 +625,8 @@ def require_torch_bf16_gpu(test_case):
 def require_torch_bf16_cpu(test_case):
     """Decorator marking a test that requires torch>=1.10, using CPU."""
     return unittest.skipUnless(
-        is_torch_bf16_cpu_available(), "test requires torch>=1.10, using CPU",
+        is_torch_bf16_cpu_available(),
+        "test requires torch>=1.10, using CPU",
     )(test_case)
 
 

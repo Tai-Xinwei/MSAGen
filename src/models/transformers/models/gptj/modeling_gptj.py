@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The EleutherAI and HuggingFace Teams. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -155,7 +155,12 @@ class GPTJAttention(nn.Module):
         return tensor.view(new_shape)
 
     def _attn(
-        self, query, key, value, attention_mask=None, head_mask=None,
+        self,
+        query,
+        key,
+        value,
+        attention_mask=None,
+        head_mask=None,
     ):
         # compute causal mask from causal mask buffer
         query_length, key_length = query.size(-2), key.size(-2)

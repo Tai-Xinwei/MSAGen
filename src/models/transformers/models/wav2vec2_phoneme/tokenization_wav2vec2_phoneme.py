@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The Facebook Inc. and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -272,7 +272,10 @@ class Wav2Vec2PhonemeCTCTokenizer(PreTrainedTokenizer):
         separator = Separator(
             phone=self.phone_delimiter_token, word=word_delimiter, syllable=""
         )
-        phonemes = self.backend.phonemize([text], separator=separator,)
+        phonemes = self.backend.phonemize(
+            [text],
+            separator=separator,
+        )
         phonemes = phonemes[0].strip()
 
         return phonemes

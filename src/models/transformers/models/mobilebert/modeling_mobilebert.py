@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # MIT License
 #
 # Copyright (c) 2020  The Google AI Language Team Authors, The HuggingFace Inc. team and github/lonePatient
@@ -654,7 +655,10 @@ class MobileBertEncoder(nn.Module):
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
             layer_outputs = layer_module(
-                hidden_states, attention_mask, head_mask[i], output_attentions,
+                hidden_states,
+                attention_mask,
+                head_mask[i],
+                output_attentions,
             )
             hidden_states = layer_outputs[0]
 

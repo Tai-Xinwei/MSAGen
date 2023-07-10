@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2018 Google AI, Google Brain and Carnegie Mellon University Authors and the HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
@@ -95,7 +95,7 @@ class TFAdaptiveSoftmaxMask(tf.keras.layers.Layer):
         else:
             for i in range(len(self.cutoffs)):
                 l_idx, r_idx = self.cutoff_ends[i], self.cutoff_ends[i + 1]
-                d_emb_i = self.d_embed // (self.div_val ** i)
+                d_emb_i = self.d_embed // (self.div_val**i)
 
                 weight = self.add_weight(
                     shape=(d_emb_i, self.d_proj),

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2021 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -104,7 +105,9 @@ class AudioClassificationPipeline(Pipeline):
         self.check_model_type(MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING)
 
     def __call__(
-        self, inputs: Union[np.ndarray, bytes, str], **kwargs,
+        self,
+        inputs: Union[np.ndarray, bytes, str],
+        **kwargs,
     ):
         """
         Classify the sequence(s) given as inputs. See the [`AutomaticSpeechRecognitionPipeline`] documentation for more

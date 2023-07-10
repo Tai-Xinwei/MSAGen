@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The Facebook, Inc. and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -169,7 +169,7 @@ class BlenderbotSmallAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -734,7 +734,8 @@ class BlenderbotSmallEncoder(BlenderbotSmallPreTrainedModel):
             )
 
         self.embed_positions = BlenderbotSmallLearnedPositionalEmbedding(
-            config.max_position_embeddings, embed_dim,
+            config.max_position_embeddings,
+            embed_dim,
         )
         self.layers = nn.ModuleList(
             [BlenderbotSmallEncoderLayer(config) for _ in range(config.encoder_layers)]
@@ -926,7 +927,8 @@ class BlenderbotSmallDecoder(BlenderbotSmallPreTrainedModel):
             )
 
         self.embed_positions = BlenderbotSmallLearnedPositionalEmbedding(
-            config.max_position_embeddings, config.d_model,
+            config.max_position_embeddings,
+            config.d_model,
         )
         self.layers = nn.ModuleList(
             [BlenderbotSmallDecoderLayer(config) for _ in range(config.decoder_layers)]

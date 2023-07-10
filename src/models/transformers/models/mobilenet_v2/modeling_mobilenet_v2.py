@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Apple Inc. and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -853,7 +853,9 @@ class MobileNetV2ForImageClassification(MobileNetV2PreTrainedModel):
             return ((loss,) + output) if loss is not None else output
 
         return ImageClassifierOutputWithNoAttention(
-            loss=loss, logits=logits, hidden_states=outputs.hidden_states,
+            loss=loss,
+            logits=logits,
+            hidden_states=outputs.hidden_states,
         )
 
 

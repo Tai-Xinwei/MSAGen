@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -201,7 +201,10 @@ class SpeechT5FeatureExtractor(SequenceFeatureExtractor):
 
         return dft
 
-    def _extract_fbank_features(self, one_waveform: np.ndarray,) -> np.ndarray:
+    def _extract_fbank_features(
+        self,
+        one_waveform: np.ndarray,
+    ) -> np.ndarray:
         """
         Extracts log-mel filterbank features for one waveform vector (unbatched). Adapted from Flashlight's C++ MFSC
         code and librosa.

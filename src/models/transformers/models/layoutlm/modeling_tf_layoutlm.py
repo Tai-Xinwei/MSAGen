@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2018 The Microsoft Research Asia LayoutLM Team Authors and the HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -918,7 +918,10 @@ class TFLayoutLMMainLayer(tf.keras.layers.Layer):
         )
 
         if not return_dict:
-            return (sequence_output, pooled_output,) + encoder_outputs[1:]
+            return (
+                sequence_output,
+                pooled_output,
+            ) + encoder_outputs[1:]
 
         return TFBaseModelOutputWithPoolingAndCrossAttentions(
             last_hidden_state=sequence_output,

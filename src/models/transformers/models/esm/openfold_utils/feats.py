@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2021 AlQuraishi Laboratory
 # Copyright 2021 DeepMind Technologies Limited
 #
@@ -50,7 +51,9 @@ def pseudo_beta_fn(aatype, all_atom_positions, all_atom_masks):
 
     if all_atom_masks is not None:
         pseudo_beta_mask = torch.where(
-            is_gly, all_atom_masks[..., ca_idx], all_atom_masks[..., cb_idx],
+            is_gly,
+            all_atom_masks[..., ca_idx],
+            all_atom_masks[..., cb_idx],
         )
         return pseudo_beta, pseudo_beta_mask
     else:
@@ -116,7 +119,8 @@ def build_template_pair_feat(
     to_concat = [dgram, template_mask_2d[..., None]]
 
     aatype_one_hot: torch.LongTensor = nn.functional.one_hot(
-        batch["template_aatype"], rc.restype_num + 2,
+        batch["template_aatype"],
+        rc.restype_num + 2,
     )
 
     n_res = batch["template_aatype"].shape[-1]
@@ -139,7 +143,7 @@ def build_template_pair_feat(
     points = rigids.get_trans()[..., None, :, :]
     rigid_vec = rigids[..., None].invert_apply(points)
 
-    inv_distance_scalar = torch.rsqrt(eps + torch.sum(rigid_vec ** 2, dim=-1))
+    inv_distance_scalar = torch.rsqrt(eps + torch.sum(rigid_vec**2, dim=-1))
 
     t_aa_masks = batch["template_all_atom_mask"]
     template_mask = t_aa_masks[..., n] * t_aa_masks[..., ca] * t_aa_masks[..., c]
@@ -171,7 +175,10 @@ def build_extra_msa_feat(batch: Dict[str, torch.Tensor]) -> torch.Tensor:
 
 
 def torsion_angles_to_frames(
-    r: Rigid, alpha: torch.Tensor, aatype: torch.Tensor, rrgdf: torch.Tensor,
+    r: Rigid,
+    alpha: torch.Tensor,
+    aatype: torch.Tensor,
+    rrgdf: torch.Tensor,
 ) -> Rigid:
     # [*, N, 8, 4, 4]
     default_4x4 = rrgdf[aatype, ...]
@@ -242,7 +249,8 @@ def frames_and_literature_positions_to_atom14_pos(
 
     # [*, N, 14, 8]
     group_mask_one_hot: torch.LongTensor = nn.functional.one_hot(
-        group_mask, num_classes=default_frames.shape[-3],
+        group_mask,
+        num_classes=default_frames.shape[-3],
     )
 
     # [*, N, 14, 8]

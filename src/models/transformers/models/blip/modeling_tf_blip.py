@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 The Salesforce Team Authors and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -373,7 +373,7 @@ class TFBlipAttention(tf.keras.layers.Layer):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
                 f" {self.num_heads})."
             )
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.dropout = tf.keras.layers.Dropout(config.attention_dropout, name="dropout")
 
         self.qkv = tf.keras.layers.Dense(
@@ -445,7 +445,7 @@ class TFBlipMLP(tf.keras.layers.Layer):
 
         self.activation_fn = get_tf_activation(config.hidden_act)
 
-        in_proj_std = (config.hidden_size ** -0.5) * (
+        in_proj_std = (config.hidden_size**-0.5) * (
             (2 * config.num_hidden_layers) ** -0.5
         )
         fc_std = (2 * config.hidden_size) ** -0.5

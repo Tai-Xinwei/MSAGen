@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2020 The Allen Institute for AI team and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -415,7 +415,8 @@ def _compute_global_attention_mask(
         # last token is separation token and should not be counted and in the middle are two separation tokens
         question_end_index = tf.tile(question_end_index + 1, (1, input_ids_shape[1]))
         attention_mask = tf.cast(
-            attention_mask > question_end_index, dtype=question_end_index.dtype,
+            attention_mask > question_end_index,
+            dtype=question_end_index.dtype,
         ) * tf.cast(
             attention_mask < input_ids_shape[-1], dtype=question_end_index.dtype
         )
@@ -769,7 +770,9 @@ class TFLongformerSelfAttention(tf.keras.layers.Layer):
         self.one_sided_attn_window_size = attention_window // 2
 
     def call(
-        self, inputs, training=False,
+        self,
+        inputs,
+        training=False,
     ):
         """
         LongformerSelfAttention expects *len(hidden_states)* to be multiple of *attention_window*. Padding to
@@ -1982,7 +1985,11 @@ class TFLongformerMainLayer(tf.keras.layers.Layer):
             * -10000.0
         )
         embedding_output = self.embeddings(
-            input_ids, position_ids, token_type_ids, inputs_embeds, training=training,
+            input_ids,
+            position_ids,
+            token_type_ids,
+            inputs_embeds,
+            training=training,
         )
         encoder_outputs = self.encoder(
             embedding_output,
@@ -2003,7 +2010,10 @@ class TFLongformerMainLayer(tf.keras.layers.Layer):
         )
 
         if not return_dict:
-            return (sequence_output, pooled_output,) + encoder_outputs[1:]
+            return (
+                sequence_output,
+                pooled_output,
+            ) + encoder_outputs[1:]
 
         return TFLongformerBaseModelOutputWithPooling(
             last_hidden_state=sequence_output,
@@ -2741,7 +2751,9 @@ class TFLongformerForSequenceClassification(
                 constant_values=0,
             )
             global_attention_mask = tf.tensor_scatter_nd_update(
-                global_attention_mask, indices, updates,
+                global_attention_mask,
+                indices,
+                updates,
             )
 
         outputs = self.longformer(

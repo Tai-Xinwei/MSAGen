@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2020, The RAG Authors and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1348,7 +1348,8 @@ class TFRagTokenForGeneration(TFRagPreTrainedModel, TFCausalLanguageModelingLoss
         # Matt: As written, this loss is not XLA-compatible, but it's doing some very weird things
         #       and I don't feel comfortable converting it.
         loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(
-            from_logits=True, reduction=tf.keras.losses.Reduction.SUM,
+            from_logits=True,
+            reduction=tf.keras.losses.Reduction.SUM,
         )
 
         if from_logits is False:  # convert to logits
@@ -1802,7 +1803,8 @@ class TFRagSequenceForGeneration(TFRagPreTrainedModel, TFCausalLanguageModelingL
             ]  # (n_docs, max_len)
 
             output_sequences = self.generator.generate(
-                generator_input_ids, **model_kwargs,
+                generator_input_ids,
+                **model_kwargs,
             )  # n_docs * n_beam, tgt_len
             if do_deduplication:
                 # do_deduplication -- for TF, work on Eager mode only!

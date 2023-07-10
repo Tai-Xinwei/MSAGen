@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The I-BERT Authors (Sehoon Kim, Amir Gholami, Zhewei Yao,
 # Michael Mahoney, Kurt Keutzer - UC Berkeley) and The HuggingFace Inc. team.
 # Copyright (c) 20121, NVIDIA CORPORATION.  All rights reserved.
@@ -143,5 +143,8 @@ class IBertOnnxConfig(OnnxConfig):
         else:
             dynamic_axis = {0: "batch", 1: "sequence"}
         return OrderedDict(
-            [("input_ids", dynamic_axis), ("attention_mask", dynamic_axis),]
+            [
+                ("input_ids", dynamic_axis),
+                ("attention_mask", dynamic_axis),
+            ]
         )

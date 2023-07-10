@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -128,7 +128,9 @@ class FakeRegNetVisslWrapper(nn.Module):
 
     def forward(self, x: Tensor):
         return get_trunk_forward_outputs(
-            x, out_feat_keys=None, feature_blocks=self._feature_blocks,
+            x,
+            out_feat_keys=None,
+            feature_blocks=self._feature_blocks,
         )
 
 

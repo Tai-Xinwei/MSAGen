@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The Google Flax Team Authors and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -246,7 +246,7 @@ class FlaxBigBirdEmbeddings(nn.Module):
         token_type_embeddings = self.token_type_embeddings(token_type_ids.astype("i4"))
 
         if self.config.rescale_embeddings:
-            inputs_embeds *= self.config.hidden_size ** 0.5
+            inputs_embeds *= self.config.hidden_size**0.5
 
         # Sum all embeddings
         hidden_states = inputs_embeds + token_type_embeddings + position_embeds
@@ -1843,7 +1843,9 @@ class FlaxBigBirdPreTrainedModel(FlaxPreTrainedModel):
     # Copied from transformers.models.bert.modeling_flax_bert.FlaxBertPreTrainedModel.enable_gradient_checkpointing
     def enable_gradient_checkpointing(self):
         self._module = self.module_class(
-            config=self.config, dtype=self.dtype, gradient_checkpointing=True,
+            config=self.config,
+            dtype=self.dtype,
+            gradient_checkpointing=True,
         )
 
     # Copied from transformers.models.bert.modeling_flax_bert.FlaxBertPreTrainedModel.init_weights

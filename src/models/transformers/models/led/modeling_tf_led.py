@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 Iz Beltagy, Matthew E. Peters, Arman Cohan and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -201,7 +201,9 @@ class TFLEDEncoderSelfAttention(tf.keras.layers.Layer):
         self.one_sided_attn_window_size = attention_window // 2
 
     def call(
-        self, inputs, training=False,
+        self,
+        inputs,
+        training=False,
     ):
         """
         LongformerSelfAttention expects *len(hidden_states)* to be multiple of *attention_window*. Padding to
@@ -1144,7 +1146,7 @@ class TFLEDDecoderAttention(tf.keras.layers.Layer):
         assert (
             self.head_dim * num_heads == self.embed_dim
         ), "embed_dim must be divisible by num_heads"
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
         self.k_proj = tf.keras.layers.Dense(embed_dim, use_bias=bias, name="k_proj")
@@ -2076,7 +2078,11 @@ class TFLEDEncoder(tf.keras.layers.Layer):
         return hidden_states[:, :-padding_len] if padding_len > 0 else hidden_states
 
     def _pad_to_window_size(
-        self, input_ids, attention_mask, inputs_embeds, pad_token_id,
+        self,
+        input_ids,
+        attention_mask,
+        inputs_embeds,
+        pad_token_id,
     ):
         """A helper function to pad tokens and mask to work with implementation of Longformer selfattention."""
         # padding

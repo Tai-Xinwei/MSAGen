@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The HuggingFace Team and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -915,7 +915,10 @@ class TFRemBertMainLayer(tf.keras.layers.Layer):
         )
 
         if not return_dict:
-            return (sequence_output, pooled_output,) + encoder_outputs[1:]
+            return (
+                sequence_output,
+                pooled_output,
+            ) + encoder_outputs[1:]
 
         return TFBaseModelOutputWithPoolingAndCrossAttentions(
             last_hidden_state=sequence_output,

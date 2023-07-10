@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,7 +49,10 @@ def get_config(model_name):
     # one needs to additionally set config.layer_type = "bottleneck", config.stem_type = "same",
     # config.conv_layer = "std_conv_same"
     config = BitConfig(
-        conv_layer=conv_layer, num_labels=1000, id2label=id2label, label2id=label2id,
+        conv_layer=conv_layer,
+        num_labels=1000,
+        id2label=id2label,
+        label2id=label2id,
     )
 
     return config

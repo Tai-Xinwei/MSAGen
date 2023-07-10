@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Apple Inc. and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -470,7 +470,9 @@ class MobileViTLayer(nn.Module):
         )
 
         self.transformer = MobileViTTransformer(
-            config, hidden_size=hidden_size, num_stages=num_stages,
+            config,
+            hidden_size=hidden_size,
+            num_stages=num_stages,
         )
 
         self.layernorm = nn.LayerNorm(hidden_size, eps=config.layer_norm_eps)
@@ -692,7 +694,8 @@ class MobileViTEncoder(nn.Module):
                     return custom_forward
 
                 hidden_states = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module), hidden_states,
+                    create_custom_forward(layer_module),
+                    hidden_states,
                 )
             else:
                 hidden_states = layer_module(hidden_states)
@@ -948,7 +951,9 @@ class MobileViTForImageClassification(MobileViTPreTrainedModel):
             return ((loss,) + output) if loss is not None else output
 
         return ImageClassifierOutputWithNoAttention(
-            loss=loss, logits=logits, hidden_states=outputs.hidden_states,
+            loss=loss,
+            logits=logits,
+            hidden_states=outputs.hidden_states,
         )
 
 

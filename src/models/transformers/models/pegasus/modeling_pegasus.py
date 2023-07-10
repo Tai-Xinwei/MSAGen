@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021, Google and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -194,7 +194,7 @@ class PegasusAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -735,7 +735,9 @@ class PegasusEncoder(PegasusPreTrainedModel):
             )
 
         self.embed_positions = PegasusSinusoidalPositionalEmbedding(
-            config.max_position_embeddings, embed_dim, self.padding_idx,
+            config.max_position_embeddings,
+            embed_dim,
+            self.padding_idx,
         )
         self.layers = nn.ModuleList(
             [PegasusEncoderLayer(config) for _ in range(config.encoder_layers)]
@@ -765,7 +767,9 @@ class PegasusEncoder(PegasusPreTrainedModel):
         self.config.max_position_embeddings = new_num_position_embeddings
 
         self.embed_positions = PegasusSinusoidalPositionalEmbedding(
-            self.config.max_position_embeddings, self.config.d_model, self.padding_idx,
+            self.config.max_position_embeddings,
+            self.config.d_model,
+            self.padding_idx,
         )
         self.embed_positions.to(self.device)
 
@@ -958,7 +962,9 @@ class PegasusDecoder(PegasusPreTrainedModel):
             )
 
         self.embed_positions = PegasusSinusoidalPositionalEmbedding(
-            config.max_position_embeddings, config.d_model, self.padding_idx,
+            config.max_position_embeddings,
+            config.d_model,
+            self.padding_idx,
         )
         self.layers = nn.ModuleList(
             [PegasusDecoderLayer(config) for _ in range(config.decoder_layers)]
@@ -1022,7 +1028,9 @@ class PegasusDecoder(PegasusPreTrainedModel):
         self.config.max_position_embeddings = new_num_position_embeddings
 
         self.embed_positions = PegasusSinusoidalPositionalEmbedding(
-            self.config.max_position_embeddings, self.config.d_model, self.padding_idx,
+            self.config.max_position_embeddings,
+            self.config.d_model,
+            self.padding_idx,
         )
         self.embed_positions.to(self.device)
 

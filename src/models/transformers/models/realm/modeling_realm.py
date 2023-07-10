@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The REALM authors and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -2143,5 +2143,6 @@ class RealmForOpenQA(RealmPreTrainedModel):
             return reader_output, predicted_answer_ids
 
         return RealmForOpenQAOutput(
-            reader_output=reader_output, predicted_answer_ids=predicted_answer_ids,
+            reader_output=reader_output,
+            predicted_answer_ids=predicted_answer_ids,
         )

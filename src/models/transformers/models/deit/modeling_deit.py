@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 Facebook AI Research (FAIR), Ross Wightman, The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -425,7 +425,9 @@ class DeiTEncoder(nn.Module):
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module), hidden_states, layer_head_mask,
+                    create_custom_forward(layer_module),
+                    hidden_states,
+                    layer_head_mask,
                 )
             else:
                 layer_outputs = layer_module(
@@ -676,7 +678,7 @@ class DeiTForMaskedImageModeling(DeiTPreTrainedModel):
         self.decoder = nn.Sequential(
             nn.Conv2d(
                 in_channels=config.hidden_size,
-                out_channels=config.encoder_stride ** 2 * config.num_channels,
+                out_channels=config.encoder_stride**2 * config.num_channels,
                 kernel_size=1,
             ),
             nn.PixelShuffle(config.encoder_stride),
@@ -745,7 +747,7 @@ class DeiTForMaskedImageModeling(DeiTPreTrainedModel):
         # Reshape to (batch_size, num_channels, height, width)
         sequence_output = sequence_output[:, 1:-1]
         batch_size, sequence_length, num_channels = sequence_output.shape
-        height = width = int(sequence_length ** 0.5)
+        height = width = int(sequence_length**0.5)
         sequence_output = sequence_output.permute(0, 2, 1).reshape(
             batch_size, num_channels, height, width
         )

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2020 Google and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -176,7 +176,10 @@ class PegasusTokenizer(PreTrainedTokenizer):
 
         if self.mask_token_sent is not None:
             self.encoder.update(
-                {2: self.mask_token_sent, 3: self.mask_token,}
+                {
+                    2: self.mask_token_sent,
+                    3: self.mask_token,
+                }
             )
 
         if self.offset > 0:

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -377,7 +377,10 @@ if __name__ == "__main__":
         help="Name of the cvt model you'd like to convert.",
     )
     parser.add_argument(
-        "--image_size", default=384, type=int, help="Input Image Size",
+        "--image_size",
+        default=384,
+        type=int,
+        help="Input Image Size",
     )
     parser.add_argument(
         "--cvt_file_name",

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The Fairseq Authors and the HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1247,7 +1247,8 @@ FLAX_WAV2VEC2_MODEL_DOCSTRING = """
 """
 
 overwrite_call_docstring(
-    FlaxWav2Vec2Model, WAV_2_VEC_2_INPUTS_DOCSTRING + FLAX_WAV2VEC2_MODEL_DOCSTRING,
+    FlaxWav2Vec2Model,
+    WAV_2_VEC_2_INPUTS_DOCSTRING + FLAX_WAV2VEC2_MODEL_DOCSTRING,
 )
 append_replace_return_docstrings(
     FlaxWav2Vec2Model,
@@ -1379,7 +1380,8 @@ FLAX_WAV2VEC2_FOR_CTC_DOCSTRING = """
 """
 
 overwrite_call_docstring(
-    FlaxWav2Vec2ForCTC, WAV_2_VEC_2_INPUTS_DOCSTRING + FLAX_WAV2VEC2_FOR_CTC_DOCSTRING,
+    FlaxWav2Vec2ForCTC,
+    WAV_2_VEC_2_INPUTS_DOCSTRING + FLAX_WAV2VEC2_FOR_CTC_DOCSTRING,
 )
 append_replace_return_docstrings(
     FlaxWav2Vec2ForCTC, output_type=FlaxCausalLMOutput, config_class=Wav2Vec2Config

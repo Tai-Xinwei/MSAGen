@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Meta Platforms, Inc. and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -214,7 +214,7 @@ class LevitAttention(nn.Module):
     ):
         super().__init__()
         self.num_attention_heads = num_attention_heads
-        self.scale = key_dim ** -0.5
+        self.scale = key_dim**-0.5
         self.key_dim = key_dim
         self.attention_ratio = attention_ratio
         self.out_dim_keys_values = (
@@ -306,7 +306,7 @@ class LevitAttentionSubsample(nn.Module):
     ):
         super().__init__()
         self.num_attention_heads = num_attention_heads
-        self.scale = key_dim ** -0.5
+        self.scale = key_dim**-0.5
         self.key_dim = key_dim
         self.attention_ratio = attention_ratio
         self.out_dim_keys_values = (
@@ -376,7 +376,7 @@ class LevitAttentionSubsample(nn.Module):
 
         query = self.queries(self.queries_subsample(hidden_state))
         query = query.view(
-            batch_size, self.resolution_out ** 2, self.num_attention_heads, self.key_dim
+            batch_size, self.resolution_out**2, self.num_attention_heads, self.key_dim
         ).permute(0, 2, 1, 3)
 
         attention = query @ key.transpose(
@@ -775,7 +775,9 @@ class LevitForImageClassification(LevitPreTrainedModel):
             return ((loss,) + output) if loss is not None else output
 
         return ImageClassifierOutputWithNoAttention(
-            loss=loss, logits=logits, hidden_states=outputs.hidden_states,
+            loss=loss,
+            logits=logits,
+            hidden_states=outputs.hidden_states,
         )
 
 

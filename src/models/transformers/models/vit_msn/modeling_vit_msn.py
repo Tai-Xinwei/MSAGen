@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Facebook AI and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -469,7 +469,9 @@ class ViTMSNEncoder(nn.Module):
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module), hidden_states, layer_head_mask,
+                    create_custom_forward(layer_module),
+                    hidden_states,
+                    layer_head_mask,
                 )
             else:
                 layer_outputs = layer_module(

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -403,7 +403,9 @@ class LayoutLMv3TokenizerFast(PreTrainedTokenizerFast):
     def batch_encode_plus(
         self,
         batch_text_or_text_pairs: Union[
-            List[TextInput], List[TextInputPair], List[PreTokenizedInput],
+            List[TextInput],
+            List[TextInputPair],
+            List[PreTokenizedInput],
         ],
         is_pair: bool = None,
         boxes: Optional[List[List[List[int]]]] = None,
@@ -558,7 +560,9 @@ class LayoutLMv3TokenizerFast(PreTrainedTokenizerFast):
     def _batch_encode_plus(
         self,
         batch_text_or_text_pairs: Union[
-            List[TextInput], List[TextInputPair], List[PreTokenizedInput],
+            List[TextInput],
+            List[TextInputPair],
+            List[PreTokenizedInput],
         ],
         is_pair: bool = None,
         boxes: Optional[List[List[List[int]]]] = None,

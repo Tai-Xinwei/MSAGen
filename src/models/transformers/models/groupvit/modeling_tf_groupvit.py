@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 NVIDIA and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -303,7 +303,7 @@ class TFGroupViTCrossAttentionLayer(tf.keras.layers.Layer):
 class TFGroupViTAssignAttention(tf.keras.layers.Layer):
     def __init__(self, config: GroupViTVisionConfig, **kwargs):
         super().__init__(**kwargs)
-        self.scale = config.hidden_size ** -0.5
+        self.scale = config.hidden_size**-0.5
 
         self.q_proj = tf.keras.layers.Dense(config.hidden_size, name="q_proj")
         self.k_proj = tf.keras.layers.Dense(config.hidden_size, name="k_proj")
@@ -875,9 +875,9 @@ class TFGroupViTAttention(tf.keras.layers.Layer):
 
         factor = config.initializer_factor
         in_proj_std = (
-            (self.embed_dim ** -0.5) * ((2 * config.num_hidden_layers) ** -0.5) * factor
+            (self.embed_dim**-0.5) * ((2 * config.num_hidden_layers) ** -0.5) * factor
         )
-        out_proj_std = (self.embed_dim ** -0.5) * factor
+        out_proj_std = (self.embed_dim**-0.5) * factor
 
         self.sqrt_att_head_size = math.sqrt(self.attention_head_size)
 

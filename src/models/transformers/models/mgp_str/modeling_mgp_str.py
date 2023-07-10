@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 Alibaba Research and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -208,7 +208,7 @@ class MgpstrAttention(nn.Module):
         super().__init__()
         self.num_heads = config.num_attention_heads
         head_dim = config.hidden_size // config.num_attention_heads
-        self.scale = head_dim ** -0.5
+        self.scale = head_dim**-0.5
 
         self.qkv = nn.Linear(
             config.hidden_size, config.hidden_size * 3, bias=config.qkv_bias

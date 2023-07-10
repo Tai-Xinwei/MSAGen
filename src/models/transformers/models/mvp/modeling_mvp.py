@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The Fairseq Authors and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -191,7 +191,7 @@ class MvpAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -573,7 +573,11 @@ class MvpClassificationHead(nn.Module):
     """Head for sentence-level classification tasks."""
 
     def __init__(
-        self, input_dim: int, inner_dim: int, num_classes: int, pooler_dropout: float,
+        self,
+        input_dim: int,
+        inner_dim: int,
+        num_classes: int,
+        pooler_dropout: float,
     ):
         super().__init__()
         self.dense = nn.Linear(input_dim, inner_dim)
@@ -892,7 +896,8 @@ class MvpEncoder(MvpPreTrainedModel):
             )
 
         self.embed_positions = MvpLearnedPositionalEmbedding(
-            config.max_position_embeddings, embed_dim,
+            config.max_position_embeddings,
+            embed_dim,
         )
         self.layers = nn.ModuleList(
             [MvpEncoderLayer(config) for _ in range(config.encoder_layers)]
@@ -903,7 +908,9 @@ class MvpEncoder(MvpPreTrainedModel):
         if use_prompt:
             self.prompt_length = config.prompt_length
             self.self_attn_prompt = MvpPrompt(
-                config, config.encoder_layers, config.encoder_attention_heads,
+                config,
+                config.encoder_layers,
+                config.encoder_attention_heads,
             )
 
         self.gradient_checkpointing = False
@@ -1113,7 +1120,8 @@ class MvpDecoder(MvpPreTrainedModel):
             )
 
         self.embed_positions = MvpLearnedPositionalEmbedding(
-            config.max_position_embeddings, config.d_model,
+            config.max_position_embeddings,
+            config.d_model,
         )
         self.layers = nn.ModuleList(
             [MvpDecoderLayer(config) for _ in range(config.decoder_layers)]
@@ -1124,10 +1132,14 @@ class MvpDecoder(MvpPreTrainedModel):
         if use_prompt:
             self.prompt_length = config.prompt_length
             self.self_attn_prompt = MvpPrompt(
-                config, config.decoder_layers, config.decoder_attention_heads,
+                config,
+                config.decoder_layers,
+                config.decoder_attention_heads,
             )
             self.cross_attn_prompt = MvpPrompt(
-                config, config.decoder_layers, config.decoder_attention_heads,
+                config,
+                config.decoder_layers,
+                config.decoder_attention_heads,
             )
 
         self.gradient_checkpointing = False
@@ -2028,7 +2040,10 @@ class MvpForQuestionAnswering(MvpPreTrainedModel):
             total_loss = (start_loss + end_loss) / 2
 
         if not return_dict:
-            output = (start_logits, end_logits,) + outputs[1:]
+            output = (
+                start_logits,
+                end_logits,
+            ) + outputs[1:]
             return ((total_loss,) + output) if total_loss is not None else output
 
         return Seq2SeqQuestionAnsweringModelOutput(

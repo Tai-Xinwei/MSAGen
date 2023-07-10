@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Meta and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -601,7 +601,9 @@ class EsmFoldTriangleAttention(nn.Module):
         """
         if mask is None:
             # [*, I, J]
-            mask = x.new_ones(x.shape[:-1],)
+            mask = x.new_ones(
+                x.shape[:-1],
+            )
 
         if not self.starting:
             x = x.transpose(-2, -3)
@@ -686,7 +688,8 @@ class EsmFoldTriangleMultiplicativeUpdate(nn.Module):
                 a_chunk = a[..., i : i + _inplace_chunk_size, :, :]
                 b_chunk = b[..., i : i + _inplace_chunk_size, :, :]
                 a[..., i : i + _inplace_chunk_size, :, :] = torch.matmul(
-                    a_chunk, b_chunk,
+                    a_chunk,
+                    b_chunk,
                 )
 
             p = a
@@ -1055,7 +1058,7 @@ class EsmFoldSelfAttention(nn.Module):
             torch.nn.init.zeros_(self.g_proj.weight)
             torch.nn.init.ones_(self.g_proj.bias)
 
-        self.rescale_factor = self.head_width ** -0.5
+        self.rescale_factor = self.head_width**-0.5
 
         torch.nn.init.zeros_(self.o_proj.bias)
 
@@ -1502,7 +1505,8 @@ class EsmFoldAngleResnet(nn.Module):
         unnormalized_s = s
         norm_denom = torch.sqrt(
             torch.clamp(
-                torch.sum(s ** 2, dim=-1, keepdim=True), min=self.config.epsilon,
+                torch.sum(s**2, dim=-1, keepdim=True),
+                min=self.config.epsilon,
             )
         )
         s = s / norm_denom
@@ -1648,7 +1652,7 @@ class EsmFoldInvariantPointAttention(nn.Module):
 
         # [*, N_res, N_res, H, P_q, 3]
         pt_att = q_pts.unsqueeze(-4) - k_pts.unsqueeze(-5)
-        pt_att = pt_att ** 2
+        pt_att = pt_att**2
 
         # [*, N_res, N_res, H, P_q]
         pt_att = sum(torch.unbind(pt_att, dim=-1))
@@ -1697,7 +1701,7 @@ class EsmFoldInvariantPointAttention(nn.Module):
 
         # [*, N_res, H * P_v]
         o_pt_norm = flatten_final_dims(
-            torch.sqrt(torch.sum(o_pt ** 2, dim=-1) + self.config.epsilon), 2
+            torch.sqrt(torch.sum(o_pt**2, dim=-1) + self.config.epsilon), 2
         )
 
         # [*, N_res, H * P_v, 3]
@@ -1823,7 +1827,11 @@ class EsmFoldStructureModule(nn.Module):
         self.angle_resnet = EsmFoldAngleResnet(config)
 
     def forward(
-        self, evoformer_output_dict, aatype, mask=None, _offload_inference=False,
+        self,
+        evoformer_output_dict,
+        aatype,
+        mask=None,
+        _offload_inference=False,
     ):
         """
         Args:
@@ -1865,7 +1873,11 @@ class EsmFoldStructureModule(nn.Module):
 
         # [*, N]
         rigids = Rigid.identity(
-            s.shape[:-1], s.dtype, s.device, self.training, fmt="quat",
+            s.shape[:-1],
+            s.dtype,
+            s.device,
+            self.training,
+            fmt="quat",
         )
         outputs = []
         for i in range(self.config.num_blocks):
@@ -2110,9 +2122,12 @@ class EsmFoldingTrunk(nn.Module):
     def distogram(coords, min_bin, max_bin, num_bins):
         # Coords are [... L x 3 x 3], where it's [N, CA, C] x 3 coordinates.
         boundaries = torch.linspace(
-            min_bin, max_bin, num_bins - 1, device=coords.device,
+            min_bin,
+            max_bin,
+            num_bins - 1,
+            device=coords.device,
         )
-        boundaries = boundaries ** 2
+        boundaries = boundaries**2
         N, CA, C = [x.squeeze(-2) for x in coords.chunk(3, dim=-2)]
         # Infer CB coordinates.
         b = CA - N
@@ -2406,7 +2421,9 @@ class EsmForProteinFolding(EsmPreTrainedModel):
 
     @torch.no_grad()
     def infer(
-        self, seqs: Union[str, List[str]], position_ids=None,
+        self,
+        seqs: Union[str, List[str]],
+        position_ids=None,
     ):
         if type(seqs) is str:
             lst = [seqs]
@@ -2436,7 +2453,11 @@ class EsmForProteinFolding(EsmPreTrainedModel):
         )
         if position_ids.ndim == 1:
             position_ids = position_ids.unsqueeze(0)
-        return self.forward(aatype, mask, position_ids=position_ids,)
+        return self.forward(
+            aatype,
+            mask,
+            position_ids=position_ids,
+        )
 
     @staticmethod
     def output_to_pdb(output: Dict) -> List[str]:

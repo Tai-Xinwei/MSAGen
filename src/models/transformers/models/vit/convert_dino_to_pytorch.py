@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -108,7 +108,10 @@ def create_rename_keys(config, base_model=False):
     if base_model:
         # layernorm + pooler
         rename_keys.extend(
-            [("norm.weight", "layernorm.weight"), ("norm.bias", "layernorm.bias"),]
+            [
+                ("norm.weight", "layernorm.weight"),
+                ("norm.bias", "layernorm.bias"),
+            ]
         )
 
         # if just the base model, we should remove "vit" from all keys that start with "vit"

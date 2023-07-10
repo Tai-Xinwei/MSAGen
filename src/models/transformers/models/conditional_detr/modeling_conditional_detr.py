@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Microsoft Research Asia and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -609,7 +609,7 @@ class DetrAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
                 f" {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -779,7 +779,7 @@ class ConditionalDetrAttention(nn.Module):
             raise ValueError(
                 f"out_dim must be divisible by num_heads (got `out_dim`: {self.out_dim} and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
 
         self.out_proj = nn.Linear(out_dim, out_dim, bias=bias)
 
@@ -2201,10 +2201,10 @@ class ConditionalDetrForSegmentation(ConditionalDetrPreTrainedModel):
             )
 
         # Fifth, sent query embeddings + position embeddings through the decoder (which is conditioned on the encoder output)
-        query_position_embeddings = self.conditional_detr.model.query_position_embeddings.weight.unsqueeze(
-            0
-        ).repeat(
-            batch_size, 1, 1
+        query_position_embeddings = (
+            self.conditional_detr.model.query_position_embeddings.weight.unsqueeze(
+                0
+            ).repeat(batch_size, 1, 1)
         )
         queries = torch.zeros_like(query_position_embeddings)
 
@@ -2867,7 +2867,7 @@ class ConditionalDetrHungarianMatcher(nn.Module):
         alpha = 0.25
         gamma = 2.0
         neg_cost_class = (
-            (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+            (1 - alpha) * (out_prob**gamma) * (-(1 - out_prob + 1e-8).log())
         )
         pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
         class_cost = pos_cost_class[:, target_ids] - neg_cost_class[:, target_ids]

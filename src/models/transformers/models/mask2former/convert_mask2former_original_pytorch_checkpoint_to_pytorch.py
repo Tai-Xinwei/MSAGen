@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Meta Platforms, Inc. and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1037,7 +1037,9 @@ def test(
             ), "The pixel decoder feature are not the same"
 
         # Let's test the full model
-        tr_complete = T.Compose([T.Resize((384, 384)), T.ToTensor()],)
+        tr_complete = T.Compose(
+            [T.Resize((384, 384)), T.ToTensor()],
+        )
         y = (tr_complete(im) * 255.0).to(torch.int).float()
 
         # modify original Mask2Former code to return mask and class logits

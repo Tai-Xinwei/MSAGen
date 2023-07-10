@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2021 AlQuraishi Laboratory
 # Copyright 2021 DeepMind Technologies Limited
 #
@@ -59,7 +60,9 @@ def make_atom14_masks(protein: Dict[str, torch.Tensor]) -> Dict[str, torch.Tenso
         device=protein["aatype"].device,
     )
     restype_atom14_mask = torch.tensor(
-        restype_atom14_mask_list, dtype=torch.float32, device=protein["aatype"].device,
+        restype_atom14_mask_list,
+        dtype=torch.float32,
+        device=protein["aatype"].device,
     )
     protein_aatype = protein["aatype"].to(torch.long)
 

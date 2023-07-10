@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The Eleuther AI and The Google Flax Team Authors and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -605,7 +605,9 @@ class FlaxGPTNeoModule(nn.Module):
             stddev=self.config.initializer_range
         )
         self.wte = nn.Embed(
-            self.config.vocab_size, self.embed_dim, embedding_init=embedding_init,
+            self.config.vocab_size,
+            self.embed_dim,
+            embedding_init=embedding_init,
         )
         self.wpe = nn.Embed(
             self.config.max_position_embeddings,

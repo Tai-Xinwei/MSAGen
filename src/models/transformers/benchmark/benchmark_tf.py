@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2018 The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
@@ -267,7 +267,11 @@ class TensorFlowBenchmark(Benchmark):
                     timeit.repeat(func, repeat=1, number=5)
 
                 # as written in https://docs.python.org/2/library/timeit.html#timeit.Timer.repeat, min should be taken rather than the average
-                runtimes = timeit.repeat(func, repeat=self.args.repeat, number=10,)
+                runtimes = timeit.repeat(
+                    func,
+                    repeat=self.args.repeat,
+                    number=10,
+                )
 
                 return min(runtimes) / 10.0
             except ResourceExhaustedError as e:

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 The Mega Authors and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -609,7 +609,7 @@ class MegaGatedCrossAttention(nn.Module):
         self.activation = ACT2FN[self.config.activation]
         self.attention_activation = self.config.attention_activation
         self.scaling = (
-            self.config.shared_representation_size ** -0.5
+            self.config.shared_representation_size**-0.5
             if self.attention_activation == "softmax"
             else None
         )
@@ -901,7 +901,7 @@ class MegaMovingAverageGatedAttention(nn.Module):
         self.config = config
         self.activation = ACT2FN[self.config.activation]
         self.scaling = (
-            self.config.shared_representation_size ** -0.5
+            self.config.shared_representation_size**-0.5
             if self.config.attention_activation == "softmax"
             else None
         )

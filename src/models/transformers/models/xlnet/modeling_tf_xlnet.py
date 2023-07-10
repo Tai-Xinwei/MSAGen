@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2018 Google AI, Google Brain and Carnegie Mellon University Authors and the HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
@@ -76,7 +76,7 @@ class TFXLNetRelativeAttention(tf.keras.layers.Layer):
         self.n_head = config.n_head
         self.d_head = config.d_head
         self.d_model = config.d_model
-        self.scale = 1 / (config.d_head ** 0.5)
+        self.scale = 1 / (config.d_head**0.5)
         self.initializer_range = config.initializer_range
         self.output_attentions = config.output_attentions
 

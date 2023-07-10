@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2020-present the HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -50,7 +50,7 @@ def seed_worker(_):
     """
     Helper function to set worker seed during Dataloader initialization.
     """
-    worker_seed = torch.initial_seed() % 2 ** 32
+    worker_seed = torch.initial_seed() % 2**32
     set_seed(worker_seed)
 
 

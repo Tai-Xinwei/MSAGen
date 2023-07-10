@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 School of EIC, Huazhong University of Science & Technology and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -529,13 +529,16 @@ class YolosEncoder(nn.Module):
 
         seq_length = (
             1
-            + (config.image_size[0] * config.image_size[1] // config.patch_size ** 2)
+            + (config.image_size[0] * config.image_size[1] // config.patch_size**2)
             + config.num_detection_tokens
         )
         self.mid_position_embeddings = (
             nn.Parameter(
                 torch.zeros(
-                    config.num_hidden_layers - 1, 1, seq_length, config.hidden_size,
+                    config.num_hidden_layers - 1,
+                    1,
+                    seq_length,
+                    config.hidden_size,
                 )
             )
             if config.use_mid_position_embeddings
@@ -581,7 +584,9 @@ class YolosEncoder(nn.Module):
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module), hidden_states, layer_head_mask,
+                    create_custom_forward(layer_module),
+                    hidden_states,
+                    layer_head_mask,
                 )
             else:
                 layer_outputs = layer_module(

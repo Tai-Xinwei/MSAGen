@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Meta Platforms, Inc. and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -257,7 +257,12 @@ class RegNetStage(nn.Module):
 
         self.layers = nn.Sequential(
             # downsampling is done in the first layer with stride of 2
-            layer(config, in_channels, out_channels, stride=stride,),
+            layer(
+                config,
+                in_channels,
+                out_channels,
+                stride=stride,
+            ),
             *[layer(config, out_channels, out_channels) for _ in range(depth - 1)],
         )
 

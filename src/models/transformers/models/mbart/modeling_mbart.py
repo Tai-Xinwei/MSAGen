@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021, The Facebook AI Research Team and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -179,7 +179,7 @@ class MBartAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -540,7 +540,11 @@ class MBartClassificationHead(nn.Module):
     """Head for sentence-level classification tasks."""
 
     def __init__(
-        self, input_dim: int, inner_dim: int, num_classes: int, pooler_dropout: float,
+        self,
+        input_dim: int,
+        inner_dim: int,
+        num_classes: int,
+        pooler_dropout: float,
     ):
         super().__init__()
         self.dense = nn.Linear(input_dim, inner_dim)
@@ -771,7 +775,8 @@ class MBartEncoder(MBartPreTrainedModel):
             self.embed_tokens.weight = embed_tokens.weight
 
         self.embed_positions = MBartLearnedPositionalEmbedding(
-            config.max_position_embeddings, embed_dim,
+            config.max_position_embeddings,
+            embed_dim,
         )
         self.layers = nn.ModuleList(
             [MBartEncoderLayer(config) for _ in range(config.encoder_layers)]
@@ -974,7 +979,8 @@ class MBartDecoder(MBartPreTrainedModel):
             self.embed_tokens.weight = embed_tokens.weight
 
         self.embed_positions = MBartLearnedPositionalEmbedding(
-            config.max_position_embeddings, config.d_model,
+            config.max_position_embeddings,
+            config.d_model,
         )
         self.layers = nn.ModuleList(
             [MBartDecoderLayer(config) for _ in range(config.decoder_layers)]
@@ -1844,7 +1850,10 @@ class MBartForQuestionAnswering(MBartPreTrainedModel):
             total_loss = (start_loss + end_loss) / 2
 
         if not return_dict:
-            output = (start_logits, end_logits,) + outputs[1:]
+            output = (
+                start_logits,
+                end_logits,
+            ) + outputs[1:]
             return ((total_loss,) + output) if total_loss is not None else output
 
         return Seq2SeqQuestionAnsweringModelOutput(

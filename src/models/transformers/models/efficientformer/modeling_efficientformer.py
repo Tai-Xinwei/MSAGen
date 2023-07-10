@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Snapchat Research and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -111,7 +111,7 @@ class EfficientFormerSelfAttention(nn.Module):
         self.num_heads = num_heads
         self.key_dim = key_dim
         self.attention_ratio = attention_ratio
-        self.scale = key_dim ** -0.5
+        self.scale = key_dim**-0.5
         self.total_key_dim = key_dim * num_heads
         self.expanded_key_dim = int(attention_ratio * key_dim)
         self.total_expanded_key_dim = int(self.expanded_key_dim * num_heads)

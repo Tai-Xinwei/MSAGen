@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2022 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -523,7 +524,11 @@ def convert_checkpoint_from_megatron_to_transformers(args):
                 output_state_dict[layer_name + ".attn.masked_bias"] = masked_bias
 
                 out_val = megatron_to_transformers_fix_query_key_value_ordering(
-                    params, checkpoint_version, 3, heads, hidden_size_per_head,
+                    params,
+                    checkpoint_version,
+                    3,
+                    heads,
+                    hidden_size_per_head,
                 )
                 # Megatron stores (3*D) x D but transformers-GPT2 expects D x 3*D.
                 out_val = out_val.transpose(0, 1).contiguous()
@@ -842,14 +847,22 @@ def convert_checkpoint_from_transformers_to_megatron(args):
                     params = params.transpose(0, 1).contiguous()
 
                     params = transformers_to_megatron_fix_query_key_value_ordering(
-                        params, 3.0, 3, heads, hidden_size_per_head,
+                        params,
+                        3.0,
+                        3,
+                        heads,
+                        hidden_size_per_head,
                     )
                     layer_name = f"layers.{layer}.self_attention.query_key_value.{weight_or_bias}"
 
                 # handle attention K, V, Q bias
                 elif op_name.startswith("attn.c_attn") and weight_or_bias == "bias":
                     params = transformers_to_megatron_fix_query_key_value_ordering(
-                        params, 3.0, 3, heads, hidden_size_per_head,
+                        params,
+                        3.0,
+                        3,
+                        heads,
+                        hidden_size_per_head,
                     )
                     layer_name = f"layers.{layer}.self_attention.query_key_value.{weight_or_bias}"
 

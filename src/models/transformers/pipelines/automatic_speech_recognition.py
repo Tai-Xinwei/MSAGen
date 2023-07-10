@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2021 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -258,7 +259,9 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
         )
 
     def __call__(
-        self, inputs: Union[np.ndarray, bytes, str], **kwargs,
+        self,
+        inputs: Union[np.ndarray, bytes, str],
+        **kwargs,
     ):
         """
         Transcribe the audio sequence(s) given as inputs to text. See the [`AutomaticSpeechRecognitionPipeline`]

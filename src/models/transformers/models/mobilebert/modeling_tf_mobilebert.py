@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
@@ -938,7 +938,10 @@ class TFMobileBertMainLayer(tf.keras.layers.Layer):
         )
 
         if not return_dict:
-            return (sequence_output, pooled_output,) + encoder_outputs[1:]
+            return (
+                sequence_output,
+                pooled_output,
+            ) + encoder_outputs[1:]
 
         return TFBaseModelOutputWithPooling(
             last_hidden_state=sequence_output,

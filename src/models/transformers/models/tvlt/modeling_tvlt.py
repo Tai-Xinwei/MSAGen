@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 MURGe-Lab and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1035,7 +1035,9 @@ class TvltDecoder(nn.Module):
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module), hidden_states, None,
+                    create_custom_forward(layer_module),
+                    hidden_states,
+                    None,
                 )
             else:
                 layer_outputs = layer_module(

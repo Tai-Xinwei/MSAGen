@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 NVIDIA and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -201,7 +201,7 @@ class GroupViTCrossAttentionLayer(nn.Module):
 class GroupViTAssignAttention(nn.Module):
     def __init__(self, config: GroupViTVisionConfig):
         super().__init__()
-        self.scale = config.hidden_size ** -0.5
+        self.scale = config.hidden_size**-0.5
 
         self.q_proj = nn.Linear(config.hidden_size, config.hidden_size)
         self.k_proj = nn.Linear(config.hidden_size, config.hidden_size)
@@ -685,7 +685,7 @@ class GroupViTAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
                 f" {self.num_heads})."
             )
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.dropout = config.attention_dropout
 
         self.k_proj = nn.Linear(self.embed_dim, self.embed_dim)
@@ -880,11 +880,11 @@ class GroupViTPreTrainedModel(PreTrainedModel):
         elif isinstance(module, GroupViTAttention):
             factor = self.config.initializer_factor
             in_proj_std = (
-                (module.embed_dim ** -0.5)
+                (module.embed_dim**-0.5)
                 * ((2 * module.config.num_hidden_layers) ** -0.5)
                 * factor
             )
-            out_proj_std = (module.embed_dim ** -0.5) * factor
+            out_proj_std = (module.embed_dim**-0.5) * factor
             nn.init.normal_(module.q_proj.weight, std=in_proj_std)
             nn.init.normal_(module.k_proj.weight, std=in_proj_std)
             nn.init.normal_(module.v_proj.weight, std=in_proj_std)
@@ -892,7 +892,7 @@ class GroupViTPreTrainedModel(PreTrainedModel):
         elif isinstance(module, GroupViTMLP):
             factor = self.config.initializer_factor
             in_proj_std = (
-                (module.config.hidden_size ** -0.5)
+                (module.config.hidden_size**-0.5)
                 * ((2 * module.config.num_hidden_layers) ** -0.5)
                 * factor
             )

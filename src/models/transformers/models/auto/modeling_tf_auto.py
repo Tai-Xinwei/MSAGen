@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2018 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -355,7 +355,9 @@ TF_MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
 )
 
 TF_MODEL_FOR_DOCUMENT_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
-    [("layoutlm", "TFLayoutLMForQuestionAnswering"),]
+    [
+        ("layoutlm", "TFLayoutLMForQuestionAnswering"),
+    ]
 )
 
 

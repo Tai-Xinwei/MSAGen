@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2020 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,5 +40,6 @@ if __name__ == "__main__":
         checkpoint_path = os.path.join(args.dialogpt_path, f"{MODEL}_ft.pkl")
         pytorch_dump_folder_path = f"./DialoGPT-{MODEL}"
         convert_dialogpt_checkpoint(
-            checkpoint_path, pytorch_dump_folder_path,
+            checkpoint_path,
+            pytorch_dump_folder_path,
         )

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -109,7 +109,7 @@ class PerceiverTokenizer(PreTrainedTokenizer):
             **kwargs,
         )
 
-        self._utf_vocab_size = 2 ** 8  # utf is 8 bits
+        self._utf_vocab_size = 2**8  # utf is 8 bits
 
         # define special tokens dict
         self.special_tokens_encoder: Dict[str, int] = {

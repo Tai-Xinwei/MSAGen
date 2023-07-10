@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -850,10 +850,10 @@ class DonutSwinEncoder(nn.Module):
             [
                 DonutSwinStage(
                     config=config,
-                    dim=int(config.embed_dim * 2 ** i_layer),
+                    dim=int(config.embed_dim * 2**i_layer),
                     input_resolution=(
-                        grid_size[0] // (2 ** i_layer),
-                        grid_size[1] // (2 ** i_layer),
+                        grid_size[0] // (2**i_layer),
+                        grid_size[1] // (2**i_layer),
                     ),
                     depth=config.depths[i_layer],
                     num_heads=config.num_heads[i_layer],

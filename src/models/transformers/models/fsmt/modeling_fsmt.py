@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2020 The Facebook AI Research Team Authors and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -913,7 +913,7 @@ class Attention(nn.Module):
         assert (
             self.head_dim * num_heads == self.embed_dim
         ), "embed_dim must be divisible by num_heads"
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
 
         self.encoder_decoder_attention = encoder_decoder_attention
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -1033,7 +1033,9 @@ class Attention(nn.Module):
             attn_weights_reshaped = None
 
         attn_probs = nn.functional.dropout(
-            attn_weights, p=self.dropout, training=self.training,
+            attn_weights,
+            p=self.dropout,
+            training=self.training,
         )
 
         assert v is not None

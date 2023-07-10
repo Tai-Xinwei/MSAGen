@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The Google Flax Team Authors and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -104,7 +104,7 @@ class FlaxViTPatchEmbeddings(nn.Module):
             padding="VALID",
             dtype=self.dtype,
             kernel_init=jax.nn.initializers.variance_scaling(
-                self.config.initializer_range ** 2, "fan_in", "truncated_normal"
+                self.config.initializer_range**2, "fan_in", "truncated_normal"
             ),
         )
 
@@ -129,7 +129,7 @@ class FlaxViTEmbeddings(nn.Module):
         self.cls_token = self.param(
             "cls_token",
             jax.nn.initializers.variance_scaling(
-                self.config.initializer_range ** 2, "fan_in", "truncated_normal"
+                self.config.initializer_range**2, "fan_in", "truncated_normal"
             ),
             (1, 1, self.config.hidden_size),
         )
@@ -138,7 +138,7 @@ class FlaxViTEmbeddings(nn.Module):
         self.position_embeddings = self.param(
             "position_embeddings",
             jax.nn.initializers.variance_scaling(
-                self.config.initializer_range ** 2, "fan_in", "truncated_normal"
+                self.config.initializer_range**2, "fan_in", "truncated_normal"
             ),
             (1, num_patches + 1, self.config.hidden_size),
         )
@@ -173,7 +173,7 @@ class FlaxViTSelfAttention(nn.Module):
             self.config.hidden_size,
             dtype=self.dtype,
             kernel_init=jax.nn.initializers.variance_scaling(
-                self.config.initializer_range ** 2,
+                self.config.initializer_range**2,
                 mode="fan_in",
                 distribution="truncated_normal",
             ),
@@ -183,7 +183,7 @@ class FlaxViTSelfAttention(nn.Module):
             self.config.hidden_size,
             dtype=self.dtype,
             kernel_init=jax.nn.initializers.variance_scaling(
-                self.config.initializer_range ** 2,
+                self.config.initializer_range**2,
                 mode="fan_in",
                 distribution="truncated_normal",
             ),
@@ -193,7 +193,7 @@ class FlaxViTSelfAttention(nn.Module):
             self.config.hidden_size,
             dtype=self.dtype,
             kernel_init=jax.nn.initializers.variance_scaling(
-                self.config.initializer_range ** 2,
+                self.config.initializer_range**2,
                 mode="fan_in",
                 distribution="truncated_normal",
             ),
@@ -245,7 +245,7 @@ class FlaxViTSelfOutput(nn.Module):
         self.dense = nn.Dense(
             self.config.hidden_size,
             kernel_init=jax.nn.initializers.variance_scaling(
-                self.config.initializer_range ** 2, "fan_in", "truncated_normal"
+                self.config.initializer_range**2, "fan_in", "truncated_normal"
             ),
             dtype=self.dtype,
         )
@@ -294,7 +294,7 @@ class FlaxViTIntermediate(nn.Module):
         self.dense = nn.Dense(
             self.config.intermediate_size,
             kernel_init=jax.nn.initializers.variance_scaling(
-                self.config.initializer_range ** 2, "fan_in", "truncated_normal"
+                self.config.initializer_range**2, "fan_in", "truncated_normal"
             ),
             dtype=self.dtype,
         )
@@ -314,7 +314,7 @@ class FlaxViTOutput(nn.Module):
         self.dense = nn.Dense(
             self.config.hidden_size,
             kernel_init=jax.nn.initializers.variance_scaling(
-                self.config.initializer_range ** 2, "fan_in", "truncated_normal"
+                self.config.initializer_range**2, "fan_in", "truncated_normal"
             ),
             dtype=self.dtype,
         )
@@ -455,7 +455,7 @@ class FlaxViTPooler(nn.Module):
         self.dense = nn.Dense(
             self.config.hidden_size,
             kernel_init=jax.nn.initializers.variance_scaling(
-                self.config.initializer_range ** 2, "fan_in", "truncated_normal"
+                self.config.initializer_range**2, "fan_in", "truncated_normal"
             ),
             dtype=self.dtype,
         )
@@ -665,7 +665,7 @@ class FlaxViTForImageClassificationModule(nn.Module):
             self.config.num_labels,
             dtype=self.dtype,
             kernel_init=jax.nn.initializers.variance_scaling(
-                self.config.initializer_range ** 2, "fan_in", "truncated_normal"
+                self.config.initializer_range**2, "fan_in", "truncated_normal"
             ),
         )
 

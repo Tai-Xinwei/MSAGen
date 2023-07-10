@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The Fairseq Authors The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -319,7 +319,7 @@ class XGLMAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -655,7 +655,9 @@ class XGLMModel(XGLMPreTrainedModel):
             )
 
         self.embed_positions = XGLMSinusoidalPositionalEmbedding(
-            config.max_position_embeddings, config.d_model, config.pad_token_id,
+            config.max_position_embeddings,
+            config.d_model,
+            config.pad_token_id,
         )
         self.layers = nn.ModuleList(
             [XGLMDecoderLayer(config) for _ in range(config.num_layers)]

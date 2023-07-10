@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The OpenAI Team Authors and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -158,7 +158,7 @@ class TFCLIPVisionEmbeddings(tf.keras.layers.Layer):
 
         self.class_embedding = self.add_weight(
             shape=(self.embed_dim,),
-            initializer=get_initializer(self.embed_dim ** -0.5 * factor),
+            initializer=get_initializer(self.embed_dim**-0.5 * factor),
             trainable=True,
             name="class_embedding",
         )
@@ -296,9 +296,9 @@ class TFCLIPAttention(tf.keras.layers.Layer):
 
         factor = config.initializer_factor
         in_proj_std = (
-            (self.embed_dim ** -0.5) * ((2 * config.num_hidden_layers) ** -0.5) * factor
+            (self.embed_dim**-0.5) * ((2 * config.num_hidden_layers) ** -0.5) * factor
         )
-        out_proj_std = (self.embed_dim ** -0.5) * factor
+        out_proj_std = (self.embed_dim**-0.5) * factor
 
         self.sqrt_att_head_size = math.sqrt(self.attention_head_size)
 
@@ -405,7 +405,7 @@ class TFCLIPMLP(tf.keras.layers.Layer):
 
         factor = config.initializer_factor
         in_proj_std = (
-            (config.hidden_size ** -0.5)
+            (config.hidden_size**-0.5)
             * ((2 * config.num_hidden_layers) ** -0.5)
             * factor
         )
@@ -809,7 +809,7 @@ class TFCLIPMainLayer(tf.keras.layers.Layer):
         self.visual_projection = tf.keras.layers.Dense(
             units=self.projection_dim,
             kernel_initializer=get_initializer(
-                vision_config.hidden_size ** -0.5 * self.config.initializer_factor
+                vision_config.hidden_size**-0.5 * self.config.initializer_factor
             ),
             use_bias=False,
             name="visual_projection",
@@ -818,7 +818,7 @@ class TFCLIPMainLayer(tf.keras.layers.Layer):
         self.text_projection = tf.keras.layers.Dense(
             units=self.projection_dim,
             kernel_initializer=get_initializer(
-                text_config.hidden_size ** -0.5 * self.config.initializer_factor
+                text_config.hidden_size**-0.5 * self.config.initializer_factor
             ),
             use_bias=False,
             name="text_projection",

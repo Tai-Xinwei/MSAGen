@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Microsoft Research and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -681,7 +681,9 @@ class LayoutLMv3Encoder(nn.Module):
         rel_pos_mat = position_ids.unsqueeze(-2) - position_ids.unsqueeze(-1)
 
         rel_pos = self.relative_position_bucket(
-            rel_pos_mat, num_buckets=self.rel_pos_bins, max_distance=self.max_rel_pos,
+            rel_pos_mat,
+            num_buckets=self.rel_pos_bins,
+            max_distance=self.max_rel_pos,
         )
         rel_pos = F.one_hot(rel_pos, num_classes=self.rel_pos_onehot_size).type_as(
             hidden_states
@@ -796,7 +798,11 @@ class LayoutLMv3Encoder(nn.Module):
         if not return_dict:
             return tuple(
                 v
-                for v in [hidden_states, all_hidden_states, all_self_attentions,]
+                for v in [
+                    hidden_states,
+                    all_hidden_states,
+                    all_self_attentions,
+                ]
                 if v is not None
             )
         return BaseModelOutput(

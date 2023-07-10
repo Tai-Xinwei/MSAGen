@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The Fairseq Authors and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -179,7 +179,7 @@ class TFMBartAttention(tf.keras.layers.Layer):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
         self.k_proj = tf.keras.layers.Dense(embed_dim, use_bias=bias, name="k_proj")
@@ -744,7 +744,9 @@ class TFMBartEncoder(tf.keras.layers.Layer):
 
         self.embed_tokens = embed_tokens
         self.embed_positions = TFMBartLearnedPositionalEmbedding(
-            config.max_position_embeddings, config.d_model, name="embed_positions",
+            config.max_position_embeddings,
+            config.d_model,
+            name="embed_positions",
         )
         self.layers = [
             TFMBartEncoderLayer(config, name=f"layers.{i}")
@@ -937,7 +939,9 @@ class TFMBartDecoder(tf.keras.layers.Layer):
         self.embed_tokens = embed_tokens
         self.layerdrop = config.decoder_layerdrop
         self.embed_positions = TFMBartLearnedPositionalEmbedding(
-            config.max_position_embeddings, config.d_model, name="embed_positions",
+            config.max_position_embeddings,
+            config.d_model,
+            name="embed_positions",
         )
         self.embed_scale = (
             tf.math.sqrt(float(config.d_model)) if config.scale_embedding else 1.0

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Meta Platforms authors and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1632,7 +1632,7 @@ class FlavaImageCodebookBlock(nn.Module):
     def __init__(self, in_size: int, out_size: int, num_layers: int, **kwargs):
         super().__init__()
 
-        self.post_gain = 1 / (num_layers ** 2)
+        self.post_gain = 1 / (num_layers**2)
 
         if in_size != out_size:
             self.id_path = nn.Conv2d(in_size, out_size, kernel_size=1, padding=0)
@@ -1691,7 +1691,9 @@ class FlavaImageCodebook(FlavaPreTrainedModel):
     supports_gradient_checkpointing = False
 
     def __init__(
-        self, config: FlavaImageCodebookConfig, **kwargs: Any,
+        self,
+        config: FlavaImageCodebookConfig,
+        **kwargs: Any,
     ):
         super().__init__(config)
 
@@ -1893,11 +1895,15 @@ class FlavaGlobalContrastiveHead(nn.Module):
             world_size = torch.distributed.get_world_size()
 
             if self.global_backprop_contrastive:
-                image_embeddings_all = torch.distributed.nn.functional.all_gather_with_backprop(
-                    image_embeddings
+                image_embeddings_all = (
+                    torch.distributed.nn.functional.all_gather_with_backprop(
+                        image_embeddings
+                    )
                 )
-                text_embeddings_all = torch.distributed.nn.functional.all_gather_with_backprop(
-                    text_embeddings
+                text_embeddings_all = (
+                    torch.distributed.nn.functional.all_gather_with_backprop(
+                        text_embeddings
+                    )
                 )
             else:
                 image_embeddings_all = [
@@ -2328,7 +2334,10 @@ class FlavaForPreTraining(FlavaPreTrainedModel):
                 mmm_text_logits,
             )
             if return_loss and not flava_losses.all_none():
-                output = (total_loss, flava_losses,) + output
+                output = (
+                    total_loss,
+                    flava_losses,
+                ) + output
 
             # Filter None as transformer by default won't handle it
             return tuple(x for x in output if x is None)

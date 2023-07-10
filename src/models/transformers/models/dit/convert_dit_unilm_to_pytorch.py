@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -298,7 +298,8 @@ if __name__ == "__main__":
         help="Path to the folder to output PyTorch model.",
     )
     parser.add_argument(
-        "--push_to_hub", action="store_true",
+        "--push_to_hub",
+        action="store_true",
     )
     args = parser.parse_args()
     convert_dit_checkpoint(

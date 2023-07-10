@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 NllbMoe Authors and HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -192,7 +192,7 @@ def load_balancing_loss_func(
     router_prob_per_group_and_expert = torch.mean(router_probs, axis=-2)
     return torch.mean(
         tokens_per_group_and_expert * router_prob_per_group_and_expert
-    ) * (num_experts ** 2)
+    ) * (num_experts**2)
 
 
 # Copied from transformers.models.m2m_100.modeling_m2m_100.M2M100SinusoidalPositionalEmbedding
@@ -615,7 +615,7 @@ class NllbMoeAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -1166,7 +1166,9 @@ class NllbMoeEncoder(NllbMoePreTrainedModel):
             self.embed_tokens.weight = embed_tokens.weight
 
         self.embed_positions = NllbMoeSinusoidalPositionalEmbedding(
-            config.max_position_embeddings, embed_dim, self.padding_idx,
+            config.max_position_embeddings,
+            embed_dim,
+            self.padding_idx,
         )
         sparse_step = config.encoder_sparse_step
         self.layers = nn.ModuleList()
@@ -1382,7 +1384,9 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
             self.embed_tokens.weight = embed_tokens.weight
 
         self.embed_positions = NllbMoeSinusoidalPositionalEmbedding(
-            config.max_position_embeddings, config.d_model, self.padding_idx,
+            config.max_position_embeddings,
+            config.d_model,
+            self.padding_idx,
         )
 
         sparse_step = config.decoder_sparse_step

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -150,5 +150,8 @@ class Data2VecTextOnnxConfig(OnnxConfig):
         else:
             dynamic_axis = {0: "batch", 1: "sequence"}
         return OrderedDict(
-            [("input_ids", dynamic_axis), ("attention_mask", dynamic_axis),]
+            [
+                ("input_ids", dynamic_axis),
+                ("attention_mask", dynamic_axis),
+            ]
         )

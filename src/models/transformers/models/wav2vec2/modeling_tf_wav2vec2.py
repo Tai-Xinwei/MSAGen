@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The Fairseq Authors and the HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -118,7 +118,10 @@ def _scatter_values_on_batch_indices(values, batch_indices, output_shape):
 
 
 def _compute_mask_indices(
-    shape: Tuple[int, int], mask_prob: float, mask_length: int, min_masks: int = 0,
+    shape: Tuple[int, int],
+    mask_prob: float,
+    mask_length: int,
+    min_masks: int = 0,
 ) -> tf.Tensor:
     """
     Computes random mask spans for a given shape
@@ -702,7 +705,7 @@ class TFWav2Vec2Attention(tf.keras.layers.Layer):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
         self.k_proj = tf.keras.layers.Dense(embed_dim, use_bias=bias, name="k_proj")
