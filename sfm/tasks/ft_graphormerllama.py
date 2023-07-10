@@ -9,7 +9,7 @@ import torch
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from data.mol_data.moltext_dataset import SupervisedProcessedData
+import data.mol_data.haha
 from models.transformers import AutoTokenizer, PreTrainedTokenizer
 
 # from models.transformers.models.llama.configuration_llama import LlamaConfig

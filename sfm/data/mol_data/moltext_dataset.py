@@ -17,6 +17,7 @@ from typing import Dict, Optional, Sequence
 import lmdb
 import numpy as np
 import transformers
+from data.mol_data.collator import collator_copilot, collator_copilot_multi_mol
 from data.mol_data.wrapper import smiles2graph
 from torch.utils.data import Dataset
 from torch_geometric.data import Data, InMemoryDataset
@@ -24,8 +25,6 @@ from tqdm import tqdm
 from utils.jload import jload
 
 from sfm.data.mol_data import algos
-
-from .collator import collator_copilot, collator_copilot_multi_mol
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "[PAD]"
@@ -737,3 +736,7 @@ class SupervisedProcessedData(Dataset):
             multi_hop_max_dist=self.multi_hop_max_dist,
             spatial_pos_max=self.spatial_pos_max,
         )
+
+
+if __name__ == "__main__":
+    pass

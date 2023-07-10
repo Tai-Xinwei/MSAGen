@@ -16,10 +16,6 @@ from torch.utils.data import DataLoader, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
 from torch_geometric.data import Data, InMemoryDataset
 from tqdm import tqdm
-
-# from .ogb_datasets import OGBDatasetLookupTable
-# from .pyg_datasets import PYGDatasetLookupTable, GraphormerPYGDataset
-# from ..utils.FairseqDataset import FairseqDataset
 from utils.move_to_device import move_to_device
 
 from .collator import collator, collator_3d, collator_3d_pp, collator_ft
@@ -30,11 +26,6 @@ from .wrapper import (
     preprocess_item,
     smiles2graph,
 )
-
-# from nvidia.dali.pipeline import Pipeline
-# import nvidia.dali.ops as ops
-# from nvidia.dali.plugin.pytorch import DALIClassificationIterator
-# from nvidia.dali.plugin.base_iterator import LastBatchPolicy
 
 
 class PCQPreprocessedData:
@@ -211,47 +202,6 @@ class BatchedDataDataset(torch.utils.data.Dataset):
         item = self.dataset[int(index)]
         return item
 
-        # return next(self.generator())
-
-    # def __iter__(self):
-    #     # return self.generator()
-    #     batch = []
-    #     for data in self.dataset:
-    #         batch.append(data)
-    #         if len(batch) == 128:
-    #             yield self.collater(batch)
-    #             batch = []
-
-    # def _infinite(self):
-    #     #train_list_path = os.path.join(cfg.dataset_dir, "list", "pdb40_train.txt")
-    #     # train_list_path = '/home/jiaxi/EDP/DF/v1.d256x8/protein_correct.txt'
-    #     # train_list = open(train_list_path).readlines()
-    #     train_list = [_.strip() for _ in self.dataset]
-    #     ids = np.arange(len(train_list))
-    #     while True:
-    #         c = np.random.choice(ids) #generate a random integer from 0~ids-1
-    #         #c = train_list.index('1h0a_A')
-    #         yield train_list[c]
-
-    # def generator(self):
-    #     batch = []
-    #     for data in self.dataset:
-    #         batch.append(data)
-    #         if len(batch) == 128:
-    #             yield batch
-    #             batch = []
-
-    # def generator(self):
-    #     for data in self.dataset:
-    #         batch_samples = []
-    #         while len(batch_samples) > 0:
-    #             yield batch_samples.pop()
-
-    # def generator(self):
-    # while True:
-    # idx = np.random.choice(len(self.dataset), 1)
-    # yield self.dataset[int(idx)]
-
     def __len__(self):
         return len(self.dataset)
 
@@ -383,36 +333,6 @@ class DSDataLoader:
         return self.dataloader
 
 
-# class CacheAllDataset(BaseWrapperDataset):
-#     def __init__(self, dataset):
-#         super().__init__(dataset)
-
-#     @lru_cache(maxsize=None)
-#     def __getitem__(self, index):
-#         return self.dataset[index]
-
-#     def collater(self, samples):
-#         return self.dataset.collater(samples)
-
-# class EpochShuffleDataset(BaseWrapperDataset):
-#     def __init__(self, dataset, size, seed):
-#         super().__init__(dataset)
-#         self.size = size
-#         self.seed = seed
-#         self.set_epoch(1)
-
-#     def set_epoch(self, epoch):
-#         with data_utils.numpy_seed(self.seed + epoch - 1):
-#             self.sort_order = np.random.permutation(self.size)
-
-#     def ordered_indices(self):
-#         return self.sort_order
-
-#     @property
-#     def can_reuse_epoch_itr_across_epochs(self):
-#         return False
-
-
 class TargetDataset:
     def __init__(self, dataset):
         super().__init__()
@@ -427,28 +347,6 @@ class TargetDataset:
 
     def collater(self, samples):
         return torch.stack(samples, dim=0)
-
-
-# class TargetPM6Dataset(FairseqDataset):
-#     def __init__(self, dataset):
-#         super().__init__()
-#         self.dataset = dataset
-
-#     @lru_cache(maxsize=16)
-#     def __getitem__(self, index):
-#         return torch.Tensor((
-#             self.dataset[index].y1, self.dataset[index].y2,
-#             self.dataset[index].y3, self.dataset[index].y4,
-#             self.dataset[index].y5, self.dataset[index].y6,
-#             self.dataset[index].y7, self.dataset[index].y8,
-#             self.dataset[index].y9, self.dataset[index].y10
-#         ))
-
-#     def __len__(self):
-#         return len(self.dataset)
-
-#     def collater(self, samples):
-#         return torch.stack(samples, dim=0)
 
 
 class data_prefetcher:
@@ -474,11 +372,6 @@ class data_prefetcher:
         batch = self.batch
         self.preload()
         return batch
-
-
-# class DataLoaderX(torch.utils.data.dataloader.DataLoader):
-#         def __iter__(self):
-#             return BackgroundGenerator(super().__iter__())
 
 
 class _RepeatSampler(object):
@@ -510,84 +403,6 @@ class myDataLoader(torch.utils.data.dataloader.DataLoader):
         for i in range(len(self)):
             yield next(self.iterator)
 
-
-# class TrainPipeline(Pipeline):
-#     def __init__(self, dataset, batch_size, num_threads, device_id, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
-#         super(TrainPipeline, self).__init__(batch_size, num_threads, device_id, prefetch_queue_depth=4)
-#         mode = 'gpu'
-#         # self.decode = ops.decoders.Image(device='mixed')
-#         self.max_node = max_node
-#         self.multi_hop_max_dist = multi_hop_max_dist
-#         self.spatial_pos_max = spatial_pos_max
-
-
-#     def define_graph(self, items):
-#         items = [item for item in items if item is not None and item.x.size(0) <= self.max_node]
-#         items = [(item.idx, item.attn_bias, item.attn_edge_type, item.spatial_pos, item.in_degree,
-#                 item.out_degree, item.x, item.edge_input[:, :, :self.multi_hop_max_dist, :], item.y, item.pos, item.node_mask
-#                 ) for item in items]
-
-#         idxs, attn_biases, attn_edge_types, spatial_poses, in_degrees, out_degrees, xs, edge_inputs, ys, poses, node_masks = zip(*items)
-
-
-#         for idx, _ in enumerate(attn_biases):
-#             attn_biases[idx][1:, 1:][spatial_poses[idx] >= self.spatial_pos_max] = float('-inf')
-
-#         max_node_num = max(i.size(0) for i in xs)
-#         max_dist = max(i.size(-2) for i in edge_inputs)
-#         y = torch.cat(ys)
-#         x = torch.cat([pad_2d_unsqueeze(i, max_node_num) for i in xs])
-#         edge_input = torch.cat([pad_3d_unsqueeze(i, max_node_num, max_node_num, max_dist) for i in edge_inputs])
-#         attn_bias = torch.cat([pad_attn_bias_unsqueeze(
-#             i, max_node_num + 1) for i in attn_biases])
-#         attn_edge_type = torch.cat(
-#             [pad_edge_type_unsqueeze(i, max_node_num) for i in attn_edge_types])
-#         spatial_pos = torch.cat([pad_spatial_pos_unsqueeze(i, max_node_num)
-#                             for i in spatial_poses])
-#         in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num)
-#                             for i in in_degrees])
-
-#         pos = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in poses])
-#         node_mask = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in node_masks])
-
-#         # @ Roger added
-#         node_type_edges = []
-#         for idx in range(len(items)):
-#             node_atom_type = items[idx][6][:, 0]
-#             n_nodes = items[idx][6].shape[0]
-#             node_atom_i = node_atom_type.unsqueeze(-1).repeat(1, n_nodes)
-#             node_atom_i = pad_spatial_pos_unsqueeze(node_atom_i, max_node_num).unsqueeze(-1)
-#             node_atom_j = node_atom_type.unsqueeze(0).repeat(n_nodes, 1)
-#             node_atom_j = pad_spatial_pos_unsqueeze(node_atom_j, max_node_num).unsqueeze(-1)
-#             node_atom_edge = torch.cat([node_atom_i, node_atom_j], dim=-1)
-#             node_atom_edge = convert_to_single_emb(node_atom_edge)
-#             node_type_edges.append(node_atom_edge.long())
-
-#         node_type_edge = torch.cat(node_type_edges)
-
-#         return dict(
-#             idx=torch.LongTensor(idxs),
-#             # idx=idx_n,
-#             attn_bias=attn_bias,
-#             attn_edge_type=attn_edge_type,
-#             spatial_pos=spatial_pos,
-#             in_degree=in_degree,
-#             out_degree=in_degree, # for undirected graph
-#             x=x,
-#             edge_input=edge_input,
-#             y=y,
-#             pos=pos,
-#             node_type_edge=node_type_edge,
-#             node_mask=node_mask,
-#         )
-
-# def get_dali_iter(dataset, mode, batch_size, num_threads, device_id):
-#     pipe_train = TrainPipeline(dataset, batch_size, num_threads, device_id, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20)
-#     pipe_train.build()
-#     # DALIClassificationIterator: Returns 2 outputs (data and label) in the form of PyTorch’s Tensor, 即DataLoader
-#     train_loader = DALIClassificationIterator(pipe_train, size=pipe_train.epoch_size('Reader'),
-#                                                 last_batch_policy=LastBatchPolicy.PARTIAL, auto_reset=True)
-#     return train_loader
 
 if __name__ == "__main__":
     dataset = PCQPreprocessedData("PCQM4M-LSC-V2")
