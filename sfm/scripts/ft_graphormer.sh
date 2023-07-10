@@ -177,7 +177,7 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 #     --deepspeed --deepspeed_config ./config_file/ds_config_ft.json
 # fi
 
-deepspeed --num_gpu=1 src/tasks/ft_graphormer.py \
+deepspeed --num_gpu=1 sfm/tasks/ft_graphormer.py \
   --num-classes 1 \
   --encoder_attention_heads $num_head \
   --encoder_layers $layers \

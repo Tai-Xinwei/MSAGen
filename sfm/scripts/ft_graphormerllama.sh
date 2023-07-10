@@ -29,11 +29,17 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=60000
 
-[ -z "${data_path}" ] && data_path='/home/peiran/FMproj/tdc_data'
-# [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
+[ -z "${data_path}" ] && data_path='/home/peiran/FMproj/chemical-copilot'
+[ -z "${dataset_names}" ] && dataset_names='mt-data-1m'
+[ -z "${dataset_splits}" ] && dataset_splits='train'
+
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${output_path}" ] && output_path='/home/peiran/FMproj/output/'
-# [ -z "${dataset_name}" ] && dataset_name="PCQM4M-LSC-V2-3D"
+[ -z "${smiles_dict_path}" ] && smiles_dict_path="/home/peiran/FMproj/chemical-copilot/mol2idx_dict.jsonl"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/MetaLLM-converted/7B"
+[ -z "${mol_size_path}" ] && mol_size_path="/home/peiran/FMproj/chemical-copilot/mol_size_dict.pkl"
+
+
 [ -z "${dataset_name}" ] && dataset_name="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
@@ -177,7 +183,7 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 #     --deepspeed --deepspeed_config ./config_file/ds_config_ft.json
 # fi
 
-deepspeed --num_gpu=1 src/tasks/ft_graphormerllama.py \
+deepspeed --num_gpu=1 sfm/tasks/ft_graphormerllama.py \
   --num-classes 1 \
   --encoder_attention_heads $num_head \
   --encoder_layers $layers \
@@ -201,8 +207,13 @@ deepspeed --num_gpu=1 src/tasks/ft_graphormerllama.py \
   --total_num_steps $total_num_steps \
   --warmup_num_steps $warmup_num_steps \
   --loadcheck_path $loadcheck_path \
-  --deepspeed --deepspeed_config ./config_file/ds_config_ft.json
-
+  --deepspeed --deepspeed_config ./config_file/ds_config_ft.json \
+  --smiles_dict_path $smiles_dict_path \
+  --mol_size_path $mol_size_path \
+  --model_name_or_path $model_name_or_path \
+  --dataset_names $dataset_names \
+  --dataset_splits $dataset_splits \
+  --llm_model_name_or_path $llm_model_name_or_path
 
 sleep inf
 sleep inf

@@ -71,17 +71,9 @@ class Trainer:
                     batch_data, device=self.args.local_rank, non_blocking=True
                 )
 
-                model_output = self.model_engine(batch_data)
-                logits, node_output = model_output[0], model_output[1]
+                logits = self.model_engine(batch_data)
 
-                if self.args.add_3d:
-                    loss = self.criterion_3d(batch_data, logits, node_output)
-                else:
-                    logits = logits[:, 0, :]
-                    targets = batch_data["y"]
-                    loss = self.criterion_2d(
-                        logits.squeeze(-1), targets[: logits.size(0)]
-                    )
+                loss = self.LlmLoss(logits, batch_data["labels"])
 
                 self.model_engine.backward(loss)
                 self.model_engine.step()
@@ -102,7 +94,5 @@ class Trainer:
 
                 global_step += 1
 
-            # path = os.path.join(self.args.output_path, "modelstate_epoch_{}_step_{}.pth".format(epoch, i))
-            # torch.save(self.model_engine.module.state_dict(), path)
         self.writer.flush()
         self.writer.close()

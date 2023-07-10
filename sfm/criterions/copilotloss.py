@@ -15,7 +15,7 @@ class CopilotCriterions(nn.Module):
         self.vocab_size = vocab_size
 
     def forward(self, output, label):
-        labels = label[0]
+        labels = label
         logits = output
 
         shift_logits = logits[..., :-1, :].contiguous()

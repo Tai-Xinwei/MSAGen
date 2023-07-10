@@ -163,7 +163,7 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # # # # # # # single node
 # # # # # deepspeed --force_multi --num_node=$OMPI_COMM_WORLD_SIZE --num_gpus=$n_gpu --hostfile $hostfile train.py \
 # deepspeed --num_gpus=$n_gpu train.py \
-CUDA_VISIBLE_DEVICES=0 deepspeed --num_gpus=1 src/tasks/pretrain_graphormer.py \
+CUDA_VISIBLE_DEVICES=0 deepspeed --num_gpus=1 sfm/tasks/pretrain_graphormer.py \
     --num-classes 128 \
     --encoder_attention_heads $num_head \
     --encoder_layers $layers \

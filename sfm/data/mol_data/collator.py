@@ -703,7 +703,7 @@ def collator_copilot(
     return (intput, label)
 
 
-def collator_copilot_multi_mol(
+def collator_copilot_multi_mol_PP(
     items,
     min_node=-1,
     max_node=512,
@@ -852,3 +852,126 @@ def collator_copilot_multi_mol(
     label = tuple(label)
 
     return (intput, label)
+
+
+def collator_copilot_multi_mol(
+    items,
+    min_node=-1,
+    max_node=512,
+    multi_hop_max_dist=20,
+    spatial_pos_max=20,
+    infer=False,
+    pad_token_id=32000,
+):
+    mol_items = []
+    num_mol_offsets = []
+    for item in items:
+        processed_mol_data = item["processed_mol_data"]
+        num_mol_offsets.append(len(mol_items))
+        mol_items.extend(processed_mol_data)
+    num_mol_offsets.append(len(mol_items))
+    num_mol_offsets = torch.tensor(num_mol_offsets)
+
+    mol_items = [
+        (
+            item.idx,
+            item.attn_bias,
+            item.attn_edge_type,
+            item.spatial_pos,
+            item.in_degree,
+            item.out_degree,
+            item.x,
+            item.edge_input[:, :, :multi_hop_max_dist, :],
+            item.y,
+            item.pos,
+            item.node_mask,
+        )
+        for item in mol_items
+    ]
+
+    (
+        idxs,
+        attn_biases,
+        attn_edge_types,
+        spatial_poses,
+        in_degrees,
+        out_degrees,
+        xs,
+        edge_inputs,
+        ys,
+        poses,
+        node_masks,
+    ) = zip(*mol_items)
+
+    for idx, _ in enumerate(attn_biases):
+        attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float("-inf")
+    max_node_num = max(i.size(0) for i in xs)
+    # max_node_num = 80
+    max_dist = max(i.size(-2) for i in edge_inputs)
+
+    x = torch.cat([pad_2d_unsqueeze(i, max_node_num) for i in xs])
+    edge_input = torch.cat(
+        [pad_3d_unsqueeze(i, max_node_num, max_node_num, max_dist) for i in edge_inputs]
+    )
+    attn_bias = torch.cat(
+        [pad_attn_bias_unsqueeze(i, max_node_num + 1) for i in attn_biases]
+    )
+    attn_edge_type = torch.cat(
+        [pad_edge_type_unsqueeze(i, max_node_num) for i in attn_edge_types]
+    )
+    spatial_pos = torch.cat(
+        [pad_spatial_pos_unsqueeze(i, max_node_num) for i in spatial_poses]
+    )
+    in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num) for i in in_degrees])
+
+    input_ids = [item["input_ids"] for item in items]
+    labels = [item["labels"] for item in items]
+    llm_mask = [item["llm_mask"] for item in items]
+
+    max_seq_len = max(len(i) for i in input_ids)
+    input_ids = torch.cat(
+        [
+            torch.cat(
+                [i, torch.ones(max_seq_len - len(i), dtype=i.dtype).fill_(pad_token_id)]
+            ).unsqueeze(0)
+            for i in input_ids
+        ]
+    )
+    labels = torch.cat(
+        [
+            torch.cat(
+                [i, torch.ones(max_seq_len - len(i), dtype=i.dtype).fill_(-100)]
+            ).unsqueeze(0)
+            for i in labels
+        ]
+    )
+    llm_mask = torch.cat([i.ne(pad_token_id).unsqueeze(0) for i in input_ids])
+
+    node_type_edges = []
+    for idx in range(len(mol_items)):
+        node_atom_type = mol_items[idx][6][:, 0]
+        n_nodes = mol_items[idx][6].shape[0]
+        node_atom_i = node_atom_type.unsqueeze(-1).repeat(1, n_nodes)
+        node_atom_i = pad_spatial_pos_unsqueeze(node_atom_i, max_node_num).unsqueeze(-1)
+        node_atom_j = node_atom_type.unsqueeze(0).repeat(n_nodes, 1)
+        node_atom_j = pad_spatial_pos_unsqueeze(node_atom_j, max_node_num).unsqueeze(-1)
+        node_atom_edge = torch.cat([node_atom_i, node_atom_j], dim=-1)
+        node_atom_edge = convert_to_single_emb(node_atom_edge)
+
+        node_type_edges.append(node_atom_edge.long())
+    node_type_edge = torch.cat(node_type_edges)
+
+    return dict(
+        idx=torch.LongTensor(idxs),
+        attn_bias=attn_bias,
+        attn_edge_type=attn_edge_type,
+        spatial_pos=spatial_pos,
+        in_degree=in_degree,
+        out_degree=in_degree,  # for undirected graph
+        x=x,
+        edge_input=edge_input,
+        node_type_edge=node_type_edge,
+        input_ids=input_ids,
+        labels=labels,
+        llm_mask=llm_mask,
+    )
