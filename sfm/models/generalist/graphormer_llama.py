@@ -28,9 +28,8 @@ class GraphormerLlamaModel:
     def __init__(
         self,
         args,
-        Llama_model_name_or_path: Optional[str] = None,
-        checkpoint_list: Optional[list] = None,
-        load_ckp: bool = False,
+        checkpointpth: Optional[list] = None,
+        load_ckp: Optional[bool] = False,
     ):
         super().__init__()
         self.args = args
@@ -54,7 +53,7 @@ class GraphormerLlamaModel:
 
         self.max_positions = args.max_positions
 
-        self.encoder = GraphormerSentenceEncoder(
+        self.graphormer_encoder = GraphormerSentenceEncoder(
             # < for graphormer
             num_atoms=args.num_atoms,
             num_in_degree=args.num_in_degree,
@@ -86,8 +85,8 @@ class GraphormerLlamaModel:
             args=args,
         )
 
-        Llama_config = LlamaConfig.from_pretrained(Llama_model_name_or_path)
-        self.decoder = AutoModelForCausalLM.from_pretrained(Llama_model_name_or_path)
+        self.decoder = LlamaForCausalLM.from_pretrained(args.llm_model_name_or_path)
+        Llama_config = LlamaConfig.from_pretrained(args.llm_model_name_or_path)
 
         adaptorconfig = self.init_adaptor_param(args, Llama_config)
         self.adaptor = Hybrid_emb(adaptorconfig)
@@ -102,7 +101,7 @@ class GraphormerLlamaModel:
         segment_labels=None,
     ) -> torch.Tensor:
         # generate mol_emb
-        mol_emb, _, _, _, mol_padding_mask = self.sentence_encoder(
+        mol_emb, _, _, _, mol_padding_mask = self.graphormer_encoder(
             batched_data,
             segment_labels=segment_labels,
             perturb=perturb,
@@ -132,7 +131,6 @@ class GraphormerLlamaModel:
 
     def init_adaptor_param(self, args, Llama_config):
         config = AdaptorConfig(
-            vocab_size=32001,
             hidden_size=Llama_config.hidden_size,
             intermediate_size=Llama_config.intermediate_size,
             num_attention_heads=Llama_config.num_attention_heads,
