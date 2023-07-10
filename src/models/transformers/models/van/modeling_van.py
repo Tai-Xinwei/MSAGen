@@ -360,13 +360,9 @@ class VanEncoder(nn.Module):
             for x in torch.linspace(0, config.drop_path_rate, sum(config.depths))
         ]
 
-        for num_stage, (
-            patch_size,
-            stride,
-            hidden_size,
-            depth,
-            mlp_expantion,
-            drop_path_rate,
+        for (
+            num_stage,
+            (patch_size, stride, hidden_size, depth, mlp_expantion, drop_path_rate,),
         ) in enumerate(
             zip(patch_sizes, strides, hidden_sizes, depths, mlp_ratios, drop_path_rates)
         ):

@@ -135,12 +135,7 @@ class CodeGenAttention(nn.Module):
         return tensor.view(new_shape)
 
     def _attn(
-        self,
-        query,
-        key,
-        value,
-        attention_mask=None,
-        head_mask=None,
+        self, query, key, value, attention_mask=None, head_mask=None,
     ):
         # compute causal mask from causal mask buffer
         query_length, key_length = query.size(-2), key.size(-2)

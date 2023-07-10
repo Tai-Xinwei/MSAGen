@@ -440,9 +440,7 @@ class LayoutLMv2Encoder(nn.Module):
     def _calculate_1d_position_embeddings(self, hidden_states, position_ids):
         rel_pos_mat = position_ids.unsqueeze(-2) - position_ids.unsqueeze(-1)
         rel_pos = relative_position_bucket(
-            rel_pos_mat,
-            num_buckets=self.rel_pos_bins,
-            max_distance=self.max_rel_pos,
+            rel_pos_mat, num_buckets=self.rel_pos_bins, max_distance=self.max_rel_pos,
         )
         rel_pos = nn.functional.one_hot(
             rel_pos, num_classes=self.rel_pos_onehot_size
@@ -550,11 +548,7 @@ class LayoutLMv2Encoder(nn.Module):
         if not return_dict:
             return tuple(
                 v
-                for v in [
-                    hidden_states,
-                    all_hidden_states,
-                    all_self_attentions,
-                ]
+                for v in [hidden_states, all_hidden_states, all_self_attentions,]
                 if v is not None
             )
         return BaseModelOutput(
@@ -1051,9 +1045,7 @@ class LayoutLMv2Model(LayoutLMv2PreTrainedModel):
         )
 
         visual_emb = self._calc_img_embeddings(
-            image=image,
-            bbox=visual_bbox,
-            position_ids=visual_position_ids,
+            image=image, bbox=visual_bbox, position_ids=visual_position_ids,
         )
         final_emb = torch.cat([text_layout_emb, visual_emb], dim=1)
 
@@ -1222,9 +1214,7 @@ class LayoutLMv2ForSequenceClassification(LayoutLMv2PreTrainedModel):
         ).repeat(input_shape[0], 1)
 
         initial_image_embeddings = self.layoutlmv2._calc_img_embeddings(
-            image=image,
-            bbox=visual_bbox,
-            position_ids=visual_position_ids,
+            image=image, bbox=visual_bbox, position_ids=visual_position_ids,
         )
 
         outputs = self.layoutlmv2(

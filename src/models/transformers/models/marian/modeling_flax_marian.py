@@ -536,10 +536,7 @@ class FlaxMarianEncoderLayerCollection(nn.Module):
                 layer_outputs = (None, None)
             else:
                 layer_outputs = encoder_layer(
-                    hidden_states,
-                    attention_mask,
-                    output_attentions,
-                    deterministic,
+                    hidden_states, attention_mask, output_attentions, deterministic,
                 )
             hidden_states = layer_outputs[0]
             if output_attentions:
@@ -1659,8 +1656,7 @@ FLAX_MARIAN_MT_DOCSTRING = """
 """
 
 overwrite_call_docstring(
-    FlaxMarianMTModel,
-    MARIAN_INPUTS_DOCSTRING + FLAX_MARIAN_MT_DOCSTRING,
+    FlaxMarianMTModel, MARIAN_INPUTS_DOCSTRING + FLAX_MARIAN_MT_DOCSTRING,
 )
 append_replace_return_docstrings(
     FlaxMarianMTModel, output_type=FlaxSeq2SeqLMOutput, config_class=_CONFIG_FOR_DOC

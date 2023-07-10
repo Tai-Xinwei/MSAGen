@@ -69,7 +69,7 @@ def router_z_loss_func(router_logits: torch.Tensor) -> float:
     """
     num_groups, tokens_per_group, _ = router_logits.shape
     log_z = torch.logsumexp(router_logits, dim=-1)
-    z_loss = log_z**2
+    z_loss = log_z ** 2
     return torch.sum(z_loss) / (num_groups * tokens_per_group)
 
 
@@ -114,7 +114,7 @@ def load_balancing_loss_func(
     router_prob_per_group_and_expert = torch.mean(router_probs, axis=-2)
     return torch.mean(
         tokens_per_group_and_expert * router_prob_per_group_and_expert
-    ) * (num_experts**2)
+    ) * (num_experts ** 2)
 
 
 class GPTSanJapaneseDenseActDense(nn.Module):
@@ -404,7 +404,7 @@ class GPTSanJapaneseAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim**-0.5
+        self.scaling = self.head_dim ** -0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -825,10 +825,10 @@ class GPTSanJapanesePreTrainedModel(PreTrainedModel):
             module.router.classifier.weight.data.normal_(mean=0.0, std=factor * 1)
             for idx in range(self.config.num_experts):
                 module.experts[f"expert_{idx}"].wi.weight.data.normal_(
-                    mean=0.0, std=factor * (d_model**-0.5)
+                    mean=0.0, std=factor * (d_model ** -0.5)
                 )
                 module.experts[f"expert_{idx}"].wo.weight.data.normal_(
-                    mean=0.0, std=factor * (d_model**-0.5)
+                    mean=0.0, std=factor * (d_model ** -0.5)
                 )
 
     def _set_gradient_checkpointing(self, module, value=False):
@@ -1477,6 +1477,7 @@ class GPTSanJapaneseForConditionalGeneration(GPTSanJapanesePreTrainedModel):
                 router_logits, expert_indexes = router_output
                 total_router_logits.append(router_logits)
                 total_expert_indexes.append(expert_indexes)
-        return torch.cat(total_router_logits, dim=1), torch.cat(
-            total_expert_indexes, dim=1
+        return (
+            torch.cat(total_router_logits, dim=1),
+            torch.cat(total_expert_indexes, dim=1),
         )

@@ -327,7 +327,7 @@ class GraphormerMultiheadAttention(nn.Module):
         self.head_dim = config.embedding_dim // config.num_attention_heads
         if not (self.head_dim * config.num_attention_heads == self.embedding_dim):
             raise AssertionError("The embedding_dim must be divisible by num_heads.")
-        self.scaling = self.head_dim**-0.5
+        self.scaling = self.head_dim ** -0.5
 
         self.self_attention = True  # config.self_attention
         if not (self.self_attention):

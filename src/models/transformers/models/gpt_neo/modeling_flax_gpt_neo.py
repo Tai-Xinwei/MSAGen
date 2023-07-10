@@ -605,9 +605,7 @@ class FlaxGPTNeoModule(nn.Module):
             stddev=self.config.initializer_range
         )
         self.wte = nn.Embed(
-            self.config.vocab_size,
-            self.embed_dim,
-            embedding_init=embedding_init,
+            self.config.vocab_size, self.embed_dim, embedding_init=embedding_init,
         )
         self.wpe = nn.Embed(
             self.config.max_position_embeddings,

@@ -18,7 +18,7 @@ from src.modules.hybrid_emb import Hybrid_emb
 from src.sfm_logging.loggers import sfm_logger as logger
 
 
-class GraphormerLlamaModel(PreTrainedModel):
+class GraphormerLlamaModel:
     """
     Class for training a Masked Language Model. It also supports an
     additional sentence level prediction if the sent-loss argument is set.
@@ -27,12 +27,20 @@ class GraphormerLlamaModel(PreTrainedModel):
     def __init__(
         self,
         args,
-        Llamma_config: LlamaConfig,
-        checkpoint_list: list,
+        model_name_or_path: Optional[str] = None,
+        Llamma_config: Optional[LlamaConfig] = None,
+        checkpoint_list: Optional[list] = None,
         load_ckp: bool = False,
     ):
-        super(self, GraphormerLlamaModel).__init__(Llamma_config)
+        super().__init__()
         self.args = args
+
+        assert (
+            model_name_or_path is not None or Llamma_config is not None
+        ), "You have to specify either a pretrained model name/path or a configuration."
+        assert (
+            model_name_or_path is None or Llamma_config is None
+        ), "You cannot specify both a pretrained model name/path and a configuration."
 
         # if specified then apply bert initialization on the model. We need
         # to explictly call this to make sure that the output embeddings
@@ -87,9 +95,12 @@ class GraphormerLlamaModel(PreTrainedModel):
 
         self.adaptor = Hybrid_emb(Llamma_config)
 
-        self.decoder = LlamaForCausalLM(Llamma_config)
+        if Llamma_config is not None:
+            self.decoder = LlamaForCausalLM(Llamma_config)
+        else:
+            self.decoder = AutoModelForCausalLM.from_pretrained(model_name_or_path)
 
-    def load_state_dict(self, graphormer_ckppth, llama_ckppth, strict=True):
+    def load_state_dict(self, graphormer_ckppth, llama_ckppth=None, strict=True):
         pass
 
     def forward(
@@ -98,21 +109,32 @@ class GraphormerLlamaModel(PreTrainedModel):
         perturb=None,
         segment_labels=None,
     ) -> torch.Tensor:
-        x, _, _, _, padding_mask = self.sentence_encoder(
+        # generate mol_emb
+        mol_emb, _, _, _, mol_padding_mask = self.sentence_encoder(
             batched_data,
             segment_labels=segment_labels,
             perturb=perturb,
         )
 
+        # generate text_emb
+        text_embeds = self.decoder.get_input_embeddings()(batched_data["input_ids"])
+        text_paddding_mask = batched_data["attention_mask"]
+
+        # mix embeddings
         inputs_embeds, attention_mask, position_ids = self.adaptor(
-            x, padding_mask, batched_data
+            mol_emb,
+            mol_padding_mask,
+            text_embeds,
+            text_paddding_mask,
+            batched_data["input_ids"],
         )
 
+        # decode
         logits = self.decoder(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             position_ids=position_ids,
-        )
+        )[0]
 
         return logits
 

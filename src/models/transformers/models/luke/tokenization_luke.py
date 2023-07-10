@@ -167,10 +167,10 @@ def bytes_to_unicode():
     )
     cs = bs[:]
     n = 0
-    for b in range(2**8):
+    for b in range(2 ** 8):
         if b not in bs:
             bs.append(b)
-            cs.append(2**8 + n)
+            cs.append(2 ** 8 + n)
             n += 1
     cs = [chr(n) for n in cs]
     return dict(zip(bs, cs))
@@ -925,9 +925,9 @@ class LukeTokenizer(PreTrainedTokenizer):
 
             entity_spans, entity_spans_pair = None, None
             if batch_entity_spans_or_entity_spans_pairs is not None:
-                entity_spans_or_entity_spans_pairs = (
-                    batch_entity_spans_or_entity_spans_pairs[index]
-                )
+                entity_spans_or_entity_spans_pairs = batch_entity_spans_or_entity_spans_pairs[
+                    index
+                ]
                 if len(entity_spans_or_entity_spans_pairs) > 0 and isinstance(
                     entity_spans_or_entity_spans_pairs[0], list
                 ):
@@ -1172,9 +1172,9 @@ class LukeTokenizer(PreTrainedTokenizer):
                 )
 
             for (
-                entity_token_start,
-                entity_token_end,
-            ), special_token_id in token_span_with_special_token_ids:
+                (entity_token_start, entity_token_end,),
+                special_token_id,
+            ) in token_span_with_special_token_ids:
                 first_ids = (
                     first_ids[:entity_token_end]
                     + [special_token_id]

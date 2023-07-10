@@ -487,8 +487,7 @@ class FlaxResNetEncoder(nn.Module):
             return tuple(v for v in [hidden_state, hidden_states] if v is not None)
 
         return FlaxBaseModelOutputWithNoAttention(
-            last_hidden_state=hidden_state,
-            hidden_states=hidden_states,
+            last_hidden_state=hidden_state, hidden_states=hidden_states,
         )
 
 
@@ -596,10 +595,7 @@ class FlaxResNetModule(nn.Module):
         self.encoder = FlaxResNetEncoder(self.config, dtype=self.dtype)
 
         # Adaptive average pooling used in resnet
-        self.pooler = partial(
-            nn.avg_pool,
-            padding=((0, 0), (0, 0)),
-        )
+        self.pooler = partial(nn.avg_pool, padding=((0, 0), (0, 0)),)
 
     def __call__(
         self,

@@ -863,9 +863,7 @@ class FlaxBertPreTrainedModel(FlaxPreTrainedModel):
 
     def enable_gradient_checkpointing(self):
         self._module = self.module_class(
-            config=self.config,
-            dtype=self.dtype,
-            gradient_checkpointing=True,
+            config=self.config, dtype=self.dtype, gradient_checkpointing=True,
         )
 
     def init_weights(
@@ -1444,10 +1442,7 @@ class FlaxBertForSequenceClassificationModule(nn.Module):
             else self.config.hidden_dropout_prob
         )
         self.dropout = nn.Dropout(rate=classifier_dropout)
-        self.classifier = nn.Dense(
-            self.config.num_labels,
-            dtype=self.dtype,
-        )
+        self.classifier = nn.Dense(self.config.num_labels, dtype=self.dtype,)
 
     def __call__(
         self,

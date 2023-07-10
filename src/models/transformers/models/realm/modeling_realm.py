@@ -2143,6 +2143,5 @@ class RealmForOpenQA(RealmPreTrainedModel):
             return reader_output, predicted_answer_ids
 
         return RealmForOpenQAOutput(
-            reader_output=reader_output,
-            predicted_answer_ids=predicted_answer_ids,
+            reader_output=reader_output, predicted_answer_ids=predicted_answer_ids,
         )

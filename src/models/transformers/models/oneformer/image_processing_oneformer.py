@@ -489,10 +489,7 @@ class OneFormerImageProcessor(BaseImageProcessor):
                 f" {size.keys()}."
             )
         size = get_oneformer_resize_output_image_size(
-            image=image,
-            size=size,
-            max_size=max_size,
-            default_to_square=False,
+            image=image, size=size, max_size=max_size, default_to_square=False,
         )
         image = resize(image, size=size, resample=resample, data_format=data_format)
         return image

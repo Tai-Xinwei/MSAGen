@@ -527,7 +527,5 @@ class MobileNetV1ForImageClassification(MobileNetV1PreTrainedModel):
             return ((loss,) + output) if loss is not None else output
 
         return ImageClassifierOutputWithNoAttention(
-            loss=loss,
-            logits=logits,
-            hidden_states=outputs.hidden_states,
+            loss=loss, logits=logits, hidden_states=outputs.hidden_states,
         )

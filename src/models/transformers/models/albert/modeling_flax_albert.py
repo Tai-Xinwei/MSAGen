@@ -948,10 +948,7 @@ class FlaxAlbertForSequenceClassificationModule(nn.Module):
             else self.config.hidden_dropout_prob
         )
         self.dropout = nn.Dropout(rate=classifier_dropout)
-        self.classifier = nn.Dense(
-            self.config.num_labels,
-            dtype=self.dtype,
-        )
+        self.classifier = nn.Dense(self.config.num_labels, dtype=self.dtype,)
 
     def __call__(
         self,

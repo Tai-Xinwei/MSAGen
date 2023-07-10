@@ -147,8 +147,7 @@ def set_model_weights_in_torch(weights, torch_model, hidden_size):
     # word embeds
     word_embeddings = np.asarray(weights[1])
     set_param(
-        torch_model_reformer.embeddings.word_embeddings,
-        torch.tensor(word_embeddings),
+        torch_model_reformer.embeddings.word_embeddings, torch.tensor(word_embeddings),
     )
 
     if isinstance(weights[3], tuple):

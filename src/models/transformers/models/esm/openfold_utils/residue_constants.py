@@ -417,8 +417,7 @@ van_der_waals_radius: Dict[str, float] = {
 
 Bond = collections.namedtuple("Bond", ["atom1_name", "atom2_name", "length", "stddev"])
 BondAngle = collections.namedtuple(
-    "BondAngle",
-    ["atom1_name", "atom2_name", "atom3name", "angle_rad", "stddev"],
+    "BondAngle", ["atom1_name", "atom2_name", "atom3name", "angle_rad", "stddev"],
 )
 
 
@@ -516,8 +515,8 @@ def load_stereo_chemical_props() -> (
             # c^2 = a^2 + b^2 - 2ab*cos(gamma).
             gamma = ba.angle_rad
             length = np.sqrt(
-                bond1.length**2
-                + bond2.length**2
+                bond1.length ** 2
+                + bond2.length ** 2
                 - 2 * bond1.length * bond2.length * np.cos(gamma)
             )
 
@@ -1060,8 +1059,7 @@ _make_rigid_group_constants()
 
 
 def make_atom14_dists_bounds(
-    overlap_tolerance: float = 1.5,
-    bond_length_tolerance_factor: int = 15,
+    overlap_tolerance: float = 1.5, bond_length_tolerance_factor: int = 15,
 ) -> Dict[str, np.ndarray]:
     """compute upper and lower bounds for bonds to assess violations."""
     restype_atom14_bond_lower_bound = np.zeros([21, 14, 14], np.float32)

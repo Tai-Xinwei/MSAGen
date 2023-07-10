@@ -1037,9 +1037,7 @@ def test(
             ), "The pixel decoder feature are not the same"
 
         # Let's test the full model
-        tr_complete = T.Compose(
-            [T.Resize((384, 384)), T.ToTensor()],
-        )
+        tr_complete = T.Compose([T.Resize((384, 384)), T.ToTensor()],)
         y = (tr_complete(im) * 255.0).to(torch.int).float()
 
         # modify original Mask2Former code to return mask and class logits

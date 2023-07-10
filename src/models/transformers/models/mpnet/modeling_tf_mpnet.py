@@ -540,8 +540,7 @@ class TFMPNetEncoder(tf.keras.layers.Layer):
         relative_position = memory_position - context_position  # shape (qlen, klen)
 
         rp_bucket = self._relative_position_bucket(
-            relative_position,
-            num_buckets=self.relative_attention_num_buckets,
+            relative_position, num_buckets=self.relative_attention_num_buckets,
         )
         values = tf.gather(
             self.relative_attention_bias, rp_bucket
@@ -615,10 +614,7 @@ class TFMPNetMainLayer(tf.keras.layers.Layer):
             attention_mask = tf.fill(input_shape, 1)
 
         embedding_output = self.embeddings(
-            input_ids,
-            position_ids,
-            inputs_embeds,
-            training=training,
+            input_ids, position_ids, inputs_embeds, training=training,
         )
 
         # We create a 3D attention mask from a 2D tensor mask.
@@ -668,10 +664,7 @@ class TFMPNetMainLayer(tf.keras.layers.Layer):
         pooled_output = self.pooler(sequence_output)
 
         if not return_dict:
-            return (
-                sequence_output,
-                pooled_output,
-            ) + encoder_outputs[1:]
+            return (sequence_output, pooled_output,) + encoder_outputs[1:]
 
         return TFBaseModelOutputWithPooling(
             last_hidden_state=sequence_output,

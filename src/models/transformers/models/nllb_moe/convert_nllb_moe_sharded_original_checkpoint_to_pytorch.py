@@ -168,10 +168,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     metadata, index = shard_on_the_fly(
-        args.nllb_moe_checkpoint_path,
-        args.pytorch_dump_folder_path,
-        128,
-        args.dtype,
+        args.nllb_moe_checkpoint_path, args.pytorch_dump_folder_path, 128, args.dtype,
     )
 
     config = NllbMoeConfig.from_pretrained(

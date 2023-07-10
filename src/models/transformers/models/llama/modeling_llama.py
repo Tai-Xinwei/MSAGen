@@ -187,10 +187,7 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids):
 
 class LlamaMLP(nn.Module):
     def __init__(
-        self,
-        hidden_size: int,
-        intermediate_size: int,
-        hidden_act: str,
+        self, hidden_size: int, intermediate_size: int, hidden_act: str,
     ):
         super().__init__()
         self.gate_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
@@ -344,8 +341,7 @@ class LlamaAttention(nn.Module):
             # print(attention_mask); exit()
             # attn_weights = attn_weights + attention_mask
             attn_weights = attn_weights.masked_fill(
-                attention_mask.to(torch.bool),
-                float("-inf"),
+                attention_mask.to(torch.bool), float("-inf"),
             )
             attn_weights = torch.max(
                 attn_weights, torch.tensor(torch.finfo(attn_weights.dtype).min)
@@ -473,8 +469,7 @@ class EmbedAttention(nn.Module):
             # print(attention_mask); exit()
             # attn_weights = attn_weights + attention_mask
             attn_weights = attn_weights.masked_fill(
-                attention_mask.to(torch.bool),
-                float("-inf"),
+                attention_mask.to(torch.bool), float("-inf"),
             )
             attn_weights = torch.max(
                 attn_weights, torch.tensor(torch.finfo(attn_weights.dtype).min)

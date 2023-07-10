@@ -657,12 +657,7 @@ def input_processing(func, config, **kwargs):
             in ["return_dict", "output_attentions", "output_hidden_states", "use_cache"]
         }
 
-        output.update(
-            booleans_processing(
-                config=config,
-                **boolean_dict,
-            )
-        )
+        output.update(booleans_processing(config=config, **boolean_dict,))
 
     return output
 
@@ -3450,7 +3445,7 @@ class TFSharedEmbeddings(tf.keras.layers.Layer):
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.initializer_range = (
-            hidden_size**-0.5 if initializer_range is None else initializer_range
+            hidden_size ** -0.5 if initializer_range is None else initializer_range
         )
 
     def build(self, input_shape):

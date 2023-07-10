@@ -512,8 +512,7 @@ class SEWDFeatureEncoder(nn.Module):
                     return custom_forward
 
                 hidden_states = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(conv_layer),
-                    hidden_states,
+                    create_custom_forward(conv_layer), hidden_states,
                 )
             else:
                 hidden_states = conv_layer(hidden_states)

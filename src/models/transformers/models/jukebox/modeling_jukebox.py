@@ -253,11 +253,7 @@ def get_mask(
             :, :-1, -key_value_length // blocks :
         ]
         mask = (
-            torch.nn.functional.pad(
-                mask,
-                (0, 0, 1, 0),
-                value=1,
-            )
+            torch.nn.functional.pad(mask, (0, 0, 1, 0), value=1,)
             .contiguous()
             .view(query_length, key_value_length)
         )
@@ -291,7 +287,7 @@ class JukeboxResConv1DBlock(nn.Module):
     def __init__(self, config, conv_width, depth=1, res_scale=1.0):
         super().__init__()
         hidden_dim = config.res_convolution_multiplier * conv_width
-        dilation = config.res_dilation_growth_rate**depth
+        dilation = config.res_dilation_growth_rate ** depth
         padding = dilation
 
         self.res_scale = res_scale
@@ -577,9 +573,9 @@ class JukeboxBottleneckBlock(nn.Module):
         # Calculate latent code latent_states
         codebook_weights = self.codebook.t()
         distance = (
-            torch.sum(latent_states**2, dim=-1, keepdim=True)
+            torch.sum(latent_states ** 2, dim=-1, keepdim=True)
             - 2 * torch.matmul(latent_states, codebook_weights)
-            + torch.sum(codebook_weights**2, dim=0, keepdim=True)
+            + torch.sum(codebook_weights ** 2, dim=0, keepdim=True)
         )  # (batch_size * latent_states , codebook_weights)
         min_distance, music_tokens = torch.min(distance, dim=-1)
         fit = torch.mean(min_distance)
@@ -755,7 +751,7 @@ class JukeboxVQVAE(PreTrainedModel):
         downs_t = config.res_downs_t
         strides_t = config.res_strides_t
         if not config.sample_length:
-            downsamples = [stride**down for stride, down in zip(strides_t, downs_t)]
+            downsamples = [stride ** down for stride, down in zip(strides_t, downs_t)]
             top_raw_to_tokens = np.prod(downsamples)
             config.sample_length = (
                 config.sample_length_in_seconds
@@ -768,7 +764,7 @@ class JukeboxVQVAE(PreTrainedModel):
         self.commit = config.commit
         self.sample_length = config.sample_length
 
-        self.downsamples = [stride**down for stride, down in zip(strides_t, downs_t)]
+        self.downsamples = [stride ** down for stride, down in zip(strides_t, downs_t)]
         self.hop_lengths = np.cumprod(self.downsamples)
         self.levels = levels = config.levels
         self.music_tokens_shapes = [
@@ -1001,7 +997,7 @@ class JukeboxAttention(nn.Module):
         self.head_dim = hidden_dim // config.n_heads
         self.n_ctx = n_ctx
         self.hidden_dim = hidden_dim
-        self.scale = self.head_dim**-0.25
+        self.scale = self.head_dim ** -0.25
         self.mask = config.mask
 
         if attn_func == "cross_attention":
@@ -1872,8 +1868,9 @@ class JukeboxConditionalAutoregressive(nn.Module):
                     sampled_audio_prime.append(x_prime)
                     conds_prime.append(cond_prime)
                 start = start + current_chunk_size
-                x_prime, cond_prime = torch.cat(sampled_audio_prime, dim=1), torch.cat(
-                    conds_prime, dim=1
+                x_prime, cond_prime = (
+                    torch.cat(sampled_audio_prime, dim=1),
+                    torch.cat(conds_prime, dim=1),
                 )
                 del sampled_audio_prime
                 del conds_prime
@@ -2270,7 +2267,7 @@ class JukeboxPrior(PreTrainedModel):
         )
 
         self.downsamples = [
-            stride**down
+            stride ** down
             for stride, down in zip(config.res_strides_t, config.res_downs_t)
         ]
         self.cond_downsample = self.downsamples[self.level] if self.level != 0 else None

@@ -128,9 +128,7 @@ class FakeRegNetVisslWrapper(nn.Module):
 
     def forward(self, x: Tensor):
         return get_trunk_forward_outputs(
-            x,
-            out_feat_keys=None,
-            feature_blocks=self._feature_blocks,
+            x, out_feat_keys=None, feature_blocks=self._feature_blocks,
         )
 
 

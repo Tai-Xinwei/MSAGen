@@ -139,7 +139,7 @@ class TFOPTAttention(tf.keras.layers.Layer):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim**-0.5
+        self.scaling = self.head_dim ** -0.5
         self.is_decoder = is_decoder
 
         self.k_proj = tf.keras.layers.Dense(embed_dim, use_bias=bias, name="k_proj")
@@ -521,9 +521,7 @@ class TFOPTDecoder(tf.keras.layers.Layer):
             name="embed_tokens",
         )
         self.embed_positions = TFOPTLearnedPositionalEmbedding(
-            num_embeddings,
-            config.hidden_size,
-            name="embed_positions",
+            num_embeddings, config.hidden_size, name="embed_positions",
         )
 
         # Note that the only purpose of `config._remove_final_layer_norm` is to keep backward compatibility

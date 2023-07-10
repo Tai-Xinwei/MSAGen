@@ -449,10 +449,7 @@ class FlaxWhisperEncoderLayerCollection(nn.Module):
                 layer_outputs = (None, None)
             else:
                 layer_outputs = encoder_layer(
-                    hidden_states,
-                    attention_mask,
-                    output_attentions,
-                    deterministic,
+                    hidden_states, attention_mask, output_attentions, deterministic,
                 )
             hidden_states = layer_outputs[0]
             if output_attentions:
@@ -671,10 +668,7 @@ class FlaxWhisperEncoder(nn.Module):
 
         self.dropout_layer = nn.Dropout(rate=self.config.dropout)
 
-        self.layers = FlaxWhisperEncoderLayerCollection(
-            self.config,
-            dtype=self.dtype,
-        )
+        self.layers = FlaxWhisperEncoderLayerCollection(self.config, dtype=self.dtype,)
         self.embed_positions = nn.Embed(
             self.config.max_source_positions, self.config.d_model, dtype=self.dtype
         )

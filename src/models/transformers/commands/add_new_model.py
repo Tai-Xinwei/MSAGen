@@ -142,8 +142,7 @@ class AddNewModelCommand(BaseTransformersCLICommand):
             pass
 
         shutil.move(
-            f"{directory}/__init__.py",
-            f"{model_dir}/__init__.py",
+            f"{directory}/__init__.py", f"{model_dir}/__init__.py",
         )
         shutil.move(
             f"{directory}/configuration_{lowercase_model_name}.py",

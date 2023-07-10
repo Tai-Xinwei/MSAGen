@@ -862,15 +862,11 @@ def retrieve_info_for_model(model_type, frameworks: Optional[List[str]] = None):
         )
     else:
         tokenizer_class = None
-    image_processor_class = (
-        auto_module.image_processing_auto.IMAGE_PROCESSOR_MAPPING_NAMES.get(
-            model_type, None
-        )
+    image_processor_class = auto_module.image_processing_auto.IMAGE_PROCESSOR_MAPPING_NAMES.get(
+        model_type, None
     )
-    feature_extractor_class = (
-        auto_module.feature_extraction_auto.FEATURE_EXTRACTOR_MAPPING_NAMES.get(
-            model_type, None
-        )
+    feature_extractor_class = auto_module.feature_extraction_auto.FEATURE_EXTRACTOR_MAPPING_NAMES.get(
+        model_type, None
     )
     processor_class = auto_module.processing_auto.PROCESSOR_MAPPING_NAMES.get(
         model_type, None

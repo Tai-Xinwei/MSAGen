@@ -88,7 +88,7 @@ def router_z_loss_func(router_logits: torch.Tensor) -> float:
     """
     num_groups, tokens_per_group, _ = router_logits.shape
     log_z = torch.logsumexp(router_logits, dim=-1)
-    z_loss = log_z**2
+    z_loss = log_z ** 2
     return torch.sum(z_loss) / (num_groups * tokens_per_group)
 
 
@@ -132,7 +132,7 @@ def load_balancing_loss_func(
     router_prob_per_group_and_expert = torch.mean(router_probs, axis=-2)
     return torch.mean(
         tokens_per_group_and_expert * router_prob_per_group_and_expert
-    ) * (num_experts**2)
+    ) * (num_experts ** 2)
 
 
 class SwitchTransformersTop1Router(nn.Module):
@@ -999,8 +999,8 @@ class SwitchTransformersPreTrainedModel(PreTrainedModel):
             module.q.weight.data.normal_(
                 mean=0.0, std=factor * ((d_model * key_value_proj_dim) ** -0.5)
             )
-            module.k.weight.data.normal_(mean=0.0, std=factor * (d_model**-0.5))
-            module.v.weight.data.normal_(mean=0.0, std=factor * (d_model**-0.5))
+            module.k.weight.data.normal_(mean=0.0, std=factor * (d_model ** -0.5))
+            module.v.weight.data.normal_(mean=0.0, std=factor * (d_model ** -0.5))
             module.o.weight.data.normal_(
                 mean=0.0, std=factor * ((n_heads * key_value_proj_dim) ** -0.5)
             )
@@ -1017,10 +1017,10 @@ class SwitchTransformersPreTrainedModel(PreTrainedModel):
             module.router.classifier.weight.data.normal_(mean=0.0, std=factor * 1)
             for idx in range(self.config.num_experts):
                 module.experts[f"expert_{idx}"].wi.weight.data.normal_(
-                    mean=0.0, std=factor * (d_model**-0.5)
+                    mean=0.0, std=factor * (d_model ** -0.5)
                 )
                 module.experts[f"expert_{idx}"].wo.weight.data.normal_(
-                    mean=0.0, std=factor * (d_model**-0.5)
+                    mean=0.0, std=factor * (d_model ** -0.5)
                 )
 
     def _set_gradient_checkpointing(self, module, value=False):
@@ -1877,7 +1877,7 @@ class SwitchTransformersForConditionalGeneration(SwitchTransformersPreTrainedMod
         if self.config.tie_word_embeddings:
             # Rescale output before projecting on vocab
             # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
-            sequence_output = sequence_output * (self.model_dim**-0.5)
+            sequence_output = sequence_output * (self.model_dim ** -0.5)
 
         lm_logits = self.lm_head(sequence_output)
 
@@ -1963,8 +1963,9 @@ class SwitchTransformersForConditionalGeneration(SwitchTransformersPreTrainedMod
                 router_logits, expert_indexes = router_output
                 total_router_logits.append(router_logits)
                 total_expert_indexes.append(expert_indexes)
-        return torch.cat(total_router_logits, dim=1), torch.cat(
-            total_expert_indexes, dim=1
+        return (
+            torch.cat(total_router_logits, dim=1),
+            torch.cat(total_expert_indexes, dim=1),
         )
 
     def prepare_inputs_for_generation(

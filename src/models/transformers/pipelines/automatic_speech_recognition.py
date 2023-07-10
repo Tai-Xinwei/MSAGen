@@ -258,9 +258,7 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
         )
 
     def __call__(
-        self,
-        inputs: Union[np.ndarray, bytes, str],
-        **kwargs,
+        self, inputs: Union[np.ndarray, bytes, str], **kwargs,
     ):
         """
         Transcribe the audio sequence(s) given as inputs to text. See the [`AutomaticSpeechRecognitionPipeline`]

@@ -736,11 +736,7 @@ class TapasTokenizer(PreTrainedTokenizer):
         self,
         table: "pd.DataFrame",
         queries: Optional[
-            Union[
-                List[TextInput],
-                List[PreTokenizedInput],
-                List[EncodedInput],
-            ]
+            Union[List[TextInput], List[PreTokenizedInput], List[EncodedInput],]
         ] = None,
         answer_coordinates: Optional[List[List[Tuple]]] = None,
         answer_text: Optional[List[List[TextInput]]] = None,
@@ -860,11 +856,7 @@ class TapasTokenizer(PreTrainedTokenizer):
     def _batch_encode_plus(
         self,
         table,
-        queries: Union[
-            List[TextInput],
-            List[PreTokenizedInput],
-            List[EncodedInput],
-        ],
+        queries: Union[List[TextInput], List[PreTokenizedInput], List[EncodedInput],],
         answer_coordinates: Optional[List[List[Tuple]]] = None,
         answer_text: Optional[List[List[TextInput]]] = None,
         add_special_tokens: bool = True,
@@ -918,9 +910,7 @@ class TapasTokenizer(PreTrainedTokenizer):
         self,
         raw_table: "pd.DataFrame",
         raw_queries: Union[
-            List[TextInput],
-            List[PreTokenizedInput],
-            List[EncodedInput],
+            List[TextInput], List[PreTokenizedInput], List[EncodedInput],
         ],
         tokenized_table: Optional[TokenizedTable] = None,
         queries_tokens: Optional[List[List[str]]] = None,
@@ -993,13 +983,7 @@ class TapasTokenizer(PreTrainedTokenizer):
     def encode(
         self,
         table: "pd.DataFrame",
-        query: Optional[
-            Union[
-                TextInput,
-                PreTokenizedInput,
-                EncodedInput,
-            ]
-        ] = None,
+        query: Optional[Union[TextInput, PreTokenizedInput, EncodedInput,]] = None,
         add_special_tokens: bool = True,
         padding: Union[bool, str, PaddingStrategy] = False,
         truncation: Union[bool, str, TapasTruncationStrategy] = False,
@@ -1038,13 +1022,7 @@ class TapasTokenizer(PreTrainedTokenizer):
     def encode_plus(
         self,
         table: "pd.DataFrame",
-        query: Optional[
-            Union[
-                TextInput,
-                PreTokenizedInput,
-                EncodedInput,
-            ]
-        ] = None,
+        query: Optional[Union[TextInput, PreTokenizedInput, EncodedInput,]] = None,
         answer_coordinates: Optional[List[Tuple]] = None,
         answer_text: Optional[List[TextInput]] = None,
         add_special_tokens: bool = True,
@@ -1127,11 +1105,7 @@ class TapasTokenizer(PreTrainedTokenizer):
     def _encode_plus(
         self,
         table: "pd.DataFrame",
-        query: Union[
-            TextInput,
-            PreTokenizedInput,
-            EncodedInput,
-        ],
+        query: Union[TextInput, PreTokenizedInput, EncodedInput,],
         answer_coordinates: Optional[List[Tuple]] = None,
         answer_text: Optional[List[TextInput]] = None,
         add_special_tokens: bool = True,
@@ -1185,11 +1159,7 @@ class TapasTokenizer(PreTrainedTokenizer):
     def prepare_for_model(
         self,
         raw_table: "pd.DataFrame",
-        raw_query: Union[
-            TextInput,
-            PreTokenizedInput,
-            EncodedInput,
-        ],
+        raw_query: Union[TextInput, PreTokenizedInput, EncodedInput,],
         tokenized_table: Optional[TokenizedTable] = None,
         query_tokens: Optional[TokenizedTable] = None,
         answer_coordinates: Optional[List[Tuple]] = None,
@@ -1484,8 +1454,7 @@ class TapasTokenizer(PreTrainedTokenizer):
         return num_rows, num_tokens or 1
 
     def _tokenize_table(
-        self,
-        table=None,
+        self, table=None,
     ):
         """
         Tokenizes column headers and cell texts of a table.
@@ -1523,10 +1492,7 @@ class TapasTokenizer(PreTrainedTokenizer):
                         )
                     )
 
-        return TokenizedTable(
-            rows=tokenized_rows,
-            selected_tokens=token_coordinates,
-        )
+        return TokenizedTable(rows=tokenized_rows, selected_tokens=token_coordinates,)
 
     def _question_encoding_cost(self, question_tokens):
         # Two extra spots of SEP and CLS.
@@ -1645,12 +1611,7 @@ class TapasTokenizer(PreTrainedTokenizer):
         return tokens, segment_ids, column_ids, row_ids
 
     def _serialize(
-        self,
-        question_tokens,
-        table,
-        num_columns,
-        num_rows,
-        num_tokens,
+        self, question_tokens, table, num_columns, num_rows, num_tokens,
     ):
         """Serializes table and text."""
         tokens, segment_ids, column_ids, row_ids = self._serialize_text(question_tokens)
@@ -1858,10 +1819,7 @@ class TapasTokenizer(PreTrainedTokenizer):
             inputs.append(0)
 
     def _get_all_answer_ids_from_coordinates(
-        self,
-        column_ids,
-        row_ids,
-        answers_list,
+        self, column_ids, row_ids, answers_list,
     ):
         """Maps lists of answer coordinates to token indexes."""
         answer_ids = [0] * len(column_ids)
@@ -1906,9 +1864,7 @@ class TapasTokenizer(PreTrainedTokenizer):
         return None
 
     def _find_answer_coordinates_from_answer_text(
-        self,
-        tokenized_table,
-        answer_text,
+        self, tokenized_table, answer_text,
     ):
         """Returns all occurrences of answer_text in the table."""
         logging.info(f"answer text: {answer_text}")
@@ -1926,18 +1882,13 @@ class TapasTokenizer(PreTrainedTokenizer):
                     )
 
     def _find_answer_ids_from_answer_texts(
-        self,
-        column_ids,
-        row_ids,
-        tokenized_table,
-        answer_texts,
+        self, column_ids, row_ids, tokenized_table, answer_texts,
     ):
         """Maps question with answer texts to the first matching token indexes."""
         answer_ids = [0] * len(column_ids)
         for answer_text in answer_texts:
             for coordinates in self._find_answer_coordinates_from_answer_text(
-                tokenized_table,
-                answer_text,
+                tokenized_table, answer_text,
             ):
                 # Maps answer coordinates to indexes this can fail if tokens / rows have
                 # been pruned.

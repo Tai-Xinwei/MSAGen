@@ -681,9 +681,7 @@ class LayoutLMv3Encoder(nn.Module):
         rel_pos_mat = position_ids.unsqueeze(-2) - position_ids.unsqueeze(-1)
 
         rel_pos = self.relative_position_bucket(
-            rel_pos_mat,
-            num_buckets=self.rel_pos_bins,
-            max_distance=self.max_rel_pos,
+            rel_pos_mat, num_buckets=self.rel_pos_bins, max_distance=self.max_rel_pos,
         )
         rel_pos = F.one_hot(rel_pos, num_classes=self.rel_pos_onehot_size).type_as(
             hidden_states
@@ -798,11 +796,7 @@ class LayoutLMv3Encoder(nn.Module):
         if not return_dict:
             return tuple(
                 v
-                for v in [
-                    hidden_states,
-                    all_hidden_states,
-                    all_self_attentions,
-                ]
+                for v in [hidden_states, all_hidden_states, all_self_attentions,]
                 if v is not None
             )
         return BaseModelOutput(
@@ -1045,9 +1039,10 @@ class LayoutLMv3Model(LayoutLMv3PreTrainedModel):
         final_bbox = final_position_ids = None
         patch_height = patch_width = None
         if pixel_values is not None:
-            patch_height, patch_width = int(
-                pixel_values.shape[2] / self.config.patch_size
-            ), int(pixel_values.shape[3] / self.config.patch_size)
+            patch_height, patch_width = (
+                int(pixel_values.shape[2] / self.config.patch_size),
+                int(pixel_values.shape[3] / self.config.patch_size),
+            )
             visual_embeddings = self.forward_image(pixel_values)
             visual_attention_mask = torch.ones(
                 (batch_size, visual_embeddings.shape[1]),

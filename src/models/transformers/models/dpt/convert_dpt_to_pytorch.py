@@ -328,8 +328,7 @@ if __name__ == "__main__":
         help="Path to the output PyTorch model directory.",
     )
     parser.add_argument(
-        "--push_to_hub",
-        action="store_true",
+        "--push_to_hub", action="store_true",
     )
     parser.add_argument(
         "--model_name",

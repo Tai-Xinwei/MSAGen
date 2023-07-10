@@ -1335,8 +1335,7 @@ class MarkupLMForTokenClassification(MarkupLMPreTrainedModel):
         if labels is not None:
             loss_fct = CrossEntropyLoss()
             loss = loss_fct(
-                prediction_scores.view(-1, self.config.num_labels),
-                labels.view(-1),
+                prediction_scores.view(-1, self.config.num_labels), labels.view(-1),
             )
 
         if not return_dict:

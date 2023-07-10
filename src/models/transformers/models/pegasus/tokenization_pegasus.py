@@ -176,10 +176,7 @@ class PegasusTokenizer(PreTrainedTokenizer):
 
         if self.mask_token_sent is not None:
             self.encoder.update(
-                {
-                    2: self.mask_token_sent,
-                    3: self.mask_token,
-                }
+                {2: self.mask_token_sent, 3: self.mask_token,}
             )
 
         if self.offset > 0:

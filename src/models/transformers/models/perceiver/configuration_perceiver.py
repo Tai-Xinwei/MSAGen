@@ -186,10 +186,7 @@ class PerceiverOnnxConfig(OnnxConfig):
         else:
             dynamic_axis = {0: "batch", 1: "sequence"}
         return OrderedDict(
-            [
-                ("inputs", dynamic_axis),
-                ("attention_mask", dynamic_axis),
-            ]
+            [("inputs", dynamic_axis), ("attention_mask", dynamic_axis),]
         )
 
     @property

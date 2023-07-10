@@ -307,12 +307,10 @@ def main():
         help="Location of LLaMA weights, which contains tokenizer.model and model folders",
     )
     parser.add_argument(
-        "--model_size",
-        choices=["7B", "13B", "30B", "65B", "tokenizer_only"],
+        "--model_size", choices=["7B", "13B", "30B", "65B", "tokenizer_only"],
     )
     parser.add_argument(
-        "--output_dir",
-        help="Location to write HF model and tokenizer",
+        "--output_dir", help="Location to write HF model and tokenizer",
     )
     args = parser.parse_args()
     if args.model_size != "tokenizer_only":

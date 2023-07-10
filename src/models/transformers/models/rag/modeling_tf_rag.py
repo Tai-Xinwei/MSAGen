@@ -1348,8 +1348,7 @@ class TFRagTokenForGeneration(TFRagPreTrainedModel, TFCausalLanguageModelingLoss
         # Matt: As written, this loss is not XLA-compatible, but it's doing some very weird things
         #       and I don't feel comfortable converting it.
         loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(
-            from_logits=True,
-            reduction=tf.keras.losses.Reduction.SUM,
+            from_logits=True, reduction=tf.keras.losses.Reduction.SUM,
         )
 
         if from_logits is False:  # convert to logits
@@ -1803,8 +1802,7 @@ class TFRagSequenceForGeneration(TFRagPreTrainedModel, TFCausalLanguageModelingL
             ]  # (n_docs, max_len)
 
             output_sequences = self.generator.generate(
-                generator_input_ids,
-                **model_kwargs,
+                generator_input_ids, **model_kwargs,
             )  # n_docs * n_beam, tgt_len
             if do_deduplication:
                 # do_deduplication -- for TF, work on Eager mode only!
@@ -1878,8 +1876,9 @@ class TFRagSequenceForGeneration(TFRagPreTrainedModel, TFCausalLanguageModelingL
 
         # Initialize padded tensor with shape ( all_candidates , max_candidate_length ),
         # where all_candidates counted from all inputs
-        new_shape = sum([t.shape[0] for t in tensors]), max(
-            [t.shape[1] for t in tensors]
+        new_shape = (
+            sum([t.shape[0] for t in tensors]),
+            max([t.shape[1] for t in tensors]),
         )
         output = tf.fill(new_shape, pad_token_id)
 

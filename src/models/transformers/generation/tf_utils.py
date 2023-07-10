@@ -1554,8 +1554,7 @@ class TFGenerationMixin:
         return model_kwargs
 
     def _get_logits_warper(
-        self,
-        generation_config: GenerationConfig,
+        self, generation_config: GenerationConfig,
     ) -> TFLogitsProcessorList:
         """
         This class returns a [`TFLogitsProcessorList`] list object that contains all relevant [`TFLogitsWarper`]
@@ -1669,9 +1668,7 @@ class TFGenerationMixin:
         return processors
 
     def _merge_criteria_processor_list(
-        self,
-        default_list: TFLogitsProcessorList,
-        custom_list: TFLogitsProcessorList,
+        self, default_list: TFLogitsProcessorList, custom_list: TFLogitsProcessorList,
     ) -> TFLogitsProcessorList:
         if len(custom_list) == 0:
             return default_list
@@ -2700,7 +2697,7 @@ class TFGenerationMixin:
             #   length_penalty. Positive length_penalty favors longer sequences, thus we use max_length there.
             if early_stopping == "never" and length_penalty > 0.0:
                 best_running_score = running_scores[:, :1] / (
-                    max_length**length_penalty
+                    max_length ** length_penalty
                 )
             else:
                 best_running_score = running_scores[:, :1] / (

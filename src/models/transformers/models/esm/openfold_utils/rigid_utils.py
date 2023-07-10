@@ -49,14 +49,7 @@ def rot_matmul(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
             dim=-1,
         )
 
-    return torch.stack(
-        [
-            row_mul(0),
-            row_mul(1),
-            row_mul(2),
-        ],
-        dim=-2,
-    )
+    return torch.stack([row_mul(0), row_mul(1), row_mul(2),], dim=-2,)
 
 
 def rot_vec_mul(r: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
@@ -183,30 +176,10 @@ def rot_to_quat(rot: torch.Tensor) -> torch.Tensor:
     ]
 
     k = [
-        [
-            xx + yy + zz,
-            zy - yz,
-            xz - zx,
-            yx - xy,
-        ],
-        [
-            zy - yz,
-            xx - yy - zz,
-            xy + yx,
-            xz + zx,
-        ],
-        [
-            xz - zx,
-            xy + yx,
-            yy - xx - zz,
-            yz + zy,
-        ],
-        [
-            yx - xy,
-            xz + zx,
-            yz + zy,
-            zz - xx - yy,
-        ],
+        [xx + yy + zz, zy - yz, xz - zx, yx - xy,],
+        [zy - yz, xx - yy - zz, xy + yx, xz + zx,],
+        [xz - zx, xy + yx, yy - xx - zz, yz + zy,],
+        [yx - xy, xz + zx, yz + zy, zz - xx - yy,],
     ]
 
     _, vectors = torch.linalg.eigh(
@@ -264,7 +237,7 @@ def invert_rot_mat(rot_mat: torch.Tensor) -> torch.Tensor:
 def invert_quat(quat: torch.Tensor) -> torch.Tensor:
     quat_prime = quat.clone()
     quat_prime[..., 1:] *= -1
-    inv = quat_prime / torch.sum(quat**2, dim=-1, keepdim=True)
+    inv = quat_prime / torch.sum(quat ** 2, dim=-1, keepdim=True)
     return inv
 
 
@@ -340,12 +313,7 @@ class Rotation:
             A new identity rotation
         """
         if fmt == "rot_mat":
-            rot_mats = identity_rot_mats(
-                shape,
-                dtype,
-                device,
-                requires_grad,
-            )
+            rot_mats = identity_rot_mats(shape, dtype, device, requires_grad,)
             return Rotation(rot_mats=rot_mats, quats=None)
         elif fmt == "quat":
             quats = identity_quats(shape, dtype, device, requires_grad)
@@ -541,9 +509,7 @@ class Rotation:
         quats = self.get_quats()
         new_quats = quats + quat_multiply_by_vec(quats, q_update_vec)
         return Rotation(
-            rot_mats=None,
-            quats=new_quats,
-            normalize_quats=normalize_quats,
+            rot_mats=None, quats=new_quats, normalize_quats=normalize_quats,
         )
 
     def compose_r(self, r: Rotation) -> Rotation:
@@ -617,9 +583,7 @@ class Rotation:
             return Rotation(rot_mats=invert_rot_mat(self._rot_mats), quats=None)
         elif self._quats is not None:
             return Rotation(
-                rot_mats=None,
-                quats=invert_quat(self._quats),
-                normalize_quats=False,
+                rot_mats=None, quats=invert_quat(self._quats), normalize_quats=False,
             )
         else:
             raise ValueError("Both rotations are None")
@@ -664,8 +628,7 @@ class Rotation:
             A concatenated Rotation object in rotation matrix format
         """
         rot_mats = torch.cat(
-            [r.get_rot_mats() for r in rs],
-            dim=dim if dim >= 0 else dim - 2,
+            [r.get_rot_mats() for r in rs], dim=dim if dim >= 0 else dim - 2,
         )
 
         return Rotation(rot_mats=rot_mats, quats=None)
@@ -728,8 +691,7 @@ class Rotation:
         """
         if self._rot_mats is not None:
             return Rotation(
-                rot_mats=self._rot_mats.to(device=device, dtype=dtype),
-                quats=None,
+                rot_mats=self._rot_mats.to(device=device, dtype=dtype), quats=None,
             )
         elif self._quats is not None:
             return Rotation(
@@ -751,9 +713,7 @@ class Rotation:
             return Rotation(rot_mats=self._rot_mats.detach(), quats=None)
         elif self._quats is not None:
             return Rotation(
-                rot_mats=None,
-                quats=self._quats.detach(),
-                normalize_quats=False,
+                rot_mats=None, quats=self._quats.detach(), normalize_quats=False,
             )
         else:
             raise ValueError("Both rotations are None")
@@ -789,19 +749,9 @@ class Rigid:
             raise ValueError("At least one input argument must be specified")
 
         if rots is None:
-            rots = Rotation.identity(
-                batch_dims,
-                dtype,
-                device,
-                requires_grad,
-            )
+            rots = Rotation.identity(batch_dims, dtype, device, requires_grad,)
         elif trans is None:
-            trans = identity_trans(
-                batch_dims,
-                dtype,
-                device,
-                requires_grad,
-            )
+            trans = identity_trans(batch_dims, dtype, device, requires_grad,)
 
         assert rots is not None
         assert trans is not None
@@ -863,10 +813,7 @@ class Rigid:
         if type(index) != tuple:
             index = (index,)
 
-        return Rigid(
-            self._rots[index],
-            self._trans[index + (slice(None),)],
-        )
+        return Rigid(self._rots[index], self._trans[index + (slice(None),)],)
 
     def __mul__(self, right: torch.Tensor) -> Rigid:
         """
@@ -1227,7 +1174,7 @@ class Rigid:
         c_xyz = c_xyz + translation
 
         c_x, c_y, c_z = [c_xyz[..., i] for i in range(3)]
-        norm = torch.sqrt(eps + c_x**2 + c_y**2)
+        norm = torch.sqrt(eps + c_x ** 2 + c_y ** 2)
         sin_c1 = -c_y / norm
         cos_c1 = c_x / norm
 
@@ -1238,9 +1185,9 @@ class Rigid:
         c1_rots[..., 1, 1] = cos_c1
         c1_rots[..., 2, 2] = 1
 
-        norm = torch.sqrt(eps + c_x**2 + c_y**2 + c_z**2)
+        norm = torch.sqrt(eps + c_x ** 2 + c_y ** 2 + c_z ** 2)
         sin_c2 = c_z / norm
-        cos_c2 = torch.sqrt(c_x**2 + c_y**2) / norm
+        cos_c2 = torch.sqrt(c_x ** 2 + c_y ** 2) / norm
 
         c2_rots = sin_c2.new_zeros((*sin_c2.shape, 3, 3))
         c2_rots[..., 0, 0] = cos_c2
@@ -1253,7 +1200,7 @@ class Rigid:
         n_xyz = rot_vec_mul(c_rots, n_xyz)
 
         _, n_y, n_z = [n_xyz[..., i] for i in range(3)]
-        norm = torch.sqrt(eps + n_y**2 + n_z**2)
+        norm = torch.sqrt(eps + n_y ** 2 + n_z ** 2)
         sin_n = -n_z / norm
         cos_n = n_y / norm
 

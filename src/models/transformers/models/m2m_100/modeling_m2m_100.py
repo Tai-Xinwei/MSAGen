@@ -272,7 +272,7 @@ class M2M100Attention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim**-0.5
+        self.scaling = self.head_dim ** -0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -804,9 +804,7 @@ class M2M100Encoder(M2M100PreTrainedModel):
             self.embed_tokens.weight = embed_tokens.weight
 
         self.embed_positions = M2M100SinusoidalPositionalEmbedding(
-            config.max_position_embeddings,
-            embed_dim,
-            self.padding_idx,
+            config.max_position_embeddings, embed_dim, self.padding_idx,
         )
         self.layers = nn.ModuleList(
             [M2M100EncoderLayer(config) for _ in range(config.encoder_layers)]
@@ -1010,9 +1008,7 @@ class M2M100Decoder(M2M100PreTrainedModel):
             self.embed_tokens.weight = embed_tokens.weight
 
         self.embed_positions = M2M100SinusoidalPositionalEmbedding(
-            config.max_position_embeddings,
-            config.d_model,
-            self.padding_idx,
+            config.max_position_embeddings, config.d_model, self.padding_idx,
         )
         self.layers = nn.ModuleList(
             [M2M100DecoderLayer(config) for _ in range(config.decoder_layers)]

@@ -148,11 +148,7 @@ class TFEsmContactPredictionHead(Layer):
     """Performs symmetrization, apc, and computes a logistic regression on the output features"""
 
     def __init__(
-        self,
-        in_features: int,
-        bias=True,
-        eos_idx: int = 2,
-        name=None,
+        self, in_features: int, bias=True, eos_idx: int = 2, name=None,
     ):
         super().__init__(name=name)
         self.eos_idx = eos_idx
@@ -423,7 +419,7 @@ class TFEsmSelfAttention(Layer):
         # ESM scales the query down by the same factor instead. Modulo numerical stability these are equivalent,
         # but not when rotary embeddings get involved. Therefore, we scale the query here to match the original
         # ESM code and fix rotary embeddings.
-        query_layer = query_layer * self.attention_head_size**-0.5
+        query_layer = query_layer * self.attention_head_size ** -0.5
 
         if self.is_decoder:
             # if cross_attention save Tuple(tf.Tensor, tf.Tensor) of all cross attention key/value_states.
@@ -1091,10 +1087,7 @@ class TFEsmMainLayer(Layer):
         )
 
         if not return_dict:
-            return (
-                sequence_output,
-                pooled_output,
-            ) + encoder_outputs[1:]
+            return (sequence_output, pooled_output,) + encoder_outputs[1:]
 
         return TFBaseModelOutputWithPoolingAndCrossAttentions(
             last_hidden_state=sequence_output,

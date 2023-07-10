@@ -399,10 +399,7 @@ class WhisperTokenizerFast(PreTrainedTokenizerFast):
         self.backend_tokenizer.post_processor = processors.TemplateProcessing(
             single=f"{prefix_template} $A:0 {eos}:0",
             pair=f"{prefix_template} $A:0 $B:1 {eos}:1",
-            special_tokens=[
-                (eos, eos_token_id),
-                *zip(prefixes, prefix_token_ids),
-            ],
+            special_tokens=[(eos, eos_token_id), *zip(prefixes, prefix_token_ids),],
         )
 
     @property

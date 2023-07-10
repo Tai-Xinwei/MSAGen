@@ -384,7 +384,7 @@ class OwlViTAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
                 f" {self.num_heads})."
             )
-        self.scale = self.head_dim**-0.5
+        self.scale = self.head_dim ** -0.5
         self.dropout = config.attention_dropout
 
         self.k_proj = nn.Linear(self.embed_dim, self.embed_dim)
@@ -581,7 +581,7 @@ class OwlViTPreTrainedModel(PreTrainedModel):
         elif isinstance(module, OwlViTVisionEmbeddings):
             factor = self.config.initializer_factor
             nn.init.normal_(
-                module.class_embedding, mean=0.0, std=module.embed_dim**-0.5 * factor
+                module.class_embedding, mean=0.0, std=module.embed_dim ** -0.5 * factor
             )
             nn.init.normal_(
                 module.patch_embedding.weight,
@@ -594,11 +594,11 @@ class OwlViTPreTrainedModel(PreTrainedModel):
         elif isinstance(module, OwlViTAttention):
             factor = self.config.initializer_factor
             in_proj_std = (
-                (module.embed_dim**-0.5)
+                (module.embed_dim ** -0.5)
                 * ((2 * module.config.num_hidden_layers) ** -0.5)
                 * factor
             )
-            out_proj_std = (module.embed_dim**-0.5) * factor
+            out_proj_std = (module.embed_dim ** -0.5) * factor
             nn.init.normal_(module.q_proj.weight, std=in_proj_std)
             nn.init.normal_(module.k_proj.weight, std=in_proj_std)
             nn.init.normal_(module.v_proj.weight, std=in_proj_std)
@@ -606,7 +606,7 @@ class OwlViTPreTrainedModel(PreTrainedModel):
         elif isinstance(module, OwlViTMLP):
             factor = self.config.initializer_factor
             in_proj_std = (
-                (module.config.hidden_size**-0.5)
+                (module.config.hidden_size ** -0.5)
                 * ((2 * module.config.num_hidden_layers) ** -0.5)
                 * factor
             )
@@ -616,11 +616,11 @@ class OwlViTPreTrainedModel(PreTrainedModel):
         elif isinstance(module, OwlViTModel):
             nn.init.normal_(
                 module.text_projection.weight,
-                std=module.text_embed_dim**-0.5 * self.config.initializer_factor,
+                std=module.text_embed_dim ** -0.5 * self.config.initializer_factor,
             )
             nn.init.normal_(
                 module.visual_projection.weight,
-                std=module.vision_embed_dim**-0.5 * self.config.initializer_factor,
+                std=module.vision_embed_dim ** -0.5 * self.config.initializer_factor,
             )
         if isinstance(module, nn.LayerNorm):
             module.bias.data.zero_()
@@ -1507,9 +1507,7 @@ class OwlViTForObjectDetection(OwlViTPreTrainedModel):
         return box_bias
 
     def box_predictor(
-        self,
-        image_feats: torch.FloatTensor,
-        feature_map: torch.FloatTensor,
+        self, image_feats: torch.FloatTensor, feature_map: torch.FloatTensor,
     ) -> torch.FloatTensor:
         """
         Args:

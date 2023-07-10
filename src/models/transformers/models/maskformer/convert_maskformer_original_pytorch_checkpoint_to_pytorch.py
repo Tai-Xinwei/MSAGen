@@ -729,10 +729,8 @@ def test(
                 original_model_feature, our_model_feature, atol=1e-3
             ), "The backbone features are not the same."
 
-        original_model_pixel_out = (
-            original_model.sem_seg_head.pixel_decoder.forward_features(
-                original_model_backbone_features
-            )
+        original_model_pixel_out = original_model.sem_seg_head.pixel_decoder.forward_features(
+            original_model_backbone_features
         )
 
         assert torch.allclose(

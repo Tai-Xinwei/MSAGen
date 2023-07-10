@@ -827,9 +827,7 @@ class FlaxRobertaPreTrainedModel(FlaxPreTrainedModel):
     # Copied from transformers.models.bert.modeling_flax_bert.FlaxBertPreTrainedModel.enable_gradient_checkpointing
     def enable_gradient_checkpointing(self):
         self._module = self.module_class(
-            config=self.config,
-            dtype=self.dtype,
-            gradient_checkpointing=True,
+            config=self.config, dtype=self.dtype, gradient_checkpointing=True,
         )
 
     def init_weights(

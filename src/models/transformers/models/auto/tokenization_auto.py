@@ -549,13 +549,7 @@ else:
                     "PegasusTokenizerFast" if is_tokenizers_available() else None,
                 ),
             ),
-            (
-                "perceiver",
-                (
-                    "PerceiverTokenizer",
-                    None,
-                ),
-            ),
+            ("perceiver", ("PerceiverTokenizer", None,),),
             ("phobert", ("PhobertTokenizer", None)),
             (
                 "pix2struct",

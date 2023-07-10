@@ -481,11 +481,7 @@ class TFSegformerEncoder(tf.keras.layers.Layer):
             # (each block consists of multiple layers i.e., list of layers)
             for i, blk in enumerate(block_layer):
                 layer_outputs = blk(
-                    hidden_states,
-                    height,
-                    width,
-                    output_attentions,
-                    training=training,
+                    hidden_states, height, width, output_attentions, training=training,
                 )
                 hidden_states = layer_outputs[0]
                 if output_attentions:

@@ -1094,8 +1094,7 @@ class RagSequenceForGeneration(RagPreTrainedModel):
             ]  # (n_docs, max_len)
 
             output_sequences = self.generator.generate(
-                generator_input_ids,
-                **model_kwargs,
+                generator_input_ids, **model_kwargs,
             )  # n_docs * n_beam, tgt_len
             if do_deduplication:
                 # do_deduplication, max_output_len

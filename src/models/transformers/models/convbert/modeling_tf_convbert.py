@@ -266,10 +266,7 @@ class TFConvBertSelfAttention(tf.keras.layers.Layer):
 
         paddings = tf.constant(
             [
-                [
-                    0,
-                    0,
-                ],
+                [0, 0,],
                 [
                     int((self.conv_kernel_size - 1) / 2),
                     int((self.conv_kernel_size - 1) / 2),

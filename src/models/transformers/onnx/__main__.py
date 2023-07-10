@@ -172,11 +172,7 @@ def export_with_transformers(args):
             )
 
         onnx_inputs, onnx_outputs = export(
-            preprocessor,
-            model,
-            onnx_config,
-            args.opset,
-            args.output,
+            preprocessor, model, onnx_config, args.opset, args.output,
         )
 
         if args.atol is None:

@@ -573,10 +573,8 @@ def get_size_dict(
 
 ImageProcessingMixin.push_to_hub = copy_func(ImageProcessingMixin.push_to_hub)
 if ImageProcessingMixin.push_to_hub.__doc__ is not None:
-    ImageProcessingMixin.push_to_hub.__doc__ = (
-        ImageProcessingMixin.push_to_hub.__doc__.format(
-            object="image processor",
-            object_class="AutoImageProcessor",
-            object_files="image processor file",
-        )
+    ImageProcessingMixin.push_to_hub.__doc__ = ImageProcessingMixin.push_to_hub.__doc__.format(
+        object="image processor",
+        object_class="AutoImageProcessor",
+        object_files="image processor file",
     )

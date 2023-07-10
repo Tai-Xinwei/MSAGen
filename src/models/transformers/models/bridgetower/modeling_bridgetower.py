@@ -1126,10 +1126,10 @@ class BridgeTowerPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         if isinstance(module, BridgeTowerVisionModel):
-            proj_std = (module.visual.transformer.hidden_size**-0.5) * (
+            proj_std = (module.visual.transformer.hidden_size ** -0.5) * (
                 (2 * module.visual.transformer.num_hidden_layers) ** -0.5
             )
-            attn_std = module.visual.transformer.hidden_size**-0.5
+            attn_std = module.visual.transformer.hidden_size ** -0.5
             fc_std = (2 * module.visual.transformer.hidden_size) ** -0.5
             for block in module.visual.transformer.resblocks:
                 nn.init.normal_(

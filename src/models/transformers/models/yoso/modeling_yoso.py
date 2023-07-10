@@ -192,7 +192,7 @@ class YosoLSHCumulation(torch.autograd.Function):
         use_cuda = query_mask.is_cuda
         num_hash = config["num_hash"]
         hash_code_len = config["hash_code_len"]
-        hashtable_capacity = int(2**hash_code_len)
+        hashtable_capacity = int(2 ** hash_code_len)
 
         if config["use_fast_hash"]:
             query_hash_code, key_hash_code = lsh_cumulation.fast_hash(
@@ -238,7 +238,7 @@ class YosoLSHCumulation(torch.autograd.Function):
 
         use_cuda = grad.is_cuda
         hash_code_len = config["hash_code_len"]
-        hashtable_capacity = int(2**hash_code_len)
+        hashtable_capacity = int(2 ** hash_code_len)
 
         if config["lsh_backward"]:
             grad_value = lsh_cumulation.lsh_cumulation(
@@ -461,24 +461,14 @@ class YosoSelfAttention(nn.Module):
             pad_size = batch_size * num_heads, seq_len, gpu_warp_size - head_dim
 
             query_layer = torch.cat(
-                [
-                    query_layer,
-                    torch.zeros(pad_size, device=query_layer.device),
-                ],
+                [query_layer, torch.zeros(pad_size, device=query_layer.device),],
                 dim=-1,
             )
             key_layer = torch.cat(
-                [
-                    key_layer,
-                    torch.zeros(pad_size, device=key_layer.device),
-                ],
-                dim=-1,
+                [key_layer, torch.zeros(pad_size, device=key_layer.device),], dim=-1,
             )
             value_layer = torch.cat(
-                [
-                    value_layer,
-                    torch.zeros(pad_size, device=value_layer.device),
-                ],
+                [value_layer, torch.zeros(pad_size, device=value_layer.device),],
                 dim=-1,
             )
 
@@ -686,9 +676,7 @@ class YosoEncoder(nn.Module):
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module),
-                    hidden_states,
-                    attention_mask,
+                    create_custom_forward(layer_module), hidden_states, attention_mask,
                 )
             else:
                 layer_outputs = layer_module(

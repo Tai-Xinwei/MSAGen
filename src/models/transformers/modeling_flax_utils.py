@@ -1226,12 +1226,8 @@ class FlaxPreTrainedModel(PushToHubMixin, FlaxGenerationMixin):
 # To update the docstring, we need to copy the method, otherwise we change the original docstring.
 FlaxPreTrainedModel.push_to_hub = copy_func(FlaxPreTrainedModel.push_to_hub)
 if FlaxPreTrainedModel.push_to_hub.__doc__ is not None:
-    FlaxPreTrainedModel.push_to_hub.__doc__ = (
-        FlaxPreTrainedModel.push_to_hub.__doc__.format(
-            object="model",
-            object_class="FlaxAutoModel",
-            object_files="model checkpoint",
-        )
+    FlaxPreTrainedModel.push_to_hub.__doc__ = FlaxPreTrainedModel.push_to_hub.__doc__.format(
+        object="model", object_class="FlaxAutoModel", object_files="model checkpoint",
     )
 
 
@@ -1261,6 +1257,5 @@ def append_call_sample_docstring(
 def append_replace_return_docstrings(model_class, output_type, config_class):
     model_class.__call__ = copy_func(model_class.__call__)
     model_class.__call__ = replace_return_docstrings(
-        output_type=output_type,
-        config_class=config_class,
+        output_type=output_type, config_class=config_class,
     )(model_class.__call__)

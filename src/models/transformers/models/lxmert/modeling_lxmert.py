@@ -574,11 +574,7 @@ class LxmertXLayer(nn.Module):
 
         lang_output, visual_output = self.output_fc(lang_att_output, visual_att_output)
         return (
-            (
-                lang_output,
-                visual_output,
-                attention_probs[0],
-            )
+            (lang_output, visual_output, attention_probs[0],)
             if output_attentions
             else (lang_output, visual_output)
         )

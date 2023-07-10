@@ -248,8 +248,9 @@ class HFIndexBase(Index):
                 vectors[i] = np.vstack(
                     [vectors[i], np.zeros((n_docs - len(vectors[i]), self.vector_size))]
                 )
-        return np.array(ids), np.array(
-            vectors
+        return (
+            np.array(ids),
+            np.array(vectors),
         )  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
 
 
@@ -441,8 +442,7 @@ class RagRetriever:
     def _build_index(config):
         if config.index_name == "legacy":
             return LegacyIndex(
-                config.retrieval_vector_size,
-                config.index_path or LEGACY_INDEX_PATH,
+                config.retrieval_vector_size, config.index_path or LEGACY_INDEX_PATH,
             )
         elif config.index_name == "custom":
             return CustomHFIndex.load_from_disk(
@@ -551,10 +551,7 @@ class RagRetriever:
 
         rag_input_strings = [
             cat_input_and_doc(
-                docs[i]["title"][j],
-                docs[i]["text"][j],
-                input_strings[i],
-                prefix,
+                docs[i]["title"][j], docs[i]["text"][j], input_strings[i], prefix,
             )
             for i in range(len(docs))
             for j in range(n_docs)

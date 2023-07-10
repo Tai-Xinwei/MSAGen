@@ -355,9 +355,7 @@ TF_MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
 )
 
 TF_MODEL_FOR_DOCUMENT_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
-    [
-        ("layoutlm", "TFLayoutLMForQuestionAnswering"),
-    ]
+    [("layoutlm", "TFLayoutLMForQuestionAnswering"),]
 )
 
 

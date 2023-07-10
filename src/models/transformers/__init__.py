@@ -346,10 +346,7 @@ _import_structure = {
         "ElectraTokenizer",
     ],
     "models.encoder_decoder": ["EncoderDecoderConfig"],
-    "models.ernie": [
-        "ERNIE_PRETRAINED_CONFIG_ARCHIVE_MAP",
-        "ErnieConfig",
-    ],
+    "models.ernie": ["ERNIE_PRETRAINED_CONFIG_ARCHIVE_MAP", "ErnieConfig",],
     "models.ernie_m": ["ERNIE_M_PRETRAINED_CONFIG_ARCHIVE_MAP", "ErnieMConfig"],
     "models.esm": ["ESM_PRETRAINED_CONFIG_ARCHIVE_MAP", "EsmConfig", "EsmTokenizer"],
     "models.flaubert": [
@@ -697,10 +694,7 @@ _import_structure = {
         "TvltConfig",
         "TvltProcessor",
     ],
-    "models.unispeech": [
-        "UNISPEECH_PRETRAINED_CONFIG_ARCHIVE_MAP",
-        "UniSpeechConfig",
-    ],
+    "models.unispeech": ["UNISPEECH_PRETRAINED_CONFIG_ARCHIVE_MAP", "UniSpeechConfig",],
     "models.unispeech_sat": [
         "UNISPEECH_SAT_PRETRAINED_CONFIG_ARCHIVE_MAP",
         "UniSpeechSatConfig",
@@ -745,10 +739,7 @@ _import_structure = {
     ],
     "models.wav2vec2_phoneme": ["Wav2Vec2PhonemeCTCTokenizer"],
     "models.wav2vec2_with_lm": ["Wav2Vec2ProcessorWithLM"],
-    "models.wavlm": [
-        "WAVLM_PRETRAINED_CONFIG_ARCHIVE_MAP",
-        "WavLMConfig",
-    ],
+    "models.wavlm": ["WAVLM_PRETRAINED_CONFIG_ARCHIVE_MAP", "WavLMConfig",],
     "models.whisper": [
         "WHISPER_PRETRAINED_CONFIG_ARCHIVE_MAP",
         "WhisperConfig",
@@ -2875,10 +2866,7 @@ else:
         ]
     )
     _import_structure["models.upernet"].extend(
-        [
-            "UperNetForSemanticSegmentation",
-            "UperNetPreTrainedModel",
-        ]
+        ["UperNetForSemanticSegmentation", "UperNetPreTrainedModel",]
     )
     _import_structure["models.van"].extend(
         [
@@ -3612,11 +3600,7 @@ else:
         ]
     )
     _import_structure["models.opt"].extend(
-        [
-            "TFOPTForCausalLM",
-            "TFOPTModel",
-            "TFOPTPreTrainedModel",
-        ]
+        ["TFOPTForCausalLM", "TFOPTModel", "TFOPTPreTrainedModel",]
     )
     _import_structure["models.pegasus"].extend(
         [
@@ -3769,18 +3753,10 @@ else:
         ["TFVisionTextDualEncoderModel"]
     )
     _import_structure["models.vit"].extend(
-        [
-            "TFViTForImageClassification",
-            "TFViTModel",
-            "TFViTPreTrainedModel",
-        ]
+        ["TFViTForImageClassification", "TFViTModel", "TFViTPreTrainedModel",]
     )
     _import_structure["models.vit_mae"].extend(
-        [
-            "TFViTMAEForPreTraining",
-            "TFViTMAEModel",
-            "TFViTMAEPreTrainedModel",
-        ]
+        ["TFViTMAEForPreTraining", "TFViTMAEModel", "TFViTMAEPreTrainedModel",]
     )
     _import_structure["models.wav2vec2"].extend(
         [
@@ -4041,11 +4017,7 @@ else:
         ]
     )
     _import_structure["models.marian"].extend(
-        [
-            "FlaxMarianModel",
-            "FlaxMarianMTModel",
-            "FlaxMarianPreTrainedModel",
-        ]
+        ["FlaxMarianModel", "FlaxMarianMTModel", "FlaxMarianPreTrainedModel",]
     )
     _import_structure["models.mbart"].extend(
         [
@@ -4060,11 +4032,7 @@ else:
         ["FlaxMT5EncoderModel", "FlaxMT5ForConditionalGeneration", "FlaxMT5Model"]
     )
     _import_structure["models.opt"].extend(
-        [
-            "FlaxOPTForCausalLM",
-            "FlaxOPTModel",
-            "FlaxOPTPreTrainedModel",
-        ]
+        ["FlaxOPTForCausalLM", "FlaxOPTModel", "FlaxOPTPreTrainedModel",]
     )
     _import_structure["models.pegasus"].extend(
         [
@@ -4158,11 +4126,7 @@ else:
         ]
     )
     _import_structure["models.xglm"].extend(
-        [
-            "FlaxXGLMForCausalLM",
-            "FlaxXGLMModel",
-            "FlaxXGLMPreTrainedModel",
-        ]
+        ["FlaxXGLMForCausalLM", "FlaxXGLMModel", "FlaxXGLMPreTrainedModel",]
     )
     _import_structure["models.xlm_roberta"].extend(
         [

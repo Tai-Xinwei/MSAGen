@@ -265,8 +265,8 @@ class FlaxLongT5DenseActDense(nn.Module):
     dtype: jnp.dtype = jnp.float32
 
     def setup(self):
-        wi_init_std = self.config.initializer_factor * (self.config.d_model**-0.5)
-        wo_init_std = self.config.initializer_factor * (self.config.d_ff**-0.5)
+        wi_init_std = self.config.initializer_factor * (self.config.d_model ** -0.5)
+        wo_init_std = self.config.initializer_factor * (self.config.d_ff ** -0.5)
 
         self.wi = nn.Dense(
             self.config.d_ff,
@@ -297,8 +297,8 @@ class FlaxLongT5DenseGatedActDense(nn.Module):
     dtype: jnp.dtype = jnp.float32  # the dtype of the computation
 
     def setup(self):
-        wi_init_std = self.config.initializer_factor * (self.config.d_model**-0.5)
-        wo_init_std = self.config.initializer_factor * (self.config.d_ff**-0.5)
+        wi_init_std = self.config.initializer_factor * (self.config.d_model ** -0.5)
+        wo_init_std = self.config.initializer_factor * (self.config.d_ff ** -0.5)
 
         self.wi_0 = nn.Dense(
             self.config.d_ff,
@@ -380,8 +380,8 @@ class FlaxLongT5Attention(nn.Module):
         q_init_std = self.config.initializer_factor * (
             (self.inner_dim * self.key_value_proj_dim) ** -0.5
         )
-        kv_init_std = self.config.initializer_factor * (self.inner_dim**-0.5)
-        o_init_std = self.config.initializer_factor * (self.inner_dim**-0.5)
+        kv_init_std = self.config.initializer_factor * (self.inner_dim ** -0.5)
+        o_init_std = self.config.initializer_factor * (self.inner_dim ** -0.5)
 
         self.q = nn.Dense(
             self.inner_dim,
@@ -719,8 +719,8 @@ class FlaxLongT5LocalAttention(nn.Module):
         q_init_std = self.config.initializer_factor * (
             (self.inner_dim * self.key_value_proj_dim) ** -0.5
         )
-        kv_init_std = self.config.initializer_factor * (self.inner_dim**-0.5)
-        o_init_std = self.config.initializer_factor * (self.inner_dim**-0.5)
+        kv_init_std = self.config.initializer_factor * (self.inner_dim ** -0.5)
+        o_init_std = self.config.initializer_factor * (self.inner_dim ** -0.5)
 
         self.q = nn.Dense(
             self.inner_dim,
@@ -961,8 +961,8 @@ class FlaxLongT5TransientGlobalAttention(nn.Module):
         q_init_std = self.config.initializer_factor * (
             (self.inner_dim * self.key_value_proj_dim) ** -0.5
         )
-        kv_init_std = self.config.initializer_factor * (self.inner_dim**-0.5)
-        o_init_std = self.config.initializer_factor * (self.inner_dim**-0.5)
+        kv_init_std = self.config.initializer_factor * (self.inner_dim ** -0.5)
+        o_init_std = self.config.initializer_factor * (self.inner_dim ** -0.5)
 
         self.q = nn.Dense(
             self.inner_dim,
@@ -1735,10 +1735,7 @@ class FlaxLongT5Stack(nn.Module):
 
         if not return_dict:
             if output_hidden_states:
-                return (
-                    hidden_states,
-                    all_hidden_states,
-                ) + outputs[2:]
+                return (hidden_states, all_hidden_states,) + outputs[2:]
             return (hidden_states,) + outputs[1:]
 
         return FlaxBaseModelOutputWithPastAndCrossAttentions(
@@ -1910,9 +1907,7 @@ class FlaxLongT5PreTrainedModel(FlaxPreTrainedModel):
 
     def enable_gradient_checkpointing(self):
         self._module = self.module_class(
-            config=self.config,
-            dtype=self.dtype,
-            gradient_checkpointing=True,
+            config=self.config, dtype=self.dtype, gradient_checkpointing=True,
         )
 
     def init_weights(
@@ -1929,11 +1924,7 @@ class FlaxLongT5PreTrainedModel(FlaxPreTrainedModel):
         rngs = {"params": params_rng, "dropout": dropout_rng}
 
         random_params = self.module.init(
-            rngs,
-            input_ids,
-            attention_mask,
-            decoder_input_ids,
-            decoder_attention_mask,
+            rngs, input_ids, attention_mask, decoder_input_ids, decoder_attention_mask,
         )["params"]
 
         if params is not None:
@@ -2026,11 +2017,7 @@ class FlaxLongT5PreTrainedModel(FlaxPreTrainedModel):
             module, decoder_input_ids, decoder_attention_mask, **kwargs
         ):
             decoder_module = module._get_decoder_module()
-            return decoder_module(
-                decoder_input_ids,
-                decoder_attention_mask,
-                **kwargs,
-            )
+            return decoder_module(decoder_input_ids, decoder_attention_mask, **kwargs,)
 
         init_variables = self.module.init(
             jax.random.PRNGKey(0),
@@ -2194,11 +2181,7 @@ class FlaxLongT5PreTrainedModel(FlaxPreTrainedModel):
             module, decoder_input_ids, decoder_attention_mask, **kwargs
         ):
             decoder_module = module._get_decoder_module()
-            return decoder_module(
-                decoder_input_ids,
-                decoder_attention_mask,
-                **kwargs,
-            )
+            return decoder_module(decoder_input_ids, decoder_attention_mask, **kwargs,)
 
         outputs = self.module.apply(
             inputs,
@@ -2505,7 +2488,7 @@ class FlaxLongT5ForConditionalGenerationModule(nn.Module):
         if self.config.tie_word_embeddings:
             # Rescale output before projecting on vocab
             # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
-            sequence_output = sequence_output * (self.model_dim**-0.5)
+            sequence_output = sequence_output * (self.model_dim ** -0.5)
 
         if self.config.tie_word_embeddings:
             shared_embedding = self.shared.variables["params"]["embedding"]
@@ -2617,9 +2600,7 @@ class FlaxLongT5ForConditionalGeneration(FlaxLongT5PreTrainedModel):
         ):
             decoder_module = module._get_decoder_module()
             decoder_outputs = decoder_module(
-                decoder_input_ids,
-                decoder_attention_mask,
-                **kwargs,
+                decoder_input_ids, decoder_attention_mask, **kwargs,
             )
 
             sequence_output = decoder_outputs[0]
@@ -2627,7 +2608,7 @@ class FlaxLongT5ForConditionalGeneration(FlaxLongT5PreTrainedModel):
             if self.config.tie_word_embeddings:
                 # Rescale output before projecting on vocab
                 # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
-                sequence_output = sequence_output * (self.config.d_model**-0.5)
+                sequence_output = sequence_output * (self.config.d_model ** -0.5)
 
             if self.config.tie_word_embeddings:
                 shared_embedding = module.shared.variables["params"]["embedding"]

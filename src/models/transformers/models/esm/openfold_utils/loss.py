@@ -39,10 +39,7 @@ def _calculate_expected_aligned_error(
 
 
 def compute_predicted_aligned_error(
-    logits: torch.Tensor,
-    max_bin: int = 31,
-    no_bins: int = 64,
-    **kwargs,
+    logits: torch.Tensor, max_bin: int = 31, no_bins: int = 64, **kwargs,
 ) -> Dict[str, torch.Tensor]:
     """Computes aligned confidence metrics from logits.
 
@@ -98,7 +95,7 @@ def compute_tm(
 
     probs = torch.nn.functional.softmax(logits, dim=-1)
 
-    tm_per_bin = 1.0 / (1 + (bin_centers**2) / (d0**2))
+    tm_per_bin = 1.0 / (1 + (bin_centers ** 2) / (d0 ** 2))
     predicted_tm_term = torch.sum(probs * tm_per_bin, dim=-1)
 
     normed_residue_mask = residue_weights / (eps + residue_weights.sum())

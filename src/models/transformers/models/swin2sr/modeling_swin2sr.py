@@ -1202,7 +1202,7 @@ class UpsampleOneStep(nn.Module):
     def __init__(self, scale, in_channels, out_channels):
         super().__init__()
 
-        self.conv = nn.Conv2d(in_channels, (scale**2) * out_channels, 3, 1, 1)
+        self.conv = nn.Conv2d(in_channels, (scale ** 2) * out_channels, 3, 1, 1)
         self.pixel_shuffle = nn.PixelShuffle(scale)
 
     def forward(self, x):

@@ -507,9 +507,7 @@ class VideoMAEEncoder(nn.Module):
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module),
-                    hidden_states,
-                    layer_head_mask,
+                    create_custom_forward(layer_module), hidden_states, layer_head_mask,
                 )
             else:
                 layer_outputs = layer_module(
@@ -764,7 +762,7 @@ class VideoMAEDecoder(nn.Module):
         super().__init__()
 
         decoder_num_labels = (
-            config.num_channels * config.tubelet_size * config.patch_size**2
+            config.num_channels * config.tubelet_size * config.patch_size ** 2
         )
 
         decoder_config = deepcopy(config)
@@ -813,9 +811,7 @@ class VideoMAEDecoder(nn.Module):
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module),
-                    hidden_states,
-                    None,
+                    create_custom_forward(layer_module), hidden_states, None,
                 )
             else:
                 layer_outputs = layer_module(

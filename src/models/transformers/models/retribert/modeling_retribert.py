@@ -105,11 +105,7 @@ class RetriBertModel(RetriBertPreTrainedModel):
         self.post_init()
 
     def embed_sentences_checkpointed(
-        self,
-        input_ids,
-        attention_mask,
-        sent_encoder,
-        checkpoint_batch_size=-1,
+        self, input_ids, attention_mask, sent_encoder, checkpoint_batch_size=-1,
     ):
         # reproduces BERT forward pass with checkpointing
         if checkpoint_batch_size < 0 or input_ids.shape[0] < checkpoint_batch_size:
@@ -127,9 +123,7 @@ class RetriBertModel(RetriBertPreTrainedModel):
             # define function for checkpointing
             def partial_encode(*inputs):
                 encoder_outputs = sent_encoder.encoder(
-                    inputs[0],
-                    attention_mask=inputs[1],
-                    head_mask=head_mask,
+                    inputs[0], attention_mask=inputs[1], head_mask=head_mask,
                 )
                 sequence_output = encoder_outputs[0]
                 pooled_output = sent_encoder.pooler(sequence_output)
@@ -158,24 +152,15 @@ class RetriBertModel(RetriBertPreTrainedModel):
             return torch.cat(pooled_output_list, dim=0)
 
     def embed_questions(
-        self,
-        input_ids,
-        attention_mask=None,
-        checkpoint_batch_size=-1,
+        self, input_ids, attention_mask=None, checkpoint_batch_size=-1,
     ):
         q_reps = self.embed_sentences_checkpointed(
-            input_ids,
-            attention_mask,
-            self.bert_query,
-            checkpoint_batch_size,
+            input_ids, attention_mask, self.bert_query, checkpoint_batch_size,
         )
         return self.project_query(q_reps)
 
     def embed_answers(
-        self,
-        input_ids,
-        attention_mask=None,
-        checkpoint_batch_size=-1,
+        self, input_ids, attention_mask=None, checkpoint_batch_size=-1,
     ):
         a_reps = self.embed_sentences_checkpointed(
             input_ids,

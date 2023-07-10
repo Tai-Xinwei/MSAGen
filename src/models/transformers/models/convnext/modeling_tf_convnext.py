@@ -139,8 +139,7 @@ class TFConvNextLayer(tf.keras.layers.Layer):
             name="dwconv",
         )  # depthwise conv
         self.layernorm = tf.keras.layers.LayerNormalization(
-            epsilon=1e-6,
-            name="layernorm",
+            epsilon=1e-6, name="layernorm",
         )
         self.pwconv1 = tf.keras.layers.Dense(
             units=4 * dim,
@@ -220,8 +219,7 @@ class TFConvNextStage(tf.keras.layers.Layer):
         if in_channels != out_channels or stride > 1:
             self.downsampling_layer = [
                 tf.keras.layers.LayerNormalization(
-                    epsilon=1e-6,
-                    name="downsampling_layer.0",
+                    epsilon=1e-6, name="downsampling_layer.0",
                 ),
                 # Inputs to this layer will follow NHWC format since we
                 # transposed the inputs from NCHW to NHWC in the `TFConvNextEmbeddings`
@@ -665,9 +663,7 @@ class TFConvNextForImageClassification(
             return ((loss,) + output) if loss is not None else output
 
         return TFSequenceClassifierOutput(
-            loss=loss,
-            logits=logits,
-            hidden_states=outputs.hidden_states,
+            loss=loss, logits=logits, hidden_states=outputs.hidden_states,
         )
 
     def serving_output(
