@@ -1,0 +1,21 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- script: |
+    conda create -y -n sfm python=3.9
+    eval "$(conda shell.bash hook)"
+    conda activate sfm
+    bash install/install.sh
+    pip install pytest
+    pip install -e .
+    pytest tests/
+  displayName: 'Install and run unit tests'
