@@ -110,7 +110,7 @@ class GraphormerLlamaModel:
         segment_labels=None,
     ) -> torch.Tensor:
         # generate mol_emb
-        mol_emb, _, _, _, padding_mask = self.sentence_encoder(
+        mol_emb, _, _, _, mol_padding_mask = self.sentence_encoder(
             batched_data,
             segment_labels=segment_labels,
             perturb=perturb,
@@ -123,7 +123,7 @@ class GraphormerLlamaModel:
         # mix embeddings
         inputs_embeds, attention_mask, position_ids = self.adaptor(
             mol_emb,
-            padding_mask,
+            mol_padding_mask,
             text_embeds,
             text_paddding_mask,
             batched_data["input_ids"],

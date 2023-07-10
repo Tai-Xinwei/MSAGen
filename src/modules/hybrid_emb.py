@@ -194,7 +194,7 @@ class Hybrid_emb(nn.Module):
         # self.mol_adapter = nn.Linear(config.mfm_hidden_size, config.hidden_size)
 
     def _forward_embedding(
-        self, mol_rep, padding_mask, token_embed, input_ids: torch.LongTensor = None
+        self, mol_rep, mol_padding_mask, token_embed, input_ids: torch.LongTensor = None
     ):
         # TODO (Roger)
         # input_ids: bsz, num_tokens
@@ -212,17 +212,17 @@ class Hybrid_emb(nn.Module):
         # Peiran 2023/5/6: use mol_rep from MFM
         # pooled_rep = self.mol_adapter(mol_rep)[:, 1:, :].mean(dim=1, keepdim=True).expand(-1, T, -1) # B, 1, H
         # print(padding_mask.shape, mol_rep.shape)
-        padding_mask = padding_mask.long().unsqueeze(-1)
+        mol_padding_mask = mol_padding_mask.long().unsqueeze(-1)
         mol_rep = self.mol_rep_layernorm(mol_rep)
 
         # print(self.config.mfm_hidden_size, self.config.hidden_size, padding_mask.shape)
         # print(mol_rep.shape);exit()
         if self.mode == "mean":
             pooled_rep = self.mol_adapter(mol_rep) * (
-                1 - padding_mask
+                1 - mol_padding_mask
             )  # padding_mask: B, nnodes
             pooled_rep = pooled_rep[:, 1:, :].sum(dim=1, keepdim=True)  # B, 1, H
-            sum_mask = (1 - padding_mask).sum(dim=1) - 1
+            sum_mask = (1 - mol_padding_mask).sum(dim=1) - 1
             pooled_rep = pooled_rep / sum_mask.unsqueeze(-1)
             pooled_rep = pooled_rep.expand(-1, T, -1)  # B, T, H
             mol_idx_mask = mol_idx_mask.unsqueeze(-1).expand(
@@ -260,7 +260,7 @@ class Hybrid_emb(nn.Module):
 
             # mol_rep = mol_rep[:, 1:, :]  # B, nnode, H
             attn_mask = (
-                padding_mask.unsqueeze(1)
+                mol_padding_mask.unsqueeze(1)
                 .unsqueeze(2)
                 .squeeze(-1)
                 .expand(-1, -1, self.embedding_length, -1)
@@ -285,7 +285,7 @@ class Hybrid_emb(nn.Module):
 
             # mol_rep = mol_rep[:, 1:, :]  # B, nnode, H
             attn_mask = (
-                padding_mask.unsqueeze(1)
+                mol_padding_mask.unsqueeze(1)
                 .unsqueeze(2)
                 .squeeze(-1)
                 .expand(-1, -1, self.embedding_length, -1)
@@ -342,10 +342,11 @@ class Hybrid_emb(nn.Module):
 
     def forward(
         self,
-        x,
-        padding_mask,
+        mol_emb,
+        mol_padding_mask,
         text_embeds,
         attention_mask,
+        input_ids,
     ):
         if text_embeds is not None:
             batch_size, seq_length = text_embeds.shape
@@ -364,7 +365,9 @@ class Hybrid_emb(nn.Module):
         )
         position_ids = position_ids.unsqueeze(0).view(-1, seq_length)
 
-        inputs_embeds = self._forward_embedding(x, padding_mask, text_embeds)
+        inputs_embeds = self._forward_embedding(
+            mol_emb, mol_padding_mask, text_embeds, input_ids
+        )
 
         # embed positions
         if attention_mask is None:
