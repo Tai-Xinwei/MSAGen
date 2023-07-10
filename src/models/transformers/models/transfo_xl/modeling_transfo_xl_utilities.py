@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2018 Google AI, Google Brain and Carnegie Mellon University Authors and the HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
@@ -63,7 +63,7 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
         else:
             for i in range(len(self.cutoffs)):
                 l_idx, r_idx = self.cutoff_ends[i], self.cutoff_ends[i + 1]
-                d_emb_i = d_embed // (div_val ** i)
+                d_emb_i = d_embed // (div_val**i)
 
                 self.out_projs.append(nn.Parameter(torch.FloatTensor(d_proj, d_emb_i)))
 

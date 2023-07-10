@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -642,8 +642,10 @@ class FeatureExtractionMixin(PushToHubMixin):
 
 FeatureExtractionMixin.push_to_hub = copy_func(FeatureExtractionMixin.push_to_hub)
 if FeatureExtractionMixin.push_to_hub.__doc__ is not None:
-    FeatureExtractionMixin.push_to_hub.__doc__ = FeatureExtractionMixin.push_to_hub.__doc__.format(
-        object="feature extractor",
-        object_class="AutoFeatureExtractor",
-        object_files="feature extractor file",
+    FeatureExtractionMixin.push_to_hub.__doc__ = (
+        FeatureExtractionMixin.push_to_hub.__doc__.format(
+            object="feature extractor",
+            object_class="AutoFeatureExtractor",
+            object_files="feature extractor file",
+        )
     )

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 SenseTime and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -813,7 +813,11 @@ class DeformableDetrMultiheadAttention(nn.Module):
     """
 
     def __init__(
-        self, embed_dim: int, num_heads: int, dropout: float = 0.0, bias: bool = True,
+        self,
+        embed_dim: int,
+        num_heads: int,
+        dropout: float = 0.0,
+        bias: bool = True,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -825,7 +829,7 @@ class DeformableDetrMultiheadAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
                 f" {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -1800,7 +1804,7 @@ class DeformableDetrModel(DeformableDetrPreTrainedModel):
                 [valid_width.unsqueeze(-1), valid_height.unsqueeze(-1)], 1
             ).view(batch_size, 1, 1, 2)
             grid = (grid.unsqueeze(0).expand(batch_size, -1, -1, -1) + 0.5) / scale
-            width_heigth = torch.ones_like(grid) * 0.05 * (2.0 ** level)
+            width_heigth = torch.ones_like(grid) * 0.05 * (2.0**level)
             proposal = torch.cat((grid, width_heigth), -1).view(batch_size, -1, 4)
             proposals.append(proposal)
             _cur += height * width
@@ -2685,7 +2689,7 @@ class DeformableDetrHungarianMatcher(nn.Module):
         alpha = 0.25
         gamma = 2.0
         neg_cost_class = (
-            (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+            (1 - alpha) * (out_prob**gamma) * (-(1 - out_prob + 1e-8).log())
         )
         pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
         class_cost = pos_cost_class[:, target_ids] - neg_cost_class[:, target_ids]

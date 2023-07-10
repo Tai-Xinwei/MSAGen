@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 The HuggingFace Inc. team.
 # Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
@@ -55,7 +55,7 @@ class AffineTransformed(TransformedDistribution):
         """
         Returns the variance of the distribution.
         """
-        return self.base_dist.variance * self.scale ** 2
+        return self.base_dist.variance * self.scale**2
 
     @property
     def stddev(self):

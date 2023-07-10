@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import math
 from typing import Optional, Tuple
 
@@ -5,7 +6,6 @@ import torch
 import torch.nn as nn
 
 from src.models.transformers.configuration_utils import PretrainedConfig
-
 from src.models.transformers.models.llama.configuration_llama import LlamaConfig
 from src.models.transformers.models.llama.modeling_llama import (
     LlamaMLPAdapter,

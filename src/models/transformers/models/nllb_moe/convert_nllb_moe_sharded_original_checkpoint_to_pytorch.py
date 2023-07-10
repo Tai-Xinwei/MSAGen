@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2023 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -168,7 +169,10 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     metadata, index = shard_on_the_fly(
-        args.nllb_moe_checkpoint_path, args.pytorch_dump_folder_path, 128, args.dtype,
+        args.nllb_moe_checkpoint_path,
+        args.pytorch_dump_folder_path,
+        128,
+        args.dtype,
     )
 
     config = NllbMoeConfig.from_pretrained(

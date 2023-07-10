@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 Google Research, Inc. and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -502,7 +502,8 @@ class EfficientNetEncoder(nn.Module):
             return tuple(v for v in [hidden_states, all_hidden_states] if v is not None)
 
         return BaseModelOutputWithNoAttention(
-            last_hidden_state=hidden_states, hidden_states=all_hidden_states,
+            last_hidden_state=hidden_states,
+            hidden_states=all_hidden_states,
         )
 
 
@@ -697,5 +698,7 @@ class EfficientNetForImageClassification(EfficientNetPreTrainedModel):
             return ((loss,) + output) if loss is not None else output
 
         return ImageClassifierOutputWithNoAttention(
-            loss=loss, logits=logits, hidden_states=outputs.hidden_states,
+            loss=loss,
+            logits=logits,
+            hidden_states=outputs.hidden_states,
         )

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2018 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -549,7 +549,13 @@ else:
                     "PegasusTokenizerFast" if is_tokenizers_available() else None,
                 ),
             ),
-            ("perceiver", ("PerceiverTokenizer", None,),),
+            (
+                "perceiver",
+                (
+                    "PerceiverTokenizer",
+                    None,
+                ),
+            ),
             ("phobert", ("PhobertTokenizer", None)),
             (
                 "pix2struct",

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2020, The RAG Authors and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1094,7 +1094,8 @@ class RagSequenceForGeneration(RagPreTrainedModel):
             ]  # (n_docs, max_len)
 
             output_sequences = self.generator.generate(
-                generator_input_ids, **model_kwargs,
+                generator_input_ids,
+                **model_kwargs,
             )  # n_docs * n_beam, tgt_len
             if do_deduplication:
                 # do_deduplication, max_output_len

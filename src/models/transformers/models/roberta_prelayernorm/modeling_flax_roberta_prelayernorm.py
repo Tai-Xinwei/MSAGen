@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The Google Flax Team Authors and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -834,7 +834,9 @@ class FlaxRobertaPreLayerNormPreTrainedModel(FlaxPreTrainedModel):
     # Copied from transformers.models.bert.modeling_flax_bert.FlaxBertPreTrainedModel.enable_gradient_checkpointing
     def enable_gradient_checkpointing(self):
         self._module = self.module_class(
-            config=self.config, dtype=self.dtype, gradient_checkpointing=True,
+            config=self.config,
+            dtype=self.dtype,
+            gradient_checkpointing=True,
         )
 
     def init_weights(

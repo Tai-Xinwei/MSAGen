@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2020 The Trax Authors and The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
@@ -821,7 +821,7 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
             2 * (sequence_length // self.chunk_length)
         ).bit_length() - 1
         # make sure buckets are power of 2
-        num_buckets = 2 ** num_buckets_pow_2
+        num_buckets = 2**num_buckets_pow_2
 
         # factorize `num_buckets` if `num_buckets` becomes too large
         num_buckets_limit = 2 * max(
@@ -1162,7 +1162,7 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
         """
         length normalization
         """
-        variance = torch.mean(x ** 2, -1, keepdim=True)
+        variance = torch.mean(x**2, -1, keepdim=True)
         norm_x = x * torch.rsqrt(variance + epsilon)
         return norm_x
 

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 Google Research and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -334,7 +334,7 @@ class BigBirdEmbeddings(nn.Module):
             inputs_embeds = self.word_embeddings(input_ids)
 
         if self.rescale_embeddings:
-            inputs_embeds = inputs_embeds * (self.hidden_size ** 0.5)
+            inputs_embeds = inputs_embeds * (self.hidden_size**0.5)
 
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
 

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2021 AlQuraishi Laboratory
 # Copyright 2021 DeepMind Technologies Limited
 #
@@ -108,9 +109,12 @@ def from_proteinnet_string(proteinnet_str: str) -> Protein:
             atom_positions *= PICO_TO_ANGSTROM
         elif "[MASK]" == g[0]:
             mask = np.array(list(map({"-": 0, "+": 1}.get, g[1][0].strip())))
-            atom_mask = np.zeros((len(mask), residue_constants.atom_type_num,)).astype(
-                np.float32
-            )
+            atom_mask = np.zeros(
+                (
+                    len(mask),
+                    residue_constants.atom_type_num,
+                )
+            ).astype(np.float32)
             for i, atom in enumerate(atoms):
                 atom_mask[:, residue_constants.atom_order[atom]] = 1
             atom_mask *= mask[..., None]

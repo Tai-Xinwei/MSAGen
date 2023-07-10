@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2020 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -656,7 +657,9 @@ class OpusState:
         if "hidden_size" in cfg.to_dict():
             raise ValueError("hidden_size is in config")
         load_layers_(
-            model.model.encoder.layers, state_dict, BART_CONVERTER,
+            model.model.encoder.layers,
+            state_dict,
+            BART_CONVERTER,
         )
         load_layers_(
             model.model.decoder.layers, state_dict, BART_CONVERTER, is_decoder=True

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The Fairseq Authors and The Google Flax Team Authors And The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -582,7 +582,11 @@ class FlaxOPTPreTrainedModel(FlaxPreTrainedModel):
         rngs = {"params": params_rng, "dropout": dropout_rng}
 
         module_init_outputs = self.module.init(
-            rngs, input_ids, attention_mask, position_ids, return_dict=False,
+            rngs,
+            input_ids,
+            attention_mask,
+            position_ids,
+            return_dict=False,
         )
 
         random_params = module_init_outputs["params"]
@@ -854,5 +858,8 @@ class FlaxOPTForCausalLM(FlaxOPTPreTrainedModel):
 
 
 append_call_sample_docstring(
-    FlaxOPTForCausalLM, _CHECKPOINT_FOR_DOC, FlaxBaseModelOutput, _CONFIG_FOR_DOC,
+    FlaxOPTForCausalLM,
+    _CHECKPOINT_FOR_DOC,
+    FlaxBaseModelOutput,
+    _CONFIG_FOR_DOC,
 )

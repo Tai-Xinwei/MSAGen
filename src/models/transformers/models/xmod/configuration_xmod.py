@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 The Meta AI Team Authors and The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
@@ -189,5 +189,8 @@ class XmodOnnxConfig(OnnxConfig):
         else:
             dynamic_axis = {0: "batch", 1: "sequence"}
         return OrderedDict(
-            [("input_ids", dynamic_axis), ("attention_mask", dynamic_axis),]
+            [
+                ("input_ids", dynamic_axis),
+                ("attention_mask", dynamic_axis),
+            ]
         )

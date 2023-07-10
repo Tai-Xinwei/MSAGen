@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The EleutherAI and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -698,7 +698,10 @@ class FlaxGPTJModel(FlaxGPTJPreTrainedModel):
 
 
 append_call_sample_docstring(
-    FlaxGPTJModel, _CHECKPOINT_FOR_DOC, FlaxCausalLMOutput, _CONFIG_FOR_DOC,
+    FlaxGPTJModel,
+    _CHECKPOINT_FOR_DOC,
+    FlaxCausalLMOutput,
+    _CONFIG_FOR_DOC,
 )
 
 
@@ -801,5 +804,8 @@ class FlaxGPTJForCausalLM(FlaxGPTJPreTrainedModel):
 
 
 append_call_sample_docstring(
-    FlaxGPTJForCausalLM, _CHECKPOINT_FOR_DOC, FlaxCausalLMOutput, _CONFIG_FOR_DOC,
+    FlaxGPTJForCausalLM,
+    _CHECKPOINT_FOR_DOC,
+    FlaxCausalLMOutput,
+    _CONFIG_FOR_DOC,
 )

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 SHI Labs and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -489,7 +489,10 @@ class OneFormerImageProcessor(BaseImageProcessor):
                 f" {size.keys()}."
             )
         size = get_oneformer_resize_output_image_size(
-            image=image, size=size, max_size=max_size, default_to_square=False,
+            image=image,
+            size=size,
+            max_size=max_size,
+            default_to_square=False,
         )
         image = resize(image, size=size, resample=resample, data_format=data_format)
         return image

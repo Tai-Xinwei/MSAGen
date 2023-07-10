@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -174,10 +174,10 @@ def bytes_to_unicode():
     )
     cs = bs[:]
     n = 0
-    for b in range(2 ** 8):
+    for b in range(2**8):
         if b not in bs:
             bs.append(b)
-            cs.append(2 ** 8 + n)
+            cs.append(2**8 + n)
             n += 1
     cs = [chr(n) for n in cs]
     return dict(zip(bs, cs))
@@ -776,7 +776,9 @@ class LayoutLMv3Tokenizer(PreTrainedTokenizer):
     def batch_encode_plus(
         self,
         batch_text_or_text_pairs: Union[
-            List[TextInput], List[TextInputPair], List[PreTokenizedInput],
+            List[TextInput],
+            List[TextInputPair],
+            List[PreTokenizedInput],
         ],
         is_pair: bool = None,
         boxes: Optional[List[List[List[int]]]] = None,
@@ -838,7 +840,9 @@ class LayoutLMv3Tokenizer(PreTrainedTokenizer):
     def _batch_encode_plus(
         self,
         batch_text_or_text_pairs: Union[
-            List[TextInput], List[TextInputPair], List[PreTokenizedInput],
+            List[TextInput],
+            List[TextInputPair],
+            List[PreTokenizedInput],
         ],
         is_pair: bool = None,
         boxes: Optional[List[List[List[int]]]] = None,

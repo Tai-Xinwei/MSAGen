@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2019-present, the HuggingFace Inc. team, The Google AI Language Team and Facebook, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -146,5 +146,8 @@ class DistilBertOnnxConfig(OnnxConfig):
         else:
             dynamic_axis = {0: "batch", 1: "sequence"}
         return OrderedDict(
-            [("input_ids", dynamic_axis), ("attention_mask", dynamic_axis),]
+            [
+                ("input_ids", dynamic_axis),
+                ("attention_mask", dynamic_axis),
+            ]
         )

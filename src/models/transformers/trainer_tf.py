@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2020 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -100,7 +101,10 @@ class TFTrainer:
         optimizers: Tuple[
             tf.keras.optimizers.Optimizer,
             tf.keras.optimizers.schedules.LearningRateSchedule,
-        ] = (None, None,),
+        ] = (
+            None,
+            None,
+        ),
     ):
         self.model = model
         self.args = args

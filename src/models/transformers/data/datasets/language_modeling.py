@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2020 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -574,8 +575,10 @@ class TextDatasetForNextSentencePrediction(Dataset):
                         tokens_a, tokens_b
                     )
                     # add token type ids, 0 for sentence a, 1 for sentence b
-                    token_type_ids = self.tokenizer.create_token_type_ids_from_sequences(
-                        tokens_a, tokens_b
+                    token_type_ids = (
+                        self.tokenizer.create_token_type_ids_from_sequences(
+                            tokens_a, tokens_b
+                        )
                     )
 
                     example = {

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -139,7 +139,7 @@ def rename_key(dct, old, new):
 # we split up the matrix of each encoder layer into queries, keys and values
 def read_in_q_k_v(state_dict, backbone_config):
     num_features = [
-        int(backbone_config.embed_dim * 2 ** i)
+        int(backbone_config.embed_dim * 2**i)
         for i in range(len(backbone_config.depths))
     ]
     for i in range(len(backbone_config.depths)):

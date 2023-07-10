@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Microsoft Research and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -85,7 +85,7 @@ class TFLayoutLMv3PatchEmbeddings(tf.keras.layers.Layer):
             name="proj",
         )
         self.hidden_size = config.hidden_size
-        self.num_patches = (config.input_size ** 2) // (patch_sizes[0] * patch_sizes[1])
+        self.num_patches = (config.input_size**2) // (patch_sizes[0] * patch_sizes[1])
 
     def call(self, pixel_values: tf.Tensor) -> tf.Tensor:
         # When running on CPU, `tf.keras.layers.Conv2D` doesn't support `NCHW` format.
@@ -1376,7 +1376,10 @@ class TFLayoutLMv3ClassificationHead(tf.keras.layers.Layer):
             if config.classifier_dropout is not None
             else config.hidden_dropout_prob
         )
-        self.dropout = tf.keras.layers.Dropout(classifier_dropout, name="dropout",)
+        self.dropout = tf.keras.layers.Dropout(
+            classifier_dropout,
+            name="dropout",
+        )
         self.out_proj = tf.keras.layers.Dense(
             config.num_labels,
             kernel_initializer=get_initializer(config.initializer_range),

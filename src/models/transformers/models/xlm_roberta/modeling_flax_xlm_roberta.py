@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Facebook AI Research and the HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
@@ -842,7 +842,9 @@ class FlaxXLMRobertaPreTrainedModel(FlaxPreTrainedModel):
     # Copied from transformers.models.bert.modeling_flax_bert.FlaxBertPreTrainedModel.enable_gradient_checkpointing
     def enable_gradient_checkpointing(self):
         self._module = self.module_class(
-            config=self.config, dtype=self.dtype, gradient_checkpointing=True,
+            config=self.config,
+            dtype=self.dtype,
+            gradient_checkpointing=True,
         )
 
     def init_weights(

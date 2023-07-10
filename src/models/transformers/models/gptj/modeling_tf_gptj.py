@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The EleutherAI and HuggingFace Teams. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -97,7 +97,7 @@ class TFGPTJAttention(tf.keras.layers.Layer):
                 f"embed_dim must be divisible by num_attention_heads (got `embed_dim`: {self.embed_dim} and"
                 f" `num_attention_heads`: {self.num_attention_heads})."
             )
-        self.scale_attn = self.head_dim ** 0.5
+        self.scale_attn = self.head_dim**0.5
         self.rotary_dim = config.rotary_dim
 
         self.attn_dropout = tf.keras.layers.Dropout(config.attn_pdrop)

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 The HuggingFace Inc. & Google team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -494,9 +494,9 @@ class Pix2StructPreTrainedModel(PreTrainedModel):
             module.query.weight.data.normal_(
                 mean=0.0, std=factor * ((hidden_size * key_value_proj_dim) ** -0.5)
             )
-            module.key.weight.data.normal_(mean=0.0, std=factor * (hidden_size ** -0.5))
+            module.key.weight.data.normal_(mean=0.0, std=factor * (hidden_size**-0.5))
             module.value.weight.data.normal_(
-                mean=0.0, std=factor * (hidden_size ** -0.5)
+                mean=0.0, std=factor * (hidden_size**-0.5)
             )
             module.output.weight.data.normal_(
                 mean=0.0, std=factor * ((n_heads * key_value_proj_dim) ** -0.5)
@@ -1470,7 +1470,8 @@ PIX2STRUCT_INPUTS_DOCSTRING = r"""
 
 
 @add_start_docstrings(
-    "The standalone text decoder of Pix2Struct", PIX2STRUCT_START_DOCSTRING,
+    "The standalone text decoder of Pix2Struct",
+    PIX2STRUCT_START_DOCSTRING,
 )
 class Pix2StructTextModel(Pix2StructPreTrainedModel):
     config_class = Pix2StructTextConfig

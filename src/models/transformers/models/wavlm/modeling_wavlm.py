@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The Fairseq Authors, Microsoft Research, and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -376,7 +376,8 @@ class WavLMFeatureEncoder(nn.Module):
                     return custom_forward
 
                 hidden_states = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(conv_layer), hidden_states,
+                    create_custom_forward(conv_layer),
+                    hidden_states,
                 )
             else:
                 hidden_states = conv_layer(hidden_states)
@@ -434,7 +435,7 @@ class WavLMAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
 
         self.k_proj = nn.Linear(embed_dim, embed_dim)
         self.v_proj = nn.Linear(embed_dim, embed_dim)

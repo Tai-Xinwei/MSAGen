@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 Google AI, Google Brain and the HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -948,7 +948,10 @@ class FlaxAlbertForSequenceClassificationModule(nn.Module):
             else self.config.hidden_dropout_prob
         )
         self.dropout = nn.Dropout(rate=classifier_dropout)
-        self.classifier = nn.Dense(self.config.num_labels, dtype=self.dtype,)
+        self.classifier = nn.Dense(
+            self.config.num_labels,
+            dtype=self.dtype,
+        )
 
     def __call__(
         self,

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 Google AI The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -985,7 +985,10 @@ class CanineOnlyMLMHead(nn.Module):
         super().__init__()
         self.predictions = CanineLMPredictionHead(config)
 
-    def forward(self, sequence_output: Tuple[torch.Tensor],) -> Tuple[torch.Tensor]:
+    def forward(
+        self,
+        sequence_output: Tuple[torch.Tensor],
+    ) -> Tuple[torch.Tensor]:
         prediction_scores = self.predictions(sequence_output)
         return prediction_scores
 

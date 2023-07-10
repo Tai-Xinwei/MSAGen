@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 The Fairseq Authors, Microsoft Research, and the HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -578,7 +578,8 @@ class SpeechT5FeatureEncoder(nn.Module):
                     return custom_forward
 
                 hidden_states = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(conv_layer), hidden_states,
+                    create_custom_forward(conv_layer),
+                    hidden_states,
                 )
             else:
                 hidden_states = conv_layer(hidden_states)
@@ -637,7 +638,8 @@ class SpeechT5SpeechEncoderPrenet(nn.Module):
         if attention_mask is not None:
             # compute reduced attention_mask corresponding to feature vectors
             attention_mask = self._get_feature_vector_attention_mask(
-                extract_features.shape[1], attention_mask,
+                extract_features.shape[1],
+                attention_mask,
             )
 
         hidden_states, extract_features = self.feature_projection(extract_features)
@@ -791,7 +793,9 @@ class SpeechT5SpeechDecoderPrenet(nn.Module):
         )
 
         self.encode_positions = SpeechT5ScaledPositionalEncoding(
-            config.positional_dropout, config.hidden_size, config.max_speech_positions,
+            config.positional_dropout,
+            config.hidden_size,
+            config.max_speech_positions,
         )
 
         self.speaker_embeds_layer = nn.Linear(
@@ -907,7 +911,9 @@ class SpeechT5TextEncoderPrenet(nn.Module):
             config.vocab_size, config.hidden_size, config.pad_token_id
         )
         self.encode_positions = SpeechT5ScaledPositionalEncoding(
-            config.positional_dropout, config.hidden_size, config.max_text_positions,
+            config.positional_dropout,
+            config.hidden_size,
+            config.max_text_positions,
         )
 
     def get_input_embeddings(self):
@@ -1012,7 +1018,7 @@ class SpeechT5Attention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -2366,8 +2372,10 @@ class SpeechT5Model(SpeechT5PreTrainedModel):
         if attention_mask is not None and isinstance(
             self.encoder, SpeechT5EncoderWithSpeechPrenet
         ):
-            encoder_attention_mask = self.encoder.prenet._get_feature_vector_attention_mask(
-                encoder_outputs[0].shape[1], attention_mask
+            encoder_attention_mask = (
+                self.encoder.prenet._get_feature_vector_attention_mask(
+                    encoder_outputs[0].shape[1], attention_mask
+                )
             )
         else:
             encoder_attention_mask = attention_mask
@@ -2656,8 +2664,10 @@ def _generate_speech(
 
     # downsample encoder attention mask
     if isinstance(model.speecht5.encoder, SpeechT5EncoderWithSpeechPrenet):
-        encoder_attention_mask = model.speecht5.encoder.prenet._get_feature_vector_attention_mask(
-            encoder_out[0].shape[1], encoder_attention_mask
+        encoder_attention_mask = (
+            model.speecht5.encoder.prenet._get_feature_vector_attention_mask(
+                encoder_out[0].shape[1], encoder_attention_mask
+            )
         )
 
     maxlen = int(
@@ -3221,7 +3231,8 @@ class HifiGanResidualBlock(nn.Module):
 
 
 @add_start_docstrings(
-    """HiFi-GAN vocoder.""", HIFIGAN_START_DOCSTRING,
+    """HiFi-GAN vocoder.""",
+    HIFIGAN_START_DOCSTRING,
 )
 class SpeechT5HifiGan(PreTrainedModel):
     config_class = SpeechT5HifiGanConfig
@@ -3245,7 +3256,7 @@ class SpeechT5HifiGan(PreTrainedModel):
         ):
             self.upsampler.append(
                 nn.ConvTranspose1d(
-                    config.upsample_initial_channel // (2 ** i),
+                    config.upsample_initial_channel // (2**i),
                     config.upsample_initial_channel // (2 ** (i + 1)),
                     kernel_size=kernel_size,
                     stride=upsample_rate,

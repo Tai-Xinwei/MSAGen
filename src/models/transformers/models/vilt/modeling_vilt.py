@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 NAVER AI Labs and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -139,7 +139,10 @@ class ViltEmbeddings(nn.Module):
             [
                 nn.functional.pad(
                     nn.functional.interpolate(
-                        spatial_pos, size=(h, w), mode="bilinear", align_corners=True,
+                        spatial_pos,
+                        size=(h, w),
+                        mode="bilinear",
+                        align_corners=True,
                     ),
                     (0, width - w, 0, height - h),
                 )

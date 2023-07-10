@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 Meta AI Team and the HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1314,7 +1314,8 @@ class XmodForCausalLM(XmodPreTrainedModel):
 
 
 @add_start_docstrings(
-    """X-MOD Model with a `language modeling` head on top.""", XMOD_START_DOCSTRING,
+    """X-MOD Model with a `language modeling` head on top.""",
+    XMOD_START_DOCSTRING,
 )
 class XmodForMaskedLM(XmodPreTrainedModel):
     _keys_to_ignore_on_save = [r"lm_head.decoder.weight", r"lm_head.decoder.bias"]

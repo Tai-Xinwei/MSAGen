@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The OFA-Sys Team Authors and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -494,7 +494,7 @@ class ChineseCLIPVisionAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
                 f" {self.num_heads})."
             )
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.dropout = config.attention_dropout
 
         self.k_proj = nn.Linear(self.embed_dim, self.embed_dim)
@@ -510,7 +510,9 @@ class ChineseCLIPVisionAttention(nn.Module):
         )
 
     def forward(
-        self, hidden_states: torch.Tensor, output_attentions: Optional[bool] = False,
+        self,
+        hidden_states: torch.Tensor,
+        output_attentions: Optional[bool] = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         """Input shape: Batch x Time x Channel"""
 
@@ -733,7 +735,9 @@ class ChineseCLIPVisionLayer(nn.Module):
         self.layer_norm2 = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
 
     def forward(
-        self, hidden_states: torch.Tensor, output_attentions: Optional[bool] = False,
+        self,
+        hidden_states: torch.Tensor,
+        output_attentions: Optional[bool] = False,
     ) -> Tuple[torch.FloatTensor]:
         """
         Args:
@@ -746,7 +750,8 @@ class ChineseCLIPVisionLayer(nn.Module):
 
         hidden_states = self.layer_norm1(hidden_states)
         hidden_states, attn_weights = self.self_attn(
-            hidden_states=hidden_states, output_attentions=output_attentions,
+            hidden_states=hidden_states,
+            output_attentions=output_attentions,
         )
         hidden_states = residual + hidden_states
 
@@ -796,7 +801,7 @@ class ChineseCLIPPreTrainedModel(PreTrainedModel):
         if isinstance(module, ChineseCLIPVisionEmbeddings):
             factor = self.config.initializer_factor
             nn.init.normal_(
-                module.class_embedding, mean=0.0, std=module.embed_dim ** -0.5 * factor
+                module.class_embedding, mean=0.0, std=module.embed_dim**-0.5 * factor
             )
             nn.init.normal_(
                 module.patch_embedding.weight,
@@ -832,11 +837,11 @@ class ChineseCLIPPreTrainedModel(PreTrainedModel):
         elif isinstance(module, ChineseCLIPVisionAttention):
             factor = self.config.initializer_factor
             in_proj_std = (
-                (module.embed_dim ** -0.5)
+                (module.embed_dim**-0.5)
                 * ((2 * module.config.num_hidden_layers) ** -0.5)
                 * factor
             )
-            out_proj_std = (module.embed_dim ** -0.5) * factor
+            out_proj_std = (module.embed_dim**-0.5) * factor
             nn.init.normal_(module.q_proj.weight, std=in_proj_std)
             nn.init.normal_(module.k_proj.weight, std=in_proj_std)
             nn.init.normal_(module.v_proj.weight, std=in_proj_std)
@@ -844,7 +849,7 @@ class ChineseCLIPPreTrainedModel(PreTrainedModel):
         elif isinstance(module, ChineseCLIPVisionMLP):
             factor = self.config.initializer_factor
             in_proj_std = (
-                (module.config.hidden_size ** -0.5)
+                (module.config.hidden_size**-0.5)
                 * ((2 * module.config.num_hidden_layers) ** -0.5)
                 * factor
             )
@@ -854,11 +859,11 @@ class ChineseCLIPPreTrainedModel(PreTrainedModel):
         elif isinstance(module, ChineseCLIPModel):
             nn.init.normal_(
                 module.text_projection.weight,
-                std=module.text_embed_dim ** -0.5 * self.config.initializer_factor,
+                std=module.text_embed_dim**-0.5 * self.config.initializer_factor,
             )
             nn.init.normal_(
                 module.visual_projection.weight,
-                std=module.vision_embed_dim ** -0.5 * self.config.initializer_factor,
+                std=module.vision_embed_dim**-0.5 * self.config.initializer_factor,
             )
 
         if isinstance(module, nn.LayerNorm):
@@ -1169,11 +1174,13 @@ class ChineseCLIPVisionEncoder(nn.Module):
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(encoder_layer), hidden_states,
+                    create_custom_forward(encoder_layer),
+                    hidden_states,
                 )
             else:
                 layer_outputs = encoder_layer(
-                    hidden_states, output_attentions=output_attentions,
+                    hidden_states,
+                    output_attentions=output_attentions,
                 )
 
             hidden_states = layer_outputs[0]

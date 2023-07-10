@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -97,7 +97,10 @@ def mel_to_hertz(mels: np.array, mel_scale: str = "htk") -> np.array:
     return freqs
 
 
-def _create_triangular_filterbank(all_freqs: np.array, f_pts: np.array,) -> np.array:
+def _create_triangular_filterbank(
+    all_freqs: np.array,
+    f_pts: np.array,
+) -> np.array:
     """Create a triangular filter bank.
 
 

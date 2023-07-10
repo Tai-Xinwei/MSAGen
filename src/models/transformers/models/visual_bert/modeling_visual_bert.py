@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The UCLA NLP Authors and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -370,7 +370,10 @@ class VisualBertAttention(nn.Module):
         output_attentions=False,
     ):
         self_outputs = self.self(
-            hidden_states, attention_mask, head_mask, output_attentions,
+            hidden_states,
+            attention_mask,
+            head_mask,
+            output_attentions,
         )
         attention_output = self.output(self_outputs[0], hidden_states)
         outputs = (attention_output,) + self_outputs[
@@ -512,7 +515,11 @@ class VisualBertEncoder(nn.Module):
         if not return_dict:
             return tuple(
                 v
-                for v in [hidden_states, all_hidden_states, all_self_attentions,]
+                for v in [
+                    hidden_states,
+                    all_hidden_states,
+                    all_self_attentions,
+                ]
                 if v is not None
             )
         return BaseModelOutput(

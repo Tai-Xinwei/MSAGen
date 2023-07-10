@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2019-present CNRS, Facebook Inc. and the HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -159,7 +159,7 @@ class FlaubertConfig(PretrainedConfig):
         n_langs=1,
         use_lang_emb=True,
         max_position_embeddings=512,
-        embed_init_std=2048 ** -0.5,
+        embed_init_std=2048**-0.5,
         layer_norm_eps=1e-12,
         init_std=0.02,
         bos_index=0,
@@ -230,5 +230,8 @@ class FlaubertOnnxConfig(OnnxConfig):
         else:
             dynamic_axis = {0: "batch", 1: "sequence"}
         return OrderedDict(
-            [("input_ids", dynamic_axis), ("attention_mask", dynamic_axis),]
+            [
+                ("input_ids", dynamic_axis),
+                ("attention_mask", dynamic_axis),
+            ]
         )

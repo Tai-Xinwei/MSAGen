@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -424,7 +424,10 @@ class MCTCTAttention(nn.Module):
         output_attentions=False,
     ):
         self_outputs = self.self(
-            hidden_states, attention_mask, head_mask, output_attentions,
+            hidden_states,
+            attention_mask,
+            head_mask,
+            output_attentions,
         )
         attention_output = self.output(self_outputs[0], hidden_states)
         outputs = (attention_output,) + self_outputs[

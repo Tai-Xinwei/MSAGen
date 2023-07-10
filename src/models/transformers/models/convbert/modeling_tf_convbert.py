@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -266,7 +266,10 @@ class TFConvBertSelfAttention(tf.keras.layers.Layer):
 
         paddings = tf.constant(
             [
-                [0, 0,],
+                [
+                    0,
+                    0,
+                ],
                 [
                     int((self.conv_kernel_size - 1) / 2),
                     int((self.conv_kernel_size - 1) / 2),

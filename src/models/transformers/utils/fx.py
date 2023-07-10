@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -900,13 +900,19 @@ class HFTracer(Tracer):
             )
         elif "visual_feats" in input_name:
             inputs_dict[input_name] = torch.zeros(
-                shape + [model.config.visual_feat_dim,],
+                shape
+                + [
+                    model.config.visual_feat_dim,
+                ],
                 dtype=torch.float,
                 device=device,
             )
         elif "visual_pos" in input_name:
             inputs_dict[input_name] = torch.zeros(
-                shape + [model.config.visual_pos_dim,],
+                shape
+                + [
+                    model.config.visual_pos_dim,
+                ],
                 dtype=torch.float,
                 device=device,
             )

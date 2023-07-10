@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 BNRist (Tsinghua University), TKLNDST (Nankai University) and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -362,7 +362,14 @@ class VanEncoder(nn.Module):
 
         for (
             num_stage,
-            (patch_size, stride, hidden_size, depth, mlp_expantion, drop_path_rate,),
+            (
+                patch_size,
+                stride,
+                hidden_size,
+                depth,
+                mlp_expantion,
+                drop_path_rate,
+            ),
         ) in enumerate(
             zip(patch_sizes, strides, hidden_sizes, depths, mlp_ratios, drop_path_rates)
         ):

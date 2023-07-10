@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -95,7 +95,8 @@ class TFRoFormerSinusoidalPositionalEmbedding(tf.keras.layers.Layer):
         weight = self._init_weight(self.num_positions, self.embedding_dim)
 
         self.weight = self.add_weight(
-            name="embeddings", shape=[self.num_positions, self.embedding_dim],
+            name="embeddings",
+            shape=[self.num_positions, self.embedding_dim],
         )
         weight = tf.cast(weight, dtype=self.weight.dtype)
 

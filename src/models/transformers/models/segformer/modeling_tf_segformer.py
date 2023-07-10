@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 NVIDIA The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -481,7 +481,11 @@ class TFSegformerEncoder(tf.keras.layers.Layer):
             # (each block consists of multiple layers i.e., list of layers)
             for i, blk in enumerate(block_layer):
                 layer_outputs = blk(
-                    hidden_states, height, width, output_attentions, training=training,
+                    hidden_states,
+                    height,
+                    width,
+                    output_attentions,
+                    training=training,
                 )
                 hidden_states = layer_outputs[0]
                 if output_attentions:

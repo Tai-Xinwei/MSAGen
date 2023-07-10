@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2023 The Salesforce Team Authors and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the BSD-3-clause license (the "License");
@@ -1015,7 +1015,9 @@ class TFBlipTextLMHeadModel(TFBlipTextPreTrainedModel):
 
     @tf.function(
         input_signature=[
-            {"input_ids": tf.TensorSpec((None, None), tf.int32, name="input_ids"),}
+            {
+                "input_ids": tf.TensorSpec((None, None), tf.int32, name="input_ids"),
+            }
         ]
     )
     def serving(

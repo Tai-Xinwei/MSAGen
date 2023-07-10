@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Facebook AI and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -181,7 +181,7 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
 
     omega = tf.range(embed_dim // 2, dtype="float32")
     omega /= embed_dim / 2.0
-    omega = 1.0 / 10000 ** omega  # (D/2,)
+    omega = 1.0 / 10000**omega  # (D/2,)
 
     pos = tf.reshape(pos, [-1])  # (M,)
     out = tf.einsum("m,d->md", pos, omega)  # (M, D/2), outer product
@@ -226,7 +226,7 @@ class TFViTMAEEmbeddings(tf.keras.layers.Layer):
         )
         pos_embed = get_2d_sincos_pos_embed(
             self.position_embeddings.shape[-1],
-            int(self.patch_embeddings.num_patches ** 0.5),
+            int(self.patch_embeddings.num_patches**0.5),
             add_cls_token=True,
         )[None, ...]
         self.position_embeddings.assign(pos_embed)
@@ -259,7 +259,12 @@ class TFViTMAEEmbeddings(tf.keras.layers.Layer):
 
         # keep the first subset
         ids_keep = ids_shuffle[:, :len_keep]
-        sequence_unmasked = tf.gather(sequence, axis=1, batch_dims=1, indices=ids_keep,)
+        sequence_unmasked = tf.gather(
+            sequence,
+            axis=1,
+            batch_dims=1,
+            indices=ids_keep,
+        )
 
         # generate the binary mask: 0 is keep, 1 is remove
         # this hack is needed because TF's EagerTensors don't support
@@ -962,7 +967,7 @@ class TFViTMAEDecoder(tf.keras.layers.Layer):
             epsilon=config.layer_norm_eps, name="decoder_norm"
         )
         self.decoder_pred = tf.keras.layers.Dense(
-            config.patch_size ** 2 * config.num_channels,
+            config.patch_size**2 * config.num_channels,
             kernel_initializer=get_initializer(config.initializer_range),
             name="decoder_pred",
         )  # encoder to decoder
@@ -986,7 +991,7 @@ class TFViTMAEDecoder(tf.keras.layers.Layer):
         )
         decoder_pos_embed = get_2d_sincos_pos_embed(
             self.decoder_pos_embed.shape[-1],
-            int(self.num_patches ** 0.5),
+            int(self.num_patches**0.5),
             add_cls_token=True,
         )[None, ...]
         self.decoder_pos_embed.assign(decoder_pos_embed)
@@ -1024,7 +1029,9 @@ class TFViTMAEDecoder(tf.keras.layers.Layer):
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
             layer_outputs = layer_module(
-                hidden_states, head_mask=None, output_attentions=output_attentions,
+                hidden_states,
+                head_mask=None,
+                output_attentions=output_attentions,
             )
 
             hidden_states = layer_outputs[0]
@@ -1067,7 +1074,9 @@ class TFViTMAEForPreTraining(TFViTMAEPreTrainedModel):
 
         self.vit = TFViTMAEMainLayer(config, name="vit")
         self.decoder = TFViTMAEDecoder(
-            config, num_patches=self.vit.embeddings.num_patches, name="decoder",
+            config,
+            num_patches=self.vit.embeddings.num_patches,
+            name="decoder",
         )
 
     def get_input_embeddings(self):
@@ -1133,7 +1142,7 @@ class TFViTMAEForPreTraining(TFViTMAEPreTrainedModel):
             (
                 batch_size,
                 num_patches_one_direction * num_patches_one_direction,
-                patch_size ** 2 * num_channels,
+                patch_size**2 * num_channels,
             ),
         )
         return patchified_pixel_values

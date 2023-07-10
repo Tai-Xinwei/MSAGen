@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022, UCLA NLP, The Facebook AI Research Team and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -178,7 +178,7 @@ class PLBartAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -543,7 +543,11 @@ class PLBartClassificationHead(nn.Module):
     """Head for sentence-level classification tasks."""
 
     def __init__(
-        self, input_dim: int, inner_dim: int, num_classes: int, pooler_dropout: float,
+        self,
+        input_dim: int,
+        inner_dim: int,
+        num_classes: int,
+        pooler_dropout: float,
     ):
         super().__init__()
         self.dense = nn.Linear(input_dim, inner_dim)
@@ -749,7 +753,8 @@ class PLBartEncoder(PLBartPreTrainedModel):
             self.embed_tokens.weight = embed_tokens.weight
 
         self.embed_positions = PLBartLearnedPositionalEmbedding(
-            config.max_position_embeddings, embed_dim,
+            config.max_position_embeddings,
+            embed_dim,
         )
         self.layers = nn.ModuleList(
             [PLBartEncoderLayer(config) for _ in range(config.encoder_layers)]
@@ -950,7 +955,8 @@ class PLBartDecoder(PLBartPreTrainedModel):
             self.embed_tokens.weight = embed_tokens.weight
 
         self.embed_positions = PLBartLearnedPositionalEmbedding(
-            config.max_position_embeddings, config.d_model,
+            config.max_position_embeddings,
+            config.d_model,
         )
         self.layers = nn.ModuleList(
             [PLBartDecoderLayer(config) for _ in range(config.decoder_layers)]

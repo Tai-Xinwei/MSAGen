@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 KAIST and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -163,7 +163,11 @@ class GLPNEfficientSelfAttention(nn.Module):
         return hidden_states.permute(0, 2, 1, 3)
 
     def forward(
-        self, hidden_states, height, width, output_attentions=False,
+        self,
+        hidden_states,
+        height,
+        width,
+        output_attentions=False,
     ):
         query_layer = self.transpose_for_scores(self.query(hidden_states))
 

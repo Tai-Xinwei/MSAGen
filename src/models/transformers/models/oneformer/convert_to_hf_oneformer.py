@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 SHI Labs and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -965,7 +965,9 @@ class OriginalOneFormerCheckpointToOursConverter:
         for i in range(self.config.decoder_layers - 1):
             renamed_keys.extend(
                 rename_keys_for_transformer_decoder_layer(
-                    f"{src_prefix}", f"{dst_prefix}.decoder.layers", i,
+                    f"{src_prefix}",
+                    f"{dst_prefix}.decoder.layers",
+                    i,
                 )
             )
 
@@ -1246,7 +1248,12 @@ def test(
                 original_model_feature, our_model_feature, atol=3e-4
             ), "The pixel decoder feature are not the same"
 
-        tr_complete = T.Compose([T.Resize((640, 640)), T.ToTensor(),],)
+        tr_complete = T.Compose(
+            [
+                T.Resize((640, 640)),
+                T.ToTensor(),
+            ],
+        )
 
         y = (tr_complete(im) * 255.0).to(torch.int).float()
 

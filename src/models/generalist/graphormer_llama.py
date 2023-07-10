@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) Facebook, Inc. and its affiliates.
 #
 # This source code is licensed under the MIT license found in the
@@ -14,7 +15,7 @@ from transformers.models.llama.configuration_llama import LlamaConfig
 from src.models.transformers import AutoModelForCausalLM, LlamaForCausalLM
 from src.models.transformers.modeling_utils import PreTrainedModel
 from src.modules import GraphormerSentenceEncoder, init_bert_params
-from src.modules.hybrid_emb import Hybrid_emb, AdaptorConfig
+from src.modules.hybrid_emb import AdaptorConfig, Hybrid_emb
 from src.sfm_logging.loggers import sfm_logger as logger
 
 

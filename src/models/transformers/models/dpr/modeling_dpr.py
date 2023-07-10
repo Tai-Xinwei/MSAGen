@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2018 DPR Authors, The Hugging Face Team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -633,7 +633,8 @@ class DPRQuestionEncoder(DPRPretrainedQuestionEncoder):
 
 
 @add_start_docstrings(
-    "The bare DPRReader transformer outputting span predictions.", DPR_START_DOCSTRING,
+    "The bare DPRReader transformer outputting span predictions.",
+    DPR_START_DOCSTRING,
 )
 class DPRReader(DPRPretrainedReader):
     def __init__(self, config: DPRConfig):

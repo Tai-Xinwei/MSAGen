@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2020 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -142,7 +143,8 @@ class AddNewModelCommand(BaseTransformersCLICommand):
             pass
 
         shutil.move(
-            f"{directory}/__init__.py", f"{model_dir}/__init__.py",
+            f"{directory}/__init__.py",
+            f"{model_dir}/__init__.py",
         )
         shutil.move(
             f"{directory}/configuration_{lowercase_model_name}.py",

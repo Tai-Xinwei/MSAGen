@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2019 The Google AI Language Team Authors and The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1879,7 +1879,10 @@ class TFElectraForQuestionAnswering(TFElectraPreTrainedModel, TFQuestionAnswerin
             loss = self.hf_compute_loss(labels, (start_logits, end_logits))
 
         if not return_dict:
-            output = (start_logits, end_logits,) + discriminator_hidden_states[1:]
+            output = (
+                start_logits,
+                end_logits,
+            ) + discriminator_hidden_states[1:]
 
             return ((loss,) + output) if loss is not None else output
 

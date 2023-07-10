@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2021 The Fairseq Authors and the HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -403,7 +403,8 @@ class UniSpeechFeatureEncoder(nn.Module):
                     return custom_forward
 
                 hidden_states = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(conv_layer), hidden_states,
+                    create_custom_forward(conv_layer),
+                    hidden_states,
                 )
             else:
                 hidden_states = conv_layer(hidden_states)
@@ -461,7 +462,7 @@ class UniSpeechAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -791,7 +792,9 @@ class UniSpeechEncoder(nn.Module):
                         return custom_forward
 
                     layer_outputs = torch.utils.checkpoint.checkpoint(
-                        create_custom_forward(layer), hidden_states, attention_mask,
+                        create_custom_forward(layer),
+                        hidden_states,
+                        attention_mask,
                     )
                 else:
                     layer_outputs = layer(
@@ -899,7 +902,9 @@ class UniSpeechEncoderStableLayerNorm(nn.Module):
                         return custom_forward
 
                     layer_outputs = torch.utils.checkpoint.checkpoint(
-                        create_custom_forward(layer), hidden_states, attention_mask,
+                        create_custom_forward(layer),
+                        hidden_states,
+                        attention_mask,
                     )
                 else:
                     layer_outputs = layer(

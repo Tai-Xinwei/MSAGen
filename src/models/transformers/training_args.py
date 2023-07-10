@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2020 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -620,7 +621,8 @@ class TrainingArguments:
         default=False, metadata={"help": "Whether to run predictions on the test set."}
     )
     evaluation_strategy: Union[IntervalStrategy, str] = field(
-        default="no", metadata={"help": "The evaluation strategy to use."},
+        default="no",
+        metadata={"help": "The evaluation strategy to use."},
     )
     prediction_loss_only: bool = field(
         default=False,
@@ -705,7 +707,8 @@ class TrainingArguments:
         },
     )
     lr_scheduler_type: Union[SchedulerType, str] = field(
-        default="linear", metadata={"help": "The scheduler type to use."},
+        default="linear",
+        metadata={"help": "The scheduler type to use."},
     )
     warmup_ratio: float = field(
         default=0.0,
@@ -746,7 +749,8 @@ class TrainingArguments:
         default=None, metadata={"help": "Tensorboard log dir."}
     )
     logging_strategy: Union[IntervalStrategy, str] = field(
-        default="steps", metadata={"help": "The logging strategy to use."},
+        default="steps",
+        metadata={"help": "The logging strategy to use."},
     )
     logging_first_step: bool = field(
         default=False, metadata={"help": "Log the first global_step"}
@@ -758,7 +762,8 @@ class TrainingArguments:
         default=True, metadata={"help": "Filter nan and inf losses for logging."}
     )
     save_strategy: Union[IntervalStrategy, str] = field(
-        default="steps", metadata={"help": "The checkpoint save strategy to use."},
+        default="steps",
+        metadata={"help": "The checkpoint save strategy to use."},
     )
     save_steps: int = field(
         default=500, metadata={"help": "Save checkpoint every X updates steps."}
@@ -1048,7 +1053,8 @@ class TrainingArguments:
     # and update the doc above to:
     # optim (`str` or [`training_args.OptimizerNames`], *optional*, defaults to `"adamw_torch_fused"` (for torch<2.1.0 `"adamw_hf"`):
     optim: Union[OptimizerNames, str] = field(
-        default=default_optim, metadata={"help": "The optimizer to use."},
+        default=default_optim,
+        metadata={"help": "The optimizer to use."},
     )
     optim_args: Optional[str] = field(
         default=None, metadata={"help": "Optional arguments to supply to optimizer."}
@@ -2357,7 +2363,10 @@ class TrainingArguments:
         return self
 
     def set_testing(
-        self, batch_size: int = 8, loss_only: bool = False, jit_mode: bool = False,
+        self,
+        batch_size: int = 8,
+        loss_only: bool = False,
+        jit_mode: bool = False,
     ):
         """
         A method that regroups all basic arguments linked to testing on a held-out dataset.

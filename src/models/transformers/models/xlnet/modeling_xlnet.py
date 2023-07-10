@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2018 Google AI, Google Brain and Carnegie Mellon University Authors and the HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
@@ -229,7 +229,7 @@ class XLNetRelativeAttention(nn.Module):
         self.n_head = config.n_head
         self.d_head = config.d_head
         self.d_model = config.d_model
-        self.scale = 1 / (config.d_head ** 0.5)
+        self.scale = 1 / (config.d_head**0.5)
 
         self.q = nn.Parameter(
             torch.FloatTensor(config.d_model, self.n_head, self.d_head)

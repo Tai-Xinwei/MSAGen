@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -88,7 +88,9 @@ class ASTFeatureExtractor(SequenceFeatureExtractor):
         self.return_attention_mask = return_attention_mask
 
     def _extract_fbank_features(
-        self, waveform: np.ndarray, max_length: int,
+        self,
+        waveform: np.ndarray,
+        max_length: int,
     ) -> np.ndarray:
         """
         Get mel-filter bank features using TorchAudio. Note that TorchAudio requires 16-bit signed integers as inputs

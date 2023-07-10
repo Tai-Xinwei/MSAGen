@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2020 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -827,7 +828,8 @@ class WandbCallback(TrainerCallback):
 
             if self._wandb.run is None:
                 self._wandb.init(
-                    project=os.getenv("WANDB_PROJECT", "huggingface"), **init_args,
+                    project=os.getenv("WANDB_PROJECT", "huggingface"),
+                    **init_args,
                 )
             # add config parameters (run may have been created manually)
             self._wandb.config.update(combined_dict, allow_val_change=True)

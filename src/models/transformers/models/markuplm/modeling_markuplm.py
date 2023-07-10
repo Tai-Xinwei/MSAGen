@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 # Copyright 2022 Microsoft Research Asia and the HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1335,7 +1335,8 @@ class MarkupLMForTokenClassification(MarkupLMPreTrainedModel):
         if labels is not None:
             loss_fct = CrossEntropyLoss()
             loss = loss_fct(
-                prediction_scores.view(-1, self.config.num_labels), labels.view(-1),
+                prediction_scores.view(-1, self.config.num_labels),
+                labels.view(-1),
             )
 
         if not return_dict:
