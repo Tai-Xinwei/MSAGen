@@ -18,26 +18,26 @@ from transformers.models.llama.modeling_llama import (
     hybrid_emb,
 )
 
-from ...modules import GraphormerSentenceEncoder, init_bert_params
-from ...modules.graphormer_layers_pp import (
+from sfm.modules import GraphormerSentenceEncoder, init_bert_params
+from sfm.modules.get_activation_fn import get_activation_fn
+from sfm.modules.graphormer_layers_pp import (
     Graph3DBiasPipe,
     GraphAttnBiasPipe,
     GraphNodeFeaturePipe,
     NodeTaskHeadPipe,
 )
-from ...modules.graphormer_sentence_encoder import (
+from sfm.modules.graphormer_sentence_encoder import (
     Post_sentence_encoder_layer,
     Pre_sentence_encoder_layer,
 )
-from ...modules.graphormer_sentence_encoder_layer import (
+from sfm.modules.graphormer_sentence_encoder_layer import (
     GraphormerSentenceEncoderLayer,
     GraphormerSentenceEncoderLayer_PP,
 )
-from ...utils.get_activation_fn import get_activation_fn
-from ...utils.layer_norm import LayerNorm
-from ...utils.mypp_module import LayerSpec
-from ...utils.pretrained_layer_spec import LoraLayerSpec, PretrainedLayerSpec
-from ...utils.quant_noise import quant_noise
+from sfm.modules.layer_norm import LayerNorm
+from sfm.modules.quant_noise import quant_noise
+from sfm.utils.mypp_module import LayerSpec
+from sfm.utils.pretrained_layer_spec import LoraLayerSpec, PretrainedLayerSpec
 
 # from peft import LoraConfig, get_peft_model, prepare_model_for_int8_training
 # from peft.peft_model import PeftModel
