@@ -116,6 +116,9 @@ def add_argument():
     parser.add_argument("--mol2idx_dict_path", type=str, default="")
     parser.add_argument("--in_memory", type=bool, default=False)
     parser.add_argument("--mol_size_path", type=str, default="")
+    parser.add_argument("--pool_mode", type=str, default="multimol")
+    parser.add_argument("--embedding_length", type=int, default=20)
+    parser.add_argument("--btn_adaptor", type=bool, default=False)
 
     parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()
