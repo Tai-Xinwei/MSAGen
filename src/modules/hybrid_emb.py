@@ -147,9 +147,11 @@ class Hybrid_emb(nn.Module):
         super().__init__()
         self.config = config
         self.mode = config.pool_mode
-        self.embed_tokens = torch.nn.Embedding(
-            config.vocab_size, config.hidden_size, config.pad_token_id
-        )
+
+        # self.embed_tokens = torch.nn.Embedding(
+        # config.vocab_size, config.hidden_size, config.pad_token_id
+        # )
+
         self.embedding_length = config.embedding_length
 
         self.mol_rep_layernorm = LlamaRMSNorm(
@@ -192,17 +194,17 @@ class Hybrid_emb(nn.Module):
         # self.mol_adapter = nn.Linear(config.mfm_hidden_size, config.hidden_size)
 
     def _forward_embedding(
-        self, mol_rep, padding_mask, input_ids: torch.LongTensor = None
+        self, mol_rep, padding_mask, token_embed, input_ids: torch.LongTensor = None
     ):
         # TODO (Roger)
         # input_ids: bsz, num_tokens
         B, T = input_ids.shape
         mol_idx_mask = input_ids < 0  # B, T
 
-        with torch.no_grad():
-            token_embed = self.embed_tokens(
-                input_ids.masked_fill(mol_idx_mask, 0)
-            )  # B, T, hidden_size
+        # with torch.no_grad():
+        #     token_embed = self.embed_tokens(
+        #         input_ids.masked_fill(mol_idx_mask, 0)
+        #     )  # B, T, hidden_size
 
         if not torch.any(mol_idx_mask):
             return token_embed
@@ -342,20 +344,18 @@ class Hybrid_emb(nn.Module):
         self,
         x,
         padding_mask,
-        batch_size,
+        text_embeds,
+        attention_mask,
     ):
-        input_ids = batch_size["input_ids"]
-        attention_mask = batch_size["attention_mask"]
-
-        if input_ids is not None:
-            batch_size, seq_length = input_ids.shape
+        if text_embeds is not None:
+            batch_size, seq_length = text_embeds.shape
         else:
-            raise ValueError("decoder_input_ids cannot be None")
+            raise ValueError("text_embeds cannot be None")
 
         seq_length_with_past = seq_length
         past_key_values_length = 0
 
-        device = input_ids.device
+        device = text_embeds.device
         position_ids = torch.arange(
             past_key_values_length,
             seq_length + past_key_values_length,
@@ -364,7 +364,7 @@ class Hybrid_emb(nn.Module):
         )
         position_ids = position_ids.unsqueeze(0).view(-1, seq_length)
 
-        inputs_embeds = self._forward_embedding(x, padding_mask, input_ids)
+        inputs_embeds = self._forward_embedding(x, padding_mask, text_embeds)
 
         # embed positions
         if attention_mask is None:

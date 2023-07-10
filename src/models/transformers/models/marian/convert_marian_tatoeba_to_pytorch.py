@@ -166,8 +166,9 @@ class TatoebaConverter:
                 a2_tgt_tags.append(tag)
 
         lang_tags = dedup(a2_src_tags + a2_tgt_tags)
-        src_multilingual, tgt_multilingual = (len(a2_src_tags) > 1), (
-            len(a2_tgt_tags) > 1
+        src_multilingual, tgt_multilingual = (
+            (len(a2_src_tags) > 1),
+            (len(a2_tgt_tags) > 1),
         )
         s, t = ",".join(a2_src_tags), ",".join(a2_tgt_tags)
 

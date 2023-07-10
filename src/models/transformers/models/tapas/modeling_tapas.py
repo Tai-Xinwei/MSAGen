@@ -2620,7 +2620,7 @@ def _calculate_expected_result(
 def huber_loss(input, target, delta: float = 1.0):
     errors = torch.abs(input - target)  # shape (batch_size,)
     return torch.where(
-        errors < delta, 0.5 * errors**2, errors * delta - (0.5 * delta**2)
+        errors < delta, 0.5 * errors ** 2, errors * delta - (0.5 * delta ** 2)
     )
 
 

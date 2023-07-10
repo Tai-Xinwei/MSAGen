@@ -298,8 +298,7 @@ if __name__ == "__main__":
         help="Path to the folder to output PyTorch model.",
     )
     parser.add_argument(
-        "--push_to_hub",
-        action="store_true",
+        "--push_to_hub", action="store_true",
     )
     args = parser.parse_args()
     convert_dit_checkpoint(

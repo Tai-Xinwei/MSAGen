@@ -302,8 +302,7 @@ class ConvNextEncoder(nn.Module):
             return tuple(v for v in [hidden_states, all_hidden_states] if v is not None)
 
         return BaseModelOutputWithNoAttention(
-            last_hidden_state=hidden_states,
-            hidden_states=all_hidden_states,
+            last_hidden_state=hidden_states, hidden_states=all_hidden_states,
         )
 
 
@@ -516,9 +515,7 @@ class ConvNextForImageClassification(ConvNextPreTrainedModel):
             return ((loss,) + output) if loss is not None else output
 
         return ImageClassifierOutputWithNoAttention(
-            loss=loss,
-            logits=logits,
-            hidden_states=outputs.hidden_states,
+            loss=loss, logits=logits, hidden_states=outputs.hidden_states,
         )
 
 
@@ -602,9 +599,7 @@ class ConvNextBackbone(ConvNextPreTrainedModel, BackboneMixin):
         embedding_output = self.embeddings(pixel_values)
 
         outputs = self.encoder(
-            embedding_output,
-            output_hidden_states=True,
-            return_dict=True,
+            embedding_output, output_hidden_states=True, return_dict=True,
         )
 
         hidden_states = outputs.hidden_states

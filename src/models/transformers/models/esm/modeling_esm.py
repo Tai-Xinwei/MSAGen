@@ -144,10 +144,7 @@ class EsmContactPredictionHead(nn.Module):
     """Performs symmetrization, apc, and computes a logistic regression on the output features"""
 
     def __init__(
-        self,
-        in_features: int,
-        bias=True,
-        eos_idx: int = 2,
+        self, in_features: int, bias=True, eos_idx: int = 2,
     ):
         super().__init__()
         self.in_features = in_features
@@ -381,7 +378,7 @@ class EsmSelfAttention(nn.Module):
         # ESM scales the query down by the same factor instead. Modulo numerical stability these are equivalent,
         # but not when rotary embeddings get involved. Therefore, we scale the query here to match the original
         # ESM code and fix rotary embeddings.
-        query_layer = query_layer * self.attention_head_size**-0.5
+        query_layer = query_layer * self.attention_head_size ** -0.5
 
         if self.is_decoder:
             # if cross_attention save Tuple(torch.Tensor, torch.Tensor) of all cross attention key/value_states.

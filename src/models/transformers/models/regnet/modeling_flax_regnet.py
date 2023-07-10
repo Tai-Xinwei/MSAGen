@@ -309,11 +309,7 @@ class FlaxRegNetXLayer(nn.Module):
             self.in_channels != self.out_channels or self.stride != 1
         )
         self.shortcut = (
-            FlaxRegNetShortCut(
-                self.out_channels,
-                stride=self.stride,
-                dtype=self.dtype,
-            )
+            FlaxRegNetShortCut(self.out_channels, stride=self.stride, dtype=self.dtype,)
             if should_apply_shortcut
             else Identity()
         )
@@ -401,11 +397,7 @@ class FlaxRegNetYLayer(nn.Module):
         )
 
         self.shortcut = (
-            FlaxRegNetShortCut(
-                self.out_channels,
-                stride=self.stride,
-                dtype=self.dtype,
-            )
+            FlaxRegNetShortCut(self.out_channels, stride=self.stride, dtype=self.dtype,)
             if should_apply_shortcut
             else Identity()
         )
@@ -583,8 +575,7 @@ class FlaxRegNetEncoder(nn.Module):
             return tuple(v for v in [hidden_state, hidden_states] if v is not None)
 
         return FlaxBaseModelOutputWithNoAttention(
-            last_hidden_state=hidden_state,
-            hidden_states=hidden_states,
+            last_hidden_state=hidden_state, hidden_states=hidden_states,
         )
 
 
@@ -694,10 +685,7 @@ class FlaxRegNetModule(nn.Module):
         self.encoder = FlaxRegNetEncoder(self.config, dtype=self.dtype)
 
         # Adaptive average pooling used in resnet
-        self.pooler = partial(
-            nn.avg_pool,
-            padding=((0, 0), (0, 0)),
-        )
+        self.pooler = partial(nn.avg_pool, padding=((0, 0), (0, 0)),)
 
     def __call__(
         self,

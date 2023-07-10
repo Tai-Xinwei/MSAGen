@@ -337,8 +337,9 @@ class ImageGPTAttention(nn.Module):
 
         # Upcast (turn off autocast) and reorder (Scale K by 1 / root(dk))
         with autocast(enabled=False):
-            q, k = query.reshape(-1, q_seq_len, dk), key.transpose(-1, -2).reshape(
-                -1, dk, k_seq_len
+            q, k = (
+                query.reshape(-1, q_seq_len, dk),
+                key.transpose(-1, -2).reshape(-1, dk, k_seq_len),
             )
             attn_weights = torch.baddbmm(
                 attn_weights, q.float(), k.float(), beta=0, alpha=scale_factor

@@ -685,9 +685,9 @@ class MLukeTokenizer(PreTrainedTokenizer):
 
             entity_spans, entity_spans_pair = None, None
             if batch_entity_spans_or_entity_spans_pairs is not None:
-                entity_spans_or_entity_spans_pairs = (
-                    batch_entity_spans_or_entity_spans_pairs[index]
-                )
+                entity_spans_or_entity_spans_pairs = batch_entity_spans_or_entity_spans_pairs[
+                    index
+                ]
                 if len(entity_spans_or_entity_spans_pairs) > 0 and isinstance(
                     entity_spans_or_entity_spans_pairs[0], list
                 ):
@@ -934,9 +934,9 @@ class MLukeTokenizer(PreTrainedTokenizer):
                 )
 
             for (
-                entity_token_start,
-                entity_token_end,
-            ), special_token_id in token_span_with_special_token_ids:
+                (entity_token_start, entity_token_end,),
+                special_token_id,
+            ) in token_span_with_special_token_ids:
                 first_ids = (
                     first_ids[:entity_token_end]
                     + [special_token_id]

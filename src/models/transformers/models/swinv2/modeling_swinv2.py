@@ -1022,10 +1022,10 @@ class Swinv2Encoder(nn.Module):
             [
                 Swinv2Stage(
                     config=config,
-                    dim=int(config.embed_dim * 2**i_layer),
+                    dim=int(config.embed_dim * 2 ** i_layer),
                     input_resolution=(
-                        grid_size[0] // (2**i_layer),
-                        grid_size[1] // (2**i_layer),
+                        grid_size[0] // (2 ** i_layer),
+                        grid_size[1] // (2 ** i_layer),
                     ),
                     depth=config.depths[i_layer],
                     num_heads=config.num_heads[i_layer],
@@ -1339,7 +1339,7 @@ class Swinv2ForMaskedImageModeling(Swinv2PreTrainedModel):
         self.decoder = nn.Sequential(
             nn.Conv2d(
                 in_channels=num_features,
-                out_channels=config.encoder_stride**2 * config.num_channels,
+                out_channels=config.encoder_stride ** 2 * config.num_channels,
                 kernel_size=1,
             ),
             nn.PixelShuffle(config.encoder_stride),
@@ -1407,7 +1407,7 @@ class Swinv2ForMaskedImageModeling(Swinv2PreTrainedModel):
         # Reshape to (batch_size, num_channels, height, width)
         sequence_output = sequence_output.transpose(1, 2)
         batch_size, num_channels, sequence_length = sequence_output.shape
-        height = width = math.floor(sequence_length**0.5)
+        height = width = math.floor(sequence_length ** 0.5)
         sequence_output = sequence_output.reshape(
             batch_size, num_channels, height, width
         )

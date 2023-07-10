@@ -1035,9 +1035,7 @@ class TvltDecoder(nn.Module):
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module),
-                    hidden_states,
-                    None,
+                    create_custom_forward(layer_module), hidden_states, None,
                 )
             else:
                 layer_outputs = layer_module(

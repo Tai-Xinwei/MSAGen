@@ -124,8 +124,7 @@ class ImageToTextPipeline(Pipeline):
         for output_ids in model_outputs:
             record = {
                 "generated_text": self.tokenizer.decode(
-                    output_ids,
-                    skip_special_tokens=True,
+                    output_ids, skip_special_tokens=True,
                 )
             }
             records.append(record)

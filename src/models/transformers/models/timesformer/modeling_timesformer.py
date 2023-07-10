@@ -232,7 +232,7 @@ class TimesformerSelfAttention(nn.Module):
 
         self.num_heads = num_heads
         head_dim = config.hidden_size // num_heads
-        self.scale = head_dim**-0.5
+        self.scale = head_dim ** -0.5
         self.qkv = nn.Linear(config.hidden_size, config.hidden_size * 3, bias=qkv_bias)
         self.attn_drop = nn.Dropout(attention_dropout_prob)
 
@@ -293,9 +293,7 @@ class TimeSformerAttention(nn.Module):
         self.output = TimesformerSelfOutput(config)
 
     def forward(
-        self,
-        hidden_states: torch.Tensor,
-        output_attentions: bool = False,
+        self, hidden_states: torch.Tensor, output_attentions: bool = False,
     ) -> Union[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor]]:
         self_outputs = self.attention(hidden_states, output_attentions)
 
@@ -553,8 +551,7 @@ class TimesformerEncoder(nn.Module):
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module),
-                    hidden_states,
+                    create_custom_forward(layer_module), hidden_states,
                 )
             else:
                 layer_outputs = layer_module(hidden_states, output_attentions)

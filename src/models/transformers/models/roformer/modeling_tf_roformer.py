@@ -95,8 +95,7 @@ class TFRoFormerSinusoidalPositionalEmbedding(tf.keras.layers.Layer):
         weight = self._init_weight(self.num_positions, self.embedding_dim)
 
         self.weight = self.add_weight(
-            name="embeddings",
-            shape=[self.num_positions, self.embedding_dim],
+            name="embeddings", shape=[self.num_positions, self.embedding_dim],
         )
         weight = tf.cast(weight, dtype=self.weight.dtype)
 

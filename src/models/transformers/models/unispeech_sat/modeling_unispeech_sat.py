@@ -412,8 +412,7 @@ class UniSpeechSatFeatureEncoder(nn.Module):
                     return custom_forward
 
                 hidden_states = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(conv_layer),
-                    hidden_states,
+                    create_custom_forward(conv_layer), hidden_states,
                 )
             else:
                 hidden_states = conv_layer(hidden_states)
@@ -471,7 +470,7 @@ class UniSpeechSatAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim**-0.5
+        self.scaling = self.head_dim ** -0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -801,9 +800,7 @@ class UniSpeechSatEncoder(nn.Module):
                         return custom_forward
 
                     layer_outputs = torch.utils.checkpoint.checkpoint(
-                        create_custom_forward(layer),
-                        hidden_states,
-                        attention_mask,
+                        create_custom_forward(layer), hidden_states, attention_mask,
                     )
                 else:
                     layer_outputs = layer(
@@ -911,9 +908,7 @@ class UniSpeechSatEncoderStableLayerNorm(nn.Module):
                         return custom_forward
 
                     layer_outputs = torch.utils.checkpoint.checkpoint(
-                        create_custom_forward(layer),
-                        hidden_states,
-                        attention_mask,
+                        create_custom_forward(layer), hidden_states, attention_mask,
                     )
                 else:
                     layer_outputs = layer(

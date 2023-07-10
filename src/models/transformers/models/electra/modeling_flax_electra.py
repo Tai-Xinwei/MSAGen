@@ -774,9 +774,7 @@ class FlaxElectraPreTrainedModel(FlaxPreTrainedModel):
     # Copied from transformers.models.bert.modeling_flax_bert.FlaxBertPreTrainedModel.enable_gradient_checkpointing
     def enable_gradient_checkpointing(self):
         self._module = self.module_class(
-            config=self.config,
-            dtype=self.dtype,
-            gradient_checkpointing=True,
+            config=self.config, dtype=self.dtype, gradient_checkpointing=True,
         )
 
     # Copied from transformers.models.bert.modeling_flax_bert.FlaxBertPreTrainedModel.init_weights
@@ -1057,10 +1055,7 @@ class FlaxElectraTiedDense(nn.Module):
         x = jnp.asarray(x, self.dtype)
         kernel = jnp.asarray(kernel, self.dtype)
         y = lax.dot_general(
-            x,
-            kernel,
-            (((x.ndim - 1,), (0,)), ((), ())),
-            precision=self.precision,
+            x, kernel, (((x.ndim - 1,), (0,)), ((), ())), precision=self.precision,
         )
         bias = jnp.asarray(self.bias, self.dtype)
         return y + bias

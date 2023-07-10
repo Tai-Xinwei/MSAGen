@@ -1879,10 +1879,7 @@ class TFElectraForQuestionAnswering(TFElectraPreTrainedModel, TFQuestionAnswerin
             loss = self.hf_compute_loss(labels, (start_logits, end_logits))
 
         if not return_dict:
-            output = (
-                start_logits,
-                end_logits,
-            ) + discriminator_hidden_states[1:]
+            output = (start_logits, end_logits,) + discriminator_hidden_states[1:]
 
             return ((loss,) + output) if loss is not None else output
 

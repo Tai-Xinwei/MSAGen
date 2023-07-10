@@ -285,7 +285,7 @@ class TFCvtSelfAttention(tf.keras.layers.Layer):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.scale = embed_dim**-0.5
+        self.scale = embed_dim ** -0.5
         self.with_cls_token = with_cls_token
         self.embed_dim = embed_dim
         self.num_heads = num_heads

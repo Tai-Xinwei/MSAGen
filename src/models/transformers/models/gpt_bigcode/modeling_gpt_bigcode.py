@@ -144,9 +144,9 @@ class GPTBigCodeAttention(nn.Module):
         unscale = (
             self.layer_idx + 1 if self.scale_attention_softmax_in_fp32 and upcast else 1
         )
-        scale_factor = unscale**-1
+        scale_factor = unscale ** -1
         if self.scale_attn_weights:
-            scale_factor /= self.head_dim**0.5
+            scale_factor /= self.head_dim ** 0.5
 
         # MQA models: (batch_size, query_length, num_heads * head_dim)
         # MHA models: (batch_size, num_heads, query_length, head_dim)

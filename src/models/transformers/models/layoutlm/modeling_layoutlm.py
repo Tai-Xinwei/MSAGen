@@ -1093,8 +1093,7 @@ class LayoutLMForMaskedLM(LayoutLMPreTrainedModel):
         if labels is not None:
             loss_fct = CrossEntropyLoss()
             masked_lm_loss = loss_fct(
-                prediction_scores.view(-1, self.config.vocab_size),
-                labels.view(-1),
+                prediction_scores.view(-1, self.config.vocab_size), labels.view(-1),
             )
 
         if not return_dict:

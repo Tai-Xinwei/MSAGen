@@ -139,10 +139,7 @@ class ViltEmbeddings(nn.Module):
             [
                 nn.functional.pad(
                     nn.functional.interpolate(
-                        spatial_pos,
-                        size=(h, w),
-                        mode="bilinear",
-                        align_corners=True,
+                        spatial_pos, size=(h, w), mode="bilinear", align_corners=True,
                     ),
                     (0, width - w, 0, height - h),
                 )

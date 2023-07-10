@@ -430,11 +430,7 @@ class BitPreActivationBottleneckLayer(nn.Module):
 
         if is_first_layer:
             self.downsample = BitDownsampleConv(
-                config,
-                in_channels,
-                out_channels,
-                stride=stride,
-                preact=True,
+                config, in_channels, out_channels, stride=stride, preact=True,
             )
         else:
             self.downsample = None
@@ -504,11 +500,7 @@ class BitBottleneckLayer(nn.Module):
 
         if is_first_layer:
             self.downsample = BitDownsampleConv(
-                config,
-                in_channels,
-                out_channels,
-                stride=stride,
-                preact=False,
+                config, in_channels, out_channels, stride=stride, preact=False,
             )
         else:
             self.downsample = None
@@ -563,12 +555,7 @@ class BitBottleneckLayer(nn.Module):
 
 class BitDownsampleConv(nn.Module):
     def __init__(
-        self,
-        config,
-        in_channels,
-        out_channels,
-        stride=1,
-        preact=True,
+        self, config, in_channels, out_channels, stride=1, preact=True,
     ):
         super().__init__()
         self.conv = WeightStandardizedConv2d(
@@ -737,8 +724,7 @@ class BitEncoder(nn.Module):
             return tuple(v for v in [hidden_state, hidden_states] if v is not None)
 
         return BaseModelOutputWithNoAttention(
-            last_hidden_state=hidden_state,
-            hidden_states=hidden_states,
+            last_hidden_state=hidden_state, hidden_states=hidden_states,
         )
 
 

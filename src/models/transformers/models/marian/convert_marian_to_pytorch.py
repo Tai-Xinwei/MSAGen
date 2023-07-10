@@ -656,9 +656,7 @@ class OpusState:
         if "hidden_size" in cfg.to_dict():
             raise ValueError("hidden_size is in config")
         load_layers_(
-            model.model.encoder.layers,
-            state_dict,
-            BART_CONVERTER,
+            model.model.encoder.layers, state_dict, BART_CONVERTER,
         )
         load_layers_(
             model.model.decoder.layers, state_dict, BART_CONVERTER, is_decoder=True

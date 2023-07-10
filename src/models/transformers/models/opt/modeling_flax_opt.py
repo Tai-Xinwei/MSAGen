@@ -582,11 +582,7 @@ class FlaxOPTPreTrainedModel(FlaxPreTrainedModel):
         rngs = {"params": params_rng, "dropout": dropout_rng}
 
         module_init_outputs = self.module.init(
-            rngs,
-            input_ids,
-            attention_mask,
-            position_ids,
-            return_dict=False,
+            rngs, input_ids, attention_mask, position_ids, return_dict=False,
         )
 
         random_params = module_init_outputs["params"]
@@ -858,8 +854,5 @@ class FlaxOPTForCausalLM(FlaxOPTPreTrainedModel):
 
 
 append_call_sample_docstring(
-    FlaxOPTForCausalLM,
-    _CHECKPOINT_FOR_DOC,
-    FlaxBaseModelOutput,
-    _CONFIG_FOR_DOC,
+    FlaxOPTForCausalLM, _CHECKPOINT_FOR_DOC, FlaxBaseModelOutput, _CONFIG_FOR_DOC,
 )

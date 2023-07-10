@@ -365,9 +365,7 @@ class NeighborhoodAttention(nn.Module):
         return x.permute(0, 3, 1, 2, 4)
 
     def forward(
-        self,
-        hidden_states: torch.Tensor,
-        output_attentions: Optional[bool] = False,
+        self, hidden_states: torch.Tensor, output_attentions: Optional[bool] = False,
     ) -> Tuple[torch.Tensor]:
         query_layer = self.transpose_for_scores(self.query(hidden_states))
         key_layer = self.transpose_for_scores(self.key(hidden_states))
@@ -453,9 +451,7 @@ class NeighborhoodAttentionModule(nn.Module):
 
     # Copied from transformers.models.nat.modeling_nat.NeighborhoodAttentionModule.forward
     def forward(
-        self,
-        hidden_states: torch.Tensor,
-        output_attentions: Optional[bool] = False,
+        self, hidden_states: torch.Tensor, output_attentions: Optional[bool] = False,
     ) -> Tuple[torch.Tensor]:
         self_outputs = self.self(hidden_states, output_attentions)
         attention_output = self.output(self_outputs[0], hidden_states)
@@ -531,9 +527,7 @@ class DinatLayer(nn.Module):
         return hidden_states, pad_values
 
     def forward(
-        self,
-        hidden_states: torch.Tensor,
-        output_attentions: Optional[bool] = False,
+        self, hidden_states: torch.Tensor, output_attentions: Optional[bool] = False,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size, height, width, channels = hidden_states.size()
         shortcut = hidden_states
@@ -605,9 +599,7 @@ class DinatStage(nn.Module):
 
     # Copied from transformers.models.nat.modeling_nat.NatStage.forward
     def forward(
-        self,
-        hidden_states: torch.Tensor,
-        output_attentions: Optional[bool] = False,
+        self, hidden_states: torch.Tensor, output_attentions: Optional[bool] = False,
     ) -> Tuple[torch.Tensor]:
         _, height, width, _ = hidden_states.size()
         for i, layer_module in enumerate(self.layers):
@@ -638,7 +630,7 @@ class DinatEncoder(nn.Module):
             [
                 DinatStage(
                     config=config,
-                    dim=int(config.embed_dim * 2**i_layer),
+                    dim=int(config.embed_dim * 2 ** i_layer),
                     depth=config.depths[i_layer],
                     num_heads=config.num_heads[i_layer],
                     dilations=config.dilations[i_layer],
@@ -992,7 +984,7 @@ class DinatBackbone(DinatPreTrainedModel, BackboneMixin):
                 if layer in self.out_features
             )
         self.num_features = [config.embed_dim] + [
-            int(config.embed_dim * 2**i) for i in range(len(config.depths))
+            int(config.embed_dim * 2 ** i) for i in range(len(config.depths))
         ]
 
         # Add layer norms to hidden states of out_features

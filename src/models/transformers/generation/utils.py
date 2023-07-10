@@ -833,8 +833,7 @@ class GenerationMixin:
         )
 
     def _get_logits_warper(
-        self,
-        generation_config: GenerationConfig,
+        self, generation_config: GenerationConfig,
     ) -> LogitsProcessorList:
         """
         This class returns a [`LogitsProcessorList`] list object that contains all relevant [`LogitsWarper`] instances

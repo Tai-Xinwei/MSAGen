@@ -274,7 +274,7 @@ class Speech2TextAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim**-0.5
+        self.scaling = self.head_dim ** -0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -813,9 +813,7 @@ class Speech2TextEncoder(Speech2TextPreTrainedModel):
         self.conv = Conv1dSubsampler(config)
 
         self.embed_positions = Speech2TextSinusoidalPositionalEmbedding(
-            self.max_source_positions,
-            embed_dim,
-            self.padding_idx,
+            self.max_source_positions, embed_dim, self.padding_idx,
         )
         self.layers = nn.ModuleList(
             [Speech2TextEncoderLayer(config) for _ in range(config.encoder_layers)]
@@ -993,9 +991,7 @@ class Speech2TextDecoder(Speech2TextPreTrainedModel):
         )
 
         self.embed_positions = Speech2TextSinusoidalPositionalEmbedding(
-            self.max_target_positions,
-            config.d_model,
-            self.padding_idx,
+            self.max_target_positions, config.d_model, self.padding_idx,
         )
 
         self.layers = nn.ModuleList(

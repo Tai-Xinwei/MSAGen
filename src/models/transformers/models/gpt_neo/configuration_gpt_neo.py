@@ -196,8 +196,9 @@ def custom_get_block_length_and_num_blocks(seq_length, window_size):
     divisor_indices = remainders == 0
     divisors = candidates[divisor_indices]
     largest_divisor = torch.max(divisors)
-    return largest_divisor, torch.div(
-        seq_length, largest_divisor, rounding_mode="floor"
+    return (
+        largest_divisor,
+        torch.div(seq_length, largest_divisor, rounding_mode="floor"),
     )
 
 

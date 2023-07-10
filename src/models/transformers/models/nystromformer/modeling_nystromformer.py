@@ -445,9 +445,7 @@ class NystromformerEncoder(nn.Module):
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module),
-                    hidden_states,
-                    attention_mask,
+                    create_custom_forward(layer_module), hidden_states, attention_mask,
                 )
             else:
                 layer_outputs = layer_module(

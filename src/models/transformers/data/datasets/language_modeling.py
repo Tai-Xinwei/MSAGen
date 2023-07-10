@@ -574,10 +574,8 @@ class TextDatasetForNextSentencePrediction(Dataset):
                         tokens_a, tokens_b
                     )
                     # add token type ids, 0 for sentence a, 1 for sentence b
-                    token_type_ids = (
-                        self.tokenizer.create_token_type_ids_from_sequences(
-                            tokens_a, tokens_b
-                        )
+                    token_type_ids = self.tokenizer.create_token_type_ids_from_sequences(
+                        tokens_a, tokens_b
                     )
 
                     example = {

@@ -1302,7 +1302,7 @@ class PerceiverForImageClassificationLearned(PerceiverPreTrainedModel):
 
         trainable_position_encoding_kwargs_preprocessor = {
             "num_channels": 256,
-            "index_dims": config.image_size**2,
+            "index_dims": config.image_size ** 2,
         }
         trainable_position_encoding_kwargs_decoder = {
             "num_channels": config.d_latents,
@@ -2813,7 +2813,7 @@ def space_to_depth(
             batch_size,
             height // spatial_block_size,
             width // spatial_block_size,
-            (spatial_block_size**2) * num_channels,
+            (spatial_block_size ** 2) * num_channels,
         )
         return frames
     elif len(frames.shape) == 5:
@@ -2837,7 +2837,7 @@ def space_to_depth(
             time // temporal_block_size,
             height // spatial_block_size,
             width // spatial_block_size,
-            temporal_block_size * (spatial_block_size**2) * num_channels,
+            temporal_block_size * (spatial_block_size ** 2) * num_channels,
         )
         return frames
     else:
@@ -3468,7 +3468,7 @@ class PerceiverImagePreprocessor(AbstractPreprocessor):
             if self.conv_after_patching:
                 inp_dim = self.out_channels
             else:
-                inp_dim = self.in_channels * self.spatial_downsample**2
+                inp_dim = self.in_channels * self.spatial_downsample ** 2
                 if is_temporal:
                     inp_dim *= self.temporal_downsample
 
@@ -3785,8 +3785,7 @@ class PerceiverMultimodalPreprocessor(AbstractPreprocessor):
             pos_enc = self.padding[modality].expand(batch_size, -1, -1)
 
             padding = torch.broadcast_to(
-                pos_enc,
-                [batch_size, num_samples, self.num_channels - num_channels],
+                pos_enc, [batch_size, num_samples, self.num_channels - num_channels],
             )
             output_padded = torch.cat([output, padding], dim=2)
 

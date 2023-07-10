@@ -691,9 +691,7 @@ class XLMProphetNetAttention(nn.Module):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
     def __init__(
-        self,
-        config: XLMProphetNetConfig,
-        num_attn_heads: int,
+        self, config: XLMProphetNetConfig, num_attn_heads: int,
     ):
         super().__init__()
         hidden_size = config.hidden_size
@@ -742,7 +740,7 @@ class XLMProphetNetAttention(nn.Module):
         ], f"Size of hidden states should be {batch_size, tgt_len, hidden_size}, but is {hidden_states.size()}"
 
         # previous time steps are cached - no need to recompute key and value if they are static
-        query_states = self.query_proj(hidden_states) / (self.head_dim**0.5)
+        query_states = self.query_proj(hidden_states) / (self.head_dim ** 0.5)
 
         if is_cross_attention and past_key_value is not None:
             # reuse k,v, cross_attentions
@@ -814,9 +812,7 @@ class XLMProphetNetAttention(nn.Module):
             )
 
         attn_probs = nn.functional.dropout(
-            attn_weights,
-            p=self.attention_dropout,
-            training=self.training,
+            attn_weights, p=self.attention_dropout, training=self.training,
         )
         attn_output = torch.einsum("bsij,bsjk->bsik", attn_probs, value_states)
         expected_shape = (batch_size, self.num_attn_heads, tgt_len, self.head_dim)
@@ -934,7 +930,7 @@ class XLMProphetNetNgramSelfAttention(nn.Module):
         value_states = self.value_proj(hidden_states)
 
         # normalize
-        query_states = query_states / (self.head_dim**0.5)
+        query_states = query_states / (self.head_dim ** 0.5)
 
         # reshape
         query_states = self._shape(query_states, ngram_sequence_length, batch_size)
@@ -1007,9 +1003,7 @@ class XLMProphetNetNgramSelfAttention(nn.Module):
             main_attn_weights = main_attn_weights + attention_mask
 
         main_attn_probs = softmax(
-            main_attn_weights,
-            dim=-1,
-            onnx_trace=self.onnx_trace,
+            main_attn_weights, dim=-1, onnx_trace=self.onnx_trace,
         ).type_as(main_attn_weights)
 
         if layer_head_mask is not None:
@@ -1092,9 +1086,7 @@ class XLMProphetNetNgramSelfAttention(nn.Module):
             )
 
         predict_attn_probs = softmax(
-            predict_attn_weights,
-            dim=-1,
-            onnx_trace=self.onnx_trace,
+            predict_attn_weights, dim=-1, onnx_trace=self.onnx_trace,
         ).type_as(predict_attn_weights)
 
         if layer_head_mask is not None:
@@ -2373,9 +2365,7 @@ class XLMProphetNetForConditionalGeneration(XLMProphetNetPreTrainedModel):
 
         logits = logits.transpose(0, 1).contiguous()
         lprobs = nn.functional.log_softmax(
-            logits.view(-1, logits.size(-1)),
-            dim=-1,
-            dtype=torch.float32,
+            logits.view(-1, logits.size(-1)), dim=-1, dtype=torch.float32,
         )
 
         loss = nn.functional.nll_loss(lprobs, expend_targets.view(-1), reduction="mean")
@@ -2648,9 +2638,7 @@ class XLMProphetNetForCausalLM(XLMProphetNetPreTrainedModel):
 
         logits = logits.transpose(0, 1).contiguous()
         lprobs = nn.functional.log_softmax(
-            logits.view(-1, logits.size(-1)),
-            dim=-1,
-            dtype=torch.float32,
+            logits.view(-1, logits.size(-1)), dim=-1, dtype=torch.float32,
         )
 
         loss = nn.functional.nll_loss(lprobs, expend_targets.view(-1), reduction="mean")

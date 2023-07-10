@@ -642,10 +642,8 @@ class FeatureExtractionMixin(PushToHubMixin):
 
 FeatureExtractionMixin.push_to_hub = copy_func(FeatureExtractionMixin.push_to_hub)
 if FeatureExtractionMixin.push_to_hub.__doc__ is not None:
-    FeatureExtractionMixin.push_to_hub.__doc__ = (
-        FeatureExtractionMixin.push_to_hub.__doc__.format(
-            object="feature extractor",
-            object_class="AutoFeatureExtractor",
-            object_files="feature extractor file",
-        )
+    FeatureExtractionMixin.push_to_hub.__doc__ = FeatureExtractionMixin.push_to_hub.__doc__.format(
+        object="feature extractor",
+        object_class="AutoFeatureExtractor",
+        object_files="feature extractor file",
     )

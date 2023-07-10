@@ -151,11 +151,7 @@ class ImageGPTConfig(PretrainedConfig):
 class ImageGPTOnnxConfig(OnnxConfig):
     @property
     def inputs(self) -> Mapping[str, Mapping[int, str]]:
-        return OrderedDict(
-            [
-                ("input_ids", {0: "batch", 1: "sequence"}),
-            ]
-        )
+        return OrderedDict([("input_ids", {0: "batch", 1: "sequence"}),])
 
     def generate_dummy_inputs(
         self,

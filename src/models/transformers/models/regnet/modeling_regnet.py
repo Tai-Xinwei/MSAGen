@@ -257,12 +257,7 @@ class RegNetStage(nn.Module):
 
         self.layers = nn.Sequential(
             # downsampling is done in the first layer with stride of 2
-            layer(
-                config,
-                in_channels,
-                out_channels,
-                stride=stride,
-            ),
+            layer(config, in_channels, out_channels, stride=stride,),
             *[layer(config, out_channels, out_channels) for _ in range(depth - 1)],
         )
 

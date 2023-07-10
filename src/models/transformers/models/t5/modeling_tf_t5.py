@@ -99,10 +99,10 @@ class TFT5DenseActDense(tf.keras.layers.Layer):
     def __init__(self, config, **kwargs):
         super().__init__(**kwargs)
         wi_initializer = tf.keras.initializers.RandomNormal(
-            mean=0, stddev=config.initializer_factor * (config.d_model**-0.5)
+            mean=0, stddev=config.initializer_factor * (config.d_model ** -0.5)
         )
         wo_initializer = tf.keras.initializers.RandomNormal(
-            mean=0, stddev=config.initializer_factor * (config.d_ff**-0.5)
+            mean=0, stddev=config.initializer_factor * (config.d_ff ** -0.5)
         )
         self.wi = tf.keras.layers.Dense(
             config.d_ff, use_bias=False, name="wi", kernel_initializer=wi_initializer
@@ -125,10 +125,10 @@ class TFT5DenseGatedActDense(tf.keras.layers.Layer):
     def __init__(self, config, **kwargs):
         super().__init__(**kwargs)
         wi_initializer = tf.keras.initializers.RandomNormal(
-            mean=0, stddev=config.initializer_factor * (config.d_model**-0.5)
+            mean=0, stddev=config.initializer_factor * (config.d_model ** -0.5)
         )
         wo_initializer = tf.keras.initializers.RandomNormal(
-            mean=0, stddev=config.initializer_factor * (config.d_ff**-0.5)
+            mean=0, stddev=config.initializer_factor * (config.d_ff ** -0.5)
         )
         self.wi_0 = tf.keras.layers.Dense(
             config.d_ff, use_bias=False, name="wi_0", kernel_initializer=wi_initializer
@@ -196,16 +196,16 @@ class TFT5Attention(tf.keras.layers.Layer):
             * ((self.inner_dim * self.key_value_proj_dim) ** -0.5),
         )
         k_initializer = tf.keras.initializers.RandomNormal(
-            mean=0, stddev=config.initializer_factor * (self.inner_dim**-0.5)
+            mean=0, stddev=config.initializer_factor * (self.inner_dim ** -0.5)
         )
         v_initializer = tf.keras.initializers.RandomNormal(
-            mean=0, stddev=config.initializer_factor * (self.inner_dim**-0.5)
+            mean=0, stddev=config.initializer_factor * (self.inner_dim ** -0.5)
         )
         o_initializer = tf.keras.initializers.RandomNormal(
-            mean=0, stddev=config.initializer_factor * (self.inner_dim**-0.5)
+            mean=0, stddev=config.initializer_factor * (self.inner_dim ** -0.5)
         )
         self.relative_attention_bias_initializer = tf.keras.initializers.RandomNormal(
-            mean=0, stddev=config.initializer_factor * (self.inner_dim**-0.5)
+            mean=0, stddev=config.initializer_factor * (self.inner_dim ** -0.5)
         )
 
         self.q = tf.keras.layers.Dense(
@@ -531,9 +531,7 @@ class TFT5LayerCrossAttention(tf.keras.layers.Layer):
     def __init__(self, config, **kwargs):
         super().__init__(**kwargs)
         self.EncDecAttention = TFT5Attention(
-            config,
-            has_relative_attention_bias=False,
-            name="EncDecAttention",
+            config, has_relative_attention_bias=False, name="EncDecAttention",
         )
         self.layer_norm = TFT5LayerNorm(
             epsilon=config.layer_norm_epsilon, name="layer_norm"
@@ -588,12 +586,7 @@ class TFT5Block(tf.keras.layers.Layer):
             )
         )
         if self.is_decoder:
-            self.layer.append(
-                TFT5LayerCrossAttention(
-                    config,
-                    name="layer_._1",
-                )
-            )
+            self.layer.append(TFT5LayerCrossAttention(config, name="layer_._1",))
 
         self.layer.append(TFT5LayerFF(config, name=f"layer_._{len(self.layer)}"))
 
@@ -1591,7 +1584,7 @@ class TFT5ForConditionalGeneration(TFT5PreTrainedModel, TFCausalLanguageModeling
 
         # T5v1.1 does not tie output word embeddings and thus does not require downscaling
         if self.config.tie_word_embeddings:
-            sequence_output = sequence_output * (self.model_dim**-0.5)
+            sequence_output = sequence_output * (self.model_dim ** -0.5)
             logits = tf.matmul(sequence_output, self.shared.weights, transpose_b=True)
         else:
             logits = self.lm_head(sequence_output)

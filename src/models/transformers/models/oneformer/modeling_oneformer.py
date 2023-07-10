@@ -1463,11 +1463,7 @@ class OneFormerPixelDecoder(nn.Module):
         self.encoder = OneFormerPixelDecoderEncoderOnly(config)
 
         self.mask_projection = nn.Conv2d(
-            config.conv_dim,
-            config.mask_dim,
-            kernel_size=1,
-            stride=1,
-            padding=0,
+            config.conv_dim, config.mask_dim, kernel_size=1, stride=1, padding=0,
         )
 
         self.common_stride = config.common_stride
@@ -1481,12 +1477,7 @@ class OneFormerPixelDecoder(nn.Module):
 
         for idx, in_channels in enumerate(self.feature_channels[: self.num_fpn_levels]):
             lateral_conv = nn.Sequential(
-                nn.Conv2d(
-                    in_channels,
-                    config.conv_dim,
-                    kernel_size=1,
-                    bias=False,
-                ),
+                nn.Conv2d(in_channels, config.conv_dim, kernel_size=1, bias=False,),
                 nn.GroupNorm(32, config.conv_dim),
             )
             output_conv = nn.Sequential(
@@ -1708,7 +1699,7 @@ class OneFormerAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
                 f" {num_heads})."
             )
-        self.scaling = self.head_dim**-0.5
+        self.scaling = self.head_dim ** -0.5
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -2477,10 +2468,7 @@ class OneFormerTransformerDecoder(nn.Module):
 
         self.class_embed = nn.Linear(config.hidden_dim, config.num_labels + 1)
         self.mask_embed = OneFormerMLPPredictionHead(
-            config.hidden_dim,
-            config.hidden_dim,
-            config.mask_dim,
-            3,
+            config.hidden_dim, config.hidden_dim, config.mask_dim, 3,
         )
 
     def forward(
@@ -2778,7 +2766,7 @@ class OneFormerTextMapperAttention(nn.Module):
         self.num_heads = num_heads
         head_dim = dim // num_heads
         # NOTE scale factor was wrong in my original version, can set manually to be compat with prev weights
-        self.scale = qk_scale or head_dim**-0.5
+        self.scale = qk_scale or head_dim ** -0.5
 
         self.q_proj = nn.Linear(dim, dim, bias=qkv_bias)
         self.k_proj = nn.Linear(dim, dim, bias=qkv_bias)
@@ -2829,11 +2817,7 @@ class OneFormerTextMapperAttention(nn.Module):
 
 class OneFormerTextTransformerDecoderLayer(nn.Module):
     def __init__(
-        self,
-        d_model,
-        nhead,
-        dropout=0.1,
-        layer_norm_eps=1e-05,
+        self, d_model, nhead, dropout=0.1, layer_norm_eps=1e-05,
     ):
         super().__init__()
         self.self_attn = OneFormerTextMapperAttention(d_model, nhead, proj_drop=dropout)
@@ -3068,16 +3052,12 @@ class OneFormerTextMapper(nn.Module):
         )
         if config.text_encoder_n_ctx > 0:
             self.prompt_ctx = nn.Embedding(
-                config.text_encoder_n_ctx,
-                config.text_encoder_width,
+                config.text_encoder_n_ctx, config.text_encoder_width,
             )
         else:
             self.prompt_ctx = None
 
-    def forward(
-        self,
-        inputs: Tensor,
-    ) -> Tensor:
+    def forward(self, inputs: Tensor,) -> Tensor:
         text_queries = self.encode_text(inputs)
 
         return text_queries
@@ -3116,10 +3096,7 @@ class OneFormerTaskModel(nn.Module):
     def __init__(self, config: OneFormerConfig):
         super().__init__()
         self.task_mlp = OneFormerMLPPredictionHead(
-            config.task_seq_len,
-            config.hidden_dim,
-            config.hidden_dim,
-            2,
+            config.task_seq_len, config.hidden_dim, config.hidden_dim, 2,
         )
 
     def forward(self, inputs: Tensor) -> Tensor:
@@ -3248,8 +3225,8 @@ class OneFormerPreTrainedModel(PreTrainedModel):
                     nn.init.constant_(submodule.bias, 0)
                     nn.init.constant_(submodule.weight, 1.0)
         elif isinstance(module, OneFormerTextTransformer):
-            proj_std = (module.width**-0.5) * ((2 * module.num_layers) ** -0.5)
-            attn_std = module.width**-0.5
+            proj_std = (module.width ** -0.5) * ((2 * module.num_layers) ** -0.5)
+            attn_std = module.width ** -0.5
             fc_std = (2 * module.width) ** -0.5
             for layer in module.layers:
                 nn.init.normal_(layer.self_attn.in_proj_weight, std=attn_std)

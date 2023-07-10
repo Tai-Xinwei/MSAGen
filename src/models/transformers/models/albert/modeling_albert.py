@@ -1040,8 +1040,7 @@ class AlbertSOPHead(nn.Module):
 
 
 @add_start_docstrings(
-    "Albert Model with a `language modeling` head on top.",
-    ALBERT_START_DOCSTRING,
+    "Albert Model with a `language modeling` head on top.", ALBERT_START_DOCSTRING,
 )
 class AlbertForMaskedLM(AlbertPreTrainedModel):
     _keys_to_ignore_on_load_unexpected = [r"pooler"]

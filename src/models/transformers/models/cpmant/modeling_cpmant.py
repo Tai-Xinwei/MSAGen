@@ -307,8 +307,7 @@ class CpmAntFFNBlock(nn.Module):
             self.dropout = None
 
     def forward(
-        self,
-        hidden_states: torch.Tensor,
+        self, hidden_states: torch.Tensor,
     ):
         """
         Args:

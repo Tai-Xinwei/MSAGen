@@ -100,10 +100,7 @@ class TFTrainer:
         optimizers: Tuple[
             tf.keras.optimizers.Optimizer,
             tf.keras.optimizers.schedules.LearningRateSchedule,
-        ] = (
-            None,
-            None,
-        ),
+        ] = (None, None,),
     ):
         self.model = model
         self.args = args

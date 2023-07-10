@@ -214,7 +214,7 @@ class LevitAttention(nn.Module):
     ):
         super().__init__()
         self.num_attention_heads = num_attention_heads
-        self.scale = key_dim**-0.5
+        self.scale = key_dim ** -0.5
         self.key_dim = key_dim
         self.attention_ratio = attention_ratio
         self.out_dim_keys_values = (
@@ -306,7 +306,7 @@ class LevitAttentionSubsample(nn.Module):
     ):
         super().__init__()
         self.num_attention_heads = num_attention_heads
-        self.scale = key_dim**-0.5
+        self.scale = key_dim ** -0.5
         self.key_dim = key_dim
         self.attention_ratio = attention_ratio
         self.out_dim_keys_values = (
@@ -376,7 +376,7 @@ class LevitAttentionSubsample(nn.Module):
 
         query = self.queries(self.queries_subsample(hidden_state))
         query = query.view(
-            batch_size, self.resolution_out**2, self.num_attention_heads, self.key_dim
+            batch_size, self.resolution_out ** 2, self.num_attention_heads, self.key_dim
         ).permute(0, 2, 1, 3)
 
         attention = query @ key.transpose(
@@ -775,9 +775,7 @@ class LevitForImageClassification(LevitPreTrainedModel):
             return ((loss,) + output) if loss is not None else output
 
         return ImageClassifierOutputWithNoAttention(
-            loss=loss,
-            logits=logits,
-            hidden_states=outputs.hidden_states,
+            loss=loss, logits=logits, hidden_states=outputs.hidden_states,
         )
 
 
@@ -837,9 +835,10 @@ class LevitForImageClassificationWithTeacher(LevitPreTrainedModel):
 
         sequence_output = outputs[0]
         sequence_output = sequence_output.mean(1)
-        cls_logits, distill_logits = self.classifier(
-            sequence_output
-        ), self.classifier_distill(sequence_output)
+        cls_logits, distill_logits = (
+            self.classifier(sequence_output),
+            self.classifier_distill(sequence_output),
+        )
         logits = (cls_logits + distill_logits) / 2
 
         if not return_dict:

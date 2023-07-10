@@ -990,7 +990,7 @@ class ClapAudioEncoder(nn.Module):
 
         grid_size = self.patch_embed.grid_size
         self.input_resolutions = [
-            (grid_size[0] // (2**i), grid_size[1] // (2**i))
+            (grid_size[0] // (2 ** i), grid_size[1] // (2 ** i))
             for i in range(self.num_layers)
         ]
 
@@ -998,7 +998,7 @@ class ClapAudioEncoder(nn.Module):
             [
                 ClapAudioStage(
                     config=config,
-                    dim=int(config.patch_embeds_hidden_size * 2**i_layer),
+                    dim=int(config.patch_embeds_hidden_size * 2 ** i_layer),
                     input_resolution=self.input_resolutions[i_layer],
                     depth=config.depths[i_layer],
                     num_heads=config.num_attention_heads[i_layer],
@@ -1989,7 +1989,7 @@ class ClapPreTrainedModel(PreTrainedModel):
             module.weight.data.fill_(1.0)
         elif isinstance(module, (nn.Conv2d, nn.Linear)):
             in_proj_std = (
-                (self.config.hidden_size**-0.5)
+                (self.config.hidden_size ** -0.5)
                 * ((2 * self.config.num_hidden_layers) ** -0.5)
                 * factor
             )
@@ -2408,9 +2408,7 @@ class ClapModel(ClapPreTrainedModel):
         )
 
         audio_outputs = self.audio_model(
-            input_features=input_features,
-            is_longer=is_longer,
-            return_dict=return_dict,
+            input_features=input_features, is_longer=is_longer, return_dict=return_dict,
         )
 
         pooled_output = (

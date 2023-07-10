@@ -212,13 +212,10 @@ class FeaturesManager:
             onnx_config_cls="models.camembert.CamembertOnnxConfig",
         ),
         "clip": supported_features_mapping(
-            "default",
-            onnx_config_cls="models.clip.CLIPOnnxConfig",
+            "default", onnx_config_cls="models.clip.CLIPOnnxConfig",
         ),
         "codegen": supported_features_mapping(
-            "default",
-            "causal-lm",
-            onnx_config_cls="models.codegen.CodeGenOnnxConfig",
+            "default", "causal-lm", onnx_config_cls="models.codegen.CodeGenOnnxConfig",
         ),
         "convbert": supported_features_mapping(
             "default",
@@ -334,8 +331,7 @@ class FeaturesManager:
             onnx_config_cls="models.gpt_neo.GPTNeoOnnxConfig",
         ),
         "groupvit": supported_features_mapping(
-            "default",
-            onnx_config_cls="models.groupvit.GroupViTOnnxConfig",
+            "default", onnx_config_cls="models.groupvit.GroupViTOnnxConfig",
         ),
         "ibert": supported_features_mapping(
             "default",
@@ -445,8 +441,7 @@ class FeaturesManager:
             onnx_config_cls="models.m2m_100.M2M100OnnxConfig",
         ),
         "owlvit": supported_features_mapping(
-            "default",
-            onnx_config_cls="models.owlvit.OwlViTOnnxConfig",
+            "default", onnx_config_cls="models.owlvit.OwlViTOnnxConfig",
         ),
         "perceiver": supported_features_mapping(
             "image-classification",

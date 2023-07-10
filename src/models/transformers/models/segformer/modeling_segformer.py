@@ -199,11 +199,7 @@ class SegformerEfficientSelfAttention(nn.Module):
         return hidden_states.permute(0, 2, 1, 3)
 
     def forward(
-        self,
-        hidden_states,
-        height,
-        width,
-        output_attentions=False,
+        self, hidden_states, height, width, output_attentions=False,
     ):
         query_layer = self.transpose_for_scores(self.query(hidden_states))
 

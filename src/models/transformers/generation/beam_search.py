@@ -645,8 +645,7 @@ class ConstrainedBeamSearchScorer(BeamScorer):
                     )
                     if completes_constraint:
                         beam_hyp.add(
-                            input_ids[batch_beam_idx].clone(),
-                            next_score.item(),
+                            input_ids[batch_beam_idx].clone(), next_score.item(),
                         )
                 else:
                     # add next predicted token since it is not eos_token
@@ -938,12 +937,7 @@ class ConstrainedBeamSearchScorer(BeamScorer):
                 # inserting only the first eos_token_id
                 decoded[i, sent_lengths[i]] = eos_token_id[0]
 
-        return UserDict(
-            {
-                "sequences": decoded,
-                "sequence_scores": best_scores,
-            }
-        )
+        return UserDict({"sequences": decoded, "sequence_scores": best_scores,})
 
 
 class BeamHypotheses:
@@ -1014,7 +1008,7 @@ class BeamHypotheses:
         # https://github.com/huggingface/transformers/pull/20901#issuecomment-1369845565
         elif self.early_stopping is False:
             highest_attainable_score = (
-                best_sum_logprobs / cur_len**self.length_penalty
+                best_sum_logprobs / cur_len ** self.length_penalty
             )
             ret = self.worst_score >= highest_attainable_score
             return ret
@@ -1025,12 +1019,12 @@ class BeamHypotheses:
             # its max this way
             if self.length_penalty > 0.0:
                 highest_attainable_score = (
-                    best_sum_logprobs / self.max_length**self.length_penalty
+                    best_sum_logprobs / self.max_length ** self.length_penalty
                 )
             # the opposite logic applies here (max `highest_attainable_score` from `cur_len`)
             else:
                 highest_attainable_score = (
-                    best_sum_logprobs / cur_len**self.length_penalty
+                    best_sum_logprobs / cur_len ** self.length_penalty
                 )
             ret = self.worst_score >= highest_attainable_score
             return ret

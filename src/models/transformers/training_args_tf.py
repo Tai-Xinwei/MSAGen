@@ -162,23 +162,19 @@ class TFTrainingArguments(TrainingArguments):
 
     framework = "tf"
     tpu_name: Optional[str] = field(
-        default=None,
-        metadata={"help": "Name of TPU"},
+        default=None, metadata={"help": "Name of TPU"},
     )
 
     tpu_zone: Optional[str] = field(
-        default=None,
-        metadata={"help": "Zone of TPU"},
+        default=None, metadata={"help": "Zone of TPU"},
     )
 
     gcp_project: Optional[str] = field(
-        default=None,
-        metadata={"help": "Name of Cloud TPU-enabled project"},
+        default=None, metadata={"help": "Name of Cloud TPU-enabled project"},
     )
 
     poly_power: float = field(
-        default=1.0,
-        metadata={"help": "Power for the Polynomial decay LR scheduler."},
+        default=1.0, metadata={"help": "Power for the Polynomial decay LR scheduler."},
     )
 
     xla: bool = field(

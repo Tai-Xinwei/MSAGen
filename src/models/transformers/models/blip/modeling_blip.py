@@ -225,9 +225,7 @@ class BlipVisionEmbeddings(nn.Module):
         self.image_size = config.image_size
         self.patch_size = config.patch_size
 
-        self.class_embedding = nn.Parameter(
-            torch.randn(1, 1, self.embed_dim),
-        )
+        self.class_embedding = nn.Parameter(torch.randn(1, 1, self.embed_dim),)
 
         self.patch_embedding = nn.Conv2d(
             in_channels=3,
@@ -311,7 +309,7 @@ class BlipAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
                 f" {self.num_heads})."
             )
-        self.scale = self.head_dim**-0.5
+        self.scale = self.head_dim ** -0.5
         self.dropout = nn.Dropout(config.attention_dropout)
 
         self.qkv = nn.Linear(self.embed_dim, 3 * self.embed_dim)
@@ -465,15 +463,11 @@ class BlipPreTrainedModel(PreTrainedModel):
             if hasattr(self.config, "vision_config"):
                 factor = self.config.vision_config.initializer_range
             nn.init.trunc_normal_(
-                module.position_embedding,
-                mean=0.0,
-                std=factor,
+                module.position_embedding, mean=0.0, std=factor,
             )
 
             nn.init.trunc_normal_(
-                module.class_embedding,
-                mean=0.0,
-                std=factor,
+                module.class_embedding, mean=0.0, std=factor,
             )
 
         elif isinstance(module, nn.LayerNorm):
@@ -661,15 +655,11 @@ class BlipEncoder(nn.Module):
                     return custom_forward
 
                 layer_outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(encoder_layer),
-                    hidden_states,
-                    attention_mask,
+                    create_custom_forward(encoder_layer), hidden_states, attention_mask,
                 )
             else:
                 layer_outputs = encoder_layer(
-                    hidden_states,
-                    attention_mask,
-                    output_attentions=output_attentions,
+                    hidden_states, attention_mask, output_attentions=output_attentions,
                 )
 
             hidden_states = layer_outputs[0]

@@ -204,7 +204,7 @@ class PegasusXAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim**-0.5
+        self.scaling = self.head_dim ** -0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -374,7 +374,7 @@ class PegasusXGlobalLocalAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim**-0.5
+        self.scaling = self.head_dim ** -0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=False)
@@ -741,13 +741,10 @@ class PegasusXEncoderLayer(nn.Module):
         pad_size = block_size // 2
         mask_min_value = torch.finfo(hidden_states.dtype).min
         padded_hidden_states = torch.nn.functional.pad(
-            hidden_states,
-            pad=(0, 0, pad_size, pad_size),
+            hidden_states, pad=(0, 0, pad_size, pad_size),
         )
         padded_mask = torch.nn.functional.pad(
-            attention_mask,
-            pad=(pad_size, pad_size),
-            value=mask_min_value,
+            attention_mask, pad=(pad_size, pad_size), value=mask_min_value,
         )
         return padded_hidden_states, padded_mask
 
@@ -1180,8 +1177,7 @@ class PegasusXEncoder(PegasusXPreTrainedModel):
         mask_min_value = torch.finfo(hidden_states.dtype).min
         inverted_mask = 1.0 - attention_mask
         attention_mask = inverted_mask.masked_fill(
-            inverted_mask.to(torch.bool),
-            mask_min_value,
+            inverted_mask.to(torch.bool), mask_min_value,
         )
 
         # padding to block_size

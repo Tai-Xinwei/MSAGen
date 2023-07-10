@@ -842,7 +842,7 @@ class TFDeitPixelShuffle(tf.keras.layers.Layer):
     def call(self, x: tf.Tensor) -> tf.Tensor:
         hidden_states = x
         batch_size, _, _, num_input_channels = shape_list(hidden_states)
-        block_size_squared = self.upscale_factor**2
+        block_size_squared = self.upscale_factor ** 2
         output_depth = int(num_input_channels / block_size_squared)
         # When the number of output channels >= 2, PyTorch's PixelShuffle and
         # TF's depth_to_space differ in their output as the order of channels selected for combining
@@ -872,7 +872,7 @@ class TFDeitDecoder(tf.keras.layers.Layer):
     def __init__(self, config: DeiTConfig, **kwargs) -> None:
         super().__init__(**kwargs)
         self.conv2d = tf.keras.layers.Conv2D(
-            filters=config.encoder_stride**2 * config.num_channels,
+            filters=config.encoder_stride ** 2 * config.num_channels,
             kernel_size=1,
             name="0",
         )
@@ -962,7 +962,7 @@ class TFDeiTForMaskedImageModeling(TFDeiTPreTrainedModel):
         # Reshape to (batch_size, num_channels, height, width)
         sequence_output = sequence_output[:, 1:-1]
         batch_size, sequence_length, num_channels = shape_list(sequence_output)
-        height = width = int(sequence_length**0.5)
+        height = width = int(sequence_length ** 0.5)
         sequence_output = tf.reshape(
             sequence_output, (batch_size, height, width, num_channels)
         )

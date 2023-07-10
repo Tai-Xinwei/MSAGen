@@ -516,10 +516,7 @@ class FlaxBlenderbotSmallEncoderLayerCollection(nn.Module):
                 layer_outputs = (None, None)
             else:
                 layer_outputs = encoder_layer(
-                    hidden_states,
-                    attention_mask,
-                    output_attentions,
-                    deterministic,
+                    hidden_states, attention_mask, output_attentions, deterministic,
                 )
             hidden_states = layer_outputs[0]
             if output_attentions:

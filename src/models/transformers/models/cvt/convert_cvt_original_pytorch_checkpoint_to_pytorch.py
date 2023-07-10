@@ -377,10 +377,7 @@ if __name__ == "__main__":
         help="Name of the cvt model you'd like to convert.",
     )
     parser.add_argument(
-        "--image_size",
-        default=384,
-        type=int,
-        help="Input Image Size",
+        "--image_size", default=384, type=int, help="Input Image Size",
     )
     parser.add_argument(
         "--cvt_file_name",

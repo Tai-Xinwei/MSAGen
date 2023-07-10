@@ -515,8 +515,9 @@ class ImageFeatureExtractionMixin:
                 if short == requested_new_short:
                     return image
 
-                new_short, new_long = requested_new_short, int(
-                    requested_new_short * long / short
+                new_short, new_long = (
+                    requested_new_short,
+                    int(requested_new_short * long / short),
                 )
 
                 if max_size is not None:

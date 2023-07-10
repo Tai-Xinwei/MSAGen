@@ -948,7 +948,7 @@ class LEDDecoderAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
                 f" {num_heads})."
             )
-        self.scaling = self.head_dim**-0.5
+        self.scaling = self.head_dim ** -0.5
         self.is_decoder = is_decoder
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -1291,11 +1291,7 @@ class LEDClassificationHead(nn.Module):
     """Head for sentence-level classification tasks."""
 
     def __init__(
-        self,
-        input_dim: int,
-        inner_dim: int,
-        num_classes: int,
-        pooler_dropout: float,
+        self, input_dim: int, inner_dim: int, num_classes: int, pooler_dropout: float,
     ):
         super().__init__()
         self.dense = nn.Linear(input_dim, inner_dim)
@@ -1858,8 +1854,7 @@ class LEDEncoder(LEDPreTrainedModel):
             )
 
         self.embed_positions = LEDLearnedPositionalEmbedding(
-            self.max_source_positions,
-            embed_dim,
+            self.max_source_positions, embed_dim,
         )
         self.layers = nn.ModuleList(
             [LEDEncoderLayer(config, i) for i in range(config.encoder_layers)]
@@ -2188,8 +2183,7 @@ class LEDDecoder(LEDPreTrainedModel):
             )
 
         self.embed_positions = LEDLearnedPositionalEmbedding(
-            self.max_target_positions,
-            config.d_model,
+            self.max_target_positions, config.d_model,
         )
         self.layers = nn.ModuleList(
             [LEDDecoderLayer(config) for _ in range(config.decoder_layers)]
@@ -3077,10 +3071,7 @@ class LEDForQuestionAnswering(LEDPreTrainedModel):
             total_loss = (start_loss + end_loss) / 2
 
         if not return_dict:
-            output = (
-                start_logits,
-                end_logits,
-            ) + outputs[1:]
+            output = (start_logits, end_logits,) + outputs[1:]
             return ((total_loss,) + output) if total_loss is not None else output
 
         return LEDSeq2SeqQuestionAnsweringModelOutput(

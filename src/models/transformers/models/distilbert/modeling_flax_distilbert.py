@@ -622,8 +622,7 @@ class FlaxDistilBertForMaskedLMModule(nn.Module):
         self.vocab_layer_norm = nn.LayerNorm(epsilon=1e-12, dtype=self.dtype)
         if self.config.tie_word_embeddings:
             self.vocab_projector = FlaxDistilBertLMDecoder(
-                self.config,
-                dtype=self.dtype,
+                self.config, dtype=self.dtype,
             )
         else:
             self.vocab_projector = nn.Dense(
@@ -708,10 +707,7 @@ class FlaxDistilBertForSequenceClassificationModule(nn.Module):
             ),
         )
         self.dropout = nn.Dropout(rate=self.config.seq_classif_dropout)
-        self.classifier = nn.Dense(
-            self.config.num_labels,
-            dtype=self.dtype,
-        )
+        self.classifier = nn.Dense(self.config.num_labels, dtype=self.dtype,)
 
     def __call__(
         self,
@@ -784,10 +780,7 @@ class FlaxDistilBertForMultipleChoiceModule(nn.Module):
             ),
         )
         self.dropout = nn.Dropout(rate=self.config.seq_classif_dropout)
-        self.classifier = nn.Dense(
-            1,
-            dtype=self.dtype,
-        )
+        self.classifier = nn.Dense(1, dtype=self.dtype,)
 
     def __call__(
         self,

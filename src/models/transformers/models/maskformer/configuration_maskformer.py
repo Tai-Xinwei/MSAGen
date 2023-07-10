@@ -203,9 +203,7 @@ class MaskFormerConfig(PretrainedConfig):
                 [`MaskFormerConfig`]: An instance of a configuration object
         """
         return cls(
-            backbone_config=backbone_config,
-            decoder_config=decoder_config,
-            **kwargs,
+            backbone_config=backbone_config, decoder_config=decoder_config, **kwargs,
         )
 
     def to_dict(self) -> Dict[str, any]:

@@ -278,7 +278,7 @@ class FlaxCLIPAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
                 f" {self.num_heads})."
             )
-        self.scale = self.head_dim**-0.5
+        self.scale = self.head_dim ** -0.5
         self.dropout = self.config.attention_dropout
 
         self.k_proj = nn.Dense(

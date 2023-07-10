@@ -88,9 +88,7 @@ class ASTFeatureExtractor(SequenceFeatureExtractor):
         self.return_attention_mask = return_attention_mask
 
     def _extract_fbank_features(
-        self,
-        waveform: np.ndarray,
-        max_length: int,
+        self, waveform: np.ndarray, max_length: int,
     ) -> np.ndarray:
         """
         Get mel-filter bank features using TorchAudio. Note that TorchAudio requires 16-bit signed integers as inputs

@@ -402,7 +402,7 @@ def pair_wise_sigmoid_focal_loss(
 
     cross_entropy_loss_neg = criterion(inputs, torch.zeros_like(inputs))
 
-    focal_neg = (prob**gamma) * cross_entropy_loss_neg
+    focal_neg = (prob ** gamma) * cross_entropy_loss_neg
     focal_neg *= 1 - alpha
 
     loss = torch.einsum("nc,mc->nm", focal_pos, labels) + torch.einsum(
@@ -438,7 +438,7 @@ class DetrAttention(nn.Module):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
                 f" {num_heads})."
             )
-        self.scaling = self.head_dim**-0.5
+        self.scaling = self.head_dim ** -0.5
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias)

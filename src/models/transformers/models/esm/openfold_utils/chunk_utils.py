@@ -186,11 +186,7 @@ def _chunk_slice(
     end_idx = list(_flat_idx_to_idx(flat_end - 1, batch_dims))
 
     # Get an ordered list of slices to perform
-    slices = _get_minimal_slice_set(
-        start_idx,
-        end_idx,
-        batch_dims,
-    )
+    slices = _get_minimal_slice_set(start_idx, end_idx, batch_dims,)
 
     sliced_tensors = [t[s] for s in slices]
 
@@ -341,7 +337,7 @@ class ChunkSizeTuner:
             return min_chunk_size
 
         candidates: List[int] = [
-            2**l for l in range(int(math.log(self.max_chunk_size, 2)) + 1)
+            2 ** l for l in range(int(math.log(self.max_chunk_size, 2)) + 1)
         ]
         candidates = [c for c in candidates if c > min_chunk_size]
         candidates = [min_chunk_size] + candidates
@@ -383,10 +379,7 @@ class ChunkSizeTuner:
         return consistent
 
     def tune_chunk_size(
-        self,
-        representative_fn: Callable,
-        args: tuple,
-        min_chunk_size: int,
+        self, representative_fn: Callable, args: tuple, min_chunk_size: int,
     ) -> int:
         consistent = True
         arg_data: tuple = tree_map(
@@ -402,9 +395,7 @@ class ChunkSizeTuner:
 
         if not consistent:
             self.cached_chunk_size = self._determine_favorable_chunk_size(
-                representative_fn,
-                args,
-                min_chunk_size,
+                representative_fn, args, min_chunk_size,
             )
             self.cached_arg_data = arg_data
 
