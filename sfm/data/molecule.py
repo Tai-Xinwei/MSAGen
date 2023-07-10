@@ -10,7 +10,8 @@ from rdkit import Chem
 from rdkit.Chem.rdchem import RWMol
 from rdkit.Chem.rdmolops import RemoveHs
 from torch import FloatTensor, LongTensor
-from torch.utils.data import Data
+
+from .dataset import Data
 
 ATOM_FEAT_T = Union[LongTensor, np.array]
 BOND_FEAT_T = Union[LongTensor, np.array]
