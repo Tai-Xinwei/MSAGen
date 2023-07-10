@@ -24,7 +24,7 @@ from utils.get_paranum import count_paranum
 # from torch.nn.parallel import DistributedDataParallel as DDP
 from utils.move_to_device import move_to_device
 
-from sfm.criterions.l1ft import Binary_criterions, L1_criterions
+from sfm.criterions.l1ft import L1Criterions
 
 
 class Finetuner:
@@ -49,8 +49,8 @@ class Finetuner:
 
         parameters = filter(lambda p: p.requires_grad, net.parameters())
 
-        self.L1loss = L1_criterions(
-            args, reduction="mean", data_mean=data_mean, data_std=data_std
+        self.L1loss = L1Criterions(
+            reduction="mean", data_mean=data_mean, data_std=data_std
         )
 
         self.model_engine, _, self.train_loader, _ = deepspeed.initialize(

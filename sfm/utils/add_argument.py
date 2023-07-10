@@ -98,7 +98,7 @@ def add_argument():
         default="/home/peiran/FMproj/moleculenet_data/data/mol2idx_dict.jsonl",
     )
     parser.add_argument(
-        "--model_name_or_path",
+        "--llm_model_name_or_path",
         type=str,
         default="/home/peiran/FMproj/MetaLLM-converted",
     )
@@ -110,12 +110,18 @@ def add_argument():
     parser.add_argument(
         "--loadllmcheck_path", type=str, default="/home/peiran/FMproj/MetaLLM-converted"
     )
-    parser.add_argument("--dataset_names", type=str, default="")
+    parser.add_argument(
+        "--dataset_names", type=str, default="hiv,clintox,sider,tox21,bbbp,bace"
+    )
     parser.add_argument("--dataset_ratios", type=str, default="")
     parser.add_argument("--dataset_splits", type=str, default="")
     parser.add_argument("--mol2idx_dict_path", type=str, default="")
     parser.add_argument("--in_memory", type=bool, default=False)
     parser.add_argument("--mol_size_path", type=str, default="")
+    parser.add_argument("--pool_mode", type=str, default="multimol")
+    parser.add_argument("--embedding_length", type=int, default=20)
+    parser.add_argument("--btn_adaptor", type=bool, default=False)
+    parser.add_argument("--mfm_lora", type=bool, default=False)
 
     parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()

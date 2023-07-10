@@ -12,12 +12,6 @@ from deepspeed.utils import logger
 from torch import nn
 from torch.optim import Adam, Optimizer
 
-# from torch.nn import Linear
-# from torch.nn.modules.conv import _ConvNd
-
-# from mup.infshape import InfShape, zip_infshape
-# from mup.layer import MuReadout, rescale_linear_bias
-
 
 def group_param(net, ndim, d_tilde, lr):
     if ndim < 1:
@@ -58,32 +52,10 @@ def group_param_copilot(net, ndim, ndim2, d_tilde, lr, mfm_lora=False):
         return param_groups, 1.0
     else:
         t = 1.0
-        # param_groups = [{}, {}]
-        # param_groups[0]['lr'] = lr / d_tilde
-        # param_groups[1]['lr'] = lr
-        # param_groups[0]['params'] = []
-        # param_groups[1]['params'] = []
-        # # param_groups[0]['d_tilde'] = []
-        # # param_groups[1]['d_tilde'] = []
-        # for name, param in net.named_parameters():
-        #     nl = name.split('.')[0]
-        #     if name.split('.')[-1] == 'weight' and len(param.shape) == 2:
-        #         assert param.shape[0] > 0
-        #         if param.shape[0] % ndim == 0 or param.shape[0] == ndim // 2 or \
-        #               param.shape[0] % ndim2 == 0:
-        #             param_groups[0]['params'].append(param)
-        #         else:
-        #             param_groups[1]['params'].append(param)
-        #     else:
-        #         param_groups[1]['params'].append(param)
-
         param_groups = [{}]
         param_groups[0]["lr"] = lr / d_tilde
-        # param_groups[1]['lr'] = lr
         param_groups[0]["params"] = []
-        # param_groups[1]['params'] = []
-        # param_groups[0]['d_tilde'] = []
-        # param_groups[1]['d_tilde'] = []
+
         for name, param in net.named_parameters():
             nl = name.split(".")[0]
             if name.find("dummy") != -1:
@@ -94,27 +66,7 @@ def group_param_copilot(net, ndim, ndim2, d_tilde, lr, mfm_lora=False):
                 # pass
                 param_groups[0]["params"].append(param)
 
-            # if int(nl) >= 40 or int(nl) <= 37:
-            # t = 0.0
-
         return param_groups, t
-
-    # param_groups = [{}]
-    # param_groups[0]['lr'] = lr
-    # param_groups[0]['params'] = []
-    # t = 1.0
-    # for name, param in net.named_parameters():
-    #     # print(name)
-    #     # nl = name.split('.')[0]
-    #     # if int(nl) >= 19: # or int(nl) <= 37:
-    #         # t = 1.0
-    #         # param.requires_grad = False
-    #     # elif int(nl) <= 35:
-    #         # t = 16.0
-    #     # else:
-    #     param_groups[0]['params'].append(param)
-
-    # return param_groups, t
 
 
 def process_param_groups(
@@ -127,17 +79,6 @@ def process_param_groups(
             net, ndim, ndim2, d_tilde, kwargs["lr"], mfm_lora=mfm_lora
         )
 
-    # if not isinstance(param_groups[0], dict):
-    # param_groups = [{'params': param_groups}]
-    # for p in param_groups[0]['params']: # check if all tensor weights in group 0 are hidden or output
-    #     print("0", p.shape)
-    # for p in param_groups[1]['params']: # check if all tensor weights in group 1 are input or bias
-    #     print("1", p.shape)
-
-    # print(len(param_groups[0]['params']))
-    # print(len(param_groups[1]['params']))
-    # exit()
-
     for param_group in param_groups:
         if "lr" not in param_group:
             param_group["lr"] = kwargs["lr"]
@@ -148,6 +89,29 @@ def process_param_groups(
         return param_groups
     else:
         return param_groups, t
+
+
+def process_freeze_param(
+    net, mode: str = "adaptoronly", lr: float = 1e-5, mfm_lora: bool = False, **kwargs
+):
+    param_groups = [{}]
+    param_groups[0]["lr"] = lr
+    param_groups[0]["params"] = []
+
+    if mode == "adaptoronly":
+        for name, param in net.named_parameters():
+            if name.find("adaptor") != -1:
+                param_groups[0]["params"].append(param)
+    else:
+        raise Exception("only adaptoronly mode is implemented")
+
+    for param_group in param_groups:
+        if "lr" not in param_group:
+            param_group["lr"] = kwargs["lr"]
+        if "weight_decay" not in param_group:
+            param_group["weight_decay"] = kwargs.get("weight_decay", 0.0)
+
+    return param_groups
 
 
 def myMuAdam(net, impl=Adam, ndim=512, d_tilde=1, **kwargs):
@@ -173,6 +137,14 @@ def myGroupAdam(
     for param_group in param_groups:
         new_param_groups.extend([param_group])
     return impl(new_param_groups, **kwargs), t
+
+
+def myAdam(net, impl=Adam, mode="adaptoronly", mfm_lora=False, **kwargs):
+    new_param_groups = []
+    param_groups = process_freeze_param(net, mode=mode, mfm_lora=mfm_lora, **kwargs)
+    for param_group in param_groups:
+        new_param_groups.extend([param_group])
+    return impl(new_param_groups, **kwargs)
 
 
 WARMUP_LOG_RATE = "log"
@@ -211,7 +183,7 @@ class groupWarmupDecayLR(WarmupLR):
         warmup_num_steps: int = 1000,
         warmup_type: str = WARMUP_LINEAR_RATE,
         last_batch_iteration: int = -1,
-        d_tilde: int = 1,
+        d_tilde: float = 1.0,
     ):
         self.total_num_steps = total_num_steps
         super(groupWarmupDecayLR, self).__init__(

@@ -25,7 +25,7 @@ setup(
     author_email="sfm.core@microsoft.com",
     install_requires=install_requires,
     extras_require=extras_require,
-    ext_modules=cythonize("src/data/mol_data/algos.pyx"),
+    ext_modules=cythonize("sfm/data/mol_data/algos.pyx"),
     include_dirs=[numpy.get_include()],
 )
 
