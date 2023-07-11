@@ -4,9 +4,8 @@ from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
-
-from sfm.models.transformers.configuration_utils import PretrainedConfig
-from sfm.models.transformers.models.llama.modeling_llama import (
+from models.transformers.configuration_utils import PretrainedConfig
+from models.transformers.models.llama.modeling_llama import (
     LlamaMLPAdapter,
     LlamaRMSNorm,
     _expand_mask,

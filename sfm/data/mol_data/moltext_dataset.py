@@ -7,7 +7,6 @@ logging.getLogger().setLevel(logging.ERROR)
 
 import copy
 import json
-import logging
 import os
 import pickle as pkl
 from dataclasses import dataclass, field
@@ -24,7 +23,7 @@ from torch_geometric.data import Data, InMemoryDataset
 from tqdm import tqdm
 from utils.jload import jload
 
-from sfm.data.mol_data import algos
+from . import algos
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "[PAD]"

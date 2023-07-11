@@ -8,18 +8,16 @@ import math
 from typing import Dict, Optional, Tuple
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from transformers.models.llama.configuration_llama import LlamaConfig
 
-from sfm.logging.loggers import sfm_logger as logger
-from sfm.models.transformers import AutoModelForCausalLM, LlamaForCausalLM
 from sfm.models.transformers.modeling_utils import PreTrainedModel
+from sfm.models.transformers.models.llama.configuration_llama import LlamaConfig
+from sfm.models.transformers.models.llama.modeling_llama import LlamaForCausalLM
 from sfm.modules import GraphormerSentenceEncoder, init_bert_params
 from sfm.modules.hybrid_emb import AdaptorConfig, Hybrid_emb
+from sfm.sfmlogging.loggers import sfm_logger as logger
 
 
-class GraphormerLlamaModel:
+class GraphormerLlamaModel(torch.nn.Module):
     """
     Class for training a Masked Language Model. It also supports an
     additional sentence level prediction if the sent-loss argument is set.

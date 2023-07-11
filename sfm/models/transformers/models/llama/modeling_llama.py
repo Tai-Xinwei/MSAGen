@@ -26,7 +26,7 @@ from typing import List, Optional, Tuple, Union
 import lmdb
 import torch
 import torch.utils.checkpoint
-from graphormer.utils.mypp_module import LayerSpec
+from utils.mypp_module import LayerSpec
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
@@ -784,18 +784,6 @@ class LlamaModel(LlamaPreTrainedModel):
         )
         self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
-        # TODO (Roger): 1) load molecule_idx-to-representation dict (need to check)
-        # self.mol2rep_dict = self._load_smiles2dict(config.molrep_dict_path)
-        # TODO (Roger): 2) mlp adapter
-        self.mol_adapter = LlamaMLPAdapter(
-            hidden_size=config.mfm_hidden_size,
-            intermediate_size=config.mfm_hidden_size,
-            output_size=config.hidden_size,
-            hidden_act=config.hidden_act,
-        )
-
-        self.molrep_db = lmdb.open(config.molrep_dict_path)
-        self.molrep_txn = self.molrep_db.begin(write=False)
 
         self.config = config
 
@@ -808,73 +796,6 @@ class LlamaModel(LlamaPreTrainedModel):
 
     def set_input_embeddings(self, value):
         self.embed_tokens = value
-
-    def _load_smiles2dict(self, path):
-        # TODO (Roger)
-        # input: path to molecular representations
-        # output: dictionary {idx: molecular representation (float tensor)}
-
-        file_list = [
-            # 'embed_rank56.pkl',
-            # 'embed_rank57.pkl',
-            # 'embed_rank58.pkl',
-            # 'embed_rank59.pkl',
-            # 'embed_rank60.pkl',
-            # 'embed_rank61.pkl',
-            # 'embed_rank62.pkl',
-            # 'embed_rank63.pkl',
-        ]
-
-        import io
-        import pickle
-
-        class CPU_Unpickler(pickle.Unpickler):
-            def find_class(self, module, name):
-                if module == "torch.storage" and name == "_load_from_bytes":
-                    return lambda b: torch.load(io.BytesIO(b), map_location="cpu")
-                else:
-                    return super().find_class(module, name)
-
-        contents = []
-        for item in file_list:
-            with open(os.path.join(path, item), "rb") as f:
-                while True:
-                    try:
-                        contents.append(CPU_Unpickler(f).load())
-                    except:
-                        break
-
-        mol2rep_dict = {int(list(item)[0]): list(item)[1] for item in contents}
-        return mol2rep_dict
-
-    def _forward_embedding(self, input_ids: torch.LongTensor = None):
-        # TODO (Roger)
-        # input_ids: bsz, num_tokens
-        B, T = input_ids.shape
-        mol_idx_mask = input_ids < 0  # B, T
-        mol_idx_embed = input_ids.masked_fill(~mol_idx_mask, 0)
-        token_embed = self.embed_tokens(input_ids.masked_fill(mol_idx_mask, 0))
-        for bidx in range(B):
-            for tidx in range(T):
-                if mol_idx_mask[bidx, tidx]:
-                    # mean pooling
-                    mol_idx = -int(mol_idx_embed[bidx, tidx])
-                    mol_rep = self.molrep_txn.get(f"{mol_idx}".encode())
-                    if mol_rep is None:
-                        logger.warning(
-                            f"Molecule representation for {mol_idx} is not found."
-                        )
-                        mol_rep = torch.zeros([3, self.config.mfm_hidden_size]).to(
-                            dtype=token_embed.dtype, device=token_embed.device
-                        )
-                    else:
-                        mol_rep = pkl.loads(mol_rep).to(
-                            dtype=token_embed.dtype, device=token_embed.device
-                        )
-                    token_embed[bidx, tidx] = self.mol_adapter(mol_rep)[1:, :].mean(
-                        dim=0
-                    )
-        return token_embed
 
     # Copied from transformers.models.bart.modeling_bart.BartDecoder._prepare_decoder_attention_mask
     def _prepare_decoder_attention_mask(

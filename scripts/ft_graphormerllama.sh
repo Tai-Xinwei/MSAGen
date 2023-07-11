@@ -30,7 +30,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=60000
 
 [ -z "${data_path}" ] && data_path='/home/peiran/FMproj/chemical-copilot'
-[ -z "${dataset_names}" ] && dataset_names='mt-data-1m'
+# [ -z "${dataset_names}" ] && dataset_names='mt-data-1m'
+[ -z "${dataset_names}" ] && dataset_names='moleculenet'
 [ -z "${dataset_splits}" ] && dataset_splits='train'
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
@@ -142,46 +143,11 @@ echo "pipeline_parallelism: ${pipeline_parallelism}"
 # export NCCL_DEBUG=INFO
 # export NCCL_IB_PCI_RELAXED_ORDERING=1
 # export NCCL_IB_DISABLE=1
-export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
-export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
+# export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
+# export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-
-# if [ $LOCAL_RANK == 0 ]; then
-#   bash install.sh
-# fi
-
-# bash install.sh
-
-# if [ $OMPI_COMM_WORLD_RANK == 0 ]; then
-#   sleep 300
-#   deepspeed --force_multi --hostfile=$hostfile finetuning.py \
-#     --num-classes 1 \
-#     --encoder_attention_heads $num_head \
-#     --encoder_layers $layers \
-#     --encoder_ffn_embed_dim $ffn_size \
-#     --encoder_embed_dim $hidden_size \
-#     --droppath_prob $droppath_prob \
-#     --attn_dropout $attn_dropout \
-#     --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
-#     --sandwich_ln \
-#     --dataset-name $dataset_name \
-#     --data_path $data_path \
-#     --output_path $output_path \
-#     --pipeline_parallelism $pipeline_parallelism \
-#     --seed 666667 \
-#     --add-3d \
-#     --ft \
-#     --num_pred_attn_layer $num_pred_attn_layer \
-#     --d_tilde $d_tilde \
-#     --max_lr $max_lr \
-#     --output_path $output_path \
-#     --total_num_steps $total_num_steps \
-#     --warmup_num_steps $warmup_num_steps \
-#     --loadcheck_path $loadcheck_path \
-#     --deepspeed --deepspeed_config ./config_file/ds_config_ft.json
-# fi
 
 deepspeed --num_gpu=1 sfm/tasks/ft_graphormerllama.py \
   --num-classes 1 \
@@ -198,7 +164,6 @@ deepspeed --num_gpu=1 sfm/tasks/ft_graphormerllama.py \
   --output_path $output_path \
   --pipeline_parallelism $pipeline_parallelism \
   --seed 666667 \
-  --add-3d \
   --ft \
   --d_tilde $d_tilde \
   --num_pred_attn_layer $num_pred_attn_layer \
@@ -210,10 +175,9 @@ deepspeed --num_gpu=1 sfm/tasks/ft_graphormerllama.py \
   --deepspeed --deepspeed_config ./config_file/ds_config_ft.json \
   --smiles_dict_path $smiles_dict_path \
   --mol_size_path $mol_size_path \
-  --model_name_or_path $model_name_or_path \
+  --llm_model_name_or_path $llm_model_name_or_path \
   --dataset_names $dataset_names \
-  --dataset_splits $dataset_splits \
-  --llm_model_name_or_path $llm_model_name_or_path
+  --dataset_splits $dataset_splits
 
 sleep inf
 sleep inf

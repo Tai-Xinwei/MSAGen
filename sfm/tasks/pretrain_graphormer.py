@@ -7,7 +7,6 @@ import deepspeed
 import torch
 import torch.nn as nn
 
-# print(sys.path)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.mol_data.dataset import BatchedDataDataset, PCQPreprocessedData

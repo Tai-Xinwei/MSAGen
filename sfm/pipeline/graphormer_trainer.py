@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import math
 import os
-from logging.loggers import sfm_logger
 
 import deepspeed
 import psutil
@@ -10,6 +9,7 @@ import torch.nn as nn
 import torch.optim as optim
 from deepspeed.runtime.utils import see_memory_usage
 from models.graphormer import GraphormerModel
+from sfmlogging.loggers import sfm_logger
 from torch.utils.data import DataLoader, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
