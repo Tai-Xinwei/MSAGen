@@ -11,6 +11,7 @@ import torch.nn as nn
 
 # import pytorch_forecasting
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(".")
 
 import subprocess
 from functools import lru_cache
@@ -19,8 +20,6 @@ from pathlib import Path
 from data.mol_data.dataset import BatchedDataDataset, PCQPreprocessedData
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "PyTDC"])
-
-import logging
 
 from data.mol_data.tdc import TDCDataset
 from pipeline.graphormer_fter import Finetuner

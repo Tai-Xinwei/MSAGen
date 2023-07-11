@@ -1,23 +1,22 @@
 # -*- coding: utf-8 -*-
 import math
 import os
-from logging.loggers import sfm_logger
 
 import deepspeed
 import psutil
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from criterions.copilotloss import CopilotCriterions
 from deepspeed.runtime.utils import see_memory_usage
 from models.generalist.graphormer_llama import GraphormerLlamaModel
+from sfmlogging.loggers import sfm_logger
 from torch.utils.data import DataLoader, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
 from utils.get_paranum import count_paranum
 from utils.move_to_device import move_to_device
-from utils.set_lr import groupWarmupDecayLR, myGroupAdam
-
-from sfm.criterions.copilotloss import CopilotCriterions
+from utils.set_lr import groupWarmupDecayLR, myAdam
 
 
 class Trainer:
@@ -34,7 +33,7 @@ class Trainer:
 
         parameters = filter(lambda p: p.requires_grad, net.parameters())
 
-        optimizer = myGroupAdam(
+        optimizer = myAdam(
             net,
             mode="adaptoronly",
             lr=args.max_lr,
@@ -71,17 +70,9 @@ class Trainer:
                     batch_data, device=self.args.local_rank, non_blocking=True
                 )
 
-                model_output = self.model_engine(batch_data)
-                logits, node_output = model_output[0], model_output[1]
+                logits = self.model_engine(batch_data)
 
-                if self.args.add_3d:
-                    loss = self.criterion_3d(batch_data, logits, node_output)
-                else:
-                    logits = logits[:, 0, :]
-                    targets = batch_data["y"]
-                    loss = self.criterion_2d(
-                        logits.squeeze(-1), targets[: logits.size(0)]
-                    )
+                loss = self.LlmLoss(logits, batch_data["labels"])
 
                 self.model_engine.backward(loss)
                 self.model_engine.step()
@@ -102,7 +93,5 @@ class Trainer:
 
                 global_step += 1
 
-            # path = os.path.join(self.args.output_path, "modelstate_epoch_{}_step_{}.pth".format(epoch, i))
-            # torch.save(self.model_engine.module.state_dict(), path)
         self.writer.flush()
         self.writer.close()

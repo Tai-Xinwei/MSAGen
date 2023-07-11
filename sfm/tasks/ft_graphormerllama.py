@@ -8,12 +8,13 @@ import deepspeed
 import torch
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(".")
 
-from data.mol_data.general_dataset import SupervisedMoleculeNetDataset
-from models.transformers import AutoTokenizer, PreTrainedTokenizer
-from models.transformers.models.llama.configuration_llama import LlamaConfig
-from pipeline.graphormerllama_trainer import Trainer
-from utils.add_argument import add_argument
+from sfm.data.mol_data.moltext_dataset import SupervisedProcessedData
+from sfm.models.transformers import AutoTokenizer, PreTrainedTokenizer
+from sfm.models.transformers.models.llama.configuration_llama import LlamaConfig
+from sfm.pipeline.graphormerllama_trainer import Trainer
+from sfm.utils.add_argument import add_argument
 
 logging.getLogger().setLevel(logging.ERROR)
 
@@ -45,7 +46,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     ], f"Invalid mode: {mode}, must be train, eval, or test."
 
     tokenizer = AutoTokenizer.from_pretrained(
-        args.model_name_or_path,
+        args.llm_model_name_or_path,
         model_max_length=args.model_max_length,
         padding_side="right",
         use_fast=False,
@@ -66,16 +67,17 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     tokenizer.add_special_tokens(special_tokens_dict)
 
     """Make dataset and collator for supervised fine-tuning."""
-    dataset = SupervisedMoleculeNetDataset(
+    dataset = SupervisedProcessedData(
         data_path=args.data_path,
         dataset_names=args.dataset_names,
-        smiles_dict_path=args.smiles_dict_path,
-        tokenizer=tokenizer,
-        mode=mode,
-        pool_mode=args.pool_mode,
+        dataset_splits=args.dataset_splits,
+        mol2idx_dict_path=args.smiles_dict_path,
         embedding_length=args.embedding_length,
+        in_memory=False,
+        mol_size_path=args.mol_size_path,
+        pad_token_id=tokenizer.pad_token_id,
+        pool_mode=args.pool_mode,
     )
-
     return dict(
         train_dataset=dataset, eval_dataset=None, vocab_size=Llama_config.vocab_size
     )
