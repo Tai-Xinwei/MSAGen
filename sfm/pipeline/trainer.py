@@ -1,37 +1,118 @@
 # -*- coding: utf-8 -*-
-import copy
-import os
-from typing import Optional, Tuple
+from typing import Dict, Iterator, List, Optional
 
 import deepspeed
 import torch
 import torch.nn as nn
-from deepspeed.runtime.utils import see_memory_usage
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import Dataset
-from torch.utils.tensorboard import SummaryWriter
+
+import numpy as np
+import random
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum
 
 
-class Trainer:
+class TraingStrategy(Enum):
+    Zero1 = 1
+    Zero2 = 2
+    Zero3 = 3
+    DDP = 4
+
+@dataclass
+class TrainerConfig:
+    strategy: TraingStrategy = TraingStrategy.Zero1
+    epochs: int = 100
+    seed: int = 46
+    loss_scale: float = 1.0
+
+class EntityType(Enum):
+    Text = 0
+    Mol = 1
+    Protein = 2
+
+@dataclass
+class DataBatch:
+    # Batch size * sequence length * hidden size
+    x: Optional[torch.Tensor] = None
+    
+    # the entity mask dict form entity type (e.g., moleclue) to a list of masks
+    # Each encoder can only process the entities they care about
+    mask: Optional[Dict[EntityType, List[torch.Tensor]]] = None
+    
+    # the label of the batch, Batch size * sequence length
+    label: Optional[torch.Tensor] = None
+
+
+class Trainer(ABC):
+    @abstractmethod
+    def train(self):
+        pass
+    
+    @abstractmethod
+    def build_model(self) -> nn.Module:
+        pass
+    
+    @abstractmethod
+    def save_checkpoint(self):
+        pass
+    
+    @abstractmethod
+    def build_optimizer(self, parameters: Iterator[nn.Parameter]) -> Optimizer:
+        pass
+    
+    @abstractmethod
+    def build_scheduler(self, optimizer: Optimizer) -> _LRScheduler:
+        pass
+    
+    @abstractmethod
+    def build_criterion(self):
+        pass
+    
+    @abstractmethod
+    def load_checkpoint(self):
+        pass  
+
+    @abstractmethod
+    def build_trainig_data_loader(self):
+        pass
+    
+    @abstractmethod
+    def build_validation_data_loader(self):
+        pass
+    
+
+class BaseTrainer(Trainer):
     def __init__(
         self,
-        args,
-        train_data: Dataset,
-        val_data: Optional[Dataset] = None,
-        test_data: Optional[Dataset] = None,
-        strategy: str = "zero1",
-        data_mean: float = 0.0,
-        data_std: float = 1.0,
+        args: TrainerConfig
     ):
         super().__init__()
+        self.args = args
 
-        assert strategy in [
-            "zero1",
-            "zero2",
-            "zero3",
-            "ddp",
-        ], "Strategy should be one of ['zero1', 'zero2', 'zero3', 'ddp']"
+        self.net = self.build_model()
+        self.creterion = self.build_criterion()
+        self.optimizer = self.build_optimizer(self.net.parameters())
+        self.scheduler = self.build_scheduler(self.optimizer)
+        
+        
+        self.train_data_loader = self.build_trainig_data_loader()
+        self.valid_data_loader = self.build_validation_data_loader()
+        
+        train_data = self.train_data_loader.load_data()
+        
+        self.model_engine, _, self.train_loader, _ = deepspeed.initialize(
+            args=args,
+            model=self.net,
+            model_parameters=self.net,
+            training_data=train_data,
+            collate_fn=train_data.collater2,
+            optimizer=self.optimizer,
+            lr_scheduler=self.scheduler
+        )
+        
         # define model
         # net = GraphormerModel(args)
         # count_paranum(net)
@@ -64,7 +145,14 @@ class Trainer:
 
         # load checkpoints
         # self.load_checkpoint()
-
+        
+    def seed_everything(self, seed):
+        torch.cuda.manual_seed_all(seed)
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        random.seed(seed)
+        
+        
     def load_checkpoint(self, checkpoint_path=None):
         pass
 
@@ -84,10 +172,19 @@ class Trainer:
 
         return len_data, dataloader
 
-    def run(self, dataloader, iftrain=True):
-        pass
-
-    def __call__(self, iftrain=True):
+    def train(self):
         print("start training")
-        for ep in range(self.args.epochs):
-            pass
+        self.seed_everything(self.args.seed)
+        
+        # TODO: add more logging
+        for epoch in range(self.args.epochs):
+            for i, batch_data in enumerate(self.train_data_loader):
+                model_output = self.model_engine.train_batch(batch_data)
+                loss = self.creterion(model_output, batch_data.label)
+                self.model_engine.backward(loss)
+                self.model_engine.step()
+                
+                
+                
+                
+            
