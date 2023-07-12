@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
-from typing import Dict, Iterator, List, Optional
+from typing import Dict, Iterator, List, Optional, Callable
 
-import deepspeed
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, RandomSampler, DistributedSampler
 from abc import ABC, abstractmethod
 import numpy as np
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field, asdict
 from enum import Enum
 
 from tqdm import tqdm
@@ -36,13 +35,25 @@ class TrainerConfig:
     node_rank: int = 0
     world_size: int = 1
     num_nodes: int = 1
+    
+    ## Optimization
+    lr: float = 1e-3
+    lr_lambda: Callable[[int], float] = lambda step: 1.0
+    weight_decay: float = 0.0
+    optimizer_args: Dict = field(default_factory=lambda: {})
 
+@dataclass
+class TrainerState:
+    args: TrainerConfig
+    model_state_dict: Dict
+    optimizer_state_dict: Dict
+    global_step: int
+    epoch: int
 
 class Model(nn.Module, ABC):
     @abstractmethod
     def compute_loss(self, pred, batch) -> torch.Tensor:
         pass
-
 
 def seed_everything(seed):
     torch.cuda.manual_seed_all(seed)
@@ -54,8 +65,10 @@ class Trainer(object):
     def __init__(
         self,
         args: TrainerConfig,
+        /,
         model: Model,
         train_data: Dataset,
+        collater: Callable,
         valid_data: Optional[Dataset] = None,
         test_data: Optional[Dataset] = None,
     ):
@@ -70,16 +83,27 @@ class Trainer(object):
         self.optimizer = self.build_optimizer(self.model.parameters())
         self.lr_scheduler = self.build_lr_scheduler(self.optimizer)
         
-        self.train_data_loader = self.build_data_loader(train_data, shuffle=True, collater=train_data.collater)
-        self.valid_data_loader = self.build_data_loader(valid_data, shuffle=False, collater=valid_data.collater)
+        self.train_data_loader = self.build_data_loader(train_data, shuffle=True, collater=collater)
+        self.valid_data_loader = self.build_data_loader(valid_data, shuffle=False, collater=collater)
     
     def build_optimizer(self, parameters) -> Optimizer:
-        return torch.optim.Adam(parameters, lr=1e-3) # todo: add more options
+        return torch.optim.Adam(parameters, lr=self.args.lr, weight_decay=self.args.weight_decay, **self.args.optimizer_args)
     
     def build_lr_scheduler(self, optimizer) -> LRScheduler:
-        return torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1) # todo: add more options
+        return torch.optim.lr_scheduler.LambdaLR(optimizer, self.args.lr_lambda)
+    
+    def save_checkpoint(self, step: int, epoch: int, path: str):
+        state = TrainerState(
+            args=self.args,
+            model_state_dict=self.model.state_dict(),
+            optimizer_state_dict=self.optimizer.state_dict(),
+            global_step=step,
+            epoch=epoch,
+        )
         
-    def load_checkpoint(self, checkpoint_path=None):
+        torch.save(asdict(state), path)
+            
+    def load_checkpoint(self):
         pass
     
     def build_data_loader(self, data: Optional[Dataset], shuffle: bool, collater) -> Optional[DataLoader]:
@@ -87,9 +111,9 @@ class Trainer(object):
             return None
         
         if self.args.world_size == 1:
-            sampler = torch.utils.data.RandomSampler(data) if shuffle else None
+            sampler = RandomSampler(data) if shuffle else None
         else:
-            sampler = torch.utils.data.distributed.DistributedSampler(
+            sampler = DistributedSampler(
                 data, num_replicas=self.args.world_size, shuffle=shuffle
             )
         
@@ -103,6 +127,7 @@ class Trainer(object):
 
     def train(self):
         print("start training")
+        print(self.model)
         seed_everything(self.args.seed)
         
         assert self.train_data_loader is not None
@@ -118,6 +143,8 @@ class Trainer(object):
                 loss.backward()
                 self.optimizer.step()
                 self.lr_scheduler.step()
+        
+        print('Finished Training')
 
     def validate(self):
         if self.valid_data_loader is None:
