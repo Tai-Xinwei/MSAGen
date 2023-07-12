@@ -20,10 +20,10 @@ pip install Cython==0.29.32 --upgrade
 pip install torchvision==0.15.2 --upgrade
 
 # pip install pytorch_forecasting
-pip install networkx --user
-pip install lmdb --user
+pip install networkx
+pip install lmdb
 python setup_cython.py build_ext --inplace
 
-pip install mlflow azureml-mlflow --user
+pip install mlflow azureml-mlflow
 pip install torch==2.0.1 --upgrade
 
