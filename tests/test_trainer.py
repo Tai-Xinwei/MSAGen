@@ -17,7 +17,7 @@ class DummyNN(Model):
 class DummyDataset(torch.utils.data.Dataset):
     def __init__(self):
         super().__init__()
-        self.data = torch.randn(5, 8, 10)
+        self.data = torch.randn(128, 10)
     
     def __getitem__(self, index):
         return self.data[index]

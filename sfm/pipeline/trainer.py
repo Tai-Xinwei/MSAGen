@@ -25,7 +25,7 @@ class TraingStrategy(Enum):
 @dataclass
 class TrainerConfig:
     strategy: TraingStrategy = TraingStrategy.Zero1
-    epochs: int = 100
+    epochs: int = 1
     seed: int = 46
     loss_scale: float = 1.0
     batch_size: int = 32
@@ -40,7 +40,7 @@ class TrainerConfig:
 
 class Model(nn.Module, ABC):
     @abstractmethod
-    def compute_loss(self, pred, batch):
+    def compute_loss(self, pred, batch) -> torch.Tensor:
         pass
 
 
@@ -98,6 +98,7 @@ class Trainer(object):
             sampler=sampler,
             batch_size=self.args.batch_size,
             collate_fn=collater,
+            drop_last=True
         )  
 
     def train(self):
@@ -117,8 +118,6 @@ class Trainer(object):
                 loss.backward()
                 self.optimizer.step()
                 self.lr_scheduler.step()
-                
-                
 
     def validate(self):
         if self.valid_data_loader is None:
