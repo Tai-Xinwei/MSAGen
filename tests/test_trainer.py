@@ -2,6 +2,7 @@ from sfm.pipeline.trainer import Trainer, TrainerConfig, Model
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
 
 class DummyNN(Model):
     def __init__(self):
@@ -25,12 +26,17 @@ class DummyDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.data)
     
-    def collater(self, batch):
-        return torch.stack(batch)
-
+def collater(batch):
+    return torch.stack(batch)
 
 def test_trainer():
-    config = TrainerConfig()
+    config = TrainerConfig(
+        lr_lambda=lambda epoch: 1.0/4000 if epoch < 4000 else 1.0/math.sqrt(epoch),
+        optimizer_args={
+            'betas': (0.9, 0.98),
+        },
+        epochs=1,
+    )
     print(config)
     
     model = DummyNN()
@@ -38,5 +44,5 @@ def test_trainer():
     valid_data = DummyDataset()
     test_data = DummyDataset()
     
-    trainer = Trainer(config, model, train_data, valid_data, test_data)
+    trainer = Trainer(config, model=model, collater=collater, train_data=train_data, valid_data=valid_data, test_data=test_data)
     trainer.train()
