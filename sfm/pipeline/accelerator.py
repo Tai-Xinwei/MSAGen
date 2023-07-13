@@ -18,6 +18,8 @@ except ImportError:
 class Accelerator(ABC):
     args: TrainerConfig
     model: Union[Model, DistributedDataParallel]
+    optimizer: Optimizer
+    lr_scheduler: LRScheduler
     
     @abstractmethod
     def set_up():
@@ -41,8 +43,6 @@ class Accelerator(ABC):
     
 
 class SingleNodeAccelerator(Accelerator):
-    optimizer: Optimizer
-    lr_scheduler: LRScheduler
     device: Union[int, str, torch.device]
     
     def __init__(self, args, model, optimizer, lr_scheduler) -> None:
