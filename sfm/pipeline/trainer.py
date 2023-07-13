@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
-from typing import Dict, Iterator, List, Optional, Callable
-
+from collections import defaultdict
+import json
+import time
+from typing import Dict, Optional, Callable, Sized, Union
+from pathlib import Path
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
-from torch.utils.data import Dataset, DataLoader, RandomSampler, DistributedSampler
+from torch.utils.data import Dataset, DataLoader, RandomSampler, DistributedSampler, dataloader
 from abc import ABC, abstractmethod
 import numpy as np
 import random
@@ -23,11 +26,17 @@ class TraingStrategy(Enum):
 
 @dataclass
 class TrainerConfig:
+    # common
     strategy: TraingStrategy = TraingStrategy.Zero1
     epochs: int = 1
     seed: int = 46
-    loss_scale: float = 1.0
+    init_loss_scale: float = 1.0
     batch_size: int = 32
+    save_dir: str = "./checkpoints"
+    resume_checkpoint: str = "checkpoint_last.pt"
+    save_batch_interval: int = 0
+    save_epoch_interval: int = 1
+    log_interval: int = 100
     
     ## Distibuated training
     global_rank: int = 0
@@ -35,24 +44,55 @@ class TrainerConfig:
     node_rank: int = 0
     world_size: int = 1
     num_nodes: int = 1
-    
-    ## Optimization
-    lr: float = 1e-3
-    lr_lambda: Callable[[int], float] = lambda step: 1.0
-    weight_decay: float = 0.0
-    optimizer_args: Dict = field(default_factory=lambda: {})
 
 @dataclass
 class TrainerState:
     args: TrainerConfig
-    model_state_dict: Dict
-    optimizer_state_dict: Dict
-    global_step: int
-    epoch: int
+    global_step: int = 0
+    epoch: int = 0
+    batch: int = 0
+    loss_scale: float = 0
 
-class Model(nn.Module, ABC):
+@dataclass
+class ModelOutput:
+    loss: torch.Tensor
+    log_output: Dict
+
+
+@dataclass
+class LogOutput:
+    loss: float
+    loss_scale: float
+    lr: float
+    epoch: int
+    batch: int
+    global_step: int
+    time: float
+    extra_output: Dict
+    
+    def __str__(self) -> str:
+        return json.dumps(asdict(self))
+
+
+class Model(nn.Module, ABC):    
     @abstractmethod
-    def compute_loss(self, pred, batch) -> torch.Tensor:
+    def compute_loss(self, pred, batch) -> ModelOutput:
+        pass
+    
+    def load_pretrained(self):
+        """
+        Load all pretrained weights, e.g., pretrained encoders or decoders.
+        """
+        pass
+    
+    @abstractmethod
+    def config_optimizer(self) -> tuple[Optimizer, LRScheduler]:
+        """
+        Return the optimizer and learning rate scheduler for this model.
+
+        Returns:
+            tuple[Optimizer, LRScheduler]: _description_
+        """
         pass
 
 def seed_everything(seed):
@@ -80,42 +120,71 @@ class Trainer(object):
         self.valid_data = valid_data
         self.test_data = test_data
         
-        self.optimizer = self.build_optimizer(self.model.parameters())
-        self.lr_scheduler = self.build_lr_scheduler(self.optimizer)
+        self.optimizer, self.lr_scheduler = model.config_optimizer()
         
         self.train_data_loader = self.build_data_loader(train_data, shuffle=True, collater=collater)
         self.valid_data_loader = self.build_data_loader(valid_data, shuffle=False, collater=collater)
-    
-    def build_optimizer(self, parameters) -> Optimizer:
-        return torch.optim.Adam(parameters, lr=self.args.lr, weight_decay=self.args.weight_decay, **self.args.optimizer_args)
-    
-    def build_lr_scheduler(self, optimizer) -> LRScheduler:
-        return torch.optim.lr_scheduler.LambdaLR(optimizer, self.args.lr_lambda)
-    
-    def save_checkpoint(self, step: int, epoch: int, path: str):
-        state = TrainerState(
-            args=self.args,
-            model_state_dict=self.model.state_dict(),
-            optimizer_state_dict=self.optimizer.state_dict(),
-            global_step=step,
-            epoch=epoch,
-        )
+
+        self.state = TrainerState(args=args)
         
-        torch.save(asdict(state), path)
-            
-    def load_checkpoint(self):
-        pass
+        self.save_dir = Path(self.args.save_dir)
+        self.model.load_pretrained()
+        
+    @property
+    def is_distibuated(self):
+        return self.args.world_size > 1
     
-    def build_data_loader(self, data: Optional[Dataset], shuffle: bool, collater) -> Optional[DataLoader]:
+    def save_checkpoint(self, name: str):
+        checkpoint = {
+            'model': self.model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'lr_scheduler': self.lr_scheduler.state_dict(),
+        }
+        
+        checkpoint.update(asdict(self.state))
+        print('save checkpoint: ', name)
+        torch.save(checkpoint, self.save_dir / name)
+        
+        with open(self.save_dir / 'checkpoint_list.txt', 'a') as f:
+            f.write(name + '\n')
+        
+            
+    def load_checkpoint(self, path: Union[str, Path]):
+        checkpoint = torch.load(path)
+        self.model.load_state_dict(checkpoint['model'])
+        self.optimizer.load_state_dict(checkpoint['optimizer'])
+        self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
+    
+        for k, v in checkpoint.items():
+            if k not in ['model', 'optimizer', 'lr_scheduler']:
+                setattr(self.state, k, v)
+    
+    def resume(self):
+        self.save_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint_list_path = self.save_dir / 'checkpoint_list.txt'
+        if checkpoint_list_path.exists():
+            with open(checkpoint_list_path, 'r') as f:
+                checkpoint_list = f.read().splitlines()
+            if len(checkpoint_list) > 0:
+                checkpoint_last = checkpoint_list[-1]
+                checkpoint_path = self.save_dir / checkpoint_last
+                if checkpoint_path.exists():
+                    print("Resume from checkpoint: ", checkpoint_path)
+                    self.load_checkpoint(checkpoint_path)
+                else:
+                    print("Not resume from checkpoint")
+        else:
+            with open(checkpoint_list_path, 'w') as f:
+                f.write('')
+    
+    def build_data_loader(self, data: Optional[Dataset], shuffle: bool, collater: dataloader._collate_fn_t) -> Optional[DataLoader]:
         if data is None:
             return None
         
-        if self.args.world_size == 1:
-            sampler = RandomSampler(data) if shuffle else None
+        if self.is_distibuated:
+            sampler = DistributedSampler(data, num_replicas=self.args.world_size, shuffle=shuffle)
         else:
-            sampler = DistributedSampler(
-                data, num_replicas=self.args.world_size, shuffle=shuffle
-            )
+            sampler = RandomSampler(data) if shuffle else None
         
         return DataLoader(
             data,
@@ -123,7 +192,19 @@ class Trainer(object):
             batch_size=self.args.batch_size,
             collate_fn=collater,
             drop_last=True
-        )  
+        )
+    
+    def build_log_output(self, model_output: ModelOutput) -> LogOutput:
+        return LogOutput(
+            loss=model_output.loss.item(),
+            loss_scale=self.state.loss_scale,
+            lr=self.lr_scheduler.get_last_lr()[0],
+            epoch=self.state.epoch,
+            batch=self.state.batch,
+            global_step=self.state.global_step,
+            time=time.time(),
+            extra_output=model_output.log_output
+        )
 
     def train(self):
         print("start training")
@@ -132,17 +213,40 @@ class Trainer(object):
         
         assert self.train_data_loader is not None
         
+        self.resume()
+        
         # TODO: add more logging
         for epoch in range(self.args.epochs):
             print("epoch: ", epoch)
+            self.state.epoch = epoch
+
             for i, batch_data in tqdm(enumerate(self.train_data_loader)):
+                self.state.batch = i
                 # TODO: change to accelerator
                 pred = self.model(batch_data)
-                loss = self.model.compute_loss(pred, batch_data)
+                model_output = self.model.compute_loss(pred, batch_data)
+                loss = model_output.loss
+                
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
                 self.lr_scheduler.step()
+                
+                self.state.global_step += 1
+                
+                self.state.loss_scale = 1.0 # todo: FP16 support
+                
+                if self.args.save_batch_interval > 0 and self.state.global_step % self.args.save_batch_interval == 0:
+                    checkpoint_name = f'checkpoint_E{epoch}_B{i}.pt'
+                    self.save_checkpoint(checkpoint_name)
+                
+                if self.args.log_interval > 0 and self.state.global_step % self.args.log_interval == 0:
+                    log_output = self.build_log_output(model_output)
+                    print(log_output)
+            
+            if self.args.save_epoch_interval > 0 and epoch % self.args.save_epoch_interval == 0:
+                checkpoint_name = f'checkpoint_E{epoch}.pt'
+                self.save_checkpoint(checkpoint_name)
         
         print('Finished Training')
 
@@ -156,7 +260,4 @@ class Trainer(object):
         #TODO: support multiple losses
         for i, batch_data in tqdm(enumerate(self.valid_data_loader)):
             loss = self.model(batch_data)
-            print("loss: ", loss)
-        
-    
-    
+            print("loss: ", loss) 
