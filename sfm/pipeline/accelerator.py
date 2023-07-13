@@ -24,7 +24,7 @@ class Accelerator(ABC):
         pass
     
     @abstractmethod
-    def train_step():
+    def train_step(self, batch_data) -> ModelOutput:
         pass
     
     @abstractmethod
@@ -68,6 +68,8 @@ class SingleNodeAccelerator(Accelerator):
         loss.backward()
         self.optimizer.step()
         self.lr_scheduler.step()
+        
+        return model_output
     
     def save_checkpoint(self, ckpt_id: str, extra_state: Optional[dict] = None):
         save_dir = Path(self.args.save_dir)
@@ -177,6 +179,8 @@ class DeepSpeedAccelerator(Accelerator):
         
         self.model_engine.backward(loss)
         self.model_engine.step()
+        
+        return model_output
     
     def save_checkpoint(self, ckpt_id: int, extra_state: TrainerState):
         self.model_engine.save_checkpoint(

@@ -222,20 +222,11 @@ class Trainer(object):
             self.state.epoch = epoch
 
             for i, batch_data in tqdm(enumerate(self.train_data_loader)):
+                
+                model_output = self.accelerator.train_step(batch_data)
+                
                 self.state.batch = i
-                # TODO: change to accelerator
-                pred = self.model(batch_data)
-                model_output = self.model.compute_loss(pred, batch_data)
-                loss = model_output.loss
-                
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-                self.lr_scheduler.step()
-                
                 self.state.global_step += 1
-                
-                self.state.loss_scale = 1.0 # todo: FP16 support
                 
                 if self.args.save_batch_interval > 0 and self.state.global_step % self.args.save_batch_interval == 0:
                     checkpoint_name = f'checkpoint_E{epoch}_B{i}.pt'
