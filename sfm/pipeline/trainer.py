@@ -16,9 +16,12 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 
 from tqdm import tqdm
+from sfm.pipeline.accelerator import Accelerator, SingleNodeAccelerator, DdpAccelerator, DeepSpeedAccelerator
+
 
 
 class TraingStrategy(Enum):
+    Single = 0
     Zero1 = 1
     Zero2 = 2
     Zero3 = 3
@@ -37,13 +40,7 @@ class TrainerConfig:
     save_batch_interval: int = 0
     save_epoch_interval: int = 1
     log_interval: int = 100
-    
-    ## Distibuated training
-    global_rank: int = 0
-    local_rank: int = 0
-    node_rank: int = 0
-    world_size: int = 1
-    num_nodes: int = 1
+    strategy: TraingStrategy = TraingStrategy.Single
 
 @dataclass
 class TrainerState:
@@ -126,38 +123,17 @@ class Trainer(object):
         self.valid_data_loader = self.build_data_loader(valid_data, shuffle=False, collater=collater)
 
         self.state = TrainerState(args=args)
+        self.accelerator = self.build_accelerator()
         
         self.save_dir = Path(self.args.save_dir)
         self.model.load_pretrained()
-        
-    @property
-    def is_distibuated(self):
-        return self.args.world_size > 1
     
     def save_checkpoint(self, name: str):
-        checkpoint = {
-            'model': self.model.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
-            'lr_scheduler': self.lr_scheduler.state_dict(),
-        }
-        
-        checkpoint.update(asdict(self.state))
-        print('save checkpoint: ', name)
-        torch.save(checkpoint, self.save_dir / name)
-        
-        with open(self.save_dir / 'checkpoint_list.txt', 'a') as f:
-            f.write(name + '\n')
+        self.accelerator.save_checkpoint(name)
         
             
-    def load_checkpoint(self, path: Union[str, Path]):
-        checkpoint = torch.load(path)
-        self.model.load_state_dict(checkpoint['model'])
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
-        self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
-    
-        for k, v in checkpoint.items():
-            if k not in ['model', 'optimizer', 'lr_scheduler']:
-                setattr(self.state, k, v)
+    def load_checkpoint(self, ckpt_id: int|str):
+        self.state = self.accelerator.load_checkpoint(ckpt_id)
     
     def resume(self):
         self.save_dir.mkdir(parents=True, exist_ok=True)
@@ -170,12 +146,37 @@ class Trainer(object):
                 checkpoint_path = self.save_dir / checkpoint_last
                 if checkpoint_path.exists():
                     print("Resume from checkpoint: ", checkpoint_path)
-                    self.load_checkpoint(checkpoint_path)
+                    self.load_checkpoint(checkpoint_last)
                 else:
                     print("Not resume from checkpoint")
         else:
             with open(checkpoint_list_path, 'w') as f:
                 f.write('')
+    
+    def build_accelerator(self) -> Accelerator:
+        if self.args.strategy == TraingStrategy.Single:
+            return SingleNodeAccelerator(
+                self.args,
+                self.model,
+                self.optimizer,
+                self.lr_scheduler,
+            )
+        elif self.args.strategy in [TraingStrategy.Zero1, TraingStrategy.Zero2, TraingStrategy.Zero3]:
+            return DeepSpeedAccelerator(
+                self.args,
+                self.model,
+                self.optimizer,
+                self.lr_scheduler
+            )
+        elif self.args.strategy == TraingStrategy.DDP:
+            return DdpAccelerator(
+                self.args,
+                self.model,
+                self.optimizer,
+                self.lr_scheduler,
+            )
+        else:
+            raise ValueError(f"Unknown strategy: {self.args.strategy}")
     
     def build_data_loader(self, data: Optional[Dataset], shuffle: bool, collater: dataloader._collate_fn_t) -> Optional[DataLoader]:
         if data is None:
