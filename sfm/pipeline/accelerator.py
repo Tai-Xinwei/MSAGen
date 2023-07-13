@@ -157,6 +157,8 @@ class DeepSpeedAccelerator(Accelerator):
         super().__init__()
         self.args = args
         self.model = model
+        self.optimizer = optimizer
+        self.lr_scheduler = lr_scheduler
         
     def set_up(self):
         assert deepspeed is not None, "Deepspeed is not installed."
