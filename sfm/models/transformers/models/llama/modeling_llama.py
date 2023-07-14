@@ -888,9 +888,7 @@ class LlamaModel(LlamaPreTrainedModel):
             position_ids = position_ids.view(-1, seq_length).long()
 
         if inputs_embeds is None:
-            # inputs_embeds = self.embed_tokens(input_ids)
-            # TODO (Roger):
-            inputs_embeds = self._forward_embedding(input_ids)
+            inputs_embeds = self.embed_tokens(input_ids)
 
         # embed positions
         if attention_mask is None:

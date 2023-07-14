@@ -898,6 +898,23 @@ class myPipeEngine(DeepSpeedEngine):
 
         self.mem_status("AFTER BWD")
 
+    def _cast_inputs_half(self, inputs):
+        if inputs.dtype in [
+            torch.bool,
+            torch.uint8,
+            torch.int8,
+            torch.int16,
+            torch.int32,
+            torch.int64,
+            torch.float16,
+        ]:
+            return inputs
+        elif hasattr(inputs, "half"):
+            # print(inputs.dtype)
+            return inputs.half()
+        else:
+            return inputs
+
     def _exec_load_micro_batch(self, buffer_id):
         if self.wall_clock_breakdown():
             self.timers("batch_input").start()
@@ -917,6 +934,8 @@ class myPipeEngine(DeepSpeedEngine):
                 for x in batch[0]:
                     assert torch.is_tensor(x)
                     mine = x.clone().detach().to(self.device)
+                    if self.fp16_enabled():
+                        mine = self._cast_inputs_half(mine)
                     mine.requires_grad = mine.is_floating_point()
                     loaded.append(mine)
                 loaded = tuple(loaded)
