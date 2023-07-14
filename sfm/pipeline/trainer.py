@@ -1,96 +1,20 @@
 # -*- coding: utf-8 -*-
-from collections import defaultdict
-import json
 import time
-from typing import Dict, Optional, Callable, Sized, Union
+from typing import Optional, Callable
 from pathlib import Path
 import torch
-import torch.nn as nn
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler
+
 from torch.utils.data import Dataset, DataLoader, RandomSampler, DistributedSampler, dataloader
-from abc import ABC, abstractmethod
+
 import numpy as np
 import random
-from dataclasses import dataclass, field, asdict
-from enum import Enum
 
 from tqdm import tqdm
+
+from sfm.pipeline.model import Model
+from sfm.pipeline.dataclasses import TrainerConfig, ModelOutput, TrainerState, TraingStrategy, LogOutput
 from sfm.pipeline.accelerator import Accelerator, SingleNodeAccelerator, DdpAccelerator, DeepSpeedAccelerator
 
-
-
-class TraingStrategy(Enum):
-    Single = 0
-    Zero1 = 1
-    Zero2 = 2
-    Zero3 = 3
-    DDP = 4
-
-@dataclass
-class TrainerConfig:
-    # common
-    strategy: TraingStrategy = TraingStrategy.Zero1
-    epochs: int = 1
-    seed: int = 46
-    init_loss_scale: float = 1.0
-    batch_size: int = 32
-    save_dir: str = "./checkpoints"
-    resume_checkpoint: str = "checkpoint_last.pt"
-    save_batch_interval: int = 0
-    save_epoch_interval: int = 1
-    log_interval: int = 100
-    strategy: TraingStrategy = TraingStrategy.Single
-
-@dataclass
-class TrainerState:
-    args: TrainerConfig
-    global_step: int = 0
-    epoch: int = 0
-    batch: int = 0
-    loss_scale: float = 0
-
-@dataclass
-class ModelOutput:
-    loss: torch.Tensor
-    log_output: Dict
-
-
-@dataclass
-class LogOutput:
-    loss: float
-    loss_scale: float
-    lr: float
-    epoch: int
-    batch: int
-    global_step: int
-    time: float
-    extra_output: Dict
-    
-    def __str__(self) -> str:
-        return json.dumps(asdict(self))
-
-
-class Model(nn.Module, ABC):    
-    @abstractmethod
-    def compute_loss(self, pred, batch) -> ModelOutput:
-        pass
-    
-    def load_pretrained(self):
-        """
-        Load all pretrained weights, e.g., pretrained encoders or decoders.
-        """
-        pass
-    
-    @abstractmethod
-    def config_optimizer(self) -> tuple[Optimizer, LRScheduler]:
-        """
-        Return the optimizer and learning rate scheduler for this model.
-
-        Returns:
-            tuple[Optimizer, LRScheduler]: _description_
-        """
-        pass
 
 def seed_everything(seed):
     torch.cuda.manual_seed_all(seed)
@@ -160,6 +84,7 @@ class Trainer(object):
                 self.model,
                 self.optimizer,
                 self.lr_scheduler,
+                'cpu' if self.args.cpu else 'cuda'
             )
         elif self.args.strategy in [TraingStrategy.Zero1, TraingStrategy.Zero2, TraingStrategy.Zero3]:
             return DeepSpeedAccelerator(
@@ -182,11 +107,12 @@ class Trainer(object):
         if data is None:
             return None
         
-        if self.is_distibuated:
-            sampler = DistributedSampler(data, num_replicas=self.args.world_size, shuffle=shuffle)
-        else:
+        # TODO: This should be in accelerator
+        if self.args.strategy == TraingStrategy.Single:
             sampler = RandomSampler(data) if shuffle else None
-        
+        else:
+            sampler = DistributedSampler(data, num_replicas=self.args.world_size, shuffle=shuffle)
+            
         return DataLoader(
             data,
             sampler=sampler,
@@ -208,21 +134,22 @@ class Trainer(object):
         )
 
     def train(self):
-        print("start training")
+        print("Start training")
         print(self.model)
+        print('Number of parameters: ', sum(p.numel() for p in self.model.parameters() if p.requires_grad))
+        
         seed_everything(self.args.seed)
         
         assert self.train_data_loader is not None
         
         self.resume()
+        self.accelerator.set_up()
         
         # TODO: add more logging
         for epoch in range(self.args.epochs):
-            print("epoch: ", epoch)
             self.state.epoch = epoch
 
-            for i, batch_data in tqdm(enumerate(self.train_data_loader)):
-                
+            for i, batch_data in tqdm(enumerate(self.train_data_loader), desc=f'Training Epoch {epoch}'): 
                 model_output = self.accelerator.train_step(batch_data)
                 
                 self.state.batch = i

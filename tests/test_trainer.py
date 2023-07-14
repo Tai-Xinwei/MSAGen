@@ -56,3 +56,6 @@ def test_trainer():
         
         trainer = Trainer(config, model=model, collater=collater, train_data=train_data, valid_data=valid_data, test_data=test_data)
         trainer.train()
+
+if __name__ == '__main__':
+    test_trainer()

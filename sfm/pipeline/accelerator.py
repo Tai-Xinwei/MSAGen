@@ -1,19 +1,17 @@
+import os
 from abc import ABC, abstractmethod
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Union
-from sfm.pipeline.trainer import Trainer, TrainerConfig, Model, ModelOutput, TrainerState
-from torch.optim.lr_scheduler import LRScheduler
-from torch.optim import Optimizer
-from torch.nn.parallel import DistributedDataParallel
 
 import torch
-import os
+from torch.nn.parallel import DistributedDataParallel
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 
-try:
-    import deepspeed
-except ImportError:
-    deepspeed = None
+from sfm.pipeline.dataclasses import ModelOutput, TrainerConfig, TrainerState
+from sfm.pipeline.model import Model
+
 
 class Accelerator(ABC):
     args: TrainerConfig
@@ -45,13 +43,15 @@ class Accelerator(ABC):
 class SingleNodeAccelerator(Accelerator):
     device: Union[int, str, torch.device]
     
-    def __init__(self, args, model, optimizer, lr_scheduler) -> None:
+    def __init__(self, args, model, optimizer, lr_scheduler, device: str) -> None:
         super().__init__()
         self.args = args
         self.model = model
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = device
+        if not torch.cuda.is_available():
+            self.device = 'cpu'
     
     def set_up(self):
         pass
@@ -59,6 +59,7 @@ class SingleNodeAccelerator(Accelerator):
     def train_step(self, batch_data):
         self.model.train()
         self.model.to(self.device)
+        batch_data = batch_data.to(self.device)
         
         pred = self.model(batch_data)
         model_output = self.model.compute_loss(pred, batch_data)
@@ -83,7 +84,7 @@ class SingleNodeAccelerator(Accelerator):
         if extra_state is not None:
             checkpoint.update(extra_state)
         print('save checkpoint: ', ckpt_id)
-        torch.save(checkpoint, save_dir / chpt_id)
+        torch.save(checkpoint, save_dir / ckpt_id)
         
         with open(save_dir / 'checkpoint_list.txt', 'a') as f:
             f.write(ckpt_id + '\n')
@@ -109,8 +110,8 @@ class SingleNodeAccelerator(Accelerator):
 class DdpAccelerator(SingleNodeAccelerator):
     dist_backend: str = "nccl"
     
-    def __init__(self, args, model, optimizer, lr_scheduler) -> None:
-        super().__init__(args, model, optimizer, lr_scheduler)
+    def __init__(self, args, model, optimizer, lr_scheduler) -> None:        
+        super().__init__(args, model, optimizer, lr_scheduler, device='cuda')
     
     def set_up(self):
         assert "WORLD_SIZE" in os.environ, "WORLD_SIZE must be set to use DDP"
@@ -154,6 +155,11 @@ class DeepSpeedAccelerator(Accelerator):
     dist_backend: str = "nccl"
     
     def __init__(self, args, model, optimizer, lr_scheduler) -> None:
+        try:
+            import deepspeed
+        except ImportError:
+            raise ImportError("Deepspeed is not installed.")
+
         super().__init__()
         self.args = args
         self.model = model
@@ -161,10 +167,8 @@ class DeepSpeedAccelerator(Accelerator):
         self.lr_scheduler = lr_scheduler
         
     def set_up(self):
-        assert deepspeed is not None, "Deepspeed is not installed."
         
         deepspeed.init_distributed(dist_backend=self.dist_backend)
-        
         
         self.model_engine, self.optimizer, self.lr_scheduler = deepspeed.initialize(
             args=self.args,
@@ -201,7 +205,3 @@ class DeepSpeedAccelerator(Accelerator):
     
     def should_log(self) -> bool:
         return deepspeed.local_rank() == 0
-
-
-        
-        
