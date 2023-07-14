@@ -22,14 +22,14 @@ class DummyNN(Model):
 
     def config_optimizer(self) -> tuple[Optimizer, LRScheduler]:
         optimizer =  torch.optim.Adam(self.parameters(), lr=1e-3)
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=0.1)
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.9)
         
         return optimizer, lr_scheduler
 
 class DummyDataset(Dataset):
     def __init__(self):
         super().__init__()
-        self.data = torch.randn(128, 10)
+        self.data = torch.randn(1024, 10)
     
     def __getitem__(self, index):
         return self.data[index]
@@ -44,8 +44,11 @@ def collater(batch):
 def test_trainer():
     with tempfile.TemporaryDirectory() as save_dir:
         config = TrainerConfig(
-            epochs=1,
-            save_dir=save_dir
+            epochs=5,
+            save_dir=save_dir,
+            fp16=True,
+            update_freq=2,
+            log_interval=10
         )
         print(config)
         

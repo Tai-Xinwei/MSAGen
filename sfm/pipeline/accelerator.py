@@ -8,6 +8,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
+from torch.cuda.amp import GradScaler, autocast  
 
 from sfm.pipeline.dataclasses import ModelOutput, TrainerConfig, TrainerState
 from sfm.pipeline.model import Model
@@ -24,7 +25,7 @@ class Accelerator(ABC):
         pass
     
     @abstractmethod
-    def train_step(self, batch_data) -> ModelOutput:
+    def train_step(self, grouped_batch_data: list ) -> ModelOutput:
         pass
     
     @abstractmethod
@@ -37,6 +38,11 @@ class Accelerator(ABC):
     
     @abstractmethod
     def should_log() -> bool:
+        pass
+
+    @property
+    @abstractmethod
+    def grad_scale(self) -> float:
         pass
     
 
@@ -52,22 +58,33 @@ class SingleNodeAccelerator(Accelerator):
         self.device = device
         if not torch.cuda.is_available():
             self.device = 'cpu'
+        self.scaler = GradScaler(init_scale=self.args.grad_scaler_init, enabled=self.args.fp16)
+    
+    @property
+    def grad_scale(self) -> float:
+        return self.scaler.get_scale()
     
     def set_up(self):
         pass
     
-    def train_step(self, batch_data):
+    def train_step(self, grouped_batch_data: list) -> ModelOutput:
+        assert grouped_batch_data, "grouped_batch_data is empty"
+    
         self.model.train()
         self.model.to(self.device)
-        batch_data = batch_data.to(self.device)
-        
-        pred = self.model(batch_data)
-        model_output = self.model.compute_loss(pred, batch_data)
-        loss = model_output.loss
         
         self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
+        for batch_data in grouped_batch_data:
+            batch_data = batch_data.to(self.device)
+            
+            with autocast(enabled=self.args.fp16):
+                pred = self.model(batch_data)
+                model_output = self.model.compute_loss(pred, batch_data)
+                loss = model_output.loss / len(grouped_batch_data)
+                self.scaler.scale(loss).backward()
+        
+        self.scaler.step(self.optimizer)
+        self.scaler.update()
         self.lr_scheduler.step()
         
         return model_output
@@ -165,7 +182,12 @@ class DeepSpeedAccelerator(Accelerator):
         self.model = model
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
-        
+    
+    
+    @property
+    def grad_scale(self) -> float:
+        return self.scaler.get_scale()
+    
     def set_up(self):
         
         deepspeed.init_distributed(dist_backend=self.dist_backend)
@@ -178,9 +200,9 @@ class DeepSpeedAccelerator(Accelerator):
             lr_scheduler=self.lr_scheduler
         )
         
-    def train_step(self, batch_data):
+    def train_step(self, grouped_batch_data):
         pred = self.model_engine(batch_data)
-        model_output = self.model.compute_loss(pred, batch_data)
+        model_output = self.model.compute_loss(pred, grouped_batch_data)
         loss = model_output.loss
         
         self.model_engine.backward(loss)
@@ -202,6 +224,7 @@ class DeepSpeedAccelerator(Accelerator):
         )
         
         return TrainerState(**cliend_sd)
+    
     
     def should_log(self) -> bool:
         return deepspeed.local_rank() == 0

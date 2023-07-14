@@ -17,7 +17,9 @@ class TraingStrategy(Enum):
 class TrainerConfig:
     epochs: int = 1
     seed: int = 46
-    init_loss_scale: float = 1.0
+    fp16: bool = False
+    grad_scaler_init: float = 1.0
+    update_freq: int = 1
     batch_size: int = 32
     save_dir: str = "./checkpoints"
     save_batch_interval: int = 0
@@ -32,7 +34,6 @@ class TrainerState:
     global_step: int = 0
     epoch: int = 0
     batch: int = 0
-    loss_scale: float = 0
 
 @dataclass
 class ModelOutput:
@@ -43,12 +44,12 @@ class ModelOutput:
 @dataclass
 class LogOutput:
     loss: float
-    loss_scale: float
+    grad_scale: float
     lr: float
     epoch: int
     batch: int
     global_step: int
-    time: float
+    time: str
     extra_output: Dict
     
     def __str__(self) -> str:

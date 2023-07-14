@@ -22,6 +22,28 @@ def seed_everything(seed):
     np.random.seed(seed)
     random.seed(seed)
 
+class GroupedBatchIter(object):
+    def __init__(self, it, group_size, drop_last=False):
+        self.it = it
+        self.group_size = group_size
+        self.drop_last = drop_last
+        
+    def __iter__(self):
+        chunk = []
+        for item in self.it:
+            chunk.append(item)
+            if len(chunk) == self.group_size:
+                yield chunk
+                chunk = []
+        if not self.drop_last and chunk:
+            yield chunk
+    
+    def __len__(self):
+        if self.drop_last:
+            return len(self.it) // self.group_size
+        else:
+            return (len(self.it) + self.group_size - 1) // self.group_size
+
 class Trainer(object):
     def __init__(
         self,
@@ -43,8 +65,8 @@ class Trainer(object):
         
         self.optimizer, self.lr_scheduler = model.config_optimizer()
         
-        self.train_data_loader = self.build_data_loader(train_data, shuffle=True, collater=collater)
-        self.valid_data_loader = self.build_data_loader(valid_data, shuffle=False, collater=collater)
+        self.train_data_loader = self.build_data_loader(train_data, train=True, collater=collater)
+        self.valid_data_loader = self.build_data_loader(valid_data, train=False, collater=collater)
 
         self.state = TrainerState(args=args)
         self.accelerator = self.build_accelerator()
@@ -103,16 +125,16 @@ class Trainer(object):
         else:
             raise ValueError(f"Unknown strategy: {self.args.strategy}")
     
-    def build_data_loader(self, data: Optional[Dataset], shuffle: bool, collater: dataloader._collate_fn_t) -> Optional[DataLoader]:
+    def build_data_loader(self, data: Optional[Dataset], train: bool, collater: dataloader._collate_fn_t) -> Optional[DataLoader]:
         if data is None:
             return None
         
         # TODO: This should be in accelerator
         if self.args.strategy == TraingStrategy.Single:
-            sampler = RandomSampler(data) if shuffle else None
+            sampler = RandomSampler(data) if train else None
         else:
             sampler = DistributedSampler(data, num_replicas=self.args.world_size, shuffle=shuffle)
-            
+
         return DataLoader(
             data,
             sampler=sampler,
@@ -124,12 +146,12 @@ class Trainer(object):
     def build_log_output(self, model_output: ModelOutput) -> LogOutput:
         return LogOutput(
             loss=model_output.loss.item(),
-            loss_scale=self.state.loss_scale,
+            grad_scale=self.accelerator.grad_scale,
             lr=self.lr_scheduler.get_last_lr()[0],
             epoch=self.state.epoch,
             batch=self.state.batch,
             global_step=self.state.global_step,
-            time=time.time(),
+            time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
             extra_output=model_output.log_output
         )
 
@@ -148,9 +170,11 @@ class Trainer(object):
         # TODO: add more logging
         for epoch in range(self.args.epochs):
             self.state.epoch = epoch
+            iter = GroupedBatchIter(self.train_data_loader, self.args.update_freq, drop_last=True)
 
-            for i, batch_data in tqdm(enumerate(self.train_data_loader), desc=f'Training Epoch {epoch}'): 
-                model_output = self.accelerator.train_step(batch_data)
+            for i, grouped_batch_data in tqdm(enumerate(iter), desc=f'Training Epoch {epoch}', total=len(iter)):
+                
+                model_output = self.accelerator.train_step(grouped_batch_data)
                 
                 self.state.batch = i
                 self.state.global_step += 1
