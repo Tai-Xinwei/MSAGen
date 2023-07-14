@@ -3,21 +3,46 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
-trigger:
-- main
-pr:
-- main
-
-pool:
-  vmImage: ubuntu-latest
-
-steps:
-- script: |
-    conda create -y -n sfm python=3.9
-    eval "$(conda shell.bash hook)"
-    conda activate sfm
-    bash install/install.sh
-    pip install pytest
-    pip install -e .
-    pytest tests/
-  displayName: 'Install and run unit tests'
+trigger:  
+- main  
+pr:  
+- main  
+  
+pool:  
+  vmImage: ubuntu-latest  
+  
+variables:  
+  CONDA_ENV_NAME: sfm  
+  CONDA_ENV_DIR: $(Pipeline.Workspace)/.conda_env  
+  
+steps:  
+# Cache Conda environment  
+- task: Cache@2  
+  inputs:  
+    key: 'conda | "$(Agent.OS)" | install/install.sh | v1'  
+    restoreKeys: |  
+      conda | "$(Agent.OS)"  
+    path: $(CONDA_ENV_DIR)  
+  displayName: Cache Conda environment  
+  
+# Install and run unit tests  
+- script: |  
+    # Check if the cached environment exists and if not, create it  
+    if [ ! -d "$(CONDA_ENV_DIR)/$(CONDA_ENV_NAME)" ]; then  
+      conda create -y -n $(CONDA_ENV_NAME) python=3.9  
+      eval "$(conda shell.bash hook)"  
+      conda activate $(CONDA_ENV_NAME)  
+      bash install/install.sh
+      pip install pytest
+      conda deactivate  
+      # Move the created environment to the cache directory  
+      conda create --clone "$(conda info --base)/envs/$(CONDA_ENV_NAME)" -p $(CONDA_ENV_DIR)/$(CONDA_ENV_NAME)  
+      conda env remove -n $(CONDA_ENV_NAME)  
+    fi  
+    # Activate the Conda environment  
+    eval "$(conda shell.bash hook)"  
+    conda activate $(CONDA_ENV_DIR)/$(CONDA_ENV_NAME)  
+    # Install pytest and run tests  
+    pip install -e . 
+    pytest tests/  
+  displayName: 'Install and run unit tests'  
