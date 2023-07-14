@@ -28,11 +28,11 @@ class Accelerator(ABC):
         pass
     
     @abstractmethod
-    def save_checkpoint(self, ckpt_id: int|str, extra_state: Optional[dict] = None):
+    def save_checkpoint(self, ckpt_id: Union[int, str], extra_state: Optional[dict] = None):
         pass
     
     @abstractmethod
-    def load_checkpoint(self, ckpt_id: int|str) -> TrainerState:
+    def load_checkpoint(self, ckpt_id: Union[int, str]) -> TrainerState:
         pass
     
     @abstractmethod
@@ -144,7 +144,7 @@ class DdpAccelerator(SingleNodeAccelerator):
             find_unused_parameters=True,
         )
 
-    def save_checkpoint(self, ckpt_id: str, extra_state: dict | None = None):
+    def save_checkpoint(self, ckpt_id: str, extra_state: Optional[dict] = None):
         if self.rank == 0:
             super().save_checkpoint(ckpt_id, extra_state)
 

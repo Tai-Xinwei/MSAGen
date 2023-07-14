@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
-from typing import Optional, Callable
+from typing import Optional, Callable, Union
 from pathlib import Path
 import torch
 
@@ -56,7 +56,7 @@ class Trainer(object):
         self.accelerator.save_checkpoint(name)
         
             
-    def load_checkpoint(self, ckpt_id: int|str):
+    def load_checkpoint(self, ckpt_id: Union[int, str]):
         self.state = self.accelerator.load_checkpoint(ckpt_id)
     
     def resume(self):
