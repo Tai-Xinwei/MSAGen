@@ -18,7 +18,7 @@ class DummyNN(Model):
     
     def compute_loss(self, pred, batch) -> ModelOutput:
         loss = F.l1_loss(pred, batch)
-        return ModelOutput(loss=loss, log_output={'l2': F.mse_loss(pred, batch)})
+        return ModelOutput(loss=loss, log_output={'l2': F.mse_loss(pred, batch).item()})
 
     def config_optimizer(self) -> tuple[Optimizer, LRScheduler]:
         optimizer =  torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -56,3 +56,6 @@ def test_trainer():
         
         trainer = Trainer(config, model=model, collater=collater, train_data=train_data, valid_data=valid_data, test_data=test_data)
         trainer.train()
+
+if __name__ == '__main__':
+    test_trainer()
