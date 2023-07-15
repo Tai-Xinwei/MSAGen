@@ -290,18 +290,12 @@ class Hybrid_emb(nn.Module):
         #     token_embed = self.embed_tokens(
         #         input_ids.masked_fill(mol_idx_mask, 0)
         #     )  # B, T, hidden_size
-
         if not torch.any(mol_idx_mask):
             return token_embed
 
-        # Peiran 2023/5/6: use mol_rep from MFM
-        # pooled_rep = self.mol_adapter(mol_rep)[:, 1:, :].mean(dim=1, keepdim=True).expand(-1, T, -1) # B, 1, H
-        # print(padding_mask.shape, mol_rep.shape)
         mol_padding_mask = mol_padding_mask.long().unsqueeze(-1)
         mol_rep = self.mol_rep_layernorm(mol_rep)
 
-        # print(self.config.mfm_hidden_size, self.config.hidden_size, padding_mask.shape)
-        # print(mol_rep.shape);exit()
         if self.mode == "mean":
             pooled_rep = self.mol_adapter(mol_rep) * (
                 1 - mol_padding_mask
@@ -331,7 +325,6 @@ class Hybrid_emb(nn.Module):
                 mask_idx_list = (mol_idx_mask[bidx] is True).nonzero()
                 start = mask_idx_list[0]
                 end = mask_idx_list[-1]
-                # print(mol_idx_mask, start, end); exit()
                 token_embed[bidx, start : end + 1, :] = mol_rep[
                     bidx, : end - start + 1, :
                 ]
@@ -358,7 +351,6 @@ class Hybrid_emb(nn.Module):
                 mask_idx_list = (mol_idx_mask[bidx] is True).nonzero()
                 start = mask_idx_list[0]
                 end = mask_idx_list[-1]
-                # print(mol_idx_mask, start, end); exit()
                 token_embed[bidx, start : end + 1, :] = embed_mol_rep[bidx, :, :]
         elif self.mode == "multimol":
             self.adaptor_embedding = self.adaptor_embedding.to(mol_rep.device).to(
@@ -368,7 +360,6 @@ class Hybrid_emb(nn.Module):
                 hidden_states=self.adaptor_embedding, q_states=self.adaptor_embedding
             )
 
-            # mol_rep = mol_rep[:, 1:, :]  # B, nnode, H
             attn_mask = (
                 mol_padding_mask.unsqueeze(1)
                 .unsqueeze(2)
@@ -381,8 +372,9 @@ class Hybrid_emb(nn.Module):
             embed_mol_rep = self.mol_adapter(embed_mol_rep)  # B, nnode, H
 
             mol_idx = 0
+            mol_idx_mask = torch.where(mol_idx_mask, 1, 0)
             for bidx in range(B):
-                mask_idx_list = (mol_idx_mask[bidx] is True).nonzero()
+                mask_idx_list = mol_idx_mask[bidx].nonzero()
                 pos = 0
                 while pos < len(mask_idx_list):
                     start = mask_idx_list[pos]
@@ -434,11 +426,10 @@ class Hybrid_emb(nn.Module):
         input_ids,
     ):
         if text_embeds is not None:
-            batch_size, seq_length = text_embeds.shape
+            batch_size, seq_length, _ = text_embeds.shape
         else:
             raise ValueError("text_embeds cannot be None")
 
-        seq_length_with_past = seq_length
         past_key_values_length = 0
 
         device = text_embeds.device
@@ -454,23 +445,23 @@ class Hybrid_emb(nn.Module):
             mol_emb, mol_padding_mask, text_embeds, input_ids
         )
 
-        # embed positions
-        if attention_mask is None:
-            attention_mask = torch.ones(
-                (batch_size, seq_length_with_past),
-                dtype=torch.bool,
-                device=inputs_embeds.device,
-            )
-        attention_mask = self._prepare_decoder_attention_mask(
-            attention_mask,
-            (batch_size, seq_length),
-            inputs_embeds,
-            past_key_values_length,
-        )
+        # # embed positions
+        # if attention_mask is None:
+        #     attention_mask = torch.ones(
+        #         (batch_size, seq_length_with_past),
+        #         dtype=torch.bool,
+        #         device=inputs_embeds.device,
+        #     )
+        # attention_mask = self._prepare_decoder_attention_mask(
+        #     attention_mask,
+        #     (batch_size, seq_length),
+        #     inputs_embeds,
+        #     past_key_values_length,
+        # )
 
         hidden_states = inputs_embeds
 
-        return hidden_states, attention_mask, position_ids
+        return hidden_states, position_ids
 
 
 class Hybrid_emb_PP(Hybrid_emb):

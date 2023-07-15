@@ -696,13 +696,13 @@ class SupervisedProcessedData(Dataset):
                             torch.tensor([mol_idx for _ in range(mol_size)])
                         )
                     elif self.pool_mode == "qformer" or self.pool_mode == "multimol":
-                        # input_ids_expanded.append(torch.tensor([1]))
+                        input_ids_expanded.append(torch.tensor([32001]))
                         input_ids_expanded.append(
                             torch.tensor(
                                 [mol_idx for _ in range(self.embedding_length)]
                             )
                         )
-                        # input_ids_expanded.append(torch.tensor([1]))
+                        input_ids_expanded.append(torch.tensor([32002]))
                 input_ids_expanded.append(input_ids[cur_pos + 1 : mol_idx_pos[i + 1]])
 
             input_ids = torch.cat(input_ids_expanded)

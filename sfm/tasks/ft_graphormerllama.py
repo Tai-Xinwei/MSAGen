@@ -15,6 +15,7 @@ from sfm.models.transformers import AutoTokenizer, PreTrainedTokenizer
 from sfm.models.transformers.models.llama.configuration_llama import LlamaConfig
 from sfm.pipeline.graphormerllama_trainer import Trainer
 from sfm.utils.add_argument import add_argument
+from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
 
 logging.getLogger().setLevel(logging.ERROR)
 
@@ -52,7 +53,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         use_fast=False,
     )
 
-    Llama_config = LlamaConfig.from_pretrained(args.llm_model_name_or_path)
+    LlamaConfig.from_pretrained(args.llm_model_name_or_path)
 
     special_tokens_dict = dict()
     if tokenizer.pad_token is None:
@@ -64,6 +65,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     if tokenizer.unk_token is None:
         special_tokens_dict["unk_token"] = DEFAULT_UNK_TOKEN
 
+    special_tokens_dict["additional_special_tokens"] = CHEMICAL_TOKENS
     tokenizer.add_special_tokens(special_tokens_dict)
 
     """Make dataset and collator for supervised fine-tuning."""
@@ -78,9 +80,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         pad_token_id=tokenizer.pad_token_id,
         pool_mode=args.pool_mode,
     )
-    return dict(
-        train_dataset=dataset, eval_dataset=None, vocab_size=Llama_config.vocab_size
-    )
+    return dict(train_dataset=dataset, eval_dataset=None, vocab_size=len(tokenizer))
 
 
 def main() -> None:

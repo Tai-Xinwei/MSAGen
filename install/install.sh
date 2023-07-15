@@ -6,7 +6,7 @@ echo "pip install start"
 # # # python=3.9, cuda 11.7
 
 pip install deepspeed==0.9.5
-pip install ogb==1.3.2
+pip install ogb==1.3.6
 pip install rdkit-pypi==2021.9.3
 pip install tensorboard
 pip install numba
@@ -26,4 +26,3 @@ python setup_cython.py build_ext --inplace
 
 pip install mlflow azureml-mlflow
 pip install torch==2.0.1 --upgrade
-

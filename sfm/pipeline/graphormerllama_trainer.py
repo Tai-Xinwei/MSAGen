@@ -23,7 +23,7 @@ class Trainer:
     def __init__(self, args, train_data, vocab_size):
         super().__init__()
 
-        net = GraphormerLlamaModel(args)
+        net = GraphormerLlamaModel(args, vocab_size)
         count_paranum(net)
         self.args = args
         if args.rank == 0:

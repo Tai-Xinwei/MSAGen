@@ -15,6 +15,7 @@ from sfm.models.transformers.models.llama.modeling_llama import LlamaForCausalLM
 from sfm.modules import GraphormerSentenceEncoder, init_bert_params
 from sfm.modules.hybrid_emb import AdaptorConfig, Hybrid_emb
 from sfm.sfmlogging.loggers import sfm_logger as logger
+from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
 
 
 class GraphormerLlamaModel(torch.nn.Module):
@@ -26,6 +27,7 @@ class GraphormerLlamaModel(torch.nn.Module):
     def __init__(
         self,
         args,
+        vocab_size: int,
         checkpointpth: Optional[list] = None,
         load_ckp: Optional[bool] = False,
     ):
@@ -85,9 +87,13 @@ class GraphormerLlamaModel(torch.nn.Module):
 
         self.decoder = LlamaForCausalLM.from_pretrained(args.llm_model_name_or_path)
         Llama_config = LlamaConfig.from_pretrained(args.llm_model_name_or_path)
+        self._resize_llm_token_embeddings(vocab_size)
 
         adaptorconfig = self.init_adaptor_param(args, Llama_config)
         self.adaptor = Hybrid_emb(adaptorconfig)
+
+    def _resize_llm_token_embeddings(self, new_num_tokens: int):
+        return self.decoder.resize_token_embeddings(new_num_tokens)
 
     def load_state_dict(self, graphormer_ckppth, llama_ckppth=None, strict=True):
         pass
@@ -106,22 +112,24 @@ class GraphormerLlamaModel(torch.nn.Module):
         )
 
         # generate text_emb
-        text_embeds = self.decoder.get_input_embeddings()(batched_data["input_ids"])
-        text_paddding_mask = batched_data["attention_mask"]
+        text_embeds = self.decoder.get_input_embeddings()(
+            torch.where(batched_data["input_ids"] > 0, batched_data["input_ids"], 0)
+        )
 
         # mix embeddings
-        inputs_embeds, attention_mask, position_ids = self.adaptor(
+
+        inputs_embeds, position_ids = self.adaptor(
             mol_emb,
             mol_padding_mask,
             text_embeds,
-            text_paddding_mask,
+            batched_data["llm_mask"],
             batched_data["input_ids"],
         )
 
         # decode
         logits = self.decoder(
             inputs_embeds=inputs_embeds,
-            attention_mask=attention_mask,
+            attention_mask=batched_data["llm_mask"],
             position_ids=position_ids,
         )[0]
 

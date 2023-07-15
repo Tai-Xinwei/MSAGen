@@ -149,7 +149,7 @@ echo "pipeline_parallelism: ${pipeline_parallelism}"
 # export OMP_NUM_THREADS=1
 
 
-deepspeed --num_gpu=1 sfm/tasks/ft_graphormerllama.py \
+deepspeed --num_gpu=4 sfm/tasks/ft_graphormerllama.py \
   --num-classes 1 \
   --encoder_attention_heads $num_head \
   --encoder_layers $layers \
