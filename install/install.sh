@@ -26,3 +26,9 @@ python setup_cython.py build_ext --inplace
 
 pip install mlflow azureml-mlflow
 pip install torch==2.0.1 --upgrade
+pip install wandb
+
+# For generalist
+pip install transformers
+pip install peft
+pip install sentencepiece

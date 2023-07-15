@@ -451,6 +451,7 @@ class SupervisedProcessedData(Dataset):
         self.multi_hop_max_dist = 5
         self.spatial_pos_max = 1024
         self.max_node = 256
+        max_mol_per_sample = 1
 
         with open(mol2idx_dict_path, "rb") as in_file:
             mol2idx_dict = jload(mol2idx_dict_path)
@@ -519,7 +520,9 @@ class SupervisedProcessedData(Dataset):
                         val = pkl.loads(val)[0]
                         length_and_mol_idxs = pkl.loads(len_read_txn.get(key))
                         mol_idxs = length_and_mol_idxs[1]
-                        to_skip = len(mol_idxs) == 0 or len(mol_idxs) > 8
+                        to_skip = (
+                            len(mol_idxs) == 0 or len(mol_idxs) > max_mol_per_sample
+                        )
                         max_mol = max(max_mol, len(mol_idxs))
                         for mol_idx in mol_idxs:
                             mol_idx = int(mol_idx)
@@ -581,7 +584,9 @@ class SupervisedProcessedData(Dataset):
                         val = pkl.loads(val)
                         length_and_mol_idxs = pkl.loads(len_read_txn.get(key))
                         mol_idxs = length_and_mol_idxs[1]
-                        to_skip = len(mol_idxs) == 0 or len(mol_idxs) > 8
+                        to_skip = (
+                            len(mol_idxs) == 0 or len(mol_idxs) > max_mol_per_sample
+                        )
                         max_mol = max(max_mol, len(mol_idxs))
                         for mol_idx in mol_idxs:
                             mol_idx = int(mol_idx)

@@ -4,9 +4,10 @@ from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
-from models.transformers.configuration_utils import PretrainedConfig
-from models.transformers.models.llama.modeling_llama import (
-    LlamaMLPAdapter,
+from modules.llama_modules import LlamaMLPAdapter
+from transformers.activations import ACT2FN
+from transformers.configuration_utils import PretrainedConfig
+from transformers.models.llama.modeling_llama import (
     LlamaRMSNorm,
     _expand_mask,
     _make_causal_mask,

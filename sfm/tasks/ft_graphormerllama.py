@@ -10,9 +10,10 @@ import torch
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(".")
 
+from transformers import AutoTokenizer, PreTrainedTokenizer
+from transformers.models.llama.configuration_llama import LlamaConfig
+
 from sfm.data.mol_data.moltext_dataset import SupervisedProcessedData
-from sfm.models.transformers import AutoTokenizer, PreTrainedTokenizer
-from sfm.models.transformers.models.llama.configuration_llama import LlamaConfig
 from sfm.pipeline.graphormerllama_trainer import Trainer
 from sfm.utils.add_argument import add_argument
 from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
@@ -52,8 +53,6 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         padding_side="right",
         use_fast=False,
     )
-
-    LlamaConfig.from_pretrained(args.llm_model_name_or_path)
 
     special_tokens_dict = dict()
     if tokenizer.pad_token is None:

@@ -8,10 +8,10 @@ import math
 from typing import Dict, Optional, Tuple
 
 import torch
+from transformers.modeling_utils import PreTrainedModel
+from transformers.models.llama.configuration_llama import LlamaConfig
+from transformers.models.llama.modeling_llama import LlamaForCausalLM
 
-from sfm.models.transformers.modeling_utils import PreTrainedModel
-from sfm.models.transformers.models.llama.configuration_llama import LlamaConfig
-from sfm.models.transformers.models.llama.modeling_llama import LlamaForCausalLM
 from sfm.modules import GraphormerSentenceEncoder, init_bert_params
 from sfm.modules.hybrid_emb import AdaptorConfig, Hybrid_emb
 from sfm.sfmlogging.loggers import sfm_logger as logger
@@ -84,6 +84,7 @@ class GraphormerLlamaModel(torch.nn.Module):
             no_2d=args.no_2d,
             args=args,
         )
+        # self.load_encoder_state_dict(args.loadmfmcheck_path, strict=False)
 
         self.decoder = LlamaForCausalLM.from_pretrained(args.llm_model_name_or_path)
         Llama_config = LlamaConfig.from_pretrained(args.llm_model_name_or_path)
@@ -95,8 +96,12 @@ class GraphormerLlamaModel(torch.nn.Module):
     def _resize_llm_token_embeddings(self, new_num_tokens: int):
         return self.decoder.resize_token_embeddings(new_num_tokens)
 
-    def load_state_dict(self, graphormer_ckppth, llama_ckppth=None, strict=True):
-        pass
+    def load_encoder_state_dict(
+        self, graphormer_ckppth, llama_ckppth=None, strict=True
+    ):
+        self.graphormer_encoder.load_state_dict(
+            torch.load(graphormer_ckppth), strict=strict
+        )
 
     def forward(
         self,

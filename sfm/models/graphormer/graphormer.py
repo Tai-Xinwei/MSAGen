@@ -147,7 +147,7 @@ class GraphormerEncoder(nn.Module):
         perturb=None,
         segment_labels=None,
         masked_tokens=None,
-        **unused
+        **unused,
     ):
         """
         Forward pass for Masked LM encoder. This first computes the token

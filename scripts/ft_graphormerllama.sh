@@ -7,10 +7,10 @@ echo 'Solving MKL done!'
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=15
+[ -z "${layers}" ] && layers=24
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${hidden_size}" ] && hidden_size=768
-[ -z "${ffn_size}" ] && ffn_size=3072
+[ -z "${ffn_size}" ] && ffn_size=768
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
@@ -37,6 +37,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${output_path}" ] && output_path='/home/peiran/FMproj/output/'
 [ -z "${smiles_dict_path}" ] && smiles_dict_path="/home/peiran/FMproj/chemical-copilot/mol2idx_dict.jsonl"
+[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/MetaLLM-converted/7B"
 [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/MetaLLM-converted/7B"
 [ -z "${mol_size_path}" ] && mol_size_path="/home/peiran/FMproj/chemical-copilot/mol_size_dict.pkl"
 
@@ -148,6 +149,41 @@ echo "pipeline_parallelism: ${pipeline_parallelism}"
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
+wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
+
+# if [ $OMPI_COMM_WORLD_RANK == 0 ]; then
+#   sleep 600
+#   deepspeed --force_multi --hostfile=$hostfile train.py \
+#     --num-classes 1 \
+#     --encoder_attention_heads $num_head \
+#     --encoder_layers $layers \
+#     --encoder_ffn_embed_dim $ffn_size \
+#     --encoder_embed_dim $hidden_size \
+#     --droppath_prob $droppath_prob \
+#     --attn_dropout $attn_dropout \
+#     --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
+#     --sandwich_ln \
+#     --dataset-name $dataset_name \
+#     --data_path $data_path \
+#     --output_path $output_path \
+#     --pipeline_parallelism $pipeline_parallelism \
+#     --seed 666667 \
+#     --ft \
+#     --d_tilde $d_tilde \
+#     --num_pred_attn_layer $num_pred_attn_layer \
+#     --max_lr $max_lr \
+#     --output_path $output_path \
+#     --total_num_steps $total_num_steps \
+#     --warmup_num_steps $warmup_num_steps \
+#     --loadcheck_path $loadcheck_path \
+#     --deepspeed --deepspeed_config ./config_file/ds_config_ft.json \
+#     --smiles_dict_path $smiles_dict_path \
+#     --mol_size_path $mol_size_path \
+#     --llm_model_name_or_path $llm_model_name_or_path \
+#     --loadmfmcheck_path $loadmfmcheck_path \
+#     --dataset_names $dataset_names \
+#     --dataset_splits $dataset_splits
+# fi
 
 deepspeed --num_gpu=4 sfm/tasks/ft_graphormerllama.py \
   --num-classes 1 \

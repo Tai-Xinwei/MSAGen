@@ -318,7 +318,7 @@ class GraphormerEncoderCopilotPP(nn.Module):
         perturb=None,
         segment_labels=None,
         masked_tokens=None,
-        **unused
+        **unused,
     ):
         raise Exception("Forward of GraphormerEncoderPP should not be used")
 

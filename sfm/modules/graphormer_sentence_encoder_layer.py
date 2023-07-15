@@ -8,7 +8,7 @@ from typing import Callable, Optional
 
 import torch
 import torch.nn as nn
-from models.transformers.configuration_utils import PretrainedConfig
+from transformers.configuration_utils import PretrainedConfig
 
 from .droppath import DropPath
 from .FairseqDropout import FairseqDropout

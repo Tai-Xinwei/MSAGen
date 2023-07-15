@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import json
 from dataclasses import asdict, dataclass
 from enum import Enum
@@ -12,6 +13,7 @@ class TraingStrategy(Enum):
     Zero2 = 2
     Zero3 = 3
     DDP = 4
+
 
 @dataclass
 class TrainerConfig:
@@ -28,12 +30,14 @@ class TrainerConfig:
     strategy: TraingStrategy = TraingStrategy.Single
     cpu: bool = False
 
+
 @dataclass
 class TrainerState:
     args: TrainerConfig
     global_step: int = 0
     epoch: int = 0
     batch: int = 0
+
 
 @dataclass
 class ModelOutput:
@@ -51,6 +55,6 @@ class LogOutput:
     global_step: int
     time: str
     extra_output: Dict
-    
+
     def __str__(self) -> str:
         return json.dumps(asdict(self))
