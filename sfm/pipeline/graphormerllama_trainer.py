@@ -43,7 +43,28 @@ class Trainer:
             see_memory_usage("Model built", force=True)
 
             parameters = filter(lambda p: p.requires_grad, net.parameters())
+        if args.pipeline_parallelism == 0:
+            net = GraphormerLlamaModel(args, vocab_size)
+            count_paranum(net)
+            optimizer = myAdam(
+                net,
+                mode="adaptoronly",
+                lr=args.max_lr,
+                betas=[0.9, 0.999],
+                weight_decay=0.0,
+                eps=1e-8,
+            )
+            scheduler = groupWarmupDecayLR(
+                optimizer,
+                total_num_steps=args.total_num_steps,
+                warmup_max_lr=args.max_lr,
+                warmup_num_steps=args.warmup_num_steps,
+            )
+            see_memory_usage("Model built", force=True)
 
+            parameters = filter(lambda p: p.requires_grad, net.parameters())
+
+            self.LlmLoss = CopilotCriterions(args, vocab_size)
             self.LlmLoss = CopilotCriterions(args, vocab_size)
 
             self.model_engine, _, self.train_loader, _ = deepspeed.initialize(
@@ -62,7 +83,7 @@ class Trainer:
                 num_stages=args.pipeline_parallelism,
                 loss_fn=CopilotCriterionsPP(args, vocab_size),
                 partition_method="manual",
-                part_list=[0, 2, 13, 24, 36],
+                part_list=[0, 8, 17, 26, 36],
             )
             optimizer = myAdam(
                 net,
@@ -92,6 +113,7 @@ class Trainer:
 
     def train(self):
         sfm_logger.info("start training")
+        global_step = 1
         global_step = 1
         for epoch in range(self.args.epochs):
             for i, batch_data in enumerate(self.train_loader):

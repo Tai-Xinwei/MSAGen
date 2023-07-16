@@ -153,7 +153,7 @@ wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
 
 # if [ $OMPI_COMM_WORLD_RANK == 0 ]; then
 #   sleep 600
-#   deepspeed --force_multi --hostfile=$hostfile train.py \
+#   deepspeed --force_multi --hostfile=$hostfile sfm/tasks/ft_graphormerllama.py \
 #     --num-classes 1 \
 #     --encoder_attention_heads $num_head \
 #     --encoder_layers $layers \
