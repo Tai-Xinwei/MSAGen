@@ -13,9 +13,7 @@ class PretrainedLayerSpec(LayerSpec):
         self.load_ckpt = module_kwargs.pop("load_ckpt", False)
         self.lora_mode = module_kwargs.pop("lora_mode", "full")
         self.new_num_tokens = module_kwargs.pop("new_num_tokens", None)
-        self.load_ckpt = module_kwargs.pop("load_ckpt", False)
-        self.lora_mode = module_kwargs.pop("lora_mode", "full")
-        self.new_num_tokens = module_kwargs.pop("new_num_tokens", None)
+
         super().__init__(typename, *module_args, **module_kwargs)
 
     def build(self, device="cpu", log=False, load=False):
@@ -43,8 +41,6 @@ class PretrainedLayerSpec(LayerSpec):
         elif type(checkpoints_state) == dict and "model" in checkpoints_state:
             checkpoints_state = checkpoints_state["model"]
 
-        IncompatibleKeys = self.layer.load_state_dict(checkpoints_state, strict=False)
-        IncompatibleKeys = IncompatibleKeys._asdict()
         IncompatibleKeys = self.layer.load_state_dict(checkpoints_state, strict=False)
         IncompatibleKeys = IncompatibleKeys._asdict()
 
@@ -76,7 +72,6 @@ class PretrainedLayerSpec(LayerSpec):
                 )
             )
 
-        ds_logger.info(f"{device} Loaded from {self.pretrained_ckpt_path}")
         ds_logger.info(f"{device} Loaded from {self.pretrained_ckpt_path}")
 
     def resize_token_embeddings(self, new_num_tokens: Optional[int] = None) -> None:

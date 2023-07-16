@@ -43,28 +43,7 @@ class Trainer:
             see_memory_usage("Model built", force=True)
 
             parameters = filter(lambda p: p.requires_grad, net.parameters())
-        if args.pipeline_parallelism == 0:
-            net = GraphormerLlamaModel(args, vocab_size)
-            count_paranum(net)
-            optimizer = myAdam(
-                net,
-                mode="adaptoronly",
-                lr=args.max_lr,
-                betas=[0.9, 0.999],
-                weight_decay=0.0,
-                eps=1e-8,
-            )
-            scheduler = groupWarmupDecayLR(
-                optimizer,
-                total_num_steps=args.total_num_steps,
-                warmup_max_lr=args.max_lr,
-                warmup_num_steps=args.warmup_num_steps,
-            )
-            see_memory_usage("Model built", force=True)
 
-            parameters = filter(lambda p: p.requires_grad, net.parameters())
-
-            self.LlmLoss = CopilotCriterions(args, vocab_size)
             self.LlmLoss = CopilotCriterions(args, vocab_size)
 
             self.model_engine, _, self.train_loader, _ = deepspeed.initialize(
@@ -139,16 +118,13 @@ class Trainer:
 
                 global_step += 1
 
-        self.writer.flush()
-        self.writer.close()
-
     def train_pipeline(self):
         sfm_logger.info("start pipeline training")
 
         for global_step in range(1, self.args.total_num_steps + 1):
             self.model_engine.train_batch()
 
-            if global_step % 2000 == 0:
+            if global_step % 10000 == 0:
                 self.model_engine.save_checkpoint(
                     save_dir=self.args.output_path,
                     client_state={"checkpoint_step": global_step},

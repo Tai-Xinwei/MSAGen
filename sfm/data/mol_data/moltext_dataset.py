@@ -147,7 +147,9 @@ def _tokenize_fn_moleculenet(
         # graph = smiles2graph(smiles[idx])
         # nnode = int(graph['num_nodes'])
         if pool_mode == "full":
-            to_replace_list = [1] + [smiles_idx for i in range(nnodes[idx])]
+            to_replace_list = (
+                [32001] + [smiles_idx for i in range(embedding_length)] + [32002]
+            )
             to_replace_list = torch.tensor(to_replace_list).to(torch.long)
             input_id = torch.cat(
                 [
@@ -157,7 +159,9 @@ def _tokenize_fn_moleculenet(
                 ]
             )
         elif pool_mode == "qformer" or pool_mode == "multimol":
-            to_replace_list = [1] + [smiles_idx for i in range(embedding_length)]
+            to_replace_list = (
+                [32001] + [smiles_idx for i in range(embedding_length)] + [32002]
+            )
             to_replace_list = torch.tensor(to_replace_list).to(torch.long)
             input_id = torch.cat(
                 [

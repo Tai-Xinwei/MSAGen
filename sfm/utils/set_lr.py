@@ -102,7 +102,6 @@ def process_freeze_param(
         for name, param in net.named_parameters():
             if name.find("adaptor") != -1 or name.find("dummy") != -1:
                 param_groups[0]["params"].append(param)
-                print(name)
     else:
         raise Exception("only adaptoronly mode is implemented")
 
