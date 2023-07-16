@@ -10,6 +10,7 @@ from typing import Optional, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
+from transformers.configuration_utils import PretrainedConfig
 from utils.LayerDropModuleList import LayerDropModuleList
 
 from .FairseqDropout import FairseqDropout
@@ -69,6 +70,50 @@ def init_bert_params(module):
         normal_(module.q_proj.weight.data)
         normal_(module.k_proj.weight.data)
         normal_(module.v_proj.weight.data)
+
+
+class GraphormerConfig(PretrainedConfig):
+    model_type = "graphormer"
+
+    def __init__(
+        self,
+        vocab_size=32000,
+        hidden_size=4096,
+        intermediate_size=11008,
+        num_hidden_layers=32,
+        num_attention_heads=32,
+        hidden_act="silu",
+        max_position_embeddings=2048,
+        initializer_range=0.02,
+        rms_norm_eps=1e-6,
+        use_cache=True,
+        pad_token_id=0,
+        bos_token_id=1,
+        eos_token_id=2,
+        tie_word_embeddings=False,
+        molrep_dict_path=None,
+        mfm_hidden_size=None,
+        **kwargs,
+    ):
+        self.vocab_size = vocab_size
+        self.max_position_embeddings = max_position_embeddings
+        self.hidden_size = hidden_size
+        self.intermediate_size = intermediate_size
+        self.num_hidden_layers = num_hidden_layers
+        self.num_attention_heads = num_attention_heads
+        self.hidden_act = hidden_act
+        self.initializer_range = initializer_range
+        self.rms_norm_eps = rms_norm_eps
+        self.use_cache = use_cache
+        self.molrep_dict_path = molrep_dict_path
+        self.mfm_hidden_size = mfm_hidden_size
+        super().__init__(
+            pad_token_id=pad_token_id,
+            bos_token_id=bos_token_id,
+            eos_token_id=eos_token_id,
+            tie_word_embeddings=tie_word_embeddings,
+            **kwargs,
+        )
 
 
 class GraphormerSentenceEncoder(nn.Module):
@@ -143,6 +188,8 @@ class GraphormerSentenceEncoder(nn.Module):
         self.layerdrop = layerdrop
         self.max_seq_len = max_seq_len
         self.embedding_dim = embedding_dim
+        self.ffn_embedding_dim = ffn_embedding_dim
+        self.num_attention_heads = num_attention_heads
         self.num_segments = num_segments
         self.use_position_embeddings = use_position_embeddings
         self.apply_bert_init = apply_bert_init
@@ -264,6 +311,9 @@ class GraphormerSentenceEncoder(nn.Module):
 
         self.args = args
 
+        self.dummy = nn.Parameter(
+            torch.zeros(1, dtype=torch.float32), requires_grad=True
+        )
         # num_pred_attn_layer = args.num_pred_attn_layer
         # self.output_model_noise = EquivariantVectorOutput(self.embedding_dim)
         # self.out_norm_vec = EquivariantLayerNorm(self.embedding_dim)
@@ -428,6 +478,159 @@ class GraphormerSentenceEncoder(nn.Module):
 
         x = x.transpose(0, 1)
         return x, attn_bias, delta_pos, inner_states, padding_mask
+
+
+class GraphormerSentenceEncoderPP(GraphormerSentenceEncoder):
+    """
+    Implementation for a Bi-directional Transformer based Sentence Encoder used
+    in BERT/XLM style pre-trained models.
+
+    This first computes the token embedding using the token embedding matrix,
+    position embeddings (if specified) and segment embeddings
+    (if specified). After applying the specified number of
+    TransformerEncoderLayers, it outputs all the internal states of the
+    encoder as well as the final representation associated with the first
+    token (usually CLS token).
+
+    Input:
+        - tokens: B x T matrix representing sentences
+        - segment_labels: B x T matrix representing segment label for tokens
+
+    Output:
+        - a tuple of the following:
+            - a list of internal model states used to compute the
+              predictions where each tensor has shape T x B x C
+            - sentence representation associated with first input token
+              in format B x C.
+    """
+
+    def __init__(
+        self,
+        num_atoms: int,
+        num_in_degree: int,
+        num_out_degree: int,
+        num_edges: int,
+        num_spatial: int,
+        num_edge_dis: int,
+        edge_type: str,
+        multi_hop_max_dist: int,
+        num_encoder_layers: int = 6,
+        embedding_dim: int = 768,
+        ffn_embedding_dim: int = 3072,
+        num_attention_heads: int = 8,
+        dropout: float = 0.1,
+        attention_dropout: float = 0.1,
+        activation_dropout: float = 0.1,
+        layerdrop: float = 0.0,
+        max_seq_len: int = 256,
+        num_segments: int = 2,
+        use_position_embeddings: bool = True,
+        offset_positions_by_padding: bool = True,
+        encoder_normalize_before: bool = False,
+        apply_bert_init: bool = False,
+        activation_fn: str = "relu",
+        learned_pos_embedding: bool = True,
+        embed_scale: float = None,
+        freeze_embeddings: bool = False,
+        n_trans_layers_to_freeze: int = 0,
+        export: bool = False,
+        traceable: bool = False,
+        q_noise: float = 0.0,
+        qn_block_size: int = 8,
+        sandwich_ln: bool = False,
+        droppath_prob: float = 0.0,
+        add_3d: bool = False,
+        num_3d_bias_kernel: int = 128,
+        no_2d: bool = False,
+        args=None,
+        # num_pred_attn_layer: int = 4,
+    ) -> None:
+        # inheret from GraphormerSentenceEncoder
+        super().__init__(
+            num_atoms,
+            num_in_degree,
+            num_out_degree,
+            num_edges,
+            num_spatial,
+            num_edge_dis,
+            edge_type,
+            multi_hop_max_dist,
+            num_encoder_layers,
+            embedding_dim,
+            ffn_embedding_dim,
+            num_attention_heads,
+            dropout,
+            attention_dropout,
+            activation_dropout,
+            layerdrop,
+            max_seq_len,
+            num_segments,
+            use_position_embeddings,
+            offset_positions_by_padding,
+            encoder_normalize_before,
+            apply_bert_init,
+            activation_fn,
+            learned_pos_embedding,
+            embed_scale,
+            freeze_embeddings,
+            n_trans_layers_to_freeze,
+            export,
+            traceable,
+            q_noise,
+            qn_block_size,
+            sandwich_ln,
+            droppath_prob,
+            add_3d,
+            num_3d_bias_kernel,
+            no_2d,
+            args,
+        )
+
+    @classmethod
+    def config(cls):
+        return GraphormerConfig(
+            hidden_size=cls.embedding_dim,
+            intermediate_size=cls.ffn_embedding_dim,
+            num_attention_heads=cls.num_attention_heads,
+            hidden_act="relu",
+        )
+
+    def forward(self, input_batchdata: Tuple):
+        (
+            idx,
+            attn_bias,
+            attn_edge_type,
+            spatial_pos,
+            in_degree,
+            out_degree,
+            x,
+            edge_input,
+            y,
+            pos,
+            node_type_edge,
+            node_mask,
+            input_ids,
+            llm_mask,
+        ) = input_batchdata
+        # create dict for batched data
+
+        batched_data = {}
+        batched_data["idx"] = idx
+        batched_data["attn_bias"] = attn_bias
+        batched_data["attn_edge_type"] = attn_edge_type
+        batched_data["spatial_pos"] = spatial_pos
+        batched_data["in_degree"] = in_degree
+        batched_data["out_degree"] = out_degree
+        batched_data["x"] = x
+        batched_data["edge_input"] = edge_input
+        batched_data["y"] = y
+        batched_data["pos"] = pos
+        batched_data["node_type_edge"] = node_type_edge
+        batched_data["node_mask"] = node_mask
+
+        x, _, _, _, padding_mask = super().forward(batched_data)
+
+        return (x, padding_mask, llm_mask, input_ids)
 
 
 class Node_decoder(nn.Module):

@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 import math
+import os
 from typing import List, Optional, Tuple, Union
 
 import torch
 from torch import nn
 from transformers import (
     LlamaConfig,
-    LlamaForCausalLM,
-    LlamaForSequenceClassification,
-    LlamaModel,
     LlamaPreTrainedModel,
     LlamaTokenizer,
     LlamaTokenizerFast,
@@ -17,9 +15,11 @@ from transformers.activations import ACT2FN
 from transformers.models.llama.modeling_llama import (
     LlamaAttention,
     LlamaDecoderLayer,
+    LlamaForCausalLM,
     LlamaMLP,
     LlamaRMSNorm,
 )
+from utils.pretrained_layer_spec import PretrainedLayerSpec
 
 
 class LlamaMLPAdapter(nn.Module):
@@ -44,21 +44,11 @@ class LlamaMLPAdapter(nn.Module):
         )
 
 
-class LlamaDecoderLayerPP(nn.Module):
+class LlamaDecoderLayerPP(LlamaDecoderLayer):
     def __init__(self, config: LlamaConfig, l: int):
-        super().__init__()
+        super().__init__(config)
+        self.config = config
         self.l = l
-        self.hidden_size = config.hidden_size
-        self.self_attn = LlamaAttention(config=config)
-        self.mlp = LlamaMLP(
-            hidden_size=self.hidden_size,
-            intermediate_size=config.intermediate_size,
-            hidden_act=config.hidden_act,
-        )
-        self.input_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.post_attention_layernorm = LlamaRMSNorm(
-            config.hidden_size, eps=config.rms_norm_eps
-        )
         self.dummy = nn.Parameter(
             torch.zeros(1, dtype=torch.float32), requires_grad=True
         )
@@ -97,9 +87,6 @@ class LlamaDecoderLayerPP(nn.Module):
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
-            # past_key_value=past_key_value,
-            # output_attentions=output_attentions,
-            # use_cache=use_cache,
         )
         hidden_states = residual + hidden_states
 
@@ -108,13 +95,125 @@ class LlamaDecoderLayerPP(nn.Module):
         hidden_states = self.post_attention_layernorm(hidden_states)
         hidden_states = self.mlp(hidden_states)
         hidden_states = residual + hidden_states
-        # print("hidden_states.shape {}".format(self.l), hidden_states.shape)
         outputs = (hidden_states, attention_mask, position_ids)
 
-        # if output_attentions:
-        #     outputs += (self_attn_weights,)
-
-        # if use_cache:
-        #     outputs += (present_key_value,)
-
         return outputs
+
+
+class LlamaNorm(nn.Module):
+    def __init__(self, config: LlamaConfig):
+        super().__init__()
+        self.config = config
+        self.dummy = nn.Parameter(
+            torch.zeros(1, dtype=torch.float32), requires_grad=True
+        )
+        self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+
+    def forward(self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]):
+        hidden_states, attention_mask, position_ids = input_tuple
+
+        hidden_states = self.norm(hidden_states)
+
+        return (hidden_states,)
+
+
+class LlamaHead(nn.Module):
+    def __init__(self, config: LlamaConfig):
+        super().__init__()
+        self.config = config
+        self.dummy = nn.Parameter(
+            torch.zeros(1, dtype=torch.float32), requires_grad=True
+        )
+        self.config = config
+        self.vocab_size = config.vocab_size
+        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+
+    def resize_token_embeddings(self, new_num_tokens: int) -> None:
+        if new_num_tokens == self.config.vocab_size:
+            return
+        elif new_num_tokens > self.config.vocab_size:
+            old_head = self.lm_head.weight
+            new_head = nn.Linear(
+                self.config.hidden_size,
+                new_num_tokens,
+                bias=False,
+                dtype=old_head.dtype,
+                device=old_head.device,
+            )
+
+            new_head.weight.data[: old_head.size(0), :] = old_head.data
+            self.lm_head = new_head
+        else:
+            raise ValueError(
+                f"new embedding size {new_num_tokens} must be larger than the current one {self.config.vocab_size}"
+            )
+
+    def forward(self, input_tuple: Tuple[torch.Tensor]):
+        hidden_states = input_tuple[0]
+
+        lm_logits = self.lm_head(hidden_states)
+
+        return lm_logits
+
+
+class LlamaModelPP(LlamaPreTrainedModel):
+    def __init__(self, args, config: LlamaConfig):
+        super().__init__(config)
+        self.dummy = nn.Parameter(
+            torch.zeros(1, dtype=torch.float32), requires_grad=True
+        )
+
+        self.pipe_layer = []
+
+    def to_layers(self):
+        pass
+
+
+class LlamaForCausalLMPP(LlamaPreTrainedModel):
+    def __init__(self, args, config: LlamaConfig):
+        super().__init__(config)
+        self.dummy = nn.Parameter(
+            torch.zeros(1, dtype=torch.float32), requires_grad=True
+        )
+
+    @classmethod
+    def to_layers(cls, args, config, new_num_tokens=None, load_ckpt=False):
+        cls.pipe_layer = []
+        for i in range(config.num_hidden_layers):
+            cls.pipe_layer.append(
+                PretrainedLayerSpec(
+                    LlamaDecoderLayerPP,
+                    config,
+                    i,
+                    load_ckpt=load_ckpt,
+                    pretrained_ckpt_path=os.path.join(
+                        args.llm_model_name_or_path, "model.layers.{}.pt".format(i)
+                    ),
+                    lora_mode="freeze",
+                )
+            )
+        cls.pipe_layer.append(
+            PretrainedLayerSpec(
+                LlamaNorm,
+                config,
+                load_ckpt=load_ckpt,
+                pretrained_ckpt_path=os.path.join(
+                    args.llm_model_name_or_path, "model.norm.pt"
+                ),
+                lora_mode="freeze",
+            )
+        )
+        cls.pipe_layer.append(
+            PretrainedLayerSpec(
+                LlamaHead,
+                config,
+                new_num_tokens=new_num_tokens,
+                load_ckpt=load_ckpt,
+                pretrained_ckpt_path=os.path.join(
+                    args.llm_model_name_or_path, "model.lm_head.pt"
+                ),
+                lora_mode="freeze",
+            )
+        )
+
+        return cls.pipe_layer

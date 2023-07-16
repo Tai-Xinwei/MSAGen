@@ -105,7 +105,7 @@ def add_argument():
     parser.add_argument(
         "--loadmfmcheck_path",
         type=str,
-        default="/home/peiran/FMproj/moleculenet_data/data/mol2idx_dict.jsonl",
+        default="/home/peiran/FMproj/DiffTM100M/checkpoint7.pt",
     )
     parser.add_argument(
         "--loadllmcheck_path", type=str, default="/home/peiran/FMproj/MetaLLM-converted"

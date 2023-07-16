@@ -9,6 +9,7 @@ import copy
 import json
 import os
 import pickle as pkl
+from argparse import Namespace
 from dataclasses import dataclass, field
 from multiprocessing import Pool
 from typing import Dict, Optional, Sequence
@@ -16,7 +17,11 @@ from typing import Dict, Optional, Sequence
 import lmdb
 import numpy as np
 import transformers
-from data.mol_data.collator import collator_copilot, collator_copilot_multi_mol
+from data.mol_data.collator import (
+    collator_copilot,
+    collator_copilot_multi_mol,
+    collator_copilot_multi_mol_PP,
+)
 from data.mol_data.wrapper import smiles2graph
 from torch.utils.data import Dataset
 from torch_geometric.data import Data, InMemoryDataset
@@ -316,7 +321,6 @@ class SupervisedMoleculeNetDataset(Dataset):
                 # raise NotImplementedError
 
         # format: {'text': 'xxx', 'entities': {'<<|mol0|>>': {'smiles': 'xxx'}}}
-        print(smiles_dict_path)
         smiles_dict = jload(smiles_dict_path)
 
         # TODO: formating & preprocessing
@@ -400,6 +404,7 @@ class SupervisedMoleculeNetDataset(Dataset):
 class SupervisedProcessedData(Dataset):
     def __init__(
         self,
+        args: Namespace,
         data_path: str,
         mol_size_path: str,
         mol2idx_dict_path: str,
@@ -432,6 +437,7 @@ class SupervisedProcessedData(Dataset):
         self.pad_token_id = pad_token_id
         self.pool_mode = pool_mode
         self.embedding_length = embedding_length
+        self.args = args
 
         self.len = 0
         self.index_to_key_map = []
@@ -451,7 +457,7 @@ class SupervisedProcessedData(Dataset):
         self.multi_hop_max_dist = 5
         self.spatial_pos_max = 1024
         self.max_node = 256
-        max_mol_per_sample = 1
+        max_mol_per_sample = 8
 
         with open(mol2idx_dict_path, "rb") as in_file:
             mol2idx_dict = jload(mol2idx_dict_path)
@@ -619,6 +625,7 @@ class SupervisedProcessedData(Dataset):
                 if self.dataset_ratios is not None:
                     self.weight_dict[(start_index, self.len)] = self.dataset_ratios[i]
             self.mol_data_offset.append(num_mols)
+
         logging.warning(f"{self.len} sentences loaded.")
         for dataset_name in self.dataset_count:
             for dataset_split in self.dataset_count[dataset_name]:
@@ -734,12 +741,20 @@ class SupervisedProcessedData(Dataset):
         )
 
     def collater(self, samples):
-        return collator_copilot_multi_mol(
-            samples,
-            max_node=1024,
-            multi_hop_max_dist=self.multi_hop_max_dist,
-            spatial_pos_max=self.spatial_pos_max,
-        )
+        if self.args.pipeline_parallelism == 0:
+            return collator_copilot_multi_mol(
+                samples,
+                max_node=1024,
+                multi_hop_max_dist=self.multi_hop_max_dist,
+                spatial_pos_max=self.spatial_pos_max,
+            )
+        else:
+            return collator_copilot_multi_mol_PP(
+                samples,
+                max_node=1024,
+                multi_hop_max_dist=self.multi_hop_max_dist,
+                spatial_pos_max=self.spatial_pos_max,
+            )
 
 
 if __name__ == "__main__":

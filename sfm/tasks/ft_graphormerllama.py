@@ -13,7 +13,10 @@ sys.path.append(".")
 from transformers import AutoTokenizer, PreTrainedTokenizer
 from transformers.models.llama.configuration_llama import LlamaConfig
 
-from sfm.data.mol_data.moltext_dataset import SupervisedProcessedData
+from sfm.data.mol_data.moltext_dataset import (
+    SupervisedMoleculeNetDataset,
+    SupervisedProcessedData,
+)
 from sfm.pipeline.graphormerllama_trainer import Trainer
 from sfm.utils.add_argument import add_argument
 from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
@@ -69,6 +72,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
 
     """Make dataset and collator for supervised fine-tuning."""
     dataset = SupervisedProcessedData(
+        args=args,
         data_path=args.data_path,
         dataset_names=args.dataset_names,
         dataset_splits=args.dataset_splits,
@@ -79,6 +83,18 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         pad_token_id=tokenizer.pad_token_id,
         pool_mode=args.pool_mode,
     )
+
+    """ moleculenet dataset only for fast debugging, do not remove this """
+    # dataset = SupervisedMoleculeNetDataset(
+    #     data_path="/home/peiran/FMproj/MoleculeNet_prompts_v2/",
+    #     dataset_names="hiv,clintox,bbbp",
+    #     smiles_dict_path="/home/peiran/FMproj/MoleculeNet_prompts_v2/mol2idx_dict.jsonl",
+    #     tokenizer=tokenizer,
+    #     mode="train",
+    #     pool_mode="cls",
+    #     embedding_length=1,
+    # )
+
     return dict(train_dataset=dataset, eval_dataset=None, vocab_size=len(tokenizer))
 
 
@@ -124,7 +140,10 @@ def main() -> None:
     trainer = Trainer(
         args, data_module["train_dataset"], vocab_size=data_module["vocab_size"]
     )
-    trainer()
+    if args.pipeline_parallelism == 0:
+        trainer.train()
+    else:
+        trainer.train_pipeline()
 
 
 if __name__ == "__main__":

@@ -4,7 +4,6 @@ from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
-from modules.llama_modules import LlamaMLPAdapter
 from transformers.activations import ACT2FN
 from transformers.configuration_utils import PretrainedConfig
 from transformers.models.llama.modeling_llama import (
@@ -96,6 +95,28 @@ class AdaptorConfig(PretrainedConfig):
             eos_token_id=eos_token_id,
             tie_word_embeddings=tie_word_embeddings,
             **kwargs,
+        )
+
+
+class MLPAdapter(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int,
+        intermediate_size: int,
+        output_size: int,
+        hidden_act: str,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        self.gate_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
+        self.down_proj = nn.Linear(intermediate_size, output_size, bias=False)
+        self.up_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
+        self.act_fn = ACT2FN[hidden_act]
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        return self.down_proj(
+            self.act_fn(self.dropout(self.gate_proj(x)) * self.up_proj(x))
         )
 
 
@@ -228,15 +249,11 @@ class EmbedAttention(nn.Module):
         return attn_output, attn_weights, past_key_value
 
 
-class Hybrid_emb(nn.Module):
+class HybridEmbeddings(nn.Module):
     def __init__(self, config: AdaptorConfig):
         super().__init__()
         self.config = config
         self.mode = config.pool_mode
-
-        # self.embed_tokens = torch.nn.Embedding(
-        # config.vocab_size, config.hidden_size, config.pad_token_id
-        # )
 
         self.embedding_length = config.embedding_length
 
@@ -244,14 +261,15 @@ class Hybrid_emb(nn.Module):
             config.mfm_hidden_size, eps=config.rms_norm_eps
         )
         if config.btn_adaptor:
-            self.mol_adapter = LlamaMLPAdapter(
+            self.mol_adaptor = MLPAdapter(
                 hidden_size=config.mfm_hidden_size,
                 intermediate_size=config.mfm_hidden_size // 4,
                 output_size=config.hidden_size,
                 hidden_act=config.hidden_act,
+                dropout=config.hidden_dropout_prob,
             )
         else:
-            self.mol_adapter = LlamaMLPAdapter(
+            self.mol_adaptor = MLPAdapter(
                 hidden_size=config.mfm_hidden_size,
                 intermediate_size=config.mfm_hidden_size,
                 output_size=config.hidden_size,
@@ -260,21 +278,24 @@ class Hybrid_emb(nn.Module):
             )
 
         if self.mode == "qformer" or self.mode == "multimol":
-            self.embed_attn = EmbedAttention(
+            self.adaptor_embed_attn = EmbedAttention(
                 hidden_size=config.mfm_hidden_size,
                 num_attention_heads=32,
                 dropout=config.hidden_dropout_prob,
             )
-            self.cross_attn = EmbedAttention(
+            self.adaptor_cross_attn = EmbedAttention(
                 hidden_size=config.mfm_hidden_size,
                 num_attention_heads=32,
                 dropout=config.hidden_dropout_prob,
             )
-            self.adaptor_embedding = torch.zeros(
-                (1, config.embedding_length, config.mfm_hidden_size), requires_grad=True
+            self.adaptor_embedding = nn.Parameter(
+                torch.zeros(1, config.embedding_length, config.mfm_hidden_size)
             )
             self.embedding_length = config.embedding_length
 
+        self.dummy = nn.Parameter(
+            torch.zeros(1, dtype=torch.float32), requires_grad=True
+        )
         # self.mol_adapter = MLPAdapter(hidden_size=config.mfm_hidden_size, intermediate_size=config.mfm_hidden_size,
         #   output_size=config.hidden_size, hidden_act=config.hidden_act)
         # self.mol_adapter = nn.Linear(config.mfm_hidden_size, config.hidden_size)
@@ -298,7 +319,7 @@ class Hybrid_emb(nn.Module):
         mol_rep = self.mol_rep_layernorm(mol_rep)
 
         if self.mode == "mean":
-            pooled_rep = self.mol_adapter(mol_rep) * (
+            pooled_rep = self.mol_adaptor(mol_rep) * (
                 1 - mol_padding_mask
             )  # padding_mask: B, nnodes
             pooled_rep = pooled_rep[:, 1:, :].sum(dim=1, keepdim=True)  # B, 1, H
@@ -311,7 +332,7 @@ class Hybrid_emb(nn.Module):
             token_embed = torch.where(mol_idx_mask, pooled_rep, token_embed)
         elif self.mode == "cls":
             pooled_rep = (
-                self.mol_adapter(mol_rep)[:, 0, :].unsqueeze(1).expand(-1, T, -1)
+                self.mol_adaptor(mol_rep)[:, 0, :].unsqueeze(1).expand(-1, T, -1)
             )  # B, T, H
             mol_idx_mask = mol_idx_mask.unsqueeze(-1).expand(
                 -1, -1, self.config.hidden_size
@@ -319,7 +340,7 @@ class Hybrid_emb(nn.Module):
             token_embed = torch.where(mol_idx_mask, pooled_rep, token_embed)
         elif self.mode == "full":
             # raise NotImplementedError
-            mol_rep = self.mol_adapter(mol_rep)[:, 1:, :]  # B, nnode, H
+            mol_rep = self.mol_adaptor(mol_rep)[:, 1:, :]  # B, nnode, H
 
             # token_embed = token_embed.unsqueeze(1).expand(-1, mol_rep.shape[1], -1, -1) # B, nnode, T, H
             for bidx in range(B):
@@ -333,7 +354,7 @@ class Hybrid_emb(nn.Module):
             self.adaptor_embedding = self.adaptor_embedding.to(mol_rep.device).to(
                 mol_rep.dtype
             )
-            embedding_f, _, _ = self.embed_attn(
+            embedding_f, _, _ = self.adaptor_embed_attn(
                 hidden_states=self.adaptor_embedding, q_states=self.adaptor_embedding
             )
 
@@ -344,10 +365,10 @@ class Hybrid_emb(nn.Module):
                 .squeeze(-1)
                 .expand(-1, -1, self.embedding_length, -1)
             )  # B, 1, L, nnodes
-            embed_mol_rep, _, _ = self.cross_attn(
+            embed_mol_rep, _, _ = self.adaptor_cross_attn(
                 hidden_states=mol_rep, q_states=embedding_f, attention_mask=attn_mask
             )
-            embed_mol_rep = self.mol_adapter(embed_mol_rep)  # B, nnode, H
+            embed_mol_rep = self.mol_adaptor(embed_mol_rep)  # B, nnode, H
             for bidx in range(B):
                 mask_idx_list = (mol_idx_mask[bidx] is True).nonzero()
                 start = mask_idx_list[0]
@@ -357,7 +378,7 @@ class Hybrid_emb(nn.Module):
             self.adaptor_embedding = self.adaptor_embedding.to(mol_rep.device).to(
                 mol_rep.dtype
             )
-            embedding_f, _, _ = self.embed_attn(
+            embedding_f, _, _ = self.adaptor_embed_attn(
                 hidden_states=self.adaptor_embedding, q_states=self.adaptor_embedding
             )
 
@@ -367,10 +388,10 @@ class Hybrid_emb(nn.Module):
                 .squeeze(-1)
                 .expand(-1, -1, self.embedding_length, -1)
             )  # B, 1, L, nnodes
-            embed_mol_rep, _, _ = self.cross_attn(
+            embed_mol_rep, _, _ = self.adaptor_cross_attn(
                 hidden_states=mol_rep, q_states=embedding_f, attention_mask=attn_mask
             )
-            embed_mol_rep = self.mol_adapter(embed_mol_rep)  # B, nnode, H
+            embed_mol_rep = self.mol_adaptor(embed_mol_rep)  # B, nnode, H
 
             mol_idx = 0
             mol_idx_mask = torch.where(mol_idx_mask, 1, 0)
@@ -380,7 +401,6 @@ class Hybrid_emb(nn.Module):
                 while pos < len(mask_idx_list):
                     start = mask_idx_list[pos]
                     end = start + self.embedding_length
-
                     token_embed[bidx, start:end, :] = embed_mol_rep[mol_idx, :, :]
 
                     mol_idx += 1
@@ -465,9 +485,40 @@ class Hybrid_emb(nn.Module):
         return hidden_states, position_ids
 
 
-class Hybrid_emb_PP(Hybrid_emb):
+class HybridEmbeddingsPP(HybridEmbeddings):
+    def __init__(self, config: PretrainedConfig, **kwargs):
+        super().__init__(config, **kwargs)
+        self.embed_tokens = torch.nn.Embedding(
+            config.vocab_size, config.hidden_size, config.pad_token_id
+        )
+
+    def resize_token_embeddings(self, new_num_tokens: int) -> None:
+        if new_num_tokens == self.config.vocab_size:
+            return
+        elif new_num_tokens > self.config.vocab_size:
+            old_embeddings = self.embed_tokens.weight
+            new_embeddings = torch.nn.Embedding(
+                new_num_tokens,
+                self.config.hidden_size,
+                self.config.pad_token_id,
+                dtype=old_embeddings.dtype,
+                device=old_embeddings.device,
+            )
+            # random init new embeddings with normal
+            new_embeddings.weight.data.normal_(mean=0.0, std=1.0)
+
+            new_embeddings.weight.data[
+                : self.config.vocab_size, :
+            ] = old_embeddings.data
+            self.embed_tokens = new_embeddings
+
+        else:
+            raise ValueError(
+                f"new embedding size {new_num_tokens} must be larger than the current one {self.config.vocab_size}"
+            )
+
     def forward(self, input_tuple: Tuple):
-        x, padding_mask, input_ids, attention_mask = input_tuple
+        mol_emb, mol_padding_mask, llm_mask, input_ids = input_tuple
 
         if input_ids is not None:
             batch_size, seq_length = input_ids.shape
@@ -486,17 +537,28 @@ class Hybrid_emb_PP(Hybrid_emb):
         )
         position_ids = position_ids.unsqueeze(0).view(-1, seq_length)
 
-        inputs_embeds = self._forward_embedding(x, padding_mask, input_ids)
+        # Get text embeddings from language model
+        mol_idx_mask = input_ids < 0  # B, T
+        with torch.no_grad():
+            text_embeds = self.embed_tokens(
+                input_ids.masked_fill(mol_idx_mask, 0)
+            )  # B, T, hidden_size
 
-        # embed positions
-        if attention_mask is None:
-            attention_mask = torch.ones(
+        # Merge text and mol embeddings
+        inputs_embeds = self._forward_embedding(
+            mol_emb, mol_padding_mask, text_embeds, input_ids
+        )
+
+        # attention mask
+        if llm_mask is None:
+            llm_mask = torch.ones(
                 (batch_size, seq_length_with_past),
                 dtype=torch.bool,
                 device=inputs_embeds.device,
             )
-        attention_mask = self._prepare_decoder_attention_mask(
-            attention_mask,
+
+        llm_mask = self._prepare_decoder_attention_mask(
+            llm_mask,
             (batch_size, seq_length),
             inputs_embeds,
             past_key_values_length,
@@ -504,4 +566,4 @@ class Hybrid_emb_PP(Hybrid_emb):
 
         hidden_states = inputs_embeds
 
-        return (hidden_states, attention_mask, position_ids)
+        return (hidden_states, llm_mask, position_ids)

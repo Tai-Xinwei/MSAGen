@@ -11,7 +11,7 @@ from deepspeed.runtime import utils as ds_utils
 from deepspeed.runtime.activation_checkpointing import checkpointing
 from deepspeed.runtime.state_dict_factory import SDLoaderFactory
 from deepspeed.utils import logger
-from utils.pretrained_layer_spec import LoraLayerSpec, PretrainedLayerSpec
+from utils.pretrained_layer_spec import PretrainedLayerSpec
 
 # from deepspeed.runtime.pipe.topology import PipeDataParallelTopology, PipelineParallelGrid
 from .myPipelineParallelGrid import PipeDataParallelTopology, myPipelineParallelGrid
@@ -266,7 +266,7 @@ class PipelineModule(nn.Module):
                 self.fwd_map.update({name: len(self.forward_funcs) - 1})
                 self.add_module(name, module)
 
-            elif isinstance(layer, (PretrainedLayerSpec, LoraLayerSpec)):
+            elif isinstance(layer, (PretrainedLayerSpec)):
                 module = layer.build(self.device, load=True)
                 name = str(layer_idx)
                 self.forward_funcs.append(module)
@@ -293,7 +293,7 @@ class PipelineModule(nn.Module):
         """
         param_counts = [0] * len(self._layer_specs)
         for idx, layer in enumerate(self._layer_specs):
-            if isinstance(layer, (LayerSpec, PretrainedLayerSpec, LoraLayerSpec)):
+            if isinstance(layer, (LayerSpec, PretrainedLayerSpec)):
                 l = layer.build()
                 params = filter(lambda p: p.requires_grad, l.parameters())
                 param_counts[idx] = sum(p.numel() for p in params)
@@ -307,7 +307,7 @@ class PipelineModule(nn.Module):
         typeregex = regex.compile(layername, regex.IGNORECASE)
         for idx, layer in enumerate(self._layer_specs):
             name = None
-            if isinstance(layer, (LayerSpec, PretrainedLayerSpec, LoraLayerSpec)):
+            if isinstance(layer, (LayerSpec, PretrainedLayerSpec)):
                 name = layer.typename.__name__
             elif isinstance(layer, nn.Module):
                 name = layer.__class__.__name__
@@ -427,9 +427,7 @@ class PipelineModule(nn.Module):
                 print(f"stage={stage} layers={stop - start}")
                 for idx, layer in enumerate(self._layer_specs[start:stop]):
                     name = str(layer)
-                    if isinstance(
-                        layer, (LayerSpec, PretrainedLayerSpec, LoraLayerSpec)
-                    ):
+                    if isinstance(layer, (LayerSpec, PretrainedLayerSpec)):
                         name = layer.typename.__name__
                     if isinstance(layer, nn.Module):
                         name = layer.__class__.__name__

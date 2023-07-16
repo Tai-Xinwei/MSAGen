@@ -30,14 +30,14 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=60000
 
 [ -z "${data_path}" ] && data_path='/home/peiran/FMproj/chemical-copilot'
-# [ -z "${dataset_names}" ] && dataset_names='mt-data-1m'
-[ -z "${dataset_names}" ] && dataset_names='moleculenet'
+[ -z "${dataset_names}" ] && dataset_names='mt-data-1m'
+# [ -z "${dataset_names}" ] && dataset_names='moleculenet'
 [ -z "${dataset_splits}" ] && dataset_splits='train'
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${output_path}" ] && output_path='/home/peiran/FMproj/output/'
 [ -z "${smiles_dict_path}" ] && smiles_dict_path="/home/peiran/FMproj/chemical-copilot/mol2idx_dict.jsonl"
-[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/MetaLLM-converted/7B"
+[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
 [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/MetaLLM-converted/7B"
 [ -z "${mol_size_path}" ] && mol_size_path="/home/peiran/FMproj/chemical-copilot/mol_size_dict.pkl"
 
@@ -45,7 +45,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_name}" ] && dataset_name="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${pipeline_parallelism}" ] && pipeline_parallelism=0
+[ -z "${pipeline_parallelism}" ] && pipeline_parallelism=4
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -212,6 +212,7 @@ deepspeed --num_gpu=4 sfm/tasks/ft_graphormerllama.py \
   --smiles_dict_path $smiles_dict_path \
   --mol_size_path $mol_size_path \
   --llm_model_name_or_path $llm_model_name_or_path \
+  --loadmfmcheck_path $loadmfmcheck_path \
   --dataset_names $dataset_names \
   --dataset_splits $dataset_splits
 

@@ -5,17 +5,25 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
+import os
 from typing import Dict, Optional, Tuple
 
 import torch
+from modules import (
+    GraphormerSentenceEncoder,
+    GraphormerSentenceEncoderPP,
+    init_bert_params,
+)
+from modules.hybrid_emb import AdaptorConfig, HybridEmbeddings, HybridEmbeddingsPP
+from modules.llama_modules import LlamaForCausalLMPP
+
+# from modules.
+from sfmlogging.loggers import sfm_logger as logger
 from transformers.modeling_utils import PreTrainedModel
 from transformers.models.llama.configuration_llama import LlamaConfig
 from transformers.models.llama.modeling_llama import LlamaForCausalLM
-
-from sfm.modules import GraphormerSentenceEncoder, init_bert_params
-from sfm.modules.hybrid_emb import AdaptorConfig, Hybrid_emb
-from sfm.sfmlogging.loggers import sfm_logger as logger
-from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
+from utils.chemical_tokens import CHEMICAL_TOKENS
+from utils.pretrained_layer_spec import PretrainedLayerSpec
 
 
 class GraphormerLlamaModel(torch.nn.Module):
@@ -28,7 +36,6 @@ class GraphormerLlamaModel(torch.nn.Module):
         self,
         args,
         vocab_size: int,
-        checkpointpth: Optional[list] = None,
         load_ckp: Optional[bool] = False,
     ):
         super().__init__()
@@ -53,48 +60,115 @@ class GraphormerLlamaModel(torch.nn.Module):
 
         self.max_positions = args.max_positions
 
-        self.graphormer_encoder = GraphormerSentenceEncoder(
-            # < for graphormer
-            num_atoms=args.num_atoms,
-            num_in_degree=args.num_in_degree,
-            num_out_degree=args.num_out_degree,
-            num_edges=args.num_edges,
-            num_spatial=args.num_spatial,
-            num_edge_dis=args.num_edge_dis,
-            edge_type=args.edge_type,
-            multi_hop_max_dist=args.multi_hop_max_dist,
-            num_encoder_layers=args.encoder_layers,
-            embedding_dim=args.encoder_embed_dim,
-            ffn_embedding_dim=args.encoder_ffn_embed_dim,
-            num_attention_heads=args.encoder_attention_heads,
-            dropout=args.dropout,
-            attention_dropout=args.attention_dropout,
-            activation_dropout=args.act_dropout,
-            max_seq_len=self.max_positions,
-            num_segments=args.num_segment,
-            use_position_embeddings=not args.no_token_positional_embeddings,
-            encoder_normalize_before=args.encoder_normalize_before,
-            apply_bert_init=args.apply_bert_init,
-            activation_fn=args.activation_fn,
-            learned_pos_embedding=args.encoder_learned_pos,
-            sandwich_ln=args.sandwich_ln,
-            droppath_prob=args.droppath_prob,
-            add_3d=args.add_3d,
-            num_3d_bias_kernel=args.num_3d_bias_kernel,
-            no_2d=args.no_2d,
-            args=args,
-        )
-        # self.load_encoder_state_dict(args.loadmfmcheck_path, strict=False)
-
-        self.decoder = LlamaForCausalLM.from_pretrained(args.llm_model_name_or_path)
         Llama_config = LlamaConfig.from_pretrained(args.llm_model_name_or_path)
-        self._resize_llm_token_embeddings(vocab_size)
-
         adaptorconfig = self.init_adaptor_param(args, Llama_config)
-        self.adaptor = Hybrid_emb(adaptorconfig)
+
+        self.pipe_layers = []
+        if args.pipeline_parallelism == 0:
+            self.graphormer_encoder = GraphormerSentenceEncoder(
+                # < for graphormer
+                num_atoms=args.num_atoms,
+                num_in_degree=args.num_in_degree,
+                num_out_degree=args.num_out_degree,
+                num_edges=args.num_edges,
+                num_spatial=args.num_spatial,
+                num_edge_dis=args.num_edge_dis,
+                edge_type=args.edge_type,
+                multi_hop_max_dist=args.multi_hop_max_dist,
+                num_encoder_layers=args.encoder_layers,
+                embedding_dim=args.encoder_embed_dim,
+                ffn_embedding_dim=args.encoder_ffn_embed_dim,
+                num_attention_heads=args.encoder_attention_heads,
+                dropout=args.dropout,
+                attention_dropout=args.attention_dropout,
+                activation_dropout=args.act_dropout,
+                max_seq_len=self.max_positions,
+                num_segments=args.num_segment,
+                use_position_embeddings=not args.no_token_positional_embeddings,
+                encoder_normalize_before=args.encoder_normalize_before,
+                apply_bert_init=args.apply_bert_init,
+                activation_fn=args.activation_fn,
+                learned_pos_embedding=args.encoder_learned_pos,
+                sandwich_ln=args.sandwich_ln,
+                droppath_prob=args.droppath_prob,
+                add_3d=args.add_3d,
+                num_3d_bias_kernel=args.num_3d_bias_kernel,
+                no_2d=args.no_2d,
+                args=args,
+            )
+            # self.load_encoder_state_dict(args.loadmfmcheck_path, strict=False)
+
+            self.decoder = LlamaForCausalLM.from_pretrained(args.llm_model_name_or_path)
+            self._resize_llm_token_embeddings(vocab_size)
+            self.adaptor = HybridEmbeddings(adaptorconfig)
+        else:
+            load_ckpt = True
+            self.pipe_layers.extend(
+                [
+                    PretrainedLayerSpec(
+                        GraphormerSentenceEncoderPP,
+                        num_atoms=args.num_atoms,
+                        num_in_degree=args.num_in_degree,
+                        num_out_degree=args.num_out_degree,
+                        num_edges=args.num_edges,
+                        num_spatial=args.num_spatial,
+                        num_edge_dis=args.num_edge_dis,
+                        edge_type=args.edge_type,
+                        multi_hop_max_dist=args.multi_hop_max_dist,
+                        num_encoder_layers=args.encoder_layers,
+                        embedding_dim=args.encoder_embed_dim,
+                        ffn_embedding_dim=args.encoder_ffn_embed_dim,
+                        num_attention_heads=args.encoder_attention_heads,
+                        dropout=args.dropout,
+                        attention_dropout=args.attention_dropout,
+                        activation_dropout=args.act_dropout,
+                        max_seq_len=self.max_positions,
+                        num_segments=args.num_segment,
+                        use_position_embeddings=not args.no_token_positional_embeddings,
+                        encoder_normalize_before=args.encoder_normalize_before,
+                        apply_bert_init=args.apply_bert_init,
+                        activation_fn=args.activation_fn,
+                        learned_pos_embedding=args.encoder_learned_pos,
+                        sandwich_ln=args.sandwich_ln,
+                        droppath_prob=args.droppath_prob,
+                        add_3d=args.add_3d,
+                        num_3d_bias_kernel=args.num_3d_bias_kernel,
+                        no_2d=args.no_2d,
+                        args=args,
+                        load_ckpt=load_ckpt,
+                        pretrained_ckpt_path=args.loadmfmcheck_path,
+                        lora_mode="freeze",
+                    )
+                ]
+            )
+
+            self.pipe_layers.extend(
+                [
+                    PretrainedLayerSpec(
+                        HybridEmbeddingsPP,
+                        adaptorconfig,
+                        new_num_tokens=vocab_size,
+                        load_ckpt=load_ckpt,
+                        pretrained_ckpt_path=os.path.join(
+                            args.llm_model_name_or_path, "model.hybrid_emb.pt"
+                        ),
+                        lora_mode="full",
+                    )
+                ]
+            )
+
+            self.pipe_layers.extend(
+                LlamaForCausalLMPP.to_layers(
+                    args,
+                    Llama_config,
+                    load_ckpt=load_ckpt,
+                    new_num_tokens=vocab_size,
+                )
+            )
 
     def _resize_llm_token_embeddings(self, new_num_tokens: int):
-        return self.decoder.resize_token_embeddings(new_num_tokens)
+        if self.args.pipeline_parallelism == 0:
+            self.decoder.resize_token_embeddings(new_num_tokens)
 
     def load_encoder_state_dict(
         self, graphormer_ckppth, llama_ckppth=None, strict=True
@@ -102,6 +176,9 @@ class GraphormerLlamaModel(torch.nn.Module):
         self.graphormer_encoder.load_state_dict(
             torch.load(graphormer_ckppth), strict=strict
         )
+
+    def to_layers(self):
+        return self.pipe_layers
 
     def forward(
         self,

@@ -1,21 +1,12 @@
 {
-  "train_batch_size": 4,
+  "train_batch_size": 1,
   "gradient_accumulation_steps": 1,
   "zero_optimization": {
-    "stage": 3,
-    "offload_param": {
-      "device": "cpu"
-    }
+    "stage": 1
   },
   "fp16": {
     "enabled": true
   },
   "gradient_clipping": 1.0,
-  "steps_per_print": 100000,
-  "wandb": {
-    "enabled": true,
-    "team": "icuppjin",
-    "group": "generalist",
-    "project": "DiffMFM"
-  }
+  "steps_per_print": 100
 }
