@@ -25,10 +25,10 @@ class PretrainedLayerSpec(LayerSpec):
         self.resize_token_embeddings(self.new_num_tokens)
 
         # TODO: LORA
-        # if self.lora_mode == "freeze":
-        #     self.layer = self.create_peft_model(self.layer, lora=False)
-        # elif self.lora_mode == "lora":
-        #     self.layer = self.create_peft_model(self.layer, lora=True)
+        if self.lora_mode == "freeze":
+            self.layer = self.create_peft_model(self.layer, lora=False)
+        elif self.lora_mode == "lora":
+            self.layer = self.create_peft_model(self.layer, lora=True)
 
         return self.layer
 

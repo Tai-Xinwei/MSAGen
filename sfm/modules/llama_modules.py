@@ -49,9 +49,7 @@ class LlamaDecoderLayerPP(LlamaDecoderLayer):
         super().__init__(config)
         self.config = config
         self.l = l
-        self.dummy = nn.Parameter(
-            torch.zeros(1, dtype=torch.float32), requires_grad=True
-        )
+        self.dummy = nn.Linear(1, 1)
 
     def forward(
         self,
@@ -104,9 +102,7 @@ class LlamaNorm(nn.Module):
     def __init__(self, config: LlamaConfig):
         super().__init__()
         self.config = config
-        self.dummy = nn.Parameter(
-            torch.zeros(1, dtype=torch.float32), requires_grad=True
-        )
+        self.dummy = nn.Linear(1, 1)
         self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
     def forward(self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]):
@@ -121,10 +117,8 @@ class LlamaHead(nn.Module):
     def __init__(self, config: LlamaConfig):
         super().__init__()
         self.config = config
-        self.dummy = nn.Parameter(
-            torch.zeros(1, dtype=torch.float32), requires_grad=True
-        )
-        self.config = config
+        self.dummy = nn.Linear(1, 1)
+
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
@@ -165,11 +159,50 @@ class LlamaModelPP(LlamaPreTrainedModel):
 
         self.pipe_layer = []
 
-    def to_layers(self):
-        pass
+    @classmethod
+    def to_layers(cls, args, config, new_num_tokens=None, load_ckpt=False):
+        cls.pipe_layer = []
+        for i in range(config.num_hidden_layers):
+            cls.pipe_layer.append(
+                PretrainedLayerSpec(
+                    LlamaDecoderLayerPP,
+                    config,
+                    i,
+                    load_ckpt=load_ckpt,
+                    pretrained_ckpt_path=os.path.join(
+                        args.llm_model_name_or_path, "model.layers.{}.pt".format(i)
+                    ),
+                    lora_mode="freeze",
+                )
+            )
+        cls.pipe_layer.append(
+            PretrainedLayerSpec(
+                LlamaNorm,
+                config,
+                load_ckpt=load_ckpt,
+                pretrained_ckpt_path=os.path.join(
+                    args.llm_model_name_or_path, "model.norm.pt"
+                ),
+                lora_mode="freeze",
+            )
+        )
+        cls.pipe_layer.append(
+            PretrainedLayerSpec(
+                LlamaHead,
+                config,
+                new_num_tokens=new_num_tokens,
+                load_ckpt=load_ckpt,
+                pretrained_ckpt_path=os.path.join(
+                    args.llm_model_name_or_path, "model.lm_head.pt"
+                ),
+                lora_mode="freeze",
+            )
+        )
+
+        return cls.pipe_layer
 
 
-class LlamaForCausalLMPP(LlamaPreTrainedModel):
+class LlamaForCausalLMPP(LlamaForCausalLM):
     def __init__(self, args, config: LlamaConfig):
         super().__init__(config)
         self.dummy = nn.Parameter(

@@ -11,8 +11,12 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
-from sfm.pipeline.dataclasses import ModelOutput, TrainerConfig, TrainerState
-from sfm.pipeline.model import Model
+from sfm.pipeline.accelerator.dataclasses import (
+    ModelOutput,
+    TrainerConfig,
+    TrainerState,
+)
+from sfm.pipeline.accelerator.model import Model
 
 
 class Accelerator(ABC):

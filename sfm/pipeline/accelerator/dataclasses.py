@@ -13,6 +13,7 @@ class TraingStrategy(Enum):
     Zero2 = 2
     Zero3 = 3
     DDP = 4
+    Pipeline = 5
 
 
 @dataclass

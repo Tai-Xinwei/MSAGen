@@ -5,7 +5,7 @@ from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
-from sfm.pipeline.dataclasses import ModelOutput
+from sfm.pipeline.accelerator.dataclasses import ModelOutput
 
 
 class Model(nn.Module, ABC):

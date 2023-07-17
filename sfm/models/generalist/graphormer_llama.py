@@ -15,7 +15,7 @@ from modules import (
     init_bert_params,
 )
 from modules.hybrid_emb import AdaptorConfig, HybridEmbeddings, HybridEmbeddingsPP
-from modules.llama_modules import LlamaForCausalLMPP
+from modules.llama_modules import LlamaModelPP
 
 # from modules.
 from sfmlogging.loggers import sfm_logger as logger
@@ -102,7 +102,7 @@ class GraphormerLlamaModel(torch.nn.Module):
             self._resize_llm_token_embeddings(vocab_size)
             self.adaptor = HybridEmbeddings(adaptorconfig)
         else:
-            load_ckpt = True
+            load_ckpt = not args.infer
             self.pipe_layers.extend(
                 [
                     PretrainedLayerSpec(
@@ -158,7 +158,7 @@ class GraphormerLlamaModel(torch.nn.Module):
             )
 
             self.pipe_layers.extend(
-                LlamaForCausalLMPP.to_layers(
+                LlamaModelPP.to_layers(
                     args,
                     Llama_config,
                     load_ckpt=load_ckpt,
@@ -171,7 +171,7 @@ class GraphormerLlamaModel(torch.nn.Module):
             self.decoder.resize_token_embeddings(new_num_tokens)
 
     def load_encoder_state_dict(
-        self, graphormer_ckppth, llama_ckppth=None, strict=True
+        self, graphormer_ckppth, llama_ckppth=None, strict=False
     ):
         self.graphormer_encoder.load_state_dict(
             torch.load(graphormer_ckppth), strict=strict

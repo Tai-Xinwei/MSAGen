@@ -70,7 +70,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     special_tokens_dict["additional_special_tokens"] = CHEMICAL_TOKENS
     tokenizer.add_special_tokens(special_tokens_dict)
 
-    """Make dataset and collator for supervised fine-tuning."""
+    """ Make dataset and collator for supervised fine-tuning. """
     dataset = SupervisedProcessedData(
         args=args,
         data_path=args.data_path,
@@ -84,7 +84,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         pool_mode=args.pool_mode,
     )
 
-    """ moleculenet dataset only for fast debugging, do not remove this """
+    """ moleculenet dataset only for fast debugging, do not remove this。 """
     # dataset = SupervisedMoleculeNetDataset(
     #     data_path="/home/peiran/FMproj/MoleculeNet_prompts_v2/",
     #     dataset_names="hiv,clintox,bbbp",
@@ -125,7 +125,7 @@ def main() -> None:
     print("length of dataset", len(data_module["train_dataset"]))
 
     args.add_3d = False
-    args.infer = True
+
     if args.rank == 0:
         print(
             {

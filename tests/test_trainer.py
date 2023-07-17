@@ -8,7 +8,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data.dataset import Dataset
 
-from sfm.pipeline.trainer import Model, ModelOutput, Trainer, TrainerConfig
+from sfm.pipeline.accelerator.trainer import Model, ModelOutput, Trainer, TrainerConfig
 
 
 class DummyNN(Model):

@@ -15,20 +15,20 @@ from torch.utils.data import (
 )
 from tqdm import tqdm
 
-from sfm.pipeline.accelerator import (
+from sfm.pipeline.accelerator.accelerator import (
     Accelerator,
     DdpAccelerator,
     DeepSpeedAccelerator,
     SingleNodeAccelerator,
 )
-from sfm.pipeline.dataclasses import (
+from sfm.pipeline.accelerator.dataclasses import (
     LogOutput,
     ModelOutput,
     TrainerConfig,
     TrainerState,
     TraingStrategy,
 )
-from sfm.pipeline.model import Model
+from sfm.pipeline.accelerator.model import Model
 
 
 def seed_everything(seed):
@@ -65,7 +65,6 @@ class Trainer(object):
     def __init__(
         self,
         args: TrainerConfig,
-        /,
         model: Model,
         train_data: Dataset,
         collater: Callable,

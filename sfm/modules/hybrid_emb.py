@@ -293,9 +293,8 @@ class HybridEmbeddings(nn.Module):
             )
             self.embedding_length = config.embedding_length
 
-        self.dummy = nn.Parameter(
-            torch.zeros(1, dtype=torch.float32), requires_grad=True
-        )
+        self.dummy = nn.Linear(1, 1)
+
         # self.mol_adapter = MLPAdapter(hidden_size=config.mfm_hidden_size, intermediate_size=config.mfm_hidden_size,
         #   output_size=config.hidden_size, hidden_act=config.hidden_act)
         # self.mol_adapter = nn.Linear(config.mfm_hidden_size, config.hidden_size)

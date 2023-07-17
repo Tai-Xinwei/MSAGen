@@ -311,27 +311,7 @@ class GraphormerSentenceEncoder(nn.Module):
 
         self.args = args
 
-        self.dummy = nn.Parameter(
-            torch.zeros(1, dtype=torch.float32), requires_grad=True
-        )
-        # num_pred_attn_layer = args.num_pred_attn_layer
-        # self.output_model_noise = EquivariantVectorOutput(self.embedding_dim)
-        # self.out_norm_vec = EquivariantLayerNorm(self.embedding_dim)
-
-        # self.distance = Distance()
-        # self.distance_expansion = ExpNormalSmearing(num_rbf=num_3d_bias_kernel)
-
-        # self.out_norm = nn.LayerNorm(self.embedding_dim)
-
-        # self.attention_layers = nn.ModuleList()
-        # for _ in range(num_pred_attn_layer):
-        #     layer = EquivariantMultiHeadAttention(
-        #         hidden_channels=self.embedding_dim,
-        #         num_rbf=num_3d_bias_kernel,
-        #         num_heads=num_attention_heads,
-        #     )
-        #     # layer = EquivariantMultiHeadAttention()
-        #     self.attention_layers.append(layer)
+        self.dummy = nn.Linear(1, 1)
 
     def build_transformer_sentence_encoder_layer(
         self,
@@ -387,10 +367,6 @@ class GraphormerSentenceEncoder(nn.Module):
             )
             noise = noise.masked_fill_(~node_mask.bool(), 0.0)
             batched_data["pos"] = ori_pos + noise
-        # else:
-        #     ori_pos = batched_data['pos']
-        #     noise = torch.randn(ori_pos.shape, device=ori_pos.device) * self.args.noise_scale
-        #     batched_data['pos'] = ori_pos + noise
 
         data_x = batched_data["x"]
         n_graph, n_node = data_x.size()[:2]
@@ -399,14 +375,8 @@ class GraphormerSentenceEncoder(nn.Module):
             n_graph, 1, device=padding_mask.device, dtype=padding_mask.dtype
         )
         padding_mask = torch.cat((padding_mask_cls, padding_mask), dim=1)
-        # B x (T+1) x 1
-        # mask_dict = {0: [1, 1], 1: [1, 0], 2: [0, 1]}
+
         mask_2d = mask_3d = None
-        # if self.training:
-        #     mask_choice = np.random.choice(np.arange(3), n_graph, p=[1.0 / 3, 1.0 / 3, 1.0 / 3])
-        #     mask = torch.tensor([mask_dict[i] for i in mask_choice]).to(batched_data['pos'])
-        #     mask_2d = mask[:, 0]
-        #     mask_3d = mask[:, 1]
 
         if token_embeddings is not None:
             x = token_embeddings
@@ -629,6 +599,8 @@ class GraphormerSentenceEncoderPP(GraphormerSentenceEncoder):
         batched_data["node_mask"] = node_mask
 
         x, _, _, _, padding_mask = super().forward(batched_data)
+
+        del batched_data
 
         return (x, padding_mask, llm_mask, input_ids)
 
