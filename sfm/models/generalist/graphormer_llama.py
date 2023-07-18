@@ -168,12 +168,62 @@ class GraphormerLlamaModel(torch.nn.Module):
                 )
             )
 
-    def generate(self):
-        return self.decoder.generate()
+    @torch.no_grad()
+    def generate(
+        self,
+        batched_data: Optional[Dict] = None,
+        input_ids: Optional[torch.LongTensor] = None,
+        attention_mask: Optional[torch.LongTensor] = None,
+        **generate_kwargs,
+    ) -> torch.LongTensor:
+        """
+        Overrides `generate` function to be able to use the model as a conditional generator.
 
-    def _resize_llm_token_embeddings(self, new_num_tokens: int):
-        if self.args.pipeline_parallelism == 0:
-            self.decoder.resize_token_embeddings(new_num_tokens)
+        Args:
+            pixel_values (`torch.FloatTensor` of shape (batch_size, num_channels, height, width)):
+                Input images to be processed.
+            input_ids (`torch.LongTensor` of shape (batch_size, sequence_length), *optional*):
+                The sequence used as a prompt for the generation.
+            attention_mask (`torch.LongTensor` of shape (batch_size, sequence_length), *optional*):
+                Mask to avoid performing attention on padding token indices
+
+        Returns:
+            captions (list): A list of strings of length batch_size * num_captions.
+        """
+        if batched_data is not None:
+            mol_emb, _, _, _, mol_padding_mask = self.graphormer_encoder(
+                batched_data,
+            )
+
+        input_ids = input_ids[0].unsqueeze(0)
+        # generate text_emb
+        text_embeds = self.decoder.get_input_embeddings()(
+            torch.where(input_ids > 0, input_ids, 0)
+        )
+
+        if batched_data is not None:
+            # mix embeddings
+            inputs_embeds, _ = self.adaptor(
+                mol_emb,
+                mol_padding_mask,
+                text_embeds,
+                attention_mask,
+                input_ids,
+            )
+        if batched_data is not None:
+            outputs = self.decoder.generate(
+                inputs_embeds=inputs_embeds,
+                attention_mask=attention_mask,
+                **generate_kwargs,
+            )
+        else:
+            outputs = self.decoder.generate(
+                inputs_embeds=text_embeds,
+                attention_mask=attention_mask,
+                **generate_kwargs,
+            )
+
+        return outputs
 
     def load_encoder_state_dict(
         self, graphormer_ckppth, llama_ckppth=None, strict=False
@@ -204,7 +254,6 @@ class GraphormerLlamaModel(torch.nn.Module):
         )
 
         # mix embeddings
-
         inputs_embeds, position_ids = self.adaptor(
             mol_emb,
             mol_padding_mask,

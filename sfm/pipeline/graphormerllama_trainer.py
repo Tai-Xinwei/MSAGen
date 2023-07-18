@@ -62,7 +62,7 @@ class Trainer:
                 num_stages=args.pipeline_parallelism,
                 loss_fn=CopilotCriterionsPP(args, vocab_size),
                 partition_method="manual",
-                part_list=[0, 8, 17, 26, 36],
+                part_list=[0, 3, 8, 13, 18, 22, 26, 31, 36],
             )
             optimizer = myAdam(
                 net,

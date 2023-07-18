@@ -267,9 +267,6 @@ class GraphormerSentenceEncoder(nn.Module):
 
         self.args = args
 
-        self.dummy = nn.Parameter(
-            torch.zeros(1, dtype=torch.float32), requires_grad=True
-        )
         # num_pred_attn_layer = args.num_pred_attn_layer
         # self.output_model_noise = EquivariantVectorOutput(self.embedding_dim)
         # self.out_norm_vec = EquivariantLayerNorm(self.embedding_dim)
