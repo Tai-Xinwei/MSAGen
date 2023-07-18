@@ -19,7 +19,6 @@ from modules.llama_modules import LlamaModelPP
 
 # from modules.
 from sfmlogging.loggers import sfm_logger as logger
-from transformers.modeling_utils import PreTrainedModel
 from transformers.models.llama.configuration_llama import LlamaConfig
 from transformers.models.llama.modeling_llama import LlamaForCausalLM
 from utils.chemical_tokens import CHEMICAL_TOKENS
@@ -61,7 +60,8 @@ class GraphormerLlamaModel(torch.nn.Module):
         self.max_positions = args.max_positions
 
         Llama_config = LlamaConfig.from_pretrained(args.llm_model_name_or_path)
-        adaptorconfig = self.init_adaptor_param(args, Llama_config)
+        Llama_config.vocab_size = vocab_size
+        adaptorconfig = self.init_adaptor_config(args, Llama_config)
 
         self.pipe_layers = []
         if args.pipeline_parallelism == 0:
@@ -98,8 +98,10 @@ class GraphormerLlamaModel(torch.nn.Module):
             )
             # self.load_encoder_state_dict(args.loadmfmcheck_path, strict=False)
 
-            self.decoder = LlamaForCausalLM.from_pretrained(args.llm_model_name_or_path)
-            self._resize_llm_token_embeddings(vocab_size)
+            self.decoder = LlamaForCausalLM(Llama_config)
+            # self.decoder = LlamaForCausalLM.from_pretrained(args.llm_model_name_or_path)
+            # self._resize_llm_token_embeddings(vocab_size)
+
             self.adaptor = HybridEmbeddings(adaptorconfig)
         else:
             load_ckpt = not args.infer
@@ -166,6 +168,9 @@ class GraphormerLlamaModel(torch.nn.Module):
                 )
             )
 
+    def generate(self):
+        return self.decoder.generate()
+
     def _resize_llm_token_embeddings(self, new_num_tokens: int):
         if self.args.pipeline_parallelism == 0:
             self.decoder.resize_token_embeddings(new_num_tokens)
@@ -217,8 +222,9 @@ class GraphormerLlamaModel(torch.nn.Module):
 
         return logits
 
-    def init_adaptor_param(self, args, Llama_config):
+    def init_adaptor_config(self, args, Llama_config):
         config = AdaptorConfig(
+            vocab_size=Llama_config.vocab_size,
             hidden_size=Llama_config.hidden_size,
             intermediate_size=Llama_config.intermediate_size,
             num_attention_heads=Llama_config.num_attention_heads,

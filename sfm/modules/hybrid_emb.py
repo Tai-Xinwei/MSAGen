@@ -293,7 +293,7 @@ class HybridEmbeddings(nn.Module):
             )
             self.embedding_length = config.embedding_length
 
-        self.dummy = nn.Linear(1, 1)
+        # self.dummy = nn.Linear(1, 1)
 
         # self.mol_adapter = MLPAdapter(hidden_size=config.mfm_hidden_size, intermediate_size=config.mfm_hidden_size,
         #   output_size=config.hidden_size, hidden_act=config.hidden_act)

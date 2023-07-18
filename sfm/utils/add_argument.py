@@ -69,7 +69,7 @@ def add_argument():
     parser.add_argument("--dropout", type=float, default=0.0, help="")
     parser.add_argument("--weight_decay", type=float, default=0.0, help="")
     parser.add_argument("--sandwich_ln", default=True, action="store_true", help="")
-    parser.add_argument("--ft", action="store_true", default=False, help="")
+    parser.add_argument("--ft", default=False, action="store_true", help="")
     parser.add_argument("--infer", action="store_true", default=False, help="")
     parser.add_argument("--noise_scale", type=float, default=0.2, help="")
     parser.add_argument("--mask_ratio", type=float, default=0.3, help="")
@@ -125,6 +125,6 @@ def add_argument():
     parser.add_argument("--model_max_length", type=int, default=2048)
 
     parser = deepspeed.add_config_arguments(parser)
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
 
     return args

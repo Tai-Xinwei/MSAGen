@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from typing import Optional
+from typing import Dict, Optional
 
 import torch
 from deepspeed.pipe import LayerSpec
@@ -22,13 +22,13 @@ class PretrainedLayerSpec(LayerSpec):
         if self.pretrained_ckpt_path is not None and self.load_ckpt:
             self.load_pretrained(device=device)
 
-        self.resize_token_embeddings(self.new_num_tokens)
+        # self.resize_token_embeddings(self.new_num_tokens)
 
-        # TODO: LORA
-        if self.lora_mode == "freeze":
-            self.layer = self.create_peft_model(self.layer, lora=False)
-        elif self.lora_mode == "lora":
-            self.layer = self.create_peft_model(self.layer, lora=True)
+        # # TODO: LORA
+        # if self.lora_mode == "freeze":
+        #     self.layer = self.create_peft_model(self.layer, lora=False)
+        # elif self.lora_mode == "lora":
+        #     self.layer = self.create_peft_model(self.layer, lora=True)
 
         return self.layer
 
@@ -40,6 +40,9 @@ class PretrainedLayerSpec(LayerSpec):
             checkpoints_state = checkpoints_state["module"]
         elif type(checkpoints_state) == dict and "model" in checkpoints_state:
             checkpoints_state = checkpoints_state["model"]
+
+        if self.new_num_tokens is not None:
+            checkpoints_state = self.resize_token_embeddings(checkpoints_state)
 
         IncompatibleKeys = self.layer.load_state_dict(checkpoints_state, strict=False)
         IncompatibleKeys = IncompatibleKeys._asdict()
@@ -74,9 +77,62 @@ class PretrainedLayerSpec(LayerSpec):
 
         ds_logger.info(f"{device} Loaded from {self.pretrained_ckpt_path}")
 
-    def resize_token_embeddings(self, new_num_tokens: Optional[int] = None) -> None:
-        if new_num_tokens is not None:
-            self.layer.resize_token_embeddings(new_num_tokens)
+    # def resize_token_embeddings(self, new_num_tokens: Optional[int] = None) -> None:
+    #     if new_num_tokens is not None:
+    #         self.layer.resize_token_embeddings(new_num_tokens)
+
+    def resize_token_embeddings(self, checkpoints_state: dict) -> dict:
+        if "lm_head.weight" in checkpoints_state:
+            old_head_size = checkpoints_state["lm_head.weight"].size(0)
+            if old_head_size == self.new_num_tokens:
+                return checkpoints_state
+            elif old_head_size <= self.new_num_tokens:
+                old_head_weight = checkpoints_state["lm_head.weight"]
+                new_head = torch.nn.Linear(
+                    old_head_weight.size(1),
+                    self.new_num_tokens,
+                    bias=False,
+                    dtype=old_head_weight.dtype,
+                    device=old_head_weight.device,
+                )
+                new_head.weight.data[
+                    : old_head_weight.size(0), :
+                ] = old_head_weight.data
+                checkpoints_state["lm_head.weight"] = new_head.weight
+
+                return checkpoints_state
+            else:
+                raise ValueError(
+                    f"new embedding size {self.new_num_tokens} must be larger than the current one {old_head_size}"
+                )
+
+        elif "embed_tokens.weight" in checkpoints_state:
+            old_embed_size = checkpoints_state["embed_tokens.weight"].size(0)
+            if old_embed_size == self.new_num_tokens:
+                return checkpoints_state
+            elif old_embed_size <= self.new_num_tokens:
+                old_embed_weight = checkpoints_state["embed_tokens.weight"]
+                new_embed = torch.nn.Embedding(
+                    self.new_num_tokens,
+                    old_embed_weight.size(1),
+                    dtype=old_embed_weight.dtype,
+                    device=old_embed_weight.device,
+                )
+                new_embed.weight.data.normal_(mean=0.0, std=1.0)
+                new_embed.weight.data[
+                    : old_embed_weight.size(0), :
+                ] = old_embed_weight.data
+                checkpoints_state["embed_tokens.weight"] = new_embed.weight
+
+                return checkpoints_state
+            else:
+                raise ValueError(
+                    f"new embedding size {self.new_num_tokens} must be larger than the current one {old_embed_size}"
+                )
+
+        raise ValueError(
+            "lm_head.weight and embed_tokens.weight are not found in checkpoints_state"
+        )
 
     def create_peft_model(self, model, lora=True):
         LORA_R = 8

@@ -8,5 +8,11 @@
     "enabled": true
   },
   "gradient_clipping": 1.0,
-  "steps_per_print": 100
+  "steps_per_print": 100,
+  "wandb": {
+    "enabled": true,
+    "team": "icuppjin",
+    "group": "generalist",
+    "project": "DiffMFM"
+  }
 }

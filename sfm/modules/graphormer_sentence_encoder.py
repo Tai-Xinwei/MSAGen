@@ -10,7 +10,7 @@ from typing import Optional, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
-from transformers.configuration_utils import PretrainedConfig
+from models.graphormer.graphormer_config import GraphormerConfig
 from utils.LayerDropModuleList import LayerDropModuleList
 
 from .FairseqDropout import FairseqDropout
@@ -70,50 +70,6 @@ def init_bert_params(module):
         normal_(module.q_proj.weight.data)
         normal_(module.k_proj.weight.data)
         normal_(module.v_proj.weight.data)
-
-
-class GraphormerConfig(PretrainedConfig):
-    model_type = "graphormer"
-
-    def __init__(
-        self,
-        vocab_size=32000,
-        hidden_size=4096,
-        intermediate_size=11008,
-        num_hidden_layers=32,
-        num_attention_heads=32,
-        hidden_act="silu",
-        max_position_embeddings=2048,
-        initializer_range=0.02,
-        rms_norm_eps=1e-6,
-        use_cache=True,
-        pad_token_id=0,
-        bos_token_id=1,
-        eos_token_id=2,
-        tie_word_embeddings=False,
-        molrep_dict_path=None,
-        mfm_hidden_size=None,
-        **kwargs,
-    ):
-        self.vocab_size = vocab_size
-        self.max_position_embeddings = max_position_embeddings
-        self.hidden_size = hidden_size
-        self.intermediate_size = intermediate_size
-        self.num_hidden_layers = num_hidden_layers
-        self.num_attention_heads = num_attention_heads
-        self.hidden_act = hidden_act
-        self.initializer_range = initializer_range
-        self.rms_norm_eps = rms_norm_eps
-        self.use_cache = use_cache
-        self.molrep_dict_path = molrep_dict_path
-        self.mfm_hidden_size = mfm_hidden_size
-        super().__init__(
-            pad_token_id=pad_token_id,
-            bos_token_id=bos_token_id,
-            eos_token_id=eos_token_id,
-            tie_word_embeddings=tie_word_embeddings,
-            **kwargs,
-        )
 
 
 class GraphormerSentenceEncoder(nn.Module):
@@ -311,7 +267,27 @@ class GraphormerSentenceEncoder(nn.Module):
 
         self.args = args
 
-        self.dummy = nn.Linear(1, 1)
+        self.dummy = nn.Parameter(
+            torch.zeros(1, dtype=torch.float32), requires_grad=True
+        )
+        # num_pred_attn_layer = args.num_pred_attn_layer
+        # self.output_model_noise = EquivariantVectorOutput(self.embedding_dim)
+        # self.out_norm_vec = EquivariantLayerNorm(self.embedding_dim)
+
+        # self.distance = Distance()
+        # self.distance_expansion = ExpNormalSmearing(num_rbf=num_3d_bias_kernel)
+
+        # self.out_norm = nn.LayerNorm(self.embedding_dim)
+
+        # self.attention_layers = nn.ModuleList()
+        # for _ in range(num_pred_attn_layer):
+        #     layer = EquivariantMultiHeadAttention(
+        #         hidden_channels=self.embedding_dim,
+        #         num_rbf=num_3d_bias_kernel,
+        #         num_heads=num_attention_heads,
+        #     )
+        #     # layer = EquivariantMultiHeadAttention()
+        #     self.attention_layers.append(layer)
 
     def build_transformer_sentence_encoder_layer(
         self,
@@ -377,6 +353,11 @@ class GraphormerSentenceEncoder(nn.Module):
         padding_mask = torch.cat((padding_mask_cls, padding_mask), dim=1)
 
         mask_2d = mask_3d = None
+        # if self.training:
+        #     mask_choice = np.random.choice(np.arange(3), n_graph, p=[1.0 / 3, 1.0 / 3, 1.0 / 3])
+        #     mask = torch.tensor([mask_dict[i] for i in mask_choice]).to(batched_data['pos'])
+        #     mask_2d = mask[:, 0]
+        #     mask_3d = mask[:, 1]
 
         if token_embeddings is not None:
             x = token_embeddings
@@ -599,8 +580,6 @@ class GraphormerSentenceEncoderPP(GraphormerSentenceEncoder):
         batched_data["node_mask"] = node_mask
 
         x, _, _, _, padding_mask = super().forward(batched_data)
-
-        del batched_data
 
         return (x, padding_mask, llm_mask, input_ids)
 

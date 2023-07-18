@@ -8,7 +8,7 @@ from typing import Callable, Optional
 
 import torch
 import torch.nn as nn
-from transformers.configuration_utils import PretrainedConfig
+from models.graphormer.graphormer_config import GraphormerConfig
 
 from .droppath import DropPath
 from .FairseqDropout import FairseqDropout
@@ -111,7 +111,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         self.self_attn_mask = self_attn_mask
 
         # self.dummy = nn.Parameter(torch.zeros(1, dtype=torch.float32), requires_grad=True)
-        self.dummy = nn.Linear(1, 1, bias=False)
+        # self.dummy = nn.Linear(1, 1, bias=False)
 
         self.reset_parameters()
 
@@ -308,47 +308,3 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
             )
         # value_tensor, shape_tensor = self.tensors_encode(x, self_attn_bias, delta_pos)
         # return (value_tensor, self_attn_padding_mask, shape_tensor)
-
-
-class GraphormerConfig(PretrainedConfig):
-    model_type = "graphormer"
-
-    def __init__(
-        self,
-        vocab_size=32000,
-        hidden_size=4096,
-        intermediate_size=11008,
-        num_hidden_layers=32,
-        num_attention_heads=32,
-        hidden_act="silu",
-        max_position_embeddings=2048,
-        initializer_range=0.02,
-        rms_norm_eps=1e-6,
-        use_cache=True,
-        pad_token_id=0,
-        bos_token_id=1,
-        eos_token_id=2,
-        tie_word_embeddings=False,
-        molrep_dict_path=None,
-        mfm_hidden_size=None,
-        **kwargs,
-    ):
-        self.vocab_size = vocab_size
-        self.max_position_embeddings = max_position_embeddings
-        self.hidden_size = hidden_size
-        self.intermediate_size = intermediate_size
-        self.num_hidden_layers = num_hidden_layers
-        self.num_attention_heads = num_attention_heads
-        self.hidden_act = hidden_act
-        self.initializer_range = initializer_range
-        self.rms_norm_eps = rms_norm_eps
-        self.use_cache = use_cache
-        self.molrep_dict_path = molrep_dict_path
-        self.mfm_hidden_size = mfm_hidden_size
-        super().__init__(
-            pad_token_id=pad_token_id,
-            bos_token_id=bos_token_id,
-            eos_token_id=eos_token_id,
-            tie_word_embeddings=tie_word_embeddings,
-            **kwargs,
-        )

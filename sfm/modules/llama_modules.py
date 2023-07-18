@@ -137,6 +137,7 @@ class LlamaHead(nn.Module):
 
             new_head.weight.data[: old_head.size(0), :] = old_head.data
             self.lm_head = new_head
+
         else:
             raise ValueError(
                 f"new embedding size {new_num_tokens} must be larger than the current one {self.config.vocab_size}"

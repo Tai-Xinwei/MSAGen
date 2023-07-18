@@ -17,8 +17,6 @@ from utils.move_to_device import move_to_device
 from utils.mypp_module import PipelineModule
 from utils.set_lr import groupWarmupDecayLR, myAdam
 
-# from .accelerator.trainer import Trainer as BaseTrainer
-
 
 class Trainer:
     def __init__(self, args, train_data, vocab_size):
@@ -105,7 +103,6 @@ class Trainer:
     def train(self):
         sfm_logger.info("start training")
         global_step = 1
-        global_step = 1
         for epoch in range(self.args.epochs):
             for i, batch_data in enumerate(self.train_loader):
                 batch_data = move_to_device(
@@ -134,14 +131,15 @@ class Trainer:
         sfm_logger.info("start pipeline training")
 
         for global_step in range(1, self.args.total_num_steps + 1):
+            # self.save_ckp(global_step); exit(0)
+
             self.model_engine.train_batch()
 
-            if global_step % 200000 == 0:
-                self.model_engine.save_checkpoint(
-                    save_dir=self.args.output_path,
-                    client_state={"checkpoint_step": global_step},
-                )
+            if global_step % 10000 == 0:
+                self.save_ckp(global_step)
 
-    def generate(self, batch_data):
-        logits = self.model_engine(batch_data)
-        return logits
+    def save_ckp(self, global_step):
+        self.model_engine.save_checkpoint(
+            save_dir=self.args.output_path,
+            client_state={"checkpoint_step": global_step},
+        )

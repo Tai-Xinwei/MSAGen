@@ -10,11 +10,14 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from sfm.modules import GraphormerSentenceEncoder, Node_decoder, init_bert_params
-from sfm.modules.get_activation_fn import get_activation_fn
-from sfm.modules.layer_norm import LayerNorm
-from sfm.modules.quant_noise import quant_noise
+from modules.get_activation_fn import get_activation_fn
+from modules.graphormer_sentence_encoder import (
+    GraphormerSentenceEncoder,
+    Node_decoder,
+    init_bert_params,
+)
+from modules.layer_norm import LayerNorm
+from modules.quant_noise import quant_noise
 
 logger = logging.getLogger(__name__)
 
