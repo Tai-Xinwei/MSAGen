@@ -49,7 +49,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
-[ -z "${MASTER_PORT}" ] && MASTER_PORT=62346
+[ -z "${MASTER_PORT}" ] && MASTER_PORT=6666
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 # [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=-1
@@ -185,7 +185,7 @@ wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
 #     --dataset_splits $dataset_splits
 # fi
 
-deepspeed --num_gpu=4 sfm/tasks/ft_graphormerllama.py \
+deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/ft_graphormerllama.py \
   --num-classes 1 \
   --encoder_attention_heads $num_head \
   --encoder_layers $layers \

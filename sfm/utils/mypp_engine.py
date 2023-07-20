@@ -297,6 +297,9 @@ class myPipeEngine(DeepSpeedEngine):
         for weight, group in weight_group_list:
             # print("weight", weight, weight.grad)
             grad = weight._hp_grad if self.bfloat16_enabled() else weight.grad
+            # set part of elements in tensor grad to zero
+            # # customized for Llama special token training
+            # grad[:, :32001] = 0.0
             dist.all_reduce(grad, group=group)
 
     def _exec_reduce_grads(self):

@@ -71,30 +71,30 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     tokenizer.add_special_tokens(special_tokens_dict)
 
     """ Make dataset and collator for supervised fine-tuning. """
-    dataset = SupervisedProcessedData(
-        args=args,
-        data_path=args.data_path,
-        dataset_names=args.dataset_names,
-        dataset_splits=args.dataset_splits,
-        mol2idx_dict_path=args.smiles_dict_path,
-        embedding_length=args.embedding_length,
-        in_memory=False,
-        mol_size_path=args.mol_size_path,
-        pad_token_id=tokenizer.pad_token_id,
-        pool_mode=args.pool_mode,
-    )
+    # dataset = SupervisedProcessedData(
+    #     args=args,
+    #     data_path=args.data_path,
+    #     dataset_names=args.dataset_names,
+    #     dataset_splits=args.dataset_splits,
+    #     mol2idx_dict_path=args.smiles_dict_path,
+    #     embedding_length=args.embedding_length,
+    #     in_memory=False,
+    #     mol_size_path=args.mol_size_path,
+    #     pad_token_id=tokenizer.pad_token_id,
+    #     pool_mode=args.pool_mode,
+    # )
 
     """ moleculenet dataset only for fast debugging, do not remove this。 """
-    # dataset = SupervisedMoleculeNetDataset(
-    #     data_path="/home/peiran/FMproj/MoleculeNet_prompts_v2/",
-    #     dataset_names="bace",
-    #     # dataset_names="hiv,clintox,bbbp,sider,tox21,bace",
-    #     smiles_dict_path="/home/peiran/FMproj/MoleculeNet_prompts_v2/mol2idx_dict.jsonl",
-    #     tokenizer=tokenizer,
-    #     mode="train",
-    #     pool_mode="multimol",
-    #     embedding_length=20,
-    # )
+    dataset = SupervisedMoleculeNetDataset(
+        data_path="/home/peiran/FMproj/MoleculeNet_prompts_v2/",
+        dataset_names="bace",
+        # dataset_names="hiv,clintox,bbbp,sider,tox21,bace",
+        smiles_dict_path="/home/peiran/FMproj/MoleculeNet_prompts_v2/mol2idx_dict.jsonl",
+        tokenizer=tokenizer,
+        mode="train",
+        pool_mode="multimol",
+        embedding_length=20,
+    )
 
     return dict(train_dataset=dataset, eval_dataset=None, vocab_size=len(tokenizer))
 

@@ -15,6 +15,7 @@ from sfmlogging.loggers import sfm_logger
 from utils.get_paranum import count_paranum
 from utils.move_to_device import move_to_device
 from utils.mypp_module import PipelineModule
+from utils.pretrained_layer_spec import load_ckp_tied_modules
 from utils.set_lr import groupWarmupDecayLR, myAdam
 
 
@@ -65,6 +66,9 @@ class Trainer:
                 # part_list=[0, 4, 9, 14, 19, 23, 27, 32, 37],
                 part_list=[0, 9, 19, 27, 37],
             )
+
+            # load_ckp_tied_modules(net, args, vocab_size)
+
             optimizer = myAdam(
                 net,
                 mode="adaptoronly",
@@ -132,8 +136,6 @@ class Trainer:
         sfm_logger.info("start pipeline training")
 
         for global_step in range(1, self.args.total_num_steps + 1):
-            # self.save_ckp(global_step); exit(0)
-
             self.model_engine.train_batch()
 
             if global_step % 2000 == 0:

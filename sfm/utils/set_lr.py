@@ -103,7 +103,8 @@ def process_freeze_param(
             if (
                 name.find("adaptor") != -1
                 or name.find("dummy") != -1
-                or name.find("embed_tokens") != -1  # or name.find("lm_head") != -1
+                # or name.find("embed_tokens") != -1
+                # or name.find("lm_head") != -1
             ):
                 param_groups[0]["params"].append(param)
     else:

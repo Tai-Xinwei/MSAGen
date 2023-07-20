@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
+import os
 from typing import Dict, Optional
 
 import torch
-from deepspeed.pipe import LayerSpec
+from deepspeed.pipe import LayerSpec, TiedLayerSpec
 from deepspeed.utils import logger as ds_logger
 from peft import LoraConfig, get_peft_model
 
@@ -178,3 +179,28 @@ class TiedPretrainedLayerSpec(PretrainedLayerSpec):
         self.key = key
         self.forward_fn = forward_fn
         self.tied_weight_attr = tied_weight_attr
+
+
+def load_ckp_tied_modules(net: torch.nn.Module, args, new_num_tokens, device="cpu"):
+    for key in net.tied_modules.keys():
+        if key == "embed_tokens":
+            loadpath = os.path.join(args.llm_model_name_or_path, "model.hybrid_emb.pt")
+
+            checkpoints_state = torch.load(loadpath, map_location=device)
+            old_embed_weight = checkpoints_state["embed_tokens.weight"]
+            new_embed = torch.nn.Embedding(
+                new_num_tokens,
+                old_embed_weight.size(1),
+                dtype=old_embed_weight.dtype,
+                device=old_embed_weight.device,
+            )
+
+            new_embed.weight.data.normal_(mean=0.0, std=1.0)
+            new_embed.weight.data[: old_embed_weight.size(0), :] = old_embed_weight.data
+
+            checkpoints_state["embed_tokens.weight"] = new_embed.weight
+
+            layer = net.tied_modules[key]
+            layer.load_state_dict(checkpoints_state, strict=True)
+
+            ds_logger.info(f"{device} Loaded from {loadpath}")

@@ -145,8 +145,19 @@ class GraphormerLlamaModel(torch.nn.Module):
 
             self.pipe_layers.extend(
                 [
-                    TiedPretrainedLayerSpec(
-                        "embed_tokens",
+                    # TiedPretrainedLayerSpec(
+                    #     "embed_tokens",
+                    #     LlamaEmbeddingsPP,
+                    #     Llama_config,
+                    #     new_num_tokens=vocab_size,
+                    #     load_ckpt=load_ckpt,
+                    #     pretrained_ckpt_path=os.path.join(
+                    #         args.llm_model_name_or_path, "model.hybrid_emb.pt"
+                    #     ),
+                    #     lora_mode="full",
+                    #     tied_weight_attr="emb_weight",
+                    # )
+                    PretrainedLayerSpec(
                         LlamaEmbeddingsPP,
                         Llama_config,
                         new_num_tokens=vocab_size,
@@ -155,7 +166,6 @@ class GraphormerLlamaModel(torch.nn.Module):
                             args.llm_model_name_or_path, "model.hybrid_emb.pt"
                         ),
                         lora_mode="full",
-                        tied_weight_attr="emb_weight",
                     )
                 ]
             )

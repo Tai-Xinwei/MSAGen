@@ -6,6 +6,7 @@ from typing import List, Optional, Tuple, Union
 import torch
 from modules.partial_grad_emb import PartialGradEmbedding
 from torch import nn
+from torch.nn import functional as F
 from transformers import (
     LlamaConfig,
     LlamaPreTrainedModel,
@@ -110,18 +111,26 @@ class LlamaNorm(nn.Module):
         return (hidden_states,)
 
 
+def lm_logits(embedding, input_tuple):
+    """LM logits using word embedding weights."""
+    input_ = input_tuple[0]
+    logits = F.linear(input_, embedding.emb_weight)
+    return logits
+
+
 class LlamaEmbeddingsPP(nn.Module):
-    def __init__(self, config: LlamaConfig):
+    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32000):
         super().__init__()
         self.embed_tokens = torch.nn.Embedding(
             config.vocab_size, config.hidden_size, config.pad_token_id
         )
+        self.learnable_cutoff = learnable_cutoff
         # self.weight = self.embed_tokens.weight.data.requires_grad_().cuda()
         # self.weight.grad = torch.zeros_like(self.weight)
 
-        self.partial_learnable_emb = PartialGradEmbedding(
-            self.embed_tokens, new_embedding_cutoff=32000
-        )
+        # self.partial_learnable_emb = PartialGradEmbedding(
+        #     self.embed_tokens, new_embedding_cutoff=32000
+        # )
 
     @property
     def emb_weight(self):
@@ -134,11 +143,21 @@ class LlamaEmbeddingsPP(nn.Module):
 
         # Get text embeddings from language model
         mol_idx_mask = input_ids < 0  # B, T
+
+        ## all freeze
         # with torch.no_grad():
-        # text_embeds = self.embed_tokens(
-        #     input_ids.masked_fill(mol_idx_mask, 0)
-        # )  # B, T, hidden_size
-        text_embeds = self.partial_learnable_emb(input_ids.masked_fill(mol_idx_mask, 0))
+        text_embeds = self.embed_tokens(
+            input_ids.masked_fill(mol_idx_mask, 0)
+        )  # B, T, hidden_size
+
+        # ## partial freeze
+        # w = (input_ids > self.learnable_cutoff) * 1.0
+        # w = w.unsqueeze(-1)
+        # text_input_ids = input_ids.masked_fill(mol_idx_mask, 0)
+        # text_embeds = (
+        #     w * self.embed_tokens(text_input_ids)
+        #     + (1 - w) * self.embed_tokens(text_input_ids).detach()
+        # )
 
         return mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids
 
@@ -223,9 +242,21 @@ class LlamaModelPP(LlamaPreTrainedModel):
             )
         )
         cls.pipe_layer.append(
-            TiedPretrainedLayerSpec(
-                "embed_tokens",
-                # PretrainedLayerSpec(
+            # TiedPretrainedLayerSpec(
+            #     "embed_tokens",
+            #     # PretrainedLayerSpec(
+            #     LlamaEmbeddingsPP,
+            #     config,
+            #     new_num_tokens=new_num_tokens,
+            #     load_ckpt=load_ckpt,
+            #     pretrained_ckpt_path=os.path.join(
+            #         args.llm_model_name_or_path, "model.hybrid_emb.pt"
+            #     ),
+            #     lora_mode="freeze",
+            #     tied_weight_attr="emb_weight",
+            #     forward_fn=lm_logits,
+            # )
+            PretrainedLayerSpec(
                 LlamaHead,
                 config,
                 new_num_tokens=new_num_tokens,
@@ -234,7 +265,6 @@ class LlamaModelPP(LlamaPreTrainedModel):
                     args.llm_model_name_or_path, "model.lm_head.pt"
                 ),
                 lora_mode="freeze",
-                tied_weight_attr="emb_weight",
             )
         )
 

@@ -246,7 +246,7 @@ class PipelineModule(nn.Module):
             elif isinstance(layer, (TiedLayerSpec, TiedPretrainedLayerSpec)):
                 # Build and register the module if we haven't seen it before.
                 if layer.key not in self.tied_modules:
-                    self.tied_modules[layer.key] = layer.build()
+                    self.tied_modules[layer.key] = layer.build(self.device)
                     self.tied_weight_attrs[layer.key] = layer.tied_weight_attr
 
                 if layer.forward_fn is None:
@@ -267,7 +267,7 @@ class PipelineModule(nn.Module):
                 self.add_module(name, module)
 
             elif isinstance(layer, (PretrainedLayerSpec)):
-                module = layer.build(self.device, load=True)
+                module = layer.build(self.device)
                 name = str(layer_idx)
                 self.forward_funcs.append(module)
                 self.fwd_map.update({name: len(self.forward_funcs) - 1})
