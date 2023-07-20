@@ -87,12 +87,13 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     """ moleculenet dataset only for fast debugging, do not remove this。 """
     # dataset = SupervisedMoleculeNetDataset(
     #     data_path="/home/peiran/FMproj/MoleculeNet_prompts_v2/",
-    #     dataset_names="hiv,clintox,bbbp",
+    #     dataset_names="bace",
+    #     # dataset_names="hiv,clintox,bbbp,sider,tox21,bace",
     #     smiles_dict_path="/home/peiran/FMproj/MoleculeNet_prompts_v2/mol2idx_dict.jsonl",
     #     tokenizer=tokenizer,
     #     mode="train",
-    #     pool_mode="cls",
-    #     embedding_length=1,
+    #     pool_mode="multimol",
+    #     embedding_length=20,
     # )
 
     return dict(train_dataset=dataset, eval_dataset=None, vocab_size=len(tokenizer))

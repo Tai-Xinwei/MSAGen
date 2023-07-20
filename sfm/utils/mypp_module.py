@@ -11,7 +11,7 @@ from deepspeed.runtime import utils as ds_utils
 from deepspeed.runtime.activation_checkpointing import checkpointing
 from deepspeed.runtime.state_dict_factory import SDLoaderFactory
 from deepspeed.utils import logger
-from utils.pretrained_layer_spec import PretrainedLayerSpec
+from utils.pretrained_layer_spec import PretrainedLayerSpec, TiedPretrainedLayerSpec
 
 # from deepspeed.runtime.pipe.topology import PipeDataParallelTopology, PipelineParallelGrid
 from .myPipelineParallelGrid import PipeDataParallelTopology, myPipelineParallelGrid
@@ -243,7 +243,7 @@ class PipelineModule(nn.Module):
                 self.add_module(name, layer)
 
             # TiedLayerSpec objects contain an nn.Module that should be allocated now.
-            elif isinstance(layer, TiedLayerSpec):
+            elif isinstance(layer, (TiedLayerSpec, TiedPretrainedLayerSpec)):
                 # Build and register the module if we haven't seen it before.
                 if layer.key not in self.tied_modules:
                     self.tied_modules[layer.key] = layer.build()
@@ -475,12 +475,19 @@ class PipelineModule(nn.Module):
             return tied_comms
 
         specs = self._layer_specs
-        tie_keys = set(s.key for s in specs if isinstance(s, TiedLayerSpec))
+        tie_keys = set(
+            s.key
+            for s in specs
+            if isinstance(s, (TiedLayerSpec, TiedPretrainedLayerSpec))
+        )
         for key in tie_keys:
             # Find the layers that the tied module appears in
             tied_layers = []
             for idx, layer in enumerate(specs):
-                if isinstance(layer, TiedLayerSpec) and layer.key == key:
+                if (
+                    isinstance(layer, (TiedLayerSpec, TiedPretrainedLayerSpec))
+                    and layer.key == key
+                ):
                     tied_layers.append(idx)
             # Find all stages with this tied module
             # TODO: Would be nice to remove the nested data/model parallelism loops and

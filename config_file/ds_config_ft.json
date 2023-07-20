@@ -1,6 +1,6 @@
 {
-  "train_batch_size": 1,
-  "gradient_accumulation_steps": 1,
+  "train_batch_size": 4,
+  "gradient_accumulation_steps": 4,
   "zero_optimization": {
     "stage": 1
   },
@@ -8,11 +8,5 @@
     "enabled": true
   },
   "gradient_clipping": 1.0,
-  "steps_per_print": 100,
-  "wandb": {
-    "enabled": true,
-    "team": "icuppjin",
-    "group": "generalist",
-    "project": "DiffMFM"
-  }
+  "steps_per_print": 100
 }

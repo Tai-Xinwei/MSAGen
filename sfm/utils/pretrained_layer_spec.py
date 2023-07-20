@@ -162,3 +162,19 @@ class PretrainedLayerSpec(LayerSpec):
         model = get_peft_model(model, lora_config)
 
         return model
+
+
+class TiedPretrainedLayerSpec(PretrainedLayerSpec):
+    def __init__(
+        self,
+        key,
+        typename,
+        *module_args,
+        forward_fn=None,
+        tied_weight_attr="weight",
+        **module_kwargs,
+    ):
+        super().__init__(typename, *module_args, **module_kwargs)
+        self.key = key
+        self.forward_fn = forward_fn
+        self.tied_weight_attr = tied_weight_attr

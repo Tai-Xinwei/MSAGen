@@ -4,13 +4,10 @@ from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
+from modules.partial_grad_emb import PartialGradEmbedding
 from transformers.activations import ACT2FN
 from transformers.configuration_utils import PretrainedConfig
-from transformers.models.llama.modeling_llama import (
-    LlamaRMSNorm,
-    _expand_mask,
-    _make_causal_mask,
-)
+from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
 
 class AdaptorConfig(PretrainedConfig):
@@ -409,6 +406,56 @@ class HybridEmbeddings(nn.Module):
 
         return token_embed
 
+    # Copied from transformers.models.bart.modeling_bart._make_causal_mask
+    def _make_causal_mask(
+        self,
+        input_ids_shape: torch.Size,
+        dtype: torch.dtype,
+        device: torch.device,
+        past_key_values_length: int = 0,
+    ):
+        """
+        Make causal mask used for bi-directional self-attention.
+        """
+        bsz, tgt_len = input_ids_shape
+        mask = torch.full((tgt_len, tgt_len), False, device=device)
+        mask_cond = torch.arange(mask.size(-1), device=device)
+        mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), True)
+        # mask = mask.to(dtype)
+
+        if past_key_values_length > 0:
+            mask = torch.cat(
+                [
+                    torch.zeros(
+                        tgt_len, past_key_values_length, dtype=mask.dtype, device=device
+                    ),
+                    mask,
+                ],
+                dim=-1,
+            )
+        return mask[None, None, :, :].expand(
+            bsz, 1, tgt_len, tgt_len + past_key_values_length
+        )
+
+    # Copied from transformers.models.bart.modeling_bart._expand_mask
+    def _expand_mask(
+        self, mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None
+    ):
+        """
+        Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
+        """
+        bsz, src_len = mask.size()
+        tgt_len = tgt_len if tgt_len is not None else src_len
+
+        expanded_mask = mask[:, None, None, :].expand(
+            bsz, 1, tgt_len, src_len
+        )  # .to(dtype)
+
+        return expanded_mask.to(torch.bool)
+
+        # inverted_mask = 1.0 - expanded_mask
+        # return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+
     # Copied from transformers.models.bart.modeling_bart.BartDecoder._prepare_decoder_attention_mask
     def _prepare_decoder_attention_mask(
         self, attention_mask, input_shape, inputs_embeds, past_key_values_length
@@ -417,7 +464,7 @@ class HybridEmbeddings(nn.Module):
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
         combined_attention_mask = None
         if input_shape[-1] > 1:
-            combined_attention_mask = _make_causal_mask(
+            combined_attention_mask = self._make_causal_mask(
                 input_shape,
                 inputs_embeds.dtype,
                 device=inputs_embeds.device,
@@ -426,16 +473,16 @@ class HybridEmbeddings(nn.Module):
 
         if attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-            expanded_attn_mask = _expand_mask(
+            expanded_attn_mask = self._expand_mask(
                 attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]
             ).to(inputs_embeds.device)
-            combined_attention_mask = (
+            combined_attention_mask_bool = (
                 expanded_attn_mask
                 if combined_attention_mask is None
-                else expanded_attn_mask + combined_attention_mask
-            ).bool()
+                else expanded_attn_mask & combined_attention_mask
+            )
 
-        return combined_attention_mask
+        return combined_attention_mask_bool
 
     def forward(
         self,
@@ -487,9 +534,15 @@ class HybridEmbeddings(nn.Module):
 class HybridEmbeddingsPP(HybridEmbeddings):
     def __init__(self, config: PretrainedConfig, **kwargs):
         super().__init__(config, **kwargs)
-        self.embed_tokens = torch.nn.Embedding(
-            config.vocab_size, config.hidden_size, config.pad_token_id
-        )
+        # self.embed_tokens = torch.nn.Embedding(
+        #     config.vocab_size, config.hidden_size, config.pad_token_id
+        # )
+        # self.weight = self.embed_tokens.weight.data.requires_grad_().cuda()
+        # self.weight.grad = torch.zeros_like(self.weight)
+
+        # self.partial_learnable_emb = PartialGradEmbedding(
+        # self.embed_tokens, new_embedding_cutoff=32000
+        # )
 
     def resize_token_embeddings(self, new_num_tokens: int) -> None:
         if new_num_tokens == self.config.vocab_size:
@@ -517,7 +570,7 @@ class HybridEmbeddingsPP(HybridEmbeddings):
             )
 
     def forward(self, input_tuple: Tuple):
-        mol_emb, mol_padding_mask, llm_mask, input_ids = input_tuple
+        mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids = input_tuple
 
         if input_ids is not None:
             batch_size, seq_length = input_ids.shape
@@ -535,13 +588,6 @@ class HybridEmbeddingsPP(HybridEmbeddings):
             device=device,
         )
         position_ids = position_ids.unsqueeze(0).view(-1, seq_length)
-
-        # Get text embeddings from language model
-        mol_idx_mask = input_ids < 0  # B, T
-        with torch.no_grad():
-            text_embeds = self.embed_tokens(
-                input_ids.masked_fill(mol_idx_mask, 0)
-            )  # B, T, hidden_size
 
         # Merge text and mol embeddings
         inputs_embeds = self._forward_embedding(
@@ -563,6 +609,6 @@ class HybridEmbeddingsPP(HybridEmbeddings):
             past_key_values_length,
         )
 
-        hidden_states = inputs_embeds
+        hidden_states = inputs_embeds.to(mol_emb.dtype)
 
         return (hidden_states, llm_mask, position_ids)

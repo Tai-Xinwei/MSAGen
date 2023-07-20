@@ -264,7 +264,6 @@ class myPipeEngine(DeepSpeedEngine):
         # build parameters mapping index
         self.para_dict = {}
         self.id2paramname = {}
-        self.mapping_parameters()
 
     def set_has_attention_mask(self, value):
         assert isinstance(value, bool)
@@ -296,6 +295,7 @@ class myPipeEngine(DeepSpeedEngine):
 
         weight_group_list = self.module.get_tied_weights_and_groups()
         for weight, group in weight_group_list:
+            # print("weight", weight, weight.grad)
             grad = weight._hp_grad if self.bfloat16_enabled() else weight.grad
             dist.all_reduce(grad, group=group)
 
@@ -1353,16 +1353,6 @@ class myPipeEngine(DeepSpeedEngine):
                         "step",
                     ]
                 )
-
-    def mapping_parameters(self):
-        param_id = 0
-        for name, param in self.module.named_parameters():
-            nl = name.split(".")[0]
-
-            if int(nl) >= 40 and param.grad is not None:
-                self.para_dict[param_id] = 1
-            self.id2paramname[param_id] = name
-            param_id += 1
 
     # def _zero_llama_grad(self, freeze_list=None):
 

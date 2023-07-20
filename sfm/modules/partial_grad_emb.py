@@ -1,8 +1,10 @@
+# -*- coding: utf-8 -*-
 import torch
 import torch.nn as nn
 
+
 class PartialGradEmbedding(nn.Module):
-    def __init__(self, embedding_fn, new_embedding_cutoff = -1):
+    def __init__(self, embedding_fn, new_embedding_cutoff=-1):
         """
         This module is used to only update the gradient of the new embeddings
         i.e. the embeddings with index >= new_embedding_cutoff
@@ -15,10 +17,11 @@ class PartialGradEmbedding(nn.Module):
         self.cutoff = new_embedding_cutoff
 
     def forward(self, x):
-        w = (x >= self.cutoff) * 1.0
+        w = (x > self.cutoff) * 1.0
         w = w.unsqueeze(-1)
-        h = w * self.embedding_fn(x) + (1-w) * self.embedding_fn(x).detach()
+        h = w * self.embedding_fn(x) + (1 - w) * self.embedding_fn(x).detach()
         return h
+
 
 if __name__ == "__main__":
     input_ids = torch.tensor([[1, 2, 3], [4, 5, 6], [1, 7, 8]])

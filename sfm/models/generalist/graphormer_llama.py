@@ -15,14 +15,13 @@ from modules import (
     init_bert_params,
 )
 from modules.hybrid_emb import AdaptorConfig, HybridEmbeddings, HybridEmbeddingsPP
-from modules.llama_modules import LlamaModelPP
+from modules.llama_modules import LlamaEmbeddingsPP, LlamaModelPP
 
 # from modules.
 from sfmlogging.loggers import sfm_logger as logger
 from transformers.models.llama.configuration_llama import LlamaConfig
 from transformers.models.llama.modeling_llama import LlamaForCausalLM
-from utils.chemical_tokens import CHEMICAL_TOKENS
-from utils.pretrained_layer_spec import PretrainedLayerSpec
+from utils.pretrained_layer_spec import PretrainedLayerSpec, TiedPretrainedLayerSpec
 
 
 class GraphormerLlamaModel(torch.nn.Module):
@@ -146,15 +145,28 @@ class GraphormerLlamaModel(torch.nn.Module):
 
             self.pipe_layers.extend(
                 [
-                    PretrainedLayerSpec(
-                        HybridEmbeddingsPP,
-                        adaptorconfig,
+                    TiedPretrainedLayerSpec(
+                        "embed_tokens",
+                        LlamaEmbeddingsPP,
+                        Llama_config,
                         new_num_tokens=vocab_size,
                         load_ckpt=load_ckpt,
                         pretrained_ckpt_path=os.path.join(
                             args.llm_model_name_or_path, "model.hybrid_emb.pt"
                         ),
                         lora_mode="full",
+                        tied_weight_attr="emb_weight",
+                    )
+                ]
+            )
+
+            self.pipe_layers.extend(
+                [
+                    PretrainedLayerSpec(
+                        HybridEmbeddingsPP,
+                        adaptorconfig,
+                        new_num_tokens=vocab_size,
+                        load_ckpt=load_ckpt,
                     )
                 ]
             )
@@ -190,18 +202,20 @@ class GraphormerLlamaModel(torch.nn.Module):
         Returns:
             captions (list): A list of strings of length batch_size * num_captions.
         """
-        if batched_data is not None:
-            mol_emb, _, _, _, mol_padding_mask = self.graphormer_encoder(
-                batched_data,
-            )
+        assert (
+            batched_data is not None or input_ids is not None
+        ), "You should supply a batched_data or input_ids or both"
 
-        input_ids = input_ids[0].unsqueeze(0)
         # generate text_emb
         text_embeds = self.decoder.get_input_embeddings()(
             torch.where(input_ids > 0, input_ids, 0)
         )
 
         if batched_data is not None:
+            # generate mol emb
+            mol_emb, _, _, _, mol_padding_mask = self.graphormer_encoder(
+                batched_data,
+            )
             # mix embeddings
             inputs_embeds, _ = self.adaptor(
                 mol_emb,
@@ -210,13 +224,14 @@ class GraphormerLlamaModel(torch.nn.Module):
                 attention_mask,
                 input_ids,
             )
-        if batched_data is not None:
+
             outputs = self.decoder.generate(
                 inputs_embeds=inputs_embeds,
                 attention_mask=attention_mask,
                 **generate_kwargs,
             )
         else:
+            # text only generation
             outputs = self.decoder.generate(
                 inputs_embeds=text_embeds,
                 attention_mask=attention_mask,

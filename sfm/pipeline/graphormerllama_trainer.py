@@ -62,7 +62,8 @@ class Trainer:
                 num_stages=args.pipeline_parallelism,
                 loss_fn=CopilotCriterionsPP(args, vocab_size),
                 partition_method="manual",
-                part_list=[0, 3, 8, 13, 18, 22, 26, 31, 36],
+                # part_list=[0, 4, 9, 14, 19, 23, 27, 32, 37],
+                part_list=[0, 9, 19, 27, 37],
             )
             optimizer = myAdam(
                 net,
@@ -135,7 +136,7 @@ class Trainer:
 
             self.model_engine.train_batch()
 
-            if global_step % 10000 == 0:
+            if global_step % 2000 == 0:
                 self.save_ckp(global_step)
 
     def save_ckp(self, global_step):

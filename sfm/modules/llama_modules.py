@@ -4,6 +4,7 @@ import os
 from typing import List, Optional, Tuple, Union
 
 import torch
+from modules.partial_grad_emb import PartialGradEmbedding
 from torch import nn
 from transformers import (
     LlamaConfig,
@@ -19,7 +20,7 @@ from transformers.models.llama.modeling_llama import (
     LlamaMLP,
     LlamaRMSNorm,
 )
-from utils.pretrained_layer_spec import PretrainedLayerSpec
+from utils.pretrained_layer_spec import PretrainedLayerSpec, TiedPretrainedLayerSpec
 
 
 class LlamaMLPAdapter(nn.Module):
@@ -74,26 +75,22 @@ class LlamaDecoderLayerPP(LlamaDecoderLayer):
                 (see `past_key_values`).
             past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
         """
-        hidden_states, attention_mask, position_ids = input_tuple
+        hidden_states, attention_mask_bool, position_ids = input_tuple
 
-        residual = hidden_states
+        attention_mask = torch.zeros_like(
+            attention_mask_bool, dtype=hidden_states.dtype, device=hidden_states.device
+        )
+        attention_mask.masked_fill_(
+            ~attention_mask_bool, torch.finfo(hidden_states.dtype).min
+        )
 
-        hidden_states = self.input_layernorm(hidden_states)
-
-        # Self Attention
-        hidden_states, _, _ = self.self_attn(
+        hidden_states = super().forward(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
-        )
-        hidden_states = residual + hidden_states
+        )[0]
 
-        # Fully Connected
-        residual = hidden_states
-        hidden_states = self.post_attention_layernorm(hidden_states)
-        hidden_states = self.mlp(hidden_states)
-        hidden_states = residual + hidden_states
-        outputs = (hidden_states, attention_mask, position_ids)
+        outputs = (hidden_states, attention_mask_bool, position_ids)
 
         return outputs
 
@@ -113,14 +110,52 @@ class LlamaNorm(nn.Module):
         return (hidden_states,)
 
 
+class LlamaEmbeddingsPP(nn.Module):
+    def __init__(self, config: LlamaConfig):
+        super().__init__()
+        self.embed_tokens = torch.nn.Embedding(
+            config.vocab_size, config.hidden_size, config.pad_token_id
+        )
+        # self.weight = self.embed_tokens.weight.data.requires_grad_().cuda()
+        # self.weight.grad = torch.zeros_like(self.weight)
+
+        self.partial_learnable_emb = PartialGradEmbedding(
+            self.embed_tokens, new_embedding_cutoff=32000
+        )
+
+    @property
+    def emb_weight(self):
+        return self.embed_tokens.weight
+
+    def forward(
+        self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+    ):
+        mol_emb, mol_padding_mask, llm_mask, input_ids = input_tuple
+
+        # Get text embeddings from language model
+        mol_idx_mask = input_ids < 0  # B, T
+        # with torch.no_grad():
+        # text_embeds = self.embed_tokens(
+        #     input_ids.masked_fill(mol_idx_mask, 0)
+        # )  # B, T, hidden_size
+        text_embeds = self.partial_learnable_emb(input_ids.masked_fill(mol_idx_mask, 0))
+
+        return mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids
+
+
 class LlamaHead(nn.Module):
     def __init__(self, config: LlamaConfig):
         super().__init__()
         self.config = config
-        self.dummy = nn.Linear(1, 1)
 
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        # self.weight = self.lm_head.weight.data.requires_grad_().cuda()
+        # self.weight.grad = torch.zeros_like(self.weight)
+
+    @property
+    def emb_weight(self):
+        return self.lm_head.weight
 
     def resize_token_embeddings(self, new_num_tokens: int) -> None:
         if new_num_tokens == self.config.vocab_size:
@@ -188,7 +223,9 @@ class LlamaModelPP(LlamaPreTrainedModel):
             )
         )
         cls.pipe_layer.append(
-            PretrainedLayerSpec(
+            TiedPretrainedLayerSpec(
+                "embed_tokens",
+                # PretrainedLayerSpec(
                 LlamaHead,
                 config,
                 new_num_tokens=new_num_tokens,
@@ -197,6 +234,7 @@ class LlamaModelPP(LlamaPreTrainedModel):
                     args.llm_model_name_or_path, "model.lm_head.pt"
                 ),
                 lora_mode="freeze",
+                tied_weight_attr="emb_weight",
             )
         )
 
@@ -210,44 +248,44 @@ class LlamaForCausalLMPP(LlamaForCausalLM):
             torch.zeros(1, dtype=torch.float32), requires_grad=True
         )
 
-    @classmethod
-    def to_layers(cls, args, config, new_num_tokens=None, load_ckpt=False):
-        cls.pipe_layer = []
-        for i in range(config.num_hidden_layers):
-            cls.pipe_layer.append(
-                PretrainedLayerSpec(
-                    LlamaDecoderLayerPP,
-                    config,
-                    i,
-                    load_ckpt=load_ckpt,
-                    pretrained_ckpt_path=os.path.join(
-                        args.llm_model_name_or_path, "model.layers.{}.pt".format(i)
-                    ),
-                    lora_mode="freeze",
-                )
-            )
-        cls.pipe_layer.append(
-            PretrainedLayerSpec(
-                LlamaNorm,
-                config,
-                load_ckpt=load_ckpt,
-                pretrained_ckpt_path=os.path.join(
-                    args.llm_model_name_or_path, "model.norm.pt"
-                ),
-                lora_mode="freeze",
-            )
-        )
-        cls.pipe_layer.append(
-            PretrainedLayerSpec(
-                LlamaHead,
-                config,
-                new_num_tokens=new_num_tokens,
-                load_ckpt=load_ckpt,
-                pretrained_ckpt_path=os.path.join(
-                    args.llm_model_name_or_path, "model.lm_head.pt"
-                ),
-                lora_mode="freeze",
-            )
-        )
+    # @classmethod
+    # def to_layers(cls, args, config, new_num_tokens=None, load_ckpt=False):
+    #     cls.pipe_layer = []
+    #     for i in range(config.num_hidden_layers):
+    #         cls.pipe_layer.append(
+    #             PretrainedLayerSpec(
+    #                 LlamaDecoderLayerPP,
+    #                 config,
+    #                 i,
+    #                 load_ckpt=load_ckpt,
+    #                 pretrained_ckpt_path=os.path.join(
+    #                     args.llm_model_name_or_path, "model.layers.{}.pt".format(i)
+    #                 ),
+    #                 lora_mode="freeze",
+    #             )
+    #         )
+    #     cls.pipe_layer.append(
+    #         PretrainedLayerSpec(
+    #             LlamaNorm,
+    #             config,
+    #             load_ckpt=load_ckpt,
+    #             pretrained_ckpt_path=os.path.join(
+    #                 args.llm_model_name_or_path, "model.norm.pt"
+    #             ),
+    #             lora_mode="freeze",
+    #         )
+    #     )
+    #     cls.pipe_layer.append(
+    #         PretrainedLayerSpec(
+    #             LlamaHead,
+    #             config,
+    #             new_num_tokens=new_num_tokens,
+    #             load_ckpt=load_ckpt,
+    #             pretrained_ckpt_path=os.path.join(
+    #                 args.llm_model_name_or_path, "model.lm_head.pt"
+    #             ),
+    #             lora_mode="freeze",
+    #         )
+    #     )
 
-        return cls.pipe_layer
+    #     return cls.pipe_layer
