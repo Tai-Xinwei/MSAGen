@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from modules.get_activation_fn import get_activation_fn
 from modules.graphormer_sentence_encoder import (
     GraphormerSentenceEncoder,
-    Node_decoder,
+    NodeDecoder,
     init_bert_params,
 )
 from modules.layer_norm import LayerNorm
@@ -107,7 +107,7 @@ class GraphormerEncoder(nn.Module):
         # Remove head is set to true during fine-tuning
         self.load_softmax = not args.ft  # getattr(args, "remove_head", False)
         print("if finetune:", args.ft)
-        self.decoder = Node_decoder(
+        self.decoder = NodeDecoder(
             args.encoder_embed_dim, args.encoder_attention_heads, args=args
         )
 

@@ -2,6 +2,6 @@
 from .graphormer_sentence_encoder import (
     GraphormerSentenceEncoder,
     GraphormerSentenceEncoderPP,
-    Node_decoder,
+    NodeDecoder,
     init_bert_params,
 )

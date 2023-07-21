@@ -58,9 +58,9 @@ class GraphormerLlamaModel(torch.nn.Module):
 
         self.max_positions = args.max_positions
 
-        Llama_config = LlamaConfig.from_pretrained(args.llm_model_name_or_path)
-        Llama_config.vocab_size = vocab_size
-        adaptorconfig = self.init_adaptor_config(args, Llama_config)
+        llama_config = LlamaConfig.from_pretrained(args.llm_model_name_or_path)
+        llama_config.vocab_size = vocab_size
+        adaptor_config = self.init_adaptor_config(args, llama_config)
 
         self.pipe_layers = []
         if args.pipeline_parallelism == 0:
@@ -95,13 +95,8 @@ class GraphormerLlamaModel(torch.nn.Module):
                 no_2d=args.no_2d,
                 args=args,
             )
-            # self.load_encoder_state_dict(args.loadmfmcheck_path, strict=False)
-
-            self.decoder = LlamaForCausalLM(Llama_config)
-            # self.decoder = LlamaForCausalLM.from_pretrained(args.llm_model_name_or_path)
-            # self._resize_llm_token_embeddings(vocab_size)
-
-            self.adaptor = HybridEmbeddings(adaptorconfig)
+            self.decoder = LlamaForCausalLM(llama_config)
+            self.adaptor = HybridEmbeddings(adaptor_config)
         else:
             load_ckpt = not args.infer
             self.pipe_layers.extend(
@@ -159,7 +154,7 @@ class GraphormerLlamaModel(torch.nn.Module):
                     # )
                     PretrainedLayerSpec(
                         LlamaEmbeddingsPP,
-                        Llama_config,
+                        llama_config,
                         new_num_tokens=vocab_size,
                         load_ckpt=load_ckpt,
                         pretrained_ckpt_path=os.path.join(
@@ -174,7 +169,7 @@ class GraphormerLlamaModel(torch.nn.Module):
                 [
                     PretrainedLayerSpec(
                         HybridEmbeddingsPP,
-                        adaptorconfig,
+                        adaptor_config,
                         new_num_tokens=vocab_size,
                         load_ckpt=load_ckpt,
                     )
@@ -184,7 +179,7 @@ class GraphormerLlamaModel(torch.nn.Module):
             self.pipe_layers.extend(
                 LlamaModelPP.to_layers(
                     args,
-                    Llama_config,
+                    llama_config,
                     load_ckpt=load_ckpt,
                     new_num_tokens=vocab_size,
                 )
@@ -296,14 +291,14 @@ class GraphormerLlamaModel(torch.nn.Module):
 
         return logits
 
-    def init_adaptor_config(self, args, Llama_config):
+    def init_adaptor_config(self, args, llama_config):
         config = AdaptorConfig(
-            vocab_size=Llama_config.vocab_size,
-            hidden_size=Llama_config.hidden_size,
-            intermediate_size=Llama_config.intermediate_size,
-            num_attention_heads=Llama_config.num_attention_heads,
-            hidden_act=Llama_config.hidden_act,
-            rms_norm_eps=Llama_config.rms_norm_eps,
+            vocab_size=llama_config.vocab_size,
+            hidden_size=llama_config.hidden_size,
+            intermediate_size=llama_config.intermediate_size,
+            num_attention_heads=llama_config.num_attention_heads,
+            hidden_act=llama_config.hidden_act,
+            rms_norm_eps=llama_config.rms_norm_eps,
             mfm_hidden_size=args.encoder_embed_dim,
             pool_mode=args.pool_mode,
             btn_adaptor=args.btn_adaptor,

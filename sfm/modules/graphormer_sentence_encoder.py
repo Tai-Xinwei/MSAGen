@@ -545,43 +545,33 @@ class GraphormerSentenceEncoderPP(GraphormerSentenceEncoder):
 
     def forward(self, input_batchdata: Tuple):
         (
-            idx,
-            attn_bias,
-            attn_edge_type,
-            spatial_pos,
-            in_degree,
-            out_degree,
-            x,
-            edge_input,
-            y,
-            pos,
-            node_type_edge,
-            node_mask,
             input_ids,
             llm_mask,
+            _,
+            x,
+            in_degree,
+            attn_bias,
+            spatial_pos,
+            edge_input,
+            num_atoms,
         ) = input_batchdata
         # create dict for batched data
 
         batched_data = {}
-        batched_data["idx"] = idx
         batched_data["attn_bias"] = attn_bias
-        batched_data["attn_edge_type"] = attn_edge_type
         batched_data["spatial_pos"] = spatial_pos
         batched_data["in_degree"] = in_degree
-        batched_data["out_degree"] = out_degree
+        batched_data["out_degree"] = in_degree
         batched_data["x"] = x
         batched_data["edge_input"] = edge_input
-        batched_data["y"] = y
-        batched_data["pos"] = pos
-        batched_data["node_type_edge"] = node_type_edge
-        batched_data["node_mask"] = node_mask
+        batched_data["attn_edge_type"] = None
 
         x, _, _, _, padding_mask = super().forward(batched_data)
 
         return (x, padding_mask, llm_mask, input_ids)
 
 
-class Node_decoder(nn.Module):
+class NodeDecoder(nn.Module):
     def __init__(
         self,
         embedding_dim: int = 768,

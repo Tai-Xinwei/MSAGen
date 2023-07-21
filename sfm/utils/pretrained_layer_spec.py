@@ -21,7 +21,10 @@ class PretrainedLayerSpec(LayerSpec):
         self.layer = super().build(log=log)
 
         if self.pretrained_ckpt_path is not None and self.load_ckpt:
-            self.load_pretrained(device=device)
+            if os.path.exists(self.pretrained_ckpt_path):
+                self.load_pretrained(device=device)
+            else:
+                ds_logger.warn(f"Checkpoint {self.pretrained_ckpt_path} is not found.")
 
         # self.resize_token_embeddings(self.new_num_tokens)
 

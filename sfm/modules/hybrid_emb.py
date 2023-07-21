@@ -340,7 +340,7 @@ class HybridEmbeddings(nn.Module):
 
             # token_embed = token_embed.unsqueeze(1).expand(-1, mol_rep.shape[1], -1, -1) # B, nnode, T, H
             for bidx in range(B):
-                mask_idx_list = (mol_idx_mask[bidx] is True).nonzero()
+                mask_idx_list = mol_idx_mask[bidx].nonzero()
                 start = mask_idx_list[0]
                 end = mask_idx_list[-1]
                 token_embed[bidx, start : end + 1, :] = mol_rep[

@@ -12,7 +12,7 @@ import pickle as pkl
 from argparse import Namespace
 from dataclasses import dataclass, field
 from multiprocessing import Pool
-from typing import Dict, Optional, Sequence
+from typing import Dict, List, Optional, Sequence
 
 import lmdb
 import numpy as np
@@ -23,6 +23,9 @@ from data.mol_data.collator import (
     collator_copilot_multi_mol_PP,
 )
 from data.mol_data.wrapper import smiles2graph
+from ogb.utils.features import atom_to_feature_vector, bond_to_feature_vector
+from rdkit import Chem
+from rdkit.Chem.rdmolops import RemoveHs
 from torch.utils.data import Dataset
 from torch_geometric.data import Data, InMemoryDataset
 from tqdm import tqdm
@@ -758,6 +761,455 @@ class SupervisedProcessedData(Dataset):
                 max_node=1024,
                 multi_hop_max_dist=self.multi_hop_max_dist,
                 spatial_pos_max=self.spatial_pos_max,
+            )
+
+
+class SupervisedProcessedDataWithSmiles(Dataset):
+    def __init__(
+        self,
+        data_path: str,
+        dataset_names: str,
+        dataset_splits: str,
+        in_memory: bool,
+        model_max_length: int,
+        dataset_ratios: Optional[str],
+        mol_embed_type: str,
+        molecule_max_size: int,
+        pad_token_id: int,
+    ) -> None:
+        super().__init__()
+        self.data_path = data_path
+        self.dataset_names = dataset_names.split(",")
+        self.dataset_ratios = (
+            None
+            if dataset_ratios is None
+            else [float(ratio) for ratio in dataset_ratios.split(",")]
+        )
+        self.dataset_splits = [
+            dataset_split.split("+") for dataset_split in dataset_splits.split(",")
+        ]
+        assert len(self.dataset_splits) == len(
+            self.dataset_names
+        ), "Lengths of dataset_splits and dataset_names do not match."
+        assert self.dataset_ratios is None or len(self.dataset_ratios) == len(
+            self.dataset_names
+        ), "Lengths of dataset_ratios and dataset_names do not match."
+        self.in_memory = in_memory
+        self.model_max_length = model_max_length
+        self.mol_embed_type = mol_embed_type
+        self.molecule_max_size = molecule_max_size
+
+        self.len = 0
+        self.index_to_key_map = []
+        self.in_memory_data = {}
+        self.read_txns = {}
+        self.read_envs = {}
+        self.weight_dict = {}
+        self.dataset_count = {}
+        self.dataset_filtered = {}
+        self.data_collater = DataCollatorForSupervisedDataset(
+            pad_token_id=pad_token_id, use_pp=True, add_mfm=True
+        )
+
+        if not self.in_memory:
+            for i, (dataset_name, dataset_splits) in enumerate(
+                zip(self.dataset_names, self.dataset_splits)
+            ):
+                self.read_txns[dataset_name] = {}
+                self.read_envs[dataset_name] = {}
+                start_index = self.len
+                self.dataset_count[dataset_name] = {}
+                self.dataset_filtered[dataset_name] = {}
+                for dataset_split in dataset_splits:
+                    logging.warning(
+                        f"Loading dataset {dataset_name} split {dataset_split}"
+                    )
+                    read_env = lmdb.open(
+                        f"{self.data_path}/{dataset_name}/{dataset_split}/"
+                    )
+                    read_txn = read_env.begin(write=False)
+                    self.read_txns[dataset_name][dataset_split] = read_txn
+                    self.read_envs[dataset_name][dataset_split] = read_env
+                    self.dataset_count[dataset_name][dataset_split] = 0
+                    self.dataset_filtered[dataset_name][dataset_split] = 0
+                    for key, val in tqdm(read_txn.cursor()):
+                        val = pkl.loads(val)
+                        if self._calc_input_len(*val) > self.model_max_length:
+                            self.dataset_filtered[dataset_name][dataset_split] += 1
+                            continue
+                        self.index_to_key_map.append(
+                            (dataset_name, dataset_split, key.decode())
+                        )
+                        self.dataset_count[dataset_name][dataset_split] += 1
+                        self.len += 1
+                if self.dataset_ratios is not None:
+                    self.weight_dict[(start_index, self.len)] = self.dataset_ratios[i]
+        else:
+            for i, (dataset_name, dataset_splits) in enumerate(
+                zip(self.dataset_names, self.dataset_splits)
+            ):
+                self.in_memory_data[dataset_name] = {}
+                start_index = self.len
+                self.dataset_count[dataset_name] = {}
+                self.dataset_filtered[dataset_name] = {}
+                for dataset_split in dataset_splits:
+                    logging.warning(
+                        f"Loading dataset {dataset_name} split {dataset_split}"
+                    )
+                    read_env = lmdb.open(
+                        f"{self.data_path}/{dataset_name}/{dataset_split}/"
+                    )
+                    read_txn = read_env.begin(write=False)
+                    self.in_memory_data[dataset_name][dataset_split] = {}
+                    self.dataset_count[dataset_name][dataset_split] = 0
+                    self.dataset_filtered[dataset_name][dataset_split] = 0
+                    for key, val in tqdm(read_txn.cursor()):
+                        val = pkl.loads(val)
+                        if self._calc_input_len(*val) > self.model_max_length:
+                            self.dataset_filtered[dataset_name][dataset_split] += 1
+                            continue
+                        key = key.decode()
+                        self.index_to_key_map.append((dataset_name, dataset_split, key))
+                        self.dataset_count[dataset_name][dataset_split] += 1
+                        self.in_memory_data[dataset_name][dataset_split][key] = val
+                        self.len += 1
+                    read_env.close()
+                if self.dataset_ratios is not None:
+                    self.weight_dict[(start_index, self.len)] = self.dataset_ratios[i]
+        logging.warning(f"{self.len} sentences loaded.")
+        for dataset_name in self.dataset_count:
+            for dataset_split in self.dataset_count[dataset_name]:
+                logging.warning(
+                    f"Dataset {dataset_name} split {dataset_split}: {self.dataset_count[dataset_name][dataset_split]} loaded, {self.dataset_filtered[dataset_name][dataset_split]} filtered."
+                )
+
+        if len(self.weight_dict) == 0:
+            self.weight_dict = None
+
+        if self.weight_dict is not None:
+            equal_ratio = True
+            for begin, end in self.weight_dict:
+                if int(self.weight_dict[(begin, end)]) != 1:
+                    equal_ratio = False
+            if equal_ratio:
+                self.weight_dict = None
+
+    def _calc_input_len(self, input_ids, source_len, smiless, mol_sizes):
+        try:
+            mol_sizes = torch.tensor(mol_sizes)
+            if torch.any(torch.isnan(mol_sizes)) or torch.any(
+                mol_sizes > self.molecule_max_size
+            ):
+                return self.model_max_length + 1
+            mol_idxs = -input_ids[input_ids < 0] - 1
+            return int(len(input_ids) + torch.sum(mol_sizes[mol_idxs]) - len(mol_idxs))
+        except Exception as e:
+            print(f"Failed to convert smiles to graph: {e} {input_ids} {smiless}")
+            return self.model_max_length + 1
+
+    def __del__(self):
+        if not self.in_memory:
+            for dataset_name in self.read_envs:
+                for dataset_split in self.read_envs[dataset_name]:
+                    self.read_envs[dataset_name][dataset_split].close()
+        if hasattr(self, "molrep_dict_env") and self.molrep_dict_env is not None:
+            self.molrep_dict_env.close()
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, i) -> Dict[str, torch.Tensor]:
+        dataset_name, dataset_split, key = self.index_to_key_map[i]
+        if not self.in_memory:
+            input_ids, input_ids_len, smiless, mol_sizes = pkl.loads(
+                self.read_txns[dataset_name][dataset_split].get(key.encode())
+            )
+        else:
+            input_ids, input_ids_len, smiless, mol_sizes = self.in_memory_data[
+                dataset_name
+            ][dataset_split][key]
+        if isinstance(input_ids, list):
+            input_ids = torch.tensor(input_ids, dtype=torch.int64)
+
+        input_ids_len = int(input_ids_len)
+        if self.mol_embed_type == "atoms":
+            mol_pos = torch.nonzero(input_ids < 0).squeeze(-1)
+            mol_pos = torch.cat(
+                [torch.tensor([0]), mol_pos, torch.tensor([len(input_ids)])]
+            )
+            new_input_ids = []
+            for j in range(len(mol_pos) - 1):
+                new_input_ids.extend(input_ids[mol_pos[j] : mol_pos[j + 1]])
+                if j < len(mol_pos) - 2:
+                    mol_idx = input_ids[mol_pos[j + 1]]
+                    new_input_ids.extend(
+                        torch.ones([mol_sizes[-mol_idx - 1] - 1]) * mol_idx
+                    )
+                    if mol_pos[j + 1] < input_ids_len:
+                        input_ids_len += mol_sizes[-mol_idx - 1] - 1
+            input_ids = torch.tensor(new_input_ids)
+
+        input_ids = input_ids.to(dtype=torch.int64)
+
+        labels = input_ids.clone()
+        labels[:input_ids_len] = IGNORE_INDEX
+        labels[labels < 0] = IGNORE_INDEX
+        return dict(input_ids=input_ids, labels=labels, smiless=smiless)
+
+    def collater(self, samples):
+        return self.data_collater(samples)
+
+
+def preprocess_item(item):
+    edge_attr, edge_index, x = item.edge_attr, item.edge_index, item.x
+    N = x.size(0)
+    x = convert_to_single_emb(x)
+
+    # node adj matrix [N, N] bool
+    adj = torch.zeros([N, N], dtype=torch.bool)
+    adj[edge_index[0, :], edge_index[1, :]] = True
+
+    # edge feature here
+    if len(edge_attr.size()) == 1:
+        edge_attr = edge_attr[:, None]
+    attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+    attn_edge_type[edge_index[0, :], edge_index[1, :]] = (
+        convert_to_single_emb(edge_attr) + 1
+    )
+
+    shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+    max_dist = np.amax(shortest_path_result)
+    edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+    spatial_pos = torch.from_numpy((shortest_path_result)).long()
+    attn_bias = torch.zeros([N + 1, N + 1], dtype=torch.float)  # with graph token
+
+    # combine
+    item.x = x
+    item.attn_bias = attn_bias
+    item.spatial_pos = spatial_pos
+    item.in_degree = adj.long().sum(dim=1).view(-1)
+    item.edge_input = torch.from_numpy(edge_input).long()
+
+    return item
+
+
+def pad_1d_unsqueeze(x, padlen):
+    x = x + 1  # pad id = 0
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen], dtype=x.dtype)
+        new_x[:xlen] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
+def pad_2d_unsqueeze(x, padlen):
+    x = x + 1  # pad id = 0
+    xlen, xdim = x.size()
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen, xdim], dtype=x.dtype)
+        new_x[:xlen, :] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
+def pad_attn_bias_unsqueeze(x, padlen):
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen, padlen], dtype=x.dtype).fill_(float("-inf"))
+        new_x[:xlen, :xlen] = x
+        new_x[xlen:, :xlen] = 0
+        x = new_x
+    return x.unsqueeze(0)
+
+
+def pad_edge_type_unsqueeze(x, padlen):
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen, padlen, x.size(-1)], dtype=x.dtype)
+        new_x[:xlen, :xlen, :] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
+def pad_spatial_pos_unsqueeze(x, padlen):
+    x = x + 1
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen, padlen], dtype=x.dtype)
+        new_x[:xlen, :xlen] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
+def pad_3d_unsqueeze(x, padlen1, padlen2, padlen3):
+    x = x + 1
+    xlen1, xlen2, xlen3, xlen4 = x.size()
+    if xlen1 < padlen1 or xlen2 < padlen2 or xlen3 < padlen3:
+        new_x = x.new_zeros([padlen1, padlen2, padlen3, xlen4], dtype=x.dtype)
+        new_x[:xlen1, :xlen2, :xlen3, :] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
+def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
+    items = [
+        (
+            item.attn_bias,
+            item.spatial_pos,
+            item.in_degree,
+            item.x,
+            item.edge_input[:, :, :multi_hop_max_dist, :],
+        )
+        for item in items
+    ]
+    (
+        attn_biases,
+        spatial_poses,
+        in_degrees,
+        xs,
+        edge_inputs,
+    ) = zip(*items)
+
+    for idx, _ in enumerate(attn_biases):
+        attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float("-inf")
+    max_node_num = max(i.size(0) for i in xs)
+    num_atoms = torch.tensor([int(i.size(0)) for i in xs]).long()
+    max_dist = max(i.size(-2) for i in edge_inputs)
+    x = torch.cat([pad_2d_unsqueeze(i, max_node_num) for i in xs])
+    edge_input = torch.cat(
+        [pad_3d_unsqueeze(i, max_node_num, max_node_num, max_dist) for i in edge_inputs]
+    )
+    attn_bias = torch.cat(
+        [pad_attn_bias_unsqueeze(i, max_node_num + 1) for i in attn_biases]
+    )
+    spatial_pos = torch.cat(
+        [pad_spatial_pos_unsqueeze(i, max_node_num) for i in spatial_poses]
+    )
+    in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num) for i in in_degrees])
+
+    return dict(
+        num_atoms=num_atoms,
+        attn_bias=attn_bias,
+        spatial_pos=spatial_pos,
+        in_degree=in_degree,
+        x=x,
+        edge_input=edge_input,
+    )
+
+
+def smiles2graph_removeh(smiles_string):
+    """
+    Converts SMILES string to graph Data object
+    :input: SMILES string (str)
+    :return: graph object
+    """
+
+    mol = Chem.MolFromSmiles(smiles_string)
+    mol = RemoveHs(mol)
+
+    # atoms
+    atom_features_list = []
+    for atom in mol.GetAtoms():
+        atom_features_list.append(atom_to_feature_vector(atom))
+    x = np.array(atom_features_list, dtype=np.int64)
+
+    # bonds
+    num_bond_features = 3  # bond type, bond stereo, is_conjugated
+    if len(mol.GetBonds()) > 0:  # mol has bonds
+        edges_list = []
+        edge_features_list = []
+        for bond in mol.GetBonds():
+            i = bond.GetBeginAtomIdx()
+            j = bond.GetEndAtomIdx()
+
+            edge_feature = bond_to_feature_vector(bond)
+
+            # add edges in both directions
+            edges_list.append((i, j))
+            edge_features_list.append(edge_feature)
+            edges_list.append((j, i))
+            edge_features_list.append(edge_feature)
+
+        # data.edge_index: Graph connectivity in COO format with shape [2, num_edges]
+        edge_index = np.array(edges_list, dtype=np.int64).T
+
+        # data.edge_attr: Edge feature matrix with shape [num_edges, num_edge_features]
+        edge_attr = np.array(edge_features_list, dtype=np.int64)
+
+    else:  # mol has no bonds
+        edge_index = np.empty((2, 0), dtype=np.int64)
+        edge_attr = np.empty((0, num_bond_features), dtype=np.int64)
+
+    graph = dict()
+    graph["edge_index"] = torch.tensor(edge_index)
+    graph["edge_attr"] = torch.tensor(edge_attr)
+    graph["x"] = torch.tensor(x)
+    graph["num_nodes"] = len(x)
+
+    return graph
+
+
+def batch_collater_for_graphormer(smiless: List[str]):
+    graphs = [
+        preprocess_item(Data(**smiles2graph_removeh(smiles))) for smiles in smiless
+    ]
+    return collator(graphs)
+
+
+@dataclass
+class DataCollatorForSupervisedDataset(object):
+    """Collate examples for supervised fine-tuning."""
+
+    pad_token_id: int
+    use_pp: bool
+    add_mfm: bool
+
+    def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
+        input_ids, labels, smiless = tuple(
+            [instance[key] for instance in instances]
+            for key in ("input_ids", "labels", "smiless")
+        )
+        input_ids = torch.nn.utils.rnn.pad_sequence(
+            input_ids, batch_first=True, padding_value=self.pad_token_id
+        )
+        labels = torch.nn.utils.rnn.pad_sequence(
+            labels, batch_first=True, padding_value=IGNORE_INDEX
+        )
+
+        batched_molecules = {
+            "x": None,
+            "attn_bias": None,
+            "spatial_pos": None,
+            "in_degree": None,
+            "edge_input": None,
+            "num_atoms": None,
+        }
+        smiles = []
+        for smis in smiless:
+            smiles.extend(smis)
+        batched_molecules = batch_collater_for_graphormer(smiles)
+        if self.use_pp:
+            return (
+                [
+                    input_ids,
+                    input_ids.ne(self.pad_token_id),
+                    labels,
+                    batched_molecules["x"],
+                    batched_molecules["in_degree"],
+                    batched_molecules["attn_bias"],
+                    batched_molecules["spatial_pos"],
+                    batched_molecules["edge_input"],
+                    batched_molecules["num_atoms"],
+                ],
+                labels,
+            )
+        else:
+            return dict(
+                input_ids=input_ids,
+                labels=labels,
+                attention_mask=input_ids.ne(self.pad_token_id),
+                **batched_molecules,
             )
 
 
