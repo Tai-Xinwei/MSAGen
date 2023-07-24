@@ -424,7 +424,6 @@ class GraphormerSentenceEncoder(nn.Module):
             if not last_state_only:
                 inner_states.append(x)
 
-        x = x.transpose(0, 1)
         return x, attn_bias, delta_pos, inner_states, padding_mask
 
 
@@ -587,7 +586,6 @@ class NodeDecoder(nn.Module):
 
     def forward(self, x, attn_bias, delta_pos, inner_states):
         sentence_rep = x[0, :, :]
-        x = x.transpose(0, 1)
 
         node_output = None
         if delta_pos is not None and not self.args.ft:

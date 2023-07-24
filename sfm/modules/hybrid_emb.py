@@ -532,6 +532,8 @@ class HybridEmbeddings(nn.Module):
         input_ids,
     ):
         if text_embeds is not None:
+            mol_emb = mol_emb.transpose(0, 1)[:, 1:, :]
+            mol_padding_mask = mol_padding_mask[:, 1:]
             batch_size, seq_length, _ = text_embeds.shape
         else:
             raise ValueError("text_embeds cannot be None")
@@ -612,6 +614,8 @@ class HybridEmbeddingsPP(HybridEmbeddings):
         mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids = input_tuple
 
         if input_ids is not None:
+            mol_emb = mol_emb.transpose(0, 1)[:, 1:, :]
+            mol_padding_mask = mol_padding_mask[:, 1:]
             batch_size, seq_length = input_ids.shape
         else:
             raise ValueError("decoder_input_ids cannot be None")

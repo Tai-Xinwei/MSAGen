@@ -221,6 +221,7 @@ class GraphormerLlamaModel(torch.nn.Module):
             mol_emb, _, _, _, mol_padding_mask = self.graphormer_encoder(
                 batched_data,
             )
+
             # mix embeddings
             inputs_embeds, _ = self.adaptor(
                 mol_emb,

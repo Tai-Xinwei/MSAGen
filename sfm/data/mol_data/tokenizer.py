@@ -77,12 +77,29 @@ class MolTokenizer:
                 text_list.append([data])
                 # mol_list.append("")
             else:
-                text1 = data.split("<mol>")[0]
-                text2 = data.split("</mol>")[-1]
-                split_text = [text1, text2]
+                split_text = []
+                pos1 = []
+                pos2 = []
+
+                pos = 0
+                while data.find("<mol>", pos) != -1:
+                    pos1.append(data.find("<mol>", pos))
+                    pos2.append(data.find("</mol>", pos))
+
+                    pos = pos2[-1] + 1
+
+                if len(pos1) > 0:
+                    split_text.append(data[: pos1[0] + 5])
+
+                    for i in range(len(pos1)):
+                        smile = data[pos1[i] : pos2[i]]
+                        mol_list.append(smile.replace("<mol>", "").replace(" ", ""))
+                        if i < len(pos1) - 1:
+                            split_text.append(data[pos2[i] : pos1[i + 1] + 5])
+
+                    split_text.append(data[pos2[-1] :])
+
                 text_list.append(split_text)
-                smile = data.split("<mol>")[1].split("</mol>")[0]
-                mol_list.append(smile.replace(" ", ""))
             # smiles_idx = -smiles_dict.get(smiles[idx], 1) - 1
             # smile_idx_list.append(smiles_idx)
         return text_list, mol_list, smile_idx_list
@@ -111,15 +128,27 @@ class MolTokenizer:
             if len(text) == 1:
                 input_ids = self._tokenize_text(text).input_ids[0]
             elif self.args.pool_mode == "qformer":
-                input_ids = torch.cat(
-                    [
-                        self._tokenize_text(text[0] + "<mol>").input_ids[0],
-                        torch.tensor(
-                            [-1 for i in range(self.args.embedding_length)]
-                        ).to(torch.long),
-                        self._tokenize_text("</mol>" + text[1]).input_ids[0][1:],
-                    ]
-                )
+                input_ids = []
+                for j, t in enumerate(text):
+                    if j == 0:
+                        input_ids.append(self._tokenize_text(t).input_ids[0])
+                        input_ids.append(
+                            torch.tensor(
+                                [-j - 1 for i in range(self.args.embedding_length)]
+                            ).to(torch.long)
+                        )
+                    elif j < len(text) - 1:
+                        input_ids.append(self._tokenize_text(t).input_ids[0][1:])
+                        input_ids.append(
+                            torch.tensor(
+                                [-j - 1 for i in range(self.args.embedding_length)]
+                            ).to(torch.long)
+                        )
+                    else:
+                        input_ids.append(self._tokenize_text(t).input_ids[0][1:])
+
+                input_ids = torch.cat(input_ids)
+
             elif self.args.pool_mode == "full":
                 input_ids = torch.cat(
                     [
@@ -150,7 +179,7 @@ class MolTokenizer:
         batched_smile_data = collator(smile_items)
         return batched_smile_data
 
-    def _process_inputids(
+    def _process_input_ids(
         self, input_ids_list: List[List[int]], pad_token_id: int = 32000
     ):
         max_seq_len = max(len(i) for i in input_ids_list)
@@ -172,13 +201,15 @@ class MolTokenizer:
 
     def tokenize(self, input_data: List[str]):
         text_list, smile_list, _ = self.split_text_and_mol(input_data)
+        print(text_list)
+        print(smile_list)
         if len(smile_list) > 0:
             batched_smile_data = self._process_smile(smile_list)
         else:
             batched_smile_data = None
 
         input_ids_list = self._process_text(text_list, batched_smile_data)
-        input_ids_list, llm_mask = self._process_inputids(input_ids_list)
+        input_ids_list, llm_mask = self._process_input_ids(input_ids_list)
         return input_ids_list, batched_smile_data, llm_mask
 
 

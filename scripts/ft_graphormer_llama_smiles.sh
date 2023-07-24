@@ -30,10 +30,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=60000
 
 [ -z "${data_path}" ] && data_path='/home/peiran/FMproj/chemical-copilot-new'
-[ -z "${dataset_names}" ] && dataset_names='tdc'
-[ -z "${dataset_splits}" ] && dataset_splits='all-instruction'
-# [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
-# [ -z "${dataset_splits}" ] && dataset_splits='all'
+# [ -z "${dataset_names}" ] && dataset_names='tdc'
+# [ -z "${dataset_splits}" ] && dataset_splits='all-instruction'
+[ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
+[ -z "${dataset_splits}" ] && dataset_splits='all'
 [ -z "${dataset_ratios}" ] && dataset_ratios='1.0,1.0'
 [ -z "${pool_mode}" ] && pool_mode='qformer'
 [ -z "${embedding_length}" ] && embedding_length=20
