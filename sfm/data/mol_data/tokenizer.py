@@ -3,7 +3,7 @@ import copy
 import itertools
 from functools import lru_cache
 from multiprocessing import Pool
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -82,7 +82,7 @@ class MolTokenizer:
                 split_text = [text1, text2]
                 text_list.append(split_text)
                 smile = data.split("<mol>")[1].split("</mol>")[0]
-                mol_list.append(smile[1:-1])
+                mol_list.append(smile.replace(" ", ""))
             # smiles_idx = -smiles_dict.get(smiles[idx], 1) - 1
             # smile_idx_list.append(smiles_idx)
         return text_list, mol_list, smile_idx_list
@@ -97,13 +97,20 @@ class MolTokenizer:
         )
         return input_ids
 
-    def _process_text(self, text_list: List[str]) -> List[List[int]]:
+    def _process_text(
+        self, text_list: List[str], batched_smile_data
+    ) -> List[List[int]]:
         """Tokenize text."""
+        if batched_smile_data is None:
+            nnodes = [0] * len(text_list)
+        else:
+            nnodes = batched_smile_data["nnodes"]
+
         input_ids_list = []
-        for text in text_list:
+        for i, text in enumerate(text_list):
             if len(text) == 1:
                 input_ids = self._tokenize_text(text).input_ids[0]
-            else:
+            elif self.args.pool_mode == "qformer":
                 input_ids = torch.cat(
                     [
                         self._tokenize_text(text[0] + "<mol>").input_ids[0],
@@ -113,18 +120,26 @@ class MolTokenizer:
                         self._tokenize_text("</mol>" + text[1]).input_ids[0][1:],
                     ]
                 )
+            elif self.args.pool_mode == "full":
+                input_ids = torch.cat(
+                    [
+                        self._tokenize_text(text[0] + "<mol>").input_ids[0],
+                        torch.tensor([-1 for i in range(nnodes[i])]).to(torch.long),
+                        self._tokenize_text("</mol>" + text[1]).input_ids[0][1:],
+                    ]
+                )
             input_ids_list.append(input_ids)
 
         return input_ids_list
 
-    def _process_smile(self, smile_list: List[str]) -> List[List[int]]:
+    def _process_smile(self, smile_list: List[str]):
         """Process smile."""
         smile_items = []
         for i, smile in enumerate(smile_list):
             graph = smiles2graph(smile)
             data = Data()
             data.idx = i
-            data.__num_nodes__ = int(graph["num_nodes"])
+            data.__num_nodes__ = torch.tensor([int(graph["num_nodes"])]).to(torch.int64)
             data.edge_index = torch.from_numpy(graph["edge_index"]).to(torch.int64)
             data.edge_attr = torch.from_numpy(graph["edge_feat"]).to(torch.int64)
             data.x = torch.from_numpy(graph["node_feat"]).to(torch.int64)
@@ -157,11 +172,12 @@ class MolTokenizer:
 
     def tokenize(self, input_data: List[str]):
         text_list, smile_list, _ = self.split_text_and_mol(input_data)
-        input_ids_list = self._process_text(text_list)
         if len(smile_list) > 0:
             batched_smile_data = self._process_smile(smile_list)
         else:
             batched_smile_data = None
+
+        input_ids_list = self._process_text(text_list, batched_smile_data)
         input_ids_list, llm_mask = self._process_inputids(input_ids_list)
         return input_ids_list, batched_smile_data, llm_mask
 

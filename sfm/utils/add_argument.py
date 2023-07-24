@@ -122,7 +122,7 @@ def add_argument():
     parser.add_argument("--embedding_length", type=int, default=20)
     parser.add_argument("--btn_adaptor", type=bool, default=False)
     parser.add_argument("--mfm_lora", type=bool, default=False)
-    parser.add_argument("--model_max_length", type=int, default=2048)
+    parser.add_argument("--model_max_length", type=int, default=512)
 
     parser = deepspeed.add_config_arguments(parser)
     args, unknown = parser.parse_known_args()

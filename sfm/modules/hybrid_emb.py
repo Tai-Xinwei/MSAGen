@@ -246,6 +246,71 @@ class EmbedAttention(nn.Module):
         return attn_output, attn_weights, past_key_value
 
 
+class QformerBlock(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int,
+        num_attention_heads: int = 32,
+        hidden_dropout_prob: float = 0.1,
+        hidden_act: str = "silu",
+    ):
+        super().__init__()
+
+        self.adaptor_self_attn = EmbedAttention(
+            hidden_size=hidden_size,
+            num_attention_heads=num_attention_heads,
+            dropout=hidden_dropout_prob,
+        )
+        self.adaptor_cross_attn = EmbedAttention(
+            hidden_size=hidden_size,
+            num_attention_heads=num_attention_heads,
+            dropout=hidden_dropout_prob,
+        )
+        self.adaptor_mlp = MLPAdapter(
+            hidden_size=hidden_size,
+            intermediate_size=4 * hidden_size,
+            output_size=hidden_size,
+            hidden_act=hidden_act,
+            dropout=hidden_dropout_prob,
+        )
+
+    def forward(self, hidden_states, query, mask):
+        query, _, _ = self.adaptor_self_attn(hidden_states=query, q_states=query)
+        query, _, _ = self.adaptor_cross_attn(
+            hidden_states=hidden_states, q_states=query, attention_mask=mask
+        )
+        query = self.adaptor_mlp(query)
+        return query
+
+
+class Qformer(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int,
+        hidden_act: str = "silu",
+        num_attention_heads: int = 32,
+        hidden_dropout_prob: float = 0.1,
+        num_layers: int = 1,
+    ):
+        super().__init__()
+
+        self.adaptor_qformer_layers = nn.ModuleList(
+            QformerBlock(
+                hidden_size=hidden_size,
+                num_attention_heads=num_attention_heads,
+                hidden_dropout_prob=hidden_dropout_prob,
+                hidden_act=hidden_act,
+            )
+            for _ in range(num_layers)
+        )
+
+    def forward(self, hidden_states, query, mask):
+        for layer in self.adaptor_qformer_layers:
+            query = layer(hidden_states, query, mask)
+
+        return query
+
+
 class HybridEmbeddings(nn.Module):
     def __init__(self, config: AdaptorConfig):
         super().__init__()
@@ -275,15 +340,8 @@ class HybridEmbeddings(nn.Module):
             )
 
         if self.mode == "qformer" or self.mode == "multimol":
-            self.adaptor_embed_attn = EmbedAttention(
-                hidden_size=config.mfm_hidden_size,
-                num_attention_heads=32,
-                dropout=config.hidden_dropout_prob,
-            )
-            self.adaptor_cross_attn = EmbedAttention(
-                hidden_size=config.mfm_hidden_size,
-                num_attention_heads=32,
-                dropout=config.hidden_dropout_prob,
+            self.qformer = Qformer(
+                config.mfm_hidden_size, config.hidden_act, num_layers=1
             )
             self.adaptor_embedding = nn.Parameter(
                 torch.zeros(1, config.embedding_length, config.mfm_hidden_size)
@@ -350,33 +408,6 @@ class HybridEmbeddings(nn.Module):
             self.adaptor_embedding = self.adaptor_embedding.to(mol_rep.device).to(
                 mol_rep.dtype
             )
-            embedding_f, _, _ = self.adaptor_embed_attn(
-                hidden_states=self.adaptor_embedding, q_states=self.adaptor_embedding
-            )
-
-            # mol_rep = mol_rep[:, 1:, :]  # B, nnode, H
-            attn_mask = (
-                mol_padding_mask.unsqueeze(1)
-                .unsqueeze(2)
-                .squeeze(-1)
-                .expand(-1, -1, self.embedding_length, -1)
-            )  # B, 1, L, nnodes
-            embed_mol_rep, _, _ = self.adaptor_cross_attn(
-                hidden_states=mol_rep, q_states=embedding_f, attention_mask=attn_mask
-            )
-            embed_mol_rep = self.mol_adaptor(embed_mol_rep)  # B, nnode, H
-            for bidx in range(B):
-                mask_idx_list = (mol_idx_mask[bidx] is True).nonzero()
-                start = mask_idx_list[0]
-                end = mask_idx_list[-1]
-                token_embed[bidx, start : end + 1, :] = embed_mol_rep[bidx, :, :]
-        elif self.mode == "multimol":
-            self.adaptor_embedding = self.adaptor_embedding.to(mol_rep.device).to(
-                mol_rep.dtype
-            )
-            embedding_f, _, _ = self.adaptor_embed_attn(
-                hidden_states=self.adaptor_embedding, q_states=self.adaptor_embedding
-            )
 
             attn_mask = (
                 mol_padding_mask.unsqueeze(1)
@@ -384,23 +415,30 @@ class HybridEmbeddings(nn.Module):
                 .squeeze(-1)
                 .expand(-1, -1, self.embedding_length, -1)
             )  # B, 1, L, nnodes
-            embed_mol_rep, _, _ = self.adaptor_cross_attn(
-                hidden_states=mol_rep, q_states=embedding_f, attention_mask=attn_mask
+
+            embed_mol_rep = self.qformer(
+                hidden_states=mol_rep, query=self.adaptor_embedding, mask=attn_mask
             )
             embed_mol_rep = self.mol_adaptor(embed_mol_rep)  # B, nnode, H
 
-            mol_idx = 0
+            cur_mol_idx = 0
+            mol_idx_offset = 0
             mol_idx_mask = torch.where(mol_idx_mask, 1, 0)
             for bidx in range(B):
                 mask_idx_list = mol_idx_mask[bidx].nonzero()
                 pos = 0
+                num_mol = 0
                 while pos < len(mask_idx_list):
                     start = mask_idx_list[pos]
                     end = start + self.embedding_length
-                    token_embed[bidx, start:end, :] = embed_mol_rep[mol_idx, :, :]
+                    cur_mol_idx = -input_ids[bidx, start] - 1
+                    token_embed[bidx, start:end, :] = embed_mol_rep[
+                        mol_idx_offset + cur_mol_idx, :, :
+                    ]
 
-                    mol_idx += 1
+                    num_mol = max(num_mol, cur_mol_idx + 1)
                     pos += self.embedding_length
+                mol_idx_offset += num_mol
         else:
             raise NotImplementedError
 
@@ -462,9 +500,9 @@ class HybridEmbeddings(nn.Module):
     ):
         # create causal mask
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-        combined_attention_mask = None
+        combined_attention_mask_bool = None
         if input_shape[-1] > 1:
-            combined_attention_mask = self._make_causal_mask(
+            combined_attention_mask_bool = self._make_causal_mask(
                 input_shape,
                 inputs_embeds.dtype,
                 device=inputs_embeds.device,
@@ -476,10 +514,11 @@ class HybridEmbeddings(nn.Module):
             expanded_attn_mask = self._expand_mask(
                 attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]
             ).to(inputs_embeds.device)
+
             combined_attention_mask_bool = (
                 expanded_attn_mask
-                if combined_attention_mask is None
-                else expanded_attn_mask & combined_attention_mask
+                if combined_attention_mask_bool is None
+                else expanded_attn_mask & combined_attention_mask_bool
             )
 
         return combined_attention_mask_bool

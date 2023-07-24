@@ -67,8 +67,6 @@ class Trainer:
                 part_list=[0, 9, 19, 27, 37],
             )
 
-            # load_ckp_tied_modules(net, args, vocab_size)
-
             optimizer = myAdam(
                 net,
                 mode="adaptoronly",
@@ -99,11 +97,14 @@ class Trainer:
                 self.resume(args.resume_path)
 
     def resume(self, resume_path, ckpt_id=None):
-        sfm_logger.info("resume from %s" % resume_path)
-        if ckpt_id is None:
-            self.model_engine.load_checkpoint(resume_path)
-        else:
-            self.model_engine.load_checkpoint(resume_path, tag=ckpt_id)
+        if os.path.isdir(resume_path) and os.paht.exists(
+            os.path.join(resume_path, "latest")
+        ):
+            sfm_logger.info("resume from %s" % resume_path)
+            if ckpt_id is None:
+                self.model_engine.load_checkpoint(resume_path)
+            else:
+                self.model_engine.load_checkpoint(resume_path, tag=ckpt_id)
 
     def train(self):
         sfm_logger.info("start training")
@@ -122,10 +123,7 @@ class Trainer:
                 self.model_engine.step()
 
                 if global_step % 10000 == 0:
-                    self.model_engine.save_checkpoint(
-                        save_dir=self.args.output_path,
-                        client_state={"checkpoint_step": global_step},
-                    )
+                    self.save_ckp(global_step)
 
                 del loss
                 torch.cuda.empty_cache()
@@ -140,6 +138,8 @@ class Trainer:
 
             if global_step % 2000 == 0:
                 self.save_ckp(global_step)
+
+            torch.cuda.empty_cache()
 
     def save_ckp(self, global_step):
         self.model_engine.save_checkpoint(

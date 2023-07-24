@@ -62,10 +62,12 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         dataset_splits=args.dataset_splits,
         in_memory=False,
         model_max_length=args.model_max_length,
-        dataset_ratios=args.dataset_ratios,
         mol_embed_type="atoms",
         molecule_max_size=512,
         pad_token_id=tokenizer.pad_token_id,
+        # dataset_ratios=args.dataset_ratios,
+        pool_mode=args.pool_mode,
+        embedding_length=args.embedding_length,
     )
 
     return dict(train_dataset=dataset, eval_dataset=None, vocab_size=len(tokenizer))
@@ -94,9 +96,6 @@ def main() -> None:
         )
     )
 
-    data_module = make_supervised_data_module(args, mode="train")
-    print("length of dataset", len(data_module["train_dataset"]))
-
     args.add_3d = False
 
     if args.rank == 0:
@@ -109,6 +108,9 @@ def main() -> None:
                 "embedding_length": args.embedding_length,
             }
         )
+
+    data_module = make_supervised_data_module(args, mode="train")
+    print("length of dataset", len(data_module["train_dataset"]))
 
     trainer = Trainer(
         args, data_module["train_dataset"], vocab_size=data_module["vocab_size"]

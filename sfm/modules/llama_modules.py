@@ -145,10 +145,10 @@ class LlamaEmbeddingsPP(nn.Module):
         mol_idx_mask = input_ids < 0  # B, T
 
         ## all freeze
-        # with torch.no_grad():
-        text_embeds = self.embed_tokens(
-            input_ids.masked_fill(mol_idx_mask, 0)
-        )  # B, T, hidden_size
+        with torch.no_grad():
+            text_embeds = self.embed_tokens(
+                input_ids.masked_fill(mol_idx_mask, 0)
+            )  # B, T, hidden_size
 
         # ## partial freeze
         # w = (input_ids > self.learnable_cutoff) * 1.0

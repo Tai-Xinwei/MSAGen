@@ -105,6 +105,7 @@ def collator(
             item.x,
             item.edge_input[:, :, :multi_hop_max_dist, :],
             item.y,
+            item.__num_nodes__,
             # spd_count, full_path_information
             # item.spatial_pos_count, item.node_input[:, :, :multi_hop_max_dist+1, :]
         )
@@ -121,6 +122,7 @@ def collator(
         xs,
         edge_inputs,
         ys,
+        nnodes,
     ) = zip(*items)
 
     # spd_count, full_path_information
@@ -131,6 +133,7 @@ def collator(
     max_node_num = max(i.size(0) for i in xs)
     max_dist = max(i.size(-2) for i in edge_inputs)
     y = torch.cat(ys)
+    nnodes = torch.cat(nnodes)
     x = torch.cat([pad_2d_unsqueeze(i, max_node_num) for i in xs])
     edge_input = torch.cat(
         [pad_3d_unsqueeze(i, max_node_num, max_node_num, max_dist) for i in edge_inputs]
@@ -159,6 +162,7 @@ def collator(
         pos=None,
         node_type_edge=None,
         node_mask=None,
+        nnodes=nnodes,
     )
 
 

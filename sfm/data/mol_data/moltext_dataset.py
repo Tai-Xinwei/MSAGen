@@ -772,10 +772,12 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         dataset_splits: str,
         in_memory: bool,
         model_max_length: int,
-        dataset_ratios: Optional[str],
         mol_embed_type: str,
         molecule_max_size: int,
         pad_token_id: int,
+        dataset_ratios: Optional[str] = None,
+        pool_mode: Optional[str] = "full",
+        embedding_length: int = 20,
     ) -> None:
         super().__init__()
         self.data_path = data_path
@@ -798,6 +800,10 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         self.model_max_length = model_max_length
         self.mol_embed_type = mol_embed_type
         self.molecule_max_size = molecule_max_size
+        self.pool_mode = pool_mode
+        self.embedding_length = embedding_length
+
+        threshold_maxmol = 8
 
         self.len = 0
         self.index_to_key_map = []
@@ -834,7 +840,10 @@ class SupervisedProcessedDataWithSmiles(Dataset):
                     self.dataset_filtered[dataset_name][dataset_split] = 0
                     for key, val in tqdm(read_txn.cursor()):
                         val = pkl.loads(val)
-                        if self._calc_input_len(*val) > self.model_max_length:
+                        if (
+                            self._calc_input_len(*val) > self.model_max_length
+                            or len(val[3]) > threshold_maxmol
+                        ):
                             self.dataset_filtered[dataset_name][dataset_split] += 1
                             continue
                         self.index_to_key_map.append(
@@ -865,7 +874,10 @@ class SupervisedProcessedDataWithSmiles(Dataset):
                     self.dataset_filtered[dataset_name][dataset_split] = 0
                     for key, val in tqdm(read_txn.cursor()):
                         val = pkl.loads(val)
-                        if self._calc_input_len(*val) > self.model_max_length:
+                        if (
+                            self._calc_input_len(*val) > self.model_max_length
+                            or len(val[3]) > threshold_maxmol
+                        ):
                             self.dataset_filtered[dataset_name][dataset_split] += 1
                             continue
                         key = key.decode()
@@ -939,14 +951,27 @@ class SupervisedProcessedDataWithSmiles(Dataset):
             )
             new_input_ids = []
             for j in range(len(mol_pos) - 1):
-                new_input_ids.extend(input_ids[mol_pos[j] : mol_pos[j + 1]])
-                if j < len(mol_pos) - 2:
-                    mol_idx = input_ids[mol_pos[j + 1]]
-                    new_input_ids.extend(
-                        torch.ones([mol_sizes[-mol_idx - 1] - 1]) * mol_idx
-                    )
-                    if mol_pos[j + 1] < input_ids_len:
-                        input_ids_len += mol_sizes[-mol_idx - 1] - 1
+                if self.pool_mode == "full":
+                    new_input_ids.extend(input_ids[mol_pos[j] : mol_pos[j + 1]])
+                    if j < len(mol_pos) - 2:
+                        mol_idx = input_ids[mol_pos[j + 1]]
+                        new_input_ids.extend(
+                            torch.ones([mol_sizes[-mol_idx - 1] - 1]) * mol_idx
+                        )
+                        if mol_pos[j + 1] < input_ids_len:
+                            input_ids_len += mol_sizes[-mol_idx - 1] - 1
+                elif self.pool_mode == "qformer":
+                    new_input_ids.extend(input_ids[mol_pos[j] : mol_pos[j + 1]])
+                    if j < len(mol_pos) - 2:
+                        mol_idx = input_ids[mol_pos[j + 1]]
+                        new_input_ids.extend(
+                            torch.ones([self.embedding_length - 1]) * mol_idx
+                        )
+                        if mol_pos[j + 1] < input_ids_len:
+                            input_ids_len += self.embedding_length - 1
+                else:
+                    raise Exception(f"Pool mode {self.pool_mode} not supported yet")
+
             input_ids = torch.tensor(new_input_ids)
 
         input_ids = input_ids.to(dtype=torch.int64)
@@ -1202,7 +1227,7 @@ class DataCollatorForSupervisedDataset(object):
                     batched_molecules["edge_input"],
                     batched_molecules["num_atoms"],
                 ],
-                labels,
+                (labels,),
             )
         else:
             return dict(

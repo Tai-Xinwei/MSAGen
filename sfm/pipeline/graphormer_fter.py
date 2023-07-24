@@ -11,7 +11,11 @@ import psutil
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from criterions.l1ft import L1Criterions
 from deepspeed.runtime.utils import see_memory_usage
+from deepspeed.utils import logger as ds_logger
+from models.graphormer.graphormer import GraphormerModel
+from sfmlogging.loggers import sfm_logger
 from torch.utils.data import DataLoader, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
@@ -21,9 +25,6 @@ from utils.get_paranum import count_paranum
 # from graphormer.data.wrapper import MyPygPCQM4MDataset
 # from torch.nn.parallel import DistributedDataParallel as DDP
 from utils.move_to_device import move_to_device
-
-from sfm.criterions.l1ft import L1Criterions
-from sfm.models.graphormer import GraphormerModel
 
 
 class Finetuner:
@@ -45,6 +46,7 @@ class Finetuner:
             self.writer = SummaryWriter("../output")
 
         see_memory_usage("Model built", force=True)
+        self.load_checkpoint(net, args.loadcheck_path)
 
         parameters = filter(lambda p: p.requires_grad, net.parameters())
 
@@ -61,11 +63,38 @@ class Finetuner:
         )
         self.len_train = len(train_data)
 
-        self.load_checkpoint()
         self.set_dataloader(val_data=val_data, test_data=test_data)
 
-    def load_checkpoint(self, checkpoint_path=None):
-        pass
+    def load_checkpoint(self, net, checkpoint_path=None):
+        checkpoints_state = torch.load(checkpoint_path, map_location="cpu")["model"]
+        IncompatibleKeys = net.load_state_dict(checkpoints_state, strict=False)
+        IncompatibleKeys = IncompatibleKeys._asdict()
+
+        missing_keys = []
+        for keys in IncompatibleKeys["missing_keys"]:
+            if keys.find("dummy") == -1:
+                missing_keys.append(keys)
+
+        unexpected_keys = []
+        for keys in IncompatibleKeys["unexpected_keys"]:
+            if keys.find("dummy") == -1:
+                unexpected_keys.append(keys)
+
+        if len(missing_keys) > 0:
+            ds_logger.info(
+                "Missing keys in {}: {}".format(
+                    checkpoint_path,
+                    missing_keys,
+                )
+            )
+
+        if len(unexpected_keys) > 0:
+            ds_logger.info(
+                "Unexpected keys {}: {}".format(
+                    checkpoint_path,
+                    unexpected_keys,
+                )
+            )
 
     def set_dataloader(self, val_data=None, test_data=None):
         self.len_val = 0
@@ -112,9 +141,9 @@ class Finetuner:
                 with torch.no_grad():
                     model_output = self.model_engine(batch_data)
 
-            logits, node_output = model_output[0], model_output[1]
+            logits = model_output[0]
 
-            loss = self.L1loss(batch_data, logits, node_output)
+            loss = self.L1loss(batch_data, logits)
             running_loss += loss.detach().item()
 
             if iftrain:

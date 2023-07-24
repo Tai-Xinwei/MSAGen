@@ -30,9 +30,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=60000
 
 [ -z "${data_path}" ] && data_path='/home/peiran/FMproj/chemical-copilot'
-# [ -z "${dataset_names}" ] && dataset_names='mt-data-1m'
+[ -z "${dataset_names}" ] && dataset_names='mt-data-1m'
 [ -z "${dataset_names}" ] && dataset_names='moleculenet'
 [ -z "${dataset_splits}" ] && dataset_splits='train'
+
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${output_path}" ] && output_path='/home/peiran/FMproj/output/'

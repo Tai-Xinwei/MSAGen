@@ -7,10 +7,10 @@ echo 'Solving MKL done!'
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=15
+[ -z "${layers}" ] && layers=24
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${hidden_size}" ] && hidden_size=768
-[ -z "${ffn_size}" ] && ffn_size=3072
+[ -z "${ffn_size}" ] && ffn_size=768
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
@@ -31,7 +31,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${data_path}" ] && data_path='/home/peiran/FMproj/tdc_data'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
-[ -z "${loadcheck_path}" ] && loadcheck_path="."
+[ -z "${loadcheck_path}" ] && loadcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7.pt"
 [ -z "${output_path}" ] && output_path='/home/peiran/FMproj/output/'
 # [ -z "${dataset_name}" ] && dataset_name="PCQM4M-LSC-V2-3D"
 [ -z "${dataset_name}" ] && dataset_name="PM6-Full-3D"
@@ -201,7 +201,7 @@ deepspeed --num_gpu=1 sfm/tasks/ft_graphormer.py \
   --total_num_steps $total_num_steps \
   --warmup_num_steps $warmup_num_steps \
   --loadcheck_path $loadcheck_path \
-  --deepspeed --deepspeed_config ./config_file/ds_config_ft.json
+  --deepspeed --deepspeed_config ./config_file/ds_config.json
 
 # sleep 100
 
