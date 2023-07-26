@@ -2,8 +2,8 @@
 from typing import List, Union
 
 import numpy as np
-from dataset import Data
-from molecule import Molecule
+from sfm.data.dataset import Data
+from sfm.data.molecule import Molecule
 from torch import LongTensor
 from transformers import PreTrainedTokenizer
 
@@ -18,6 +18,7 @@ class Text(Data):
         for key, value in kwargs:
             self.__dict__[key] = value
 
+    @classmethod
     def from_raw_text(cls, text: str, tokenizer: PreTrainedTokenizer) -> "Text":
         tokenized = tokenizer.tokenize(text=text)
         token_seq = tokenized.input_ids[0]

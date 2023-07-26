@@ -15,12 +15,15 @@ class Data:
 class FoundationModelDataset(Dataset[Data]):
     def __init__(self) -> None:
         super().__init__()
+        
+    def collate(batch: list[Data]) -> Data:
+        raise NotImplementedError
 
 
 class InMemoryFoundationModelDataset(FoundationModelDataset):
-    def __init__(self) -> None:
+    def __init__(self, data: list) -> None:
         super().__init__()
-        self.data = []
+        self.data = data
 
     def __getitem__(self, index) -> Data:
         return self.data[index]
