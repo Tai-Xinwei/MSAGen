@@ -28,3 +28,34 @@ class Model(nn.Module, ABC):
             tuple[Optimizer, LRScheduler]:
         """
         pass
+
+    def before_training(self):
+        """
+        This method is called before training so you can do some initialization.
+        For example, freeze some layers or set some layers to eval mode.
+        """
+
+        pass
+
+    def after_training(self):
+        """
+        This method is called after training so you can do some finalization.
+        """
+
+        pass
+
+    def before_batch(self):
+        """
+        This method is called before each batch so you can do some preprocessing.
+        For example, set some layers to eval mode to disable dropout.
+        """
+
+        pass
+
+    def after_batch(self):
+        """
+        This method is called after each batch so you can do some postprocessing.
+        For example, set some layers to train mode to enable dropout.
+        """
+
+        pass

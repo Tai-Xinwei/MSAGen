@@ -195,6 +195,8 @@ class Trainer(object):
 
         assert self.train_data_loader is not None
 
+        self.model.before_training()
+
         self.resume()
         self.accelerator.set_up()
 
@@ -208,7 +210,11 @@ class Trainer(object):
             for i, grouped_batch_data in tqdm(
                 enumerate(iter), desc=f"Training Epoch {epoch}", total=len(iter)
             ):
+                self.model.before_batch()
+
                 model_output = self.accelerator.train_step(grouped_batch_data)
+
+                self.model.after_batch()
 
                 self.state.batch = i
                 self.state.global_step += 1
@@ -233,6 +239,8 @@ class Trainer(object):
             ):
                 checkpoint_name = f"checkpoint_E{epoch}.pt"
                 self.save_checkpoint(checkpoint_name)
+
+        self.model.after_training()
 
         print("Finished Training")
 
