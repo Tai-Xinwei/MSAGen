@@ -917,7 +917,6 @@ class UnifiedDecoder(nn.Module):
         node_output = self.unified_final_equivariant_ln(vec)
         output = self.unified_final_invariant_ln(output)
 
-        # node_output = self.unified_output_layer(output, node_output).squeeze(-1)
         node_output = self.unified_output_layer(node_output).squeeze(-1)
         node_output = node_output.masked_fill(padding_mask[:, 1:].unsqueeze(-1), 0.0)
 

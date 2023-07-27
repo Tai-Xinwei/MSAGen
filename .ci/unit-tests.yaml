@@ -46,3 +46,9 @@ steps:
     pip install -e .
     pytest tests/
   displayName: 'Install and run unit tests'
+
+# Install pre-commit hooks and run them
+- bash: |
+    pip install pre-commit
+    pre-commit run --all-files
+  displayName: 'Install pre-commit hooks and run them'
