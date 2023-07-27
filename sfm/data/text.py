@@ -2,10 +2,11 @@
 from typing import List, Union
 
 import numpy as np
-from sfm.data.dataset import Data
-from sfm.data.molecule import Molecule
 from torch import LongTensor
 from transformers import PreTrainedTokenizer
+
+from sfm.data.dataset import Data
+from sfm.data.molecule import Molecule
 
 TOKEN_SEQ_T = Union[LongTensor, np.array]
 MOL_POS_T = Union[LongTensor, List[int], np.array]

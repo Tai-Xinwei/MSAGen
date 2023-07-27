@@ -359,6 +359,9 @@ class HybridEmbeddings(nn.Module):
     ):
         # TODO (Roger)
         # input_ids: bsz, num_tokens
+        mol_rep = mol_rep.transpose(0, 1)[:, 1:, :]
+        mol_padding_mask = mol_padding_mask[:, 1:]
+
         B, T = input_ids.shape
         mol_idx_mask = input_ids < 0  # B, T
 
@@ -394,7 +397,7 @@ class HybridEmbeddings(nn.Module):
             token_embed = torch.where(mol_idx_mask, pooled_rep, token_embed)
         elif self.mode == "full":
             # raise NotImplementedError
-            mol_rep = self.mol_adaptor(mol_rep)[:, 1:, :]  # B, nnode, H
+            mol_rep = self.mol_adaptor(mol_rep)  # [:, 1:, :]  # B, nnode, H
 
             # token_embed = token_embed.unsqueeze(1).expand(-1, mol_rep.shape[1], -1, -1) # B, nnode, T, H
             for bidx in range(B):
@@ -532,8 +535,6 @@ class HybridEmbeddings(nn.Module):
         input_ids,
     ):
         if text_embeds is not None:
-            mol_emb = mol_emb.transpose(0, 1)[:, 1:, :]
-            mol_padding_mask = mol_padding_mask[:, 1:]
             batch_size, seq_length, _ = text_embeds.shape
         else:
             raise ValueError("text_embeds cannot be None")
@@ -614,8 +615,6 @@ class HybridEmbeddingsPP(HybridEmbeddings):
         mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids = input_tuple
 
         if input_ids is not None:
-            mol_emb = mol_emb.transpose(0, 1)[:, 1:, :]
-            mol_padding_mask = mol_padding_mask[:, 1:]
             batch_size, seq_length = input_ids.shape
         else:
             raise ValueError("decoder_input_ids cannot be None")

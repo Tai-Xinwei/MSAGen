@@ -201,8 +201,6 @@ class MolTokenizer:
 
     def tokenize(self, input_data: List[str]):
         text_list, smile_list, _ = self.split_text_and_mol(input_data)
-        print(text_list)
-        print(smile_list)
         if len(smile_list) > 0:
             batched_smile_data = self._process_smile(smile_list)
         else:

@@ -15,7 +15,7 @@ class Data:
 class FoundationModelDataset(Dataset[Data]):
     def __init__(self) -> None:
         super().__init__()
-        
+
     def collate(batch: list[Data]) -> Data:
         raise NotImplementedError
 

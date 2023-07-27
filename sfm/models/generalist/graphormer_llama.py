@@ -9,19 +9,20 @@ import os
 from typing import Dict, Optional, Tuple
 
 import torch
-from modules import (
+from models.graphormer.modules import (
     GraphormerSentenceEncoder,
     GraphormerSentenceEncoderPP,
     init_bert_params,
 )
-from modules.hybrid_emb import AdaptorConfig, HybridEmbeddings, HybridEmbeddingsPP
-from modules.llama_modules import LlamaEmbeddingsPP, LlamaModelPP
 
 # from modules.
 from sfmlogging.loggers import sfm_logger as logger
 from transformers.models.llama.configuration_llama import LlamaConfig
 from transformers.models.llama.modeling_llama import LlamaForCausalLM
 from utils.pretrained_layer_spec import PretrainedLayerSpec, TiedPretrainedLayerSpec
+
+from .modules.hybrid_emb import AdaptorConfig, HybridEmbeddings, HybridEmbeddingsPP
+from .modules.llama_modules import LlamaEmbeddingsPP, LlamaModelPP
 
 
 class GraphormerLlamaModel(torch.nn.Module):

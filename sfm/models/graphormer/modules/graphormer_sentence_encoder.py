@@ -11,10 +11,13 @@ import numpy as np
 import torch
 import torch.nn as nn
 from models.graphormer.graphormer_config import GraphormerConfig
+from modules.FairseqDropout import FairseqDropout
+from modules.get_activation_fn import get_activation_fn
+from modules.layer_norm import LayerNorm
+from modules.multihead_attention import MultiheadAttention
+from modules.quant_noise import quant_noise as apply_quant_noise_
 from utils.LayerDropModuleList import LayerDropModuleList
 
-from .FairseqDropout import FairseqDropout
-from .get_activation_fn import get_activation_fn
 from .graphormer_layers import (
     Distance,
     EquivariantLayerNorm,
@@ -34,9 +37,6 @@ from .graphormer_layers_pp import (
     NodeTaskHeadPipe,
 )
 from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
-from .layer_norm import LayerNorm
-from .multihead_attention import MultiheadAttention
-from .quant_noise import quant_noise as apply_quant_noise_
 
 
 def init_bert_params(module):

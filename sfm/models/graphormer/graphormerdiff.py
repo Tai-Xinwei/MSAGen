@@ -16,14 +16,14 @@ from modules.quant_noise import quant_noise
 
 from .modules.graphormer_sentence_encoder import (
     GraphormerSentenceEncoder,
-    NodeDecoder,
     init_bert_params,
 )
+from .modules.UnifiedDecoder import UnifiedDecoder
 
 logger = logging.getLogger(__name__)
 
 
-class GraphormerModel(nn.Module):
+class GraphormerDiffModel(nn.Module):
     """
     Class for training a Masked Language Model. It also supports an
     additional sentence level prediction if the sent-loss argument is set.
@@ -46,7 +46,7 @@ class GraphormerModel(nn.Module):
 
         logger.info(args)
 
-        self.encoder = GraphormerEncoder(args)
+        self.encoder = GraphormerDiff(args)
 
     def max_positions(self):
         return self.encoder.max_positions
@@ -55,7 +55,7 @@ class GraphormerModel(nn.Module):
         return self.encoder(batched_data, **kwargs)
 
 
-class GraphormerEncoder(nn.Module):
+class GraphormerDiff(nn.Module):
     """
     Encoder for Masked Language Modelling.
     """
@@ -108,10 +108,24 @@ class GraphormerEncoder(nn.Module):
         # Remove head is set to true during fine-tuning
         self.load_softmax = not args.ft  # getattr(args, "remove_head", False)
         print("if finetune:", args.ft)
-        self.decoder = NodeDecoder(
-            args.encoder_embed_dim, args.encoder_attention_heads, args=args
-        )
 
+        # decoder is not used in finetune downstream tasks, so we don't need to load it
+        if self.load_softmax:
+            self.decoder = UnifiedDecoder(
+                args,
+                num_pred_attn_layer=args.num_pred_attn_layer,
+                embedding_dim=args.encoder_embed_dim,
+                num_attention_heads=args.encoder_attention_heads,
+                ffn_embedding_dim=args.encoder_ffn_embed_dim,
+                dropout=args.dropout,
+                attention_dropout=args.attention_dropout,
+                activation_dropout=args.act_dropout,
+                num_3d_bias_kernel=args.num_3d_bias_kernel,
+                num_edges=args.num_edges,
+                num_atoms=args.num_atoms,
+            )
+
+        # linear head for sentence prediction or ft
         self.masked_lm_pooler = nn.Linear(
             args.encoder_embed_dim, args.encoder_embed_dim
         )
@@ -180,15 +194,13 @@ class GraphormerEncoder(nn.Module):
 
         # batched_data = {"x": x, "pos": pos, "node_type_edge": node_type_edge, "node_mask": node_mask, "attn_bias": attn_bias, "spatial_pos": spatial_pos, "edge_input": edge_input, "attn_edge_type": attn_edge_type}
 
-        x, attn_bias, delta_pos, inner_states, _ = self.sentence_encoder(
+        x, attn_bias, delta_pos, inner_states, padding_mask = self.sentence_encoder(
             batched_data,
             segment_labels=segment_labels,
             perturb=perturb,
         )
 
-        inner_states, node_output, sentence_rep = self.decoder(
-            x, attn_bias, delta_pos, inner_states
-        )
+        node_output = self.decoder(batched_data, x, delta_pos, padding_mask)
 
         x = inner_states[-1].transpose(0, 1)
 
@@ -199,8 +211,6 @@ class GraphormerEncoder(nn.Module):
             x = x[masked_tokens, :]
 
         x = self.layer_norm(self.activation_fn(self.lm_head_transform_weight(x)))
-
-        pooled_output = self.pooler_activation(self.masked_lm_pooler(sentence_rep))
 
         # project back to size of vocabulary
         if self.share_input_output_embed and hasattr(
@@ -217,15 +227,7 @@ class GraphormerEncoder(nn.Module):
         if self.proj_out is not None:
             x = self.proj_out(x)
 
-        if self.sentence_projection_layer:
-            self.sentence_projection_layer(pooled_output)
-
         return x, node_output
-        # return x, node_output, {
-        #     "inner_states": inner_states,
-        #     "pooled_output": pooled_output,
-        #     "sentence_logits": sentence_logits,
-        # }
 
     def max_positions(self):
         """Maximum output length supported by the encoder."""

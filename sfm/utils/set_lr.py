@@ -100,9 +100,11 @@ def process_freeze_param(
 
     if mode == "adaptoronly":
         for name, param in net.named_parameters():
+            name.split(".")[0]
             if (
                 name.find("adaptor") != -1
                 or name.find("dummy") != -1
+                # or int(nl) == 0
                 # or name.find("embed_tokens") != -1
                 # or name.find("lm_head") != -1
             ):

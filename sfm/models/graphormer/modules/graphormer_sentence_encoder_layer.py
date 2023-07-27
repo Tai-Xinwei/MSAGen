@@ -9,13 +9,12 @@ from typing import Callable, Optional
 import torch
 import torch.nn as nn
 from models.graphormer.graphormer_config import GraphormerConfig
-
-from .droppath import DropPath
-from .FairseqDropout import FairseqDropout
-from .get_activation_fn import get_activation_fn
-from .layer_norm import Fp32LayerNorm, LayerNorm
-from .multihead_attention import MultiheadAttention
-from .quant_noise import quant_noise
+from modules.droppath import DropPath
+from modules.FairseqDropout import FairseqDropout
+from modules.get_activation_fn import get_activation_fn
+from modules.layer_norm import Fp32LayerNorm, LayerNorm
+from modules.multihead_attention import MultiheadAttention
+from modules.quant_noise import quant_noise
 
 
 class GraphormerSentenceEncoderLayer(nn.Module):
