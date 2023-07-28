@@ -17,14 +17,10 @@ from sfm.pipeline.accelerator.dataclasses import (
     TrainerState,
 )
 from sfm.pipeline.accelerator.model import Model
+from sfm.sfmlogging import logger
 
 
 class Accelerator(ABC):
-    args: TrainerConfig
-    model: Union[Model, DistributedDataParallel]
-    optimizer: Optimizer
-    lr_scheduler: LRScheduler
-
     @abstractmethod
     def set_up():
         pass
@@ -54,8 +50,6 @@ class Accelerator(ABC):
 
 
 class SingleNodeAccelerator(Accelerator):
-    device: Union[int, str, torch.device]
-
     def __init__(self, args, model, optimizer, lr_scheduler, device: str) -> None:
         super().__init__()
         self.args = args
@@ -109,7 +103,7 @@ class SingleNodeAccelerator(Accelerator):
 
         if extra_state is not None:
             checkpoint.update(extra_state)
-        print("save checkpoint: ", ckpt_id)
+        logger.log("save checkpoint: ", ckpt_id)
         torch.save(checkpoint, save_dir / ckpt_id)
 
         with open(save_dir / "checkpoint_list.txt", "a") as f:
@@ -134,8 +128,6 @@ class SingleNodeAccelerator(Accelerator):
 
 
 class DdpAccelerator(SingleNodeAccelerator):
-    dist_backend: str = "nccl"
-
     def __init__(self, args, model, optimizer, lr_scheduler) -> None:
         super().__init__(args, model, optimizer, lr_scheduler, device="cuda")
 
@@ -151,9 +143,8 @@ class DdpAccelerator(SingleNodeAccelerator):
         torch.cuda.set_device(self.local_rank)
         self.device = torch.device("cuda", self.local_rank)
 
-        print(
+        logger.log(
             f"Initializing DDP by env: word size: {self.world_size}, rank: {self.rank}, local_rank{self.local_rank} ",
-            flush=True,
         )
 
         torch.distributed.init_process_group(
@@ -165,7 +156,7 @@ class DdpAccelerator(SingleNodeAccelerator):
 
         torch.distributed.barrier()
 
-        print("DDP initialized.", flush=True)
+        logger.log("DDP initialized.")
 
         self.model = DistributedDataParallel(
             self.model,
@@ -183,8 +174,6 @@ class DdpAccelerator(SingleNodeAccelerator):
 
 
 class DeepSpeedAccelerator(Accelerator):
-    dist_backend: str = "nccl"
-
     def __init__(self, args, model, optimizer, lr_scheduler) -> None:
         try:
             import deepspeed

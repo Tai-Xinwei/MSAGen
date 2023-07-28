@@ -29,6 +29,7 @@ from sfm.pipeline.accelerator.dataclasses import (
     TraingStrategy,
 )
 from sfm.pipeline.accelerator.model import Model
+from sfm.sfmlogging import logger
 
 
 def seed_everything(seed):
@@ -110,10 +111,10 @@ class Trainer(object):
                 checkpoint_last = checkpoint_list[-1]
                 checkpoint_path = self.save_dir / checkpoint_last
                 if checkpoint_path.exists():
-                    print("Resume from checkpoint: ", checkpoint_path)
+                    logger.log("Resume from checkpoint: ", checkpoint_path)
                     self.load_checkpoint(checkpoint_last)
                 else:
-                    print("Not resume from checkpoint")
+                    logger.log("Not resume from checkpoint")
         else:
             with open(checkpoint_list_path, "w") as f:
                 f.write("")
@@ -179,15 +180,14 @@ class Trainer(object):
             epoch=self.state.epoch,
             batch=self.state.batch,
             global_step=self.state.global_step,
-            time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
             extra_output=model_output.log_output,
         )
 
     def train(self):
-        print("Start training")
-        print(self.model)
-        print(
-            "Number of parameters: ",
+        logger.log("Start training")
+        logger.log(self.model)
+        logger.log(
+            "Number of parameters:",
             sum(p.numel() for p in self.model.parameters() if p.requires_grad),
         )
 
@@ -231,7 +231,7 @@ class Trainer(object):
                     and self.state.global_step % self.args.log_interval == 0
                 ):
                     log_output = self.build_log_output(model_output)
-                    print(log_output)
+                    logger.log(log_output)
 
             if (
                 self.args.save_epoch_interval > 0
@@ -242,16 +242,16 @@ class Trainer(object):
 
         self.model.after_training()
 
-        print("Finished Training")
+        logger.log("Finished Training")
 
     def validate(self):
         if self.valid_data_loader is None:
-            print("No validation data, skip validation")
+            logger.log("No validation data, skip validation")
             return
 
-        print("start validation")
+        logger.log("start validation")
 
         # TODO: support multiple losses
         for i, batch_data in tqdm(enumerate(self.valid_data_loader)):
             loss = self.model(batch_data)
-            print("loss: ", loss)
+            logger.log("loss: ", loss)

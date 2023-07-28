@@ -54,7 +54,6 @@ class LogOutput:
     epoch: int
     batch: int
     global_step: int
-    time: str
     extra_output: Dict
 
     def __str__(self) -> str:
