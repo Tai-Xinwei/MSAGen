@@ -551,18 +551,19 @@ class GraphormerSentenceEncoderPP(GraphormerSentenceEncoder):
             _,
             x,
             in_degree,
+            out_degree,
             attn_bias,
             spatial_pos,
             edge_input,
             num_atoms,
         ) = input_batchdata
-        # create dict for batched data
 
+        # create dict for batched data
         batched_data = {}
         batched_data["attn_bias"] = attn_bias
         batched_data["spatial_pos"] = spatial_pos
         batched_data["in_degree"] = in_degree
-        batched_data["out_degree"] = in_degree
+        batched_data["out_degree"] = out_degree
         batched_data["x"] = x
         batched_data["edge_input"] = edge_input
         batched_data["attn_edge_type"] = None

@@ -5,7 +5,7 @@
 echo "pip install start"
 # # # python=3.9, cuda 11.7
 
-pip install deepspeed==0.9.5
+pip install deepspeed==0.10.0
 pip install ogb==1.3.6
 pip install rdkit-pypi==2021.9.3
 pip install tensorboard
