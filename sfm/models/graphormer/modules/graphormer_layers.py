@@ -54,7 +54,7 @@ class GraphNodeFeature(nn.Module):
 
         self.atom_mask_embedding = nn.Embedding(9, hidden_dim, padding_idx=None)
 
-    def forward(self, batched_data, mask_2d=None):
+    def forward(self, batched_data, mask_2d=None, no_mask=False):
         x, in_degree, out_degree = (
             batched_data["x"],
             batched_data["in_degree"],
@@ -74,7 +74,7 @@ class GraphNodeFeature(nn.Module):
             node_feature = node_feature + degree_feature
 
         # @ Roger added: mask atom
-        if not self.args.ft:
+        if not self.args.ft and not no_mask:
             mask_embedding = self.atom_mask_embedding.weight.sum(dim=0)
             node_mask = batched_data["node_mask"]
             node_feature[node_mask.bool().squeeze(-1)] = mask_embedding
@@ -128,7 +128,7 @@ class GraphAttnBias(nn.Module):
 
         self.graph_token_virtual_distance = nn.Embedding(1, num_heads)
 
-    def forward(self, batched_data, mask_2d=None):
+    def forward(self, batched_data, mask_2d=None, no_mask=False):
         attn_bias, spatial_pos, x = (
             batched_data["attn_bias"],
             batched_data["spatial_pos"],
@@ -151,7 +151,7 @@ class GraphAttnBias(nn.Module):
         # [n_graph, n_node, n_node, n_head] -> [n_graph, n_head, n_node, n_node]
         if not self.no_2d:
             # @ Roger added: mask atom
-            if not self.args.ft:
+            if not self.args.ft and not no_mask:
                 mask_spatial_pos_value = self.spatial_pos_encoder.weight.shape[0] - 1
                 spatial_pos = spatial_pos.masked_fill_(
                     node_mask.squeeze(-1).unsqueeze(1).bool(), mask_spatial_pos_value
@@ -208,7 +208,7 @@ class GraphAttnBias(nn.Module):
                 edge_input = edge_input * mask_2d[:, None, None, None]
 
             # @ Roger added: mask atom
-            if not self.args.ft:
+            if not self.args.ft and not no_mask:
                 edge_input = edge_input.masked_fill_(
                     node_mask.squeeze(-1)[:, None, None, :].bool(), 0.0
                 )

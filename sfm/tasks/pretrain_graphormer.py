@@ -13,7 +13,7 @@ from data.mol_data.dataset import BatchedDataDataset, PCQPreprocessedData
 
 # import torch.distributed as dist
 from deepspeed import comm as dist
-from pipeline.graphormer_trainer import Trainer
+from pipeline.graphormer_pretrainer import DiffTrainer, Trainer
 from utils.add_argument import add_argument
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -71,11 +71,8 @@ def main() -> None:
     )
 
     print("add-3d", args.add_3d, "no-2d", args.no_2d)
-    # if args.pipeline_parallelism > 0:
-    #     trainer_pp = Trainer_pp(args, train_data, val_data, stage_num=args.pipeline_parallelism)
-    #     trainer_pp()
-    # else:
-    trainer = Trainer(args, train_data)
+    # trainer = Trainer(args, train_data)
+    trainer = DiffTrainer(args, train_data)
     trainer()
 
 

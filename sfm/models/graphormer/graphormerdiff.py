@@ -14,10 +14,8 @@ from modules.get_activation_fn import get_activation_fn
 from modules.layer_norm import LayerNorm
 from modules.quant_noise import quant_noise
 
-from .modules.graphormer_sentence_encoder import (
-    GraphormerSentenceEncoder,
-    init_bert_params,
-)
+from .modules.graphormer_layers import RobertaClassificationHead
+from .modules.graphormer_sentence_encoder_TMdiff import GraphormerSentenceEncoderDiff
 from .modules.UnifiedDecoder import UnifiedDecoder
 
 logger = logging.getLogger(__name__)
@@ -64,7 +62,7 @@ class GraphormerDiff(nn.Module):
         super().__init__()
         self.max_positions = args.max_positions
 
-        self.sentence_encoder = GraphormerSentenceEncoder(
+        self.sentence_encoder = GraphormerSentenceEncoderDiff(
             # < for graphormer
             num_atoms=args.num_atoms,
             num_in_degree=args.num_in_degree,
@@ -159,6 +157,10 @@ class GraphormerDiff(nn.Module):
             else:
                 raise NotImplementedError
 
+        self.graph_embed_out = RobertaClassificationHead(
+            args.encoder_embed_dim, args.encoder_embed_dim, 1, args.activation_fn
+        )
+
     def forward(
         self,
         batched_data,
@@ -202,9 +204,11 @@ class GraphormerDiff(nn.Module):
 
         node_output = self.decoder(batched_data, x, delta_pos, padding_mask)
 
-        x = inner_states[-1].transpose(0, 1)
+        x = x.transpose(0, 1)
 
-        # FIXME: not compatible with batched_data
+        y_pred = None
+        if self.graph_embed_out is not None:
+            y_pred = self.graph_embed_out(x)
 
         # project masked tokens only
         if masked_tokens is not None:
@@ -227,67 +231,7 @@ class GraphormerDiff(nn.Module):
         if self.proj_out is not None:
             x = self.proj_out(x)
 
-        return x, node_output
-
-    def max_positions(self):
-        """Maximum output length supported by the encoder."""
-        return self.max_positions
-
-    def upgrade_state_dict_named(self, state_dict, name):
-        tmp_dict = {}
-        if not self.load_softmax:
-            for k in list(state_dict.keys()):
-                if (
-                    "embed_out.weight" in k
-                    or "sentence_projection_layer.weight" in k
-                    or "lm_output_learned_bias" in k
-                    or "regression_lm_head_list" in k
-                    or "regression_ln_list" in k
-                    or "regression_embed_out_list" in k
-                    or "classification_lm_head_list" in k
-                    or "classification_ln_list" in k
-                    or "classification_embed_out_list" in k
-                ):
-                    print("Removing", k, "(because load_softmax is False)")
-                    tmp_dict[k] = state_dict[k]
-                    del state_dict[k]
-            proj_weight = torch.rand(self.proj_out.weight.shape)
-            proj_bias = torch.rand(self.proj_out.bias.shape)
-
-            # lm_head_transform_weight_weight = torch.rand(self.lm_head_transform_weight.weight.shape)
-            # lm_head_transform_weight_bias = torch.rand(self.lm_head_transform_weight.bias.shape)
-            lm_head_transform_weight_weight = tmp_dict.get(
-                "encoder.regression_lm_head_list.0.weight", None
-            )
-            lm_head_transform_weight_bias = tmp_dict.get(
-                "encoder.regression_lm_head_list.0.bias", None
-            )
-            ln_weight = tmp_dict.get("encoder.regression_ln_list.0.weight", None)
-            ln_bias = tmp_dict.get("encoder.regression_ln_list.0.bias", None)
-
-            self.init_state_dict_weight(proj_weight, proj_bias)
-            # self.init_state_dict_weight(lm_head_transform_weight_weight, lm_head_transform_weight_bias)
-
-            state_dict["encoder.proj_out.weight"] = state_dict.get(
-                "encoder.proj_out.weight", proj_weight
-            )
-            state_dict["encoder.proj_out.bias"] = state_dict.get(
-                "encoder.proj_out.bias", proj_bias
-            )
-            state_dict["encoder.lm_head_transform_weight.weight"] = state_dict.get(
-                "encoder.lm_head_transform_weight.weight",
-                lm_head_transform_weight_weight,
-            )
-            state_dict["encoder.lm_head_transform_weight.bias"] = state_dict.get(
-                "encoder.lm_head_transform_weight.bias", lm_head_transform_weight_bias
-            )
-            state_dict["encoder.layer_norm.weight"] = state_dict.get(
-                "encoder.layer_norm.weight", ln_weight
-            )
-            state_dict["encoder.layer_norm.bias"] = state_dict.get(
-                "encoder.layer_norm.bias", ln_bias
-            )
-        return state_dict
+        return x, node_output, y_pred
 
     def init_state_dict_weight(self, weight, bias):
         torch.nn.init.kaiming_uniform_(weight, a=math.sqrt(5))
@@ -330,6 +274,7 @@ def base_architecture(args):
     # add
     args.atom_loss_coeff = getattr(args, "atom_loss_coeff", 1.0)
     args.pos_loss_coeff = getattr(args, "pos_loss_coeff", 1.0)
+    args.y_2d_loss_coeff = getattr(args, "y_2d_loss_coeff", 1.0)
 
     args.max_positions = getattr(args, "max_positions", 512)
     args.num_atoms = getattr(args, "num_atoms", 512 * 9)

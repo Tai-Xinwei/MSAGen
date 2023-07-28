@@ -112,8 +112,15 @@ def main() -> None:
     data_module = make_supervised_data_module(args, mode="train")
     print("length of dataset", len(data_module["train_dataset"]))
 
+    freeze_list = []
+    unfreeze_list = ["adaptor", "dummy"]
+
     trainer = Trainer(
-        args, data_module["train_dataset"], vocab_size=data_module["vocab_size"]
+        args,
+        data_module["train_dataset"],
+        vocab_size=data_module["vocab_size"],
+        freeze_list=freeze_list,
+        unfreeze_list=unfreeze_list,
     )
     if args.pipeline_parallelism == 0:
         trainer.train()

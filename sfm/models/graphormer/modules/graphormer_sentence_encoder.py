@@ -135,6 +135,7 @@ class GraphormerSentenceEncoder(nn.Module):
         num_3d_bias_kernel: int = 128,
         no_2d: bool = False,
         args=None,
+        init_bias: bool = True,
         # num_pred_attn_layer: int = 4,
     ) -> None:
         super().__init__()
@@ -152,49 +153,50 @@ class GraphormerSentenceEncoder(nn.Module):
         self.learned_pos_embedding = learned_pos_embedding
         self.traceable = traceable
 
-        self.graph_node_feature = GraphNodeFeature(
-            args,
-            num_heads=num_attention_heads,
-            num_atoms=num_atoms,
-            num_in_degree=num_in_degree,
-            num_out_degree=num_out_degree,
-            hidden_dim=embedding_dim,
-            n_layers=num_encoder_layers,
-            no_2d=no_2d,
-            # add_3d=add_3d,
-            # args=args,
-        )
-
-        self.graph_attn_bias = GraphAttnBias(
-            args,
-            num_heads=num_attention_heads * (num_encoder_layers + 1),
-            num_atoms=num_atoms,
-            num_edges=num_edges,
-            num_spatial=num_spatial,
-            num_edge_dis=num_edge_dis,
-            edge_type=edge_type,
-            multi_hop_max_dist=multi_hop_max_dist,
-            hidden_dim=num_attention_heads,
-            n_layers=num_encoder_layers,
-            no_2d=no_2d,
-            # add_3d=add_3d,
-            # args=args,
-        )
-
-        self.graph_3d_bias = (
-            Graph3DBias(
+        if init_bias:
+            self.graph_node_feature = GraphNodeFeature(
                 args,
-                num_heads=num_attention_heads * (num_encoder_layers + 1),
-                num_edges=num_edges,
+                num_heads=num_attention_heads,
+                num_atoms=num_atoms,
+                num_in_degree=num_in_degree,
+                num_out_degree=num_out_degree,
+                hidden_dim=embedding_dim,
                 n_layers=num_encoder_layers,
-                embed_dim=embedding_dim,
-                num_kernel=num_3d_bias_kernel,
-                no_share_rpe=False,
+                no_2d=no_2d,
+                # add_3d=add_3d,
                 # args=args,
             )
-            if add_3d
-            else None
-        )
+
+            self.graph_attn_bias = GraphAttnBias(
+                args,
+                num_heads=num_attention_heads * (num_encoder_layers + 1),
+                num_atoms=num_atoms,
+                num_edges=num_edges,
+                num_spatial=num_spatial,
+                num_edge_dis=num_edge_dis,
+                edge_type=edge_type,
+                multi_hop_max_dist=multi_hop_max_dist,
+                hidden_dim=num_attention_heads,
+                n_layers=num_encoder_layers,
+                no_2d=no_2d,
+                # add_3d=add_3d,
+                # args=args,
+            )
+
+            self.graph_3d_bias = (
+                Graph3DBias(
+                    args,
+                    num_heads=num_attention_heads * (num_encoder_layers + 1),
+                    num_edges=num_edges,
+                    n_layers=num_encoder_layers,
+                    embed_dim=embedding_dim,
+                    num_kernel=num_3d_bias_kernel,
+                    no_share_rpe=False,
+                    # args=args,
+                )
+                if add_3d
+                else None
+            )
 
         # self.node_proc = NodeTaskHead(embedding_dim, num_attention_heads)
 

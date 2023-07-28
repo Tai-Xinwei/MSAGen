@@ -15,12 +15,12 @@ from sfmlogging.loggers import sfm_logger
 from utils.get_paranum import count_paranum
 from utils.move_to_device import move_to_device
 from utils.mypp_module import PipelineModule
-from utils.pretrained_layer_spec import load_ckp_tied_modules
-from utils.set_lr import groupWarmupDecayLR, myAdam
+from utils.optimizer import myAdam
+from utils.set_lr import groupWarmupDecayLR
 
 
 class Trainer:
-    def __init__(self, args, train_data, vocab_size):
+    def __init__(self, args, train_data, vocab_size, freeze_list=[], unfreeze_list=[]):
         super().__init__()
         self.args = args
 
@@ -29,7 +29,8 @@ class Trainer:
             count_paranum(net)
             optimizer = myAdam(
                 net,
-                mode="adaptoronly",
+                freeze_list=freeze_list,
+                unfreeze_list=unfreeze_list,
                 lr=args.max_lr,
                 betas=[0.9, 0.999],
                 weight_decay=0.0,
@@ -70,7 +71,8 @@ class Trainer:
 
             optimizer = myAdam(
                 net,
-                mode="adaptoronly",
+                freeze_list=freeze_list,
+                unfreeze_list=unfreeze_list,
                 lr=args.max_lr,
                 betas=[0.9, 0.999],
                 weight_decay=0.0,

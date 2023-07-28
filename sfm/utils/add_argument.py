@@ -92,6 +92,7 @@ def add_argument():
     )
     parser.add_argument("--warmup_num_steps", type=int, default=60000)
 
+    # params for generalist
     parser.add_argument(
         "--smiles_dict_path",
         type=str,
@@ -123,6 +124,30 @@ def add_argument():
     parser.add_argument("--btn_adaptor", type=bool, default=False)
     parser.add_argument("--mfm_lora", type=bool, default=False)
     parser.add_argument("--model_max_length", type=int, default=512)
+
+    # params for ddpm
+    parser.add_argument("--t_timesteps", type=int, default=1000, help="total timesteps")
+    parser.add_argument(
+        "--ddpm_beta_start", type=float, default=0.0001, help="ddpm beta start"
+    )
+    parser.add_argument(
+        "--ddpm_beta_end", type=float, default=0.02, help="ddpm beta end"
+    )
+    parser.add_argument(
+        "--ddpm_schedule", type=str, default="linear", help="ddpm beta scheduler"
+    )
+    parser.add_argument(
+        "--transformer_m_pretrain",
+        type=bool,
+        default=True,
+        help="if use transformer m strategy",
+    )
+    parser.add_argument(
+        "--mode-prob",
+        type=str,
+        default="0.2,0.2,0.6",
+        help="mode prob for different mask",
+    )
 
     parser = deepspeed.add_config_arguments(parser)
     args, unknown = parser.parse_known_args()
