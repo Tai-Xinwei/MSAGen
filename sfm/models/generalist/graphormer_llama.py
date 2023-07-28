@@ -6,9 +6,10 @@
 
 import math
 import os
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
+from data.mol_data.moltext_dataset import batch_collater_for_graphormer
 from models.graphormer.modules import (
     GraphormerSentenceEncoder,
     GraphormerSentenceEncoderPP,
@@ -185,6 +186,70 @@ class GraphormerLlamaModel(torch.nn.Module):
                     new_num_tokens=vocab_size,
                 )
             )
+
+    @torch.no_grad()
+    def generate_with_smiles(
+        self,
+        input_ids: Optional[torch.LongTensor] = None,
+        smiles: List[str] = None,
+        attention_mask: Optional[torch.LongTensor] = None,
+        **generate_kwargs,
+    ) -> torch.LongTensor:
+        """
+        Overrides `generate` function to be able to use the model as a conditional generator.
+
+        Args:
+            pixel_values (`torch.FloatTensor` of shape (batch_size, num_channels, height, width)):
+                Input images to be processed.
+            input_ids (`torch.LongTensor` of shape (batch_size, sequence_length), *optional*):
+                The sequence used as a prompt for the generation.
+            attention_mask (`torch.LongTensor` of shape (batch_size, sequence_length), *optional*):
+                Mask to avoid performing attention on padding token indices
+
+        Returns:
+            captions (list): A list of strings of length batch_size * num_captions.
+        """
+
+        batched_data = batch_collater_for_graphormer(smiles)
+        batched_data["out_degree"] = batched_data["in_degree"]
+        batched_data["attn_edge_type"] = None
+
+        # generate text_emb
+        text_embeds = self.decoder.get_input_embeddings()(
+            torch.where(input_ids > 0, input_ids, 0)
+        )
+
+        if batched_data is not None:
+            # generate mol emb
+            mol_emb, _, _, _, mol_padding_mask = self.graphormer_encoder(
+                batched_data,
+            )
+
+            # mix embeddings
+            inputs_embeds, _ = self.adaptor(
+                mol_emb,
+                mol_padding_mask,
+                text_embeds,
+                attention_mask,
+                input_ids,
+            )
+
+            outputs = self.decoder.generate(
+                input_ids=input_ids,
+                inputs_embeds=inputs_embeds,
+                attention_mask=attention_mask,
+                **generate_kwargs,
+            )
+        else:
+            # text only generation
+            outputs = self.decoder.generate(
+                input_ids=input_ids,
+                inputs_embeds=text_embeds,
+                attention_mask=attention_mask,
+                **generate_kwargs,
+            )
+
+        return outputs
 
     @torch.no_grad()
     def generate(

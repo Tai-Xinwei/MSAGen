@@ -1207,6 +1207,7 @@ class DataCollatorForSupervisedDataset(object):
             "attn_bias": None,
             "spatial_pos": None,
             "in_degree": None,
+            "out_degree": None,
             "edge_input": None,
             "num_atoms": None,
         }
@@ -1214,6 +1215,7 @@ class DataCollatorForSupervisedDataset(object):
         for smis in smiless:
             smiles.extend(smis)
         batched_molecules = batch_collater_for_graphormer(smiles)
+        batched_molecules["out_degree"] = batched_molecules["in_degree"]
         if self.use_pp:
             return (
                 [
@@ -1222,6 +1224,7 @@ class DataCollatorForSupervisedDataset(object):
                     labels,
                     batched_molecules["x"],
                     batched_molecules["in_degree"],
+                    batched_molecules["out_degree"],
                     batched_molecules["attn_bias"],
                     batched_molecules["spatial_pos"],
                     batched_molecules["edge_input"],
