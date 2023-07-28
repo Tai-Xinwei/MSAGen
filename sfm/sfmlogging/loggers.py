@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import os
+from abc import ABC, abstractmethod
 
 import wandb
 
@@ -21,7 +22,43 @@ sfm_logger.handlers.clear()
 sfm_logger.addHandler(stream_handler)
 
 
-def get_logger():
+class Logger(ABC):
+    def log(self, *data):
+        log_text = " ".join([str(d) for d in data])
+        sfm_logger.info(log_text)
+        stream_handler.flush()
+
+    @abstractmethod
+    def log_metrics(self, metrics):
+        pass
+
+
+class TextLogger(Logger):
+    def log_metrics(self, metrics):
+        return self.log(metrics)
+
+
+class WandbLogger(Logger):
+    def __init__(self, project, run_name, tags, config):
+        self.project = project
+        self.run_name = run_name
+        self.tags = tags
+        self.config = config
+        self.run = None
+
+        wandb.init(
+            project=self.project, name=self.run_name, tags=self.tags, config=self.config
+        )
+
+    def log_metrics(self, metrics):
+        # convert data class to dict
+        if hasattr(metrics, "_asdict"):
+            metrics = metrics._asdict()
+
+        wandb.log(metrics)
+
+
+def get_logger() -> Logger:
     wandb_api_key = os.getenv("WANDB_API_KEY")
     wandb_project = os.getenv("WANDB_PROJECT")
     wandb_run_name = os.getenv("WANDB_RUN_NAME")
@@ -38,26 +75,3 @@ def get_logger():
             tags=wandb_tags,
             config={},
         )
-
-
-class TextLogger(object):
-    def log(self, *data):
-        log_text = " ".join([str(d) for d in data])
-        sfm_logger.info(log_text)
-        stream_handler.flush()
-
-
-class WandbLogger(object):
-    def __init__(self, project, run_name, tags, config):
-        self.project = project
-        self.run_name = run_name
-        self.tags = tags
-        self.config = config
-        self.run = None
-
-        wandb.init(
-            project=self.project, name=self.run_name, tags=self.tags, config=self.config
-        )
-
-    def log(self, *data):
-        wandb.log(data)
