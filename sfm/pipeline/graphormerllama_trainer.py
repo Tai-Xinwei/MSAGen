@@ -65,6 +65,7 @@ class Trainer:
                 partition_method="manual",
                 # part_list=[0, 4, 9, 14, 19, 23, 27, 32, 37],
                 part_list=[0, 9, 19, 27, 37],
+                device=args.rank,
             )
 
             optimizer = myAdam(

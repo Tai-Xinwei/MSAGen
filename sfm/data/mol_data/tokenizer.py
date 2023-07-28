@@ -152,9 +152,9 @@ class MolTokenizer:
             elif self.args.pool_mode == "full":
                 input_ids = torch.cat(
                     [
-                        self._tokenize_text(text[0] + "<mol>").input_ids[0],
+                        self._tokenize_text(text[0]).input_ids[0],
                         torch.tensor([-1 for i in range(nnodes[i])]).to(torch.long),
-                        self._tokenize_text("</mol>" + text[1]).input_ids[0][1:],
+                        self._tokenize_text(text[1]).input_ids[0][1:],
                     ]
                 )
             input_ids_list.append(input_ids)

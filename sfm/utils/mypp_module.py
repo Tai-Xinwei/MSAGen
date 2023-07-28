@@ -144,7 +144,7 @@ class PipelineModule(nn.Module):
             raise RuntimeError("must provide num_stages or topology")
 
         self.micro_offset = 0
-        self.device = device
+        self.device = f"cuda:{device}"
         self.loss_fn = loss_fn
 
         self.checkpointable_layers = checkpointable_layers
@@ -243,10 +243,25 @@ class PipelineModule(nn.Module):
                 self.add_module(name, layer)
 
             # TiedLayerSpec objects contain an nn.Module that should be allocated now.
-            elif isinstance(layer, (TiedLayerSpec, TiedPretrainedLayerSpec)):
+            elif isinstance(layer, (TiedLayerSpec)):
                 # Build and register the module if we haven't seen it before.
                 if layer.key not in self.tied_modules:
                     self.tied_modules[layer.key] = layer.build(self.device)
+                    self.tied_weight_attrs[layer.key] = layer.tied_weight_attr
+
+                if layer.forward_fn is None:
+                    # Just use forward()
+                    self.forward_funcs.append(self.tied_modules[layer.key])
+                else:
+                    # User specified fn with args (module, input)
+                    self.forward_funcs.append(
+                        partial(layer.forward_fn, self.tied_modules[layer.key])
+                    )
+
+            elif isinstance(layer, (TiedPretrainedLayerSpec)):
+                # Build and register the module if we haven't seen it before.
+                if layer.key not in self.tied_modules:
+                    self.tied_modules[layer.key] = layer.build(self.device, load=True)
                     self.tied_weight_attrs[layer.key] = layer.tied_weight_attr
 
                 if layer.forward_fn is None:
@@ -267,7 +282,7 @@ class PipelineModule(nn.Module):
                 self.add_module(name, module)
 
             elif isinstance(layer, (PretrainedLayerSpec)):
-                module = layer.build(self.device)
+                module = layer.build(self.device, load=True)
                 name = str(layer_idx)
                 self.forward_funcs.append(module)
                 self.fwd_map.update({name: len(self.forward_funcs) - 1})
@@ -414,7 +429,7 @@ class PipelineModule(nn.Module):
             raise NotImplementedError(f"Partitioning method {method} not implemented.")
         elif method == "manual":
             assert part_list is not None
-            param_counts = self._count_layer_params()
+            # param_counts = self._count_layer_params()
             self.parts = part_list
         else:
             raise NotImplementedError(f"Partitioning method {method} not implemented.")
@@ -436,9 +451,12 @@ class PipelineModule(nn.Module):
                             name = layer.__name__
                         except AttributeError:
                             pass
-                    print(
-                        f"    {idx+start:2d}: {name} -- {param_counts[start+idx]/1e6:.3f}M"
-                    )
+                    if method != "manual":
+                        print(
+                            f"    {idx+start:2d}: {name} -- {param_counts[start+idx]/1e6:.3f}M"
+                        )
+                    else:
+                        print(f"    {idx+start:2d}: {name}")
             if self.loss_fn:
                 try:
                     print(f"  loss: {self.loss_fn.__name__}")

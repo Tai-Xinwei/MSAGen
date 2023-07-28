@@ -119,12 +119,14 @@ def lm_logits(embedding, input_tuple):
 
 
 class LlamaEmbeddingsPP(nn.Module):
-    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32000):
+    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
         super().__init__()
         self.embed_tokens = torch.nn.Embedding(
             config.vocab_size, config.hidden_size, config.pad_token_id
         )
         self.learnable_cutoff = learnable_cutoff
+        self.embed_tokens.weight.register_hook(self.freeze_parital_weight_hook)
+
         # self.weight = self.embed_tokens.weight.data.requires_grad_().cuda()
         # self.weight.grad = torch.zeros_like(self.weight)
 
@@ -136,6 +138,10 @@ class LlamaEmbeddingsPP(nn.Module):
     def emb_weight(self):
         return self.embed_tokens.weight
 
+    def freeze_parital_weight_hook(self, grad):
+        grad[: self.learnable_cutoff, :] = 0
+        return grad
+
     def forward(
         self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
     ):
@@ -145,12 +151,12 @@ class LlamaEmbeddingsPP(nn.Module):
         mol_idx_mask = input_ids < 0  # B, T
 
         ## all freeze
-        with torch.no_grad():
-            text_embeds = self.embed_tokens(
-                input_ids.masked_fill(mol_idx_mask, 0)
-            )  # B, T, hidden_size
+        # with torch.no_grad():
+        text_embeds = self.embed_tokens(
+            input_ids.masked_fill(mol_idx_mask, 0)
+        )  # B, T, hidden_size
 
-        # ## partial freeze
+        # # ## partial freeze
         # w = (input_ids > self.learnable_cutoff) * 1.0
         # w = w.unsqueeze(-1)
         # text_input_ids = input_ids.masked_fill(mol_idx_mask, 0)
@@ -163,18 +169,25 @@ class LlamaEmbeddingsPP(nn.Module):
 
 
 class LlamaHead(nn.Module):
-    def __init__(self, config: LlamaConfig):
+    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
         super().__init__()
         self.config = config
 
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.learnable_cutoff = learnable_cutoff
+        # self.lm_head.weight.register_hook(self.freeze_parital_weight_hook)
+
         # self.weight = self.lm_head.weight.data.requires_grad_().cuda()
         # self.weight.grad = torch.zeros_like(self.weight)
 
     @property
     def emb_weight(self):
         return self.lm_head.weight
+
+    def freeze_parital_weight_hook(self, grad):
+        grad[: self.learnable_cutoff, :] = 0
+        return grad
 
     def resize_token_embeddings(self, new_num_tokens: int) -> None:
         if new_num_tokens == self.config.vocab_size:

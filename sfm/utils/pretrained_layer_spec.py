@@ -20,7 +20,7 @@ class PretrainedLayerSpec(LayerSpec):
     def build(self, device="cpu", log=False, load=False):
         self.layer = super().build(log=log)
 
-        if self.pretrained_ckpt_path is not None and self.load_ckpt:
+        if self.pretrained_ckpt_path is not None and self.load_ckpt and load:
             if os.path.exists(self.pretrained_ckpt_path):
                 self.load_pretrained(device=device)
             else:

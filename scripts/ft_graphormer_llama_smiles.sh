@@ -35,14 +35,16 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
 [ -z "${dataset_splits}" ] && dataset_splits='all'
 [ -z "${dataset_ratios}" ] && dataset_ratios='1.0,1.0'
-[ -z "${pool_mode}" ] && pool_mode='qformer'
+[ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
+[ -z "${model_max_length}" ] && model_max_length=512
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
-[ -z "${output_path}" ] && output_path='/home/peiran/FMproj/output/'
+[ -z "${output_path}" ] && output_path='/home/peiran/FMproj/output/llama2'
 [ -z "${smiles_dict_path}" ] && smiles_dict_path="/home/peiran/FMproj/chemical-copilot/mol2idx_dict.jsonl"
 [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/MetaLLM-converted/7B-pp"
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/MetaLLM-converted/7B-pp"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
 [ -z "${mol_size_path}" ] && mol_size_path="/home/peiran/FMproj/chemical-copilot/mol_size_dict.pkl"
 
 [ -z "${dataset_name}" ] && dataset_name="PM6-Full-3D"
@@ -177,7 +179,8 @@ deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/ft_graphormer_llama_i
   --dataset_splits $dataset_splits \
   --dataset_ratios $dataset_ratios \
   --pool_mode $pool_mode \
-  --embedding_length $embedding_length
+  --embedding_length $embedding_length \
+  --model_max_length $model_max_length
 
 sleep inf
 sleep inf
