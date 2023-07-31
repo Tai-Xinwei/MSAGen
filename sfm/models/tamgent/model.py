@@ -43,10 +43,10 @@ class Tamgent2(Model):
         self.mol_tokenizer = self.init_mol_tokenizer(args.molxpt_model)
         self.text_tokenizer = self.init_tokenizer(args.llama_model)
 
-        logger.log("Loading text_encoder")
+        logger.info("Loading text_encoder")
         self.init_llama()
 
-        logger.log("Loading text_encoder Done.", "Loading Q-Former")
+        logger.info("Loading text_encoder Done.", "Loading Q-Former")
         self.init_Qformer()
         self.init_smi_decoder()
 

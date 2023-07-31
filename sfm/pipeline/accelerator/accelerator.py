@@ -103,7 +103,7 @@ class SingleNodeAccelerator(Accelerator):
 
         if extra_state is not None:
             checkpoint.update(extra_state)
-        logger.log("save checkpoint: ", ckpt_id)
+        logger.info("save checkpoint: {}", ckpt_id)
         torch.save(checkpoint, save_dir / ckpt_id)
 
         with open(save_dir / "checkpoint_list.txt", "a") as f:
@@ -143,7 +143,7 @@ class DdpAccelerator(SingleNodeAccelerator):
         torch.cuda.set_device(self.local_rank)
         self.device = torch.device("cuda", self.local_rank)
 
-        logger.log(
+        logger.info(
             f"Initializing DDP by env: word size: {self.world_size}, rank: {self.rank}, local_rank{self.local_rank} ",
         )
 
@@ -156,7 +156,7 @@ class DdpAccelerator(SingleNodeAccelerator):
 
         torch.distributed.barrier()
 
-        logger.log("DDP initialized.")
+        logger.info("DDP initialized.")
 
         self.model = DistributedDataParallel(
             self.model,

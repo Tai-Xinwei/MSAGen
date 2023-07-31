@@ -1,77 +1,75 @@
 # -*- coding: utf-8 -*-
-import logging
 import os
-from abc import ABC, abstractmethod
+import sys
 
+import torch
 import wandb
+from loguru import logger
 
-logging.basicConfig(level=logging.NOTSET)
+from sfm.pipeline.accelerator.dataclasses import LogOutput
 
-sfm_logger = logging.getLogger()
-sfm_logger.setLevel(logging.INFO)
-
-# Create a Formatter object with a timestamp
-formatter = logging.Formatter("[%(asctime)s]: %(message)s")
-
-# Create a StreamHandler object and set its Formatter to the one we just created
-stream_handler = logging.StreamHandler()
-stream_handler.setFormatter(formatter)
-
-# Add the StreamHandler to the logger
-sfm_logger.handlers.clear()
-sfm_logger.addHandler(stream_handler)
+handlers = {}
 
 
-class Logger(ABC):
-    def log(self, *data):
-        log_text = " ".join([str(d) for d in data])
-        sfm_logger.info(log_text)
-        stream_handler.flush()
-
-    @abstractmethod
-    def log_metrics(self, metrics):
-        pass
-
-
-class TextLogger(Logger):
-    def log_metrics(self, metrics):
-        return self.log(metrics)
-
-
-class WandbLogger(Logger):
-    def __init__(self, project, run_name, tags, config):
-        self.project = project
-        self.run_name = run_name
-        self.tags = tags
-        self.config = config
-        self.run = None
-
-        wandb.init(
-            project=self.project, name=self.run_name, tags=self.tags, config=self.config
+def get_logger():
+    if not handlers:
+        logger.remove()  # remove default handler
+        handlers["console"] = logger.add(
+            sys.stdout,
+            format="[<green>{time:YYYY-MM-DD HH:mm:ss}</green>][{level}]: {message}",
+            colorize=True,
+            filter=is_master_node,
         )
 
-    def log_metrics(self, metrics):
-        # convert data class to dict
-        if hasattr(metrics, "_asdict"):
-            metrics = metrics._asdict()
+        if wandb_configed():
+            wandb_project = os.getenv("WANDB_PROJECT")
+            wandb_run_name = os.getenv("WANDB_RUN_NAME")
+            wandb_tags = os.getenv("WANDB_TAGS")
+            wandb.init(
+                project=wandb_project,
+                name=wandb_run_name,
+                tags=wandb_tags,
+            )
 
-        wandb.log(metrics)
+            handlers["wandb"] = logger.add(
+                wandb_sink,
+                format=wandb_format,
+                filter=wandb_filter,
+            )
+        else:
+            logger.warning("Wandb not configured, logging to console only")
+
+    return logger
 
 
-def get_logger() -> Logger:
+def is_master_node(_):
+    if not torch.distributed.is_initialized():  # single node
+        return True
+    else:
+        return torch.distributed.get_rank() == 0
+
+
+def wandb_configed():
     wandb_api_key = os.getenv("WANDB_API_KEY")
     wandb_project = os.getenv("WANDB_PROJECT")
-    wandb_run_name = os.getenv("WANDB_RUN_NAME")
-    wandb_tags = os.getenv("WANDB_TAGS")
+    return wandb_api_key and wandb_project
 
-    if not wandb_api_key or not wandb_project:
-        sfm_logger.info("Wandb not configured, using text logger")
-        return TextLogger()
-    else:
-        sfm_logger.info("Wandb configured, using wandb logger")
-        return WandbLogger(
-            project=wandb_project,
-            run_name=wandb_run_name,
-            tags=wandb_tags,
-            config={},
-        )
+
+def wandb_filter(record):
+    message = record["message"]
+    if isinstance(message, LogOutput):
+        return True
+
+    return False
+
+
+def wandb_sink(msg):
+    wandb.log(msg)
+
+
+def wandb_format(msg):
+    message = msg["message"]
+    if isinstance(message, LogOutput):
+        return message.to_dict()
+
+    return message

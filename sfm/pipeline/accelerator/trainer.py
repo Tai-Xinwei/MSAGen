@@ -111,10 +111,10 @@ class Trainer(object):
                 checkpoint_last = checkpoint_list[-1]
                 checkpoint_path = self.save_dir / checkpoint_last
                 if checkpoint_path.exists():
-                    logger.log("Resume from checkpoint: ", checkpoint_path)
+                    logger.info("Resume from checkpoint: ", checkpoint_path)
                     self.load_checkpoint(checkpoint_last)
                 else:
-                    logger.log("Not resume from checkpoint")
+                    logger.info("Not resume from checkpoint")
         else:
             with open(checkpoint_list_path, "w") as f:
                 f.write("")
@@ -184,9 +184,9 @@ class Trainer(object):
         )
 
     def train(self):
-        logger.log("Start training")
-        logger.log(self.model)
-        logger.log(
+        logger.info("Start training")
+        logger.info(self.model)
+        logger.info(
             "Number of parameters:",
             sum(p.numel() for p in self.model.parameters() if p.requires_grad),
         )
@@ -207,9 +207,7 @@ class Trainer(object):
                 self.train_data_loader, self.args.update_freq, drop_last=True
             )
 
-            for i, grouped_batch_data in tqdm(
-                enumerate(iter), desc=f"Training Epoch {epoch}", total=len(iter)
-            ):
+            for i, grouped_batch_data in enumerate(iter):
                 self.model.before_batch()
 
                 model_output = self.accelerator.train_step(grouped_batch_data)
@@ -231,7 +229,7 @@ class Trainer(object):
                     and self.state.global_step % self.args.log_interval == 0
                 ):
                     log_output = self.build_log_output(model_output)
-                    logger.log(log_output)
+                    logger.info(log_output)
 
             if (
                 self.args.save_epoch_interval > 0
@@ -242,16 +240,16 @@ class Trainer(object):
 
         self.model.after_training()
 
-        logger.log("Finished Training")
+        logger.info("Finished Training")
 
     def validate(self):
         if self.valid_data_loader is None:
-            logger.log("No validation data, skip validation")
+            logger.info("No validation data, skip validation")
             return
 
-        logger.log("start validation")
+        logger.info("start validation")
 
         # TODO: support multiple losses
         for i, batch_data in tqdm(enumerate(self.valid_data_loader)):
             loss = self.model(batch_data)
-            logger.log("loss: ", loss)
+            logger.info("loss: ", loss)
