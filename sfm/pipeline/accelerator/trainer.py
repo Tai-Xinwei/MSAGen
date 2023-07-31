@@ -67,6 +67,8 @@ class Trainer(object):
         super().__init__()
         self.args = args
 
+        logger.info("Trainer args: ", args)
+
         self.model = model
         self.train_data = train_data
         self.valid_data = valid_data
@@ -168,19 +170,22 @@ class Trainer(object):
     def train(self):
         logger.info("Start training")
         logger.info(self.model)
-        logger.info(
-            "Number of trainable parameters: {}",
-            sum(p.numel() for p in self.model.parameters() if p.requires_grad),
-        )
 
         seed_everything(self.args.seed)
 
         assert self.train_data_loader is not None
 
         self.model.before_training()
-
         self.resume()
         self.accelerator.set_up()
+
+        total_num = sum(p.numel() for p in self.model.parameters())
+        trainable_num = sum(
+            p.numel() for p in self.model.parameters() if p.requires_grad
+        )
+        logger.info(
+            "Total number of parameters: {}, trainable: {}", total_num, trainable_num
+        )
 
         for epoch in range(self.args.epochs):
             self.state.epoch = epoch

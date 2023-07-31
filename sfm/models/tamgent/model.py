@@ -67,13 +67,16 @@ class Tamgent2(Model):
         self.init_Qformer()
         self.init_smi_decoder()
 
-    def before_training(self):
+    def freeze_text_encoder(self):
         if self.args.freeze_text_encoder:
             for name, param in self.text_encoder.named_parameters():
                 param.requires_grad = False
 
             self.text_encoder.eval()
             logging.info("freeze text encoder")
+
+    def before_training(self):
+        self.freeze_text_encoder()
 
     def before_batch(self):
         if self.args.freeze_text_encoder:

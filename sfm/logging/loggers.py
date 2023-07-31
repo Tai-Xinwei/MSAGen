@@ -16,7 +16,7 @@ def get_logger():
         logger.remove()  # remove default handler
         handlers["console"] = logger.add(
             sys.stdout,
-            format="[<green>{time:YYYY-MM-DD HH:mm:ss,SSSzz}</green>][{level}]: {message}",
+            format="[<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green>][<cyan>{level}</cyan>]: {message}",
             colorize=True,
             filter=is_master_node,
         )

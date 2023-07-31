@@ -100,7 +100,6 @@ class SingleNodeAccelerator(Accelerator):
         self.optimizer.zero_grad()
         for batch_data in grouped_batch_data:
             self.model.before_batch()
-
             batch_data = move_to_device(batch_data, self.device)
 
             with autocast(enabled=self.args.fp16):
