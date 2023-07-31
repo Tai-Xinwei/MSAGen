@@ -17,21 +17,22 @@ from typing import Dict, List, Optional, Sequence
 import lmdb
 import numpy as np
 import transformers
-from data.mol_data.collator import (
-    collator_copilot,
-    collator_copilot_multi_mol,
-    collator_copilot_multi_mol_PP,
-)
-from data.mol_data.wrapper import smiles2graph
 from ogb.utils.features import atom_to_feature_vector, bond_to_feature_vector
 from rdkit import Chem
 from rdkit.Chem.rdmolops import RemoveHs
 from torch.utils.data import Dataset
 from torch_geometric.data import Data, InMemoryDataset
 from tqdm import tqdm
-from utils.jload import jload
+
+from sfm.utils.jload import jload
 
 from . import algos
+from .collator import (
+    collator_copilot,
+    collator_copilot_multi_mol,
+    collator_copilot_multi_mol_PP,
+)
+from .wrapper import smiles2graph
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "[PAD]"

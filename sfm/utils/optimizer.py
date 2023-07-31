@@ -4,8 +4,23 @@ import math
 from typing import Callable, List, Optional, Tuple
 
 from deepspeed.runtime.lr_schedules import WarmupLR
-from sfmlogging.loggers import sfm_logger
 from torch.optim import Adam, Optimizer
+
+from sfm.logging.loggers import logger as sfm_logger
+
+
+def split_param_and_layer_name(name_list: List[str]) -> Tuple[List[str], List[int]]:
+    param_list = []
+    layer_name_list = []
+    for name in name_list:
+        if isinstance(name, str):
+            param_list.append(name)
+        elif isinstance(name, int):
+            layer_name_list.append(name)
+        else:
+            raise ValueError(f"Invalid name type: {type(name)}")
+
+    return param_list, layer_name_list
 
 
 def process_param(
@@ -19,20 +34,39 @@ def process_param(
     param_groups = [{}]
     param_groups[0]["lr"] = lr
     param_groups[0]["params"] = []
+
     if len(unfreeze_list) > 0:
+        unfreeze_list, unfreeze_layer_name_list = split_param_and_layer_name(
+            unfreeze_list
+        )
         for name, param in net.named_parameters():
-            for unfreeze_name in unfreeze_list:
-                if name.find(unfreeze_name) != -1:
-                    param_groups[0]["params"].append(param)
+            nl = int(name.split(".")[0])
+            if nl in unfreeze_layer_name_list:
+                param_groups[0]["params"].append(param)
+                sfm_logger.info(f"unfreeze layer: {name}")
+            else:
+                for unfreeze_name in unfreeze_list:
+                    if name.find(unfreeze_name) != -1:
+                        param_groups[0]["params"].append(param)
+                        sfm_logger.info(f"unfreeze {name}")
+
     elif len(freeze_list) > 0:
+        freeze_list, freeze_layer_name_list = split_param_and_layer_name(unfreeze_list)
         for name, param in net.named_parameters():
-            for freeze_name in freeze_list:
-                flag = False
-                if name.find(freeze_name) != -1:
-                    flag = True
-                    break
+            nl = int(name.split(".")[0])
+            if nl in freeze_layer_name_list:
+                flag = True
+                sfm_logger.info(f"freeze layer: {name}")
+            else:
+                for freeze_name in freeze_list:
+                    flag = False
+                    if name.find(freeze_name) != -1:
+                        flag = True
+                        sfm_logger.info(f"freeze {name}")
+                        break
             if not flag:
                 param_groups[0]["params"].append(param)
+
     else:
         for name, param in net.named_parameters():
             param_groups[0]["params"].append(param)

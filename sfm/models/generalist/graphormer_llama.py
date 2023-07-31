@@ -9,18 +9,18 @@ import os
 from typing import Dict, List, Optional
 
 import torch
-from data.mol_data.moltext_dataset import batch_collater_for_graphormer
-from models.graphormer.modules import (
+from transformers.models.llama.configuration_llama import LlamaConfig
+from transformers.models.llama.modeling_llama import LlamaForCausalLM
+
+from sfm.data.mol_data.moltext_dataset import batch_collater_for_graphormer
+from sfm.logging.loggers import logger
+from sfm.models.graphormer.graphormer_config import GraphormerConfig
+from sfm.models.graphormer.modules import (
     GraphormerSentenceEncoder,
     GraphormerSentenceEncoderPP,
     init_bert_params,
 )
-from transformers.models.llama.configuration_llama import LlamaConfig
-from transformers.models.llama.modeling_llama import LlamaForCausalLM
-from utils.pretrained_layer_spec import PretrainedLayerSpec, TiedPretrainedLayerSpec
-
-# from modules.
-from sfm.logging.loggers import sfm_logger as logger
+from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec
 
 from .modules.hybrid_emb import AdaptorConfig, HybridEmbeddings, HybridEmbeddingsPP
 from .modules.llama_modules import LlamaEmbeddingsPP, LlamaModelPP
@@ -39,26 +39,10 @@ class GraphormerLlamaModel(torch.nn.Module):
         load_ckp: Optional[bool] = False,
     ):
         super().__init__()
-        self.args = args
 
-        # if specified then apply bert initialization on the model. We need
-        # to explictly call this to make sure that the output embeddings
-        # and projection layers are also correctly initialized
-        if getattr(args, "apply_bert_init", False):
-            self.apply(init_bert_params)
-        self.encoder_embed_dim = args.encoder_embed_dim
-
-        graphormer_base_architecture(args)
-
-        if not hasattr(args, "max_positions"):
-            try:
-                args.max_positions = args.tokens_per_sample
-            except:
-                args.max_positions = args.max_nodes
-
-        logger.info(args)
-
-        self.max_positions = args.max_positions
+        graphormer_config = GraphormerConfig(args)
+        self.args = graphormer_config.args
+        logger.info(self.args)
 
         llama_config = LlamaConfig.from_pretrained(args.llm_model_name_or_path)
         llama_config.vocab_size = vocab_size
@@ -66,37 +50,7 @@ class GraphormerLlamaModel(torch.nn.Module):
 
         self.pipe_layers = []
         if args.pipeline_parallelism == 0:
-            self.graphormer_encoder = GraphormerSentenceEncoder(
-                # < for graphormer
-                num_atoms=args.num_atoms,
-                num_in_degree=args.num_in_degree,
-                num_out_degree=args.num_out_degree,
-                num_edges=args.num_edges,
-                num_spatial=args.num_spatial,
-                num_edge_dis=args.num_edge_dis,
-                edge_type=args.edge_type,
-                multi_hop_max_dist=args.multi_hop_max_dist,
-                num_encoder_layers=args.encoder_layers,
-                embedding_dim=args.encoder_embed_dim,
-                ffn_embedding_dim=args.encoder_ffn_embed_dim,
-                num_attention_heads=args.encoder_attention_heads,
-                dropout=args.dropout,
-                attention_dropout=args.attention_dropout,
-                activation_dropout=args.act_dropout,
-                max_seq_len=self.max_positions,
-                num_segments=args.num_segment,
-                use_position_embeddings=not args.no_token_positional_embeddings,
-                encoder_normalize_before=args.encoder_normalize_before,
-                apply_bert_init=args.apply_bert_init,
-                activation_fn=args.activation_fn,
-                learned_pos_embedding=args.encoder_learned_pos,
-                sandwich_ln=args.sandwich_ln,
-                droppath_prob=args.droppath_prob,
-                add_3d=args.add_3d,
-                num_3d_bias_kernel=args.num_3d_bias_kernel,
-                no_2d=args.no_2d,
-                args=args,
-            )
+            self.graphormer_encoder = GraphormerSentenceEncoder(graphormer_config)
             self.decoder = LlamaForCausalLM(llama_config)
             self.adaptor = HybridEmbeddings(adaptor_config)
         else:
@@ -105,34 +59,7 @@ class GraphormerLlamaModel(torch.nn.Module):
                 [
                     PretrainedLayerSpec(
                         GraphormerSentenceEncoderPP,
-                        num_atoms=args.num_atoms,
-                        num_in_degree=args.num_in_degree,
-                        num_out_degree=args.num_out_degree,
-                        num_edges=args.num_edges,
-                        num_spatial=args.num_spatial,
-                        num_edge_dis=args.num_edge_dis,
-                        edge_type=args.edge_type,
-                        multi_hop_max_dist=args.multi_hop_max_dist,
-                        num_encoder_layers=args.encoder_layers,
-                        embedding_dim=args.encoder_embed_dim,
-                        ffn_embedding_dim=args.encoder_ffn_embed_dim,
-                        num_attention_heads=args.encoder_attention_heads,
-                        dropout=args.dropout,
-                        attention_dropout=args.attention_dropout,
-                        activation_dropout=args.act_dropout,
-                        max_seq_len=self.max_positions,
-                        num_segments=args.num_segment,
-                        use_position_embeddings=not args.no_token_positional_embeddings,
-                        encoder_normalize_before=args.encoder_normalize_before,
-                        apply_bert_init=args.apply_bert_init,
-                        activation_fn=args.activation_fn,
-                        learned_pos_embedding=args.encoder_learned_pos,
-                        sandwich_ln=args.sandwich_ln,
-                        droppath_prob=args.droppath_prob,
-                        add_3d=args.add_3d,
-                        num_3d_bias_kernel=args.num_3d_bias_kernel,
-                        no_2d=args.no_2d,
-                        args=args,
+                        graphormer_config,
                         load_ckpt=load_ckpt,
                         pretrained_ckpt_path=args.loadmfmcheck_path,
                         lora_mode="freeze",
@@ -374,116 +301,3 @@ class GraphormerLlamaModel(torch.nn.Module):
         )
 
         return config
-
-
-def base_architecture(args):
-    args.dropout = getattr(args, "dropout", 0.1)
-    args.attention_dropout = getattr(args, "attention_dropout", 0.1)
-    args.act_dropout = getattr(args, "act_dropout", 0.0)
-
-    args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 4096)
-    args.encoder_layers = getattr(args, "encoder_layers", 6)
-    args.encoder_attention_heads = getattr(args, "encoder_attention_heads", 8)
-
-    args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 1024)
-    args.share_encoder_input_output_embed = getattr(
-        args, "share_encoder_input_output_embed", False
-    )
-    args.encoder_learned_pos = getattr(args, "encoder_learned_pos", False)
-    args.no_token_positional_embeddings = getattr(
-        args, "no_token_positional_embeddings", False
-    )
-    args.num_segment = getattr(args, "num_segment", 2)
-
-    args.sentence_class_num = getattr(args, "sentence_class_num", 2)
-    args.sent_loss = getattr(args, "sent_loss", False)
-
-    args.apply_bert_init = getattr(args, "apply_bert_init", False)
-
-    args.activation_fn = getattr(args, "activation_fn", "relu")
-    args.pooler_activation_fn = getattr(args, "pooler_activation_fn", "tanh")
-    args.encoder_normalize_before = getattr(args, "encoder_normalize_before", False)
-
-    args.sandwich_ln = getattr(args, "sandwich_ln", False)
-    args.droppath_prob = getattr(args, "droppath_prob", 0.0)
-
-    # add
-    args.atom_loss_coeff = getattr(args, "atom_loss_coeff", 1.0)
-    args.pos_loss_coeff = getattr(args, "pos_loss_coeff", 1.0)
-
-    args.max_positions = getattr(args, "max_positions", 512)
-    args.num_atoms = getattr(args, "num_atoms", 512 * 9)
-    args.num_edges = getattr(args, "num_edges", 512 * 3)
-    args.num_in_degree = getattr(args, "num_in_degree", 512)
-    args.num_out_degree = getattr(args, "num_out_degree", 512)
-    args.num_spatial = getattr(args, "num_spatial", 512)
-    args.num_edge_dis = getattr(args, "num_edge_dis", 128)
-    args.multi_hop_max_dist = getattr(args, "multi_hop_max_dist", 5)
-    args.edge_type = getattr(args, "edge_type", "multi_hop")
-
-
-def bert_base_architecture(args):
-    args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 768)
-    args.share_encoder_input_output_embed = getattr(
-        args, "share_encoder_input_output_embed", False
-    )
-    args.no_token_positional_embeddings = getattr(
-        args, "no_token_positional_embeddings", False
-    )
-    args.encoder_learned_pos = getattr(args, "encoder_learned_pos", True)
-    args.num_segment = getattr(args, "num_segment", 2)
-
-    args.encoder_layers = getattr(args, "encoder_layers", 12)
-
-    args.encoder_attention_heads = getattr(args, "encoder_attention_heads", 32)
-    args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 768)
-
-    args.sentence_class_num = getattr(args, "sentence_class_num", 2)
-    args.sent_loss = getattr(args, "sent_loss", False)
-
-    args.apply_bert_init = getattr(args, "apply_bert_init", True)
-
-    args.activation_fn = getattr(args, "activation_fn", "gelu")
-    args.pooler_activation_fn = getattr(args, "pooler_activation_fn", "tanh")
-    args.encoder_normalize_before = getattr(args, "encoder_normalize_before", True)
-    args.sandwich_ln = getattr(args, "sandwich_ln", False)
-    args.droppath_prob = getattr(args, "droppath_prob", 0.0)
-
-    args.add_3d = getattr(args, "add_3d", False)
-    args.num_3d_bias_kernel = getattr(args, "num_3d_bias_kernel", 128)
-    args.no_2d = getattr(args, "no_2d", False)
-    base_architecture(args)
-
-
-def graphormer_base_architecture(args):
-    # if args.pretrained_model_name == "pcqm4mv1_graphormer_base" or \
-    #    args.pretrained_model_name == "pcqm4mv2_graphormer_base" or \
-    #    args.pretrained_model_name == "pcqm4mv1_graphormer_base_for_molhiv":
-
-    args.encoder_layers = getattr(args, "encoder_layers", 12)
-    args.encoder_attention_heads = getattr(args, "encoder_attention_heads", 12)
-    args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 768)
-    args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 768)
-    args.dropout = getattr(args, "dropout", 0.0)
-    args.attention_dropout = getattr(args, "attention_dropout", 0.1)
-    args.act_dropout = getattr(args, "act_dropout", 0.1)
-    # else:
-    #     args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 768)
-    #     args.encoder_layers = getattr(args, "encoder_layers", 12)
-    #     args.encoder_attention_heads = getattr(args, "encoder_attention_heads", 32)
-    #     args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 768)
-    #     args.dropout = getattr(args, "dropout", 0.0)
-    #     args.attention_dropout = getattr(args, "attention_dropout", 0.1)
-    #     args.act_dropout = getattr(args, "act_dropout", 0.1)
-
-    args.activation_fn = getattr(args, "activation_fn", "gelu")
-    args.encoder_normalize_before = getattr(args, "encoder_normalize_before", True)
-    args.apply_graphormer_init = getattr(args, "apply_graphormer_init", True)
-    args.share_encoder_input_output_embed = getattr(
-        args, "share_encoder_input_output_embed", False
-    )
-    args.no_token_positional_embeddings = getattr(
-        args, "no_token_positional_embeddings", False
-    )
-    args.pre_layernorm = getattr(args, "pre_layernorm", False)
-    base_architecture(args)

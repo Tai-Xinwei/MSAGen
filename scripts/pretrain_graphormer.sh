@@ -99,35 +99,6 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export OMP_NUM_THREADS=1
 
 
-# if [ $LOCAL_RANK == 0 ]; then
-#   bash install.sh
-# fi
-
-# bash install.sh
-
-# DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
-#                   --nnodes $OMPI_COMM_WORLD_SIZE \
-#                   --node_rank $OMPI_COMM_WORLD_RANK \
-#                   --master_addr $MASTER_ADDR \
-#                   --master_port $MASTER_PORT"
-
-# python -m torch.distributed.launch $DISTRIBUTED_ARGS train.py \
-#         --num-classes 128 \
-#         --encoder_attention_heads $num_head \
-#         --encoder_layers $layers \
-#         --encoder_ffn_embed_dim $ffn_size \
-#         --encoder_embed_dim $hidden_size \
-#         --droppath_prob $droppath_prob \
-#         --attn_dropout $attn_dropout \
-#         --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
-#         --sandwich_ln $sandwich_ln \
-#         --dataset-name $dataset_name \
-#         --data_path $data_path \
-#         --output_path $output_path \
-#         --seed 666666 \
-#         --deepspeed --deepspeed_config ./config_file/ds_config.json
-
-
 # # # # # # run PCQM4M-LSC-V2-3D
 # if [ $OMPI_COMM_WORLD_RANK == 0 ]; then
 #   sleep 1200
@@ -158,12 +129,11 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 #     --deepspeed --deepspeed_config ./config_file/ds_config.json
 # fi
 
-# sleep 100
 
 # # # # # # # single node
 # # # # # deepspeed --force_multi --num_node=$OMPI_COMM_WORLD_SIZE --num_gpus=$n_gpu --hostfile $hostfile train.py \
 # deepspeed --num_gpus=$n_gpu train.py \
-CUDA_VISIBLE_DEVICES=0 deepspeed --num_gpus=1 sfm/tasks/pretrain_graphormer.py \
+CUDA_VISIBLE_DEVICES=0 deepspeed --num_gpus=1 sfm/tasks/graphormer/pretrain_graphormer.py \
     --num-classes 128 \
     --encoder_attention_heads $num_head \
     --encoder_layers $layers \
@@ -188,27 +158,6 @@ CUDA_VISIBLE_DEVICES=0 deepspeed --num_gpus=1 sfm/tasks/pretrain_graphormer.py \
     --warmup_num_steps $warmup_num_steps \
     --deepspeed --deepspeed_config ./config_file/ds_config.json
 
-# # # run PCQM4M-LSC-V2-3D PP
-# if (( $OMPI_COMM_WORLD_RANK == 0))
-# then
-#   deepspeed --num_node=$OMPI_COMM_WORLD_SIZE --num_gpus=$n_gpu --master_addr=$MASTER_ADDR --master_port=$MASTER_PORT train.py \
-#             --num-classes 128 \
-#             --encoder_attention_heads $num_head \
-#             --encoder_layers $layers \
-#             --encoder_ffn_embed_dim $ffn_size \
-#             --encoder_embed_dim $hidden_size \
-#             --add-3d $add_3d \
-#             --no-2d $no_2d \
-#             --dataset-name $dataset_name \
-#             --data_path $data_path \
-#             --output_path $output_path \
-#             --pipeline_parallelism $pipeline_parallelism \
-#             --deepspeed --deepspeed_config ./config_file/ds_config_stage1.json
-# else
-#   sleep inf
-#   sleep inf
-#   sleep inf
-# fi
 
 sleep inf
 sleep inf

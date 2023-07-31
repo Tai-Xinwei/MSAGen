@@ -8,10 +8,11 @@ import math
 from typing import Optional, Tuple
 
 import torch
-from modules.FairseqDropout import FairseqDropout
-from modules.layer_norm import Fp32LayerNorm, LayerNorm
-from modules.quant_noise import quant_noise
 from torch import Tensor, nn
+
+from .FairseqDropout import FairseqDropout
+from .layer_norm import Fp32LayerNorm, LayerNorm
+from .quant_noise import quant_noise
 
 
 class MultiheadAttention(nn.Module):

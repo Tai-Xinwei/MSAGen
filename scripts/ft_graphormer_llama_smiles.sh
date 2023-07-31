@@ -149,7 +149,7 @@ wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
 #     --dataset_splits $dataset_splits
 # fi
 
-deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/ft_graphormer_llama_inst.py \
+deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalists/ft_graphormer_llama_inst.py \
   --num-classes 1 \
   --encoder_attention_heads $num_head \
   --encoder_layers $layers \

@@ -2,7 +2,6 @@
 import copy
 import math
 import os
-from logging.loggers import sfm_logger
 
 import deepspeed
 
@@ -12,19 +11,16 @@ import psutil
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from criterions.l1ft import L1Criterions
 from deepspeed.runtime.utils import see_memory_usage
-from deepspeed.utils import logger as ds_logger
-from models.graphormer.graphormer import GraphormerModel
 from torch.utils.data import DataLoader, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
-from utils.get_paranum import count_paranum
 
-# from graphormer.data.dataset import PCQPreprocessedData, BatchedDataDataset
-# from graphormer.data.wrapper import MyPygPCQM4MDataset
-# from torch.nn.parallel import DistributedDataParallel as DDP
-from utils.move_to_device import move_to_device
+from sfm.criterions.l1ft import L1Criterions
+from sfm.logging.loggers import logger
+from sfm.models.graphormer.graphormer import GraphormerModel
+from sfm.utils.get_paranum import count_paranum
+from sfm.utils.move_to_device import move_to_device
 
 
 class Finetuner:
@@ -81,7 +77,7 @@ class Finetuner:
                 unexpected_keys.append(keys)
 
         if len(missing_keys) > 0:
-            ds_logger.info(
+            logger.info(
                 "Missing keys in {}: {}".format(
                     checkpoint_path,
                     missing_keys,
@@ -89,7 +85,7 @@ class Finetuner:
             )
 
         if len(unexpected_keys) > 0:
-            ds_logger.info(
+            logger.info(
                 "Unexpected keys {}: {}".format(
                     checkpoint_path,
                     unexpected_keys,

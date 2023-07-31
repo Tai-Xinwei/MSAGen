@@ -10,9 +10,11 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from modules.get_activation_fn import get_activation_fn
-from modules.layer_norm import LayerNorm
-from modules.quant_noise import quant_noise
+
+from sfm.models.graphormer.graphormer_config import GraphormerConfig
+from sfm.modules.get_activation_fn import get_activation_fn
+from sfm.modules.layer_norm import LayerNorm
+from sfm.modules.quant_noise import quant_noise
 
 from .modules.graphormer_layers import RobertaClassificationHead
 from .modules.graphormer_sentence_encoder_TMdiff import GraphormerSentenceEncoderDiff
@@ -29,70 +31,15 @@ class GraphormerDiffModel(nn.Module):
 
     def __init__(self, args):
         super().__init__()
-        self.args = args
-        self.encoder_embed_dim = args.encoder_embed_dim
 
-        # add architecture parameters
-        # base_architecture(args)
-        graphormer_base_architecture(args)
-
-        if not hasattr(args, "max_positions"):
-            try:
-                args.max_positions = args.tokens_per_sample
-            except:
-                args.max_positions = args.max_nodes
-
-        logger.info(args)
-
-        self.encoder = GraphormerDiff(args)
-
-    def max_positions(self):
-        return self.encoder.max_positions
-
-    def forward(self, batched_data, **kwargs):
-        return self.encoder(batched_data, **kwargs)
-
-
-class GraphormerDiff(nn.Module):
-    """
-    Encoder for Masked Language Modelling.
-    """
-
-    def __init__(self, args):
-        super().__init__()
-        self.max_positions = args.max_positions
+        graphormer_config = GraphormerConfig(args)
+        self.args = graphormer_config.args
+        logger.info(self.args)
 
         self.sentence_encoder = GraphormerSentenceEncoderDiff(
-            # < for graphormer
-            num_atoms=args.num_atoms,
-            num_in_degree=args.num_in_degree,
-            num_out_degree=args.num_out_degree,
-            num_edges=args.num_edges,
-            num_spatial=args.num_spatial,
-            num_edge_dis=args.num_edge_dis,
-            edge_type=args.edge_type,
-            multi_hop_max_dist=args.multi_hop_max_dist,
-            # >
-            num_encoder_layers=args.encoder_layers,
-            embedding_dim=args.encoder_embed_dim,
-            ffn_embedding_dim=args.encoder_ffn_embed_dim,
-            num_attention_heads=args.encoder_attention_heads,
-            dropout=args.dropout,
-            attention_dropout=args.attention_dropout,
-            activation_dropout=args.act_dropout,
-            max_seq_len=self.max_positions,
-            num_segments=args.num_segment,
-            use_position_embeddings=not args.no_token_positional_embeddings,
-            encoder_normalize_before=args.encoder_normalize_before,
-            apply_bert_init=args.apply_bert_init,
-            activation_fn=args.activation_fn,
-            learned_pos_embedding=args.encoder_learned_pos,
-            sandwich_ln=args.sandwich_ln,
-            droppath_prob=args.droppath_prob,
-            add_3d=args.add_3d,
-            num_3d_bias_kernel=args.num_3d_bias_kernel,
-            no_2d=args.no_2d,
-            args=args,
+            graphormer_config,
+            transformer_m_pretrain=args.transformer_m_pretrain,
+            mode_prob=args.mode_prob,
         )
 
         self.share_input_output_embed = args.share_encoder_input_output_embed
@@ -238,119 +185,3 @@ class GraphormerDiff(nn.Module):
         fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(weight)
         bound = 1 / math.sqrt(fan_in)
         torch.nn.init.uniform_(bias, -bound, bound)
-
-
-def base_architecture(args):
-    args.dropout = getattr(args, "dropout", 0.1)
-    args.attention_dropout = getattr(args, "attention_dropout", 0.1)
-    args.act_dropout = getattr(args, "act_dropout", 0.0)
-
-    args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 4096)
-    args.encoder_layers = getattr(args, "encoder_layers", 6)
-    args.encoder_attention_heads = getattr(args, "encoder_attention_heads", 8)
-
-    args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 1024)
-    args.share_encoder_input_output_embed = getattr(
-        args, "share_encoder_input_output_embed", False
-    )
-    args.encoder_learned_pos = getattr(args, "encoder_learned_pos", False)
-    args.no_token_positional_embeddings = getattr(
-        args, "no_token_positional_embeddings", False
-    )
-    args.num_segment = getattr(args, "num_segment", 2)
-
-    args.sentence_class_num = getattr(args, "sentence_class_num", 2)
-    args.sent_loss = getattr(args, "sent_loss", False)
-
-    args.apply_bert_init = getattr(args, "apply_bert_init", False)
-
-    args.activation_fn = getattr(args, "activation_fn", "relu")
-    args.pooler_activation_fn = getattr(args, "pooler_activation_fn", "tanh")
-    args.encoder_normalize_before = getattr(args, "encoder_normalize_before", False)
-
-    args.sandwich_ln = getattr(args, "sandwich_ln", False)
-    args.droppath_prob = getattr(args, "droppath_prob", 0.0)
-
-    # add
-    args.atom_loss_coeff = getattr(args, "atom_loss_coeff", 1.0)
-    args.pos_loss_coeff = getattr(args, "pos_loss_coeff", 1.0)
-    args.y_2d_loss_coeff = getattr(args, "y_2d_loss_coeff", 1.0)
-
-    args.max_positions = getattr(args, "max_positions", 512)
-    args.num_atoms = getattr(args, "num_atoms", 512 * 9)
-    args.num_edges = getattr(args, "num_edges", 512 * 3)
-    args.num_in_degree = getattr(args, "num_in_degree", 512)
-    args.num_out_degree = getattr(args, "num_out_degree", 512)
-    args.num_spatial = getattr(args, "num_spatial", 512)
-    args.num_edge_dis = getattr(args, "num_edge_dis", 128)
-    args.multi_hop_max_dist = getattr(args, "multi_hop_max_dist", 5)
-    args.edge_type = getattr(args, "edge_type", "multi_hop")
-
-
-def bert_base_architecture(args):
-    args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 768)
-    args.share_encoder_input_output_embed = getattr(
-        args, "share_encoder_input_output_embed", False
-    )
-    args.no_token_positional_embeddings = getattr(
-        args, "no_token_positional_embeddings", False
-    )
-    args.encoder_learned_pos = getattr(args, "encoder_learned_pos", True)
-    args.num_segment = getattr(args, "num_segment", 2)
-
-    args.encoder_layers = getattr(args, "encoder_layers", 12)
-
-    args.encoder_attention_heads = getattr(args, "encoder_attention_heads", 32)
-    args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 768)
-
-    args.sentence_class_num = getattr(args, "sentence_class_num", 2)
-    args.sent_loss = getattr(args, "sent_loss", False)
-
-    args.apply_bert_init = getattr(args, "apply_bert_init", True)
-
-    args.activation_fn = getattr(args, "activation_fn", "gelu")
-    args.pooler_activation_fn = getattr(args, "pooler_activation_fn", "tanh")
-    args.encoder_normalize_before = getattr(args, "encoder_normalize_before", True)
-    args.sandwich_ln = getattr(args, "sandwich_ln", False)
-    args.droppath_prob = getattr(args, "droppath_prob", 0.0)
-
-    args.add_3d = getattr(args, "add_3d", False)
-    args.num_3d_bias_kernel = getattr(args, "num_3d_bias_kernel", 128)
-    args.no_2d = getattr(args, "no_2d", False)
-    base_architecture(args)
-
-
-def graphormer_base_architecture(args):
-    # if args.pretrained_model_name == "pcqm4mv1_graphormer_base" or \
-    #    args.pretrained_model_name == "pcqm4mv2_graphormer_base" or \
-    #    args.pretrained_model_name == "pcqm4mv1_graphormer_base_for_molhiv":
-
-    args.encoder_layers = getattr(args, "encoder_layers", 12)
-    args.encoder_attention_heads = getattr(args, "encoder_attention_heads", 12)
-    args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 768)
-    args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 768)
-    args.dropout = getattr(args, "dropout", 0.0)
-    args.attention_dropout = getattr(args, "attention_dropout", 0.1)
-    args.act_dropout = getattr(args, "act_dropout", 0.1)
-    # else:
-    #     args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 768)
-    #     args.encoder_layers = getattr(args, "encoder_layers", 12)
-    #     args.encoder_attention_heads = getattr(args, "encoder_attention_heads", 32)
-    #     args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 768)
-    #     args.dropout = getattr(args, "dropout", 0.0)
-    #     args.attention_dropout = getattr(args, "attention_dropout", 0.1)
-    #     args.act_dropout = getattr(args, "act_dropout", 0.1)
-
-    args.activation_fn = getattr(args, "activation_fn", "gelu")
-    args.pooler_activation_fn = getattr(args, "pooler_activation_fn", "tanh")
-
-    args.encoder_normalize_before = getattr(args, "encoder_normalize_before", True)
-    args.apply_graphormer_init = getattr(args, "apply_graphormer_init", True)
-    args.share_encoder_input_output_embed = getattr(
-        args, "share_encoder_input_output_embed", False
-    )
-    args.no_token_positional_embeddings = getattr(
-        args, "no_token_positional_embeddings", False
-    )
-    args.pre_layernorm = getattr(args, "pre_layernorm", False)
-    base_architecture(args)

@@ -17,8 +17,9 @@ from torch.utils.data.distributed import DistributedSampler
 from torch_geometric.data import Data, InMemoryDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer
-from utils.chemical_tokens import CHEMICAL_TOKENS
-from utils.move_to_device import move_to_device
+
+from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
+from sfm.utils.move_to_device import move_to_device
 
 from .collator import collator
 from .wrapper import preprocess_item, smiles2graph
@@ -90,6 +91,7 @@ class MolTokenizer:
 
                 if len(pos1) > 0:
                     split_text.append(data[: pos1[0] + 5])
+                    # split_text.append(data[: pos1[0]])
 
                     for i in range(len(pos1)):
                         smile = data[pos1[i] : pos2[i]]
@@ -98,6 +100,7 @@ class MolTokenizer:
                             split_text.append(data[pos2[i] : pos1[i + 1] + 5])
 
                     split_text.append(data[pos2[-1] :])
+                    # split_text.append(data[pos2[-1]+6 :])
 
                 text_list.append(split_text)
             # smiles_idx = -smiles_dict.get(smiles[idx], 1) - 1

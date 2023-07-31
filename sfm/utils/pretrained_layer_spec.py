@@ -39,7 +39,7 @@ class PretrainedLayerSpec(LayerSpec):
     def load_pretrained(self, device="cpu"):
         # TODO: each process loads the whole model in cpu part, needs fixing.
 
-        checkpoints_state = torch.load(self.pretrained_ckpt_path, map_location=device)
+        checkpoints_state = torch.load(self.pretrained_ckpt_path, map_location="cpu")
         if type(checkpoints_state) == dict and "module" in checkpoints_state:
             checkpoints_state = checkpoints_state["module"]
         elif type(checkpoints_state) == dict and "model" in checkpoints_state:

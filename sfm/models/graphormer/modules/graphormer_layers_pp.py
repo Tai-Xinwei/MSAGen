@@ -5,8 +5,9 @@ from typing import Callable, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from modules.get_activation_fn import get_activation_fn
 from torch import Tensor
+
+from sfm.modules.get_activation_fn import get_activation_fn
 
 from .graphormer_layers import (
     Graph3DBias,

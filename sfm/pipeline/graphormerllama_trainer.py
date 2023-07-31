@@ -1,22 +1,23 @@
 # -*- coding: utf-8 -*-
 import math
 import os
-from logging.loggers import sfm_logger
 
 import deepspeed
 import psutil
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import utils.mypp_engine as myPipeEngine
-from criterions.copilotloss import CopilotCriterions, CopilotCriterionsPP
 from deepspeed.runtime.utils import see_memory_usage
-from models.generalist.graphormer_llama import GraphormerLlamaModel
-from utils.get_paranum import count_paranum
-from utils.move_to_device import move_to_device
-from utils.mypp_module import PipelineModule
-from utils.optimizer import myAdam
-from utils.set_lr import groupWarmupDecayLR
+
+import sfm.utils.mypp_engine as myPipeEngine
+from sfm.criterions.copilotloss import CopilotCriterions, CopilotCriterionsPP
+from sfm.logging import logger as sfm_logger
+from sfm.models.generalist.graphormer_llama import GraphormerLlamaModel
+from sfm.utils.get_paranum import count_paranum
+from sfm.utils.move_to_device import move_to_device
+from sfm.utils.mypp_module import PipelineModule
+from sfm.utils.optimizer import myAdam
+from sfm.utils.set_lr import groupWarmupDecayLR
 
 
 class Trainer:
@@ -65,8 +66,9 @@ class Trainer:
                 loss_fn=CopilotCriterionsPP(args, vocab_size),
                 partition_method="manual",
                 # part_list=[0, 4, 9, 14, 19, 23, 27, 32, 37],
+                # part_list=[0, 5, 7, 10, 12, 14, 16, 18, 20, 22, 24, 27, 30, 32, 34, 37, 40, 42, 45, 48, 51, 54, 57, 60, 63, 66, 69, 70, 73, 76, 79, 81, 85],
                 part_list=[0, 9, 19, 27, 37],
-                device=args.rank,
+                device=args.local_rank,
             )
 
             optimizer = myAdam(

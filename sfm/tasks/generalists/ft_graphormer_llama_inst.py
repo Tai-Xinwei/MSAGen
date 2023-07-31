@@ -8,15 +8,12 @@ import deepspeed
 import torch
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(".")
+sys.path.extend([".", ".."])
 
 from transformers import AutoTokenizer, PreTrainedTokenizer
 from transformers.models.llama.configuration_llama import LlamaConfig
 
-from sfm.data.mol_data.moltext_dataset import (
-    SupervisedMoleculeNetDataset,
-    SupervisedProcessedData,
-)
+from sfm.data.mol_data.moltext_dataset import SupervisedProcessedDataWithSmiles
 from sfm.pipeline.graphormerllama_trainer import Trainer
 from sfm.utils.add_argument import add_argument
 from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
@@ -29,18 +26,6 @@ DEFAULT_PAD_TOKEN = "[PAD]"
 DEFAULT_EOS_TOKEN = "</s>"
 DEFAULT_BOS_TOKEN = "<s>"
 DEFAULT_UNK_TOKEN = "<unk>"
-PROMPT_DICT = {
-    "prompt_input": (
-        "Below is an instruction that describes a task, paired with an input that provides further context. "
-        "Write a response that appropriately completes the request.\n\n"
-        "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:"
-    ),
-    "prompt_no_input": (
-        "Below is an instruction that describes a task. "
-        "Write a response that appropriately completes the request.\n\n"
-        "### Instruction:\n{instruction}\n\n### Response:"
-    ),
-}
 
 
 def make_supervised_data_module(args, mode="train") -> Dict:
@@ -71,29 +56,18 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     tokenizer.add_special_tokens(special_tokens_dict)
 
     """ Make dataset and collator for supervised fine-tuning. """
-    # dataset = SupervisedProcessedData(
-    #     args=args,
-    #     data_path=args.data_path,
-    #     dataset_names=args.dataset_names,
-    #     dataset_splits=args.dataset_splits,
-    #     mol2idx_dict_path=args.smiles_dict_path,
-    #     embedding_length=args.embedding_length,
-    #     in_memory=False,
-    #     mol_size_path=args.mol_size_path,
-    #     pad_token_id=tokenizer.pad_token_id,
-    #     pool_mode=args.pool_mode,
-    # )
-
-    """ moleculenet dataset only for fast debugging, do not remove this。 """
-    dataset = SupervisedMoleculeNetDataset(
-        data_path="/home/peiran/FMproj/MoleculeNet_prompts_v2/",
-        dataset_names="bace",
-        # dataset_names="hiv,clintox,bbbp,sider,tox21,bace",
-        smiles_dict_path="/home/peiran/FMproj/MoleculeNet_prompts_v2/mol2idx_dict.jsonl",
-        tokenizer=tokenizer,
-        mode="train",
-        pool_mode="multimol",
-        embedding_length=20,
+    dataset = SupervisedProcessedDataWithSmiles(
+        data_path=args.data_path,
+        dataset_names=args.dataset_names,
+        dataset_splits=args.dataset_splits,
+        in_memory=False,
+        model_max_length=args.model_max_length,
+        mol_embed_type="atoms",
+        molecule_max_size=512,
+        pad_token_id=tokenizer.pad_token_id,
+        # dataset_ratios=args.dataset_ratios,
+        pool_mode=args.pool_mode,
+        embedding_length=args.embedding_length,
     )
 
     return dict(train_dataset=dataset, eval_dataset=None, vocab_size=len(tokenizer))
@@ -122,9 +96,6 @@ def main() -> None:
         )
     )
 
-    data_module = make_supervised_data_module(args, mode="train")
-    print("length of dataset", len(data_module["train_dataset"]))
-
     args.add_3d = False
 
     if args.rank == 0:
@@ -135,12 +106,24 @@ def main() -> None:
                 "mfm_lora": args.mfm_lora,
                 "pool_mode": args.pool_mode,
                 "embedding_length": args.embedding_length,
+                "btn_adaptor": args.btn_adaptor,
             }
         )
 
+    data_module = make_supervised_data_module(args, mode="train")
+    print("length of dataset", len(data_module["train_dataset"]))
+
+    freeze_list = []
+    unfreeze_list = ["adaptor", "dummy", "embed_tokens", 0]
+
     trainer = Trainer(
-        args, data_module["train_dataset"], vocab_size=data_module["vocab_size"]
+        args,
+        data_module["train_dataset"],
+        vocab_size=data_module["vocab_size"],
+        freeze_list=freeze_list,
+        unfreeze_list=unfreeze_list,
     )
+
     if args.pipeline_parallelism == 0:
         trainer.train()
     else:

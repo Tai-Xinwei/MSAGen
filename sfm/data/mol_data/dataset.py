@@ -16,7 +16,8 @@ from torch.utils.data import DataLoader, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
 from torch_geometric.data import Data, InMemoryDataset
 from tqdm import tqdm
-from utils.move_to_device import move_to_device
+
+from sfm.utils.move_to_device import move_to_device
 
 from .collator import collator, collator_3d, collator_3d_pp, collator_ft
 from .wrapper import (

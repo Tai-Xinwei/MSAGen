@@ -292,7 +292,7 @@ class TDCDataset(InMemoryDataset):
                     assert len(graph["edge_feat"]) == graph["edge_index"].shape[1]
                     assert len(graph["node_feat"]) == graph["num_nodes"]
 
-                    data.__num_nodes__ = int(graph["num_nodes"])
+                    data.__num_nodes__ = torch.Tensor([int(graph["num_nodes"])])
                     data.edge_index = torch.from_numpy(graph["edge_index"]).to(
                         torch.int64
                     )

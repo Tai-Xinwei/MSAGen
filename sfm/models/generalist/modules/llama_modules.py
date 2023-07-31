@@ -4,7 +4,6 @@ import os
 from typing import List, Optional, Tuple, Union
 
 import torch
-from modules.partial_grad_emb import PartialGradEmbedding
 from torch import nn
 from torch.nn import functional as F
 from transformers import (
@@ -21,7 +20,8 @@ from transformers.models.llama.modeling_llama import (
     LlamaMLP,
     LlamaRMSNorm,
 )
-from utils.pretrained_layer_spec import PretrainedLayerSpec, TiedPretrainedLayerSpec
+
+from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec
 
 
 class LlamaMLPAdapter(nn.Module):
@@ -156,15 +156,6 @@ class LlamaEmbeddingsPP(nn.Module):
             input_ids.masked_fill(mol_idx_mask, 0)
         )  # B, T, hidden_size
 
-        # # ## partial freeze
-        # w = (input_ids > self.learnable_cutoff) * 1.0
-        # w = w.unsqueeze(-1)
-        # text_input_ids = input_ids.masked_fill(mol_idx_mask, 0)
-        # text_embeds = (
-        #     w * self.embed_tokens(text_input_ids)
-        #     + (1 - w) * self.embed_tokens(text_input_ids).detach()
-        # )
-
         return mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids
 
 
@@ -290,45 +281,3 @@ class LlamaForCausalLMPP(LlamaForCausalLM):
         self.dummy = nn.Parameter(
             torch.zeros(1, dtype=torch.float32), requires_grad=True
         )
-
-    # @classmethod
-    # def to_layers(cls, args, config, new_num_tokens=None, load_ckpt=False):
-    #     cls.pipe_layer = []
-    #     for i in range(config.num_hidden_layers):
-    #         cls.pipe_layer.append(
-    #             PretrainedLayerSpec(
-    #                 LlamaDecoderLayerPP,
-    #                 config,
-    #                 i,
-    #                 load_ckpt=load_ckpt,
-    #                 pretrained_ckpt_path=os.path.join(
-    #                     args.llm_model_name_or_path, "model.layers.{}.pt".format(i)
-    #                 ),
-    #                 lora_mode="freeze",
-    #             )
-    #         )
-    #     cls.pipe_layer.append(
-    #         PretrainedLayerSpec(
-    #             LlamaNorm,
-    #             config,
-    #             load_ckpt=load_ckpt,
-    #             pretrained_ckpt_path=os.path.join(
-    #                 args.llm_model_name_or_path, "model.norm.pt"
-    #             ),
-    #             lora_mode="freeze",
-    #         )
-    #     )
-    #     cls.pipe_layer.append(
-    #         PretrainedLayerSpec(
-    #             LlamaHead,
-    #             config,
-    #             new_num_tokens=new_num_tokens,
-    #             load_ckpt=load_ckpt,
-    #             pretrained_ckpt_path=os.path.join(
-    #                 args.llm_model_name_or_path, "model.lm_head.pt"
-    #             ),
-    #             lora_mode="freeze",
-    #         )
-    #     )
-
-    #     return cls.pipe_layer

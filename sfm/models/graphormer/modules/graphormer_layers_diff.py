@@ -4,13 +4,6 @@ from typing import Callable, Optional, Tuple
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from modules.FairseqDropout import FairseqDropout
-from modules.get_activation_fn import get_activation_fn
-from torch import Tensor
-from torch_cluster import radius_graph
-from torch_geometric.nn import MessagePassing
-from torch_scatter import scatter
 
 from .graphormer_layers import (
     GaussianLayer,

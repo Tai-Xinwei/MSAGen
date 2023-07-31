@@ -132,6 +132,7 @@ def collator(
         attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float("-inf")
     max_node_num = max(i.size(0) for i in xs)
     max_dist = max(i.size(-2) for i in edge_inputs)
+
     y = torch.cat(ys)
     nnodes = torch.cat(nnodes)
     x = torch.cat([pad_2d_unsqueeze(i, max_node_num) for i in xs])

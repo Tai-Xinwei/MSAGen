@@ -4,10 +4,11 @@ from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
-from modules.partial_grad_emb import PartialGradEmbedding
 from transformers.activations import ACT2FN
 from transformers.configuration_utils import PretrainedConfig
 from transformers.models.llama.modeling_llama import LlamaRMSNorm
+
+from sfm.modules.partial_grad_emb import PartialGradEmbedding
 
 
 class AdaptorConfig(PretrainedConfig):
@@ -364,7 +365,6 @@ class HybridEmbeddings(nn.Module):
 
         B, T = input_ids.shape
         mol_idx_mask = input_ids < 0  # B, T
-
         # with torch.no_grad():
         #     token_embed = self.embed_tokens(
         #         input_ids.masked_fill(mol_idx_mask, 0)

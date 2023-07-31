@@ -21,113 +21,42 @@ from .graphormer_sentence_encoder import GraphormerSentenceEncoder
 class GraphormerSentenceEncoderDiff(GraphormerSentenceEncoder):
     def __init__(
         self,
-        num_atoms: int,
-        num_in_degree: int,
-        num_out_degree: int,
-        num_edges: int,
-        num_spatial: int,
-        num_edge_dis: int,
-        edge_type: str,
-        multi_hop_max_dist: int,
-        num_encoder_layers: int = 6,
-        embedding_dim: int = 768,
-        ffn_embedding_dim: int = 3072,
-        num_attention_heads: int = 8,
-        dropout: float = 0.1,
-        attention_dropout: float = 0.1,
-        activation_dropout: float = 0.1,
-        layerdrop: float = 0.0,
-        max_seq_len: int = 256,
-        num_segments: int = 2,
-        use_position_embeddings: bool = True,
-        offset_positions_by_padding: bool = True,
-        encoder_normalize_before: bool = False,
-        apply_bert_init: bool = False,
-        activation_fn: str = "relu",
-        learned_pos_embedding: bool = True,
-        embed_scale: float = None,
-        freeze_embeddings: bool = False,
-        n_trans_layers_to_freeze: int = 0,
-        export: bool = False,
-        traceable: bool = False,
-        q_noise: float = 0.0,
-        qn_block_size: int = 8,
-        sandwich_ln: bool = False,
-        droppath_prob: float = 0.0,
-        add_3d: bool = False,
-        num_3d_bias_kernel: int = 128,
-        no_2d: bool = False,
-        args=None,
+        graphormer_config,
         transformer_m_pretrain: bool = False,
         mode_prob: str = "0.6,0.2,0.2",
         # num_pred_attn_layer: int = 4,
     ) -> None:
         super().__init__(
-            num_atoms,
-            num_in_degree,
-            num_out_degree,
-            num_edges,
-            num_spatial,
-            num_edge_dis,
-            edge_type,
-            multi_hop_max_dist,
-            num_encoder_layers,
-            embedding_dim,
-            ffn_embedding_dim,
-            num_attention_heads,
-            dropout,
-            attention_dropout,
-            activation_dropout,
-            layerdrop,
-            max_seq_len,
-            num_segments,
-            use_position_embeddings,
-            offset_positions_by_padding,
-            encoder_normalize_before,
-            apply_bert_init,
-            activation_fn,
-            learned_pos_embedding,
-            embed_scale,
-            freeze_embeddings,
-            n_trans_layers_to_freeze,
-            export,
-            traceable,
-            q_noise,
-            qn_block_size,
-            sandwich_ln,
-            droppath_prob,
-            add_3d,
-            num_3d_bias_kernel,
-            no_2d,
-            args,
+            graphormer_config,
             init_bias=False,
         )
-
+        args = graphormer_config.args
         self.graph_node_feature = GraphNodeFeatureDiff(
             args,
-            num_heads=num_attention_heads,
-            num_atoms=num_atoms,
-            num_in_degree=num_in_degree,
-            num_out_degree=num_out_degree,
-            hidden_dim=embedding_dim,
-            n_layers=num_encoder_layers,
-            no_2d=no_2d,
+            num_heads=graphormer_config.num_attention_heads,
+            num_atoms=graphormer_config.num_atoms,
+            num_in_degree=graphormer_config.num_in_degree,
+            num_out_degree=graphormer_config.num_out_degree,
+            hidden_dim=graphormer_config.embedding_dim,
+            n_layers=graphormer_config.num_encoder_layers,
+            no_2d=graphormer_config.no_2d,
             # add_3d=add_3d,
             # args=args,
         )
 
         self.graph_attn_bias = GraphAttnBiasDiff(
             args,
-            num_heads=num_attention_heads * (num_encoder_layers + 1),
-            num_atoms=num_atoms,
-            num_edges=num_edges,
-            num_spatial=num_spatial,
-            num_edge_dis=num_edge_dis,
-            edge_type=edge_type,
-            multi_hop_max_dist=multi_hop_max_dist,
-            hidden_dim=num_attention_heads,
-            n_layers=num_encoder_layers,
-            no_2d=no_2d,
+            num_heads=graphormer_config.num_attention_heads
+            * (graphormer_config.num_encoder_layers + 1),
+            num_atoms=graphormer_config.num_atoms,
+            num_edges=graphormer_config.num_edges,
+            num_spatial=graphormer_config.num_spatial,
+            num_edge_dis=graphormer_config.num_edge_dis,
+            edge_type=graphormer_config.edge_type,
+            multi_hop_max_dist=graphormer_config.multi_hop_max_dist,
+            hidden_dim=graphormer_config.num_attention_heads,
+            n_layers=graphormer_config.num_encoder_layers,
+            no_2d=graphormer_config.no_2d,
             # add_3d=add_3d,
             # args=args,
         )
@@ -135,15 +64,16 @@ class GraphormerSentenceEncoderDiff(GraphormerSentenceEncoder):
         self.graph_3d_bias = (
             Graph3DBiasDiff(
                 args,
-                num_heads=num_attention_heads * (num_encoder_layers + 1),
-                num_edges=num_edges,
-                n_layers=num_encoder_layers,
-                embed_dim=embedding_dim,
-                num_kernel=num_3d_bias_kernel,
+                num_heads=graphormer_config.num_attention_heads
+                * (graphormer_config.num_encoder_layers + 1),
+                num_edges=graphormer_config.num_edges,
+                n_layers=graphormer_config.num_encoder_layers,
+                embed_dim=graphormer_config.embedding_dim,
+                num_kernel=graphormer_config.num_3d_bias_kernel,
                 no_share_rpe=False,
                 # args=args,
             )
-            if add_3d
+            if graphormer_config.add_3d
             else None
         )
 
@@ -237,8 +167,9 @@ class GraphormerSentenceEncoderDiff(GraphormerSentenceEncoder):
             self._noise_sample(ori_pos, time)
             .masked_fill(~node_mask.bool(), 0.0)
             .to(ori_pos.dtype)
+            .half()
         )
-        vis_pos = ori_pos.masked_fill(node_mask.bool(), 0.0).to(ori_pos.dtype)
+        vis_pos = ori_pos.masked_fill(node_mask.bool(), 0.0).to(ori_pos.dtype).half()
         batched_data["pos"] = noisy_pos + vis_pos
 
         data_x = batched_data["x"]

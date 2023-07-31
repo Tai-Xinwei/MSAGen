@@ -8,13 +8,13 @@ import torch
 import torch.nn as nn
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from data.mol_data.dataset import BatchedDataDataset, PCQPreprocessedData
-
+sys.path.extend([".", ".."])
 # import torch.distributed as dist
 from deepspeed import comm as dist
-from pipeline.graphormer_pretrainer import DiffTrainer, Trainer
-from utils.add_argument import add_argument
+
+from sfm.data.mol_data.dataset import BatchedDataDataset, PCQPreprocessedData
+from sfm.pipeline.graphormer_pretrainer import DiffTrainer, Trainer
+from sfm.utils.add_argument import add_argument
 
 logging.getLogger().setLevel(logging.ERROR)
 # from graphormer.pipeline.trainer_pp import Trainer_pp
