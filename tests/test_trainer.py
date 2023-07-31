@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import tempfile
+import unittest
 
 import torch
 import torch.nn as nn
@@ -46,28 +47,29 @@ def collater(batch):
     return torch.stack(batch)
 
 
-def test_trainer():
-    with tempfile.TemporaryDirectory() as save_dir:
-        config = TrainerConfig(
-            epochs=5, save_dir=save_dir, fp16=True, update_freq=2, log_interval=10
-        )
-        print(config)
+class Test_Trainer(unittest.TestCase):
+    def test_trainer(self):
+        with tempfile.TemporaryDirectory() as save_dir:
+            config = TrainerConfig(
+                epochs=5, save_dir=save_dir, fp16=True, update_freq=2, log_interval=10
+            )
+            print(config)
 
-        model = DummyNN()
-        train_data = DummyDataset()
-        valid_data = DummyDataset()
-        test_data = DummyDataset()
+            model = DummyNN()
+            train_data = DummyDataset()
+            valid_data = DummyDataset()
+            test_data = DummyDataset()
 
-        trainer = Trainer(
-            config,
-            model=model,
-            collater=collater,
-            train_data=train_data,
-            valid_data=valid_data,
-            test_data=test_data,
-        )
-        trainer.train()
+            trainer = Trainer(
+                config,
+                model=model,
+                collater=collater,
+                train_data=train_data,
+                valid_data=valid_data,
+                test_data=test_data,
+            )
+            trainer.train()
 
 
 if __name__ == "__main__":
-    test_trainer()
+    unittest.main()

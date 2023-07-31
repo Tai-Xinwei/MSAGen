@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import math
 import os
+from logging.loggers import sfm_logger
 
 import deepspeed
 import psutil
@@ -11,7 +12,6 @@ import utils.mypp_engine as myPipeEngine
 from criterions.copilotloss import CopilotCriterions, CopilotCriterionsPP
 from deepspeed.runtime.utils import see_memory_usage
 from models.generalist.graphormer_llama import GraphormerLlamaModel
-from sfmlogging.loggers import sfm_logger
 from utils.get_paranum import count_paranum
 from utils.move_to_device import move_to_device
 from utils.mypp_module import PipelineModule

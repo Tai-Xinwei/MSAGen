@@ -6,7 +6,7 @@
 
 import math
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import torch
 from data.mol_data.moltext_dataset import batch_collater_for_graphormer
@@ -15,12 +15,12 @@ from models.graphormer.modules import (
     GraphormerSentenceEncoderPP,
     init_bert_params,
 )
-
-# from modules.
-from sfmlogging.loggers import sfm_logger as logger
 from transformers.models.llama.configuration_llama import LlamaConfig
 from transformers.models.llama.modeling_llama import LlamaForCausalLM
 from utils.pretrained_layer_spec import PretrainedLayerSpec, TiedPretrainedLayerSpec
+
+# from modules.
+from sfm.logging.loggers import sfm_logger as logger
 
 from .modules.hybrid_emb import AdaptorConfig, HybridEmbeddings, HybridEmbeddingsPP
 from .modules.llama_modules import LlamaEmbeddingsPP, LlamaModelPP

@@ -2,6 +2,7 @@
 import copy
 import math
 import os
+from logging.loggers import sfm_logger
 
 import deepspeed
 
@@ -15,7 +16,6 @@ from criterions.l1ft import L1Criterions
 from deepspeed.runtime.utils import see_memory_usage
 from deepspeed.utils import logger as ds_logger
 from models.graphormer.graphormer import GraphormerModel
-from sfmlogging.loggers import sfm_logger
 from torch.utils.data import DataLoader, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter

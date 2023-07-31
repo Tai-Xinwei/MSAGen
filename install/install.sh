@@ -32,3 +32,6 @@ pip install wandb
 pip install transformers
 pip install peft
 pip install sentencepiece
+
+# For tamgent
+pip install sacremoses

@@ -15,6 +15,7 @@ from torch.utils.data import (
 )
 from tqdm import tqdm
 
+from sfm.logging import logger
 from sfm.pipeline.accelerator.accelerator import (
     Accelerator,
     DdpAccelerator,
@@ -29,7 +30,6 @@ from sfm.pipeline.accelerator.dataclasses import (
     TraingStrategy,
 )
 from sfm.pipeline.accelerator.model import Model
-from sfm.sfmlogging import logger
 
 
 def seed_everything(seed):

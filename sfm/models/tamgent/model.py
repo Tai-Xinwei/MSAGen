@@ -7,25 +7,28 @@ import torch.nn as nn
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from sfm.data.tamgent2.tokenizer import MolxptTokenizer
+from sfm.logging import logger
 from sfm.models.tamgent.Qformer import BertConfig, BertLMHeadModel
 from sfm.models.tamgent.scheduler import LinearWarmupCosineLRScheduler
+from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model, TrainerConfig
 
 
 @dataclass
 class Tamgent2Config:
     freeze_text_encoder: bool = True
-    encode_text: bool = True
-    decode_smiles: bool = True
     text_hidden_size: int = 4096
-    num_query_token: int = 32
-    num_qformer_layer: int = 4
     llama_model: str = ""
     molxpt_model: str = ""
     max_txt_len_llama: int = 500
     max_txt_len_smiles: int = 2048
     end_sym: str = "\n"
     low_resource: bool = False  # use 8 bit and put vit in cpu
+
+    qformer_num_query_token: int = 32
+    qformer_num_layer: int = 4
+    qformer_cross_attention_freq: int = 2
+    qformer_num_attention_heads: int = 8
 
 
 class Tamgent2(Model):
@@ -40,28 +43,12 @@ class Tamgent2(Model):
         self.mol_tokenizer = self.init_mol_tokenizer(args.molxpt_model)
         self.text_tokenizer = self.init_tokenizer(args.llama_model)
 
-        print("Loading text_encoder")
-        if args.encode_text:
-            self.text_encoder = self.init_lm(args.llama_model)
+        logger.log("Loading text_encoder")
+        self.init_llama()
 
-        print("Loading text_encoder Done")
-        print("Loading Q-Former")
-        if args.encode_text:
-            self.Qformer, self.query_tokens = self.init_Qformer(
-                args.num_query_token, args.text_hidden_size, args.num_qformer_layer
-            )
-        self.Qformer.cls = None
-        self.Qformer.bert.embeddings.word_embeddings = None
-        self.Qformer.bert.embeddings.position_embeddings = None
-        for layer in self.Qformer.bert.encoder.layer:
-            layer.output = None
-            layer.intermediate = None
-
-        if args.decode_smiles:
-            self.smi_decoder = self.init_lm(args.molxpt_model)
-            self.text2mol_proj = nn.Linear(
-                self.Qformer.config.hidden_size, self.smi_decoder.config.hidden_size
-            )
+        logger.log("Loading text_encoder Done.", "Loading Q-Former")
+        self.init_Qformer()
+        self.init_smi_decoder()
 
     def before_training(self):
         if self.args.freeze_text_encoder:
@@ -84,29 +71,40 @@ class Tamgent2(Model):
         tokenizer = MolxptTokenizer.from_pretrained(path, use_fast=False)
         return tokenizer
 
-    def init_lm(self, path):
-        model = AutoModelForCausalLM.from_pretrained(path)
-        return model
+    def init_llama(self):
+        self.text_encoder = AutoModelForCausalLM.from_pretrained(self.args.llama_model)
 
-    def init_Qformer(
-        self, num_query_token, vision_width, num_qformer_layer, cross_attention_freq=2
-    ):
+    def init_smi_decoder(self):
+        self.smi_decoder = AutoModelForCausalLM.from_pretrained(self.args.molxpt_model)
+        self.text2mol_proj = nn.Linear(
+            self.Qformer.config.hidden_size, self.smi_decoder.config.hidden_size
+        )
+
+    def init_Qformer(self):
         encoder_config = BertConfig.from_pretrained("bert-base-uncased")
-        encoder_config.encoder_width = vision_width
-        encoder_config.num_hidden_layers = num_qformer_layer
-        encoder_config.num_attention_heads = num_qformer_layer
+        encoder_config.encoder_width = self.args.text_hidden_size
+        encoder_config.num_hidden_layers = self.args.qformer_num_layer
+        encoder_config.num_attention_heads = self.args.qformer_num_attention_heads
         # insert cross-attention layer every other block
         encoder_config.add_cross_attention = True
-        encoder_config.cross_attention_freq = cross_attention_freq
-        encoder_config.query_length = num_query_token
+        encoder_config.cross_attention_freq = self.args.qformer_cross_attention_freq
+        encoder_config.query_length = self.args.qformer_num_query_token
         # encoder_config.is_decoder = True
         print(encoder_config)
-        Qformer = BertLMHeadModel(config=encoder_config)
-        query_tokens = nn.Parameter(
-            torch.zeros(1, num_query_token, encoder_config.hidden_size)
+        self.Qformer = BertLMHeadModel(config=encoder_config)
+        self.query_tokens = nn.Parameter(
+            torch.zeros(
+                1, self.args.qformer_num_query_token, encoder_config.hidden_size
+            )
         )
-        query_tokens.data.normal_(mean=0.0, std=encoder_config.initializer_range)
-        return Qformer, query_tokens
+        self.query_tokens.data.normal_(mean=0.0, std=encoder_config.initializer_range)
+
+        self.Qformer.cls = None
+        self.Qformer.bert.embeddings.word_embeddings = None
+        self.Qformer.bert.embeddings.position_embeddings = None
+        for layer in self.Qformer.bert.encoder.layer:
+            layer.output = None
+            layer.intermediate = None
 
     def emb_text(self, text):
         device = self.text_encoder.device
@@ -116,7 +114,7 @@ class Tamgent2(Model):
             return_tensors="pt",
             padding="longest",
             truncation=True,
-            max_length=self.max_txt_len_llama,
+            max_length=self.args.max_txt_len_llama,
         ).to(device)
 
         text_embeds = (
@@ -138,18 +136,18 @@ class Tamgent2(Model):
         return outputs_llama, atts_llama
 
     def forward(self, samples):
-        text = samples["text"]
+        text = samples.text
         text_embeds, atts_text = self.emb_text(text)
 
         self.mol_tokenizer.padding_side = "right"
-        smiles = samples["smiles"]
+        smiles = samples.smiles
         # print(text, smiles)
         to_regress_tokens = self.mol_tokenizer(
             smiles,
             return_tensors="pt",
             padding="longest",
             truncation=True,
-            max_length=self.max_txt_len_smiles,
+            max_length=self.args.max_txt_len_smiles,
             add_special_tokens=False,
         ).to(self.smi_decoder.device)
         # print(self.mol_tokenizer.convert_ids_to_tokens(to_regress_tokens.input_ids[0]))
@@ -190,11 +188,13 @@ class Tamgent2(Model):
             return_dict=True,
             labels=targets,
         )
-        loss = outputs.loss
 
-        return loss
+        return outputs
 
-    def configure_optimizer(self):
+    def compute_loss(self, pred, batch) -> ModelOutput:
+        return ModelOutput(loss=pred["loss"], log_output={})
+
+    def config_optimizer(self):
         num_parameters = 0
         p_wd, p_non_wd = [], []
         for n, p in self.named_parameters():
