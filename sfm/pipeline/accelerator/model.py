@@ -13,12 +13,6 @@ class Model(nn.Module, ABC):
     def compute_loss(self, pred, batch) -> ModelOutput:
         pass
 
-    def load_pretrained(self):
-        """
-        Load all pretrained weights, e.g., pretrained encoders or decoders.
-        """
-        pass
-
     @abstractmethod
     def config_optimizer(self) -> tuple[Optimizer, LRScheduler]:
         """

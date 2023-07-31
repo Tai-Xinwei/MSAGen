@@ -18,17 +18,34 @@ from sfm.pipeline.accelerator.trainer import Model, TrainerConfig
 class Tamgent2Config:
     freeze_text_encoder: bool = True
     text_hidden_size: int = 4096
-    llama_model: str = ""
-    molxpt_model: str = ""
+    llama_model: str = "/blob/shufxi/llama/7B"
+    molxpt_model: str = "/blob/v-zequnliu/molxpt"
     max_txt_len_llama: int = 500
     max_txt_len_smiles: int = 2048
     end_sym: str = "\n"
     low_resource: bool = False  # use 8 bit and put vit in cpu
 
+    # Q-Former
     qformer_num_query_token: int = 32
     qformer_num_layer: int = 4
     qformer_cross_attention_freq: int = 2
     qformer_num_attention_heads: int = 8
+
+    # Dataset
+    train_mol_path: str = "/blob/shufxi/data/tamgent/chebi/train.textmol.smi"
+    train_txt_path: str = "/blob/shufxi/data/tamgent/chebi/train.textmol.desc"
+    val_mol_path: str = "/blob/shufxi/data/tamgent/chebi/val.textmol.smi"
+    val_text_path: str = "/blob/shufxi/data/tamgent/chebi/val.textmol.smi"
+
+    # Training
+    weight_decay: float = 0.05
+    beta2: float = 0.999
+    init_lr: float = 8e-5
+    max_epochs: int = 100
+    warmup_lr: float = 1e-6
+    warmup_epochs: int = 10
+    min_lr: float = 8e-6
+    iters_per_epoch: int = 1
 
 
 class Tamgent2(Model):
@@ -41,7 +58,7 @@ class Tamgent2(Model):
         self.args = args
 
         self.mol_tokenizer = self.init_mol_tokenizer(args.molxpt_model)
-        self.text_tokenizer = self.init_tokenizer(args.llama_model)
+        self.text_tokenizer = self.init_text_tokenizer(args.llama_model)
 
         logger.info("Loading text_encoder")
         self.init_llama()
@@ -62,7 +79,7 @@ class Tamgent2(Model):
         if self.args.freeze_text_encoder:
             self.text_encoder.eval()
 
-    def init_tokenizer(self, path):
+    def init_text_tokenizer(self, path):
         tokenizer = AutoTokenizer.from_pretrained(path, use_fast=False)
         tokenizer.pad_token = tokenizer.eos_token
         return tokenizer
@@ -209,28 +226,28 @@ class Tamgent2(Model):
         optim_params = [
             {
                 "params": p_wd,
-                "weight_decay": float(self.cfg["weight_decay"]),
+                "weight_decay": float(self.args.weight_decay),
             },
             {"params": p_non_wd, "weight_decay": 0},
         ]
-        beta2 = self.cfg["beta2"]
+        beta2 = self.args.beta2
         optimizer = torch.optim.AdamW(
             optim_params,
-            lr=float(self.cfg["init_lr"]),
-            weight_decay=float(self.cfg["weight_decay"]),
+            lr=float(self.args.init_lr),
+            weight_decay=float(self.args.weight_decay),
             betas=(0.9, beta2),
         )
-        max_epoch = self.cfg["max_epoch"]
-        warmup_start_lr = self.cfg["warmup_lr"]
-        warmup_epochs = self.cfg["warmup_epochs"]
-        iters_per_epoch = self.cfg["iters_per_epoch"]
-        min_lr = self.cfg["min_lr"]
+        max_epoch = self.args.max_epochs
+        warmup_start_lr = self.args.warmup_lr
+        warmup_epochs = self.args.warmup_epochs
+        iters_per_epoch = self.args.iters_per_epoch
+        min_lr = self.args.min_lr
         scheduler = LinearWarmupCosineLRScheduler(
             optimizer=optimizer,
             max_epoch=max_epoch,
             iters_per_epoch=iters_per_epoch,
             min_lr=min_lr,
-            init_lr=self.cfg["init_lr"],
+            init_lr=self.args.init_lr,
             warmup_steps=warmup_epochs * iters_per_epoch,
             warmup_start_lr=warmup_start_lr,
         )

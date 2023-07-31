@@ -23,7 +23,8 @@ class TrainerConfig:
     fp16: bool = False
     grad_scaler_init: float = 1.0
     update_freq: int = 1
-    batch_size: int = 32
+    train_batch_size: int = 32
+    val_batch_size: int = 32
     save_dir: str = "./checkpoints"
     save_batch_interval: int = 0
     save_epoch_interval: int = 1

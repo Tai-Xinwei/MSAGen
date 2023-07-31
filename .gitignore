@@ -148,3 +148,6 @@ dmypy.json
 
 #pycharm
 .idea
+
+# checkpint
+/checkpoints/

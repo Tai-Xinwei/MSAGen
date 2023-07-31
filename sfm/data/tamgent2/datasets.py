@@ -5,6 +5,7 @@ from typing import Union
 from torch.utils.data.dataloader import default_collate
 
 from sfm.data.dataset import Data, InMemoryFoundationModelDataset
+from sfm.logging import logger
 
 
 @dataclass
@@ -36,10 +37,22 @@ class TextToMolDataset(InMemoryFoundationModelDataset):
         with open(text_path, "r") as f:
             lines2 = f.read().splitlines()
 
+        assert len(lines1) == len(lines2)
+        data_size = len(lines1)
+
         data = []
+        logger.info(
+            "Loading data from {} and {}. Data size {}", mol_path, text_path, data_size
+        )
         for l1, l2 in zip(lines1, lines2):
             data.append(
                 TextToMolData(smiles=l1.replace("<m>", "").replace(" ", ""), text=l2)
             )
+
+            if len(data) % 10000 == 0:
+                logger.info("Loaded {}/{} data", len(data), data_size)
+
+        logger.info("Loaded {}/{} data", len(data), data_size)
+        logger.info("First example:\n {}", data[0])
 
         return cls(data)

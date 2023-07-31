@@ -9,6 +9,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data.dataset import Dataset
 
+from sfm.data.dataset import FoundationModelDataset
 from sfm.pipeline.accelerator.trainer import Model, ModelOutput, Trainer, TrainerConfig
 
 
@@ -31,7 +32,7 @@ class DummyNN(Model):
         return optimizer, lr_scheduler
 
 
-class DummyDataset(Dataset):
+class DummyDataset(FoundationModelDataset):
     def __init__(self):
         super().__init__()
         self.data = torch.randn(1024, 10)
@@ -42,9 +43,8 @@ class DummyDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-
-def collater(batch):
-    return torch.stack(batch)
+    def collate(self, batch):
+        return torch.stack(batch)
 
 
 class Test_Trainer(unittest.TestCase):
@@ -58,15 +58,12 @@ class Test_Trainer(unittest.TestCase):
             model = DummyNN()
             train_data = DummyDataset()
             valid_data = DummyDataset()
-            test_data = DummyDataset()
 
             trainer = Trainer(
                 config,
                 model=model,
-                collater=collater,
                 train_data=train_data,
                 valid_data=valid_data,
-                test_data=test_data,
             )
             trainer.train()
 

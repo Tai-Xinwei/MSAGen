@@ -8,16 +8,13 @@ from typing import Optional, Union
 import torch
 from torch.cuda.amp import GradScaler, autocast
 from torch.nn.parallel import DistributedDataParallel
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler
+from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
+from torch.utils.data.sampler import Sampler
 
+from sfm.data.dataset import FoundationModelDataset
 from sfm.logging import logger
-from sfm.pipeline.accelerator.dataclasses import (
-    ModelOutput,
-    TrainerConfig,
-    TrainerState,
-)
-from sfm.pipeline.accelerator.model import Model
+from sfm.pipeline.accelerator.dataclasses import ModelOutput, TrainerState
+from sfm.utils.data_utils import move_to_device
 
 
 class Accelerator(ABC):
@@ -40,12 +37,15 @@ class Accelerator(ABC):
         pass
 
     @abstractmethod
-    def should_log() -> bool:
+    def build_data_loader(self, train_data, val_data):
         pass
 
     @property
     @abstractmethod
     def grad_scale(self) -> float:
+        pass
+
+    def before_epoch(self, epoch: int):
         pass
 
 
@@ -70,6 +70,27 @@ class SingleNodeAccelerator(Accelerator):
     def set_up(self):
         pass
 
+    def build_data_loader(
+        self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
+    ):
+        self.train_sampler = RandomSampler(train_data)
+        self.train_data_loader = DataLoader(
+            train_data,
+            sampler=self.train_sampler,
+            batch_size=self.args.train_batch_size,
+            collate_fn=train_data.collate,
+            drop_last=True,
+        )
+
+        if val_data:
+            self.val_data_loader = DataLoader(
+                val_data,
+                sampler=None,
+                batch_size=self.args.val_batch_size,
+                collate_fn=val_data.collate,
+                drop_last=False,
+            )
+
     def train_step(self, grouped_batch_data: list) -> ModelOutput:
         assert grouped_batch_data, "grouped_batch_data is empty"
 
@@ -78,13 +99,17 @@ class SingleNodeAccelerator(Accelerator):
 
         self.optimizer.zero_grad()
         for batch_data in grouped_batch_data:
-            batch_data = batch_data.to(self.device)
+            self.model.before_batch()
+
+            batch_data = move_to_device(batch_data, self.device)
 
             with autocast(enabled=self.args.fp16):
                 pred = self.model(batch_data)
                 model_output = self.model.compute_loss(pred, batch_data)
                 loss = model_output.loss / len(grouped_batch_data)
                 self.scaler.scale(loss).backward()
+
+            self.model.after_batch()
 
         self.scaler.step(self.optimizer)
         self.scaler.update()
@@ -122,9 +147,6 @@ class SingleNodeAccelerator(Accelerator):
             if k not in ["model", "optimizer", "lr_scheduler"]:
                 setattr(state, k, v)
         return state
-
-    def should_log(self) -> bool:
-        return True
 
 
 class DdpAccelerator(SingleNodeAccelerator):
@@ -165,12 +187,38 @@ class DdpAccelerator(SingleNodeAccelerator):
             find_unused_parameters=True,
         )
 
+    def build_data_loader(
+        self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
+    ):
+        self.train_sampler = DistributedSampler(
+            train_data, num_replicas=self.world_size, rank=self.rank
+        )
+        self.train_data_loader = DataLoader(
+            train_data,
+            sampler=self.train_sampler,
+            batch_size=self.args.train_batch_size,
+            collate_fn=train_data.collate,
+            drop_last=True,
+        )
+
+        if val_data:
+            self.val_data_loader = DataLoader(
+                val_data,
+                sampler=None,
+                batch_size=self.args.eval_batch_size,
+                collate_fn=val_data.collate,
+                drop_last=False,
+            )
+
+    def before_epoch(self, epoch: int):
+        self.train_sampler.set_epoch(epoch)
+
     def save_checkpoint(self, ckpt_id: str, extra_state: Optional[dict] = None):
         if self.rank == 0:
             super().save_checkpoint(ckpt_id, extra_state)
 
-    def should_log(self) -> bool:
-        return self.local_rank == 0
+    def buld_sampler(self, data) -> Sampler:
+        return DistributedSampler(data, num_replicas=self.world_size, rank=self.rank)
 
 
 class DeepSpeedAccelerator(Accelerator):
@@ -203,6 +251,11 @@ class DeepSpeedAccelerator(Accelerator):
             lr_scheduler=self.lr_scheduler,
         )
 
+    def build_data_loader(
+        self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
+    ):
+        raise NotImplementedError
+
     def train_step(self, grouped_batch_data):
         pred = self.model_engine(grouped_batch_data)
         model_output = self.model.compute_loss(pred, grouped_batch_data)
@@ -227,8 +280,3 @@ class DeepSpeedAccelerator(Accelerator):
         )
 
         return TrainerState(**cliend_sd)
-
-    def should_log(self) -> bool:
-        import deepspeed
-
-        return deepspeed.local_rank() == 0

@@ -6,13 +6,7 @@ from typing import Callable, Optional, Union
 
 import numpy as np
 import torch
-from torch.utils.data import (
-    DataLoader,
-    Dataset,
-    DistributedSampler,
-    RandomSampler,
-    dataloader,
-)
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from sfm.logging import logger
@@ -68,9 +62,7 @@ class Trainer(object):
         args: TrainerConfig,
         model: Model,
         train_data: Dataset,
-        collater: Callable,
         valid_data: Optional[Dataset] = None,
-        test_data: Optional[Dataset] = None,
     ):
         super().__init__()
         self.args = args
@@ -78,22 +70,16 @@ class Trainer(object):
         self.model = model
         self.train_data = train_data
         self.valid_data = valid_data
-        self.test_data = test_data
 
         self.optimizer, self.lr_scheduler = model.config_optimizer()
 
-        self.train_data_loader = self.build_data_loader(
-            train_data, train=True, collater=collater
-        )
-        self.valid_data_loader = self.build_data_loader(
-            valid_data, train=False, collater=collater
-        )
-
-        self.state = TrainerState(args=args)
         self.accelerator = self.build_accelerator()
 
+        self.accelerator.build_data_loader(train_data, valid_data)
+
+        self.state = TrainerState(args=args)
+
         self.save_dir = Path(self.args.save_dir)
-        self.model.load_pretrained()
 
     def save_checkpoint(self, name: str):
         self.accelerator.save_checkpoint(name)
@@ -146,32 +132,6 @@ class Trainer(object):
         else:
             raise ValueError(f"Unknown strategy: {self.args.strategy}")
 
-    def build_data_loader(
-        self,
-        data: Optional[Dataset],
-        train: bool,
-        collater: dataloader._collate_fn_t,
-        shuffle: bool = True,
-    ) -> Optional[DataLoader]:
-        if data is None:
-            return None
-
-        # TODO: This should be in accelerator
-        if self.args.strategy == TraingStrategy.Single:
-            sampler = RandomSampler(data) if train else None
-        else:
-            sampler = DistributedSampler(
-                data, num_replicas=self.args.world_size, shuffle=shuffle
-            )
-
-        return DataLoader(
-            data,
-            sampler=sampler,
-            batch_size=self.args.batch_size,
-            collate_fn=collater,
-            drop_last=True,
-        )
-
     def build_log_output(self, model_output: ModelOutput) -> LogOutput:
         return LogOutput(
             loss=model_output.loss.item(),
@@ -183,11 +143,33 @@ class Trainer(object):
             extra_output=model_output.log_output,
         )
 
+    def should_save_batch_checkpoint(self) -> bool:
+        return (
+            self.args.save_batch_interval > 0
+            and self.state.global_step % self.args.save_interval == 0
+        )
+
+    def should_save_epoch_checkpoint(self) -> bool:
+        return (
+            self.args.save_epoch_interval > 0
+            and self.state.epoch % self.args.save_epoch_interval == 0
+        )
+
+    def should_log(self) -> bool:
+        return (
+            self.args.log_interval > 0
+            and self.state.global_step % self.args.log_interval == 0
+        )
+
+    @property
+    def train_data_loader(self) -> DataLoader:
+        return self.accelerator.train_data_loader
+
     def train(self):
         logger.info("Start training")
         logger.info(self.model)
         logger.info(
-            "Number of parameters:",
+            "Number of trainable parameters: {}",
             sum(p.numel() for p in self.model.parameters() if p.requires_grad),
         )
 
@@ -200,41 +182,29 @@ class Trainer(object):
         self.resume()
         self.accelerator.set_up()
 
-        # TODO: add more logging
         for epoch in range(self.args.epochs):
             self.state.epoch = epoch
+            self.accelerator.before_epoch(epoch)
+
             iter = GroupedBatchIter(
                 self.train_data_loader, self.args.update_freq, drop_last=True
             )
 
             for i, grouped_batch_data in enumerate(iter):
-                self.model.before_batch()
-
                 model_output = self.accelerator.train_step(grouped_batch_data)
-
-                self.model.after_batch()
 
                 self.state.batch = i
                 self.state.global_step += 1
 
-                if (
-                    self.args.save_batch_interval > 0
-                    and self.state.global_step % self.args.save_batch_interval == 0
-                ):
+                if self.should_save_batch_checkpoint():
                     checkpoint_name = f"checkpoint_E{epoch}_B{i}.pt"
                     self.save_checkpoint(checkpoint_name)
 
-                if (
-                    self.args.log_interval > 0
-                    and self.state.global_step % self.args.log_interval == 0
-                ):
+                if self.should_log():
                     log_output = self.build_log_output(model_output)
                     logger.info(log_output)
 
-            if (
-                self.args.save_epoch_interval > 0
-                and epoch % self.args.save_epoch_interval == 0
-            ):
+            if self.should_save_epoch_checkpoint():
                 checkpoint_name = f"checkpoint_E{epoch}.pt"
                 self.save_checkpoint(checkpoint_name)
 

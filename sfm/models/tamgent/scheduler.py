@@ -24,13 +24,11 @@ class LinearWarmupCosineLRScheduler(_LRScheduler):
 
         self.init_lr = init_lr
         self.warmup_steps = warmup_steps
-        print(self.warmup_steps)
         self.warmup_start_lr = warmup_start_lr if warmup_start_lr >= 0 else init_lr
         super().__init__(optimizer, last_epoch=-1)
 
     def get_lr(self):
         total_cur_step = self._step_count
-        print(self._step_count)
         if total_cur_step < self.warmup_steps:
             return warmup_lr_schedule(
                 step=total_cur_step,
