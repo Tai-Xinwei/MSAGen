@@ -67,7 +67,7 @@ class Trainer(object):
         super().__init__()
         self.args = args
 
-        logger.info("Trainer args: ", args)
+        logger.info("Trainer args: {}", args)
 
         self.model = model
         self.train_data = train_data
@@ -76,6 +76,7 @@ class Trainer(object):
         self.optimizer, self.lr_scheduler = model.config_optimizer()
 
         self.accelerator = self.build_accelerator()
+        self.accelerator.set_up()
 
         self.accelerator.build_data_loader(train_data, valid_data)
 
@@ -177,7 +178,16 @@ class Trainer(object):
 
         self.model.before_training()
         self.resume()
-        self.accelerator.set_up()
+
+        total_num = sum(p.numel() for p in self.model.parameters())
+        trainable_num = sum(
+            p.numel() for p in self.model.parameters() if p.requires_grad
+        )
+        logger.info(
+            "Total number of parameters: {:,}, trainable: {:,}",
+            total_num,
+            trainable_num,
+        )
 
         total_num = sum(p.numel() for p in self.model.parameters())
         trainable_num = sum(
@@ -207,7 +217,8 @@ class Trainer(object):
 
                 if self.should_log():
                     log_output = self.build_log_output(model_output)
-                    logger.info(log_output)
+                    with logger.contextualize(wandb_log=log_output):
+                        logger.info(log_output)
 
             if self.should_save_epoch_checkpoint():
                 checkpoint_name = f"checkpoint_E{epoch}.pt"

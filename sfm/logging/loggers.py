@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+from dataclasses import asdict
 
 import torch
 import wandb
 from loguru import logger
 
-from sfm.pipeline.accelerator.dataclasses import LogOutput
 
 handlers = {}
 
@@ -19,6 +19,7 @@ def get_logger():
             format="[<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green>][<cyan>{level}</cyan>]: {message}",
             colorize=True,
             filter=is_master_node,
+            enqueue=True,
         )
 
         if wandb_configed():
@@ -32,9 +33,7 @@ def get_logger():
             )
 
             handlers["wandb"] = logger.add(
-                wandb_sink,
-                format=wandb_format,
-                filter=wandb_filter,
+                wandb_sink, filter=wandb_filter, serialize=False
             )
         else:
             logger.warning("Wandb not configured, logging to console only")
@@ -56,20 +55,13 @@ def wandb_configed():
 
 
 def wandb_filter(record):
-    message = record["message"]
-    if isinstance(message, LogOutput):
-        return True
-
-    return False
+    return "wandb_log" in record["extra"]
 
 
 def wandb_sink(msg):
-    wandb.log(msg)
-
-
-def wandb_format(msg):
-    message = msg["message"]
-    if isinstance(message, LogOutput):
-        return message.to_dict()
-
-    return message
+    wandb_log = asdict(msg.record["extra"]["wandb_log"])
+    data = wandb_log
+    for k, v in wandb_log["extra_output"].items():
+        data[k] = v
+    del data["extra_output"]
+    wandb.log(data)

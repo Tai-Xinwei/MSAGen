@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import json
 from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Dict
@@ -23,8 +22,8 @@ class TrainerConfig:
     fp16: bool = False
     grad_scaler_init: float = 1.0
     update_freq: int = 1
-    train_batch_size: int = 32
-    val_batch_size: int = 32
+    train_batch_size: int = 1
+    val_batch_size: int = 1
     save_dir: str = "./checkpoints"
     save_batch_interval: int = 0
     save_epoch_interval: int = 1
@@ -58,4 +57,21 @@ class LogOutput:
     extra_output: Dict
 
     def __str__(self) -> str:
-        return json.dumps(asdict(self))
+        extra_output = []
+        for k, v in self.extra_output.items():
+            if isinstance(v, torch.Tensor):
+                if v.numel() == 1:
+                    v = v.item()
+                    extra_output.append(f"{k}: {v:.4g}")
+                else:
+                    v = v.detach().cpu().numpy()
+                extra_output.append(f"{k}: {v}")
+            elif isinstance(v, float):
+                extra_output.append(f"{k}: {v:.4g}")
+            else:
+                extra_output.append(f"{k}: {v}")
+        extra_output = " | ".join(extra_output)
+        return (
+            f"Step: {self.global_step} (Epoch{self.epoch}_Iter{self.batch}) | Loss: {self.loss:.4g} | LR: {self.lr:.4g} | Grad Scale: {self.grad_scale:.4g} | "
+            + extra_output
+        )
