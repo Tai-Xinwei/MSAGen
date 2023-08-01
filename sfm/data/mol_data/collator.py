@@ -85,7 +85,12 @@ def convert_to_single_emb(x, offset: int = 512):
 
 
 def collator(
-    items, min_node=-1, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20
+    items,
+    min_node=-1,
+    max_node=512,
+    multi_hop_max_dist=20,
+    spatial_pos_max=20,
+    infer=False,
 ):
     # return 0
     items = [

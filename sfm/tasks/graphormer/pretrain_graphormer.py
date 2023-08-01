@@ -53,8 +53,8 @@ def main() -> None:
     train_data = BatchedDataDataset(
         trainset,
         dataset_version="2D" if dataset.dataset_name == "PCQM4M-LSC-V2" else "3D",
-        max_node=dataset.max_node,
-        max_node2=dataset.max_node2,
+        min_node=dataset.max_node,
+        max_node=dataset.max_node2,
         multi_hop_max_dist=dataset.multi_hop_max_dist,
         spatial_pos_max=dataset.spatial_pos_max,
         args=args,
@@ -63,8 +63,8 @@ def main() -> None:
     BatchedDataDataset(
         valset,
         dataset_version="2D" if dataset.dataset_name == "PCQM4M-LSC-V2" else "3D",
-        max_node=dataset.max_node,
-        max_node2=dataset.max_node2,
+        min_node=dataset.max_node,
+        max_node=dataset.max_node2,
         multi_hop_max_dist=dataset.multi_hop_max_dist,
         spatial_pos_max=dataset.spatial_pos_max,
         args=args,

@@ -23,23 +23,30 @@ from sfm.data.mol_data.dataset import BatchedDataDataset, PCQPreprocessedData
 subprocess.check_call([sys.executable, "-m", "pip", "install", "PyTDC"])
 from tdc.benchmark_group import admet_group
 
+from sfm.criterions.l1ft import L1Criterions
 from sfm.data.mol_data.tdc import TDCDataset
+from sfm.logging import logger
+from sfm.models.graphormer.graphormer import GraphormerModel
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.pipeline.accelerator.dataclasses import DistributedConfig, TrainerConfig
+from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.pipeline.graphormer_fter import Finetuner
 from sfm.utils import arg_utils
+from sfm.utils.optimizer import myAdam
+from sfm.utils.set_lr import groupWarmupDecayLR
 
 
 def main():
-    torch.set_flush_denormal(True)
-    torch.backends.cudnn.benchmark = True
-    torch.backends.cudnn.enabled = True
-    # args = add_argument()
     parser = ArgumentParser()
     parser = arg_utils.add_dataclass_to_parser(
         [TrainerConfig, DistributedConfig, GraphormerConfig], parser
     )
     args = parser.parse_args()
+    print(args.deepspeed_config)
+    ## Init distributed
+    torch.set_flush_denormal(True)
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.enabled = True
 
     args.local_rank = int(os.environ["LOCAL_RANK"])
     args.rank = int(os.environ["RANK"])
@@ -50,8 +57,10 @@ def main():
     torch.cuda.set_device(args.local_rank)
     deepspeed.init_distributed()
 
+    # Define dataset
     group = admet_group(path=args.data_path)
     benchmark = group.get("Caco2_Wang")
+
     # benchmark = group.get('Lipophilicity_AstraZeneca')
     # benchmark = group.get('LD50_Zhu')
     # benchmark = group.get('Solubility_AqSolDB')
@@ -103,7 +112,7 @@ def main():
         ft=True,
     )
 
-    test_data = BatchedDataDataset(
+    BatchedDataDataset(
         testset,
         dataset_version="3D" if dataset_name == "PCQM4M-LSC-V2-2D" else "2D",
         max_node=max_node,
@@ -113,16 +122,49 @@ def main():
 
     args.ft = True
     args.add_3d = False
-    if args.pipeline_parallelism == 0:
-        fter_pp = Finetuner(
-            args,
-            train_data,
-            val_data=val_data,
-            test_data=test_data,
-            data_mean=data_mean,
-            data_std=data_std,
-        )
-        fter_pp(iftrain=True)
+
+    model = GraphormerModel(
+        args, loss_fn=L1Criterions, data_mean=data_mean, data_std=data_std
+    )
+
+    optimizer = myAdam(
+        model,
+        lr=args.max_lr,
+        betas=[0.9, 0.999],
+        weight_decay=args.weight_decay,
+        eps=1e-8,
+    )
+
+    lr_scheduler = groupWarmupDecayLR(
+        optimizer,
+        total_num_steps=args.total_num_steps,
+        warmup_max_lr=args.max_lr,
+        warmup_num_steps=args.warmup_num_steps,
+    )
+
+    logger.info(
+        f"finetune: {args.ft}, add_3d: {args.add_3d}, infer: {args.infer}, no_2d: {args.no_2d}"
+    )
+    trainer = Trainer(
+        args,
+        model,
+        train_data=train_data,
+        valid_data=val_data,
+        optimizer=optimizer,
+        lr_scheduler=lr_scheduler,
+    )
+    trainer.train()
+
+    # if args.pipeline_parallelism == 0:
+    #     fter_pp = Finetuner(
+    #         args,
+    #         train_data,
+    #         val_data=val_data,
+    #         test_data=test_data,
+    #         data_mean=data_mean,
+    #         data_std=data_std,
+    #     )
+    #     fter_pp(iftrain=True)
 
 
 if __name__ == "__main__":

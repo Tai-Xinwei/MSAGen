@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 import pickle as pkl
+from dataclasses import dataclass
 from pathlib import Path
 
 import lmdb
 from torch.utils.data import Dataset
 from tqdm import tqdm
-
-from dataclasses import dataclass
 
 
 @dataclass

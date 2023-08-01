@@ -4,14 +4,14 @@ import sys
 from dataclasses import asdict
 
 import torch
-import wandb
 from loguru import logger
-
 
 handlers = {}
 
 
 def get_logger():
+    import wandb
+
     if not handlers:
         logger.remove()  # remove default handler
         handlers["console"] = logger.add(
@@ -59,6 +59,8 @@ def wandb_filter(record):
 
 
 def wandb_sink(msg):
+    import wandb
+
     wandb_log = asdict(msg.record["extra"]["wandb_log"])
     data = wandb_log
     for k, v in wandb_log["extra_output"].items():

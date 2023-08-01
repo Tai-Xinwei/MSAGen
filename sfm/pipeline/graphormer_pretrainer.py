@@ -35,7 +35,7 @@ class Trainer:
             model=net,
             model_parameters=parameters,
             training_data=train_data,
-            collate_fn=train_data.collater2,
+            collate_fn=train_data.collater,
         )
 
     def __call__(self):
@@ -96,7 +96,7 @@ class DiffTrainer:
             model=net,
             model_parameters=parameters,
             training_data=train_data,
-            collate_fn=train_data.collater2,
+            collate_fn=train_data.collater,
         )
 
     def __call__(self):

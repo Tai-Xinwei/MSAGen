@@ -11,14 +11,14 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 from torch.utils.data.sampler import Sampler
 
-from sfm.data.dataset import FoundationModelDataset, Data, Batch
+from sfm.data.dataset import Batch, Data, FoundationModelDataset
 from sfm.logging import logger
 from sfm.pipeline.accelerator.dataclasses import (
     ModelOutput,
     TrainerState,
     ValidLogOutput,
 )
-from sfm.utils.data_utils import move_to_device
+from sfm.utils.move_to_device import move_to_device
 
 
 class Accelerator(ABC):
@@ -224,7 +224,7 @@ class DdpAccelerator(SingleNodeAccelerator):
         )
 
         if val_data:
-            self.val_data_loader = DataLoader(
+            self.valid_data_loader = DataLoader(
                 val_data,
                 sampler=None,
                 batch_size=self.args.eval_batch_size,
@@ -244,7 +244,9 @@ class DdpAccelerator(SingleNodeAccelerator):
 
 
 class DeepSpeedAccelerator(Accelerator):
-    def __init__(self, args, model, optimizer, lr_scheduler) -> None:
+    def __init__(
+        self, args, model, optimizer, lr_scheduler, train_data, valid_data
+    ) -> None:
         try:
             import deepspeed
         except ImportError:
@@ -255,17 +257,56 @@ class DeepSpeedAccelerator(Accelerator):
         self.model = model
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
+        self.train_data = train_data
+        self.valid_data = valid_data
 
     @property
     def grad_scale(self) -> float:
-        return self.scaler.get_scale()
+        return self.optimizer.cur_scale
+        # return self.scaler.get_scale()
+
+    def set_ds_config(self):
+        if (
+            isinstance(self.args.deepspeed_config, str)
+            and len(self.args.deepspeed_config) > 0
+        ):
+            return
+        elif (
+            isinstance(self.args.deepspeed_config, str)
+            and len(self.args.deepspeed_config) == 0
+        ):
+            from sfm.utils.defaultdsconfig import DEFAULT_DS_CONFIG
+
+            self.args.deepspeed_config = DEFAULT_DS_CONFIG
+
+            self.args.deepspeed_config["train_batch_size"] = self.args.train_batch_size
+            self.args.deepspeed_config[
+                "gradient_accumulation_steps"
+            ] = self.args.gradient_accumulation_steps
+
+            self.args.deepspeed_config["fp16"]["enabled"] = self.args.fp16
+            if self.args.strategy == "zero1":
+                self.args.deepspeed_config["zero_optimization"]["stage"] = 1
+            elif self.args.strategy == "zero2":
+                self.args.deepspeed_config["zero_optimization"]["stage"] = 2
+            elif self.args.strategy == "zero3":
+                self.args.deepspeed_config["zero_optimization"]["stage"] = 3
+            else:
+                raise ValueError(f"Unsupported ZeRO strategy: {self.args.strategy}")
+
+            self.args.deepspeed_config[
+                "gradient_clipping"
+            ] = self.args.gradient_clipping
+            self.args.deepspeed_config["steps_per_print"] = self.args.steps_per_print
+            return
 
     def set_up(self):
         import deepspeed
 
-        deepspeed.init_distributed(dist_backend=self.dist_backend)
+        deepspeed.init_distributed(dist_backend=self.args.dist_backend)
+        self.set_ds_config()
 
-        self.model_engine, self.optimizer, self.lr_scheduler = deepspeed.initialize(
+        self.model_engine, self.optimizer, _, _ = deepspeed.initialize(
             args=self.args,
             model=self.model,
             model_parameters=self.model.parameters(),
@@ -273,14 +314,40 @@ class DeepSpeedAccelerator(Accelerator):
             lr_scheduler=self.lr_scheduler,
         )
 
+        self.build_data_loader(self.train_data, self.valid_data)
+
     def build_data_loader(
         self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
     ):
-        raise NotImplementedError
+        trainsampler = torch.utils.data.distributed.DistributedSampler(
+            train_data, num_replicas=self.model_engine.dp_world_size, shuffle=True
+        )
+        self.train_data_loader = DataLoader(
+            train_data,
+            sampler=trainsampler,
+            batch_size=self.args.train_batch_size,
+            collate_fn=train_data.collate,
+            drop_last=False,
+        )
 
-    def train_step(self, grouped_batch_data):
-        pred = self.model_engine(grouped_batch_data)
-        model_output = self.model.compute_loss(pred, grouped_batch_data)
+        if val_data:
+            validsampler = torch.utils.data.distributed.DistributedSampler(
+                val_data, num_replicas=self.model_engine.dp_world_size, shuffle=False
+            )
+            self.valid_data_loader = DataLoader(
+                val_data,
+                sampler=validsampler,
+                batch_size=self.args.val_batch_size,
+                collate_fn=val_data.collate,
+                drop_last=False,
+            )
+
+    def train_step(self, batch_data):
+        batch_data = move_to_device(
+            batch_data, device=self.args.local_rank, non_blocking=True
+        )
+        pred = self.model_engine(batch_data)
+        model_output = self.model.compute_loss(pred, batch_data)
         loss = model_output.loss
 
         self.model_engine.backward(loss)
@@ -291,11 +358,10 @@ class DeepSpeedAccelerator(Accelerator):
     def valid_step(self, batch_data: Data) -> ModelOutput:
         raise NotImplementedError
 
-    def save_checkpoint(self, ckpt_id: int, extra_state: TrainerState):
+    def save_checkpoint(self, ckpt_id: str, extra_state: Optional[dict] = None):
         self.model_engine.save_checkpoint(
             self.args.save_dir,
-            ckpt_id=ckpt_id,
-            client_sd=asdict(extra_state),
+            client_state={"ckpt_id": ckpt_id},
         )
 
     def load_checkpoint(self, ckpt_id: int) -> TrainerState:

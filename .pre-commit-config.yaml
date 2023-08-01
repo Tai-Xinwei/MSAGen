@@ -7,21 +7,17 @@ repos:
       - id: mixed-line-ending
       - id: trailing-whitespace
       - id: check-json
-        exclude: ^sfm/models/transformers/
   - repo: https://github.com/pycqa/isort
     rev: 5.12.0
     hooks:
     - id: isort
-      args: ["--profile", "black", "--diff"]
-      exclude: ^sfm/models/transformers/
+      args: ["--profile", "black"]
   - repo: https://github.com/psf/black
     rev: 23.3.0
     hooks:
       - id: black
-        exclude: ^sfm/models/transformers/
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: 'v0.0.274'
     hooks:
       - id: ruff
         args: [--fix, "--ignore=E501,F401,E722,E402,E741"]
-        exclude: ^sfm/models/transformers/

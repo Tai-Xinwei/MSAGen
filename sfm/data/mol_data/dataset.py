@@ -177,8 +177,8 @@ class BatchedDataDataset(torch.utils.data.Dataset):
         self,
         dataset,
         dataset_version="2D",
-        max_node=32,
-        max_node2=128,
+        min_node=32,
+        max_node=128,
         multi_hop_max_dist=5,
         spatial_pos_max=1024,
         args=None,
@@ -187,8 +187,8 @@ class BatchedDataDataset(torch.utils.data.Dataset):
     ):
         super().__init__()
         self.dataset = dataset
+        self.min_node = min_node
         self.max_node = max_node
-        self.max_node2 = max_node2
         self.multi_hop_max_dist = multi_hop_max_dist
         self.spatial_pos_max = spatial_pos_max
 
@@ -206,6 +206,12 @@ class BatchedDataDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.dataset)
 
+    def collate(self, samples):
+        if self.ft:
+            return self.collaterft(samples)
+        else:
+            return self.collater(samples)
+
     def collater(self, samples):
         if self.args is not None and self.args.pipeline_parallelism > 0:
             collator_fn = collator_3d_pp
@@ -219,20 +225,6 @@ class BatchedDataDataset(torch.utils.data.Dataset):
             multi_hop_max_dist=self.multi_hop_max_dist,
             spatial_pos_max=self.spatial_pos_max,
             infer=self.args.infer,
-        )
-
-    def collater2(self, samples):
-        if self.args is not None and self.args.pipeline_parallelism > 0:
-            collator_fn = collator_3d_pp
-        else:
-            collator_fn = collator if (self.dataset_version == "2D") else collator_3d
-
-        return collator_fn(
-            samples,
-            min_node=-1,
-            max_node=self.max_node2,
-            multi_hop_max_dist=self.multi_hop_max_dist,
-            spatial_pos_max=self.spatial_pos_max,
         )
 
     def collaterft(self, samples):

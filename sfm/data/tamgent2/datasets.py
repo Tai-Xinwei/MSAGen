@@ -4,7 +4,7 @@ from typing import Union
 
 from torch.utils.data.dataloader import default_collate
 
-from sfm.data.dataset import Data, Batch, InMemoryFoundationModelDataset
+from sfm.data.dataset import Batch, Data, InMemoryFoundationModelDataset
 from sfm.logging import logger
 
 

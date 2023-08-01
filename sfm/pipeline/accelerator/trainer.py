@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import copy
 import random
 import time
 from pathlib import Path
@@ -16,12 +17,12 @@ from sfm.pipeline.accelerator.accelerator import (
     SingleNodeAccelerator,
 )
 from sfm.pipeline.accelerator.dataclasses import (
-    TrainLogOutput,
-    ValidLogOutput,
     ModelOutput,
     TrainerConfig,
     TrainerState,
     TraingStrategy,
+    TrainLogOutput,
+    ValidLogOutput,
 )
 from sfm.pipeline.accelerator.model import Model
 
@@ -67,6 +68,9 @@ class Trainer(object):
         model: Model,
         train_data: Dataset,
         valid_data: Optional[Dataset] = None,
+        test_data: Optional[Dataset] = None,
+        optimizer: Optional[torch.optim.Optimizer] = None,
+        lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     ):
         super().__init__()
         self.args = args
@@ -77,12 +81,20 @@ class Trainer(object):
         self.train_data = train_data
         self.valid_data = valid_data
 
-        self.optimizer, self.lr_scheduler = model.config_optimizer()
+        if optimizer is None:
+            self.optimizer, self.lr_scheduler = model.config_optimizer()
+        else:
+            self.optimizer = optimizer
+            self.lr_scheduler = lr_scheduler
 
         self.accelerator = self.build_accelerator()
         self.accelerator.set_up()
 
-        self.accelerator.build_data_loader(train_data, valid_data)
+        if args.strategy.find("zero") == -1:
+            self.accelerator.build_data_loader(train_data, valid_data)
+        else:
+            self.train_data = train_data
+            self.valid_data = valid_data
 
         self.state = TrainerState(args=args)
 
@@ -127,7 +139,12 @@ class Trainer(object):
             TraingStrategy.Zero3,
         ]:
             return DeepSpeedAccelerator(
-                self.args, self.model, self.optimizer, self.lr_scheduler
+                self.args,
+                self.model,
+                self.optimizer,
+                self.lr_scheduler,
+                self.train_data,
+                self.valid_data,
             )
         elif self.args.strategy == TraingStrategy.DDP:
             return DdpAccelerator(
@@ -159,7 +176,7 @@ class Trainer(object):
     def should_save_epoch_checkpoint(self) -> bool:
         return (
             self.args.save_epoch_interval > 0
-            and self.state.epoch % self.args.save_epoch_interval == 0
+            and (self.state.epoch + 1) % self.args.save_epoch_interval == 0
         )
 
     def should_log(self) -> bool:
@@ -213,11 +230,17 @@ class Trainer(object):
             self.state.epoch = epoch
             self.accelerator.before_epoch(epoch)
 
-            iter = GroupedBatchIter(
-                self.train_data_loader, self.args.update_freq, drop_last=True
-            )
+            if (
+                self.args.strategy == TraingStrategy.DDP
+                or self.args.strategy == TraingStrategy.Single
+            ):
+                _iter = GroupedBatchIter(
+                    self.train_data_loader, self.args.update_freq, drop_last=True
+                )
+            else:
+                _iter = iter(copy.deepcopy(self.train_data_loader))
 
-            for i, grouped_batch_data in enumerate(iter):
+            for i, grouped_batch_data in enumerate(_iter):
                 model_output = self.accelerator.train_step(grouped_batch_data)
 
                 self.state.batch = i

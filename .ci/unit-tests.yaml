@@ -25,6 +25,13 @@ steps:
     path: $(CONDA_ENV_DIR)
   displayName: Cache Conda environment
 
+# Install pre-commit hooks and run them
+- bash: |
+    pip install pre-commit
+    pre-commit run --all-files
+  displayName: 'Install pre-commit hooks and run them'
+
+
 # Install and run unit tests
 - script: |
     # Check if the cached environment exists and if not, create it
@@ -46,9 +53,3 @@ steps:
     pip install -e .
     pytest tests/
   displayName: 'Install and run unit tests'
-
-# Install pre-commit hooks and run them
-- bash: |
-    pip install pre-commit
-    pre-commit run --all-files
-  displayName: 'Install pre-commit hooks and run them'

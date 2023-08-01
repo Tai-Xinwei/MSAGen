@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import tempfile
 import unittest
+from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
@@ -8,10 +9,8 @@ import torch.nn.functional as F
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
-from sfm.data.dataset import FoundationModelDataset, Data, Batch
+from sfm.data.dataset import Batch, Data, FoundationModelDataset
 from sfm.pipeline.accelerator.trainer import Model, ModelOutput, Trainer, TrainerConfig
-
-from dataclasses import dataclass
 
 
 @dataclass

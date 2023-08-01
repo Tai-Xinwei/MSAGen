@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Dict
+from typing import Dict, Union
 
 import torch
 
 
-class TraingStrategy(Enum):
-    Single = 0
-    Zero1 = 1
-    Zero2 = 2
-    Zero3 = 3
-    DDP = 4
-    Pipeline = 5
+class TraingStrategy(str, Enum):
+    DDP = "ddp"
+    Zero1 = "zero1"
+    Zero2 = "zero2"
+    Zero3 = "zero3"
+    Single = "single"
+    Pipeline = "pipeline"
 
 
 @dataclass
@@ -21,9 +21,10 @@ class DistributedConfig:
     world_size: int = 1
     node_rank: int = 0
     rank: int = 0
-    pipeline_parallelism: int = 1
+    pipeline_parallelism: int = 0
     tensor_parallelism: int = 1
     deepspeed_config: str = ""
+    dist_backend: str = "nccl"
 
 
 @dataclass
@@ -31,6 +32,7 @@ class TrainerConfig:
     epochs: int = 1
     seed: int = 46
     fp16: bool = False
+    bf16: bool = False
     grad_scaler_init: float = 1.0
     update_freq: int = 1
     train_batch_size: int = 1
@@ -68,6 +70,15 @@ class TrainerConfig:
             + "\n".join([f"  {k}: {v}" for k, v in asdict(self).items()])
             + "\n]"
         )
+
+    gradient_accumulation_steps: int = 1
+    gradient_clipping: float = 1.0
+    total_num_steps: int = 1000000
+    warmup_num_steps: int = 60000
+    warmup_factor: float = 0.06
+    max_lr: float = 0.0001
+    weight_decay: float = 0.0
+    steps_per_print: int = 100
 
 
 @dataclass

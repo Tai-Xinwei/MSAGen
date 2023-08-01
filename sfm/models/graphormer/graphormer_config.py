@@ -34,13 +34,13 @@ class GraphormerConfig:
     loadcheck_path: str = ""
     smiles_dict_path: str = ""
     loadmfmcheck_path: str = ""
-    output_path: str = ""
     llm_model_name_or_path: str = ""
     mol_size_path: str = ""
 
     add_3d: bool = False
     no_2d: bool = False
     ft: bool = False
+    infer: bool = False
 
     def __init__(
         self,

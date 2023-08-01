@@ -28,15 +28,21 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_lr}" ] && max_lr=1e-4
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=60000
+[ -z "${train_batch_size}" ] && train_batch_size=4
+[ -z "${val_batch_size}" ] && val_batch_size=4
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${save_epoch_interval}" ] && save_epoch_interval=100
+[ -z "${epochs}" ] && epochs=100
 
 [ -z "${data_path}" ] && data_path='/home/peiran/FMproj/tdc_data'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
 [ -z "${loadcheck_path}" ] && loadcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7.pt"
-[ -z "${output_path}" ] && output_path='/home/peiran/FMproj/output/'
+[ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_names}" ] && dataset_names="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_parallelism}" ] && pipeline_parallelism=0
+[ -z "${strategy}" ] && strategy='Zero1'
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -82,54 +88,13 @@ echo "pos_loss_coeff: ${pos_loss_coeff}"
 echo "no_2d: ${no_2d}"
 echo "add_3d: ${add_3d}"
 echo "data_path: ${data_path}"
-echo "output_path: ${output_path}"
+echo "save_dir: ${save_dir}"
 echo "dataset_name: ${dataset_name}"
 echo "noise_scale: ${noise_scale}"
 echo "mask_ratio: ${mask_ratio}"
 echo "pipeline_parallelism: ${pipeline_parallelism}"
 
 
-echo -e "\n\n"
-echo "==================================MP==========================================="
-[ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
-echo "n_gpu: ${n_gpu}"
-echo "MASTER_ADDR: ${MASTER_ADDR}"
-echo "MASTER_PORT: ${MASTER_PORT}"
-echo "NCCL_SOCKET_IFNAME: ${NCCL_SOCKET_IFNAME}"
-echo "LOCAL_RANK : ${LOCAL_RANK}"
-echo "OMPI_COMM_WORLD_RANK: ${OMPI_COMM_WORLD_RANK}"
-echo "OMPI_COMM_WORLD_SIZE: ${OMPI_COMM_WORLD_SIZE}"
-echo "OMPI_COMM_WORLD_LOCAL_RANK: ${OMPI_COMM_WORLD_LOCAL_RANK}"
-
-# echo "AZUREML_EXPERIMENT_ID: ${AZUREML_EXPERIMENT_ID}"
-
-echo -e "\n\n"
-echo "=====================================ARGS======================================"
-echo "n_layers: ${layers}"
-echo "num_pred_attn_layer: ${num_pred_attn_layer}"
-echo "hidden_size: ${hidden_size}"
-echo "ffn_size: ${ffn_size}"
-echo "num_head: ${num_head}"
-echo "d_tilde: ${d_tilde}"
-echo "sandwich_ln: ${sandwich_ln}"
-echo "max_lr: ${max_lr}"
-echo "total_num_steps: ${total_num_steps}"
-echo "warmup_num_steps: ${warmup_num_steps}"
-echo "dropout: ${dropout}"
-echo "attn_dropout: ${attn_dropout}"
-echo "act_dropout: ${act_dropout}"
-echo "weight_decay: ${weight_decay}"
-echo "droppath_prob: ${droppath_prob}"
-echo "atom_loss_coeff: ${atom_loss_coeff}"
-echo "pos_loss_coeff: ${pos_loss_coeff}"
-echo "no_2d: ${no_2d}"
-echo "add_3d: ${add_3d}"
-echo "data_path: ${data_path}"
-echo "output_path: ${output_path}"
-echo "dataset_name: ${dataset_name}"
-echo "noise_scale: ${noise_scale}"
-echo "mask_ratio: ${mask_ratio}"
-echo "pipeline_parallelism: ${pipeline_parallelism}"
 
 # export NCCL_ASYNC_ERROR_HADNLING=1
 # export NCCL_DEBUG=INFO
@@ -182,19 +147,21 @@ deepspeed --num_gpu=1 sfm/tasks/graphormer/ft_graphormer.py \
           --sandwich_ln \
           --dataset_names $dataset_names \
           --data_path $data_path \
-          --output_path $output_path \
+          --save_dir $save_dir \
           --pipeline_parallelism $pipeline_parallelism \
           --seed 666667 \
-          --add_3d \
-          --ft \
+          --add_3d --ft --fp16 \
           --d_tilde $d_tilde \
           --num_pred_attn_layer $num_pred_attn_layer \
           --max_lr $max_lr \
-          --output_path $output_path \
           --total_num_steps $total_num_steps \
           --warmup_num_steps $warmup_num_steps \
           --loadcheck_path $loadcheck_path \
-          --deepspeed_config ./config_file/ds_config.json
+          --strategy $strategy \
+          --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
+          --gradient_accumulation_steps $gradient_accumulation_steps \
+          --save_epoch_interval $save_epoch_interval --epochs $epochs
+        #   --deepspeed_config ./config_file/ds_config.json
 
 
 sleep inf

@@ -15,6 +15,8 @@ from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.layer_norm import LayerNorm
 from sfm.modules.quant_noise import quant_noise
+from sfm.pipeline.accelerator.dataclasses import ModelOutput
+from sfm.pipeline.accelerator.trainer import Model
 
 from .modules.graphormer_sentence_encoder import (
     GraphormerSentenceEncoder,
@@ -25,17 +27,18 @@ from .modules.graphormer_sentence_encoder import (
 logger = logging.getLogger(__name__)
 
 
-class GraphormerModel(nn.Module):
+class GraphormerModel(Model):
     """
     Class for training a Masked Language Model. It also supports an
     additional sentence level prediction if the sent-loss argument is set.
     """
 
-    def __init__(self, args):
+    def __init__(self, args, loss_fn=None, data_mean=0.0, data_std=1.0):
         super().__init__()
         graphormer_config = GraphormerConfig(args)
         self.args = graphormer_config.args
         logger.info(self.args)
+        self.L1loss = loss_fn(reduction="mean", data_mean=data_mean, data_std=data_std)
 
         self.encoder = GraphormerEncoder(args, graphormer_config)
 
@@ -44,6 +47,20 @@ class GraphormerModel(nn.Module):
 
     def forward(self, batched_data, **kwargs):
         return self.encoder(batched_data, **kwargs)
+
+    def compute_loss(self, model_output, batch_data) -> ModelOutput:
+        logits = model_output[0]
+        loss = self.L1loss(batch_data, logits)
+        return ModelOutput(loss=loss, log_output={})
+
+    def config_optimizer(self):
+        """
+        Return the optimizer and learning rate scheduler for this model.
+
+        Returns:
+            tuple[Optimizer, LRScheduler]:
+        """
+        pass
 
 
 class GraphormerEncoder(nn.Module):
