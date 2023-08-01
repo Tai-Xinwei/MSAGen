@@ -33,8 +33,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
 [ -z "${loadcheck_path}" ] && loadcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7.pt"
 [ -z "${output_path}" ] && output_path='/home/peiran/FMproj/output/'
-# [ -z "${dataset_name}" ] && dataset_name="PCQM4M-LSC-V2-3D"
-[ -z "${dataset_name}" ] && dataset_name="PM6-Full-3D"
+[ -z "${dataset_names}" ] && dataset_names="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_parallelism}" ] && pipeline_parallelism=0
@@ -142,12 +141,6 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export OMP_NUM_THREADS=1
 
 
-# if [ $LOCAL_RANK == 0 ]; then
-#   bash install.sh
-# fi
-
-# bash install.sh
-
 # if [ $OMPI_COMM_WORLD_RANK == 0 ]; then
 #   sleep 300
 #   deepspeed --force_multi --hostfile=$hostfile sfm/tasks/graphormer/ft_graphormer.py \
@@ -178,7 +171,7 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # fi
 
 deepspeed --num_gpu=1 sfm/tasks/graphormer/ft_graphormer.py \
-          --num-classes 1 \
+          --num_classes 1 \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
           --encoder_ffn_embed_dim $ffn_size \
@@ -187,12 +180,12 @@ deepspeed --num_gpu=1 sfm/tasks/graphormer/ft_graphormer.py \
           --attn_dropout $attn_dropout \
           --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
           --sandwich_ln \
-          --dataset-name $dataset_name \
+          --dataset_names $dataset_names \
           --data_path $data_path \
           --output_path $output_path \
           --pipeline_parallelism $pipeline_parallelism \
           --seed 666667 \
-          --add-3d \
+          --add_3d \
           --ft \
           --d_tilde $d_tilde \
           --num_pred_attn_layer $num_pred_attn_layer \
@@ -201,7 +194,7 @@ deepspeed --num_gpu=1 sfm/tasks/graphormer/ft_graphormer.py \
           --total_num_steps $total_num_steps \
           --warmup_num_steps $warmup_num_steps \
           --loadcheck_path $loadcheck_path \
-          --deepspeed --deepspeed_config ./config_file/ds_config.json
+          --deepspeed_config ./config_file/ds_config.json
 
 
 sleep inf

@@ -14,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
 import subprocess
+from argparse import ArgumentParser
 from functools import lru_cache
 from pathlib import Path
 
@@ -23,15 +24,22 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", "PyTDC"])
 from tdc.benchmark_group import admet_group
 
 from sfm.data.mol_data.tdc import TDCDataset
+from sfm.models.graphormer.graphormer_config import GraphormerConfig
+from sfm.pipeline.accelerator.dataclasses import DistributedConfig, TrainerConfig
 from sfm.pipeline.graphormer_fter import Finetuner
-from sfm.utils.add_argument import add_argument
+from sfm.utils import arg_utils
 
 
 def main():
     torch.set_flush_denormal(True)
     torch.backends.cudnn.benchmark = True
     torch.backends.cudnn.enabled = True
-    args = add_argument()
+    # args = add_argument()
+    parser = ArgumentParser()
+    parser = arg_utils.add_dataclass_to_parser(
+        [TrainerConfig, DistributedConfig, GraphormerConfig], parser
+    )
+    args = parser.parse_args()
 
     args.local_rank = int(os.environ["LOCAL_RANK"])
     args.rank = int(os.environ["RANK"])

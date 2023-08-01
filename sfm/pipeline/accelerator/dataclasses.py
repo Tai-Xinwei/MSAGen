@@ -16,6 +16,17 @@ class TraingStrategy(Enum):
 
 
 @dataclass
+class DistributedConfig:
+    local_rank: int = -1
+    world_size: int = 1
+    node_rank: int = 0
+    rank: int = 0
+    pipeline_parallelism: int = 1
+    tensor_parallelism: int = 1
+    deepspeed_config: str = ""
+
+
+@dataclass
 class TrainerConfig:
     epochs: int = 1
     seed: int = 46
@@ -30,6 +41,15 @@ class TrainerConfig:
     log_interval: int = 100
     strategy: TraingStrategy = TraingStrategy.Single
     cpu: bool = False
+    gradient_accumulation_steps: int = 1
+
+    gradient_clipping: float = 1.0
+    total_num_steps: int = 1000000
+    warmup_num_steps: int = 60000
+    warmup_factor: float = 0.06
+    max_lr: float = 0.0001
+    weight_decay: float = 0.0
+    total_num_steps: int = 100
 
 
 @dataclass

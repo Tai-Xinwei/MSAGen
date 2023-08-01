@@ -1,8 +1,46 @@
 # -*- coding: utf-8 -*-
+from dataclasses import asdict, dataclass
 
 
+@dataclass
 class GraphormerConfig:
     model_type = "graphormer"
+    num_classes: int = 1
+    encoder_attention_heads: int = 32
+    encoder_ffn_embed_dim: int = 768
+    encoder_embed_dim: int = 768
+    encoder_layers: int = 24
+    num_pred_attn_layers: int = 4
+    num_3d_bias_kernel: int = 128
+
+    droppath_prob: float = 0.0
+    act_dropout: float = 0.1
+    attn_dropout: float = 0.1
+    dropout: float = 0.0
+    sandwich_ln: bool = True
+    noise_scale: float = 0.2
+    mask_ratio: float = 0.5
+    d_tilde: float = 1.0
+
+    data_path: str = ""
+    dataset_names: str = ""
+    dataset_splits: str = ""
+    dataset_ratios: str = ""
+
+    pool_mode: str = "full"
+    embedding_leght: int = 20
+    model_max_length: int = 512
+
+    loadcheck_path: str = ""
+    smiles_dict_path: str = ""
+    loadmfmcheck_path: str = ""
+    output_path: str = ""
+    llm_model_name_or_path: str = ""
+    mol_size_path: str = ""
+
+    add_3d: bool = False
+    no_2d: bool = False
+    ft: bool = False
 
     def __init__(
         self,

@@ -47,7 +47,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
 [ -z "${mol_size_path}" ] && mol_size_path="/home/peiran/FMproj/chemical-copilot/mol_size_dict.pkl"
 
-[ -z "${dataset_name}" ] && dataset_name="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=false
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_parallelism}" ] && pipeline_parallelism=4
@@ -159,7 +158,6 @@ deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalists/ft_grapho
   --attn_dropout $attn_dropout \
   --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
   --sandwich_ln \
-  --dataset-name $dataset_name \
   --data_path $data_path \
   --output_path $output_path \
   --pipeline_parallelism $pipeline_parallelism \
