@@ -2,12 +2,11 @@
 import random
 import time
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
-from tqdm import tqdm
 
 from sfm.logging import logger
 from sfm.pipeline.accelerator.accelerator import (
@@ -17,7 +16,8 @@ from sfm.pipeline.accelerator.accelerator import (
     SingleNodeAccelerator,
 )
 from sfm.pipeline.accelerator.dataclasses import (
-    LogOutput,
+    TrainLogOutput,
+    ValidLogOutput,
     ModelOutput,
     TrainerConfig,
     TrainerState,
@@ -34,6 +34,10 @@ def seed_everything(seed):
 
 
 class GroupedBatchIter(object):
+    """
+    This class is used to group batches into a larger batch. i.e., gradient accumulation.
+    """
+
     def __init__(self, it, group_size, drop_last=False):
         self.it = it
         self.group_size = group_size
@@ -135,8 +139,8 @@ class Trainer(object):
         else:
             raise ValueError(f"Unknown strategy: {self.args.strategy}")
 
-    def build_log_output(self, model_output: ModelOutput) -> LogOutput:
-        return LogOutput(
+    def build_log_output(self, model_output: ModelOutput) -> TrainLogOutput:
+        return TrainLogOutput(
             loss=model_output.loss.item(),
             grad_scale=self.accelerator.grad_scale,
             lr=self.lr_scheduler.get_last_lr()[0],
@@ -164,9 +168,25 @@ class Trainer(object):
             and self.state.global_step % self.args.log_interval == 0
         )
 
+    def should_do_batch_validate(self) -> bool:
+        return (
+            self.args.val_batch_interval > 0
+            and self.state.global_step % self.args.val_batch_interval == 0
+        )
+
+    def should_do_epoch_validate(self) -> bool:
+        return (
+            self.args.val_epoch_interval > 0
+            and self.state.epoch % self.args.val_epoch_interval == 0
+        )
+
     @property
     def train_data_loader(self) -> DataLoader:
         return self.accelerator.train_data_loader
+
+    @property
+    def valid_data_loader(self) -> DataLoader:
+        return self.accelerator.valid_data_loader
 
     def train(self):
         logger.info("Start training")
@@ -189,14 +209,6 @@ class Trainer(object):
             trainable_num,
         )
 
-        total_num = sum(p.numel() for p in self.model.parameters())
-        trainable_num = sum(
-            p.numel() for p in self.model.parameters() if p.requires_grad
-        )
-        logger.info(
-            "Total number of parameters: {}, trainable: {}", total_num, trainable_num
-        )
-
         for epoch in range(self.args.epochs):
             self.state.epoch = epoch
             self.accelerator.before_epoch(epoch)
@@ -211,14 +223,20 @@ class Trainer(object):
                 self.state.batch = i
                 self.state.global_step += 1
 
-                if self.should_save_batch_checkpoint():
-                    checkpoint_name = f"checkpoint_E{epoch}_B{i}.pt"
-                    self.save_checkpoint(checkpoint_name)
-
                 if self.should_log():
                     log_output = self.build_log_output(model_output)
                     with logger.contextualize(wandb_log=log_output):
                         logger.info(log_output)
+
+                if self.should_do_batch_validate():
+                    self.validate()
+
+                if self.should_save_batch_checkpoint():
+                    checkpoint_name = f"checkpoint_E{epoch}_B{i}.pt"
+                    self.save_checkpoint(checkpoint_name)
+
+            if self.should_do_epoch_validate():
+                self.validate()
 
             if self.should_save_epoch_checkpoint():
                 checkpoint_name = f"checkpoint_E{epoch}.pt"
@@ -230,12 +248,32 @@ class Trainer(object):
 
     def validate(self):
         if self.valid_data_loader is None:
-            logger.info("No validation data, skip validation")
+            logger.warning("No validation data, skip validation")
             return
 
-        logger.info("start validation")
+        logger.info("Start validation for epoch: {}", self.state.epoch)
 
-        # TODO: support multiple losses
-        for i, batch_data in tqdm(enumerate(self.valid_data_loader)):
-            loss = self.model(batch_data)
-            logger.info("loss: ", loss)
+        # TODO: add other metrics
+        total_loss = 0.0
+        num_examples = 0
+        for idx, batch_data in enumerate(self.valid_data_loader):
+            output = self.accelerator.valid_step(batch_data)
+
+            total_loss += output.valid_loss * output.num_examples
+            num_examples += output.num_examples
+
+            if (idx + 1) % self.args.val_batch_log_interval == 0:
+                logger.info(
+                    "Validtion batch: {} / {}, loss: {}",
+                    idx + 1,
+                    len(self.valid_data_loader),
+                    output.valid_loss,
+                )
+
+        avg_loss = total_loss / num_examples
+        with logger.contextualize(
+            wandb_log=ValidLogOutput(
+                valid_loss=avg_loss, num_examples=num_examples, extra_output={}
+            )
+        ):
+            logger.info("Validation loss: {}", avg_loss)

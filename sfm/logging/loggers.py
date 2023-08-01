@@ -22,7 +22,7 @@ def get_logger():
             enqueue=True,
         )
 
-        if wandb_configed():
+        if wandb_configed() and is_master_node(None):
             wandb_project = os.getenv("WANDB_PROJECT")
             wandb_run_name = os.getenv("WANDB_RUN_NAME")
             wandb_tags = os.getenv("WANDB_TAGS")

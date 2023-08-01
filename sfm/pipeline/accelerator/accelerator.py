@@ -11,9 +11,13 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 from torch.utils.data.sampler import Sampler
 
-from sfm.data.dataset import FoundationModelDataset
+from sfm.data.dataset import FoundationModelDataset, Data, Batch
 from sfm.logging import logger
-from sfm.pipeline.accelerator.dataclasses import ModelOutput, TrainerState
+from sfm.pipeline.accelerator.dataclasses import (
+    ModelOutput,
+    TrainerState,
+    ValidLogOutput,
+)
 from sfm.utils.data_utils import move_to_device
 
 
@@ -23,7 +27,11 @@ class Accelerator(ABC):
         pass
 
     @abstractmethod
-    def train_step(self, grouped_batch_data: list) -> ModelOutput:
+    def train_step(self, grouped_batch_data: list[Batch]) -> ModelOutput:
+        pass
+
+    @abstractmethod
+    def valid_step(self, batch_data: Batch) -> ValidLogOutput:
         pass
 
     @abstractmethod
@@ -71,7 +79,7 @@ class SingleNodeAccelerator(Accelerator):
         pass
 
     def build_data_loader(
-        self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
+        self, train_data: FoundationModelDataset, valid_data: FoundationModelDataset
     ):
         self.train_sampler = RandomSampler(train_data)
         self.train_data_loader = DataLoader(
@@ -82,16 +90,16 @@ class SingleNodeAccelerator(Accelerator):
             drop_last=True,
         )
 
-        if val_data:
-            self.val_data_loader = DataLoader(
-                val_data,
+        if valid_data:
+            self.valid_data_loader = DataLoader(
+                valid_data,
                 sampler=None,
                 batch_size=self.args.val_batch_size,
-                collate_fn=val_data.collate,
+                collate_fn=valid_data.collate,
                 drop_last=False,
             )
 
-    def train_step(self, grouped_batch_data: list) -> ModelOutput:
+    def train_step(self, grouped_batch_data: list[Batch]) -> ModelOutput:
         assert grouped_batch_data, "grouped_batch_data is empty"
 
         self.model.train()
@@ -115,6 +123,20 @@ class SingleNodeAccelerator(Accelerator):
         self.lr_scheduler.step()
 
         return model_output
+
+    def valid_step(self, batch_data: Batch) -> ValidLogOutput:
+        self.model.eval()
+        self.model.to(self.device)
+
+        batch_data = move_to_device(batch_data, self.device)
+        with torch.no_grad():
+            pred = self.model(batch_data)
+            model_output = self.model.compute_loss(pred, batch_data)
+        return ValidLogOutput(
+            valid_loss=model_output.loss.item(),
+            num_examples=batch_data.batch_size,
+            extra_output=model_output.log_output,
+        )
 
     def save_checkpoint(self, ckpt_id: str, extra_state: Optional[dict] = None):
         save_dir = Path(self.args.save_dir)
@@ -164,8 +186,9 @@ class DdpAccelerator(SingleNodeAccelerator):
         torch.cuda.set_device(self.local_rank)
         self.device = torch.device("cuda", self.local_rank)
 
-        logger.info(
-            f"Initializing DDP by env: word size: {self.world_size}, rank: {self.rank}, local_rank{self.local_rank} ",
+        # Don't use logger, otherwise we only see the output from rank 0
+        print(
+            f"Initializing DDP by env: word size: {self.world_size}, rank: {self.rank}, local_rank{self.local_rank} "
         )
 
         torch.distributed.init_process_group(
@@ -264,6 +287,9 @@ class DeepSpeedAccelerator(Accelerator):
         self.model_engine.step()
 
         return model_output
+
+    def valid_step(self, batch_data: Data) -> ModelOutput:
+        raise NotImplementedError
 
     def save_checkpoint(self, ckpt_id: int, extra_state: TrainerState):
         self.model_engine.save_checkpoint(

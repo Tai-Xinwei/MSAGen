@@ -35,6 +35,9 @@ class TrainerConfig:
     update_freq: int = 1
     train_batch_size: int = 1
     val_batch_size: int = 1
+    val_batch_interval: int = 0
+    val_batch_log_interval: int = 1000
+    val_epoch_interval: int = 1
     save_dir: str = "./checkpoints"
     save_batch_interval: int = 0
     save_epoch_interval: int = 1
@@ -44,12 +47,27 @@ class TrainerConfig:
     gradient_accumulation_steps: int = 1
 
     gradient_clipping: float = 1.0
-    total_num_steps: int = 1000000
     warmup_num_steps: int = 60000
     warmup_factor: float = 0.06
+    warmup_lr: float = 1e-6
+    warmup_num_epochs: int = 10
     max_lr: float = 0.0001
+    init_lr: float = 8e-5
+    min_lr: float = 8e-6
     weight_decay: float = 0.0
     total_num_steps: int = 100
+    total_num_epochs: int = 100
+
+    # adam
+    beta1: float = 0.9
+    beta2: float = 0.999
+
+    def __str__(self):
+        return (
+            "Config[\n"
+            + "\n".join([f"  {k}: {v}" for k, v in asdict(self).items()])
+            + "\n]"
+        )
 
 
 @dataclass
@@ -67,7 +85,7 @@ class ModelOutput:
 
 
 @dataclass
-class LogOutput:
+class TrainLogOutput:
     loss: float
     grad_scale: float
     lr: float
@@ -92,6 +110,13 @@ class LogOutput:
                 extra_output.append(f"{k}: {v}")
         extra_output = " | ".join(extra_output)
         return (
-            f"Step: {self.global_step} (Epoch{self.epoch}_Iter{self.batch}) | Loss: {self.loss:.4g} | LR: {self.lr:.4g} | Grad Scale: {self.grad_scale:.4g} | "
+            f"Step: {self.global_step} (Epoch {self.epoch} Iter {self.batch+1}) | Loss: {self.loss:.4g} | LR: {self.lr:.4g} | Grad Scale: {self.grad_scale:.4g} | "
             + extra_output
         )
+
+
+@dataclass
+class ValidLogOutput:
+    valid_loss: float
+    num_examples: int
+    extra_output: Dict

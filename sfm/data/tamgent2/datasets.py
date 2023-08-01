@@ -4,14 +4,20 @@ from typing import Union
 
 from torch.utils.data.dataloader import default_collate
 
-from sfm.data.dataset import Data, InMemoryFoundationModelDataset
+from sfm.data.dataset import Data, Batch, InMemoryFoundationModelDataset
 from sfm.logging import logger
 
 
 @dataclass
 class TextToMolData(Data):
-    smiles: Union[str, list[str]]
-    text: Union[str, list[str]]
+    smiles: str
+    text: str
+
+
+@dataclass
+class BatchTextToMolData(Batch):
+    smiles: list[str]
+    text: list[str]
 
 
 class TextToMolDataset(InMemoryFoundationModelDataset):
@@ -22,9 +28,10 @@ class TextToMolDataset(InMemoryFoundationModelDataset):
         return len(self.data)
 
     def collate(self, samples):
-        return TextToMolData(
+        return BatchTextToMolData(
             smiles=[s.smiles for s in samples],
             text=[s.text for s in samples],
+            batch_size=len(samples),
         )
 
     def __getitem__(self, index):

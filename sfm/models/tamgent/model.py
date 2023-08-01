@@ -15,7 +15,7 @@ from sfm.pipeline.accelerator.trainer import Model, TrainerConfig
 
 
 @dataclass
-class Tamgent2Config:
+class Tamgent2Config(TrainerConfig):
     freeze_text_encoder: bool = True
     text_hidden_size: int = 4096
     llama_model: str = "/blob/shufxi/llama/7B"
@@ -37,21 +37,14 @@ class Tamgent2Config:
     val_mol_path: str = "/blob/shufxi/data/tamgent/chebi/val.textmol.smi"
     val_text_path: str = "/blob/shufxi/data/tamgent/chebi/val.textmol.smi"
 
-    # Training
-    weight_decay: float = 0.05
-    beta2: float = 0.999
-    init_lr: float = 8e-5
-    max_epochs: int = 100
-    warmup_lr: float = 1e-6
-    warmup_epochs: int = 10
-    min_lr: float = 8e-6
+    # TODO: shall we put this in the trainer config?
     iters_per_epoch: int = 1
 
 
 class Tamgent2(Model):
     def __init__(
         self,
-        args: TrainerConfig,
+        args: Tamgent2Config,
     ):
         super().__init__()
 
@@ -233,16 +226,16 @@ class Tamgent2(Model):
             },
             {"params": p_non_wd, "weight_decay": 0},
         ]
-        beta2 = self.args.beta2
+
         optimizer = torch.optim.AdamW(
             optim_params,
             lr=float(self.args.init_lr),
             weight_decay=float(self.args.weight_decay),
-            betas=(0.9, beta2),
+            betas=(self.args.beta1, self.args.beta2),
         )
-        max_epoch = self.args.max_epochs
+        max_epoch = self.args.total_num_epochs
         warmup_start_lr = self.args.warmup_lr
-        warmup_epochs = self.args.warmup_epochs
+        warmup_epochs = self.args.warmup_num_epochs
         iters_per_epoch = self.args.iters_per_epoch
         min_lr = self.args.min_lr
         scheduler = LinearWarmupCosineLRScheduler(

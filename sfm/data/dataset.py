@@ -6,10 +6,17 @@ import lmdb
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
+from dataclasses import dataclass
 
+
+@dataclass
 class Data:
-    def __init__(self) -> None:
-        pass
+    pass
+
+
+@dataclass
+class Batch(Data):
+    batch_size: int
 
 
 class FoundationModelDataset(Dataset[Data]):

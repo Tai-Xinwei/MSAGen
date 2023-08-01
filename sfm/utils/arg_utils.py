@@ -18,7 +18,7 @@ def make_enum_praser(enum: Enum):
     return parse_enum
 
 
-def add_dataclass_to_parser(configs: list, parser: ArgumentParser):
+def add_dataclass_to_parser(configs, parser: ArgumentParser):
     for config in configs:
         group = parser.add_argument_group(config.__name__)
         for field in fields(config):

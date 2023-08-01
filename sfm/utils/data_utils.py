@@ -9,5 +9,11 @@ def move_to_device(batch, device):
         return {k: move_to_device(v, device) for k, v in batch.items()}
     elif isinstance(batch, list):
         return [move_to_device(v, device) for v in batch]
+    elif isinstance(batch, tuple):
+        return tuple(move_to_device(v, device) for v in batch)
+    elif hasattr(batch, "__dataclass_fields__"):
+        return type(batch)(
+            **{k: move_to_device(v, device) for k, v in batch.__dict__.items()}
+        )
     else:
         return batch
