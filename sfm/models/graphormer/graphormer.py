@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from sfm.logging import logger
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.layer_norm import LayerNorm
@@ -23,8 +24,6 @@ from .modules.graphormer_sentence_encoder import (
     NodeDecoder,
     init_bert_params,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class GraphormerModel(Model):
@@ -40,18 +39,54 @@ class GraphormerModel(Model):
         logger.info(self.args)
         self.L1loss = loss_fn(reduction="mean", data_mean=data_mean, data_std=data_std)
 
-        self.encoder = GraphormerEncoder(args, graphormer_config)
+        self.net = Graphormer(args, graphormer_config)
+        self.load_pretrained_weights(checkpoint_path=args.loadcheck_path)
+
+    def load_pretrained_weights(self, checkpoint_path):
+        """
+        Load pretrained weights from a given state_dict.
+        """
+        checkpoints_state = torch.load(checkpoint_path, map_location="cpu")["model"]
+        IncompatibleKeys = self.net.load_state_dict(checkpoints_state, strict=False)
+        IncompatibleKeys = IncompatibleKeys._asdict()
+
+        missing_keys = []
+        for keys in IncompatibleKeys["missing_keys"]:
+            if keys.find("dummy") == -1:
+                missing_keys.append(keys)
+
+        unexpected_keys = []
+        for keys in IncompatibleKeys["unexpected_keys"]:
+            if keys.find("dummy") == -1:
+                unexpected_keys.append(keys)
+
+        if len(missing_keys) > 0:
+            logger.info(
+                "Missing keys in {}: {}".format(
+                    checkpoint_path,
+                    missing_keys,
+                )
+            )
+
+        if len(unexpected_keys) > 0:
+            logger.info(
+                "Unexpected keys {}: {}".format(
+                    checkpoint_path,
+                    unexpected_keys,
+                )
+            )
 
     def max_positions(self):
         return self.encoder.max_positions
 
     def forward(self, batched_data, **kwargs):
-        return self.encoder(batched_data, **kwargs)
+        return self.net(batched_data, **kwargs)
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
         logits = model_output[0]
+        bs = logits.shape[0]
         loss = self.L1loss(batch_data, logits)
-        return ModelOutput(loss=loss, log_output={})
+        return ModelOutput(loss=loss, log_output={}, num_examples=bs)
 
     def config_optimizer(self):
         """
@@ -63,7 +98,7 @@ class GraphormerModel(Model):
         pass
 
 
-class GraphormerEncoder(nn.Module):
+class Graphormer(nn.Module):
     """
     Encoder for Masked Language Modelling.
     """

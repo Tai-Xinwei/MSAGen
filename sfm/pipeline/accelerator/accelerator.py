@@ -342,7 +342,8 @@ class DeepSpeedAccelerator(Accelerator):
                 drop_last=False,
             )
 
-    def train_step(self, batch_data):
+    def train_step(self, batch_data) -> ModelOutput:
+        self.model_engine.module.train()
         batch_data = move_to_device(
             batch_data, device=self.args.local_rank, non_blocking=True
         )
@@ -353,10 +354,24 @@ class DeepSpeedAccelerator(Accelerator):
         self.model_engine.backward(loss)
         self.model_engine.step()
 
+        torch.cuda.empty_cache()
         return model_output
 
-    def valid_step(self, batch_data: Data) -> ModelOutput:
-        raise NotImplementedError
+    def valid_step(self, batch_data: Data) -> ValidLogOutput:
+        self.model_engine.module.eval()
+        batch_data = move_to_device(
+            batch_data, device=self.args.local_rank, non_blocking=True
+        )
+        with torch.no_grad():
+            pred = self.model_engine(batch_data)
+            model_output = self.model.compute_loss(pred, batch_data)
+
+        torch.cuda.empty_cache()
+        return ValidLogOutput(
+            valid_loss=model_output.loss.item(),
+            num_examples=model_output.num_examples,
+            extra_output=model_output.log_output,
+        )
 
     def save_checkpoint(self, ckpt_id: str, extra_state: Optional[dict] = None):
         self.model_engine.save_checkpoint(

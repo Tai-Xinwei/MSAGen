@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 import torch
 
@@ -92,7 +92,8 @@ class TrainerState:
 @dataclass
 class ModelOutput:
     loss: torch.Tensor
-    log_output: Dict
+    num_examples: Optional[int] = None
+    log_output: Optional[Dict] = None
 
 
 @dataclass
@@ -129,5 +130,5 @@ class TrainLogOutput:
 @dataclass
 class ValidLogOutput:
     valid_loss: float
-    num_examples: int
-    extra_output: Dict
+    num_examples: Optional[int] = None
+    extra_output: Optional[Dict] = None

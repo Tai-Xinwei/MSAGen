@@ -279,7 +279,9 @@ class Trainer(object):
         # TODO: add other metrics
         total_loss = 0.0
         num_examples = 0
-        for idx, batch_data in enumerate(self.valid_data_loader):
+        _iter = iter(copy.deepcopy(self.valid_data_loader))
+
+        for idx, batch_data in enumerate(_iter):
             output = self.accelerator.valid_step(batch_data)
 
             total_loss += output.valid_loss * output.num_examples
