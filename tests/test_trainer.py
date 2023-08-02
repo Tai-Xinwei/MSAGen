@@ -10,7 +10,8 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 from sfm.data.dataset import Batch, Data, FoundationModelDataset
-from sfm.pipeline.accelerator.trainer import Model, ModelOutput, Trainer, TrainerConfig
+from sfm.pipeline.accelerator.dataclasses import ModelOutput
+from sfm.pipeline.accelerator.trainer import Model, Trainer, TrainerConfig
 
 
 @dataclass

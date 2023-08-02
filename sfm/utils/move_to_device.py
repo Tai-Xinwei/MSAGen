@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from typing import Any, Callable, Dict, List, Tuple, Union
+from dataclasses import fields, is_dataclass
+from typing import Dict, List, Tuple, Union
 
 import torch
 
@@ -66,6 +67,9 @@ def move_to_device(
     if isinstance(x, dict):
         for name in x.keys():
             x[name] = move_to_device(x[name], device=device)
+    elif is_dataclass(x):
+        for f in fields(x):
+            setattr(x, f.name, move_to_device(getattr(x, f.name), device=device))
     elif isinstance(x, OutputMixIn):
         for xi in x:
             move_to_device(xi, device=device)

@@ -47,6 +47,7 @@ class TrainerConfig:
     log_interval: int = 10000
     strategy: TraingStrategy = TraingStrategy.Single
     cpu: bool = False
+    dist_backend: str = "nccl"
 
     gradient_accumulation_steps: int = 1
     steps_per_print: int = 10000
@@ -89,6 +90,27 @@ class ModelOutput:
     log_output: Optional[Dict] = None
 
 
+def format_extra_output(raw_extra_output):
+    if raw_extra_output is None:
+        return ""
+
+    extra_output = []
+    for k, v in raw_extra_output.items():
+        if isinstance(v, torch.Tensor):
+            if v.numel() == 1:
+                v = v.item()
+                extra_output.append(f"{k}: {v:.4g}")
+            else:
+                v = v.detach().cpu().numpy()
+            extra_output.append(f"{k}: {v}")
+        elif isinstance(v, float):
+            extra_output.append(f"{k}: {v:.4g}")
+        else:
+            extra_output.append(f"{k}: {v}")
+    extra_output = " | ".join(extra_output)
+    return extra_output
+
+
 @dataclass
 class TrainLogOutput:
     loss: float
@@ -100,20 +122,7 @@ class TrainLogOutput:
     extra_output: Dict
 
     def __str__(self) -> str:
-        extra_output = []
-        for k, v in self.extra_output.items():
-            if isinstance(v, torch.Tensor):
-                if v.numel() == 1:
-                    v = v.item()
-                    extra_output.append(f"{k}: {v:.4g}")
-                else:
-                    v = v.detach().cpu().numpy()
-                extra_output.append(f"{k}: {v}")
-            elif isinstance(v, float):
-                extra_output.append(f"{k}: {v:.4g}")
-            else:
-                extra_output.append(f"{k}: {v}")
-        extra_output = " | ".join(extra_output)
+        extra_output = format_extra_output(self.extra_output)
         return (
             f"Step: {self.global_step} (Epoch {self.epoch} Iter {self.batch+1}) | Loss: {self.loss:.4g} | LR: {self.lr:.4g} | Grad Scale: {self.grad_scale:.4g} | "
             + extra_output
@@ -125,3 +134,10 @@ class ValidLogOutput:
     valid_loss: float
     num_examples: Optional[int] = None
     extra_output: Optional[Dict] = None
+
+    def __str__(self):
+        extra_output = format_extra_output(self.extra_output)
+        return (
+            f"Valid Loss: {self.valid_loss:.4g} | Num Examples: {self.num_examples} | "
+            + extra_output
+        )

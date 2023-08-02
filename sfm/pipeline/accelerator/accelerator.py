@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
+# see https://pytorch.org/docs/master/generated/torch.nn.parallel.DistributedDataParallel.html
+# DDP only supports spawn start method
+import multiprocessing
 import os
 from abc import ABC, abstractmethod
+from contextlib import nullcontext
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Union
@@ -20,6 +24,8 @@ from sfm.pipeline.accelerator.dataclasses import (
     ValidLogOutput,
 )
 from sfm.utils.move_to_device import move_to_device
+
+multiprocessing.set_start_method("spawn", force=True)
 
 
 class Accelerator(ABC):
@@ -47,6 +53,14 @@ class Accelerator(ABC):
 
     @abstractmethod
     def build_data_loader(self, train_data, val_data):
+        pass
+
+    @abstractmethod
+    def barrier(self):
+        pass
+
+    @abstractmethod
+    def sync_valid_loss(self, total_loss, num_examples):
         pass
 
     @property
@@ -77,6 +91,9 @@ class SingleNodeAccelerator(Accelerator):
         return self.scaler.get_scale()
 
     def set_up(self):
+        pass
+
+    def barrier(self):
         pass
 
     def build_data_loader(
@@ -170,6 +187,9 @@ class SingleNodeAccelerator(Accelerator):
                 setattr(state, k, v)
         return state
 
+    def sync_valid_loss(self, total_loss, num_examples):
+        return total_loss, num_examples
+
 
 class DdpAccelerator(SingleNodeAccelerator):
     def __init__(self, args, model, optimizer, lr_scheduler) -> None:
@@ -184,16 +204,17 @@ class DdpAccelerator(SingleNodeAccelerator):
         self.rank = int(os.environ["RANK"])
         self.local_rank = int(os.environ["LOCAL_RANK"])
 
+        master_addr = os.environ.get("MASTER_ADDR", "")
+        master_port = os.environ.get("MASTER_PORT", "")
+
         torch.cuda.set_device(self.local_rank)
         self.device = torch.device("cuda", self.local_rank)
 
-        # Don't use logger, otherwise we only see the output from rank 0
-        print(
-            f"Initializing DDP by env: word size: {self.world_size}, rank: {self.rank}, local_rank{self.local_rank} "
+        logger.critical(
+            f"Initializing DDP by env://. word size: {self.world_size}, rank: {self.rank}, local_rank: {self.local_rank}, master_addr: {master_addr}, master_port: {master_port}"
         )
-
         torch.distributed.init_process_group(
-            backend=self.dist_backend,
+            backend=self.args.dist_backend,
             init_method="env://",
             world_size=self.world_size,
             rank=self.rank,
@@ -201,14 +222,50 @@ class DdpAccelerator(SingleNodeAccelerator):
 
         torch.distributed.barrier()
 
-        logger.info("DDP initialized.")
+        logger.critical("DDP initialized.")
 
-        self.model = DistributedDataParallel(
+        self.model.to(self.device)
+        self.ddp_model = DistributedDataParallel(
             self.model,
             device_ids=[self.local_rank],
             output_device=self.local_rank,
             find_unused_parameters=True,
         )
+
+    def barrier(self):
+        torch.distributed.barrier()
+
+    def train_step(self, grouped_batch_data: list[Batch]) -> ModelOutput:
+        assert grouped_batch_data, "grouped_batch_data is empty"
+
+        self.ddp_model.train()
+        self.optimizer.zero_grad()
+
+        for idx, batch_data in enumerate(grouped_batch_data):
+            self.model.before_batch()
+            batch_data = move_to_device(batch_data, self.device)
+
+            # No sync for gradient accumulation
+            maybe_no_sync = (
+                self.ddp_model.no_sync()
+                if idx != len(grouped_batch_data) - 1
+                else nullcontext()
+            )
+
+            with maybe_no_sync, autocast(enabled=self.args.fp16):
+                pred = self.ddp_model(batch_data)
+                model_output = self.model.compute_loss(pred, batch_data)
+                loss = model_output.loss / len(grouped_batch_data)
+
+            self.scaler.scale(loss).backward()
+
+            self.model.after_batch()
+
+        self.scaler.step(self.optimizer)
+        self.scaler.update()
+        self.lr_scheduler.step()
+
+        return model_output
 
     def build_data_loader(
         self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
@@ -225,10 +282,13 @@ class DdpAccelerator(SingleNodeAccelerator):
         )
 
         if val_data:
+            validsampler = torch.utils.data.distributed.DistributedSampler(
+                val_data, num_replicas=self.dp_world_size, shuffle=False
+            )
             self.valid_data_loader = DataLoader(
                 val_data,
-                sampler=None,
-                batch_size=self.args.eval_batch_size,
+                sampler=validsampler,
+                batch_size=self.args.val_batch_size,
                 collate_fn=val_data.collate,
                 drop_last=False,
             )
@@ -240,8 +300,17 @@ class DdpAccelerator(SingleNodeAccelerator):
         if self.rank == 0:
             super().save_checkpoint(ckpt_id, extra_state)
 
-    def buld_sampler(self, data) -> Sampler:
-        return DistributedSampler(data, num_replicas=self.world_size, rank=self.rank)
+        torch.distributed.barrier()
+
+    def sync_valid_loss(self, total_loss, num_examples):
+        total_loss = torch.Tensor([total_loss]).cuda(self.device)
+        num_examples = torch.Tensor([num_examples * 1.0]).cuda(self.device)
+        torch.distributed.all_reduce(total_loss)
+        torch.distributed.all_reduce(num_examples)
+        total_loss = total_loss.item()
+        num_examples = num_examples.item()
+
+        return total_loss, num_examples
 
 
 class DeepSpeedAccelerator(Accelerator):
@@ -319,6 +388,11 @@ class DeepSpeedAccelerator(Accelerator):
 
         self.build_data_loader(self.train_data, self.valid_data)
 
+    def barrier(self):
+        import deepspeed
+
+        deepspeed.comm.barrier()
+
     def build_data_loader(
         self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
     ):
@@ -389,3 +463,13 @@ class DeepSpeedAccelerator(Accelerator):
         )
 
         return TrainerState(**cliend_sd)
+
+    def sync_valid_loss(self, total_loss, num_examples):
+        import deepspeed
+
+        total_loss = torch.Tensor([total_loss]).cuda()
+        num_examples = torch.Tensor([num_examples * 1.0]).cuda()
+        deepspeed.comm.all_reduce(total_loss)
+        deepspeed.comm.all_reduce(num_examples)
+        total_loss = total_loss.item()
+        num_examples = num_examples.item()

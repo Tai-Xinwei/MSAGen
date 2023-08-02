@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
 import copy
 import random
-import time
 from pathlib import Path
 from typing import Optional, Union
 
-import deepspeed
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from sfm.logging import logger
+from sfm.logging import logger, metric_logger
 from sfm.pipeline.accelerator.accelerator import (
     Accelerator,
     DdpAccelerator,
@@ -18,7 +16,6 @@ from sfm.pipeline.accelerator.accelerator import (
     SingleNodeAccelerator,
 )
 from sfm.pipeline.accelerator.dataclasses import (
-    ModelOutput,
     TrainerConfig,
     TrainerState,
     TraingStrategy,
@@ -60,6 +57,34 @@ class GroupedBatchIter(object):
             return len(self.it) // self.group_size
         else:
             return (len(self.it) + self.group_size - 1) // self.group_size
+
+
+class LossAccumulator(object):
+    def __init__(self):
+        self.sum = 0
+        self.num_examples = 0
+
+    def add(self, loss, num_examples):
+        if loss is None:
+            return
+
+        if type(loss) == torch.Tensor:
+            loss = loss.item()
+
+        if type(num_examples) == torch.Tensor:
+            num_examples = num_examples.item()
+
+        if num_examples is None or num_examples <= 0:
+            return
+
+        self.sum += loss * num_examples
+        self.num_examples += num_examples
+
+    @property
+    def averge_loss(self):
+        if self.num_examples == 0:
+            return 0
+        return self.sum / self.num_examples
 
 
 class Trainer(object):
@@ -157,20 +182,23 @@ class Trainer(object):
         else:
             raise ValueError(f"Unknown strategy: {self.args.strategy}")
 
-    def build_log_output(self, model_output: ModelOutput) -> TrainLogOutput:
+    def build_log_output(self, loss, extra_output=None) -> TrainLogOutput:
         try:
             lr = self.lr_scheduler.get_last_lr()[0]
         except:
             lr = 0.0
 
+        if type(loss) == torch.Tensor:
+            loss = loss.item()
+
         return TrainLogOutput(
-            loss=model_output.loss.item(),
+            loss=loss,
             grad_scale=self.accelerator.grad_scale,
             lr=lr,
             epoch=self.state.epoch,
             batch=self.state.batch,
             global_step=self.state.global_step,
-            extra_output=model_output.log_output,
+            extra_output=extra_output,
         )
 
     def should_save_batch_checkpoint(self) -> bool:
@@ -205,7 +233,23 @@ class Trainer(object):
 
     @property
     def train_data_loader(self) -> DataLoader:
-        return self.accelerator.train_data_loader
+        """
+        For single node and DDP, we group the iters here for gradient accumulation.
+        For deepspeed, it is not required since deepspeed will handle it.
+        """
+        if (
+            self.args.strategy == TraingStrategy.DDP
+            or self.args.strategy == TraingStrategy.Single
+        ):
+            iter = GroupedBatchIter(
+                self.accelerator.train_data_loader,
+                self.args.update_freq,
+                drop_last=True,
+            )
+        else:
+            iter = copy.deepcopy(self.accelerator.train_data_loader)
+
+        return iter
 
     @property
     def valid_data_loader(self) -> DataLoader:
@@ -226,58 +270,33 @@ class Trainer(object):
             self.state.epoch = epoch
             self.accelerator.before_epoch(epoch)
 
-            if (
-                self.args.strategy == TraingStrategy.DDP
-                or self.args.strategy == TraingStrategy.Single
-            ):
-                _iter = GroupedBatchIter(
-                    self.train_data_loader, self.args.update_freq, drop_last=True
-                )
-            else:
-                _iter = copy.deepcopy(self.train_data_loader)
-
             logger.info("Start Training for epoch: {}", self.state.epoch)
 
-            total_loss = 0.0
-            num_examples = 0
-            for i, grouped_batch_data in enumerate(_iter):
+            loss_accumulator = LossAccumulator()
+            for i, grouped_batch_data in enumerate(self.train_data_loader):
                 model_output = self.accelerator.train_step(grouped_batch_data)
-
-                if (
-                    model_output.num_examples is not None
-                    and model_output.num_examples > 0
-                ):
-                    total_loss += model_output.loss.item() * model_output.num_examples
-                    num_examples += model_output.num_examples
+                loss_accumulator.add(model_output.loss, model_output.num_examples)
 
                 self.state.batch = i
                 self.state.global_step += 1
 
                 if self.should_log():
-                    log_output = self.build_log_output(model_output)
-                    with logger.contextualize(wandb_log=log_output):
-                        logger.info(log_output)
+                    log_output = self.build_log_output(
+                        model_output.loss, model_output.log_output
+                    )
+                    metric_logger.log(log_output, "train_inner")
 
                 if self.should_save_batch_checkpoint():
                     checkpoint_name = f"checkpoint_E{epoch}_B{i}.pt"
                     self.save_checkpoint(checkpoint_name)
 
-            log_output = self.build_log_output(model_output)
-            with logger.contextualize(wandb_log=log_output):
-                logger.info(log_output)
+            log_output = self.build_log_output(loss_accumulator.averge_loss)
+            metric_logger.log(log_output, "train")
 
             if self.should_do_epoch_validate():
                 self.validate()
 
-            if self.args.strategy == TraingStrategy.DDP:
-                torch.distributed.barrier()
-            elif self.args.strategy in [
-                TraingStrategy.Zero1,
-                TraingStrategy.Zero2,
-                TraingStrategy.Zero3,
-            ]:
-                deepspeed.comm.barrier()
-
+            self.accelerator.barrier()
             if self.should_save_epoch_checkpoint():
                 checkpoint_name = f"checkpoint_E{epoch}.pt"
                 self.save_checkpoint(checkpoint_name)
@@ -294,15 +313,12 @@ class Trainer(object):
         logger.info("Start validation for epoch: {}", self.state.epoch)
 
         # TODO: add other metrics
-        total_loss = 0.0
-        num_examples = 0
+        loss_accumulator = LossAccumulator()
         _iter = copy.deepcopy(self.valid_data_loader)
 
         for idx, batch_data in enumerate(_iter):
             output = self.accelerator.valid_step(batch_data)
-            if output.num_examples is not None and output.num_examples > 0:
-                total_loss += output.valid_loss * output.num_examples
-                num_examples += output.num_examples
+            loss_accumulator.add(output.valid_loss, output.num_examples)
 
             if (idx + 1) % self.args.val_batch_log_interval == 0:
                 logger.info(
@@ -313,29 +329,12 @@ class Trainer(object):
                 )
 
         # DDP and Zero need to sync loss and num_examples at validation
-        if self.args.strategy == TraingStrategy.DDP:
-            total_loss = torch.Tensor([total_loss]).cuda()
-            num_examples = torch.Tensor([num_examples * 1.0]).cuda()
-            torch.distributed.all_reduce(total_loss)
-            torch.distributed.all_reduce(num_examples)
-            total_loss = total_loss.item()
-            num_examples = num_examples.item()
-        elif self.args.strategy in [
-            TraingStrategy.Zero1,
-            TraingStrategy.Zero2,
-            TraingStrategy.Zero3,
-        ]:
-            total_loss = torch.Tensor([total_loss]).cuda()
-            num_examples = torch.Tensor([num_examples * 1.0]).cuda()
-            deepspeed.comm.all_reduce(total_loss)
-            deepspeed.comm.all_reduce(num_examples)
-            total_loss = total_loss.item()
-            num_examples = num_examples.item()
-
-        avg_loss = total_loss / num_examples
-        with logger.contextualize(
-            wandb_log=ValidLogOutput(
-                valid_loss=avg_loss, num_examples=num_examples, extra_output={}
-            )
-        ):
-            logger.info("Validation loss: {}", avg_loss)
+        total_loss, num_examples = self.accelerator.sync_valid_loss(
+            loss_accumulator.sum, loss_accumulator.num_examples
+        )
+        valid_log = ValidLogOutput(
+            valid_loss=total_loss / num_examples,
+            num_examples=num_examples,
+            extra_output={},
+        )
+        metric_logger.log(valid_log, "valid")

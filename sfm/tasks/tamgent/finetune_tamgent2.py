@@ -22,7 +22,7 @@ def main():
     )
     val_dataset = TextToMolDataset.from_files(config.val_mol_path, config.val_text_path)
 
-    num_gpus = os.environ.get("WORLD_SIZE", 1)
+    num_gpus = int(os.environ.get("WORLD_SIZE", 1))
     config.iters_per_epoch = (
         len(train_dataset) // config.train_batch_size // config.update_freq // num_gpus
     )
