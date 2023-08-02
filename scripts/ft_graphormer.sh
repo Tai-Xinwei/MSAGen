@@ -25,24 +25,24 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=1e-4
-[ -z "${total_num_steps}" ] && total_num_steps=1000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=60000
-[ -z "${train_batch_size}" ] && train_batch_size=4
-[ -z "${val_batch_size}" ] && val_batch_size=4
+[ -z "${max_lr}" ] && max_lr=2e-5
+[ -z "${total_num_steps}" ] && total_num_steps=10000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=1
+[ -z "${train_batch_size}" ] && train_batch_size=16
+[ -z "${val_batch_size}" ] && val_batch_size=16
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=100
 [ -z "${epochs}" ] && epochs=100
 
 [ -z "${data_path}" ] && data_path='/home/peiran/FMproj/tdc_data'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
-[ -z "${loadcheck_path}" ] && loadcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_ft.pt"
 [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_names}" ] && dataset_names="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_parallelism}" ] && pipeline_parallelism=0
-[ -z "${strategy}" ] && strategy='Zero1'
+[ -z "${strategy}" ] && strategy=Zero3
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -135,7 +135,7 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 #             --deepspeed --deepspeed_config ./config_file/ds_config.json
 # fi
 
-deepspeed --num_gpu=1 sfm/tasks/graphormer/ft_graphormer.py \
+deepspeed --num_gpu=4 sfm/tasks/graphormer/ft_graphormer.py \
           --num_classes 1 \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \

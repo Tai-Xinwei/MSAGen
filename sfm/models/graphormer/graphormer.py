@@ -46,7 +46,12 @@ class GraphormerModel(Model):
         """
         Load pretrained weights from a given state_dict.
         """
-        checkpoints_state = torch.load(checkpoint_path, map_location="cpu")["model"]
+        checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
+        if "model" in checkpoints_state:
+            checkpoints_state = checkpoints_state["model"]
+        elif "module" in checkpoints_state:
+            checkpoints_state = checkpoints_state["module"]
+
         IncompatibleKeys = self.net.load_state_dict(checkpoints_state, strict=False)
         IncompatibleKeys = IncompatibleKeys._asdict()
 

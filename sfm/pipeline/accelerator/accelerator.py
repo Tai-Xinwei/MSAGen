@@ -16,6 +16,7 @@ from sfm.logging import logger
 from sfm.pipeline.accelerator.dataclasses import (
     ModelOutput,
     TrainerState,
+    TraingStrategy,
     ValidLogOutput,
 )
 from sfm.utils.move_to_device import move_to_device
@@ -285,11 +286,13 @@ class DeepSpeedAccelerator(Accelerator):
             ] = self.args.gradient_accumulation_steps
 
             self.args.deepspeed_config["fp16"]["enabled"] = self.args.fp16
-            if self.args.strategy == "zero1":
+            self.args.deepspeed_config["fp16"]["auto_cast"] = self.args.auto_cast
+
+            if self.args.strategy == TraingStrategy.Zero1:
                 self.args.deepspeed_config["zero_optimization"]["stage"] = 1
-            elif self.args.strategy == "zero2":
+            elif self.args.strategy == TraingStrategy.Zero2:
                 self.args.deepspeed_config["zero_optimization"]["stage"] = 2
-            elif self.args.strategy == "zero3":
+            elif self.args.strategy == TraingStrategy.Zero3:
                 self.args.deepspeed_config["zero_optimization"]["stage"] = 3
             else:
                 raise ValueError(f"Unsupported ZeRO strategy: {self.args.strategy}")
@@ -362,13 +365,13 @@ class DeepSpeedAccelerator(Accelerator):
         batch_data = move_to_device(
             batch_data, device=self.args.local_rank, non_blocking=True
         )
-        with torch.no_grad():
-            pred = self.model_engine(batch_data)
-            model_output = self.model.compute_loss(pred, batch_data)
+
+        pred = self.model_engine(batch_data)
+        model_output = self.model.compute_loss(pred, batch_data)
 
         torch.cuda.empty_cache()
         return ValidLogOutput(
-            valid_loss=model_output.loss.item(),
+            valid_loss=model_output.loss.detach().item(),
             num_examples=model_output.num_examples,
             extra_output=model_output.log_output,
         )

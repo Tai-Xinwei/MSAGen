@@ -7,12 +7,12 @@ import torch
 
 
 class TraingStrategy(str, Enum):
-    DDP = "ddp"
-    Zero1 = "zero1"
-    Zero2 = "zero2"
-    Zero3 = "zero3"
-    Single = "single"
-    Pipeline = "pipeline"
+    DDP = "DDP"
+    Zero1 = "Zero1"
+    Zero2 = "Zero2"
+    Zero3 = "Zero3"
+    Single = "Single"
+    Pipeline = "Pipeline"
 
 
 @dataclass
@@ -32,6 +32,7 @@ class TrainerConfig:
     epochs: int = 1
     seed: int = 46
     fp16: bool = False
+    auto_cast: bool = False
     bf16: bool = False
     grad_scaler_init: float = 1.0
     update_freq: int = 1
@@ -43,13 +44,15 @@ class TrainerConfig:
     save_dir: str = "./checkpoints"
     save_batch_interval: int = 0
     save_epoch_interval: int = 1
-    log_interval: int = 100
+    log_interval: int = 10000
     strategy: TraingStrategy = TraingStrategy.Single
     cpu: bool = False
-    gradient_accumulation_steps: int = 1
 
+    gradient_accumulation_steps: int = 1
+    steps_per_print: int = 10000
     gradient_clipping: float = 1.0
-    warmup_num_steps: int = 60000
+    total_num_steps: int = 1000
+    warmup_num_steps: int = 60
     warmup_factor: float = 0.06
     warmup_lr: float = 1e-6
     warmup_num_epochs: int = 10
@@ -57,7 +60,6 @@ class TrainerConfig:
     init_lr: float = 8e-5
     min_lr: float = 8e-6
     weight_decay: float = 0.0
-    total_num_steps: int = 100
     total_num_epochs: int = 100
 
     # adam
@@ -70,15 +72,6 @@ class TrainerConfig:
             + "\n".join([f"  {k}: {v}" for k, v in asdict(self).items()])
             + "\n]"
         )
-
-    gradient_accumulation_steps: int = 1
-    gradient_clipping: float = 1.0
-    total_num_steps: int = 1000000
-    warmup_num_steps: int = 60000
-    warmup_factor: float = 0.06
-    max_lr: float = 0.0001
-    weight_decay: float = 0.0
-    steps_per_print: int = 100
 
 
 @dataclass

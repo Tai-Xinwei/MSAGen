@@ -28,7 +28,7 @@ class GraphormerConfig:
     dataset_ratios: str = ""
 
     pool_mode: str = "full"
-    embedding_leght: int = 20
+    embedding_length: int = 20
     model_max_length: int = 512
 
     loadcheck_path: str = ""

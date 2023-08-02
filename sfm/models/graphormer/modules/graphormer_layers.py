@@ -64,7 +64,9 @@ class GraphNodeFeature(nn.Module):
         n_graph, n_node = x.size()[:2]
 
         # node feauture + graph token
-        node_feature = self.atom_encoder(x).sum(dim=-2)  # [n_graph, n_node, n_hidden]
+        node_feature = (
+            self.atom_encoder(x).sum(dim=-2).contiguous()
+        )  # [n_graph, n_node, n_hidden]
 
         if not self.no_2d:
             degree_feature = self.in_degree_encoder(

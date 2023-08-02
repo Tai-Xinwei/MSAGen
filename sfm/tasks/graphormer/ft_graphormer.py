@@ -30,7 +30,7 @@ from sfm.models.graphormer.graphormer import GraphormerModel
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.pipeline.accelerator.dataclasses import DistributedConfig, TrainerConfig
 from sfm.pipeline.accelerator.trainer import Trainer
-from sfm.pipeline.graphormer_fter import Finetuner
+from sfm.pipeline.graphormer_fter_bk import Finetuner
 from sfm.utils import arg_utils
 from sfm.utils.optimizer import myAdam
 from sfm.utils.set_lr import groupWarmupDecayLR
@@ -104,7 +104,7 @@ def main():
         ft=True,
     )
 
-    val_data = BatchedDataDataset(
+    BatchedDataDataset(
         valset,
         dataset_version="3D" if dataset_name == "PCQM4M-LSC-V2-2D" else "2D",
         max_node=max_node,
@@ -112,7 +112,7 @@ def main():
         ft=True,
     )
 
-    BatchedDataDataset(
+    test_data = BatchedDataDataset(
         testset,
         dataset_version="3D" if dataset_name == "PCQM4M-LSC-V2-2D" else "2D",
         max_node=max_node,
@@ -149,7 +149,7 @@ def main():
         args,
         model,
         train_data=train_data,
-        valid_data=val_data,
+        valid_data=test_data,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
     )
