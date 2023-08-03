@@ -208,6 +208,8 @@ class groupWarmupDecayLR(WarmupLR):
                     total_num_steps, warmup_num_steps
                 )
             )
+        for group in self.optimizer.param_groups:
+            group["lr"] = 0.0
 
     def step(self, last_batch_iteration=None):
         if last_batch_iteration is None:

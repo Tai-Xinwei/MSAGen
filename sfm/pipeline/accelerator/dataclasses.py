@@ -6,7 +6,7 @@ from typing import Dict, Optional, Union
 import torch
 
 
-class TraingStrategy(str, Enum):
+class TrainStrategy(str, Enum):
     DDP = "DDP"
     Zero1 = "Zero1"
     Zero2 = "Zero2"
@@ -45,12 +45,12 @@ class TrainerConfig:
     save_batch_interval: int = 0
     save_epoch_interval: int = 1
     log_interval: int = 10000
-    strategy: TraingStrategy = TraingStrategy.Single
+    strategy: TrainStrategy = TrainStrategy.Single
     cpu: bool = False
-    dist_backend: str = "nccl"
+    ifresume: bool = False
 
     gradient_accumulation_steps: int = 1
-    steps_per_print: int = 10000
+    steps_per_print: int = 100
     gradient_clipping: float = 1.0
     total_num_steps: int = 1000
     warmup_num_steps: int = 60

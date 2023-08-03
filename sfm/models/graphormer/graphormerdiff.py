@@ -11,10 +11,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from sfm.models.graphormer.graphormer import GraphormerModel
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.layer_norm import LayerNorm
 from sfm.modules.quant_noise import quant_noise
+from sfm.pipeline.accelerator.dataclasses import ModelOutput
+from sfm.pipeline.accelerator.trainer import Model
 
 from .modules.graphormer_layers import RobertaClassificationHead
 from .modules.graphormer_sentence_encoder_TMdiff import GraphormerSentenceEncoderDiff
@@ -23,18 +26,50 @@ from .modules.UnifiedDecoder import UnifiedDecoder
 logger = logging.getLogger(__name__)
 
 
-class GraphormerDiffModel(nn.Module):
+class GraphormerDiffModel(GraphormerModel):
     """
     Class for training a Masked Language Model. It also supports an
     additional sentence level prediction if the sent-loss argument is set.
     """
 
-    def __init__(self, args):
-        super().__init__()
-
+    def __init__(self, args, loss_fn=None, data_mean=0.0, data_std=1.0, not_init=False):
+        super(GraphormerDiffModel, self).__init__(args, not_init=True)
+        if not_init:
+            return
         graphormer_config = GraphormerConfig(args)
         self.args = graphormer_config.args
-        logger.info(self.args)
+        if args.rank == 0:
+            logger.info(self.args)
+
+        self.net = GraphormerDiff(args, graphormer_config)
+        self.criterion_3d = loss_fn(args)
+
+        self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
+
+    def compute_loss(self, model_output, batch_data) -> ModelOutput:
+        logits, node_output, y_pred = (
+            model_output[0],
+            model_output[1],
+            model_output[2],
+        )
+        bs = logits.shape[0]
+        loss = self.criterion_3d(batch_data, logits, node_output, y_pred)
+        return ModelOutput(loss=loss, log_output={}, num_examples=bs)
+
+    def config_optimizer(self):
+        """
+        Return the optimizer and learning rate scheduler for this model.
+
+        Returns:
+            tuple[Optimizer, LRScheduler]:
+        """
+        pass
+
+
+class GraphormerDiff(nn.Module):
+    def __init__(self, args, graphormer_config):
+        super().__init__()
+        self.max_positions = args.max_positions
 
         self.sentence_encoder = GraphormerSentenceEncoderDiff(
             graphormer_config,

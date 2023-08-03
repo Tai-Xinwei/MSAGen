@@ -22,6 +22,7 @@ from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
 from sfm.utils.move_to_device import move_to_device
 
 from .collator import collator
+from .moltext_dataset import smiles2graph_removeh
 from .wrapper import preprocess_item, smiles2graph
 
 IGNORE_INDEX = -100
@@ -168,13 +169,13 @@ class MolTokenizer:
         """Process smile."""
         smile_items = []
         for i, smile in enumerate(smile_list):
-            graph = smiles2graph(smile)
+            graph = smiles2graph_removeh(smile)
             data = Data()
             data.idx = i
             data.__num_nodes__ = torch.tensor([int(graph["num_nodes"])]).to(torch.int64)
             data.edge_index = torch.from_numpy(graph["edge_index"]).to(torch.int64)
             data.edge_attr = torch.from_numpy(graph["edge_feat"]).to(torch.int64)
-            data.x = torch.from_numpy(graph["node_feat"]).to(torch.int64)
+            data.x = torch.from_numpy(graph["x"]).to(torch.int64)
             data.y = torch.tensor([0]).to(torch.float32)
 
             smile_items.append(preprocess_item(data))

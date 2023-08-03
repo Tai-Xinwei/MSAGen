@@ -26,18 +26,26 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=1e-4
-[ -z "${total_num_steps}" ] && total_num_steps=1000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=60000
+[ -z "${total_num_steps}" ] && total_num_steps=10000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=600
+[ -z "${train_batch_size}" ] && train_batch_size=256
+[ -z "${val_batch_size}" ] && val_batch_size=16
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
+[ -z "${save_epoch_interval}" ] && save_epoch_interval=1000
+[ -z "${save_batch_interval}" ] && save_batch_interval=10000
+[ -z "${log_interval}" ] && log_interval=100
+[ -z "${epochs}" ] && epochs=1000
 
 [ -z "${data_path}" ] && data_path='/home/peiran/FMproj/pm6-86m-3d-filter'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
-[ -z "${output_path}" ] && output_path='/home/peiran/FMproj/output/'
+[ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 # [ -z "${dataset_name}" ] && dataset_name="PCQM4M-LSC-V2-3D"
 [ -z "${dataset_name}" ] && dataset_name="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_parallelism}" ] && pipeline_parallelism=0
+[ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -133,8 +141,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # # # # # # # single node
 # # # # # deepspeed --force_multi --num_node=$OMPI_COMM_WORLD_SIZE --num_gpus=$n_gpu --hostfile $hostfile train.py \
 # deepspeed --num_gpus=$n_gpu train.py \
-CUDA_VISIBLE_DEVICES=0 deepspeed --num_gpus=1 sfm/tasks/graphormer/pretrain_graphormer.py \
-    --num-classes 128 \
+deepspeed --num_gpus=4 sfm/tasks/graphormer/pretrain_graphormer.py \
+    --num_classes 128 \
     --encoder_attention_heads $num_head \
     --encoder_layers $layers \
     --encoder_ffn_embed_dim $ffn_size \
@@ -143,20 +151,25 @@ CUDA_VISIBLE_DEVICES=0 deepspeed --num_gpus=1 sfm/tasks/graphormer/pretrain_grap
     --attn_dropout $attn_dropout \
     --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
     --sandwich_ln \
-    --dataset-name $dataset_name \
+    --dataset_names $dataset_name \
     --data_path $data_path \
-    --output_path $output_path \
+    --save_dir $save_dir \
     --pipeline_parallelism $pipeline_parallelism \
     --seed 666666 \
-    --add-3d \
+    --add_3d --fp16 \
     --mask_ratio $mask_ratio \
     --noise_scale $noise_scale \
     --num_pred_attn_layer $num_pred_attn_layer \
     --d_tilde $d_tilde \
     --max_lr $max_lr \
+    --strategy $strategy \
     --total_num_steps $total_num_steps \
     --warmup_num_steps $warmup_num_steps \
-    --deepspeed --deepspeed_config ./config_file/ds_config.json
+    --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
+    --gradient_accumulation_steps $gradient_accumulation_steps \
+    --save_epoch_interval $save_epoch_interval --epochs $epochs \
+    --save_batch_interval $save_batch_interval --log_interval $log_interval
+    # --deepspeed_config ./config_file/ds_config.json
 
 
 sleep inf

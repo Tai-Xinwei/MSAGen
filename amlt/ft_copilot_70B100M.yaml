@@ -1,0 +1,75 @@
+ # Steps to run:
+# 1. copy data folder https://itpeus4data.blob.core.windows.net/shuz/data/pcq-pos-custom/ to your Azure storage blob container
+# 2. copy script mae_3d.sh in FoundationModelProp/ to your Azure storage blob container
+# 3. Specify the Azure storage account and container to use
+# 4. Submit the job with this yaml file
+
+description: pj_dstest
+
+target:
+    service: amlk8s
+    name: itphyperdgx2cl1
+    vc: hai1
+
+
+environment:
+  image: pj/mfmds:20230207_b
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+storage:
+  blob:
+    storage_account_name: hai1data # Storage account
+    container_name: mfm # Container name
+    mount_dir: /blob
+
+code:
+  local_dir: ./SFM_framework
+
+jobs:
+- name: ft_100MMFM_70Bllama2_full_mix1
+  sku: 4x G16
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - mkdir /blob/ds_dataset/output
+  - mkdir /blob/ds_dataset/output/ft_100MMFM_70Bllama2_full_mix1_32001_unfreezeg23_128_warm600
+  - export output_path=/blob/ds_dataset/output/ft_100MMFM_70Bllama2_full_mix1_32001_unfreezeg23_128_warm600/
+  - mkdir ./output
+  - export path=run.sh
+  - export layers=24
+  - export num_pred_attn_layer=1
+  - export hidden_size=768
+  - export ffn_size=768
+  - export num_head=32
+  - export num_3d_bias_kernel=128
+  - export atom_loss_coeff=1.0
+  - export pos_loss_coeff=1.0
+  - export sandwich_ln="true"
+  - export dropout=0.0
+  - export attn_dropout=0.1
+  - export act_dropout=0.1
+  - export weight_decay=0.0
+  - export droppath_prob=0.0
+  - export pipeline_parallelism=32
+  - export d_tilde=1.0
+  - export max_lr=2e-5
+  - export total_num_steps=10000
+  - export warmup_num_steps=600
+  - export embedding_length=20
+  - export mkdir /tmp/dataset
+  - export data_path=/tmp/dataset/chemical-copilot-20230724/
+  - export smiles_dict_path=/tmp/dataset/chemical-copilot/mol2idx_dict.jsonl
+  - export mol_size_path=/tmp/dataset/chemical-copilot/mol_size_dict.pkl
+  - export pool_mode="full"
+  - export model_max_length=256
+  - export dataset_names=mol-instruction-mol-desc
+  - export dataset_splits=clean
+  - export loadmfmcheck_path=/blob/ds_dataset/ddpm100M/checkpoint7_new.pt
+  - export loadllmcheck_path=/blob/ds_dataset/llama2/llama-2-70b/
+  - export llm_model_name_or_path=/blob/ds_dataset/llama2/llama-2-70b/
+  - bash ./install/install.sh
+  - bash ./scripts/ft_graphormer_llama_smiles.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g

@@ -9,6 +9,11 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Union
 
+try:
+    import deepspeed
+except ImportError:
+    raise ImportError("Deepspeed is not installed.")
+
 import torch
 from torch.cuda.amp import GradScaler, autocast
 from torch.nn.parallel import DistributedDataParallel
@@ -20,7 +25,7 @@ from sfm.logging import logger
 from sfm.pipeline.accelerator.dataclasses import (
     ModelOutput,
     TrainerState,
-    TraingStrategy,
+    TrainStrategy,
     ValidLogOutput,
 )
 from sfm.utils.move_to_device import move_to_device
@@ -317,11 +322,6 @@ class DeepSpeedAccelerator(Accelerator):
     def __init__(
         self, args, model, optimizer, lr_scheduler, train_data, valid_data
     ) -> None:
-        try:
-            import deepspeed
-        except ImportError:
-            raise ImportError("Deepspeed is not installed.")
-
         super().__init__()
         self.args = args
         self.model = model
@@ -357,11 +357,11 @@ class DeepSpeedAccelerator(Accelerator):
             self.args.deepspeed_config["fp16"]["enabled"] = self.args.fp16
             self.args.deepspeed_config["fp16"]["auto_cast"] = self.args.auto_cast
 
-            if self.args.strategy == TraingStrategy.Zero1:
+            if self.args.strategy == TrainStrategy.Zero1:
                 self.args.deepspeed_config["zero_optimization"]["stage"] = 1
-            elif self.args.strategy == TraingStrategy.Zero2:
+            elif self.args.strategy == TrainStrategy.Zero2:
                 self.args.deepspeed_config["zero_optimization"]["stage"] = 2
-            elif self.args.strategy == TraingStrategy.Zero3:
+            elif self.args.strategy == TrainStrategy.Zero3:
                 self.args.deepspeed_config["zero_optimization"]["stage"] = 3
             else:
                 raise ValueError(f"Unsupported ZeRO strategy: {self.args.strategy}")
@@ -372,49 +372,46 @@ class DeepSpeedAccelerator(Accelerator):
             self.args.deepspeed_config["steps_per_print"] = self.args.steps_per_print
             return
 
-    def set_up(self):
-        import deepspeed
-
+    def set_up(self, train_data: FoundationModelDataset):
         deepspeed.init_distributed(dist_backend=self.args.dist_backend)
         self.set_ds_config()
 
-        self.model_engine, self.optimizer, _, _ = deepspeed.initialize(
+        (
+            self.model_engine,
+            self.optimizer,
+            self.train_data_loader,
+            _,
+        ) = deepspeed.initialize(
             args=self.args,
             model=self.model,
             model_parameters=self.model.parameters(),
+            training_data=train_data,
+            collate_fn=train_data.collate,
             optimizer=self.optimizer,
             lr_scheduler=self.lr_scheduler,
         )
 
-        self.build_data_loader(self.train_data, self.valid_data)
+        self.build_data_loader(self.valid_data)
 
     def barrier(self):
-        import deepspeed
-
         deepspeed.comm.barrier()
 
-    def build_data_loader(
-        self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
-    ):
-        trainsampler = torch.utils.data.distributed.DistributedSampler(
-            train_data, num_replicas=self.model_engine.dp_world_size, shuffle=True
-        )
-        self.train_data_loader = DataLoader(
-            train_data,
-            sampler=trainsampler,
-            batch_size=self.args.train_batch_size,
-            collate_fn=train_data.collate,
-            drop_last=False,
-        )
-
+    def build_data_loader(self, val_data: FoundationModelDataset):
         if val_data:
             validsampler = torch.utils.data.distributed.DistributedSampler(
                 val_data, num_replicas=self.model_engine.dp_world_size, shuffle=False
             )
+            valid_batch_size_per_gpu = self.args.val_batch_size // (
+                self.model_engine.dp_world_size * self.args.gradient_accumulation_steps
+            )
+            assert (
+                valid_batch_size_per_gpu > 0
+            ), "valid_batch_size_per_gpu should be greater than 0"
+
             self.valid_data_loader = DataLoader(
                 val_data,
                 sampler=validsampler,
-                batch_size=self.args.val_batch_size,
+                batch_size=valid_batch_size_per_gpu,
                 collate_fn=val_data.collate,
                 drop_last=False,
             )
@@ -465,8 +462,6 @@ class DeepSpeedAccelerator(Accelerator):
         return TrainerState(**cliend_sd)
 
     def sync_valid_loss(self, total_loss, num_examples):
-        import deepspeed
-
         total_loss = torch.Tensor([total_loss]).cuda()
         num_examples = torch.Tensor([num_examples * 1.0]).cuda()
         deepspeed.comm.all_reduce(total_loss)

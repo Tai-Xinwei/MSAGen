@@ -15,15 +15,12 @@ from transformers.models.llama.modeling_llama import LlamaForCausalLM
 from sfm.data.mol_data.moltext_dataset import batch_collater_for_graphormer
 from sfm.logging.loggers import logger
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
-from sfm.models.graphormer.modules import (
-    GraphormerSentenceEncoder,
-    GraphormerSentenceEncoderPP,
-    init_bert_params,
-)
+from sfm.models.graphormer.modules import GraphormerSentenceEncoder
+from sfm.models.llama2.llama_modules import LlamaEmbeddingsPP, LlamaModelPP
 from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec
 
+from .modules.graphormer_encoder import GraphormerSentenceEncoderPP
 from .modules.hybrid_emb import AdaptorConfig, HybridEmbeddings, HybridEmbeddingsPP
-from .modules.llama_modules import LlamaEmbeddingsPP, LlamaModelPP
 
 
 class GraphormerLlamaModel(torch.nn.Module):

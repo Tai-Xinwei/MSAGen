@@ -4,6 +4,7 @@ import random
 from pathlib import Path
 from typing import Optional, Union
 
+import deepspeed
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -18,14 +19,15 @@ from sfm.pipeline.accelerator.accelerator import (
 from sfm.pipeline.accelerator.dataclasses import (
     TrainerConfig,
     TrainerState,
-    TraingStrategy,
     TrainLogOutput,
+    TrainStrategy,
     ValidLogOutput,
 )
 from sfm.pipeline.accelerator.model import Model
 
 
 def seed_everything(seed):
+    deepspeed.runtime.utils.set_random_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -101,7 +103,8 @@ class Trainer(object):
         super().__init__()
         self.args = args
 
-        logger.info("Trainer args: {}", args)
+        if not hasattr(args, "rank") or self.args.rank == 0:
+            logger.info("Trainer args: {}", args)
 
         self.model = model
         self.train_data = train_data
@@ -114,7 +117,14 @@ class Trainer(object):
             self.lr_scheduler = lr_scheduler
 
         self.accelerator = self.build_accelerator()
-        self.accelerator.set_up()
+        if self.args.strategy in [
+            TrainStrategy.Zero1,
+            TrainStrategy.Zero2,
+            TrainStrategy.Zero3,
+        ]:
+            self.accelerator.set_up(self.train_data)
+        else:
+            self.accelerator.set_up()
 
         if args.strategy.find("Zero") == -1:
             self.accelerator.build_data_loader(train_data, valid_data)
@@ -151,7 +161,7 @@ class Trainer(object):
                 f.write("")
 
     def build_accelerator(self) -> Accelerator:
-        if self.args.strategy == TraingStrategy.Single:
+        if self.args.strategy == TrainStrategy.Single:
             return SingleNodeAccelerator(
                 self.args,
                 self.model,
@@ -160,9 +170,9 @@ class Trainer(object):
                 "cpu" if self.args.cpu else "cuda",
             )
         elif self.args.strategy in [
-            TraingStrategy.Zero1,
-            TraingStrategy.Zero2,
-            TraingStrategy.Zero3,
+            TrainStrategy.Zero1,
+            TrainStrategy.Zero2,
+            TrainStrategy.Zero3,
         ]:
             return DeepSpeedAccelerator(
                 self.args,
@@ -172,7 +182,7 @@ class Trainer(object):
                 self.train_data,
                 self.valid_data,
             )
-        elif self.args.strategy == TraingStrategy.DDP:
+        elif self.args.strategy == TrainStrategy.DDP:
             return DdpAccelerator(
                 self.args,
                 self.model,
@@ -204,7 +214,7 @@ class Trainer(object):
     def should_save_batch_checkpoint(self) -> bool:
         return (
             self.args.save_batch_interval > 0
-            and self.state.global_step % self.args.save_interval == 0
+            and (self.state.global_step + 1) % self.args.save_batch_interval == 0
         )
 
     def should_save_epoch_checkpoint(self) -> bool:
@@ -238,8 +248,8 @@ class Trainer(object):
         For deepspeed, it is not required since deepspeed will handle it.
         """
         if (
-            self.args.strategy == TraingStrategy.DDP
-            or self.args.strategy == TraingStrategy.Single
+            self.args.strategy == TrainStrategy.DDP
+            or self.args.strategy == TrainStrategy.Single
         ):
             iter = GroupedBatchIter(
                 self.accelerator.train_data_loader,
@@ -247,7 +257,7 @@ class Trainer(object):
                 drop_last=True,
             )
         else:
-            iter = copy.deepcopy(self.accelerator.train_data_loader)
+            iter = self.accelerator.train_data_loader
 
         return iter
 
@@ -277,18 +287,20 @@ class Trainer(object):
                 model_output = self.accelerator.train_step(grouped_batch_data)
                 loss_accumulator.add(model_output.loss, model_output.num_examples)
 
+                # Log and save checkpoint
                 self.state.batch = i
-                self.state.global_step += 1
+                if (i + 1) % self.args.gradient_accumulation_steps == 0:
+                    self.state.global_step += 1
 
-                if self.should_log():
-                    log_output = self.build_log_output(
-                        model_output.loss, model_output.log_output
-                    )
-                    metric_logger.log(log_output, "train_inner")
+                    if self.should_log():
+                        log_output = self.build_log_output(
+                            model_output.loss, model_output.log_output
+                        )
+                        metric_logger.log(log_output, "train_inner")
 
-                if self.should_save_batch_checkpoint():
-                    checkpoint_name = f"checkpoint_E{epoch}_B{i}.pt"
-                    self.save_checkpoint(checkpoint_name)
+                    if self.should_save_batch_checkpoint():
+                        checkpoint_name = f"checkpoint_E{epoch}_B{i}.pt"
+                        self.save_checkpoint(checkpoint_name)
 
             log_output = self.build_log_output(loss_accumulator.averge_loss)
             metric_logger.log(log_output, "train")

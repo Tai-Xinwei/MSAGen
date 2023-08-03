@@ -19,11 +19,7 @@ from sfm.modules.quant_noise import quant_noise
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
-from .modules.graphormer_sentence_encoder import (
-    GraphormerSentenceEncoder,
-    NodeDecoder,
-    init_bert_params,
-)
+from .modules.graphormer_sentence_encoder import GraphormerSentenceEncoder, NodeDecoder
 
 
 class GraphormerModel(Model):
@@ -32,57 +28,62 @@ class GraphormerModel(Model):
     additional sentence level prediction if the sent-loss argument is set.
     """
 
-    def __init__(self, args, loss_fn=None, data_mean=0.0, data_std=1.0):
+    def __init__(self, args, loss_fn=None, data_mean=0.0, data_std=1.0, not_init=False):
         super().__init__()
+        if not_init:
+            return
         graphormer_config = GraphormerConfig(args)
         self.args = graphormer_config.args
-        logger.info(self.args)
+        if args.rank == 0:
+            logger.info(self.args)
+
         self.L1loss = loss_fn(reduction="mean", data_mean=data_mean, data_std=data_std)
 
         self.net = Graphormer(args, graphormer_config)
-        self.load_pretrained_weights(checkpoint_path=args.loadcheck_path)
+        self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
 
-    def load_pretrained_weights(self, checkpoint_path):
+    def load_pretrained_weights(self, args, checkpoint_path):
         """
         Load pretrained weights from a given state_dict.
         """
-        checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
-        if "model" in checkpoints_state:
-            checkpoints_state = checkpoints_state["model"]
-        elif "module" in checkpoints_state:
-            checkpoints_state = checkpoints_state["module"]
+        if args.ifresume or args.ft or args.infer:
+            checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
+            if "model" in checkpoints_state:
+                checkpoints_state = checkpoints_state["model"]
+            elif "module" in checkpoints_state:
+                checkpoints_state = checkpoints_state["module"]
 
-        IncompatibleKeys = self.net.load_state_dict(checkpoints_state, strict=False)
-        IncompatibleKeys = IncompatibleKeys._asdict()
+            IncompatibleKeys = self.net.load_state_dict(checkpoints_state, strict=False)
+            IncompatibleKeys = IncompatibleKeys._asdict()
 
-        missing_keys = []
-        for keys in IncompatibleKeys["missing_keys"]:
-            if keys.find("dummy") == -1:
-                missing_keys.append(keys)
+            missing_keys = []
+            for keys in IncompatibleKeys["missing_keys"]:
+                if keys.find("dummy") == -1:
+                    missing_keys.append(keys)
 
-        unexpected_keys = []
-        for keys in IncompatibleKeys["unexpected_keys"]:
-            if keys.find("dummy") == -1:
-                unexpected_keys.append(keys)
+            unexpected_keys = []
+            for keys in IncompatibleKeys["unexpected_keys"]:
+                if keys.find("dummy") == -1:
+                    unexpected_keys.append(keys)
 
-        if len(missing_keys) > 0:
-            logger.info(
-                "Missing keys in {}: {}".format(
-                    checkpoint_path,
-                    missing_keys,
+            if len(missing_keys) > 0:
+                logger.info(
+                    "Missing keys in {}: {}".format(
+                        checkpoint_path,
+                        missing_keys,
+                    )
                 )
-            )
 
-        if len(unexpected_keys) > 0:
-            logger.info(
-                "Unexpected keys {}: {}".format(
-                    checkpoint_path,
-                    unexpected_keys,
+            if len(unexpected_keys) > 0:
+                logger.info(
+                    "Unexpected keys {}: {}".format(
+                        checkpoint_path,
+                        unexpected_keys,
+                    )
                 )
-            )
 
     def max_positions(self):
-        return self.encoder.max_positions
+        return self.net.max_positions
 
     def forward(self, batched_data, **kwargs):
         return self.net(batched_data, **kwargs)

@@ -5,9 +5,7 @@ import os
 import sys
 
 import deepspeed
-import numpy as np
 import torch
-import torch.nn as nn
 
 # import pytorch_forecasting
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -15,10 +13,8 @@ sys.path.extend([".", ".."])
 
 import subprocess
 from argparse import ArgumentParser
-from functools import lru_cache
-from pathlib import Path
 
-from sfm.data.mol_data.dataset import BatchedDataDataset, PCQPreprocessedData
+from sfm.data.mol_data.dataset import BatchedDataDataset
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "PyTDC"])
 from tdc.benchmark_group import admet_group
@@ -30,7 +26,8 @@ from sfm.models.graphormer.graphormer import GraphormerModel
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.pipeline.accelerator.dataclasses import DistributedConfig, TrainerConfig
 from sfm.pipeline.accelerator.trainer import Trainer
-from sfm.pipeline.graphormer_fter_bk import Finetuner
+
+# from sfm.pipeline.graphormer.graphormer_fter_bk import Finetuner
 from sfm.utils import arg_utils
 from sfm.utils.optimizer import myAdam
 from sfm.utils.set_lr import groupWarmupDecayLR
@@ -42,7 +39,7 @@ def main():
         [TrainerConfig, DistributedConfig, GraphormerConfig], parser
     )
     args = parser.parse_args()
-    print(args.deepspeed_config)
+
     ## Init distributed
     torch.set_flush_denormal(True)
     torch.backends.cudnn.benchmark = True
@@ -50,12 +47,8 @@ def main():
 
     args.local_rank = int(os.environ["LOCAL_RANK"])
     args.rank = int(os.environ["RANK"])
-    torch.manual_seed(args.seed)
-    deepspeed.runtime.utils.set_random_seed(args.seed)
     os.environ["NCCL_BLOCKING_WAIT"] = "0"
-
     torch.cuda.set_device(args.local_rank)
-    deepspeed.init_distributed()
 
     # Define dataset
     group = admet_group(path=args.data_path)
@@ -127,7 +120,7 @@ def main():
         args, loss_fn=L1Criterions, data_mean=data_mean, data_std=data_std
     )
 
-    optimizer = myAdam(
+    optimizer, _ = myAdam(
         model,
         lr=args.max_lr,
         betas=[0.9, 0.999],
@@ -142,9 +135,11 @@ def main():
         warmup_num_steps=args.warmup_num_steps,
     )
 
-    logger.info(
-        f"finetune: {args.ft}, add_3d: {args.add_3d}, infer: {args.infer}, no_2d: {args.no_2d}"
-    )
+    if args.rank == 0:
+        logger.info(
+            f"finetune: {args.ft}, add_3d: {args.add_3d}, infer: {args.infer}, no_2d: {args.no_2d}"
+        )
+
     trainer = Trainer(
         args,
         model,

@@ -641,25 +641,10 @@ class PM6FullLMDBDataset(InMemoryDataset):
         for item in self.smiles_db_path_list:
             assert Path(item).exists(), f"{item}: No such file or directory"
 
-        self.env_list = [
-            lmdb.Environment(
-                item,
-                map_size=(1024**3) * 256,
-                subdir=True,
-                readonly=True,
-                readahead=False,
-                meminit=False,
-            ).begin()
-            for item in self.db_path_list
-        ]
+        self.env_list = None
 
         self.key_list = self.get_keys_list()
-        self.len_list = [
-            # item.stat()['entries']
-            # for item in self.env_list
-            len(item)
-            for item in self.key_list
-        ]
+        self.len_list = [len(item) for item in self.key_list]
 
         self.cursor_list = [0] + np.cumsum(self.len_list).tolist()
 
@@ -668,8 +653,7 @@ class PM6FullLMDBDataset(InMemoryDataset):
         self._indices = range(self.total_len)
         # self.__indices__ = range(self.total_len)
         # self.data = Data()
-        self.np = 4
-        self.pool = Pool(self.np)
+
         self.mask_ratio = mask_ratio
 
     def _download(self):
@@ -681,6 +665,19 @@ class PM6FullLMDBDataset(InMemoryDataset):
         for item in self.processed_dir:
             assert Path(item).exists(), f"{item}: No such file or directory"
         return
+
+    def init_env_list(self):
+        self.env_list = [
+            lmdb.Environment(
+                item,
+                map_size=(1024**3) * 256,
+                subdir=True,
+                readonly=True,
+                readahead=False,
+                meminit=False,
+            ).begin()
+            for item in self.db_path_list
+        ]
 
     def get_keys_list(self):
         msg_list = [
@@ -780,13 +777,15 @@ class PM6FullLMDBDataset(InMemoryDataset):
         data.pos
         """
         # idxs = np.random.choice(self.__len__, self.np, replace=False)
-        # return self.pool.map(self.generator, idxs)
         cidx = self.indices()[idx]
         cursor_idx = 0
         for i in range(len(self.cursor_list)):
             if cidx >= self.cursor_list[i] and cidx < self.cursor_list[i + 1]:
                 cursor_idx = i
                 break
+
+        if self.env_list is None:
+            self.init_env_list()
         cur_env = self.env_list[cursor_idx]
         cur_idx = int(cidx - self.cursor_list[cursor_idx])
         ori_data = pickle.loads(cur_env.get(self.key_list[cursor_idx][cur_idx]))

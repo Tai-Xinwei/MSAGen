@@ -218,26 +218,8 @@ def collator_3d(
         node_masks,
     ) = zip(*items)
 
-    # idxs = torch.as_tensor(idxs)
-    # attn_biases = torch.as_tensor(attn_biases)
-    # attn_edge_types = torch.as_tensor(attn_edge_types)
-    # spatial_poses = torch.as_tensor(spatial_poses)
-    # in_degrees = torch.as_tensor(in_degrees)
-    # out_degrees = torch.as_tensor(out_degrees)
-    # xs = torch.as_tensor(xs)
-    # edge_inputs = torch.as_tensor(edge_inputs)
-    # ys = torch.as_tensor(ys)
-    # poses = torch.as_tensor(poses)
-    # node_masks = torch.as_tensor(node_masks)
-
-    # spd_count, full_path_information
-    # idxs, attn_biases, attn_edge_types, spatial_poses, in_degrees, out_degrees, xs, edge_inputs, ys, spatial_pos_counts, node_inputs = zip(*items)
-
     for idx, _ in enumerate(attn_biases):
         attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float("-inf")
-
-    # attn_biases[...][1:, 1:][spatial_poses[...] >= spatial_pos_max] = float('-inf')
-    # attn_biases[:, 1:, 1:] = torch.where(spatial_poses[:] >= spatial_pos_max, attn_biases, float('-inf'))
 
     max_node_num = max(i.size(0) for i in xs)
     max_dist = max(i.size(-2) for i in edge_inputs)

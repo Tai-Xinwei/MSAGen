@@ -71,7 +71,7 @@ class Trainer:
                 device=args.local_rank,
             )
 
-            optimizer = myAdam(
+            optimizer, param_groups = myAdam(
                 net,
                 freeze_list=freeze_list,
                 unfreeze_list=unfreeze_list,
@@ -93,7 +93,7 @@ class Trainer:
                 model=net,
                 optimizer=optimizer,
                 lr_scheduler=scheduler,
-                model_parameters=[p for p in net.parameters() if p.requires_grad],
+                model_parameters=param_groups,  # [p for p in net.parameters() if p.requires_grad],
                 training_data=train_data,
                 collate_fn=train_data.collater,
             )
@@ -148,6 +148,6 @@ class Trainer:
 
     def save_ckp(self, global_step):
         self.model_engine.save_checkpoint(
-            save_dir=self.args.output_path,
+            save_dir=self.args.save_dir,
             client_state={"checkpoint_step": global_step},
         )

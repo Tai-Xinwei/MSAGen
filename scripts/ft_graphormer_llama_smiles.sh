@@ -25,22 +25,22 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=1e-4
-[ -z "${total_num_steps}" ] && total_num_steps=1000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=60000
+[ -z "${max_lr}" ] && max_lr=2e-5
+[ -z "${total_num_steps}" ] && total_num_steps=10000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 
-[ -z "${data_path}" ] && data_path='/home/peiran/FMproj/chemical-copilot-new'
+[ -z "${data_path}" ] && data_path='/home/peiran/FMproj/chemical-copilot-20230724'
 # [ -z "${dataset_names}" ] && dataset_names='tdc'
 # [ -z "${dataset_splits}" ] && dataset_splits='all-instruction'
 [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
-[ -z "${dataset_splits}" ] && dataset_splits='all'
+[ -z "${dataset_splits}" ] && dataset_splits='clean'
 [ -z "${dataset_ratios}" ] && dataset_ratios='1.0,1.0'
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
 [ -z "${model_max_length}" ] && model_max_length=512
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
-[ -z "${output_path}" ] && output_path='/home/peiran/FMproj/output/llama2'
+[ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/llama2'
 [ -z "${smiles_dict_path}" ] && smiles_dict_path="/home/peiran/FMproj/chemical-copilot/mol2idx_dict.jsonl"
 [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/MetaLLM-converted/7B-pp"
@@ -50,6 +50,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${add_3d}" ] && add_3d=false
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_parallelism}" ] && pipeline_parallelism=4
+[ -z "${strategy}" ] && strategy=Zero3
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -148,8 +149,8 @@ wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
 #     --dataset_splits $dataset_splits
 # fi
 
-deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalists/ft_graphormer_llama_inst.py \
-  --num-classes 1 \
+deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalist/ft_graphormer_llama_inst.py \
+  --num_classes 1 \
   --encoder_attention_heads $num_head \
   --encoder_layers $layers \
   --encoder_ffn_embed_dim $ffn_size \
@@ -159,26 +160,26 @@ deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalists/ft_grapho
   --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
   --sandwich_ln \
   --data_path $data_path \
-  --output_path $output_path \
   --pipeline_parallelism $pipeline_parallelism \
   --seed 666667 \
   --ft \
   --d_tilde $d_tilde \
   --num_pred_attn_layer $num_pred_attn_layer \
   --max_lr $max_lr \
-  --output_path $output_path \
+  --save_dir $save_dir \
   --total_num_steps $total_num_steps \
   --warmup_num_steps $warmup_num_steps \
   --loadcheck_path $loadcheck_path \
-  --deepspeed --deepspeed_config ./config_file/ds_config_ft.json \
   --llm_model_name_or_path $llm_model_name_or_path \
   --loadmfmcheck_path $loadmfmcheck_path \
   --dataset_names $dataset_names \
   --dataset_splits $dataset_splits \
   --dataset_ratios $dataset_ratios \
   --pool_mode $pool_mode \
+  --strategy $strategy \
   --embedding_length $embedding_length \
-  --model_max_length $model_max_length
+  --model_max_length $model_max_length \
+  --deepspeed_config ./config_file/ds_config_ft.json \
 
 sleep inf
 sleep inf

@@ -10,7 +10,7 @@ class GraphormerConfig:
     encoder_ffn_embed_dim: int = 768
     encoder_embed_dim: int = 768
     encoder_layers: int = 24
-    num_pred_attn_layers: int = 4
+    num_pred_attn_layer: int = 4
     num_3d_bias_kernel: int = 128
 
     droppath_prob: float = 0.0
@@ -24,23 +24,20 @@ class GraphormerConfig:
 
     data_path: str = ""
     dataset_names: str = ""
-    dataset_splits: str = ""
-    dataset_ratios: str = ""
-
-    pool_mode: str = "full"
-    embedding_length: int = 20
-    model_max_length: int = 512
-
     loadcheck_path: str = ""
-    smiles_dict_path: str = ""
-    loadmfmcheck_path: str = ""
-    llm_model_name_or_path: str = ""
-    mol_size_path: str = ""
 
     add_3d: bool = False
     no_2d: bool = False
     ft: bool = False
     infer: bool = False
+
+    # TM and ddpm params
+    transformer_m_pretrain: bool = True
+    mode_prob: str = "0.6,0.2,0.2"
+    t_timesteps: int = 1000
+    ddpm_beta_start: float = 0.0001
+    ddpm_beta_end: float = 0.02
+    ddpm_schedule: str = "linear"
 
     def __init__(
         self,

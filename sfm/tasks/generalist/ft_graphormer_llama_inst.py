@@ -10,12 +10,20 @@ import torch
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
-from transformers import AutoTokenizer, PreTrainedTokenizer
-from transformers.models.llama.configuration_llama import LlamaConfig
+from argparse import ArgumentParser
+
+from transformers import AutoTokenizer
 
 from sfm.data.mol_data.moltext_dataset import SupervisedProcessedDataWithSmiles
-from sfm.pipeline.graphormerllama_trainer import Trainer
-from sfm.utils.add_argument import add_argument
+from sfm.models.generalist.generalist_config import GeneralistConfig
+from sfm.models.graphormer.graphormer_config import GraphormerConfig
+from sfm.pipeline.accelerator.dataclasses import (
+    DistributedConfig,
+    TrainerConfig,
+    TrainStrategy,
+)
+from sfm.pipeline.generalist.graphormerllama_trainer import Trainer
+from sfm.utils import arg_utils
 from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -52,7 +60,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     if tokenizer.unk_token is None:
         special_tokens_dict["unk_token"] = DEFAULT_UNK_TOKEN
 
-    special_tokens_dict["additional_special_tokens"] = CHEMICAL_TOKENS
+    # special_tokens_dict["additional_special_tokens"] = CHEMICAL_TOKENS
     tokenizer.add_special_tokens(special_tokens_dict)
 
     """ Make dataset and collator for supervised fine-tuning. """
@@ -74,21 +82,33 @@ def make_supervised_data_module(args, mode="train") -> Dict:
 
 
 def main() -> None:
+    # init args
+    parser = ArgumentParser()
+    parser = arg_utils.add_dataclass_to_parser(
+        [TrainerConfig, DistributedConfig, GraphormerConfig, GeneralistConfig], parser
+    )
+    args = parser.parse_args()
+
+    ## Init distributed
     torch.set_flush_denormal(True)
     torch.backends.cudnn.benchmark = True
     torch.backends.cudnn.enabled = True
-    args = add_argument()
 
     args.local_rank = int(os.environ["LOCAL_RANK"])
     args.rank = int(os.environ["RANK"])
     torch.manual_seed(args.seed)
     deepspeed.runtime.utils.set_random_seed(args.seed)
-    # os.environ['NCCL_ASYNC_ERROR_HANDLING'] = '1'
-    # os.environ['OMPI_COMM_WORLD_LOCAL_RANK'] = os.environ['LOCAL_RANK']
     os.environ["NCCL_BLOCKING_WAIT"] = "0"
 
     torch.cuda.set_device(args.local_rank)
-    deepspeed.init_distributed()
+    if args.strategy == TrainStrategy.DDP:
+        torch.distributed.init_process_group(backend="nccl")
+    elif args.strategy in [
+        TrainStrategy.Zero1,
+        TrainStrategy.Zero2,
+        TrainStrategy.Zero3,
+    ]:
+        deepspeed.init_distributed()
 
     print(
         "Print os.environ:--- RANK: {}, WORLD_SIZE: {}, LOCAL_RANK: {}".format(
@@ -114,7 +134,7 @@ def main() -> None:
     print("length of dataset", len(data_module["train_dataset"]))
 
     freeze_list = []
-    unfreeze_list = ["adaptor", "dummy", "embed_tokens", 0]
+    unfreeze_list = ["adaptor", "dummy", "0.layers.22", "0.layers.23"]
 
     trainer = Trainer(
         args,

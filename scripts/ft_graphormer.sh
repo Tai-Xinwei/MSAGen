@@ -150,7 +150,7 @@ deepspeed --num_gpu=4 sfm/tasks/graphormer/ft_graphormer.py \
           --save_dir $save_dir \
           --pipeline_parallelism $pipeline_parallelism \
           --seed 666667 \
-          --add_3d --ft --fp16 \
+          --add_3d --ft --fp16 --ifresume \
           --d_tilde $d_tilde \
           --num_pred_attn_layer $num_pred_attn_layer \
           --max_lr $max_lr \
