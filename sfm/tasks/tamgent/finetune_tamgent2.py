@@ -24,7 +24,10 @@ def main():
 
     num_gpus = int(os.environ.get("WORLD_SIZE", 1))
     config.iters_per_epoch = (
-        len(train_dataset) // config.train_batch_size // config.update_freq // num_gpus
+        len(train_dataset)
+        // config.train_batch_size
+        // config.gradient_accumulation_steps
+        // num_gpus
     )
 
     model = Tamgent2(config)

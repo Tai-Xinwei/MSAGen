@@ -35,7 +35,7 @@ class TrainerConfig:
     auto_cast: bool = False
     bf16: bool = False
     grad_scaler_init: float = 1.0
-    update_freq: int = 1
+    gradient_accumulation_steps: int = 1
     train_batch_size: int = 1
     val_batch_size: int = 1
     val_batch_interval: int = 0
@@ -49,7 +49,6 @@ class TrainerConfig:
     cpu: bool = False
     ifresume: bool = False
 
-    gradient_accumulation_steps: int = 1
     steps_per_print: int = 100
     gradient_clipping: float = 1.0
     total_num_steps: int = 1000

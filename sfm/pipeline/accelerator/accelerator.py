@@ -416,17 +416,18 @@ class DeepSpeedAccelerator(Accelerator):
                 drop_last=False,
             )
 
-    def train_step(self, batch_data) -> ModelOutput:
-        self.model_engine.module.train()
-        batch_data = move_to_device(
-            batch_data, device=self.args.local_rank, non_blocking=True
-        )
-        pred = self.model_engine(batch_data)
-        model_output = self.model.compute_loss(pred, batch_data)
-        loss = model_output.loss
+    def train_step(self, grouped_batch_data) -> ModelOutput:
+        for idx, batch_data in enumerate(grouped_batch_data):
+            self.model_engine.module.train()
+            batch_data = move_to_device(
+                batch_data, device=self.args.local_rank, non_blocking=True
+            )
+            pred = self.model_engine(batch_data)
+            model_output = self.model.compute_loss(pred, batch_data)
+            loss = model_output.loss
 
-        self.model_engine.backward(loss)
-        self.model_engine.step()
+            self.model_engine.backward(loss)
+            self.model_engine.step()
 
         torch.cuda.empty_cache()
         return model_output

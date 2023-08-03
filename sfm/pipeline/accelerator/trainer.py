@@ -243,23 +243,11 @@ class Trainer(object):
 
     @property
     def train_data_loader(self) -> DataLoader:
-        """
-        For single node and DDP, we group the iters here for gradient accumulation.
-        For deepspeed, it is not required since deepspeed will handle it.
-        """
-        if (
-            self.args.strategy == TrainStrategy.DDP
-            or self.args.strategy == TrainStrategy.Single
-        ):
-            iter = GroupedBatchIter(
-                self.accelerator.train_data_loader,
-                self.args.update_freq,
-                drop_last=True,
-            )
-        else:
-            iter = self.accelerator.train_data_loader
-
-        return iter
+        return GroupedBatchIter(
+            self.accelerator.train_data_loader,
+            self.args.gradient_accumulation_steps,
+            drop_last=True,
+        )
 
     @property
     def valid_data_loader(self) -> DataLoader:
@@ -289,18 +277,17 @@ class Trainer(object):
 
                 # Log and save checkpoint
                 self.state.batch = i
-                if (i + 1) % self.args.gradient_accumulation_steps == 0:
-                    self.state.global_step += 1
+                self.state.global_step += 1
 
-                    if self.should_log():
-                        log_output = self.build_log_output(
-                            model_output.loss, model_output.log_output
-                        )
-                        metric_logger.log(log_output, "train_inner")
+                if self.should_log():
+                    log_output = self.build_log_output(
+                        model_output.loss, model_output.log_output
+                    )
+                    metric_logger.log(log_output, "train_inner")
 
-                    if self.should_save_batch_checkpoint():
-                        checkpoint_name = f"checkpoint_E{epoch}_B{i}.pt"
-                        self.save_checkpoint(checkpoint_name)
+                if self.should_save_batch_checkpoint():
+                    checkpoint_name = f"checkpoint_E{epoch}_B{i}.pt"
+                    self.save_checkpoint(checkpoint_name)
 
             log_output = self.build_log_output(loss_accumulator.averge_loss)
             metric_logger.log(log_output, "train")
