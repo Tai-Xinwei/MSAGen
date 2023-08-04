@@ -37,7 +37,7 @@ def main() -> None:
     os.environ["NCCL_BLOCKING_WAIT"] = "0"
     torch.cuda.set_device(args.local_rank)
 
-    logger.info(
+    logger.success(
         "Print os.environ:--- RANK: {}, WORLD_SIZE: {}, LOCAL_RANK: {}".format(
             os.environ["RANK"], os.environ["WORLD_SIZE"], os.environ["LOCAL_RANK"]
         )
@@ -88,10 +88,9 @@ def main() -> None:
         warmup_num_steps=args.warmup_num_steps,
     )
 
-    if args.rank == 0:
-        logger.info(
-            f"finetune: {args.ft}, add_3d: {args.add_3d}, infer: {args.infer}, no_2d: {args.no_2d}"
-        )
+    logger.info(
+        f"finetune: {args.ft}, add_3d: {args.add_3d}, infer: {args.infer}, no_2d: {args.no_2d}"
+    )
 
     trainer = Trainer(
         args,

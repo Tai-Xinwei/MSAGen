@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import logging
 import os
 import sys
 from typing import Dict
@@ -15,6 +14,7 @@ from argparse import ArgumentParser
 from transformers import AutoTokenizer
 
 from sfm.data.mol_data.moltext_dataset import SupervisedProcessedDataWithSmiles
+from sfm.logging import logger
 from sfm.models.generalist.generalist_config import GeneralistConfig
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.pipeline.accelerator.dataclasses import (
@@ -25,9 +25,6 @@ from sfm.pipeline.accelerator.dataclasses import (
 from sfm.pipeline.generalist.graphormerllama_trainer import Trainer
 from sfm.utils import arg_utils
 from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
-
-logging.getLogger().setLevel(logging.ERROR)
-
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "[PAD]"
@@ -110,7 +107,7 @@ def main() -> None:
     ]:
         deepspeed.init_distributed()
 
-    print(
+    logger.success(
         "Print os.environ:--- RANK: {}, WORLD_SIZE: {}, LOCAL_RANK: {}".format(
             os.environ["RANK"], os.environ["WORLD_SIZE"], os.environ["LOCAL_RANK"]
         )
@@ -118,20 +115,19 @@ def main() -> None:
 
     args.add_3d = False
 
-    if args.rank == 0:
-        print(
-            {
-                "add-3d": args.add_3d,
-                "no-2d": args.no_2d,
-                "mfm_lora": args.mfm_lora,
-                "pool_mode": args.pool_mode,
-                "embedding_length": args.embedding_length,
-                "btn_adaptor": args.btn_adaptor,
-            }
-        )
+    logger.info(
+        {
+            "add-3d": args.add_3d,
+            "no-2d": args.no_2d,
+            "mfm_lora": args.mfm_lora,
+            "pool_mode": args.pool_mode,
+            "embedding_length": args.embedding_length,
+            "btn_adaptor": args.btn_adaptor,
+        }
+    )
 
     data_module = make_supervised_data_module(args, mode="train")
-    print("length of dataset", len(data_module["train_dataset"]))
+    logger.info("length of dataset", len(data_module["train_dataset"]))
 
     freeze_list = []
     unfreeze_list = ["adaptor", "dummy", "0.layers.22", "0.layers.23"]

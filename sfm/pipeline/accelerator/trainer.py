@@ -103,12 +103,12 @@ class Trainer(object):
         super().__init__()
         self.args = args
 
-        if not hasattr(args, "rank") or self.args.rank == 0:
-            logger.info("Trainer args: {}", args)
+        logger.info("Trainer args: {}", args)
 
         self.model = model
         self.train_data = train_data
         self.valid_data = valid_data
+        self.test_data = test_data
 
         if optimizer is None:
             self.optimizer, self.lr_scheduler = model.config_optimizer()
@@ -117,20 +117,10 @@ class Trainer(object):
             self.lr_scheduler = lr_scheduler
 
         self.accelerator = self.build_accelerator()
-        if self.args.strategy in [
-            TrainStrategy.Zero1,
-            TrainStrategy.Zero2,
-            TrainStrategy.Zero3,
-        ]:
-            self.accelerator.set_up(self.train_data)
-        else:
-            self.accelerator.set_up()
+        self.accelerator.set_up()
 
         if args.strategy.find("Zero") == -1:
             self.accelerator.build_data_loader(train_data, valid_data)
-        else:
-            self.train_data = train_data
-            self.valid_data = valid_data
 
         self.state = TrainerState(args=args)
 

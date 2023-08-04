@@ -78,10 +78,15 @@ def console_log_filter(record):
 
 
 def is_master_node():
-    if not torch.distributed.is_initialized():  # single node
+    if "RANK" not in os.environ or int(os.environ["RANK"]) == 0:
         return True
     else:
-        return torch.distributed.get_rank() == 0
+        return False
+
+    # if not torch.distributed.is_initialized():  # single node
+    #     return True
+    # else:
+    #     return torch.distributed.get_rank() == 0 or deepspeed.comm.get_rank() == 0
 
 
 def wandb_configed():

@@ -9,11 +9,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Union
 
-try:
-    import deepspeed
-except ImportError:
-    raise ImportError("Deepspeed is not installed.")
-
+import deepspeed
 import torch
 from torch.cuda.amp import GradScaler, autocast
 from torch.nn.parallel import DistributedDataParallel
@@ -30,7 +26,8 @@ from sfm.pipeline.accelerator.dataclasses import (
 )
 from sfm.utils.move_to_device import move_to_device
 
-multiprocessing.set_start_method("spawn", force=True)
+# TODO: should this be moved into DDP?
+# multiprocessing.set_start_method("spawn", force=True)
 
 
 class Accelerator(ABC):
@@ -372,7 +369,7 @@ class DeepSpeedAccelerator(Accelerator):
             self.args.deepspeed_config["steps_per_print"] = self.args.steps_per_print
             return
 
-    def set_up(self, train_data: FoundationModelDataset):
+    def set_up(self):
         deepspeed.init_distributed(dist_backend=self.args.dist_backend)
         self.set_ds_config()
 
@@ -385,21 +382,33 @@ class DeepSpeedAccelerator(Accelerator):
             args=self.args,
             model=self.model,
             model_parameters=self.model.parameters(),
-            training_data=train_data,
-            collate_fn=train_data.collate,
+            training_data=self.train_data,
+            collate_fn=self.train_data.collate,
             optimizer=self.optimizer,
             lr_scheduler=self.lr_scheduler,
         )
-
-        self.build_data_loader(self.valid_data)
+        self.build_data_loader()
 
     def barrier(self):
         deepspeed.comm.barrier()
 
-    def build_data_loader(self, val_data: FoundationModelDataset):
-        if val_data:
+    def build_data_loader(self):
+        # tsampler = torch.utils.data.distributed.DistributedSampler(
+        #     self.train_data, num_replicas=self.model_engine.dp_world_size, shuffle=False
+        # )
+
+        # self.train_data_loader = DataLoader(
+        #     self.train_data,
+        #     sampler=tsampler,
+        #     batch_size=self.model_engine.train_micro_batch_size_per_gpu(),
+        #     collate_fn=self.train_data.collate,
+        #     drop_last=False,
+        # )
+        if self.valid_data:
             validsampler = torch.utils.data.distributed.DistributedSampler(
-                val_data, num_replicas=self.model_engine.dp_world_size, shuffle=False
+                self.valid_data,
+                num_replicas=self.model_engine.dp_world_size,
+                shuffle=False,
             )
             valid_batch_size_per_gpu = self.args.val_batch_size // (
                 self.model_engine.dp_world_size * self.args.gradient_accumulation_steps
@@ -409,16 +418,17 @@ class DeepSpeedAccelerator(Accelerator):
             ), "valid_batch_size_per_gpu should be greater than 0"
 
             self.valid_data_loader = DataLoader(
-                val_data,
+                self.valid_data,
                 sampler=validsampler,
                 batch_size=valid_batch_size_per_gpu,
-                collate_fn=val_data.collate,
+                collate_fn=self.valid_data.collate,
                 drop_last=False,
             )
 
     def train_step(self, grouped_batch_data) -> ModelOutput:
+        self.model_engine.module.train()
         for idx, batch_data in enumerate(grouped_batch_data):
-            self.model_engine.module.train()
+            self.model_engine.tput_timer.start()
             batch_data = move_to_device(
                 batch_data, device=self.args.local_rank, non_blocking=True
             )
@@ -469,3 +479,5 @@ class DeepSpeedAccelerator(Accelerator):
         deepspeed.comm.all_reduce(num_examples)
         total_loss = total_loss.item()
         num_examples = num_examples.item()
+
+        return total_loss, num_examples

@@ -7,47 +7,22 @@ from functools import lru_cache
 
 import numpy as np
 import pyximport
-import torch_geometric.datasets
-from ogb.graphproppred import PygGraphPropPredDataset
 
 pyximport.install(setup_args={"include_dirs": np.get_include()})
-import copy
 
-# from memory_profiler import profile
-import json
-import os
-import os.path as osp
-import pickle
-import shutil
-import tarfile
-import time
-from itertools import product, repeat
 from multiprocessing import Pool
-from pathlib import Path
 from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
-from ogb.utils.features import (
-    allowable_features,
-    atom_feature_vector_to_dict,
-    atom_to_feature_vector,
-    bond_feature_vector_to_dict,
-    bond_to_feature_vector,
-)
-
-# from ogb.utils import smiles2graph
-from ogb.utils.torch_util import replace_numpy_with_torchtensor
-from ogb.utils.url import decide_download, download_url, extract_zip
+from ogb.utils.features import atom_to_feature_vector, bond_to_feature_vector
 from rdkit import Chem
 
 # import numpy as np
 from rdkit.Chem import AllChem, MACCSkeys
-from rdkit.Chem import rdDistGeom as molDG
 from torch_geometric.data import Data, InMemoryDataset
-from tqdm import tqdm
 
 from . import algos
 
@@ -228,9 +203,7 @@ def mol2graph(mol):
 
 
 class TDCDataset(InMemoryDataset):
-    def __init__(
-        self, data, smiles2graph=smiles2graph, transform=None, pre_transform=None
-    ):
+    def __init__(self, data, transform=None, pre_transform=None):
         # self.original_root = root
         self.smiles2graph = smiles2graph
         self.smiles2graphpos = smiles2graphpos

@@ -14,12 +14,11 @@ sys.path.extend([".", ".."])
 import subprocess
 from argparse import ArgumentParser
 
-from sfm.data.mol_data.dataset import BatchedDataDataset
-
-subprocess.check_call([sys.executable, "-m", "pip", "install", "PyTDC"])
+# subprocess.check_call([sys.executable, "-m", "pip", "install", "PyTDC"])
 from tdc.benchmark_group import admet_group
 
 from sfm.criterions.l1ft import L1Criterions
+from sfm.data.mol_data.dataset import BatchedDataDataset
 from sfm.data.mol_data.tdc import TDCDataset
 from sfm.logging import logger
 from sfm.models.graphormer.graphormer import GraphormerModel
@@ -49,6 +48,7 @@ def main():
     args.rank = int(os.environ["RANK"])
     os.environ["NCCL_BLOCKING_WAIT"] = "0"
     torch.cuda.set_device(args.local_rank)
+    deepspeed.init_distributed()
 
     # Define dataset
     group = admet_group(path=args.data_path)
@@ -85,8 +85,10 @@ def main():
     # data_mean = 0.0
     # data_std = 1.0
 
-    print(len(trainset), len(valset), len(testset))
-    print("std", data_std, ", mean", data_mean)
+    logger.info(
+        f"length of trainset {len(trainset)}, length of validset {len(valset)}, length of testset {len(testset)}"
+    )
+    logger.info(f"std is {data_std}, , mean is {data_mean}")
 
     max_node = 512
     train_data = BatchedDataDataset(
@@ -97,7 +99,7 @@ def main():
         ft=True,
     )
 
-    BatchedDataDataset(
+    valid_data = BatchedDataDataset(
         valset,
         dataset_version="3D" if dataset_name == "PCQM4M-LSC-V2-2D" else "2D",
         max_node=max_node,
@@ -135,16 +137,16 @@ def main():
         warmup_num_steps=args.warmup_num_steps,
     )
 
-    if args.rank == 0:
-        logger.info(
-            f"finetune: {args.ft}, add_3d: {args.add_3d}, infer: {args.infer}, no_2d: {args.no_2d}"
-        )
+    logger.info(
+        f"finetune: {args.ft}, add_3d: {args.add_3d}, infer: {args.infer}, no_2d: {args.no_2d}"
+    )
 
     trainer = Trainer(
         args,
         model,
         train_data=train_data,
-        valid_data=test_data,
+        valid_data=valid_data,
+        test_data=test_data,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
     )

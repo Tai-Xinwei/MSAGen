@@ -43,12 +43,12 @@ def process_param(
             nl = int(name.split(".")[0])
             if nl in unfreeze_layer_name_list:
                 param_groups[0]["params"].append(param)
-                sfm_logger.info(f"unfreeze layer: {name}")
+                sfm_logger.success(f"unfreeze layer: {name}")
             else:
                 for unfreeze_name in unfreeze_list:
                     if name.find(unfreeze_name) != -1:
                         param_groups[0]["params"].append(param)
-                        sfm_logger.info(f"unfreeze {name}")
+                        sfm_logger.success(f"unfreeze {name}")
 
     elif len(freeze_list) > 0:
         freeze_list, freeze_layer_name_list = split_param_and_layer_name(unfreeze_list)
@@ -56,13 +56,13 @@ def process_param(
             nl = int(name.split(".")[0])
             if nl in freeze_layer_name_list:
                 flag = True
-                sfm_logger.info(f"freeze layer: {name}")
+                sfm_logger.success(f"freeze layer: {name}")
             else:
                 for freeze_name in freeze_list:
                     flag = False
                     if name.find(freeze_name) != -1:
                         flag = True
-                        sfm_logger.info(f"freeze {name}")
+                        sfm_logger.success(f"freeze {name}")
                         break
             if not flag:
                 param_groups[0]["params"].append(param)
