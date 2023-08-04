@@ -937,7 +937,7 @@ class myPipeEngine(DeepSpeedEngine):
                 for x in batch[0]:
                     assert torch.is_tensor(x)
                     mine = x.clone().detach().to(self.device)
-                    if self.fp16_enabled():
+                    if self.fp16_auto_cast():
                         mine = self._cast_inputs_half(mine)
                     mine.requires_grad = mine.is_floating_point()
                     loaded.append(mine)
