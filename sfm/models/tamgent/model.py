@@ -160,7 +160,7 @@ class Tamgent2(Model):
             padding="longest",
             truncation=True,
             max_length=self.args.max_txt_len_smiles,
-            add_special_tokens=False,
+            add_special_tokens=True,
         ).to(self.smi_decoder.device)
         # print(self.mol_tokenizer.convert_ids_to_tokens(to_regress_tokens.input_ids[0]))
         targets = to_regress_tokens.input_ids.masked_fill(
