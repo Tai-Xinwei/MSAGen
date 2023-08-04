@@ -18,13 +18,14 @@ from sfm.logging import logger
 from sfm.models.generalist.generalist_config import GeneralistConfig
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.pipeline.accelerator.dataclasses import (
-    DistributedConfig,
+    DistributedTrainConfig,
     TrainerConfig,
     TrainStrategy,
 )
 from sfm.pipeline.generalist.graphormerllama_trainer import Trainer
 from sfm.utils import arg_utils
 from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
+from sfm.utils.env_init import set_env
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "[PAD]"
@@ -82,22 +83,13 @@ def main() -> None:
     # init args
     parser = ArgumentParser()
     parser = arg_utils.add_dataclass_to_parser(
-        [TrainerConfig, DistributedConfig, GraphormerConfig, GeneralistConfig], parser
+        [DistributedTrainConfig, GraphormerConfig, GeneralistConfig], parser
     )
     args = parser.parse_args()
 
     ## Init distributed
-    torch.set_flush_denormal(True)
-    torch.backends.cudnn.benchmark = True
-    torch.backends.cudnn.enabled = True
+    set_env(args)
 
-    args.local_rank = int(os.environ["LOCAL_RANK"])
-    args.rank = int(os.environ["RANK"])
-    torch.manual_seed(args.seed)
-    deepspeed.runtime.utils.set_random_seed(args.seed)
-    os.environ["NCCL_BLOCKING_WAIT"] = "0"
-
-    torch.cuda.set_device(args.local_rank)
     if args.strategy == TrainStrategy.DDP:
         torch.distributed.init_process_group(backend="nccl")
     elif args.strategy in [
@@ -106,12 +98,6 @@ def main() -> None:
         TrainStrategy.Zero3,
     ]:
         deepspeed.init_distributed()
-
-    logger.success(
-        "Print os.environ:--- RANK: {}, WORLD_SIZE: {}, LOCAL_RANK: {}".format(
-            os.environ["RANK"], os.environ["WORLD_SIZE"], os.environ["LOCAL_RANK"]
-        )
-    )
 
     args.add_3d = False
 

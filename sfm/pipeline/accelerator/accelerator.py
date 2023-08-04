@@ -26,9 +26,6 @@ from sfm.pipeline.accelerator.dataclasses import (
 )
 from sfm.utils.move_to_device import move_to_device
 
-# TODO: should this be moved into DDP?
-# multiprocessing.set_start_method("spawn", force=True)
-
 
 class Accelerator(ABC):
     @abstractmethod
@@ -212,6 +209,8 @@ class DdpAccelerator(SingleNodeAccelerator):
         torch.cuda.set_device(self.local_rank)
         self.device = torch.device("cuda", self.local_rank)
 
+        multiprocessing.set_start_method("spawn", force=True)
+
         logger.critical(
             f"Initializing DDP by env://. word size: {self.world_size}, rank: {self.rank}, local_rank: {self.local_rank}, master_addr: {master_addr}, master_port: {master_port}"
         )
@@ -366,7 +365,7 @@ class DeepSpeedAccelerator(Accelerator):
             self.args.deepspeed_config[
                 "gradient_clipping"
             ] = self.args.gradient_clipping
-            self.args.deepspeed_config["steps_per_print"] = self.args.steps_per_print
+            self.args.deepspeed_config["steps_per_print"] = self.args.log_interval
             return
 
     def set_up(self):

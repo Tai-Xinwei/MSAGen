@@ -32,6 +32,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${val_batch_size}" ] && val_batch_size=16
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=100
+[ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=100
 
 [ -z "${data_path}" ] && data_path='/home/peiran/FMproj/tdc_data'
@@ -160,7 +161,8 @@ deepspeed --num_gpu=4 sfm/tasks/graphormer/ft_graphormer.py \
           --strategy $strategy \
           --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
           --gradient_accumulation_steps $gradient_accumulation_steps \
-          --save_epoch_interval $save_epoch_interval --epochs $epochs
+          --save_epoch_interval $save_epoch_interval --epochs $epochs \
+          --log_interval $log_interval
         #   --deepspeed_config ./config_file/ds_config.json
 
 

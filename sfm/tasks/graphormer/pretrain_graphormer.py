@@ -14,9 +14,10 @@ from sfm.data.mol_data.dataset import BatchedDataDataset, PCQPreprocessedData
 from sfm.logging import logger
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.models.graphormer.graphormerdiff import GraphormerDiffModel
-from sfm.pipeline.accelerator.dataclasses import DistributedConfig, TrainerConfig
+from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils import arg_utils
+from sfm.utils.env_init import set_env
 from sfm.utils.optimizer import myAdam
 from sfm.utils.set_lr import groupWarmupDecayLR
 
@@ -24,24 +25,12 @@ from sfm.utils.set_lr import groupWarmupDecayLR
 def main() -> None:
     parser = ArgumentParser()
     parser = arg_utils.add_dataclass_to_parser(
-        [TrainerConfig, DistributedConfig, GraphormerConfig], parser
+        [DistributedTrainConfig, GraphormerConfig], parser
     )
     args = parser.parse_args()
 
     ## Init distributed
-    torch.set_flush_denormal(True)
-    torch.backends.cudnn.benchmark = True
-    torch.backends.cudnn.enabled = True
-    args.local_rank = int(os.environ["LOCAL_RANK"])
-    args.rank = int(os.environ["RANK"])
-    os.environ["NCCL_BLOCKING_WAIT"] = "0"
-    torch.cuda.set_device(args.local_rank)
-
-    logger.success(
-        "Print os.environ:--- RANK: {}, WORLD_SIZE: {}, LOCAL_RANK: {}".format(
-            os.environ["RANK"], os.environ["WORLD_SIZE"], os.environ["LOCAL_RANK"]
-        )
-    )
+    set_env(args)
 
     dataset = PCQPreprocessedData(
         args, dataset_name=args.dataset_names, dataset_path=args.data_path
@@ -100,10 +89,6 @@ def main() -> None:
         lr_scheduler=lr_scheduler,
     )
     trainer.train()
-
-    # trainer = Trainer(args, train_data)
-    # trainer = DiffTrainer(args, train_data)
-    # trainer()
 
 
 if __name__ == "__main__":

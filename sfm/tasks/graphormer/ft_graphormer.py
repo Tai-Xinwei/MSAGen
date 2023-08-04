@@ -23,11 +23,12 @@ from sfm.data.mol_data.tdc import TDCDataset
 from sfm.logging import logger
 from sfm.models.graphormer.graphormer import GraphormerModel
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
-from sfm.pipeline.accelerator.dataclasses import DistributedConfig, TrainerConfig
+from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 from sfm.pipeline.accelerator.trainer import Trainer
 
 # from sfm.pipeline.graphormer.graphormer_fter_bk import Finetuner
 from sfm.utils import arg_utils
+from sfm.utils.env_init import set_env
 from sfm.utils.optimizer import myAdam
 from sfm.utils.set_lr import groupWarmupDecayLR
 
@@ -35,20 +36,12 @@ from sfm.utils.set_lr import groupWarmupDecayLR
 def main():
     parser = ArgumentParser()
     parser = arg_utils.add_dataclass_to_parser(
-        [TrainerConfig, DistributedConfig, GraphormerConfig], parser
+        [DistributedTrainConfig, GraphormerConfig], parser
     )
     args = parser.parse_args()
 
     ## Init distributed
-    torch.set_flush_denormal(True)
-    torch.backends.cudnn.benchmark = True
-    torch.backends.cudnn.enabled = True
-
-    args.local_rank = int(os.environ["LOCAL_RANK"])
-    args.rank = int(os.environ["RANK"])
-    os.environ["NCCL_BLOCKING_WAIT"] = "0"
-    torch.cuda.set_device(args.local_rank)
-    deepspeed.init_distributed()
+    set_env(args)
 
     # Define dataset
     group = admet_group(path=args.data_path)

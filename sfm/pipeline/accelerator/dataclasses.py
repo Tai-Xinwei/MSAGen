@@ -15,6 +15,7 @@ class TrainStrategy(str, Enum):
     Pipeline = "Pipeline"
 
 
+# Will be removed, use DistributedTrainConfig instead
 @dataclass
 class DistributedConfig:
     local_rank: int = -1
@@ -49,7 +50,6 @@ class TrainerConfig:
     cpu: bool = False
     ifresume: bool = False
 
-    steps_per_print: int = 100
     gradient_clipping: float = 1.0
     total_num_steps: int = 1000
     warmup_num_steps: int = 60
@@ -72,6 +72,18 @@ class TrainerConfig:
             + "\n".join([f"  {k}: {v}" for k, v in asdict(self).items()])
             + "\n]"
         )
+
+
+@dataclass
+class DistributedTrainConfig(TrainerConfig):
+    local_rank: int = -1
+    world_size: int = 1
+    node_rank: int = 0
+    rank: int = 0
+    pipeline_parallelism: int = 0
+    tensor_parallelism: int = 1
+    deepspeed_config: str = ""
+    dist_backend: str = "nccl"
 
 
 @dataclass
