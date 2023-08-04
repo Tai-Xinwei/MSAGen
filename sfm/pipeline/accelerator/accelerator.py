@@ -431,9 +431,13 @@ class DeepSpeedAccelerator(Accelerator):
             batch_data = move_to_device(
                 batch_data, device=self.args.local_rank, non_blocking=True
             )
+            self.model.before_batch()
             pred = self.model_engine(batch_data)
+
             model_output = self.model.compute_loss(pred, batch_data)
             loss = model_output.loss
+
+            self.model.after_batch()
 
             self.model_engine.backward(loss)
             self.model_engine.step()

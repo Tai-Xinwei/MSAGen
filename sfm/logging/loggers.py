@@ -27,7 +27,7 @@ class MetricLogger(object):
     def __init__(self):
         import wandb
 
-        if wandb_configed() and is_master_node(None):
+        if wandb_configed() and is_master_node():
             wandb_project = os.getenv("WANDB_PROJECT")
             wandb_run_name = os.getenv("WANDB_RUN_NAME")
             wandb.init(

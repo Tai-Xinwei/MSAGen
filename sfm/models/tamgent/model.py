@@ -10,12 +10,12 @@ from sfm.data.tamgent2.tokenizer import MolxptTokenizer
 from sfm.logging import logger
 from sfm.models.tamgent.Qformer import BertConfig, BertLMHeadModel
 from sfm.models.tamgent.scheduler import LinearWarmupCosineLRScheduler
-from sfm.pipeline.accelerator.dataclasses import ModelOutput
-from sfm.pipeline.accelerator.trainer import Model, TrainerConfig
+from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig, ModelOutput
+from sfm.pipeline.accelerator.trainer import Model
 
 
 @dataclass
-class Tamgent2Config(TrainerConfig):
+class Tamgent2Config(DistributedTrainConfig):
     freeze_text_encoder: bool = True
     text_hidden_size: int = 4096
     llama_model: str = "/blob/shufxi/llama/7B"
@@ -56,9 +56,11 @@ class Tamgent2(Model):
         logger.info("Loading text_encoder")
         self.init_llama()
 
-        logger.info("Loading text_encoder Done.", "Loading Q-Former")
+        logger.info("Loading text_encoder Done. Loading Q-Former")
         self.init_Qformer()
         self.init_smi_decoder()
+
+        self.freeze_text_encoder()
 
     def freeze_text_encoder(self):
         if self.args.freeze_text_encoder:
@@ -67,9 +69,6 @@ class Tamgent2(Model):
 
             self.text_encoder.eval()
             logging.info("freeze text encoder")
-
-    def before_training(self):
-        self.freeze_text_encoder()
 
     def before_batch(self):
         if self.args.freeze_text_encoder:

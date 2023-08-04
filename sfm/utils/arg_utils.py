@@ -3,6 +3,8 @@ from argparse import ArgumentParser
 from dataclasses import _MISSING_TYPE, fields
 from enum import Enum
 
+from sfm.logging import loggers
+
 
 def make_enum_praser(enum: Enum):
     choices = [e.name for e in enum]
@@ -19,10 +21,19 @@ def make_enum_praser(enum: Enum):
 
 
 def add_dataclass_to_parser(configs, parser: ArgumentParser):
+    exist_configs = set()
+
     for config in configs:
         group = parser.add_argument_group(config.__name__)
         for field in fields(config):
             name = field.name.replace("-", "_")
+
+            if name in exist_configs:
+                loggers.warning(f"Duplicate config name: {name}, not added to parser")
+                continue
+            else:
+                exist_configs.add(name)
+
             if field.default != _MISSING_TYPE:
                 default = field.default
             elif field.default_factory != _MISSING_TYPE:

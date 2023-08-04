@@ -14,8 +14,9 @@ class MockTextEncodeResult:
     hidden_states: list[torch.Tensor]
 
 
-class MockTextEncoder(object):
+class MockTextEncoder(torch.nn.Module):
     def __init__(self):
+        super().__init__()
         self.device = "cpu"
 
     def __call__(self, input_ids, attention_mask, output_hidden_states=True):
@@ -40,19 +41,21 @@ class MockSmiDecoder(object):
 
 
 class Test_Tamgent2(unittest.TestCase):
-    @patch("sfm.models.tamgent.model.Tamgent2.init_llama")
-    @patch("sfm.models.tamgent.model.Tamgent2.init_smi_decoder")
-    def test_tamgent2(self, mock_init_llama, mock_init_smi_decoder):
+    def mock_init_llama(self):
+        self.text_encoder = MockTextEncoder()
+
+    def mock_init_smi_decoder(self):
+        self.smi_decoder = MockSmiDecoder()
+
+    @patch("sfm.models.tamgent.model.Tamgent2.init_llama", mock_init_llama)
+    @patch("sfm.models.tamgent.model.Tamgent2.init_smi_decoder", mock_init_smi_decoder)
+    def test_tamgent2(self):
         config = Tamgent2Config(
             molxpt_model="./tests/test_models/tamgent2/molxpt",
             llama_model="./tests/test_models/tamgent2/llama",
         )
         model = Tamgent2(config)
         model.text2mol_proj = torch.nn.Linear(768, 4096)
-
-        model.text_encoder = MockTextEncoder()
-
-        model.smi_decoder = MockSmiDecoder()
 
         data = [
             TextToMolData(

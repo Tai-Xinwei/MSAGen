@@ -155,3 +155,6 @@ dmypy.json
 
 #Megatron
 megatron/
+
+#AMLT
+.amltconfig

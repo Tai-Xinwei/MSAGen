@@ -64,6 +64,7 @@ def move_to_device(
     """
     if isinstance(device, str):
         device = torch.device(device)
+
     if isinstance(x, dict):
         for name in x.keys():
             x[name] = move_to_device(x[name], device=device)
@@ -76,6 +77,6 @@ def move_to_device(
         return x
     elif isinstance(x, torch.Tensor) and x.device != device:
         x = x.to(device, non_blocking=non_blocking)
-    elif isinstance(x, (list, tuple)) and x[0].device != device:
+    elif isinstance(x, (list, tuple)):
         x = [move_to_device(xi, device=device) for xi in x]
     return x
