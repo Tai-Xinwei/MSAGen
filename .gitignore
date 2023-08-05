@@ -152,6 +152,5 @@ dmypy.json
 # checkpint
 /checkpoints/
 
-
 #AMLT
 .amltconfig

@@ -6,13 +6,11 @@ from sfm.data.tamgent2.datasets import TextToMolDataset
 from sfm.models.tamgent.model import Tamgent2, Tamgent2Config
 from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils import arg_utils
+from sfm.utils.cli_utils import cli
 
 
-def main():
-    parser = ArgumentParser()
-    parser = arg_utils.add_dataclass_to_parser([Tamgent2Config], parser)
-    args = parser.parse_args()
-
+@cli(Tamgent2Config)
+def main(args):
     config = arg_utils.from_args(args, Tamgent2Config)
 
     config.val_batch_interval = 100

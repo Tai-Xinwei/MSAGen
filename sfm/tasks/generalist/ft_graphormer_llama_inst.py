@@ -25,7 +25,7 @@ from sfm.pipeline.accelerator.dataclasses import (
 from sfm.pipeline.generalist.graphormerllama_trainer import Trainer
 from sfm.utils import arg_utils
 from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
-from sfm.utils.env_init import set_env
+from sfm.utils.cli_utils import cli
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "[PAD]"
@@ -79,17 +79,8 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     return dict(train_dataset=dataset, eval_dataset=None, vocab_size=len(tokenizer))
 
 
-def main() -> None:
-    # init args
-    parser = ArgumentParser()
-    parser = arg_utils.add_dataclass_to_parser(
-        [DistributedTrainConfig, GraphormerConfig, GeneralistConfig], parser
-    )
-    args = parser.parse_args()
-
-    ## Init distributed
-    set_env(args)
-
+@cli(DistributedTrainConfig, GraphormerConfig, GeneralistConfig)
+def main(args) -> None:
     if args.strategy == TrainStrategy.DDP:
         torch.distributed.init_process_group(backend="nccl")
     elif args.strategy in [

@@ -16,22 +16,13 @@ from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.models.graphormer.graphormerdiff import GraphormerDiffModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 from sfm.pipeline.accelerator.trainer import Trainer
-from sfm.utils import arg_utils
-from sfm.utils.env_init import set_env
+from sfm.utils.cli_utils import cli
 from sfm.utils.optimizer import myAdam
 from sfm.utils.set_lr import groupWarmupDecayLR
 
 
-def main() -> None:
-    parser = ArgumentParser()
-    parser = arg_utils.add_dataclass_to_parser(
-        [DistributedTrainConfig, GraphormerConfig], parser
-    )
-    args = parser.parse_args()
-
-    ## Init distributed
-    set_env(args)
-
+@cli(DistributedTrainConfig, GraphormerConfig)
+def main(args) -> None:
     dataset = PCQPreprocessedData(
         args, dataset_name=args.dataset_names, dataset_path=args.data_path
     )
