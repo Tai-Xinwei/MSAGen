@@ -336,7 +336,14 @@ class DeepSpeedAccelerator(Accelerator):
             isinstance(self.args.deepspeed_config, str)
             and len(self.args.deepspeed_config) > 0
         ):
-            return
+            import json
+
+            try:
+                self.args.deepspeed_config = json.load(self.args.deepspeed_config)
+            except:
+                logger.warning(
+                    f"Failed to load deepspeed config from {self.args.deepspeed_config}, using default config instead."
+                )
         elif (
             isinstance(self.args.deepspeed_config, str)
             and len(self.args.deepspeed_config) == 0

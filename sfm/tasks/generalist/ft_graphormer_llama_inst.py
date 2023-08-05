@@ -91,26 +91,13 @@ def main(args) -> None:
     ]:
         deepspeed.init_distributed()
 
-    args.add_3d = False
-
-    logger.info(
-        {
-            "add-3d": args.add_3d,
-            "no-2d": args.no_2d,
-            "mfm_lora": args.mfm_lora,
-            "pool_mode": args.pool_mode,
-            "embedding_length": args.embedding_length,
-            "btn_adaptor": args.btn_adaptor,
-        }
-    )
-
     data_module = make_supervised_data_module(args, mode="train")
     logger.info("length of dataset", len(data_module["train_dataset"]))
 
     freeze_list = []
     unfreeze_list = ["adaptor", "dummy", "0.layers.22", "0.layers.23"]
 
-    if args.tensor_parallelism == 1:
+    if args.tensor_model_parallel_size == 1:
         trainer = Trainer(
             args,
             data_module["train_dataset"],
@@ -119,17 +106,11 @@ def main(args) -> None:
             unfreeze_list=unfreeze_list,
         )
     else:
-        trainer = Trainer3D(
-            args,
-            data_module["train_dataset"],
-            vocab_size=data_module["vocab_size"],
-            freeze_list=freeze_list,
-            unfreeze_list=unfreeze_list,
-        )
+        raise NotImplementedError
 
-    if args.pipeline_parallelism == 0:
+    if args.pipeline_model_parallel_size == 0:
         trainer.train()
-    elif args.tensor_parallelism == 1:
+    elif args.tensor_model_parallel_size == 1:
         trainer.train_pipeline()
     else:
         trainer.train_tensor_pipeline()

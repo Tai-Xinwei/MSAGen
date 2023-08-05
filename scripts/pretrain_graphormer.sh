@@ -44,8 +44,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_name}" ] && dataset_name="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${pipeline_parallelism}" ] && pipeline_parallelism=0
-[ -z "${strategy}" ] && strategy=Zero2
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
+[ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -95,7 +95,7 @@ echo "output_path: ${output_path}"
 echo "dataset_name: ${dataset_name}"
 echo "noise_scale: ${noise_scale}"
 echo "mask_ratio: ${mask_ratio}"
-echo "pipeline_parallelism: ${pipeline_parallelism}"
+echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 
 # export NCCL_ASYNC_ERROR_HADNLING=1
 # export NCCL_DEBUG=INFO
@@ -154,7 +154,6 @@ deepspeed --num_gpus=4 sfm/tasks/graphormer/pretrain_graphormer.py \
     --dataset_names $dataset_name \
     --data_path $data_path \
     --save_dir $save_dir \
-    --pipeline_parallelism $pipeline_parallelism \
     --seed 666666 \
     --add_3d --fp16 \
     --mask_ratio $mask_ratio \
@@ -169,7 +168,6 @@ deepspeed --num_gpus=4 sfm/tasks/graphormer/pretrain_graphormer.py \
     --gradient_accumulation_steps $gradient_accumulation_steps \
     --save_epoch_interval $save_epoch_interval --epochs $epochs \
     --save_batch_interval $save_batch_interval --log_interval $log_interval
-    # --deepspeed_config ./config_file/ds_config.json
 
 
 sleep inf

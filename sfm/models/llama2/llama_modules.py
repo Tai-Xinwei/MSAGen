@@ -246,20 +246,6 @@ class LlamaModelPP(LlamaPreTrainedModel):
             )
         )
         cls.pipe_layer.append(
-            # TiedPretrainedLayerSpec(
-            #     "embed_tokens",
-            #     # PretrainedLayerSpec(
-            #     LlamaEmbeddingsPP,
-            #     config,
-            #     new_num_tokens=new_num_tokens,
-            #     load_ckpt=load_ckpt,
-            #     pretrained_ckpt_path=os.path.join(
-            #         args.llm_model_name_or_path, "model.hybrid_emb.pt"
-            #     ),
-            #     lora_mode="freeze",
-            #     tied_weight_attr="emb_weight",
-            #     forward_fn=lm_logits,
-            # )
             PretrainedLayerSpec(
                 LlamaHead,
                 config,

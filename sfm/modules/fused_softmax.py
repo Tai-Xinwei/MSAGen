@@ -18,6 +18,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import torch
+
 from apex._autocast_utils import _cast_if_autocast_enabled
 from apex.transformer.enums import AttnMaskType
 

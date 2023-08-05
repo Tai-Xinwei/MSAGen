@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 from dataclasses import _MISSING_TYPE, fields
 from enum import Enum
 
-from sfm.logging import loggers
+from sfm.logging import logger
 
 
 def make_enum_praser(enum: Enum):
@@ -20,19 +20,32 @@ def make_enum_praser(enum: Enum):
     return parse_enum
 
 
-def add_dataclass_to_parser(configs, parser: ArgumentParser):
-    exist_configs = set()
+def argument_exists(parser, arg_name):
+    if arg_name.startswith("--"):
+        arg_name = arg_name[2:]
 
+    # args_name_2 = arg_name.replace("_", "-")
+    args_name_pre = "--" + arg_name
+    # args_name_2_pre = "--" + args_name_2
+
+    return (
+        arg_name in parser._option_string_actions
+        # or args_name_2 in parser._option_string_actions
+        or args_name_pre in parser._option_string_actions
+        # or args_name_2_pre in parser._option_string_actions
+    )
+
+
+def add_dataclass_to_parser(configs, parser: ArgumentParser):
     for config in configs:
         group = parser.add_argument_group(config.__name__)
         for field in fields(config):
             name = field.name.replace("-", "_")
 
-            if name in exist_configs:
-                loggers.warning(f"Duplicate config name: {name}, not added to parser")
+            # if name in exist_configs:
+            if argument_exists(parser, name):
+                logger.warning(f"Duplicate config name: {name}, not added to parser")
                 continue
-            else:
-                exist_configs.add(name)
 
             if field.default != _MISSING_TYPE:
                 default = field.default
@@ -59,3 +72,12 @@ def from_args(args, config):
         name = field.name.replace("-", "_")
         kwargs[name] = getattr(args, name)
     return config(**kwargs)
+
+
+class ExtraArgsProvider:
+    def __init__(self, configs):
+        self.configs = configs
+
+    def __call__(self, parser: ArgumentParser):
+        parsar = add_dataclass_to_parser(self.configs, parser)
+        return parsar

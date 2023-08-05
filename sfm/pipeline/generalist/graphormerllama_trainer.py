@@ -11,7 +11,7 @@ from deepspeed.runtime.utils import see_memory_usage
 
 import sfm.utils.mypp_engine as myPipeEngine
 from sfm.criterions.copilotloss import CopilotCriterions, CopilotCriterionsPP
-from sfm.logging import logger as sfm_logger
+from sfm.logging import logger
 from sfm.models.generalist.graphormer_llama import GraphormerLlamaModel
 from sfm.utils.get_paranum import count_paranum
 from sfm.utils.move_to_device import move_to_device
@@ -25,7 +25,7 @@ class Trainer:
         super().__init__()
         self.args = args
 
-        if args.pipeline_parallelism == 0:
+        if args.pipeline_model_parallel_size == 0:
             net = GraphormerLlamaModel(args, vocab_size)
             count_paranum(net)
             optimizer = myAdam(
@@ -58,11 +58,11 @@ class Trainer:
                 training_data=train_data,
                 collate_fn=train_data.collater,
             )
-        elif args.tensor_parallelism == 1:
+        elif args.tensor_model_parallel_size == 1:
             net = GraphormerLlamaModel(args, vocab_size)
             net = PipelineModule(
                 layers=net.to_layers(),
-                num_stages=args.pipeline_parallelism,
+                num_stages=args.pipeline_model_parallel_size,
                 loss_fn=CopilotCriterionsPP(args, vocab_size),
                 partition_method="manual",
                 # part_list=[0, 4, 9, 14, 19, 23, 27, 32, 37],
@@ -107,14 +107,14 @@ class Trainer:
         if os.path.isdir(resume_path) and os.paht.exists(
             os.path.join(resume_path, "latest")
         ):
-            sfm_logger.info("resume from %s" % resume_path)
+            logger.info("resume from %s" % resume_path)
             if ckpt_id is None:
                 self.model_engine.load_checkpoint(resume_path)
             else:
                 self.model_engine.load_checkpoint(resume_path, tag=ckpt_id)
 
     def train(self):
-        sfm_logger.info("start training")
+        logger.info("start training")
         global_step = 1
         for epoch in range(self.args.epochs):
             for i, batch_data in enumerate(self.train_loader):
@@ -138,7 +138,7 @@ class Trainer:
                 global_step += 1
 
     def train_pipeline(self):
-        sfm_logger.info("start pipeline training")
+        logger.info("start pipeline training")
 
         for global_step in range(1, self.args.total_num_steps + 1):
             self.model_engine.train_batch()

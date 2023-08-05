@@ -49,8 +49,8 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${add_3d}" ] && add_3d=false
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=4
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
 [ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -101,7 +101,8 @@ echo "output_path: ${output_path}"
 echo "dataset_name: ${dataset_name}"
 echo "noise_scale: ${noise_scale}"
 echo "mask_ratio: ${mask_ratio}"
-echo "pipeline_parallelism: ${pipeline_parallelism}"
+echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
+echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 echo "embedding_length: ${embedding_length}"
 echo "pool_mode: ${pool_mode}"
 
@@ -115,6 +116,40 @@ echo "pool_mode: ${pool_mode}"
 # export OMP_NUM_THREADS=1
 
 wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
+
+deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalist/ft_graphormer_llama_inst.py \
+          --num_classes 1 \
+          --encoder_attention_heads $num_head \
+          --encoder_layers $layers \
+          --encoder_ffn_embed_dim $ffn_size \
+          --encoder_embed_dim $hidden_size \
+          --droppath_prob $droppath_prob \
+          --attn_dropout $attn_dropout \
+          --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
+          --sandwich_ln \
+          --data_path $data_path \
+          --pipeline_model_parallel_size $pipeline_model_parallel_size \
+          --tensor_model_parallel_size $tensor_model_parallel_size \
+          --seed 666667 \
+          --ft \
+          --d_tilde $d_tilde \
+          --num_pred_attn_layer $num_pred_attn_layer \
+          --max_lr $max_lr \
+          --save_dir $save_dir \
+          --total_num_steps $total_num_steps \
+          --warmup_num_steps $warmup_num_steps \
+          --loadcheck_path $loadcheck_path \
+          --llm_model_name_or_path $llm_model_name_or_path \
+          --loadmfmcheck_path $loadmfmcheck_path \
+          --dataset_names $dataset_names \
+          --dataset_splits $dataset_splits \
+          --dataset_ratios $dataset_ratios \
+          --pool_mode $pool_mode \
+          --strategy $strategy \
+          --embedding_length $embedding_length \
+          --model_max_length $model_max_length \
+          --deepspeed_config ./config_file/ds_config_ft.json \
+
 
 # if [ $OMPI_COMM_WORLD_RANK == 0 ]; then
 #   sleep 600
@@ -150,6 +185,8 @@ wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
 #     --dataset_splits $dataset_splits
 # fi
 
+<<<<<<< HEAD
+=======
 deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalist/ft_graphormer_llama_inst.py \
   --num_classes 1 \
   --encoder_attention_heads $num_head \
@@ -183,6 +220,7 @@ deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalist/ft_graphor
   --model_max_length $model_max_length \
   --deepspeed_config ./config_file/ds_config_ft.json \
 
+>>>>>>> 97172273f369f0d45566ff0acf9aefa611645eb1
 sleep inf
 sleep inf
 sleep inf

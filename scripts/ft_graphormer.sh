@@ -42,7 +42,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_names}" ] && dataset_names="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${pipeline_parallelism}" ] && pipeline_parallelism=0
 [ -z "${strategy}" ] && strategy=Zero3
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -93,7 +92,6 @@ echo "save_dir: ${save_dir}"
 echo "dataset_name: ${dataset_name}"
 echo "noise_scale: ${noise_scale}"
 echo "mask_ratio: ${mask_ratio}"
-echo "pipeline_parallelism: ${pipeline_parallelism}"
 
 
 
@@ -149,7 +147,6 @@ deepspeed --num_gpu=4 sfm/tasks/graphormer/ft_graphormer.py \
           --dataset_names $dataset_names \
           --data_path $data_path \
           --save_dir $save_dir \
-          --pipeline_parallelism $pipeline_parallelism \
           --seed 666667 \
           --add_3d --ft --fp16 --ifresume \
           --d_tilde $d_tilde \
@@ -163,7 +160,6 @@ deepspeed --num_gpu=4 sfm/tasks/graphormer/ft_graphormer.py \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --epochs $epochs \
           --log_interval $log_interval
-        #   --deepspeed_config ./config_file/ds_config.json
 
 
 sleep inf

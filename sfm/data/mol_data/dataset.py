@@ -213,7 +213,7 @@ class BatchedDataDataset(torch.utils.data.Dataset):
             return self.collater(samples)
 
     def collater(self, samples):
-        if self.args is not None and self.args.pipeline_parallelism > 0:
+        if self.args is not None and self.args.pipeline_model_parallel_size > 0:
             collator_fn = collator_3d_pp
         else:
             collator_fn = collator if (self.dataset_version == "2D") else collator_3d

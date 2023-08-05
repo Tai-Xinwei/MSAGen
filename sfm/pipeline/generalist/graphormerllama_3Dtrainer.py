@@ -1,32 +1,87 @@
 # -*- coding: utf-8 -*-
 import math
 import os
+from argparse import ArgumentParser
+from typing import Dict
 
 import deepspeed
 import psutil
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from deepspeed.runtime.pipe.topology import PipeModelDataParallelTopology
 from deepspeed.runtime.utils import see_memory_usage
+from transformers import AutoTokenizer
 
 import sfm.utils.mypp_engine as myPipeEngine
-from sfm.criterions.copilotloss import CopilotCriterions, CopilotCriterionsPP
-from sfm.logging import logger as sfm_logger
+from megatron import get_args
+from megatron.core import mpu
+from megatron.initialize import initialize_megatron
+from sfm.criterions.copilotloss import CopilotCriterionsPP
+from sfm.data.mol_data.moltext_dataset import SupervisedProcessedDataWithSmiles
+from sfm.logging import logger
+from sfm.models.generalist.generalist_config import GeneralistConfig
 from sfm.models.generalist.graphormer_llama import GraphormerLlamaModel
+from sfm.models.graphormer.graphormer_config import GraphormerConfig
+from sfm.pipeline.accelerator.dataclasses import TrainerConfig
+from sfm.utils.arg_utils import ExtraArgsProvider
+from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
 from sfm.utils.get_paranum import count_paranum
-from sfm.utils.move_to_device import move_to_device
 from sfm.utils.mypp_module import PipelineModule
 from sfm.utils.optimizer import myAdam
 from sfm.utils.set_lr import groupWarmupDecayLR
 
 
 class Trainer3D:
-    def __init__(self, args, train_data, vocab_size, freeze_list=[], unfreeze_list=[]):
+    def __init__(self, freeze_list=[], unfreeze_list=[]):
         super().__init__()
+        see_memory_usage("Before Building Model", force=True)
+
+        # Initialization.
+        extra_args_provider = ExtraArgsProvider(
+            [TrainerConfig, GraphormerConfig, GeneralistConfig]
+        )
+        initialize_megatron(extra_args_provider)
+        args = get_args()
         self.args = args
+        logger.info("Trainer args: {}", args)
+
+        logger.info(
+            {
+                "add-3d": args.add_3d,
+                "no-2d": args.no_2d,
+                "mfm_lora": args.mfm_lora,
+                "pool_mode": args.pool_mode,
+                "embedding_length": args.embedding_length,
+                "btn_adaptor": args.btn_adaptor,
+            }
+        )
+
+        # Data stuff
+        data_module = make_supervised_data_module(args, mode="train")
+        train_data = data_module["train_dataset"]
+        vocab_size = data_module["vocab_size"]
+        logger.info("length of dataset", len(data_module["train_dataset"]))
+
+        # Model, optimizer, and learning rate.
         net = GraphormerLlamaModel(args, vocab_size)
+        topo = PipeModelDataParallelTopology(
+            num_pp=mpu.get_pipeline_model_parallel_world_size(),
+            num_mp=mpu.get_tensor_model_parallel_world_size(),
+            num_dp=mpu.get_data_parallel_world_size(),
+        )
+        net = PipelineModule(
+            layers=net.to_layers(),
+            topology=topo,
+            loss_fn=CopilotCriterionsPP(args, vocab_size),
+            # partition_method="manual",
+            # part_list=[0, 4, 9, 14, 19, 23, 27, 32, 37],
+            # part_list=[0, 5, 7, 10, 12, 14, 16, 18, 20, 22, 24, 27, 30, 32, 34, 37, 40, 42, 45, 48, 51, 54, 57, 60, 63, 66, 69, 70, 73, 76, 79, 81, 85],
+            # part_list=[0, 9, 19, 27, 37],
+            device=args.local_rank,
+        )
         count_paranum(net)
-        optimizer = myAdam(
+        optimizer, param_groups = myAdam(
             net,
             freeze_list=freeze_list,
             unfreeze_list=unfreeze_list,
@@ -35,7 +90,7 @@ class Trainer3D:
             weight_decay=0.0,
             eps=1e-8,
         )
-        groupWarmupDecayLR(
+        scheduler = groupWarmupDecayLR(
             optimizer,
             total_num_steps=args.total_num_steps,
             warmup_max_lr=args.max_lr,
@@ -43,42 +98,90 @@ class Trainer3D:
         )
         see_memory_usage("Model built", force=True)
 
+        self.model_engine, _, _, _ = myPipeEngine.initialize(
+            args=args,
+            model=net,
+            optimizer=optimizer,
+            lr_scheduler=scheduler,
+            model_parameters=param_groups,  # [p for p in net.parameters() if p.requires_grad],
+            training_data=train_data,
+            collate_fn=train_data.collater,
+        )
+
     def resume(self, resume_path, ckpt_id=None):
         if os.path.isdir(resume_path) and os.paht.exists(
             os.path.join(resume_path, "latest")
         ):
-            sfm_logger.info("resume from %s" % resume_path)
+            logger.info("resume from %s" % resume_path)
             if ckpt_id is None:
                 self.model_engine.load_checkpoint(resume_path)
             else:
                 self.model_engine.load_checkpoint(resume_path, tag=ckpt_id)
 
     def train_tensor_pipeline(self):
-        sfm_logger.info("start training")
-        global_step = 1
-        for epoch in range(self.args.epochs):
-            for i, batch_data in enumerate(self.train_loader):
-                batch_data = move_to_device(
-                    batch_data, device=self.args.local_rank, non_blocking=True
-                )
+        logger.info("start 3D parallelism training")
 
-                logits = self.model_engine(batch_data)
+        for global_step in range(1, self.args.total_num_steps + 1):
+            self.model_engine.train_batch()
+            if global_step % 1000 == 0:
+                self.save_ckp(global_step)
 
-                loss = self.LlmLoss(logits, batch_data["labels"])
-
-                self.model_engine.backward(loss)
-                self.model_engine.step()
-
-                if global_step % 10000 == 0:
-                    self.save_ckp(global_step)
-
-                del loss
-                torch.cuda.empty_cache()
-
-                global_step += 1
+            torch.cuda.empty_cache()
 
     def save_ckp(self, global_step):
         self.model_engine.save_checkpoint(
             save_dir=self.args.save_dir,
             client_state={"checkpoint_step": global_step},
         )
+
+
+IGNORE_INDEX = -100
+DEFAULT_PAD_TOKEN = "[PAD]"
+DEFAULT_EOS_TOKEN = "</s>"
+DEFAULT_BOS_TOKEN = "<s>"
+DEFAULT_UNK_TOKEN = "<unk>"
+
+
+def make_supervised_data_module(args, mode="train") -> Dict:
+    assert mode in [
+        "train",
+        "eval",
+        "test",
+    ], f"Invalid mode: {mode}, must be train, eval, or test."
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        args.llm_model_name_or_path,
+        model_max_length=args.model_max_length,
+        padding_side="right",
+        use_fast=False,
+    )
+
+    special_tokens_dict = dict()
+    if tokenizer.pad_token is None:
+        special_tokens_dict["pad_token"] = DEFAULT_PAD_TOKEN
+    if tokenizer.eos_token is None:
+        special_tokens_dict["eos_token"] = DEFAULT_EOS_TOKEN
+    if tokenizer.bos_token is None:
+        special_tokens_dict["bos_token"] = DEFAULT_BOS_TOKEN
+    if tokenizer.unk_token is None:
+        special_tokens_dict["unk_token"] = DEFAULT_UNK_TOKEN
+
+    # special_tokens_dict["additional_special_tokens"] = CHEMICAL_TOKENS
+    tokenizer.add_special_tokens(special_tokens_dict)
+
+    """ Make dataset and collator for supervised fine-tuning. """
+    dataset = SupervisedProcessedDataWithSmiles(
+        data_path=args.data_path,
+        dataset_names=args.dataset_names,
+        dataset_splits=args.dataset_splits,
+        in_memory=False,
+        model_max_length=args.model_max_length,
+        mol_embed_type="atoms",
+        molecule_max_size=512,
+        pad_token_id=tokenizer.pad_token_id,
+        # dataset_ratios=args.dataset_ratios,
+        pool_mode=args.pool_mode,
+        embedding_length=args.embedding_length,
+    )
+
+    return dict(train_dataset=dataset, eval_dataset=None, vocab_size=len(tokenizer))

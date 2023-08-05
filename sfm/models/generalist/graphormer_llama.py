@@ -17,7 +17,8 @@ from sfm.logging.loggers import logger
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.models.graphormer.modules import GraphormerSentenceEncoder
 from sfm.models.llama2.llama_modules import LlamaEmbeddingsPP, LlamaModelPP
-from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec
+from sfm.models.llama2.llama_modules_3dmp import LlamaEmbeddingsMP, LlamaModelMP
+from sfm.utils import PretrainedLayerSpec
 
 from .modules.graphormer_encoder import GraphormerSentenceEncoderPP
 from .modules.hybrid_emb import AdaptorConfig, HybridEmbeddings, HybridEmbeddingsPP
@@ -46,11 +47,11 @@ class GraphormerLlamaModel(torch.nn.Module):
         adaptor_config = self.init_adaptor_config(args, llama_config)
 
         self.pipe_layers = []
-        if args.pipeline_parallelism == 0:
+        if args.pipeline_model_parallel_size == 0:
             self.graphormer_encoder = GraphormerSentenceEncoder(graphormer_config)
             self.decoder = LlamaForCausalLM(llama_config)
             self.adaptor = HybridEmbeddings(adaptor_config)
-        else:
+        elif args.tensor_model_parallel_size == 1:
             load_ckpt = not args.infer
             self.pipe_layers.extend(
                 [
@@ -66,18 +67,6 @@ class GraphormerLlamaModel(torch.nn.Module):
 
             self.pipe_layers.extend(
                 [
-                    # TiedPretrainedLayerSpec(
-                    #     "embed_tokens",
-                    #     LlamaEmbeddingsPP,
-                    #     Llama_config,
-                    #     new_num_tokens=vocab_size,
-                    #     load_ckpt=load_ckpt,
-                    #     pretrained_ckpt_path=os.path.join(
-                    #         args.llm_model_name_or_path, "model.hybrid_emb.pt"
-                    #     ),
-                    #     lora_mode="full",
-                    #     tied_weight_attr="emb_weight",
-                    # )
                     PretrainedLayerSpec(
                         LlamaEmbeddingsPP,
                         llama_config,
@@ -104,6 +93,54 @@ class GraphormerLlamaModel(torch.nn.Module):
 
             self.pipe_layers.extend(
                 LlamaModelPP.to_layers(
+                    args,
+                    llama_config,
+                    load_ckpt=load_ckpt,
+                    new_num_tokens=vocab_size,
+                )
+            )
+        else:
+            load_ckpt = False  # not args.infer
+            self.pipe_layers.extend(
+                [
+                    PretrainedLayerSpec(
+                        GraphormerSentenceEncoderPP,
+                        graphormer_config,
+                        load_ckpt=load_ckpt,
+                        pretrained_ckpt_path=args.loadmfmcheck_path,
+                        lora_mode="freeze",
+                    )
+                ]
+            )
+
+            self.pipe_layers.extend(
+                [
+                    PretrainedLayerSpec(
+                        LlamaEmbeddingsMP,
+                        llama_config,
+                        new_num_tokens=vocab_size,
+                        load_ckpt=load_ckpt,
+                        pretrained_ckpt_path=os.path.join(
+                            args.llm_model_name_or_path, "model.hybrid_emb.pt"
+                        ),
+                        lora_mode="full",
+                    )
+                ]
+            )
+
+            self.pipe_layers.extend(
+                [
+                    PretrainedLayerSpec(
+                        HybridEmbeddingsPP,
+                        adaptor_config,
+                        new_num_tokens=vocab_size,
+                        load_ckpt=load_ckpt,
+                    )
+                ]
+            )
+
+            self.pipe_layers.extend(
+                LlamaModelMP.to_layers(
                     args,
                     llama_config,
                     load_ckpt=load_ckpt,

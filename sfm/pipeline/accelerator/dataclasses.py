@@ -22,8 +22,8 @@ class DistributedConfig:
     world_size: int = 1
     node_rank: int = 0
     rank: int = 0
-    pipeline_parallelism: int = 0
-    tensor_parallelism: int = 1
+    pipeline_model_parallel_size: int = 0
+    tensor_model_parallel_size: int = 1
     deepspeed_config: str = ""
     dist_backend: str = "nccl"
 
@@ -80,8 +80,8 @@ class DistributedTrainConfig(TrainerConfig):
     world_size: int = 1
     node_rank: int = 0
     rank: int = 0
-    pipeline_parallelism: int = 0
-    tensor_parallelism: int = 1
+    pipeline_model_parallel_size: int = 0
+    tensor_model_parallel_size: int = 1
     deepspeed_config: str = ""
     dist_backend: str = "nccl"
 

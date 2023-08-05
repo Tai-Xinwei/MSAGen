@@ -4,8 +4,6 @@ import os
 from typing import List, Optional, Tuple, Union
 
 import torch
-from megatron.core import parallel_state, tensor_parallel
-from megatron.model.module import MegatronModule
 from torch import nn
 from torch.nn import functional as F
 from transformers import (
@@ -23,9 +21,11 @@ from transformers.models.llama.modeling_llama import (
     LlamaRMSNorm,
 )
 
-from sfm.megatron.model.enums import AttnMaskType, AttnType, LayerType
-from sfm.megatron.model.language_model import Embedding
-from sfm.megatron.model.transformer import (
+from megatron.core import parallel_state, tensor_parallel
+from megatron.model.enums import AttnMaskType, AttnType, LayerType
+from megatron.model.language_model import Embedding
+from megatron.model.module import MegatronModule
+from megatron.model.transformer import (
     ParallelAttention,
     ParallelMLP,
     ParallelTransformerLayer,
@@ -171,12 +171,8 @@ class LlamaDecoderLayerMP(MegatronModule):
         hidden_states, attention_mask_bool, position_ids = input_tuple
         # size of hidden_states: (seq_len, batch_size, hidden_size)
 
-        attention_mask = torch.zeros_like(
-            attention_mask_bool, dtype=hidden_states.dtype, device=hidden_states.device
-        )
-        attention_mask.masked_fill_(
-            ~attention_mask_bool, torch.finfo(hidden_states.dtype).min
-        )
+        # convert mask from bool to int
+        attention_mask = attention_mask_bool.to(torch.int)
 
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
@@ -184,7 +180,7 @@ class LlamaDecoderLayerMP(MegatronModule):
         hidden_states, _, _ = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
-            position_ids=position_ids,
+            rotary_pos_emb=position_ids,
         )
         hidden_states = residual + hidden_states
 
@@ -193,8 +189,8 @@ class LlamaDecoderLayerMP(MegatronModule):
         hidden_states = self.post_attention_layernorm(hidden_states)
         hidden_states = self.mlp(hidden_states)
         hidden_states = residual + hidden_states
-        outputs = (hidden_states, attention_mask_bool, position_ids)
 
+        outputs = (hidden_states, attention_mask_bool, position_ids)
         return outputs
 
 
@@ -202,11 +198,10 @@ class LlamaNorm(nn.Module):
     def __init__(self, config: LlamaConfig):
         super().__init__()
         self.config = config
-        self.dummy = nn.Linear(1, 1)
-        self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.norm = MixedFusedRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
     def forward(self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]):
-        hidden_states, attention_mask, position_ids = input_tuple
+        hidden_states, _, _ = input_tuple
 
         hidden_states = self.norm(hidden_states)
 
@@ -283,17 +278,20 @@ class LlamaHeadMP(MegatronModule):
 
     def forward(self, inputs):
         assert torch.is_tensor(inputs) or isinstance(inputs, tuple)
+        #  demension of hidden_states [seq_len, batch_size, hidden_size]
+
         if isinstance(inputs, tuple):
             hidden_states = inputs[0]
         else:
             hidden_states = inputs
 
-        lm_logits, _ = self.lm_head(hidden_states)
+        # export demension of lm_logits [batch_size, seq_len, hidden_size]
+        lm_logits, _ = self.lm_head(hidden_states).transpose(0, 1)
 
         return lm_logits
 
 
-class LlamaModelTP(LlamaPreTrainedModel):
+class LlamaModelMP(LlamaPreTrainedModel):
     def __init__(self, args, config: LlamaConfig):
         super().__init__(config)
         self.dummy = nn.Parameter(
