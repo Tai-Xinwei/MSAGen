@@ -58,7 +58,7 @@ class Trainer:
                 training_data=train_data,
                 collate_fn=train_data.collater,
             )
-        else:
+        elif args.tensor_parallelism == 1:
             net = GraphormerLlamaModel(args, vocab_size)
             net = PipelineModule(
                 layers=net.to_layers(),
@@ -100,6 +100,8 @@ class Trainer:
 
             if args.infer:
                 self.resume(args.resume_path)
+        else:
+            raise NotImplementedError
 
     def resume(self, resume_path, ckpt_id=None):
         if os.path.isdir(resume_path) and os.paht.exists(

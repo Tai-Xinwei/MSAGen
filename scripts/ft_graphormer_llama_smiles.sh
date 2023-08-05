@@ -49,8 +49,9 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${add_3d}" ] && add_3d=false
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${pipeline_parallelism}" ] && pipeline_parallelism=4
-[ -z "${strategy}" ] && strategy=Zero3
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=4
+[ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -160,7 +161,8 @@ deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalist/ft_graphor
   --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
   --sandwich_ln \
   --data_path $data_path \
-  --pipeline_parallelism $pipeline_parallelism \
+  --pipeline_model_parallel_size $pipeline_model_parallel_size \
+  --tensor_model_parallel_size $tensor_model_parallel_size \
   --seed 666667 \
   --ft \
   --d_tilde $d_tilde \

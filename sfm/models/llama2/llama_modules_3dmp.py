@@ -4,6 +4,8 @@ import os
 from typing import List, Optional, Tuple, Union
 
 import torch
+from megatron.core import parallel_state, tensor_parallel
+from megatron.model.module import MegatronModule
 from torch import nn
 from torch.nn import functional as F
 from transformers import (
@@ -21,7 +23,19 @@ from transformers.models.llama.modeling_llama import (
     LlamaRMSNorm,
 )
 
+from sfm.megatron.model.enums import AttnMaskType, AttnType, LayerType
+from sfm.megatron.model.language_model import Embedding
+from sfm.megatron.model.transformer import (
+    ParallelAttention,
+    ParallelMLP,
+    ParallelTransformerLayer,
+)
 from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec
+
+try:
+    from apex.normalization import MixedFusedRMSNorm
+except:
+    raise ImportError("Please install apex from install/install.sh")
 
 
 class LlamaMLPAdapter(nn.Module):
@@ -46,12 +60,90 @@ class LlamaMLPAdapter(nn.Module):
         )
 
 
-class LlamaDecoderLayerPP(LlamaDecoderLayer):
-    def __init__(self, config: LlamaConfig, l: int):
-        super().__init__(config)
+class ParallelLlamaMLP(MegatronModule):
+    def __init__(
+        self, config: LlamaConfig, enable_expert_tensor_parallelism=False, moe=False
+    ):
+        super().__init__()
         self.config = config
-        self.l = l
-        self.dummy = nn.Linear(1, 1)
+        self.hidden_act = config.hidden_act
+
+        # gated parallel mlp
+        self.gate_proj = tensor_parallel.ColumnParallelLinear(
+            config.hidden_size,
+            config.intermediate_size,
+            config=config,
+            init_method=config.init_method,
+            bias=False,
+            gather_output=False,
+            skip_bias_add=True,
+            moe=moe,
+            enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
+        )
+
+        self.down_proj = self.dense_4h_to_h = tensor_parallel.RowParallelLinear(
+            config.intermediate_size,
+            config.hidden_size,
+            config=config,
+            init_method=config.output_layer_init_method,
+            bias=False,
+            input_is_parallel=True,
+            moe=moe,
+            enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
+        )
+
+        self.up_proj = tensor_parallel.ColumnParallelLinear(
+            config.hidden_size,
+            config.intermediate_size,
+            config=config,
+            init_method=config.init_method,
+            bias=False,
+            gather_output=False,
+            skip_bias_add=True,
+            moe=moe,
+            enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
+        )
+
+        self.act_fn = ACT2FN[self.hidden_act]
+
+    def forward(self, x):
+        gated_x, _ = self.gate_proj(x)
+        up_x, _ = self.up_proj(x)
+
+        intermidiate_x = self.act_fn(gated_x) * up_x
+
+        x = self.down_proj(intermidiate_x)
+
+        return x
+
+
+class LlamaDecoderLayerMP(MegatronModule):
+    def __init__(
+        self,
+        config,
+        layer_number,
+        layer_type=LayerType.encoder,
+        self_attn_mask_type=AttnMaskType.padding,
+        drop_path_rate=0.0,
+        num_experts=1,
+    ):
+        super(LlamaDecoderLayerMP, self).__init__()
+        # self.bf16 = config.bf16
+        # self.fp32_residual_connection = config.fp32_residual_connection
+        self.input_layernorm = MixedFusedRMSNorm(
+            config.hidden_size, config.rms_norm_eps
+        )
+        self.self_attention = ParallelAttention(
+            config,
+            layer_number,
+            attention_type=AttnType.self_attn,
+            attn_mask_type=self_attn_mask_type,
+        )
+
+        self.post_attention_layernorm = MixedFusedRMSNorm(
+            config.hidden_size, config.rms_norm_eps
+        )
+        self.mlp = ParallelLlamaMLP(config)
 
     def forward(
         self,
@@ -77,6 +169,7 @@ class LlamaDecoderLayerPP(LlamaDecoderLayer):
             past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
         """
         hidden_states, attention_mask_bool, position_ids = input_tuple
+        # size of hidden_states: (seq_len, batch_size, hidden_size)
 
         attention_mask = torch.zeros_like(
             attention_mask_bool, dtype=hidden_states.dtype, device=hidden_states.device
@@ -85,12 +178,21 @@ class LlamaDecoderLayerPP(LlamaDecoderLayer):
             ~attention_mask_bool, torch.finfo(hidden_states.dtype).min
         )
 
-        hidden_states = super().forward(
+        residual = hidden_states
+        hidden_states = self.input_layernorm(hidden_states)
+
+        hidden_states, _, _ = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
-        )[0]
+        )
+        hidden_states = residual + hidden_states
 
+        # Fully Connected
+        residual = hidden_states
+        hidden_states = self.post_attention_layernorm(hidden_states)
+        hidden_states = self.mlp(hidden_states)
+        hidden_states = residual + hidden_states
         outputs = (hidden_states, attention_mask_bool, position_ids)
 
         return outputs
@@ -111,32 +213,29 @@ class LlamaNorm(nn.Module):
         return (hidden_states,)
 
 
-def lm_logits(embedding, input_tuple):
+def lm_logits_fn(embedding, input_tuple):
     """LM logits using word embedding weights."""
     input_ = input_tuple[0]
     logits = F.linear(input_, embedding.emb_weight)
     return logits
 
 
-class LlamaEmbeddingsPP(nn.Module):
+class LlamaEmbeddingsMP(Embedding):
     def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
-        super().__init__()
-        self.embed_tokens = torch.nn.Embedding(
-            config.vocab_size, config.hidden_size, config.pad_token_id
+        super(self, LlamaEmbeddingsMP).__init__(
+            config.hidden_size,
+            config.vocab_size,
+            max_sequence_length=config.max_position_embeddings,
+            embedding_dropout_prob=0.0,
+            config=config,
         )
+
         self.learnable_cutoff = learnable_cutoff
-        self.embed_tokens.weight.register_hook(self.freeze_parital_weight_hook)
-
-        # self.weight = self.embed_tokens.weight.data.requires_grad_().cuda()
-        # self.weight.grad = torch.zeros_like(self.weight)
-
-        # self.partial_learnable_emb = PartialGradEmbedding(
-        #     self.embed_tokens, new_embedding_cutoff=32000
-        # )
+        self.word_embeddings.weight.register_hook(self.freeze_parital_weight_hook)
 
     @property
     def emb_weight(self):
-        return self.embed_tokens.weight
+        return self.word_embeddings.weight
 
     def freeze_parital_weight_hook(self, grad):
         grad[: self.learnable_cutoff, :] = 0
@@ -148,29 +247,31 @@ class LlamaEmbeddingsPP(nn.Module):
         mol_emb, mol_padding_mask, llm_mask, input_ids = input_tuple
 
         # Get text embeddings from language model
-        mol_idx_mask = input_ids < 0  # B, T
-
-        ## all freeze
-        # with torch.no_grad():
-        text_embeds = self.embed_tokens(
-            input_ids.masked_fill(mol_idx_mask, 0)
-        )  # B, T, hidden_size
+        ## set position_ids, it's not used.
+        position_ids = torch.zeros_like(
+            input_ids, device=input_ids.device, dtype=torch.long
+        )
+        # export demension of text embeddings [seq_len, batch_size, hidden_size]
+        text_embeds = super().forward(input_ids, position_ids)
+        # transpose to [batch_size, seq_len, hidden_size] for hybrid embedding
+        # text_embeds = text_embeds.transpose(0, 1)
 
         return mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids
 
 
-class LlamaHead(nn.Module):
+class LlamaHeadMP(MegatronModule):
     def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
         super().__init__()
         self.config = config
 
         self.vocab_size = config.vocab_size
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-        self.learnable_cutoff = learnable_cutoff
-        # self.lm_head.weight.register_hook(self.freeze_parital_weight_hook)
-
-        # self.weight = self.lm_head.weight.data.requires_grad_().cuda()
-        # self.weight.grad = torch.zeros_like(self.weight)
+        self.lm_head = tensor_parallel.ColumnParallelLinear(
+            input_size=config.hidden_size,
+            output_size=config.vocab_size,
+            bias=False,
+            config=config,
+            init_method=config.init_method,
+        )
 
     @property
     def emb_weight(self):
@@ -180,36 +281,19 @@ class LlamaHead(nn.Module):
         grad[: self.learnable_cutoff, :] = 0
         return grad
 
-    def resize_token_embeddings(self, new_num_tokens: int) -> None:
-        if new_num_tokens == self.config.vocab_size:
-            return
-        elif new_num_tokens > self.config.vocab_size:
-            old_head = self.lm_head.weight
-            new_head = nn.Linear(
-                self.config.hidden_size,
-                new_num_tokens,
-                bias=False,
-                dtype=old_head.dtype,
-                device=old_head.device,
-            )
-
-            new_head.weight.data[: old_head.size(0), :] = old_head.data
-            self.lm_head = new_head
-
+    def forward(self, inputs):
+        assert torch.is_tensor(inputs) or isinstance(inputs, tuple)
+        if isinstance(inputs, tuple):
+            hidden_states = inputs[0]
         else:
-            raise ValueError(
-                f"new embedding size {new_num_tokens} must be larger than the current one {self.config.vocab_size}"
-            )
+            hidden_states = inputs
 
-    def forward(self, input_tuple: Tuple[torch.Tensor]):
-        hidden_states = input_tuple[0]
-
-        lm_logits = self.lm_head(hidden_states)
+        lm_logits, _ = self.lm_head(hidden_states)
 
         return lm_logits
 
 
-class LlamaModelPP(LlamaPreTrainedModel):
+class LlamaModelTP(LlamaPreTrainedModel):
     def __init__(self, args, config: LlamaConfig):
         super().__init__(config)
         self.dummy = nn.Parameter(
@@ -224,7 +308,7 @@ class LlamaModelPP(LlamaPreTrainedModel):
         for i in range(config.num_hidden_layers):
             cls.pipe_layer.append(
                 PretrainedLayerSpec(
-                    LlamaDecoderLayerPP,
+                    LlamaDecoderLayerMP,
                     config,
                     i,
                     load_ckpt=load_ckpt,
@@ -246,22 +330,8 @@ class LlamaModelPP(LlamaPreTrainedModel):
             )
         )
         cls.pipe_layer.append(
-            # TiedPretrainedLayerSpec(
-            #     "embed_tokens",
-            #     # PretrainedLayerSpec(
-            #     LlamaEmbeddingsPP,
-            #     config,
-            #     new_num_tokens=new_num_tokens,
-            #     load_ckpt=load_ckpt,
-            #     pretrained_ckpt_path=os.path.join(
-            #         args.llm_model_name_or_path, "model.hybrid_emb.pt"
-            #     ),
-            #     lora_mode="freeze",
-            #     tied_weight_attr="emb_weight",
-            #     forward_fn=lm_logits,
-            # )
             PretrainedLayerSpec(
-                LlamaHead,
+                LlamaHeadMP,
                 config,
                 new_num_tokens=new_num_tokens,
                 load_ckpt=load_ckpt,
@@ -275,7 +345,7 @@ class LlamaModelPP(LlamaPreTrainedModel):
         return cls.pipe_layer
 
 
-class LlamaForCausalLMPP(LlamaForCausalLM):
+class LlamaForCausalLMTP(LlamaForCausalLM):
     def __init__(self, args, config: LlamaConfig):
         super().__init__(config)
         self.dummy = nn.Parameter(

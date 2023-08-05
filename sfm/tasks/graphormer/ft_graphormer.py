@@ -136,17 +136,6 @@ def main(args):
     )
     trainer.train()
 
-    # if args.pipeline_parallelism == 0:
-    #     fter_pp = Finetuner(
-    #         args,
-    #         train_data,
-    #         val_data=val_data,
-    #         test_data=test_data,
-    #         data_mean=data_mean,
-    #         data_std=data_std,
-    #     )
-    #     fter_pp(iftrain=True)
-
 
 if __name__ == "__main__":
     main()

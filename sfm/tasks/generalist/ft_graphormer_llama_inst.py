@@ -22,6 +22,7 @@ from sfm.pipeline.accelerator.dataclasses import (
     TrainerConfig,
     TrainStrategy,
 )
+from sfm.pipeline.generalist.graphormerllama_3Dtrainer import Trainer3D
 from sfm.pipeline.generalist.graphormerllama_trainer import Trainer
 from sfm.utils import arg_utils
 from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
@@ -109,18 +110,29 @@ def main(args) -> None:
     freeze_list = []
     unfreeze_list = ["adaptor", "dummy", "0.layers.22", "0.layers.23"]
 
-    trainer = Trainer(
-        args,
-        data_module["train_dataset"],
-        vocab_size=data_module["vocab_size"],
-        freeze_list=freeze_list,
-        unfreeze_list=unfreeze_list,
-    )
+    if args.tensor_parallelism == 1:
+        trainer = Trainer(
+            args,
+            data_module["train_dataset"],
+            vocab_size=data_module["vocab_size"],
+            freeze_list=freeze_list,
+            unfreeze_list=unfreeze_list,
+        )
+    else:
+        trainer = Trainer3D(
+            args,
+            data_module["train_dataset"],
+            vocab_size=data_module["vocab_size"],
+            freeze_list=freeze_list,
+            unfreeze_list=unfreeze_list,
+        )
 
     if args.pipeline_parallelism == 0:
         trainer.train()
-    else:
+    elif args.tensor_parallelism == 1:
         trainer.train_pipeline()
+    else:
+        trainer.train_tensor_pipeline()
 
 
 if __name__ == "__main__":

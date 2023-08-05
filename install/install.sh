@@ -4,7 +4,7 @@
 
 echo "pip install start"
 # # # python=3.9, cuda 11.7
-
+pip install pip --upgrade
 pip install deepspeed==0.10.0
 pip install ogb==1.3.6
 pip install rdkit-pypi==2021.9.3
@@ -36,3 +36,7 @@ pip install sentencepiece
 
 # For tamgent
 pip install sacremoses
+
+# For
+cd apex
+pip install -v --disable-pip-version-check --no-cache-dir --no-build-isolation --config-settings "--build-option=--cpp_ext" --config-settings "--build-option=--cuda_ext" ./

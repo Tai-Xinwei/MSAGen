@@ -27,3 +27,19 @@ Severe: GCRHYP3C112, GCRHYP3C142, GCRHYP3C336, GCRHYP3C324, GCRHYP3C224 (Not use
 Medium: GCRHYP3C314, gcrhyp3c342, GCRHYP3C346, gcrhyp3c257 (OK to use with short job like 1-3 days, do not use it with pretraining),
 Mild: gcrhyp3c108, GCRHYP3C218, gcrhyp3c225, gcrhyp3c253 (Good to use, port error happens rarely)
 ```
+
+## Example Scripts
+Pretraining Graphormer on 4 GPUs:
+```
+bash scripts/pretrain_graphormer.sh
+```
+
+Finetuning Graphormer on 4 GPUs:
+```
+bash scripts/ft_graphormer.sh
+```
+
+Finetuning Llama + Graphormer on 4 GPUs:
+```
+bash scripts/ft_graphormer_llama_smiles.sh
+```
