@@ -39,7 +39,7 @@ Finetuning Graphormer on 4 GPUs:
 bash scripts/ft_graphormer.sh
 ```
 
-Finetuning Llama + Graphormer on 4 GPUs:
+Finetuning Llama2 + Graphormer on 4 GPUs:
 ```
 bash scripts/ft_graphormer_llama_smiles.sh
 ```

@@ -5,10 +5,11 @@
 import torch
 
 from megatron.core import tensor_parallel
+from sfm.logging import logger
 
 
 def CopilotCriterionsMP(output, targets):
-    # Shape of output: [seq, bs, H]
+    # Shape of output: [bs, seq, H]
     # Shape of labels: [bs, seq]
     labels, loss_mask = targets[0], targets[1]
     # get union mask of labels mask and loss mask
@@ -18,14 +19,15 @@ def CopilotCriterionsMP(output, targets):
     labels = labels[..., 1:]
     loss_mask = loss_mask[..., 1:].contiguous()
 
+    # [b s h] => [s b h]
+    output = output.transpose(0, 1).contiguous()
     logits = output[:-1, :, :].float()
-    # args = get_args()
 
     # [b s] => [s b]
     labels = labels.transpose(0, 1).contiguous()
     # logger.info(f"logits, {logits}, labels, {labels}")
 
-    losses = tensor_parallel.vocab_parallel_cross_entropy(logits.contiguous(), labels)
+    losses = tensor_parallel.vocab_parallel_cross_entropy(logits, labels)
     # [s b] => [b, s]
 
     losses = losses.transpose(0, 1).contiguous().view(-1)

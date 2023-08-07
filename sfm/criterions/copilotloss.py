@@ -6,6 +6,8 @@ import torch
 import torch.distributed as dist
 import torch.nn as nn
 
+from sfm.logging import logger
+
 
 class CopilotCriterions(nn.Module):
     def __init__(self, config, vocab_size=32001, reduction="mean") -> None:
@@ -35,6 +37,7 @@ class CopilotCriterionsPP(CopilotCriterions):
     def forward(self, output, label):
         labels = label[0]
         logits = output
+        logger.info(f"labels, {labels.shape}, logits, {logits.shape}")
 
         shift_logits = logits[..., :-1, :].contiguous()
         shift_labels = labels[..., 1:].contiguous()

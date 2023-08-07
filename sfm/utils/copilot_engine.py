@@ -4,6 +4,7 @@ from types import MethodType
 from typing import Optional, Union
 
 import deepspeed
+import PPEngine
 import torch
 from deepspeed import comm as dist
 from deepspeed.accelerator import get_accelerator
@@ -30,7 +31,6 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
 from .copilot_zerooptimizer import CopilotZeroOptimizer
-from .mypp_engine import myPipeEngine
 from .mypp_module import PipelineError, PipelineModule
 
 try:
@@ -59,7 +59,7 @@ def _tensor_bytes(tensor):
     return tensor.numel() * tensor.element_size()
 
 
-class CopilotPipeEngine(myPipeEngine):
+class CopilotPipeEngine(PPEngine):
     # def _zero_llama_grad(self, freeze_list=None):
     # param_id = 0
     # for param in self.module.parameters():

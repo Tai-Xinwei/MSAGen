@@ -313,7 +313,11 @@ class LlamaEmbeddingsMP(Embedding):
             input_ids, device=input_ids.device, dtype=torch.long
         )
         # export demension of text embeddings [seq_len, batch_size, hidden_size]
-        text_embeds = super().forward(input_ids, position_ids)
+        # Get text embeddings from language model
+        mol_idx_mask = input_ids < 0  # B, T
+        text_embeds = super().forward(
+            input_ids.masked_fill(mol_idx_mask, 0), position_ids
+        )
         # transpose to [batch_size, seq_len, hidden_size] for hybrid embedding
         text_embeds = text_embeds.transpose(0, 1)
 
@@ -351,8 +355,8 @@ class LlamaHeadMP(MegatronModule):
         else:
             hidden_states = inputs
 
-        # export demension of lm_logits [seq_len, batch_size, hidden_size]
-        lm_logits = self.lm_head(hidden_states)[0]
+        # export demension of lm_logits [batch_size, seq_len, hidden_size]
+        lm_logits = self.lm_head(hidden_states)[0].transpose(0, 1)
 
         return lm_logits
 

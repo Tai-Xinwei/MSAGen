@@ -47,7 +47,7 @@ def _tensor_bytes(tensor):
     return tensor.numel() * tensor.element_size()
 
 
-class myPipeEngine(DeepSpeedEngine):
+class SFMPipeEngine(DeepSpeedEngine):
     """A training engine hybrid pipeline, data, and model parallel training.
 
     This engine is created by ``deepspeed.initialize()`` when a :class:`PipelineModule`
@@ -1967,7 +1967,7 @@ def initialize(
     mpu = model.mpu()
 
     config_class = DeepSpeedConfig(config, mpu)
-    engine = myPipeEngine(
+    engine = SFMPipeEngine(
         args=args,
         model=model,
         optimizer=optimizer,

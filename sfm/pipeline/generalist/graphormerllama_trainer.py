@@ -9,10 +9,10 @@ import torch.nn as nn
 import torch.optim as optim
 from deepspeed.runtime.utils import see_memory_usage
 
-import sfm.utils.mypp_engine as myPipeEngine
 from sfm.criterions.copilotloss import CopilotCriterions, CopilotCriterionsPP
 from sfm.logging import logger
 from sfm.models.generalist.graphormer_llama import GraphormerLlamaModel
+from sfm.utils import PPEngine
 from sfm.utils.get_paranum import count_paranum
 from sfm.utils.move_to_device import move_to_device
 from sfm.utils.mypp_module import PipelineModule
@@ -88,7 +88,7 @@ class Trainer:
             )
             see_memory_usage("Model built", force=True)
 
-            self.model_engine, _, _, _ = myPipeEngine.initialize(
+            self.model_engine, _, _, _ = PPEngine.initialize(
                 args=args,
                 model=net,
                 optimizer=optimizer,

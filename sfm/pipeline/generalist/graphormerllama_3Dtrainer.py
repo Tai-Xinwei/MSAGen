@@ -13,7 +13,6 @@ from deepspeed.runtime.pipe.topology import PipeModelDataParallelTopology
 from deepspeed.runtime.utils import see_memory_usage
 from transformers import AutoTokenizer
 
-import sfm.utils.mypp_engine as myPipeEngine
 from megatron import get_args
 from megatron.core import mpu, tensor_parallel
 from megatron.initialize import initialize_megatron
@@ -27,6 +26,7 @@ from sfm.models.generalist.generalist_config import GeneralistConfig
 from sfm.models.generalist.graphormer_llama import GraphormerLlamaModel
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.pipeline.accelerator.dataclasses import TrainerConfig
+from sfm.utils import PPEngine
 from sfm.utils.arg_utils import ExtraArgsProvider
 from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
 from sfm.utils.get_paranum import count_paranum
@@ -108,7 +108,7 @@ class Trainer3D:
         )
         see_memory_usage("Model built", force=True)
 
-        self.model_engine, _, _, _ = myPipeEngine.initialize(
+        self.model_engine, _, _, _ = PPEngine.initialize(
             args=args,
             model=net,
             optimizer=optimizer,
