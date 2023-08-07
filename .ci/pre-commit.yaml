@@ -1,0 +1,30 @@
+trigger:
+- main
+
+pr:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+- job: RunPreCommit
+  displayName: 'Run Pre-Commit'
+  pool:
+    vmImage: 'ubuntu-latest'
+
+  steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.9'
+      addToPath: true
+
+  - script: |
+      python -m pip install --upgrade pip
+      pip install pre-commit
+    displayName: 'Install pre-commit'
+
+  - script: |
+      pre-commit install
+      pre-commit run --all-files
+    displayName: 'Run pre-commit checks'
