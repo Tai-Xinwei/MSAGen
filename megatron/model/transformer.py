@@ -22,6 +22,7 @@ from megatron.model.fused_bias_gelu import bias_gelu_impl
 from megatron.model.fused_softmax import FusedScaleMaskSoftmax
 from megatron.model.rotary_pos_embedding import apply_rotary_pos_emb
 from megatron.model.utils import attention_mask_func, erf_gelu, openai_gelu
+from sfm.logging import logger
 
 from .module import MegatronModule
 
@@ -709,7 +710,8 @@ class ParallelAttention(MegatronModule):
         inference_params=None,
         rotary_pos_emb=None,
     ):
-        # hidden_states: [sq, b, h]
+        # # hidden_states: [sq, b, h]
+        # logger.debug(f"hiddens_states shape: {hidden_states.shape}, rot_pos_emb: {rotary_pos_emb.shape}")
 
         # =================================================
         # Pre-allocate memory for key-values for inference.

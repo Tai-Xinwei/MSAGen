@@ -7,7 +7,7 @@ import subprocess
 
 import torch
 from torch.utils import cpp_extension
-
+from sfm.logging import logger
 # Setting this param to a list has a problem of generating different
 # compilation commands (with diferent order of architectures) and
 # leading to recompilation of fused kernels. Set it to empty string
@@ -34,7 +34,7 @@ def load(args):
     srcpath = pathlib.Path(__file__).parent.absolute()
     buildpath = srcpath / "build"
     _create_build_dir(buildpath)
-
+    logger.info("Building fused kernels in {}".format(buildpath))
     # Helper function to build the kernels.
     def _cpp_extention_load_helper(
         name, sources, extra_cuda_flags, extra_include_paths
@@ -94,6 +94,7 @@ def load(args):
             extra_cuda_flags,
             extra_include_paths,
         )
+        logger.info("Built Upper triangular softmax")
 
         # Masked softmax.
         sources = [
@@ -103,12 +104,14 @@ def load(args):
         _cpp_extention_load_helper(
             "scaled_masked_softmax_cuda", sources, extra_cuda_flags, extra_include_paths
         )
+        logger.info("Built Masked softmax")
 
         # Softmax
         sources = [srcpath / "scaled_softmax.cpp", srcpath / "scaled_softmax_cuda.cu"]
         _cpp_extention_load_helper(
             "scaled_softmax_cuda", sources, extra_cuda_flags, extra_include_paths
         )
+        logger.info("Built Softmax")
 
 
 def _get_cuda_bare_metal_version(cuda_dir):

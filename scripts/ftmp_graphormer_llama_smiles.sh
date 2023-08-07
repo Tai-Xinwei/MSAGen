@@ -17,8 +17,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=128
 
 [ -z "${dropout}" ] && dropout=0.0
-[ -z "${act_dropout}" ] && act_dropout=0.1
-[ -z "${attn_dropout}" ] && attn_dropout=0.1
+[ -z "${act_dropout}" ] && act_dropout=0.0
+[ -z "${attn_dropout}" ] && attn_dropout=0.0
 [ -z "${weight_decay}" ] && weight_decay=0.0
 [ -z "${sandwich_ln}" ] && sandwich_ln=true
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
@@ -49,16 +49,16 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${add_3d}" ] && add_3d=false
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=4
-[ -z "${strategy}" ] && strategy=Zero1
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
+[ -z "${zero_strategy}" ] && zero_strategy=1
 
-[ -z "${micro_batch_size}" ] && micro_batch_size=1
-[ -z "${global_batch_size}" ] && global_batch_size=1
+[ -z "${micro_batch_size}" ] && micro_batch_size=2
+[ -z "${global_batch_size}" ] && global_batch_size=64
 [ -z "${max_position_embeddings}" ] && max_position_embeddings=2048
 [ -z "${vocab_size}" ] && vocab_size=32000
 [ -z "${vocabtokenizer_model_size}" ] && tokenizer_model="/home/peiran/FMproj/llama2/llama-2-7b/tokenizer.model"
-
+[ -z "${llm_hidden_size}" ] && llm_hidden_size=4096
 
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -116,6 +116,7 @@ echo "pool_mode: ${pool_mode}"
 echo "micro_batch_size: ${micro_batch_size}"
 echo "global_batch_size: ${global_batch_size}"
 echo "max_position_embeddings: ${max_position_embeddings}"
+echo "llm_hidden_size: ${llm_hidden_size}"
 
 
 DISTRIBUTED_ARGS="
@@ -126,19 +127,30 @@ DISTRIBUTED_ARGS="
     # --node_rank $NODE_RANK \
 
 
-# export NCCL_ASYNC_ERROR_HADNLING=1
-# export NCCL_DEBUG=INFO
-# export NCCL_IB_PCI_RELAXED_ORDERING=1
-# export NCCL_IB_DISABLE=1
-# export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
-# export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
-# export NCCL_SOCKET_IFNAME=eth0
-# export OMP_NUM_THREADS=1
+DS_CONFIG=$save_dir/deepspeed.json
+
+cat <<EOT > $DS_CONFIG
+{
+  "train_batch_size" : $global_batch_size,
+  "train_micro_batch_size_per_gpu": $micro_batch_size,
+  "steps_per_print": 10,
+  "zero_optimization": {
+    "stage": $zero_strategy
+  },
+  "fp16": {
+    "enabled": true
+  }
+}
+EOT
+
+ds_args=" --deepspeed --deepspeed_config=$DS_CONFIG"
+
 
 wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
 
-# deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
-torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
+# torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
+
+deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
           --num_classes 1 \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
@@ -152,7 +164,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
           --pipeline-model-parallel-size $pipeline_model_parallel_size \
           --tensor-model-parallel-size $tensor_model_parallel_size \
           --seed 666667 \
-          --ft \
+          --ft --fp16 \
           --d_tilde $d_tilde \
           --num_pred_attn_layer $num_pred_attn_layer \
           --max_lr $max_lr \
@@ -166,14 +178,15 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
           --dataset_splits $dataset_splits \
           --dataset_ratios $dataset_ratios \
           --pool_mode $pool_mode \
-          --strategy $strategy \
           --embedding_length $embedding_length \
           --model_max_length $model_max_length \
           --micro-batch-size $micro_batch_size --global-batch-size $global_batch_size \
-          --num-layers $layers --hidden-size $hidden_size --seq-length $max_position_embeddings\
+          --num-layers $layers --hidden-size $llm_hidden_size --seq-length $max_position_embeddings\
           --max-position-embeddings $max_position_embeddings --num-attention-heads $num_head \
           --tokenizer-type GPTSentencePieceTokenizer --tokenizer-model $tokenizer_model \
-          --deepspeed --deepspeed_config ./config_file/ds_config_ft.json
+          --no-query-key-layer-scaling  --attention-dropout 0 --hidden-dropout 0 \
+          --use-rotary-position-embeddings --disable-bias-linear --seq-length 2048 \
+          $ds_args
 
 
 # if [ $OMPI_COMM_WORLD_RANK == 0 ]; then

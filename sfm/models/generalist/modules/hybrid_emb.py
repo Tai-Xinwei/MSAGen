@@ -8,7 +8,7 @@ from transformers.activations import ACT2FN
 from transformers.configuration_utils import PretrainedConfig
 from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
-from sfm.modules.partial_grad_emb import PartialGradEmbedding
+from sfm.logging import logger
 
 
 class AdaptorConfig(PretrainedConfig):
@@ -313,41 +313,42 @@ class Qformer(nn.Module):
 
 
 class HybridEmbeddings(nn.Module):
-    def __init__(self, config: AdaptorConfig):
+    def __init__(self, config: AdaptorConfig, if_initialize=True):
         super().__init__()
         self.config = config
         self.mode = config.pool_mode
 
         self.embedding_length = config.embedding_length
 
-        self.mol_rep_layernorm = LlamaRMSNorm(
-            config.mfm_hidden_size, eps=config.rms_norm_eps
-        )
-        if config.btn_adaptor:
-            self.mol_adaptor = MLPAdapter(
-                hidden_size=config.mfm_hidden_size,
-                intermediate_size=config.mfm_hidden_size // 4,
-                output_size=config.hidden_size,
-                hidden_act=config.hidden_act,
-                dropout=config.hidden_dropout_prob,
+        if if_initialize:
+            self.mol_rep_layernorm = LlamaRMSNorm(
+                config.mfm_hidden_size, eps=config.rms_norm_eps
             )
-        else:
-            self.mol_adaptor = MLPAdapter(
-                hidden_size=config.mfm_hidden_size,
-                intermediate_size=config.mfm_hidden_size,
-                output_size=config.hidden_size,
-                hidden_act=config.hidden_act,
-                dropout=config.hidden_dropout_prob,
-            )
+            if config.btn_adaptor:
+                self.mol_adaptor = MLPAdapter(
+                    hidden_size=config.mfm_hidden_size,
+                    intermediate_size=config.mfm_hidden_size // 4,
+                    output_size=config.hidden_size,
+                    hidden_act=config.hidden_act,
+                    dropout=config.hidden_dropout_prob,
+                )
+            else:
+                self.mol_adaptor = MLPAdapter(
+                    hidden_size=config.mfm_hidden_size,
+                    intermediate_size=config.mfm_hidden_size,
+                    output_size=config.hidden_size,
+                    hidden_act=config.hidden_act,
+                    dropout=config.hidden_dropout_prob,
+                )
 
-        if self.mode == "qformer" or self.mode == "multimol":
-            self.qformer = Qformer(
-                config.mfm_hidden_size, config.hidden_act, num_layers=1
-            )
-            self.adaptor_embedding = nn.Parameter(
-                torch.zeros(1, config.embedding_length, config.mfm_hidden_size)
-            )
-            self.embedding_length = config.embedding_length
+            if self.mode == "qformer" or self.mode == "multimol":
+                self.qformer = Qformer(
+                    config.mfm_hidden_size, config.hidden_act, num_layers=1
+                )
+                self.adaptor_embedding = nn.Parameter(
+                    torch.zeros(1, config.embedding_length, config.mfm_hidden_size)
+                )
+                self.embedding_length = config.embedding_length
 
         # self.dummy = nn.Linear(1, 1)
 
@@ -362,8 +363,8 @@ class HybridEmbeddings(nn.Module):
         # input_ids: bsz, num_tokens
         mol_rep = mol_rep.transpose(0, 1)[:, 1:, :]
         mol_padding_mask = mol_padding_mask[:, 1:]
-
         B, T = input_ids.shape
+
         mol_idx_mask = input_ids < 0  # B, T
         # with torch.no_grad():
         #     token_embed = self.embed_tokens(
@@ -374,6 +375,7 @@ class HybridEmbeddings(nn.Module):
 
         mol_padding_mask = mol_padding_mask.long().unsqueeze(-1)
         mol_rep = self.mol_rep_layernorm(mol_rep)
+        # logger.info(f"after layer norm mol_rep, {mol_rep}")
 
         if self.mode == "mean":
             pooled_rep = self.mol_adaptor(mol_rep) * (
@@ -396,17 +398,32 @@ class HybridEmbeddings(nn.Module):
             )  # B, T, H
             token_embed = torch.where(mol_idx_mask, pooled_rep, token_embed)
         elif self.mode == "full":
-            # raise NotImplementedError
             mol_rep = self.mol_adaptor(mol_rep)  # [:, 1:, :]  # B, nnode, H
+            new_token_embed = torch.empty_like(token_embed)
 
-            # token_embed = token_embed.unsqueeze(1).expand(-1, mol_rep.shape[1], -1, -1) # B, nnode, T, H
             for bidx in range(B):
                 mask_idx_list = mol_idx_mask[bidx].nonzero()
                 start = mask_idx_list[0]
                 end = mask_idx_list[-1]
-                token_embed[bidx, start : end + 1, :] = mol_rep[
+                # # In-place operation
+                # token_embed[bidx, start : end + 1, :] = mol_rep[
+                #     bidx, : end - start + 1, :
+                # ]
+
+                # # Out-of-place operation fix the bug with Tensor Parallelism
+                # Create a new tensor with the same shape and device as token_embed
+                # Copy the parts of token_embed that are not being replaced
+                new_token_embed[bidx, :start, :] = token_embed[bidx, :start, :]
+                new_token_embed[bidx, end + 1 :, :] = token_embed[bidx, end + 1 :, :]
+
+                # Copy the mol_rep slice into the new tensor
+                new_token_embed[bidx, start : end + 1, :] = mol_rep[
                     bidx, : end - start + 1, :
                 ]
+
+            # Assign the new tensor to token_embed
+            token_embed = new_token_embed
+
         elif self.mode == "qformer":
             self.adaptor_embedding = self.adaptor_embedding.to(mol_rep.device).to(
                 mol_rep.dtype
@@ -575,7 +592,7 @@ class HybridEmbeddings(nn.Module):
 
 class HybridEmbeddingsPP(HybridEmbeddings):
     def __init__(self, config: PretrainedConfig, **kwargs):
-        super().__init__(config, **kwargs)
+        super().__init__(config, if_initialize=True, **kwargs)
         # self.embed_tokens = torch.nn.Embedding(
         #     config.vocab_size, config.hidden_size, config.pad_token_id
         # )

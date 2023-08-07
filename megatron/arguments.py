@@ -16,7 +16,7 @@ import torch.nn.functional as F
 from megatron.core.transformer import TransformerConfig
 from megatron.global_vars import get_retro_args, set_retro_args
 from tools.retro.utils import get_args_path as get_retro_args_path
-
+from sfm.logging import logger
 
 def parse_args(extra_args_provider=None, ignore_unknown_args=False):
     """Parse all arguments."""
@@ -501,14 +501,14 @@ def validate_args(args, defaults={}):
 def _print_args(title, args):
     """Print arguments."""
     if args.rank == 0:
-        print(f"------------------------ {title} ------------------------", flush=True)
+        logger.info(f"------------------------ {title} ------------------------", flush=True)
         str_list = []
         for arg in vars(args):
             dots = "." * (48 - len(arg))
             str_list.append("  {} {} {}".format(arg, dots, getattr(args, arg)))
         for arg in sorted(str_list, key=lambda x: x.lower()):
-            print(arg, flush=True)
-        print(f"-------------------- end of {title} ---------------------", flush=True)
+            logger.info(arg, flush=True)
+        logger.info(f"-------------------- end of {title} ---------------------", flush=True)
 
 
 def _check_arg_is_not_none(args, arg):

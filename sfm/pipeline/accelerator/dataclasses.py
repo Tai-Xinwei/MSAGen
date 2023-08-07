@@ -49,6 +49,7 @@ class TrainerConfig:
     strategy: TrainStrategy = TrainStrategy.Single
     cpu: bool = False
     ifresume: bool = False
+    if_load_ckpt: bool = False
 
     gradient_clipping: float = 1.0
     total_num_steps: int = 1000

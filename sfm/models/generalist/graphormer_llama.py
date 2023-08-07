@@ -16,12 +16,14 @@ from sfm.data.mol_data.moltext_dataset import batch_collater_for_graphormer
 from sfm.logging.loggers import logger
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.models.graphormer.modules import GraphormerSentenceEncoder
+from sfm.models.llama2.llama2mp_config import MPLlamaConfig
 from sfm.models.llama2.llama_modules import LlamaEmbeddingsPP, LlamaModelPP
 from sfm.models.llama2.llama_modules_3dmp import LlamaEmbeddingsMP, LlamaModelMP
 from sfm.utils import PretrainedLayerSpec
 
 from .modules.graphormer_encoder import GraphormerSentenceEncoderPP
 from .modules.hybrid_emb import AdaptorConfig, HybridEmbeddings, HybridEmbeddingsPP
+from .modules.hybrid_emb_3dmp import HybridEmbeddingsMP
 
 
 class GraphormerLlamaModel(torch.nn.Module):
@@ -40,11 +42,14 @@ class GraphormerLlamaModel(torch.nn.Module):
 
         graphormer_config = GraphormerConfig(args)
         self.args = graphormer_config.args
-        logger.info(self.args)
+        logger.info(f"Trainer args: {args}")
 
         llama_config = LlamaConfig.from_pretrained(args.llm_model_name_or_path)
         llama_config.vocab_size = vocab_size
         adaptor_config = self.init_adaptor_config(args, llama_config)
+
+        if args.tensor_model_parallel_size > 1:
+            mpllama_config = self.init_mpllama_config(args, llama_config)
 
         self.pipe_layers = []
         if args.pipeline_model_parallel_size == 0:
@@ -52,13 +57,12 @@ class GraphormerLlamaModel(torch.nn.Module):
             self.decoder = LlamaForCausalLM(llama_config)
             self.adaptor = HybridEmbeddings(adaptor_config)
         elif args.tensor_model_parallel_size == 1:
-            load_ckpt = not args.infer
             self.pipe_layers.extend(
                 [
                     PretrainedLayerSpec(
                         GraphormerSentenceEncoderPP,
                         graphormer_config,
-                        load_ckpt=load_ckpt,
+                        load_ckpt=args.if_load_ckpt,
                         pretrained_ckpt_path=args.loadmfmcheck_path,
                         lora_mode="freeze",
                     )
@@ -71,7 +75,7 @@ class GraphormerLlamaModel(torch.nn.Module):
                         LlamaEmbeddingsPP,
                         llama_config,
                         new_num_tokens=vocab_size,
-                        load_ckpt=load_ckpt,
+                        load_ckpt=args.if_load_ckpt,
                         pretrained_ckpt_path=os.path.join(
                             args.llm_model_name_or_path, "model.hybrid_emb.pt"
                         ),
@@ -86,7 +90,7 @@ class GraphormerLlamaModel(torch.nn.Module):
                         HybridEmbeddingsPP,
                         adaptor_config,
                         new_num_tokens=vocab_size,
-                        load_ckpt=load_ckpt,
+                        load_ckpt=args.if_load_ckpt,
                     )
                 ]
             )
@@ -95,18 +99,17 @@ class GraphormerLlamaModel(torch.nn.Module):
                 LlamaModelPP.to_layers(
                     args,
                     llama_config,
-                    load_ckpt=load_ckpt,
+                    load_ckpt=args.if_load_ckpt,
                     new_num_tokens=vocab_size,
                 )
             )
         else:
-            load_ckpt = False  # not args.infer
             self.pipe_layers.extend(
                 [
                     PretrainedLayerSpec(
                         GraphormerSentenceEncoderPP,
                         graphormer_config,
-                        load_ckpt=load_ckpt,
+                        load_ckpt=args.if_load_ckpt,
                         pretrained_ckpt_path=args.loadmfmcheck_path,
                         lora_mode="freeze",
                     )
@@ -117,9 +120,9 @@ class GraphormerLlamaModel(torch.nn.Module):
                 [
                     PretrainedLayerSpec(
                         LlamaEmbeddingsMP,
-                        llama_config,
+                        mpllama_config,
                         new_num_tokens=vocab_size,
-                        load_ckpt=load_ckpt,
+                        load_ckpt=args.if_load_ckpt,
                         pretrained_ckpt_path=os.path.join(
                             args.llm_model_name_or_path, "model.hybrid_emb.pt"
                         ),
@@ -131,10 +134,11 @@ class GraphormerLlamaModel(torch.nn.Module):
             self.pipe_layers.extend(
                 [
                     PretrainedLayerSpec(
-                        HybridEmbeddingsPP,
+                        HybridEmbeddingsMP,
                         adaptor_config,
+                        mpllama_config,
                         new_num_tokens=vocab_size,
-                        load_ckpt=load_ckpt,
+                        load_ckpt=args.if_load_ckpt,
                     )
                 ]
             )
@@ -142,8 +146,8 @@ class GraphormerLlamaModel(torch.nn.Module):
             self.pipe_layers.extend(
                 LlamaModelMP.to_layers(
                     args,
-                    llama_config,
-                    load_ckpt=load_ckpt,
+                    mpllama_config,
+                    load_ckpt=args.if_load_ckpt,
                     new_num_tokens=vocab_size,
                 )
             )
@@ -332,6 +336,32 @@ class GraphormerLlamaModel(torch.nn.Module):
             btn_adaptor=args.btn_adaptor,
             hidden_dropout_prob=args.dropout,
             embedding_length=args.embedding_length,
+        )
+
+        return config
+
+    def init_mpllama_config(self, args, llama_config):
+        config = MPLlamaConfig(
+            args,
+            vocab_size=llama_config.vocab_size,
+            hidden_size=llama_config.hidden_size,
+            intermediate_size=llama_config.intermediate_size,
+            num_hidden_layers=llama_config.num_hidden_layers,
+            num_attention_heads=llama_config.num_attention_heads,
+            num_key_value_heads=llama_config.num_key_value_heads,
+            hidden_act=llama_config.hidden_act,
+            max_position_embeddings=llama_config.max_position_embeddings,
+            initializer_range=llama_config.initializer_range,
+            rms_norm_eps=llama_config.rms_norm_eps,
+            use_cache=llama_config.use_cache,
+            pad_token_id=llama_config.pad_token_id,
+            bos_token_id=llama_config.bos_token_id,
+            eos_token_id=llama_config.eos_token_id,
+            pretraining_tp=llama_config.pretraining_tp,
+            tie_word_embeddings=llama_config.tie_word_embeddings,
+            rope_scaling=llama_config.rope_scaling,
+            seq_length=args.seq_length,
+            rotary_percent=args.rotary_percent,
         )
 
         return config

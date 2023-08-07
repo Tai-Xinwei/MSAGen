@@ -106,14 +106,14 @@ def main(args) -> None:
             unfreeze_list=unfreeze_list,
         )
     else:
-        raise NotImplementedError
+        raise Exception("Check ft3d_graphormer_llama_inst.py")
 
     if args.pipeline_model_parallel_size == 0:
         trainer.train()
     elif args.tensor_model_parallel_size == 1:
         trainer.train_pipeline()
     else:
-        trainer.train_tensor_pipeline()
+        raise Exception("Check ft3d_graphormer_llama_inst.py")
 
 
 if __name__ == "__main__":

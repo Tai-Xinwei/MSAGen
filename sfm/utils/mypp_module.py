@@ -442,7 +442,7 @@ class PipelineModule(nn.Module):
                 stop = self.parts[stage + 1]
                 print(f"stage={stage} layers={stop - start}")
                 for idx, layer in enumerate(self._layer_specs[start:stop]):
-                    name = str(layer)
+                    # name = str(layer)
                     if isinstance(layer, (LayerSpec, PretrainedLayerSpec)):
                         name = layer.typename.__name__
                     if isinstance(layer, nn.Module):

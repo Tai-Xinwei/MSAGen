@@ -25,11 +25,13 @@ from megatron.core import parallel_state, tensor_parallel
 from megatron.model.enums import AttnMaskType, AttnType, LayerType
 from megatron.model.language_model import Embedding
 from megatron.model.module import MegatronModule
+from megatron.model.rotary_pos_embedding import RotaryEmbedding
 from megatron.model.transformer import (
     ParallelAttention,
     ParallelMLP,
     ParallelTransformerLayer,
 )
+from sfm.logging import logger
 from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec
 
 try:
@@ -38,31 +40,75 @@ except:
     raise ImportError("Please install apex from install/install.sh")
 
 
-class LlamaMLPAdapter(nn.Module):
+class ParallelLlamaMLPAdapter(MegatronModule):
     def __init__(
         self,
+        config: LlamaConfig,
         hidden_size: int,
         intermediate_size: int,
         output_size: int,
         hidden_act: str,
         dropout: float = 0.0,
+        enable_expert_tensor_parallelism: bool = False,
+        moe: bool = False,
     ):
         super().__init__()
-        self.gate_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
-        self.down_proj = nn.Linear(intermediate_size, output_size, bias=False)
-        self.up_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
+        # gated parallel mlp
+        self.gate_proj = tensor_parallel.ColumnParallelLinear(
+            hidden_size,
+            intermediate_size,
+            config=config,
+            init_method=config.init_method,
+            bias=False,
+            gather_output=False,
+            skip_bias_add=True,
+            moe=moe,
+            enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
+        )
+
+        self.down_proj = self.dense_4h_to_h = tensor_parallel.RowParallelLinear(
+            intermediate_size,
+            output_size,
+            config=config,
+            init_method=config.output_layer_init_method,
+            bias=False,
+            input_is_parallel=True,
+            moe=moe,
+            enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
+        )
+
+        self.up_proj = tensor_parallel.ColumnParallelLinear(
+            hidden_size,
+            intermediate_size,
+            config=config,
+            init_method=config.init_method,
+            bias=False,
+            gather_output=False,
+            skip_bias_add=True,
+            moe=moe,
+            enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
+        )
+
         self.act_fn = ACT2FN[hidden_act]
-        self.dropout = nn.Dropout(dropout)
+        self.drop = nn.Dropout(dropout)
 
     def forward(self, x):
-        return self.down_proj(
-            self.act_fn(self.dropout(self.gate_proj(x))) * self.up_proj(x)
-        )
+        gated_x, _ = self.gate_proj(x)
+        up_x, _ = self.up_proj(x)
+
+        intermidiate_x = self.act_fn(gated_x) * up_x
+
+        x, _ = self.down_proj(intermidiate_x)
+
+        return x
 
 
 class ParallelLlamaMLP(MegatronModule):
     def __init__(
-        self, config: LlamaConfig, enable_expert_tensor_parallelism=False, moe=False
+        self,
+        config: LlamaConfig,
+        enable_expert_tensor_parallelism=False,
+        moe=False,
     ):
         super().__init__()
         self.config = config
@@ -81,7 +127,7 @@ class ParallelLlamaMLP(MegatronModule):
             enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
         )
 
-        self.down_proj = self.dense_4h_to_h = tensor_parallel.RowParallelLinear(
+        self.down_proj = tensor_parallel.RowParallelLinear(
             config.intermediate_size,
             config.hidden_size,
             config=config,
@@ -112,7 +158,7 @@ class ParallelLlamaMLP(MegatronModule):
 
         intermidiate_x = self.act_fn(gated_x) * up_x
 
-        x = self.down_proj(intermidiate_x)
+        x, _ = self.down_proj(intermidiate_x)
 
         return x
 
@@ -121,21 +167,20 @@ class LlamaDecoderLayerMP(MegatronModule):
     def __init__(
         self,
         config,
-        layer_number,
+        no_layer,
         layer_type=LayerType.encoder,
         self_attn_mask_type=AttnMaskType.padding,
         drop_path_rate=0.0,
         num_experts=1,
     ):
         super(LlamaDecoderLayerMP, self).__init__()
-        # self.bf16 = config.bf16
-        # self.fp32_residual_connection = config.fp32_residual_connection
+        self.config = config
         self.input_layernorm = MixedFusedRMSNorm(
             config.hidden_size, config.rms_norm_eps
         )
-        self.self_attention = ParallelAttention(
+        self.self_attn = ParallelAttention(
             config,
-            layer_number,
+            layer_number=1,
             attention_type=AttnType.self_attn,
             attn_mask_type=self_attn_mask_type,
         )
@@ -144,6 +189,24 @@ class LlamaDecoderLayerMP(MegatronModule):
             config.hidden_size, config.rms_norm_eps
         )
         self.mlp = ParallelLlamaMLP(config)
+
+        self.dummy = torch.nn.Parameter(torch.zeros(1))
+        self.no_layer = no_layer
+
+        self.seq_length = config.seq_length
+        rotary_dim = (
+            config.hidden_size // config.num_attention_heads
+            if config.kv_channels is None
+            else config.kv_channels
+        )
+
+        if config.rotary_percent < 1.0:
+            rotary_dim = int(rotary_dim * config.rotary_percent)
+
+        # partial rotary embeddings, which is better than full rotary
+        # Wang and Komatsuzaki et al
+        # https://github.com/kingoflolz/mesh-transformer-jax/
+        self.rotary_pos_emb = RotaryEmbedding(rotary_dim)
 
     def forward(
         self,
@@ -168,19 +231,20 @@ class LlamaDecoderLayerMP(MegatronModule):
                 (see `past_key_values`).
             past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
         """
-        hidden_states, attention_mask_bool, position_ids = input_tuple
+        hidden_states, attention_mask_bool = input_tuple
         # size of hidden_states: (seq_len, batch_size, hidden_size)
 
-        # convert mask from bool to int
-        attention_mask = attention_mask_bool.to(torch.int)
+        # # convert mask from bool to int
+        # attention_mask = attention_mask_bool.to(torch.int)
 
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
 
-        hidden_states, _, _ = self.self_attn(
+        batch_len = min(hidden_states.shape[0], self.seq_length)
+        hidden_states, _ = self.self_attn(
             hidden_states=hidden_states,
-            attention_mask=attention_mask,
-            rotary_pos_emb=position_ids,
+            attention_mask=attention_mask_bool,
+            rotary_pos_emb=self.rotary_pos_emb(batch_len),
         )
         hidden_states = residual + hidden_states
 
@@ -190,18 +254,18 @@ class LlamaDecoderLayerMP(MegatronModule):
         hidden_states = self.mlp(hidden_states)
         hidden_states = residual + hidden_states
 
-        outputs = (hidden_states, attention_mask_bool, position_ids)
+        outputs = (hidden_states, attention_mask_bool)
         return outputs
 
 
-class LlamaNorm(nn.Module):
+class FusedLlamaNorm(nn.Module):
     def __init__(self, config: LlamaConfig):
         super().__init__()
         self.config = config
         self.norm = MixedFusedRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
     def forward(self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]):
-        hidden_states, _, _ = input_tuple
+        hidden_states, _ = input_tuple
 
         hidden_states = self.norm(hidden_states)
 
@@ -217,14 +281,16 @@ def lm_logits_fn(embedding, input_tuple):
 
 class LlamaEmbeddingsMP(Embedding):
     def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
-        super(self, LlamaEmbeddingsMP).__init__(
+        super().__init__(
             config.hidden_size,
             config.vocab_size,
             max_sequence_length=config.max_position_embeddings,
             embedding_dropout_prob=0.0,
             config=config,
+            num_tokentypes=0,
+            embedding_weights_in_fp32=False,
         )
-
+        self.config = config
         self.learnable_cutoff = learnable_cutoff
         self.word_embeddings.weight.register_hook(self.freeze_parital_weight_hook)
 
@@ -249,7 +315,7 @@ class LlamaEmbeddingsMP(Embedding):
         # export demension of text embeddings [seq_len, batch_size, hidden_size]
         text_embeds = super().forward(input_ids, position_ids)
         # transpose to [batch_size, seq_len, hidden_size] for hybrid embedding
-        # text_embeds = text_embeds.transpose(0, 1)
+        text_embeds = text_embeds.transpose(0, 1)
 
         return mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids
 
@@ -285,8 +351,8 @@ class LlamaHeadMP(MegatronModule):
         else:
             hidden_states = inputs
 
-        # export demension of lm_logits [batch_size, seq_len, hidden_size]
-        lm_logits, _ = self.lm_head(hidden_states).transpose(0, 1)
+        # export demension of lm_logits [seq_len, batch_size, hidden_size]
+        lm_logits = self.lm_head(hidden_states)[0]
 
         return lm_logits
 
@@ -318,7 +384,7 @@ class LlamaModelMP(LlamaPreTrainedModel):
             )
         cls.pipe_layer.append(
             PretrainedLayerSpec(
-                LlamaNorm,
+                FusedLlamaNorm,
                 config,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(

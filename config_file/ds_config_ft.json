@@ -1,6 +1,6 @@
 {
   "train_batch_size": 64,
-  "gradient_accumulation_steps": 64,
+  "gradient_accumulation_steps": 32,
   "zero_optimization": {
     "stage": 1
   },
@@ -8,5 +8,5 @@
     "enabled": true
   },
   "gradient_clipping": 1.0,
-  "steps_per_print": 100
+  "steps_per_print": 10
 }

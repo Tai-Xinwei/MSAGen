@@ -4,6 +4,7 @@
 """Megatron tokenizers."""
 
 from abc import ABC, abstractmethod
+from sfm.logging import logger
 
 from .bert_tokenization import FullTokenizer as FullBertTokenizer
 from .gpt2_tokenization import GPT2Tokenizer
@@ -64,7 +65,7 @@ def _vocab_size_with_padding(orig_vocab_size, args):
     while (after % multiple) != 0:
         after += 1
     if args.rank == 0:
-        print(
+        logger.info(
             " > padded vocab (size: {}) with {} dummy tokens "
             "(new size: {})".format(orig_vocab_size, after - orig_vocab_size, after),
             flush=True,

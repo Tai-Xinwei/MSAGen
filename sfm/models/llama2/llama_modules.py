@@ -21,6 +21,7 @@ from transformers.models.llama.modeling_llama import (
     LlamaRMSNorm,
 )
 
+from sfm.logging import logger
 from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec
 
 
@@ -149,7 +150,6 @@ class LlamaEmbeddingsPP(nn.Module):
 
         # Get text embeddings from language model
         mol_idx_mask = input_ids < 0  # B, T
-
         ## all freeze
         # with torch.no_grad():
         text_embeds = self.embed_tokens(

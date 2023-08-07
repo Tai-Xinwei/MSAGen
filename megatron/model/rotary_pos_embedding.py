@@ -8,7 +8,7 @@ import importlib.util
 
 import torch
 from torch import einsum, nn
-
+from sfm.logging import logger
 __all__ = ["RotaryEmbedding", "apply_rotary_pos_emb"]
 
 
@@ -40,6 +40,7 @@ def _rotate_half(x):
 
     x = rearrange(x, "... (j d) -> ... j d", j=2)
     x1, x2 = x.unbind(dim=-2)
+    # logger.debug(f"x1.shape: {x1.shape}, x2.shape: {x2.shape}, x.shape: {x.shape}, torch.cat((-x2, x1), dim=-1).shape: {torch.cat((-x2, x1), dim=-1).shape}")
     return torch.cat((-x2, x1), dim=-1)
 
 
@@ -52,7 +53,7 @@ def apply_rotary_pos_emb(t, freqs):
     rot_dim = freqs.shape[-1]
     # ideally t_pass is empty so rotary pos embedding is applied to all tensor t
     t, t_pass = t[..., :rot_dim], t[..., rot_dim:]
-
+    # logger.debug(f"t.shape: {t.shape}, t_pass.shape: {t_pass.shape}, freqs.shape: {freqs.shape}")
     # first part is cosine component
     # second part is sine component, need to change signs with _rotate_half method
     t = (t * freqs.cos()) + (_rotate_half(t) * freqs.sin())

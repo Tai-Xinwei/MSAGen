@@ -1231,7 +1231,10 @@ class DataCollatorForSupervisedDataset(object):
                     batched_molecules["edge_input"],
                     batched_molecules["num_atoms"],
                 ],
-                (labels,),
+                (
+                    labels,
+                    input_ids.ne(self.pad_token_id),
+                ),
             )
         else:
             return dict(

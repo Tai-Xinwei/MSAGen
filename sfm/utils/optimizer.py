@@ -43,13 +43,14 @@ def process_param(
             nl = int(name.split(".")[0])
             if nl in unfreeze_layer_name_list:
                 param_groups[0]["params"].append(param)
-                sfm_logger.success(f"unfreeze layer: {name}")
+                if name.find("dummy") == -1:
+                    sfm_logger.success(f"unfreeze layer: {name}")
             else:
                 for unfreeze_name in unfreeze_list:
                     if name.find(unfreeze_name) != -1:
                         param_groups[0]["params"].append(param)
-                        sfm_logger.success(f"unfreeze {name}")
-
+                        if name.find("dummy") == -1:
+                            sfm_logger.success(f"unfreeze layer: {name}")
     elif len(freeze_list) > 0:
         freeze_list, freeze_layer_name_list = split_param_and_layer_name(unfreeze_list)
         for name, param in net.named_parameters():

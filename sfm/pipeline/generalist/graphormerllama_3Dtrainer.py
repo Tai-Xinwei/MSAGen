@@ -15,9 +15,12 @@ from transformers import AutoTokenizer
 
 import sfm.utils.mypp_engine as myPipeEngine
 from megatron import get_args
-from megatron.core import mpu
+from megatron.core import mpu, tensor_parallel
 from megatron.initialize import initialize_megatron
+from megatron.model.utils import init_method_normal
+from megatron.tokenizer.tokenizer import _vocab_size_with_padding
 from sfm.criterions.copilotloss import CopilotCriterionsPP
+from sfm.criterions.copilotloss3d import CopilotCriterionsMP
 from sfm.data.mol_data.moltext_dataset import SupervisedProcessedDataWithSmiles
 from sfm.logging import logger
 from sfm.models.generalist.generalist_config import GeneralistConfig
@@ -44,7 +47,6 @@ class Trainer3D:
         initialize_megatron(extra_args_provider)
         args = get_args()
         self.args = args
-        logger.info("Trainer args: {}", args)
 
         logger.info(
             {
@@ -60,8 +62,13 @@ class Trainer3D:
         # Data stuff
         data_module = make_supervised_data_module(args, mode="train")
         train_data = data_module["train_dataset"]
-        vocab_size = data_module["vocab_size"]
-        logger.info("length of dataset", len(data_module["train_dataset"]))
+        args.padded_vocab_size = max(args.padded_vocab_size, data_module["vocab_size"])
+        vocab_size = args.padded_vocab_size
+        logger.info(
+            "length of dataset {}, vocab_size {}".format(
+                len(data_module["train_dataset"]), vocab_size
+            )
+        )
 
         # Model, optimizer, and learning rate.
         net = GraphormerLlamaModel(args, vocab_size)
@@ -70,17 +77,20 @@ class Trainer3D:
             num_mp=mpu.get_tensor_model_parallel_world_size(),
             num_dp=mpu.get_data_parallel_world_size(),
         )
+
+        criterion = (
+            CopilotCriterionsPP(args, vocab_size)
+            if args.tensor_model_parallel_size == 1
+            else CopilotCriterionsMP
+        )
+
         net = PipelineModule(
             layers=net.to_layers(),
             topology=topo,
-            loss_fn=CopilotCriterionsPP(args, vocab_size),
-            # partition_method="manual",
-            # part_list=[0, 4, 9, 14, 19, 23, 27, 32, 37],
-            # part_list=[0, 5, 7, 10, 12, 14, 16, 18, 20, 22, 24, 27, 30, 32, 34, 37, 40, 42, 45, 48, 51, 54, 57, 60, 63, 66, 69, 70, 73, 76, 79, 81, 85],
-            # part_list=[0, 9, 19, 27, 37],
+            loss_fn=criterion,
             device=args.local_rank,
         )
-        count_paranum(net)
+
         optimizer, param_groups = myAdam(
             net,
             freeze_list=freeze_list,
@@ -123,7 +133,7 @@ class Trainer3D:
 
         for global_step in range(1, self.args.total_num_steps + 1):
             self.model_engine.train_batch()
-            if global_step % 1000 == 0:
+            if global_step % 10000 == 0:
                 self.save_ckp(global_step)
 
             torch.cuda.empty_cache()
@@ -183,5 +193,6 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         pool_mode=args.pool_mode,
         embedding_length=args.embedding_length,
     )
+    vocab_size = _vocab_size_with_padding(len(tokenizer), args)
 
-    return dict(train_dataset=dataset, eval_dataset=None, vocab_size=len(tokenizer))
+    return dict(train_dataset=dataset, eval_dataset=None, vocab_size=vocab_size)
