@@ -254,6 +254,16 @@ class Trainer(object):
         self.model.before_training()
         self.resume()
 
+        total_num = sum(p.numel() for p in self.model.parameters())
+        trainable_num = sum(
+            p.numel() for p in self.model.parameters() if p.requires_grad
+        )
+        logger.info(
+            "Total number of parameters: {:,}, trainable: {:,}",
+            total_num,
+            trainable_num,
+        )
+
         for epoch in range(self.args.epochs):
             self.state.epoch = epoch
             self.accelerator.before_epoch(epoch)

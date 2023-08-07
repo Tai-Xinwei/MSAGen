@@ -217,7 +217,7 @@ class Tamgent2(Model):
             else:
                 p_wd.append(p)
             num_parameters += p.data.nelement()
-        logging.info("number of trainable parameters: %d" % num_parameters)
+        logger.info("number of trainable parameters: %d" % num_parameters)
         optim_params = [
             {
                 "params": p_wd,

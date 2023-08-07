@@ -1,0 +1,40 @@
+description: pj_dstest
+
+env_defaults:
+  NODES: 1
+  GPUS: 16
+  WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+
+target:
+    service: amlk8s
+    name: itphyperdgx2cl1
+    vc: hai1
+
+environment:
+  image: shufxi/mfmds:20230807 #pj/mfmds:20230207_b
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+storage:
+  blob:
+    storage_account_name: msralaphilly2 # Storage account
+    container_name: ml-la # Container name
+    mount_dir: /blob
+
+code:
+  local_dir: .
+
+jobs:
+- name: finetune_tamgent
+  sku: ${NODES}G${GPUS}
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=tamgent2
+  - bash ./install/install.sh
+  - pip install -e .
+  - bash ./scripts/tamgent/ft_tamgent.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g

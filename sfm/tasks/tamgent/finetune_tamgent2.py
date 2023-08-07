@@ -13,8 +13,6 @@ from sfm.utils.cli_utils import cli
 def main(args):
     config = arg_utils.from_args(args, Tamgent2Config)
 
-    config.val_batch_interval = 100
-
     train_dataset = TextToMolDataset.from_files(
         config.train_mol_path, config.train_txt_path
     )

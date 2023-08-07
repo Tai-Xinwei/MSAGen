@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-# see https://pytorch.org/docs/master/generated/torch.nn.parallel.DistributedDataParallel.html
-# DDP only supports spawn start method
 import multiprocessing
 import os
 from abc import ABC, abstractmethod

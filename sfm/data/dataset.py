@@ -2,10 +2,10 @@
 import pickle as pkl
 from dataclasses import dataclass
 from pathlib import Path
+from typing import List
 
 import lmdb
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
 
 @dataclass
@@ -22,7 +22,7 @@ class FoundationModelDataset(Dataset[Data]):
     def __init__(self) -> None:
         super().__init__()
 
-    def collate(self, batch: list[Data]) -> Data:
+    def collate(self, batch: List[Data]) -> Data:
         raise NotImplementedError
 
     def __len__(self):
