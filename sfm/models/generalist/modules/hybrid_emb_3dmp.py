@@ -14,7 +14,7 @@ from sfm.models.llama2.llama_modules_3dmp import ParallelLlamaMLPAdapter
 try:
     from apex.normalization import MixedFusedRMSNorm as LlamaRMSNorm
 except:
-    logger.warning("failed to import apex import hybrid_emb_3dmp.py")
+    logger.error("failed to import apex import hybrid_emb_3dmp.py")
     from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
 

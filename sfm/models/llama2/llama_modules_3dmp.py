@@ -37,7 +37,7 @@ from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec
 try:
     from apex.normalization import MixedFusedRMSNorm
 except:
-    raise ImportError("Please install apex from install/install.sh")
+    raise ImportError("Please install apex from install/install_megatron.sh")
 
 
 class ParallelLlamaMLPAdapter(MegatronModule):
@@ -305,7 +305,7 @@ class LlamaEmbeddingsMP(Embedding):
     def forward(
         self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
     ):
-        mol_emb, mol_padding_mask, llm_mask, input_ids = input_tuple
+        mol_emb, mol_padding_mask, input_ids, llm_mask = input_tuple
 
         # Get text embeddings from language model
         ## set position_ids, it's not used.

@@ -1,0 +1,201 @@
+# -*- coding: utf-8 -*-
+import torch
+
+from megatron.core import parallel_state
+from megatron.model.module import MegatronModule
+
+try:
+    from apex.normalization import FusedLayerNorm as LayerNormTP
+except:
+    raise ImportError("Please install apex from install/install_megatron.sh")
+
+from sfm.logging import logger
+from sfm.modules.FairseqDropout import FairseqDropout
+
+from .graphormer_layers import GraphAttnBias, GraphNodeFeature
+from .graphormer_layers_mp import GraphAttnBiasMP, GraphNodeFeatureMP
+
+
+class GraphormerEmbeddingMP(MegatronModule):
+    def __init__(
+        self,
+        graphormer_config,
+        args,
+        mp_config,
+        init_bias: bool = True,
+        embed_scale: float = None,
+        freeze_embeddings: bool = False,
+        n_trans_layers_to_freeze: int = 0,
+        export: bool = False,
+        q_noise: float = 0.0,
+        qn_block_size: int = 8,
+    ):
+        super().__init__()
+        logger.info(
+            "Graphormer 3D parallel version only support generalist task, do not support 3D input"
+        )
+
+        self.layerdrop = graphormer_config.layerdrop
+        self.max_seq_len = graphormer_config.max_seq_len
+        self.embedding_dim = graphormer_config.embedding_dim
+        self.ffn_embedding_dim = graphormer_config.ffn_embedding_dim
+        self.num_attention_heads = graphormer_config.num_attention_heads
+        self.num_segments = graphormer_config.num_segments
+        self.use_position_embeddings = graphormer_config.use_position_embeddings
+        self.apply_bert_init = graphormer_config.apply_bert_init
+        self.learned_pos_embedding = graphormer_config.learned_pos_embedding
+
+        self.embed_scale = embed_scale
+        self.inner_states = None
+        self.args = args
+        self.config = mp_config
+
+        self.dropout_module = FairseqDropout(
+            graphormer_config.dropout, module_name=self.__class__.__name__
+        )
+
+        if graphormer_config.encoder_normalize_before:
+            self.emb_layer_norm = LayerNormTP(self.embedding_dim)
+        else:
+            self.emb_layer_norm = None
+
+        self.graph_node_feature = GraphNodeFeatureMP(
+            mp_config,
+            args,
+            num_heads=graphormer_config.num_attention_heads,
+            num_atoms=graphormer_config.num_atoms,
+            num_in_degree=graphormer_config.num_in_degree,
+            num_out_degree=graphormer_config.num_out_degree,
+            hidden_dim=graphormer_config.embedding_dim,
+            n_layers=graphormer_config.num_encoder_layers,
+            no_2d=graphormer_config.no_2d,
+            # add_3d=add_3d,
+            # args=args,
+        )
+
+        self.graph_attn_bias = GraphAttnBiasMP(
+            mp_config,
+            args,
+            num_heads=graphormer_config.num_attention_heads
+            * (graphormer_config.num_encoder_layers + 1),
+            num_atoms=graphormer_config.num_atoms,
+            num_edges=graphormer_config.num_edges,
+            num_spatial=graphormer_config.num_spatial,
+            num_edge_dis=graphormer_config.num_edge_dis,
+            edge_type=graphormer_config.edge_type,
+            multi_hop_max_dist=graphormer_config.multi_hop_max_dist,
+            hidden_dim=graphormer_config.num_attention_heads,
+            n_layers=graphormer_config.num_encoder_layers,
+            no_2d=graphormer_config.no_2d,
+            # add_3d=add_3d,
+            # args=args,
+        )
+
+        assert graphormer_config.add_3d is False, "3D bias is not supported in MP mode"
+        # self.graph_3d_bias = Graph3DBiasPipe(
+        #     args,
+        #     num_heads=num_attention_heads * (num_encoder_layers + 1),
+        #     num_edges=num_edges,
+        #     n_layers=num_encoder_layers,
+        #     embed_dim=embedding_dim,
+        #     num_kernel=num_3d_bias_kernel,
+        #     no_share_rpe=False,
+        #     # args=args,
+        # ) if add_3d else None
+
+    def forward(self, input_batchdata: tuple):
+        (
+            input_ids,
+            llm_mask,
+            _,
+            x_0,
+            in_degree,
+            out_degree,
+            attn_bias,
+            spatial_pos,
+            edge_input,
+            num_atoms,
+        ) = input_batchdata
+
+        # assert type(idx) == torch.Tensor
+        assert type(attn_bias) == torch.Tensor
+        # assert type(attn_edge_type) == torch.Tensor
+        assert type(spatial_pos) == torch.Tensor
+        assert type(in_degree) == torch.Tensor
+        # assert type(output_degree) == torch.Tensor
+        assert type(x_0) == torch.Tensor
+        assert type(edge_input) == torch.Tensor
+        # assert type(y) == torch.Tensor
+        # assert type(pos) == torch.Tensor
+        # assert type(node_type_edge) == torch.Tensor
+
+        last_state_only = False
+
+        n_graph, n_node = x_0.size()[:2]
+        padding_mask = (x_0[:, :, 0]).eq(0)  # B x T x 1
+        padding_mask_cls = torch.zeros(
+            n_graph, 1, device=padding_mask.device, dtype=padding_mask.dtype
+        )
+        padding_mask = torch.cat((padding_mask_cls, padding_mask), dim=1)
+
+        # calculate node feature
+        input_tuple = (x_0, in_degree, out_degree, None, None)
+        x = self.graph_node_feature(input_tuple)
+
+        # x: B x T x C
+        # calculate the 2D bias
+        input_tuple2 = (
+            attn_bias,
+            spatial_pos,
+            x_0,
+            edge_input,
+            None,
+            None,
+            None,
+        )
+
+        attn_bias = self.graph_attn_bias(
+            input_tuple2
+        )  # B x (nhead x (nlayer+1)) x T x T
+
+        # tp 3d bias is not implemented, it's not needed in the generalist task
+
+        # add embed_scale, drop, and layer norm
+        if self.embed_scale is not None:
+            x = x * self.embed_scale
+
+        if self.emb_layer_norm is not None:
+            x = self.emb_layer_norm(x)
+
+        x = self.dropout_module(x)
+
+        # account for padding while computing the representation
+
+        # B x T x C -> T x B x C
+        x = x.transpose(0, 1)
+
+        if not last_state_only:
+            self.inner_states = x[None, ...]
+
+        attn_bias = (
+            attn_bias.contiguous()
+            .view(n_graph, self.args.encoder_layers + 1, -1, n_node + 1, n_node + 1)
+            .contiguous()
+        ).to(
+            x.dtype
+        )  # B x (nlayer+1) x nhead x T x T
+
+        # patition the attn_bias to each TP
+        assert (
+            self.args.encoder_attention_heads % self.config.tensor_model_parallel_size
+            == 0
+        ), f"Force TP size be divisible by nhead to avoid low efficiency, but got {self.args.encoder_attention_heads} and {self.config.tensor_model_parallel_size}"
+        nhead_per_TP_rank = (
+            self.args.encoder_attention_heads // self.config.tensor_model_parallel_size
+        )
+        tp_rank = parallel_state.get_tensor_model_parallel_rank()
+        attn_bias_tp = attn_bias[
+            :, :, tp_rank * nhead_per_TP_rank : (tp_rank + 1) * nhead_per_TP_rank, :, :
+        ]
+
+        return x, padding_mask, attn_bias_tp, input_ids, llm_mask

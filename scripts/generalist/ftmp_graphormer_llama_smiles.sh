@@ -127,6 +127,9 @@ DISTRIBUTED_ARGS="
     # --node_rank $NODE_RANK \
 
 
+wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
+
+
 DS_CONFIG=$save_dir/deepspeed.json
 
 cat <<EOT > $DS_CONFIG
@@ -144,9 +147,6 @@ cat <<EOT > $DS_CONFIG
 EOT
 
 ds_args=" --deepspeed --deepspeed_config=$DS_CONFIG"
-
-
-wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
 
 # torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
 

@@ -31,15 +31,15 @@ Mild: gcrhyp3c108, GCRHYP3C218, gcrhyp3c225, gcrhyp3c253 (Good to use, port erro
 ## Example Scripts
 Pretraining Graphormer on 4 GPUs:
 ```
-bash scripts/pretrain_graphormer.sh
+bash scripts/graphormer/pretrain_graphormer.sh
 ```
 
 Finetuning Graphormer on 4 GPUs:
 ```
-bash scripts/ft_graphormer.sh
+bash scripts/graphormer/ft_graphormer.sh
 ```
 
 Finetuning Llama2 + Graphormer on 4 GPUs:
 ```
-bash scripts/ft_graphormer_llama_smiles.sh
+bash scripts/generalist/ft_graphormer_llama_smiles.sh
 ```
