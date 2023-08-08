@@ -163,6 +163,7 @@ class Trainer(object):
             TrainStrategy.Zero1,
             TrainStrategy.Zero2,
             TrainStrategy.Zero3,
+            TrainStrategy.Pipeline,
         ]:
             return DeepSpeedAccelerator(
                 self.args,

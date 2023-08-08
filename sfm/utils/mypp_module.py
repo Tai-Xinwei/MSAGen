@@ -452,7 +452,7 @@ class PipelineModule(nn.Module):
                             name = layer.__name__
                         except AttributeError:
                             pass
-                    if method != "manual":
+                    if method != "manual" and (not method.startswith("type:")):
                         print(
                             f"    {idx+start:2d}: {name} -- {param_counts[start+idx]/1e6:.3f}M"
                         )

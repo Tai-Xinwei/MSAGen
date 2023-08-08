@@ -23,6 +23,9 @@ from sfm.pipeline.accelerator.dataclasses import (
     ValidLogOutput,
 )
 from sfm.utils.move_to_device import move_to_device
+from sfm.utils.PPEngine import initialize as initialize_pp_engine
+
+from .pipeline_module import SFMPipelineModule
 
 
 class Accelerator(ABC):
@@ -327,7 +330,6 @@ class DeepSpeedAccelerator(Accelerator):
     @property
     def grad_scale(self) -> float:
         return self.optimizer.cur_scale
-        # return self.scaler.get_scale()
 
     def set_ds_config(self):
         if (
@@ -337,11 +339,15 @@ class DeepSpeedAccelerator(Accelerator):
             import json
 
             try:
-                self.args.deepspeed_config = json.load(self.args.deepspeed_config)
-            except:
+                with open(self.args.deepspeed_config) as deepspeed_config_file:
+                    self.args.deepspeed_config = json.load(deepspeed_config_file)
+            except Exception as e:
                 logger.warning(
-                    f"Failed to load deepspeed config from {self.args.deepspeed_config}, using default config instead."
+                    f"Failed to load deepspeed config from {self.args.deepspeed_config}, using default config instead. Error message: {e}"
                 )
+                from sfm.utils.defaultdsconfig import DEFAULT_DS_CONFIG
+
+                self.args.deepspeed_config = DEFAULT_DS_CONFIG
         elif (
             isinstance(self.args.deepspeed_config, str)
             and len(self.args.deepspeed_config) == 0
@@ -358,14 +364,19 @@ class DeepSpeedAccelerator(Accelerator):
             self.args.deepspeed_config["fp16"]["enabled"] = self.args.fp16
             self.args.deepspeed_config["fp16"]["auto_cast"] = self.args.auto_cast
 
-            if self.args.strategy == TrainStrategy.Zero1:
+            if (
+                self.args.strategy == TrainStrategy.Zero1
+                or self.args.strategy == TrainStrategy.Pipeline
+            ):
                 self.args.deepspeed_config["zero_optimization"]["stage"] = 1
             elif self.args.strategy == TrainStrategy.Zero2:
                 self.args.deepspeed_config["zero_optimization"]["stage"] = 2
             elif self.args.strategy == TrainStrategy.Zero3:
                 self.args.deepspeed_config["zero_optimization"]["stage"] = 3
             else:
-                raise ValueError(f"Unsupported ZeRO strategy: {self.args.strategy}")
+                raise ValueError(
+                    f"Unsupported accelerator strategy: {self.args.strategy}"
+                )
 
             self.args.deepspeed_config[
                 "gradient_clipping"
@@ -377,37 +388,54 @@ class DeepSpeedAccelerator(Accelerator):
         deepspeed.init_distributed(dist_backend=self.args.dist_backend)
         self.set_ds_config()
 
-        (
-            self.model_engine,
-            self.optimizer,
-            self.train_data_loader,
-            _,
-        ) = deepspeed.initialize(
-            args=self.args,
-            model=self.model,
-            model_parameters=self.model.parameters(),
-            training_data=self.train_data,
-            collate_fn=self.train_data.collate,
-            optimizer=self.optimizer,
-            lr_scheduler=self.lr_scheduler,
-        )
-        self.build_data_loader()
+        if self.args.strategy == TrainStrategy.Pipeline:
+            self.model = SFMPipelineModule(
+                self.model,
+                loss_fn=lambda pred, label: self.model.compute_loss(pred, label).loss,
+                num_stages=self.args.deepspeed_config.get(
+                    "num_pp_stages", self.args.pipeline_model_parallel_size
+                ),
+                partition_layer_name=self.args.deepspeed_config.get(
+                    "pp_partition_layer_name", self.args.pp_partition_layer_name
+                ),
+            )
+            (
+                self.model_engine,
+                self.optimizer,
+                self.train_data_loader,
+                self.lr_scheduler,
+            ) = initialize_pp_engine(
+                args=self.args,
+                model=self.model,
+                model_parameters=self.model.parameters(),
+                training_data=self.train_data,
+                collate_fn=self.train_data.collate,
+                optimizer=self.optimizer,
+                lr_scheduler=self.lr_scheduler,
+            )
+        else:
+            (
+                self.model_engine,
+                self.optimizer,
+                self.train_data_loader,
+                self.lr_scheduler,
+            ) = deepspeed.initialize(
+                args=self.args,
+                model=self.model,
+                model_parameters=self.model.parameters(),
+                training_data=self.train_data,
+                collate_fn=self.train_data.collate,
+                optimizer=self.optimizer,
+                lr_scheduler=self.lr_scheduler,
+            )
+        self.build_data_loader(self.train_data, self.valid_data)
 
     def barrier(self):
         deepspeed.comm.barrier()
 
-    def build_data_loader(self):
-        # tsampler = torch.utils.data.distributed.DistributedSampler(
-        #     self.train_data, num_replicas=self.model_engine.dp_world_size, shuffle=False
-        # )
-
-        # self.train_data_loader = DataLoader(
-        #     self.train_data,
-        #     sampler=tsampler,
-        #     batch_size=self.model_engine.train_micro_batch_size_per_gpu(),
-        #     collate_fn=self.train_data.collate,
-        #     drop_last=False,
-        # )
+    def build_data_loader(
+        self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
+    ):
         if self.valid_data:
             validsampler = torch.utils.data.distributed.DistributedSampler(
                 self.valid_data,
@@ -431,21 +459,30 @@ class DeepSpeedAccelerator(Accelerator):
 
     def train_step(self, grouped_batch_data) -> ModelOutput:
         self.model_engine.module.train()
-        for idx, batch_data in enumerate(grouped_batch_data):
-            self.model_engine.tput_timer.start()
-            batch_data = move_to_device(
-                batch_data, device=self.args.local_rank, non_blocking=True
-            )
-            self.model.before_batch()
-            pred = self.model_engine(batch_data)
+        if self.args.strategy == TrainStrategy.Pipeline:
+            for _, batch_data in enumerate(grouped_batch_data):
+                loss = self.model_engine.train_batch()
+                model_output = ModelOutput(
+                    loss=loss,
+                    num_examples=self.args.deepspeed_config["train_batch_size"],
+                    log_output={"loss": loss},
+                )
+        else:
+            for idx, batch_data in enumerate(grouped_batch_data):
+                self.model_engine.tput_timer.start()
+                batch_data = move_to_device(
+                    batch_data, device=self.args.local_rank, non_blocking=True
+                )
+                self.model.before_batch()
+                pred = self.model_engine(batch_data)
 
-            model_output = self.model.compute_loss(pred, batch_data)
-            loss = model_output.loss
+                model_output = self.model.compute_loss(pred, batch_data)
+                loss = model_output.loss
 
-            self.model.after_batch()
+                self.model.after_batch()
 
-            self.model_engine.backward(loss)
-            self.model_engine.step()
+                self.model_engine.backward(loss)
+                self.model_engine.step()
 
         torch.cuda.empty_cache()
         return model_output

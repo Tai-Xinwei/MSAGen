@@ -15,6 +15,7 @@ from transformers import AutoTokenizer
 
 from sfm.data.mol_data.moltext_dataset import SupervisedProcessedDataWithSmiles
 from sfm.logging import logger
+from sfm.models.generalist import GraphormerLlamaModel
 from sfm.models.generalist.generalist_config import GeneralistConfig
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.pipeline.accelerator.dataclasses import (
@@ -22,8 +23,7 @@ from sfm.pipeline.accelerator.dataclasses import (
     TrainerConfig,
     TrainStrategy,
 )
-from sfm.pipeline.generalist.graphormerllama_3Dtrainer import Trainer3D
-from sfm.pipeline.generalist.graphormerllama_trainer import Trainer
+from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils import arg_utils
 from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
 from sfm.utils.cli_utils import cli
@@ -82,38 +82,19 @@ def make_supervised_data_module(args, mode="train") -> Dict:
 
 @cli(DistributedTrainConfig, GraphormerConfig, GeneralistConfig)
 def main(args) -> None:
-    if args.strategy == TrainStrategy.DDP:
-        torch.distributed.init_process_group(backend="nccl")
-    elif args.strategy in [
-        TrainStrategy.Zero1,
-        TrainStrategy.Zero2,
-        TrainStrategy.Zero3,
-    ]:
-        deepspeed.init_distributed()
-
     data_module = make_supervised_data_module(args, mode="train")
     logger.info("length of dataset", len(data_module["train_dataset"]))
-
-    freeze_list = []
-    unfreeze_list = ["adaptor", "dummy", "0.layers.22", "0.layers.23"]
 
     if args.tensor_model_parallel_size == 1:
         trainer = Trainer(
             args,
-            data_module["train_dataset"],
-            vocab_size=data_module["vocab_size"],
-            freeze_list=freeze_list,
-            unfreeze_list=unfreeze_list,
+            train_data=data_module["train_dataset"],
+            valid_data=data_module["eval_dataset"],
+            model=GraphormerLlamaModel(args, data_module["vocab_size"]),
         )
     else:
         raise Exception("Check ft3d_graphormer_llama_inst.py")
-
-    if args.pipeline_model_parallel_size == 0:
-        trainer.train()
-    elif args.tensor_model_parallel_size == 1:
-        trainer.train_pipeline()
-    else:
-        raise Exception("Check ft3d_graphormer_llama_inst.py")
+    trainer.train()
 
 
 if __name__ == "__main__":

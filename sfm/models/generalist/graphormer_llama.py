@@ -9,9 +9,12 @@ import os
 from typing import Dict, List, Optional
 
 import torch
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 from transformers.models.llama.configuration_llama import LlamaConfig
 from transformers.models.llama.modeling_llama import LlamaForCausalLM
 
+from sfm.criterions.copilotloss import CopilotCriterionsPP
 from sfm.data.mol_data.moltext_dataset import batch_collater_for_graphormer
 from sfm.logging.loggers import logger
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
@@ -19,6 +22,9 @@ from sfm.models.graphormer.modules import GraphormerSentenceEncoder
 from sfm.models.llama2.llama2mp_config import MPLlamaConfig
 from sfm.models.llama2.llama_modules import LlamaEmbeddingsPP, LlamaModelPP
 from sfm.models.llama2.llama_modules_3dmp import LlamaEmbeddingsMP, LlamaModelMP
+from sfm.pipeline.accelerator.dataclasses import ModelOutput
+from sfm.pipeline.accelerator.model import Model
+from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
 
 from .modules.graphormer_encoder import GraphormerSentenceEncoderPP
@@ -26,7 +32,7 @@ from .modules.hybrid_emb import AdaptorConfig, HybridEmbeddings, HybridEmbedding
 from .modules.hybrid_emb_3dmp import HybridEmbeddingsMP
 
 
-class GraphormerLlamaModel(torch.nn.Module):
+class GraphormerLlamaModel(SFMPipelineModelMixin):
     """
     Class for training a Masked Language Model. It also supports an
     additional sentence level prediction if the sent-loss argument is set.
@@ -50,6 +56,8 @@ class GraphormerLlamaModel(torch.nn.Module):
 
         if args.tensor_model_parallel_size > 1:
             mpllama_config = self.init_mpllama_config(args, llama_config)
+            self.llama_config = mpllama_config
+        self.llama_config = llama_config
 
         self.pipe_layers = []
         if args.pipeline_model_parallel_size == 0:
@@ -102,6 +110,9 @@ class GraphormerLlamaModel(torch.nn.Module):
                     load_ckpt=args.if_load_ckpt,
                     new_num_tokens=vocab_size,
                 )
+            )
+            self.loss = CopilotCriterionsPP(
+                self.llama_config, self.llama_config.vocab_size
             )
         else:
             self.pipe_layers.extend(
@@ -365,3 +376,14 @@ class GraphormerLlamaModel(torch.nn.Module):
         )
 
         return config
+
+    def compute_loss(self, pred, batch) -> ModelOutput:
+        loss = self.loss(pred, batch)
+        return ModelOutput(
+            loss=loss,
+            num_examples=pred.size()[0],
+            log_output={"loss": float(loss.detach())},
+        )
+
+    def config_optimizer(self) -> tuple[Optimizer, LRScheduler]:
+        return (None, None)

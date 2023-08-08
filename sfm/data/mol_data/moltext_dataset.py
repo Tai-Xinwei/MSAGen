@@ -985,6 +985,9 @@ class SupervisedProcessedDataWithSmiles(Dataset):
     def collater(self, samples):
         return self.data_collater(samples)
 
+    def collate(self, samples):
+        return self.collater(samples)
+
 
 def preprocess_item(item):
     edge_attr, edge_index, x = item.edge_attr, item.edge_index, item.x

@@ -47,6 +47,7 @@ class TrainerConfig:
     save_epoch_interval: int = 1
     log_interval: int = 10000
     strategy: TrainStrategy = TrainStrategy.Single
+    pp_partition_layer_name: str = ""
     cpu: bool = False
     ifresume: bool = False
     if_load_ckpt: bool = False
