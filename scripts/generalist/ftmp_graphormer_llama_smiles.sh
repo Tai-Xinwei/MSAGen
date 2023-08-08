@@ -54,7 +54,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${zero_strategy}" ] && zero_strategy=1
 
 [ -z "${micro_batch_size}" ] && micro_batch_size=2
-[ -z "${global_batch_size}" ] && global_batch_size=128
+[ -z "${global_batch_size}" ] && global_batch_size=64
 [ -z "${max_position_embeddings}" ] && max_position_embeddings=2048
 [ -z "${vocab_size}" ] && vocab_size=32000
 [ -z "${vocabtokenizer_model_size}" ] && tokenizer_model="/home/peiran/FMproj/llama2/llama-2-7b/tokenizer.model"

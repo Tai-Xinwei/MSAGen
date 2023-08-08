@@ -49,6 +49,7 @@ class GraphormerEmbeddingMP(MegatronModule):
         self.inner_states = None
         self.args = args
         self.config = mp_config
+        self.graphormer_config = graphormer_config
 
         self.dropout_module = FairseqDropout(
             graphormer_config.dropout, module_name=self.__class__.__name__
@@ -137,6 +138,7 @@ class GraphormerEmbeddingMP(MegatronModule):
             n_graph, 1, device=padding_mask.device, dtype=padding_mask.dtype
         )
         padding_mask = torch.cat((padding_mask_cls, padding_mask), dim=1)
+        Bs, Seq_len = padding_mask.shape
 
         # calculate node feature
         input_tuple = (x_0, in_degree, out_degree, None, None)
@@ -183,9 +185,8 @@ class GraphormerEmbeddingMP(MegatronModule):
             .contiguous()
         ).to(
             x.dtype
-        )  # B x (nlayer+1) x nhead x T x T
+        )  # B x (nlayer+1) x nhead_pre_tprank x T x T
 
-        # patition the attn_bias to each TP
         assert (
             self.args.encoder_attention_heads % self.config.tensor_model_parallel_size
             == 0
@@ -193,9 +194,21 @@ class GraphormerEmbeddingMP(MegatronModule):
         nhead_per_TP_rank = (
             self.args.encoder_attention_heads // self.config.tensor_model_parallel_size
         )
-        tp_rank = parallel_state.get_tensor_model_parallel_rank()
-        attn_bias_tp = attn_bias[
-            :, :, tp_rank * nhead_per_TP_rank : (tp_rank + 1) * nhead_per_TP_rank, :, :
-        ]
 
-        return x, padding_mask, attn_bias_tp, input_ids, llm_mask
+        assert list(attn_bias.size()) == [
+            Bs,
+            self.graphormer_config.num_encoder_layers + 1,
+            nhead_per_TP_rank,
+            Seq_len,
+            Seq_len,
+        ], f"attn_bias size is {attn_bias.size()}, but expected to be [{Bs}, {self.graphormer_config.num_encoder_layers+1}, {nhead_per_TP_rank}, {Seq_len}, {Seq_len}]"
+
+        return x, padding_mask, attn_bias, input_ids, llm_mask
+
+        # patition the attn_bias to each TP rank
+        # tp_rank = parallel_state.get_tensor_model_parallel_rank()
+        # attn_bias_tp = attn_bias[
+        #     :, :, tp_rank * nhead_per_TP_rank : (tp_rank + 1) * nhead_per_TP_rank, :, :
+        # ]
+        #
+        # return x, padding_mask, attn_bias_tp, input_ids, llm_mask
