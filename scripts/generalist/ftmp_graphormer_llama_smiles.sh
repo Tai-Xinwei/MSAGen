@@ -53,8 +53,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=4
 [ -z "${zero_strategy}" ] && zero_strategy=1
 
-[ -z "${micro_batch_size}" ] && micro_batch_size=2
-[ -z "${global_batch_size}" ] && global_batch_size=64
+[ -z "${micro_batch_size}" ] && micro_batch_size=4
+[ -z "${global_batch_size}" ] && global_batch_size=32
 [ -z "${max_position_embeddings}" ] && max_position_embeddings=2048
 [ -z "${vocab_size}" ] && vocab_size=32000
 [ -z "${vocabtokenizer_model_size}" ] && tokenizer_model="/home/peiran/FMproj/llama2/llama-2-7b/tokenizer.model"
@@ -119,12 +119,21 @@ echo "max_position_embeddings: ${max_position_embeddings}"
 echo "llm_hidden_size: ${llm_hidden_size}"
 
 
-DISTRIBUTED_ARGS="
-    --nproc_per_node $n_gpu \
-    --master_port $MASTER_PORT
-"
-    # --nnodes $NNODES \
-    # --node_rank $NODE_RANK \
+if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
+then
+  DISTRIBUTED_ARGS=""
+else
+  if (( $OMPI_COMM_WORLD_SIZE == 1))
+  then
+    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
+                      --master_port $MASTER_PORT"
+  else
+    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
+                      --nnodes $OMPI_COMM_WORLD_SIZE \
+                      --node_rank $OMPI_COMM_WORLD_RANK \
+                      --master_addr $MASTER_ADDR"
+  fi
+fi
 
 
 wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
@@ -148,9 +157,9 @@ EOT
 
 ds_args=" --deepspeed --deepspeed_config=$DS_CONFIG"
 
-# torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
 
-deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
+# deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
           --num_classes 1 \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \

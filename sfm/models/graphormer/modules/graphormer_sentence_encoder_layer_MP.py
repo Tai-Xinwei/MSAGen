@@ -139,7 +139,7 @@ class GraphormerSentenceEncoderLayerMP(nn.Module):
             value_bias=True,
             output_bias=True,
             dropout=dropout,
-            num_key_value_heads=self.mp_config.num_key_value_heads,
+            num_key_value_heads=None,
             d_tilde=d_tilde,
         )
 

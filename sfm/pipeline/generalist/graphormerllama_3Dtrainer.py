@@ -133,7 +133,7 @@ class Trainer3D:
 
         for global_step in range(1, self.args.total_num_steps + 1):
             self.model_engine.train_batch()
-            if global_step % 10000 == 0:
+            if global_step % 100 == 0:
                 self.save_ckp(global_step)
 
             torch.cuda.empty_cache()

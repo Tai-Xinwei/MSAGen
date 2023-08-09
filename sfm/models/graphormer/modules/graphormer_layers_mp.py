@@ -50,13 +50,13 @@ class GraphNodeFeatureMP(MegatronModule):
         self.args = args
 
         # self.atom_encoder = nn.Embedding(num_atoms + 1, hidden_dim, padding_idx=0)
-        # self.in_degree_encoder = nn.Embedding(num_in_degree, hidden_dim, padding_idx=0)
-        # self.out_degree_encoder = nn.Embedding(
-        #     num_out_degree, hidden_dim, padding_idx=0
-        # )
+        self.in_degree_encoder = nn.Embedding(num_in_degree, hidden_dim, padding_idx=0)
+        self.out_degree_encoder = nn.Embedding(
+            num_out_degree, hidden_dim, padding_idx=0
+        )
 
-        # self.graph_token = nn.Embedding(1, hidden_dim)
-        # self.atom_mask_embedding = nn.Embedding(9, hidden_dim, padding_idx=None)
+        self.graph_token = nn.Embedding(1, hidden_dim)
+        self.atom_mask_embedding = nn.Embedding(9, hidden_dim, padding_idx=None)
 
         padded_num_atoms = (
             num_atoms // mp_config.tensor_model_parallel_size + 1
@@ -69,34 +69,35 @@ class GraphNodeFeatureMP(MegatronModule):
             init_method=mp_config.init_method,
         )
 
-        padded_num_in_degree = (
-            (num_in_degree - 1) // mp_config.tensor_model_parallel_size + 1
-        ) * mp_config.tensor_model_parallel_size
+        # No need to split, TP will cause unnecessary communication
+        # padded_num_in_degree = (
+        #     (num_in_degree - 1) // mp_config.tensor_model_parallel_size + 1
+        # ) * mp_config.tensor_model_parallel_size
 
-        self.in_degree_encoder = tensor_parallel.VocabParallelEmbedding(
-            padded_num_in_degree,
-            hidden_dim,
-            config=mp_config,
-            init_method=mp_config.init_method,
-        )
+        # self.in_degree_encoder = tensor_parallel.VocabParallelEmbedding(
+        #     padded_num_in_degree,
+        #     hidden_dim,
+        #     config=mp_config,
+        #     init_method=mp_config.init_method,
+        # )
 
-        padded_num_out_degree = (
-            (num_out_degree - 1) // mp_config.tensor_model_parallel_size + 1
-        ) * mp_config.tensor_model_parallel_size
+        # padded_num_out_degree = (
+        #     (num_out_degree - 1) // mp_config.tensor_model_parallel_size + 1
+        # ) * mp_config.tensor_model_parallel_size
 
-        self.out_degree_encoder = tensor_parallel.VocabParallelEmbedding(
-            padded_num_out_degree,
-            hidden_dim,
-            config=mp_config,
-            init_method=mp_config.init_method,
-        )
+        # self.out_degree_encoder = tensor_parallel.VocabParallelEmbedding(
+        #     padded_num_out_degree,
+        #     hidden_dim,
+        #     config=mp_config,
+        #     init_method=mp_config.init_method,
+        # )
 
-        self.graph_token = tensor_parallel.VocabParallelEmbedding(
-            4, hidden_dim, config=mp_config, init_method=mp_config.init_method
-        )
-        self.atom_mask_embedding = tensor_parallel.VocabParallelEmbedding(
-            12, hidden_dim, config=mp_config, init_method=mp_config.init_method
-        )
+        # self.graph_token = tensor_parallel.VocabParallelEmbedding(
+        #     4, hidden_dim, config=mp_config, init_method=mp_config.init_method
+        # )
+        # self.atom_mask_embedding = tensor_parallel.VocabParallelEmbedding(
+        #     12, hidden_dim, config=mp_config, init_method=mp_config.init_method
+        # )
 
     def forward(self, inputs_tuple: tuple):
         x, in_degree, out_degree, node_mask, mask_2d = inputs_tuple

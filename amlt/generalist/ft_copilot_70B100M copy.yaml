@@ -34,7 +34,7 @@ jobs:
   command:
   - mkdir /blob/ds_dataset/output
   - mkdir /blob/ds_dataset/output/ft_100MMFM_70Bllama2_full_mix1_32001_unfreezeg23_128_warm600
-  - export output_path=/blob/ds_dataset/output/ft_100MMFM_70Bllama2_full_mix1_32001_unfreezeg23_128_warm600/
+  - export save_dir=/blob/ds_dataset/output/ft_100MMFM_70Bllama2_full_mix1_32001_unfreezeg23_128_warm600/
   - mkdir ./output
   - export path=run.sh
   - export layers=24
@@ -43,20 +43,20 @@ jobs:
   - export ffn_size=768
   - export num_head=32
   - export num_3d_bias_kernel=128
-  - export atom_loss_coeff=1.0
-  - export pos_loss_coeff=1.0
+  - export llm_hidden_size=8192
+  - export global_batch_size=64
+  - export micro_batch_size=2
+  - export max_position_embeddings=2048
   - export sandwich_ln="true"
-  - export dropout=0.0
-  - export attn_dropout=0.1
-  - export act_dropout=0.1
-  - export weight_decay=0.0
-  - export droppath_prob=0.0
-  - export pipeline_parallelism=32
+  - export pipeline_model_parallel_size=4
+  - export tensor_model_parallel_size=8
+  - export zero_strategy=1
   - export d_tilde=1.0
   - export max_lr=2e-5
   - export total_num_steps=10000
   - export warmup_num_steps=600
   - export embedding_length=20
+  - export pool_mode=full
   - export mkdir /tmp/dataset
   - export data_path=/tmp/dataset/chemical-copilot-20230724/
   - export smiles_dict_path=/tmp/dataset/chemical-copilot/mol2idx_dict.jsonl
@@ -68,8 +68,13 @@ jobs:
   - export loadmfmcheck_path=/blob/ds_dataset/ddpm100M/checkpoint7_new.pt
   - export loadllmcheck_path=/blob/ds_dataset/llama2/llama-2-70b/
   - export llm_model_name_or_path=/blob/ds_dataset/llama2/llama-2-70b/
+  - export tokenizer_model=/blob/ds_dataset/llama2/llama-2-70b/tokenizer.model
+  - conda create -y -n sfm python=3.9
+  - eval "$$(conda shell.bash hook)"
+  - conda activate sfm
   - bash ./install/install.sh
-  - bash ./scripts/ft_graphormer_llama_smiles.sh
+  - bash ./install/install_megatron.sh
+  - bash ./scripts/generalist/ftmp_graphormer_llama_smiles.sh
   submit_args:
     container_args:
       shm_size: 1024g
