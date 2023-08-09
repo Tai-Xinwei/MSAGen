@@ -383,6 +383,20 @@ class DeepSpeedAccelerator(Accelerator):
             self.args.deepspeed_config["steps_per_print"] = self.args.log_interval
             return
 
+    def get_unfreeze_param_list(self, unfreeze_param_name_list: str):
+        if unfreeze_param_name_list == "":
+            return None
+        unfreeze_param = []
+        unfreeze_param_name_list = list(
+            filter(lambda x: x != "", unfreeze_param_name_list.split(","))
+        ) + ["dummy"]
+        for name, param in self.model.named_parameters():
+            for param_name in unfreeze_param_name_list:
+                if name.find(param_name) != -1:
+                    unfreeze_param.append(param)
+                    break
+        return unfreeze_param
+
     def set_up(self):
         deepspeed.init_distributed(dist_backend=self.args.dist_backend)
         self.set_ds_config()
@@ -398,6 +412,14 @@ class DeepSpeedAccelerator(Accelerator):
                     "pp_partition_layer_name", self.args.pp_partition_layer_name
                 ),
             )
+            unfreeze_params = self.get_unfreeze_param_list(
+                self.args.unfreeze_param_list
+            )
+            model_parameters = (
+                unfreeze_params
+                if unfreeze_params is not None
+                else self.model.parameters()
+            )
             (
                 self.model_engine,
                 self.optimizer,
@@ -406,7 +428,7 @@ class DeepSpeedAccelerator(Accelerator):
             ) = initialize_pp_engine(
                 args=self.args,
                 model=self.model,
-                model_parameters=self.model.parameters(),
+                model_parameters=model_parameters,
                 training_data=self.train_data,
                 collate_fn=self.train_data.collate,
                 optimizer=self.optimizer,
@@ -459,13 +481,12 @@ class DeepSpeedAccelerator(Accelerator):
     def train_step(self, grouped_batch_data) -> ModelOutput:
         self.model_engine.module.train()
         if self.args.strategy == TrainStrategy.Pipeline:
-            for _, batch_data in enumerate(grouped_batch_data):
-                loss = self.model_engine.train_batch()
-                model_output = ModelOutput(
-                    loss=loss,
-                    num_examples=self.args.deepspeed_config["train_batch_size"],
-                    log_output={"loss": loss},
-                )
+            loss = self.model_engine.train_batch()
+            model_output = ModelOutput(
+                loss=loss,
+                num_examples=self.args.deepspeed_config["train_batch_size"],
+                log_output={"loss": loss},
+            )
         else:
             for idx, batch_data in enumerate(grouped_batch_data):
                 self.model_engine.tput_timer.start()

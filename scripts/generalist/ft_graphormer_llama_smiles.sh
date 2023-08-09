@@ -29,7 +29,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=10000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 
-[ -z "${data_path}" ] && data_path='/home/peiran/FMproj/chemical-copilot-20230724'
+[ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot'
 # [ -z "${dataset_names}" ] && dataset_names='tdc'
 # [ -z "${dataset_splits}" ] && dataset_splits='all-instruction'
 [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
@@ -40,16 +40,17 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${model_max_length}" ] && model_max_length=512
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
-[ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/llama2'
+[ -z "${save_dir}" ] && save_dir='/mnt/shiyu/models/converted/llama2'
 [ -z "${smiles_dict_path}" ] && smiles_dict_path="/home/peiran/FMproj/chemical-copilot/mol2idx_dict.jsonl"
-[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
+[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/checkpoint7_new.pt"
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/MetaLLM-converted/7B-pp"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
 [ -z "${mol_size_path}" ] && mol_size_path="/home/peiran/FMproj/chemical-copilot/mol_size_dict.pkl"
+[ -z "${save_batch_interval}"] && save_batch_interval=500
 
 [ -z "${add_3d}" ] && add_3d=false
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=8
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
 [ -z "${strategy}" ] && strategy=Pipeline
 
@@ -117,7 +118,7 @@ echo "pool_mode: ${pool_mode}"
 
 wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
 
-deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalist/ft_graphormer_llama_inst.py \
+deepspeed --num_gpu=16 --master_port=$MASTER_PORT sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --num_classes 1 \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
@@ -149,7 +150,10 @@ deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalist/ft_graphor
           --embedding_length $embedding_length \
           --model_max_length $model_max_length \
           --deepspeed_config ./config_file/ds_config_pp.json \
-          --pp_partition_layer_name "LlamaDecoderLayerPP"
+          --pp_partition_layer_name "LlamaDecoderLayerPP" \
+          --load_ckpt \
+          --unfreeze_param_list "adaptor" \
+          --save_batch_interval $save_batch_interval
 
 
 # if [ $OMPI_COMM_WORLD_RANK == 0 ]; then
@@ -177,13 +181,21 @@ deepspeed --num_gpu=4 --master_port=$MASTER_PORT sfm/tasks/generalist/ft_graphor
 #     --total_num_steps $total_num_steps \
 #     --warmup_num_steps $warmup_num_steps \
 #     --loadcheck_path $loadcheck_path \
-#     --deepspeed --deepspeed_config ./config_file/ds_config_ft.json \
+#     --deepspeed --deepspeed_config ./config_file/ds_config_pp.json \
 #     --smiles_dict_path $smiles_dict_path \
 #     --mol_size_path $mol_size_path \
 #     --llm_model_name_or_path $llm_model_name_or_path \
 #     --loadmfmcheck_path $loadmfmcheck_path \
 #     --dataset_names $dataset_names \
-#     --dataset_splits $dataset_splits
+#     --dataset_splits $dataset_splits \
+#     --pool_mode $pool_mode \
+#     --strategy $strategy \
+#     --embedding_length $embedding_length \
+#     --model_max_length $model_max_length \
+#     --pp_partition_layer_name "LlamaDecoderLayerPP" \
+#     --load_ckpt \
+#     --unfreeze_param_list "adaptor,graphormer" \
+#     --save_batch_interval $save_batch_interval
 # fi
 
 sleep inf

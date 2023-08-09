@@ -26,7 +26,6 @@ from sfm.models.llama2.llama2mp_config import MPLlamaConfig
 from sfm.models.llama2.llama_modules import LlamaEmbeddingsPP, LlamaModelPP
 from sfm.models.llama2.llama_modules_3dmp import LlamaEmbeddingsMP, LlamaModelMP
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
-from sfm.pipeline.accelerator.model import Model
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
 
@@ -45,7 +44,6 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
         self,
         args,
         vocab_size: int,
-        load_ckp: Optional[bool] = False,
     ):
         super().__init__()
 
@@ -73,7 +71,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                     PretrainedLayerSpec(
                         GraphormerSentenceEncoderPP,
                         graphormer_config,
-                        load_ckpt=args.if_load_ckpt,
+                        load_ckpt=args.load_ckpt,
                         pretrained_ckpt_path=args.loadmfmcheck_path,
                         lora_mode="freeze",
                     )
@@ -86,7 +84,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                         LlamaEmbeddingsPP,
                         llama_config,
                         new_num_tokens=vocab_size,
-                        load_ckpt=args.if_load_ckpt,
+                        load_ckpt=args.load_ckpt,
                         pretrained_ckpt_path=os.path.join(
                             args.llm_model_name_or_path, "model.hybrid_emb.pt"
                         ),
@@ -101,7 +99,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                         HybridEmbeddingsPP,
                         adaptor_config,
                         new_num_tokens=vocab_size,
-                        load_ckpt=args.if_load_ckpt,
+                        load_ckpt=args.load_ckpt,
                     )
                 ]
             )
@@ -110,7 +108,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                 LlamaModelPP.to_layers(
                     args,
                     llama_config,
-                    load_ckpt=args.if_load_ckpt,
+                    load_ckpt=args.load_ckpt,
                     new_num_tokens=vocab_size,
                 )
             )
@@ -123,7 +121,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                     args,
                     graphormer_config,
                     mp_config,
-                    load_ckpt=args.if_load_ckpt,
+                    load_ckpt=args.load_ckpt,
                 )
             )
 
@@ -133,7 +131,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                         LlamaEmbeddingsMP,
                         mp_config,
                         new_num_tokens=vocab_size,
-                        load_ckpt=args.if_load_ckpt,
+                        load_ckpt=args.load_ckpt,
                         pretrained_ckpt_path=os.path.join(
                             args.llm_model_name_or_path, "model.hybrid_emb.pt"
                         ),
@@ -149,7 +147,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                         adaptor_config,
                         mp_config,
                         new_num_tokens=vocab_size,
-                        load_ckpt=args.if_load_ckpt,
+                        load_ckpt=args.load_ckpt,
                     )
                 ]
             )
@@ -158,7 +156,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                 LlamaModelMP.to_layers(
                     args,
                     mp_config,
-                    load_ckpt=args.if_load_ckpt,
+                    load_ckpt=args.load_ckpt,
                     new_num_tokens=vocab_size,
                 )
             )
