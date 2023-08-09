@@ -11,14 +11,20 @@ target:
     vc: hai1
 
 environment:
-  image: shufxi/mfmds:20230807 #pj/mfmds:20230207_b
+  image: shufxi/mfmds:20230807
   registry: itpeus4cr.azurecr.io
   username: itpeus4cr
 
+# storage:
+#   blob:
+#     storage_account_name: msralaphilly2 # Storage account
+#     container_name: ml-la # Container name
+#     mount_dir: /blob
+
 storage:
   blob:
-    storage_account_name: msralaphilly2 # Storage account
-    container_name: ml-la # Container name
+    storage_account_name: hai1data # Storage account
+    container_name: mfm # Container name
     mount_dir: /blob
 
 code:

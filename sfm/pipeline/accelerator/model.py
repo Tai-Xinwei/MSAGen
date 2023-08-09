@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
+from typing import Tuple
 
 from torch import nn
 from torch.optim import Optimizer
@@ -14,12 +15,12 @@ class Model(nn.Module, ABC):
         pass
 
     @abstractmethod
-    def config_optimizer(self) -> tuple[Optimizer, LRScheduler]:
+    def config_optimizer(self) -> Tuple[Optimizer, LRScheduler]:
         """
         Return the optimizer and learning rate scheduler for this model.
 
         Returns:
-            tuple[Optimizer, LRScheduler]:
+            Tuple[Optimizer, LRScheduler]:
         """
         pass
 

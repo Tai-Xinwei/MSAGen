@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from contextlib import nullcontext
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import deepspeed
 import torch
@@ -34,7 +34,7 @@ class Accelerator(ABC):
         pass
 
     @abstractmethod
-    def train_step(self, grouped_batch_data: list[Batch]) -> ModelOutput:
+    def train_step(self, grouped_batch_data: List[Batch]) -> ModelOutput:
         pass
 
     @abstractmethod
@@ -117,7 +117,7 @@ class SingleNodeAccelerator(Accelerator):
                 drop_last=False,
             )
 
-    def train_step(self, grouped_batch_data: list[Batch]) -> ModelOutput:
+    def train_step(self, grouped_batch_data: List[Batch]) -> ModelOutput:
         assert grouped_batch_data, "grouped_batch_data is empty"
 
         self.model.train()
@@ -224,20 +224,19 @@ class DdpAccelerator(SingleNodeAccelerator):
 
         torch.distributed.barrier()
 
-        logger.critical("DDP initialized.")
+        logger.success("DDP initialized.")
 
         self.model.to(self.device)
         self.ddp_model = DistributedDataParallel(
             self.model,
             device_ids=[self.local_rank],
             output_device=self.local_rank,
-            find_unused_parameters=True,
         )
 
     def barrier(self):
         torch.distributed.barrier()
 
-    def train_step(self, grouped_batch_data: list[Batch]) -> ModelOutput:
+    def train_step(self, grouped_batch_data: List[Batch]) -> ModelOutput:
         assert grouped_batch_data, "grouped_batch_data is empty"
 
         self.ddp_model.train()
@@ -285,7 +284,7 @@ class DdpAccelerator(SingleNodeAccelerator):
 
         if val_data:
             validsampler = torch.utils.data.distributed.DistributedSampler(
-                val_data, num_replicas=self.dp_world_size, shuffle=False
+                val_data, num_replicas=self.world_size, shuffle=False
             )
             self.valid_data_loader = DataLoader(
                 val_data,

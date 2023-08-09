@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import unittest
 from dataclasses import dataclass
+from typing import List
 from unittest.mock import patch
 
 import torch
@@ -11,7 +12,7 @@ from sfm.models.tamgent.model import Tamgent2, Tamgent2Config
 
 @dataclass
 class MockTextEncodeResult:
-    hidden_states: list[torch.Tensor]
+    hidden_states: List[torch.Tensor]
 
 
 class MockTextEncoder(torch.nn.Module):

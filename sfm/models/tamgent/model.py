@@ -19,7 +19,7 @@ class Tamgent2Config(DistributedTrainConfig):
     freeze_text_encoder: bool = True
     text_hidden_size: int = 4096
     llama_model: str = "/blob/shufxi/llama/7B"
-    molxpt_model: str = "/blob/v-zequnliu/molxpt"
+    molxpt_model: str = "/blob/shufxi/molxpt"
     max_txt_len_llama: int = 500
     max_txt_len_smiles: int = 2048
     end_sym: str = "\n"

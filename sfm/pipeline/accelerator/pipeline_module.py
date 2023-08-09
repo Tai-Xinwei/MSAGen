@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from deepspeed.runtime.activation_checkpointing import checkpointing
 from deepspeed.runtime.pipe.topology import PipeModelDataParallelTopology
@@ -45,7 +45,7 @@ class SFMPipelineModule(PipelineModule, Model):
     def compute_loss(self, pred, batch) -> ModelOutput:
         return self.model.compute_loss(pred, batch)
 
-    def config_optimizer(self) -> tuple[Optimizer, LRScheduler]:
+    def config_optimizer(self) -> Tuple[Optimizer, LRScheduler]:
         return self.model.config_optimizer()
 
     def before_training(self):

@@ -2,6 +2,7 @@
 import tempfile
 import unittest
 from dataclasses import dataclass
+from typing import Tuple
 
 import torch
 import torch.nn as nn
@@ -38,7 +39,7 @@ class DummyNN(Model):
             loss=loss, log_output={"l2": F.mse_loss(pred, batch.x).item()}
         )
 
-    def config_optimizer(self) -> tuple[Optimizer, LRScheduler]:
+    def config_optimizer(self) -> Tuple[Optimizer, LRScheduler]:
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.9)
 

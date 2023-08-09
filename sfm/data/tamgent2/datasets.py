@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 from dataclasses import dataclass
-from typing import Union
-
-from torch.utils.data.dataloader import default_collate
+from typing import List, Union
 
 from sfm.data.dataset import Batch, Data, InMemoryFoundationModelDataset
 from sfm.logging import logger
@@ -16,12 +14,12 @@ class TextToMolData(Data):
 
 @dataclass
 class BatchTextToMolData(Batch):
-    smiles: list[str]
-    text: list[str]
+    smiles: List[str]
+    text: List[str]
 
 
 class TextToMolDataset(InMemoryFoundationModelDataset):
-    def __init__(self, data: list[TextToMolData]):
+    def __init__(self, data: List[TextToMolData]):
         self.data = data
 
     def __len__(self):
