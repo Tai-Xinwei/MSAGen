@@ -18,11 +18,11 @@ class PretrainedLayerSpec(LayerSpec):
         super().__init__(typename, *module_args, **module_kwargs)
 
     def build(self, device="cpu", log=False, load=False):
-        self.layer = super().build(log=log)
+        layer = super().build(log=log)
 
         if self.pretrained_ckpt_path is not None and self.load_ckpt and load:
             if os.path.exists(self.pretrained_ckpt_path):
-                self.load_pretrained(device=device)
+                self.load_pretrained(layer, device=device)
             else:
                 ds_logger.warn(f"Checkpoint {self.pretrained_ckpt_path} is not found.")
 
@@ -30,13 +30,13 @@ class PretrainedLayerSpec(LayerSpec):
 
         # # TODO: LORA
         # if self.lora_mode == "freeze":
-        #     self.layer = self.create_peft_model(self.layer, lora=False)
+        #     layer = self.create_peft_model(layer, lora=False)
         # elif self.lora_mode == "lora":
-        #     self.layer = self.create_peft_model(self.layer, lora=True)
+        #     layer = self.create_peft_model(layer, lora=True)
 
-        return self.layer
+        return layer
 
-    def load_pretrained(self, device="cpu"):
+    def load_pretrained(self, layer, device="cpu"):
         # TODO: each process loads the whole model in cpu part, needs fixing.
 
         checkpoints_state = torch.load(self.pretrained_ckpt_path, map_location="cpu")
@@ -48,7 +48,7 @@ class PretrainedLayerSpec(LayerSpec):
         if self.new_num_tokens is not None:
             checkpoints_state = self.resize_token_embeddings(checkpoints_state)
 
-        IncompatibleKeys = self.layer.load_state_dict(checkpoints_state, strict=False)
+        IncompatibleKeys = layer.load_state_dict(checkpoints_state, strict=False)
         IncompatibleKeys = IncompatibleKeys._asdict()
 
         missing_keys = []
@@ -79,11 +79,8 @@ class PretrainedLayerSpec(LayerSpec):
                 )
             )
 
+        del checkpoints_state
         ds_logger.info(f"{device} Loaded from {self.pretrained_ckpt_path}")
-
-    # def resize_token_embeddings(self, new_num_tokens: Optional[int] = None) -> None:
-    #     if new_num_tokens is not None:
-    #         self.layer.resize_token_embeddings(new_num_tokens)
 
     def resize_token_embeddings(self, checkpoints_state: dict) -> dict:
         if "lm_head.weight" in checkpoints_state:
