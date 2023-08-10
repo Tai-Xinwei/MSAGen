@@ -10,9 +10,9 @@ from sfm.data.tamgent2.tokenizer import MolxptTokenizer
 from sfm.logging import logger
 from sfm.models.tamgent.Qformer import BertConfig, BertLMHeadModel
 from sfm.models.tamgent.scheduler import LinearWarmupCosineLRScheduler
-from sfm.optim.adam import AdamW
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig, ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
+from sfm.utils.optim.adam import AdamW
 
 
 @dataclass
