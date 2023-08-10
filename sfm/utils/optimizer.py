@@ -8,6 +8,9 @@ from torch.optim import Adam, Optimizer
 
 from sfm.logging.loggers import logger as sfm_logger
 
+# from deepspeed.ops.adam import DeepSpeedCPUAdam as Adam
+# from apex.optimizers import FusedAdam as Adam
+
 
 def split_param_and_layer_name(name_list: List[str]) -> Tuple[List[str], List[int]]:
     param_list = []

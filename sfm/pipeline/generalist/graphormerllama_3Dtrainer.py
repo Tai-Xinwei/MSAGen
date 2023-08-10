@@ -13,6 +13,7 @@ from deepspeed.runtime.pipe.topology import PipeModelDataParallelTopology
 from deepspeed.runtime.utils import see_memory_usage
 from transformers import AutoTokenizer
 
+# from apex.optimizers import FusedAdam as Adam
 from megatron import get_args
 from megatron.core import mpu, tensor_parallel
 from megatron.initialize import initialize_megatron
@@ -93,6 +94,7 @@ class Trainer3D:
 
         optimizer, param_groups = myAdam(
             net,
+            # impl=Adam,
             freeze_list=freeze_list,
             unfreeze_list=unfreeze_list,
             lr=args.max_lr,

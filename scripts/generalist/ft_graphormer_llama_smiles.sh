@@ -118,7 +118,23 @@ echo "pool_mode: ${pool_mode}"
 
 wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
 
-deepspeed --num_gpu=16 --master_port=$MASTER_PORT sfm/tasks/generalist/ft_graphormer_llama_inst.py \
+if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
+then
+  DISTRIBUTED_ARGS=""
+else
+  if (( $OMPI_COMM_WORLD_SIZE == 1))
+  then
+    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
+                      --master_port $MASTER_PORT"
+  else
+    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
+                      --nnodes $OMPI_COMM_WORLD_SIZE \
+                      --node_rank $OMPI_COMM_WORLD_RANK \
+                      --master_addr $MASTER_ADDR"
+  fi
+fi
+
+torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --num_classes 1 \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \

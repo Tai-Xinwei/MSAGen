@@ -105,36 +105,23 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export OMP_NUM_THREADS=1
 
 
-# if [ $OMPI_COMM_WORLD_RANK == 0 ]; then
-#   sleep 300
-#   deepspeed --force_multi --hostfile=$hostfile sfm/tasks/graphormer/ft_graphormer.py \
-#             --num-classes 1 \
-#             --encoder_attention_heads $num_head \
-#             --encoder_layers $layers \
-#             --encoder_ffn_embed_dim $ffn_size \
-#             --encoder_embed_dim $hidden_size \
-#             --droppath_prob $droppath_prob \
-#             --attn_dropout $attn_dropout \
-#             --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
-#             --sandwich_ln \
-#             --dataset-name $dataset_name \
-#             --data_path $data_path \
-#             --output_path $output_path \
-#             --pipeline_parallelism $pipeline_parallelism \
-#             --seed 666667 \
-#             --add-3d \
-#             --ft \
-#             --d_tilde $d_tilde \
-#             --num_pred_attn_layer $num_pred_attn_layer \
-#             --max_lr $max_lr \
-#             --output_path $output_path \
-#             --total_num_steps $total_num_steps \
-#             --warmup_num_steps $warmup_num_steps \
-#             --loadcheck_path $loadcheck_path \
-#             --deepspeed --deepspeed_config ./config_file/ds_config.json
-# fi
+if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
+then
+  DISTRIBUTED_ARGS=""
+else
+  if (( $OMPI_COMM_WORLD_SIZE == 1))
+  then
+    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
+                      --master_port $MASTER_PORT"
+  else
+    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
+                      --nnodes $OMPI_COMM_WORLD_SIZE \
+                      --node_rank $OMPI_COMM_WORLD_RANK \
+                      --master_addr $MASTER_ADDR"
+  fi
+fi
 
-deepspeed --num_gpu=4 sfm/tasks/graphormer/ft_graphormer.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/graphormer/ft_graphormer.py \
           --num_classes 1 \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
