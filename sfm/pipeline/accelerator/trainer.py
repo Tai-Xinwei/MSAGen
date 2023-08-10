@@ -79,6 +79,9 @@ class LossAccumulator(object):
         if num_examples is None or num_examples <= 0:
             return
 
+        if np.isnan(loss) or np.isinf(loss):
+            return
+
         self.sum += loss * num_examples
         self.num_examples += num_examples
 
@@ -247,8 +250,6 @@ class Trainer(object):
     def train(self):
         logger.info("Start training")
         logger.info(self.model)
-
-        seed_everything(self.args.seed)
 
         assert self.train_data_loader is not None
 

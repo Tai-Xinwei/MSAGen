@@ -70,7 +70,6 @@ class Test_Trainer(unittest.TestCase):
             config = TrainerConfig(
                 epochs=3,
                 save_dir=save_dir,
-                fp16=True,
                 gradient_accumulation_steps=2,
                 log_interval=10,
             )

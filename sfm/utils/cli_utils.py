@@ -4,6 +4,7 @@ from argparse import ArgumentParser
 from functools import wraps
 
 from sfm.logging import logger
+from sfm.pipeline.accelerator.trainer import seed_everything
 from sfm.utils import arg_utils, dist_utils, env_init
 
 import wandb  # isort:skip
@@ -18,6 +19,8 @@ def cli(*cfg_classes):
             args = parser.parse_args()
 
             logger.info(args)
+
+            seed_everything(args.seed)
 
             env_init.set_env(args)
 

@@ -12,7 +12,6 @@ import torch
 from torch.cuda.amp import GradScaler, autocast
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
-from torch.utils.data.sampler import Sampler
 
 from sfm.data.dataset import Batch, Data, FoundationModelDataset
 from sfm.logging import logger
@@ -22,6 +21,7 @@ from sfm.pipeline.accelerator.dataclasses import (
     TrainStrategy,
     ValidLogOutput,
 )
+from sfm.pipeline.accelerator.fp16_scaler import FP16Scaler
 from sfm.utils.move_to_device import move_to_device
 from sfm.utils.PPEngine import initialize as initialize_pp_engine
 
@@ -82,13 +82,16 @@ class SingleNodeAccelerator(Accelerator):
         self.device = device
         if not torch.cuda.is_available():
             self.device = "cpu"
-        self.scaler = GradScaler(
+        self.scaler = FP16Scaler(
             init_scale=self.args.grad_scaler_init, enabled=self.args.fp16
         )
 
+        if args.fp16:
+            self.model = self.model.half()
+
     @property
     def grad_scale(self) -> float:
-        return self.scaler.get_scale()
+        return self.scaler.scale
 
     def set_up(self):
         pass
@@ -124,20 +127,27 @@ class SingleNodeAccelerator(Accelerator):
         self.model.to(self.device)
 
         self.optimizer.zero_grad()
+        success_batch_count = 0
         for batch_data in grouped_batch_data:
             self.model.before_batch()
             batch_data = move_to_device(batch_data, self.device)
 
-            with autocast(enabled=self.args.fp16):
-                pred = self.model(batch_data)
-                model_output = self.model.compute_loss(pred, batch_data)
-                loss = model_output.loss / len(grouped_batch_data)
-                self.scaler.scale(loss).backward()
+            pred = self.model(batch_data)
+            model_output = self.model.compute_loss(pred, batch_data)
+            loss = model_output.loss / len(grouped_batch_data)
+
+            if torch.isnan(loss) or torch.isinf(loss):
+                logger.info("loss is nan or inf. skip this batch")
+                continue
+            else:
+                success_batch_count += 1
+                self.scaler.backward(loss)
 
             self.model.after_batch()
 
-        self.scaler.step(self.optimizer)
-        self.scaler.update()
+        if success_batch_count > 0:
+            self.scaler.step(self.model, self.optimizer, self.args.gradient_clipping)
+
         self.lr_scheduler.step()
 
         return model_output
@@ -242,6 +252,7 @@ class DdpAccelerator(SingleNodeAccelerator):
         self.ddp_model.train()
         self.optimizer.zero_grad()
 
+        success_batch_count = 0
         for idx, batch_data in enumerate(grouped_batch_data):
             self.model.before_batch()
             batch_data = move_to_device(batch_data, self.device)
@@ -253,17 +264,23 @@ class DdpAccelerator(SingleNodeAccelerator):
                 else nullcontext()
             )
 
-            with maybe_no_sync, autocast(enabled=self.args.fp16):
-                pred = self.ddp_model(batch_data)
+            with maybe_no_sync:
+                pred = self.model(batch_data)
                 model_output = self.model.compute_loss(pred, batch_data)
                 loss = model_output.loss / len(grouped_batch_data)
 
-            self.scaler.scale(loss).backward()
+                if torch.isnan(loss) or torch.isinf(loss):
+                    logger.info("loss is nan or inf. skip this batch")
+                    continue
+                else:
+                    success_batch_count += 1
+                    self.scaler.backward(loss)
 
             self.model.after_batch()
 
-        self.scaler.step(self.optimizer)
-        self.scaler.update()
+        if success_batch_count > 0:
+            self.scaler.step(self.model, self.optimizer, self.args.gradient_clipping)
+
         self.lr_scheduler.step()
 
         return model_output
