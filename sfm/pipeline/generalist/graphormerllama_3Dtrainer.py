@@ -32,8 +32,8 @@ from sfm.utils.arg_utils import ExtraArgsProvider
 from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
 from sfm.utils.get_paranum import count_paranum
 from sfm.utils.mypp_module import PipelineModule
-from sfm.utils.optimizer import myAdam
-from sfm.utils.set_lr import groupWarmupDecayLR
+from sfm.utils.optim.optimizer import myAdam
+from sfm.utils.optim.set_lr import groupWarmupDecayLR
 
 
 class Trainer3D:
@@ -70,9 +70,13 @@ class Trainer3D:
                 len(data_module["train_dataset"]), vocab_size
             )
         )
+        ckp_list = [
+            "layer_{}-model_00-model_states.pt".format(str(i).zfill(2))
+            for i in range(61)
+        ]
 
         # Model, optimizer, and learning rate.
-        net = GraphormerLlamaModel(args, vocab_size)
+        net = GraphormerLlamaModel(args, vocab_size, ckp_list=ckp_list)
         topo = PipeModelDataParallelTopology(
             num_pp=mpu.get_pipeline_model_parallel_world_size(),
             num_mp=mpu.get_tensor_model_parallel_world_size(),
@@ -132,6 +136,7 @@ class Trainer3D:
 
     def train_tensor_pipeline(self):
         logger.info("start 3D parallelism training")
+        self.save_ckp(0)
 
         for global_step in range(1, self.args.total_num_steps + 1):
             self.model_engine.train_batch()

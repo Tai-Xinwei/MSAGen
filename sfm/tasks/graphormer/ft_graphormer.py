@@ -28,8 +28,8 @@ from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils.cli_utils import cli
 
 # from sfm.pipeline.graphormer.graphormer_fter_bk import Finetuner
-from sfm.utils.optimizer import myAdam
-from sfm.utils.set_lr import groupWarmupDecayLR
+from sfm.utils.optim.optimizer import myAdam
+from sfm.utils.optim.set_lr import groupWarmupDecayLR
 
 
 @cli(DistributedTrainConfig, GraphormerConfig)

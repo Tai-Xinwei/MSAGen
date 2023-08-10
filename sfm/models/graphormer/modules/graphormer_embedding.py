@@ -2,7 +2,7 @@
 import torch
 
 from megatron.core import parallel_state
-from megatron.model.module import MegatronModule
+from sfm.modules.sfmmodule import SFMModule
 
 try:
     from apex.normalization import FusedLayerNorm as LayerNormTP
@@ -16,7 +16,7 @@ from .graphormer_layers import GraphAttnBias, GraphNodeFeature
 from .graphormer_layers_mp import GraphAttnBiasMP, GraphNodeFeatureMP
 
 
-class GraphormerEmbeddingMP(MegatronModule):
+class GraphormerEmbeddingMP(SFMModule):
     def __init__(
         self,
         graphormer_config,

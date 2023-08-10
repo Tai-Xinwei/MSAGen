@@ -14,6 +14,7 @@ from torch.optim.lr_scheduler import LRScheduler
 from transformers.models.llama.configuration_llama import LlamaConfig
 from transformers.models.llama.modeling_llama import LlamaForCausalLM
 
+from megatron.core import parallel_state
 from sfm.criterions.copilotloss import CopilotCriterionsPP
 from sfm.data.mol_data.moltext_dataset import batch_collater_for_graphormer
 from sfm.logging.loggers import logger
@@ -44,6 +45,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
         self,
         args,
         vocab_size: int,
+        ckp_list: List[str] = [],
     ):
         super().__init__()
 
@@ -56,72 +58,75 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
         adaptor_config = self.init_adaptor_config(args, llama_config)
 
         self.llama_config = llama_config
-        if args.tensor_model_parallel_size > 1:
-            mp_config = self.init_mp_config(args, llama_config)
-            self.llama_config = mp_config
+        # if args.tensor_model_parallel_size > 1:
+        mp_config = self.init_mp_config(args, llama_config)
+        self.llama_config = mp_config
 
         self.pipe_layers = []
         if args.pipeline_model_parallel_size == 0:
             self.graphormer_encoder = GraphormerSentenceEncoder(graphormer_config)
             self.decoder = LlamaForCausalLM(llama_config)
             self.adaptor = HybridEmbeddings(adaptor_config)
-        elif args.tensor_model_parallel_size == 1:
-            self.pipe_layers.extend(
-                [
-                    PretrainedLayerSpec(
-                        GraphormerSentenceEncoderPP,
-                        graphormer_config,
-                        load_ckpt=args.load_ckpt,
-                        pretrained_ckpt_path=args.loadmfmcheck_path,
-                        lora_mode="freeze",
-                    )
-                ]
-            )
+        # elif args.tensor_model_parallel_size == 1:
+        #     self.pipe_layers.extend(
+        #         [
+        #             PretrainedLayerSpec(
+        #                 GraphormerSentenceEncoderPP,
+        #                 graphormer_config,
+        #                 load_ckpt=args.load_ckpt,
+        #                 pretrained_ckpt_path=args.loadmfmcheck_path,
+        #                 lora_mode="freeze",
+        #             )
+        #         ]
+        #     )
 
-            self.pipe_layers.extend(
-                [
-                    PretrainedLayerSpec(
-                        LlamaEmbeddingsPP,
-                        llama_config,
-                        new_num_tokens=vocab_size,
-                        load_ckpt=args.load_ckpt,
-                        pretrained_ckpt_path=os.path.join(
-                            args.llm_model_name_or_path, "model.hybrid_emb.pt"
-                        ),
-                        lora_mode="full",
-                    )
-                ]
-            )
+        #     self.pipe_layers.extend(
+        #         [
+        #             PretrainedLayerSpec(
+        #                 LlamaEmbeddingsPP,
+        #                 llama_config,
+        #                 new_num_tokens=vocab_size,
+        #                 load_ckpt=args.load_ckpt,
+        #                 pretrained_ckpt_path=os.path.join(
+        #                     args.llm_model_name_or_path, "model.hybrid_emb.pt"
+        #                 ),
+        #                 lora_mode="full",
+        #             )
+        #         ]
+        #     )
 
-            self.pipe_layers.extend(
-                [
-                    PretrainedLayerSpec(
-                        HybridEmbeddingsPP,
-                        adaptor_config,
-                        new_num_tokens=vocab_size,
-                        load_ckpt=args.load_ckpt,
-                    )
-                ]
-            )
+        #     self.pipe_layers.extend(
+        #         [
+        #             PretrainedLayerSpec(
+        #                 HybridEmbeddingsPP,
+        #                 adaptor_config,
+        #                 new_num_tokens=vocab_size,
+        #                 load_ckpt=args.load_ckpt,
+        #             )
+        #         ]
+        #     )
 
-            self.pipe_layers.extend(
-                LlamaModelPP.to_layers(
-                    args,
-                    llama_config,
-                    load_ckpt=args.load_ckpt,
-                    new_num_tokens=vocab_size,
-                )
-            )
-            self.loss = CopilotCriterionsPP(
-                self.llama_config, self.llama_config.vocab_size
-            )
+        #     self.pipe_layers.extend(
+        #         LlamaModelPP.to_layers(
+        #             args,
+        #             llama_config,
+        #             load_ckpt=args.load_ckpt,
+        #             new_num_tokens=vocab_size,
+        #         )
+        #     )
+        #     self.loss = CopilotCriterionsPP(
+        #         self.llama_config, self.llama_config.vocab_size
+        #     )
         else:
+            layer_id = 0
             self.pipe_layers.extend(
                 GraphormerEncoderMP.to_layers(
                     args,
                     graphormer_config,
                     mp_config,
+                    layer_id=layer_id,
                     load_ckpt=args.load_ckpt,
+                    ckp_list=ckp_list,
                 )
             )
 
@@ -133,12 +138,15 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                         new_num_tokens=vocab_size,
                         load_ckpt=args.load_ckpt,
                         pretrained_ckpt_path=os.path.join(
-                            args.llm_model_name_or_path, "model.hybrid_emb.pt"
+                            args.llm_model_name_or_path, ckp_list[layer_id]
                         ),
                         lora_mode="full",
+                        tp_model_size=args.tensor_model_parallel_size,
+                        tp_rank=parallel_state.get_tensor_model_parallel_rank(),
                     )
                 ]
             )
+            layer_id += 1
 
             self.pipe_layers.extend(
                 [
@@ -148,15 +156,23 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                         mp_config,
                         new_num_tokens=vocab_size,
                         load_ckpt=args.load_ckpt,
+                        pretrained_ckpt_path=os.path.join(
+                            args.llm_model_name_or_path, ckp_list[layer_id]
+                        ),
+                        tp_model_size=args.tensor_model_parallel_size,
+                        tp_rank=parallel_state.get_tensor_model_parallel_rank(),
                     )
                 ]
             )
+            layer_id += 1
 
             self.pipe_layers.extend(
                 LlamaModelMP.to_layers(
                     args,
                     mp_config,
+                    layer_id=layer_id,
                     load_ckpt=args.load_ckpt,
+                    ckp_list=ckp_list,
                     new_num_tokens=vocab_size,
                 )
             )

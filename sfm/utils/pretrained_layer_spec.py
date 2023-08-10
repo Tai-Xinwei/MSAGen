@@ -14,6 +14,8 @@ class PretrainedLayerSpec(LayerSpec):
         self.load_ckpt = module_kwargs.pop("load_ckpt", False)
         self.lora_mode = module_kwargs.pop("lora_mode", "full")
         self.new_num_tokens = module_kwargs.pop("new_num_tokens", None)
+        self.tp_model_size = module_kwargs.pop("tp_model_size", None)
+        self.tp_rank = module_kwargs.pop("tp_rank", 0)
 
         super().__init__(typename, *module_args, **module_kwargs)
 
@@ -22,7 +24,10 @@ class PretrainedLayerSpec(LayerSpec):
 
         if self.pretrained_ckpt_path is not None and self.load_ckpt and load:
             if os.path.exists(self.pretrained_ckpt_path):
-                self.load_pretrained(layer, device=device)
+                if self.tp_model_size is None or self.tp_model_size == 0:
+                    self.load_pretrained(layer, device=device)
+                else:
+                    self.partition_load_pretrained(layer, device=device)
             else:
                 ds_logger.warn(f"Checkpoint {self.pretrained_ckpt_path} is not found.")
 
@@ -37,8 +42,6 @@ class PretrainedLayerSpec(LayerSpec):
         return layer
 
     def load_pretrained(self, layer, device="cpu"):
-        # TODO: each process loads the whole model in cpu part, needs fixing.
-
         checkpoints_state = torch.load(self.pretrained_ckpt_path, map_location="cpu")
         if type(checkpoints_state) == dict and "module" in checkpoints_state:
             checkpoints_state = checkpoints_state["module"]
@@ -49,6 +52,52 @@ class PretrainedLayerSpec(LayerSpec):
             checkpoints_state = self.resize_token_embeddings(checkpoints_state)
 
         IncompatibleKeys = layer.load_state_dict(checkpoints_state, strict=False)
+        IncompatibleKeys = IncompatibleKeys._asdict()
+
+        missing_keys = []
+        for keys in IncompatibleKeys["missing_keys"]:
+            if keys.find("dummy") == -1:
+                missing_keys.append(keys)
+
+        unexpected_keys = []
+        for keys in IncompatibleKeys["unexpected_keys"]:
+            if keys.find("dummy") == -1:
+                unexpected_keys.append(keys)
+
+        if len(missing_keys) > 0:
+            ds_logger.info(
+                "{} Missing keys in {}: {}".format(
+                    device,
+                    self.pretrained_ckpt_path,
+                    missing_keys,
+                )
+            )
+
+        if len(unexpected_keys) > 0:
+            ds_logger.info(
+                "{} Unexpected keys {}: {}".format(
+                    device,
+                    self.pretrained_ckpt_path,
+                    unexpected_keys,
+                )
+            )
+
+        del checkpoints_state
+        ds_logger.info(f"{device} Loaded from {self.pretrained_ckpt_path}")
+
+    def partition_load_pretrained(self, layer, device="cpu"):
+        checkpoints_state = torch.load(self.pretrained_ckpt_path, map_location="cpu")
+        if type(checkpoints_state) == dict and "module" in checkpoints_state:
+            checkpoints_state = checkpoints_state["module"]
+        elif type(checkpoints_state) == dict and "model" in checkpoints_state:
+            checkpoints_state = checkpoints_state["model"]
+
+        IncompatibleKeys = layer.auto_partition_load_state_dict(
+            state_dict=checkpoints_state,
+            tp_model_size=self.tp_model_size,
+            tp_rank=self.tp_rank,
+            strict=False,
+        )
         IncompatibleKeys = IncompatibleKeys._asdict()
 
         missing_keys = []

@@ -17,6 +17,7 @@ from sfm.modules.FairseqDropout import FairseqDropout
 from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.parallelattentionbias import TPMultiheadAttention
 from sfm.modules.quant_noise import quant_noise
+from sfm.modules.sfmmodule import SFMModule
 
 try:
     from apex.normalization import FusedLayerNorm as LayerNormTP
@@ -24,7 +25,7 @@ except:
     raise ImportError("Please install apex from install/install_megatron.sh")
 
 
-class GraphormerSentenceEncoderLayerMP(nn.Module):
+class GraphormerSentenceEncoderLayerMP(SFMModule):
     """
     Implements a Graphormer Encoder Layer used in BERT/XLM style pre-trained
     models.

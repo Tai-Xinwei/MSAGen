@@ -24,7 +24,6 @@ from transformers.models.llama.modeling_llama import (
 from megatron.core import parallel_state, tensor_parallel
 from megatron.model.enums import AttnMaskType, AttnType, LayerType
 from megatron.model.language_model import Embedding
-from megatron.model.module import MegatronModule
 from megatron.model.rotary_pos_embedding import RotaryEmbedding
 from megatron.model.transformer import (
     ParallelAttention,
@@ -32,6 +31,7 @@ from megatron.model.transformer import (
     ParallelTransformerLayer,
 )
 from sfm.logging import logger
+from sfm.modules.sfmmodule import SFMModule
 from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec
 
 try:
@@ -40,7 +40,7 @@ except:
     raise ImportError("Please install apex from install/install_megatron.sh")
 
 
-class ParallelLlamaMLPAdapter(MegatronModule):
+class ParallelLlamaMLPAdapter(SFMModule):
     def __init__(
         self,
         config: LlamaConfig,
@@ -103,7 +103,7 @@ class ParallelLlamaMLPAdapter(MegatronModule):
         return x
 
 
-class ParallelLlamaMLP(MegatronModule):
+class ParallelLlamaMLP(SFMModule):
     def __init__(
         self,
         config: LlamaConfig,
@@ -163,7 +163,7 @@ class ParallelLlamaMLP(MegatronModule):
         return x
 
 
-class LlamaDecoderLayerMP(MegatronModule):
+class LlamaDecoderLayerMP(SFMModule):
     def __init__(
         self,
         config,
@@ -258,7 +258,7 @@ class LlamaDecoderLayerMP(MegatronModule):
         return outputs
 
 
-class FusedLlamaNorm(nn.Module):
+class FusedLlamaNorm(SFMModule):
     def __init__(self, config: LlamaConfig):
         super().__init__()
         self.config = config
@@ -279,7 +279,7 @@ def lm_logits_fn(embedding, input_tuple):
     return logits
 
 
-class LlamaEmbeddingsMP(Embedding):
+class LlamaEmbeddingsMP(Embedding, SFMModule):
     def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
         super().__init__(
             config.hidden_size,
@@ -324,7 +324,7 @@ class LlamaEmbeddingsMP(Embedding):
         return mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids
 
 
-class LlamaHeadMP(MegatronModule):
+class LlamaHeadMP(SFMModule):
     def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
         super().__init__()
         self.config = config
@@ -371,7 +371,9 @@ class LlamaModelMP(LlamaPreTrainedModel):
         self.pipe_layer = []
 
     @classmethod
-    def to_layers(cls, args, config, new_num_tokens=None, load_ckpt=False):
+    def to_layers(
+        cls, args, config, new_num_tokens=None, load_ckpt=False, layer_id=0, ckp_list=[]
+    ):
         cls.pipe_layer = []
         for i in range(config.num_hidden_layers):
             cls.pipe_layer.append(
@@ -381,22 +383,28 @@ class LlamaModelMP(LlamaPreTrainedModel):
                     i,
                     load_ckpt=load_ckpt,
                     pretrained_ckpt_path=os.path.join(
-                        args.llm_model_name_or_path, "model.layers.{}.pt".format(i)
+                        args.llm_model_name_or_path, ckp_list[layer_id]
                     ),
                     lora_mode="freeze",
+                    tp_model_size=args.tensor_model_parallel_size,
+                    tp_rank=parallel_state.get_tensor_model_parallel_rank(),
                 )
             )
+            layer_id += 1
         cls.pipe_layer.append(
             PretrainedLayerSpec(
                 FusedLlamaNorm,
                 config,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    args.llm_model_name_or_path, "model.norm.pt"
+                    args.llm_model_name_or_path, ckp_list[layer_id]
                 ),
                 lora_mode="freeze",
+                tp_model_size=args.tensor_model_parallel_size,
+                tp_rank=parallel_state.get_tensor_model_parallel_rank(),
             )
         )
+        layer_id += 1
         cls.pipe_layer.append(
             PretrainedLayerSpec(
                 LlamaHeadMP,
@@ -404,9 +412,11 @@ class LlamaModelMP(LlamaPreTrainedModel):
                 new_num_tokens=new_num_tokens,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    args.llm_model_name_or_path, "model.lm_head.pt"
+                    args.llm_model_name_or_path, ckp_list[layer_id]
                 ),
                 lora_mode="freeze",
+                tp_model_size=args.tensor_model_parallel_size,
+                tp_rank=parallel_state.get_tensor_model_parallel_rank(),
             )
         )
 

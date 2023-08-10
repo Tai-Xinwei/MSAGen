@@ -20,6 +20,7 @@ To run pre-commit manually on all files in your repository, use the following co
 pre-commit run --all-files
 ```
 
+## Hai1 Cluster Blocklist
 
 When submit multi-node job in Hai1 Cluster, avoid using following nodes due to IB port error:
 ```
@@ -29,6 +30,7 @@ Mild: GCRHYP3C108, GCRHYP3C218, GCRHYP3C225, GCRHYP3C253 (Good to use, port erro
 ```
 
 ## Example Scripts
+
 Pretraining Graphormer on 4 GPUs:
 ```
 bash scripts/graphormer/pretrain_graphormer.sh

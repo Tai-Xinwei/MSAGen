@@ -42,15 +42,15 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/llama2'
 [ -z "${smiles_dict_path}" ] && smiles_dict_path="/home/peiran/FMproj/chemical-copilot/mol2idx_dict.jsonl"
-[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
-# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/MetaLLM-converted/7B-pp"
+# [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
+[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/output/llama2/global_step0"
 [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
 [ -z "${mol_size_path}" ] && mol_size_path="/home/peiran/FMproj/chemical-copilot/mol_size_dict.pkl"
 
 [ -z "${add_3d}" ] && add_3d=false
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=4
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=2
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=2
 [ -z "${zero_strategy}" ] && zero_strategy=1
 
 [ -z "${micro_batch_size}" ] && micro_batch_size=4
@@ -151,7 +151,28 @@ cat <<EOT > $DS_CONFIG
   },
   "fp16": {
     "enabled": true
-  }
+  },
+  "optimizer": {
+    "type": "Adam",
+    "params": {
+      "lr": 0.0000,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "eps": 1e-8,
+      "weight_decay": 0.0
+    }
+  },
+  "scheduler": {
+    "type": "WarmupDecayLR",
+    "params": {
+      "warmup_type": "linear",
+      "total_num_steps": $total_num_steps,
+      "warmup_max_lr": $max_lr,
+      "warmup_num_steps": $warmup_num_steps,
+    }
+  },
 }
 EOT
 
@@ -195,7 +216,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
           --tokenizer-type GPTSentencePieceTokenizer --tokenizer-model $tokenizer_model \
           --no-query-key-layer-scaling  --attention-dropout 0 --hidden-dropout 0 \
           --use-rotary-position-embeddings --disable-bias-linear --seq-length 2048 \
-          $ds_args
+          $ds_args --load_ckpt
 
 
 # if [ $OMPI_COMM_WORLD_RANK == 0 ]; then

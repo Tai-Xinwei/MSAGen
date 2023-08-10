@@ -45,11 +45,11 @@ jobs:
   - export num_3d_bias_kernel=128
   - export llm_hidden_size=8192
   - export global_batch_size=64
-  - export micro_batch_size=2
+  - export micro_batch_size=1
   - export max_position_embeddings=2048
   - export sandwich_ln="true"
   - export pipeline_model_parallel_size=4
-  - export tensor_model_parallel_size=8
+  - export tensor_model_parallel_size=2
   - export zero_strategy=1
   - export d_tilde=1.0
   - export max_lr=2e-5

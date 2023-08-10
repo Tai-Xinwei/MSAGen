@@ -11,10 +11,10 @@ from torch_geometric.nn import MessagePassing
 from torch_scatter import scatter
 
 from megatron.core import tensor_parallel
-from megatron.model.module import MegatronModule
 from sfm.logging import logger
 from sfm.modules.FairseqDropout import FairseqDropout
 from sfm.modules.get_activation_fn import get_activation_fn
+from sfm.modules.sfmmodule import SFMModule
 
 
 def init_params(module, n_layers):
@@ -26,7 +26,7 @@ def init_params(module, n_layers):
         module.weight.data.normal_(mean=0.0, std=0.02)
 
 
-class GraphNodeFeatureMP(MegatronModule):
+class GraphNodeFeatureMP(SFMModule):
     """
     Compute node features for each node in the graph.
     """
@@ -137,7 +137,7 @@ class GraphNodeFeatureMP(MegatronModule):
         return graph_node_feature
 
 
-class GraphAttnBiasMP(nn.Module):
+class GraphAttnBiasMP(SFMModule):
     """
     Compute attention bias for each head.
     """
@@ -203,24 +203,22 @@ class GraphAttnBiasMP(nn.Module):
                 init_method=mp_config.init_method,
             )
 
-        self.spatial_pos_encoder = tensor_parallel.ColumnParallelLinear(
-            num_spatial + 10,
+        self.spatial_pos_encoder = tensor_parallel.RowParallelLinear(
             num_heads,
+            num_spatial + 10,
             config=mp_config,
-            gather_output=False,
-            init_method=mp_config.init_method,
+            init_method=mp_config.output_layer_init_method,
             bias=False,
-            skip_bias_add=False,
+            input_is_parallel=True,
         )
 
-        self.graph_token_virtual_distance = tensor_parallel.ColumnParallelLinear(
-            1,
+        self.graph_token_virtual_distance = tensor_parallel.RowParallelLinear(
             num_heads,
+            1,
             config=mp_config,
-            gather_output=False,
-            init_method=mp_config.init_method,
+            init_method=mp_config.output_layer_init_method,
             bias=False,
-            skip_bias_add=False,
+            input_is_parallel=True,
         )
 
     def forward(self, input_tuple: tuple):
@@ -250,14 +248,19 @@ class GraphAttnBiasMP(nn.Module):
                     node_mask.squeeze(-1).unsqueeze(1).bool(), mask_spatial_pos_value
                 )
 
+            # spatial_pos_bias = self.spatial_pos_encoder(spatial_pos).permute(
+            #     0, 3, 1, 2
+            # )
+
             # transfer spatial_pos to one-hot
             spatial_pos_onehot = F.one_hot(
-                spatial_pos, num_classes=self.spatial_pos_encoder.weight.shape[1]
+                spatial_pos, num_classes=self.spatial_pos_encoder.weight.shape[0]
             ).to(self.param_type)
 
-            spatial_pos_bias = self.spatial_pos_encoder(spatial_pos_onehot)[0].permute(
-                0, 3, 1, 2
-            )
+            spatial_pos_bias = torch.einsum(
+                "abcd,de->abce", spatial_pos_onehot, self.spatial_pos_encoder.weight
+            ).permute(0, 3, 1, 2)
+
             if mask_2d is not None:
                 spatial_pos_bias = spatial_pos_bias * mask_2d[:, None, None, None]
             graph_attn_bias[:, :, 1:, 1:] = (

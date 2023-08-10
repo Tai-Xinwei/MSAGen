@@ -4,6 +4,7 @@ import os
 import torch
 import torch.nn as nn
 
+from megatron.core import parallel_state
 from sfm.utils.pretrained_layer_spec import PretrainedLayerSpec
 
 from .graphormer_embedding import GraphormerEmbeddingMP
@@ -20,7 +21,15 @@ class GraphormerEncoderMP(nn.Module):
         self.pipe_layer = []
 
     @classmethod
-    def to_layers(cls, args, graphormer_config, mp_config, load_ckpt=False):
+    def to_layers(
+        cls,
+        args,
+        graphormer_config,
+        mp_config,
+        layer_id=0,
+        load_ckpt=False,
+        ckp_list=[],
+    ):
         cls.pipe_layer = []
         cls.pipe_layer.append(
             PretrainedLayerSpec(
@@ -30,11 +39,14 @@ class GraphormerEncoderMP(nn.Module):
                 mp_config,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    args.loadmfmcheck_path, "model.norm.pt"
+                    args.loadmfmcheck_path, ckp_list[layer_id]
                 ),
                 lora_mode="freeze",
+                tp_model_size=args.tensor_model_parallel_size,
+                tp_rank=parallel_state.get_tensor_model_parallel_rank(),
             )
         )
+        layer_id += 1
         for i in range(graphormer_config.encoder_layers):
             cls.pipe_layer.append(
                 PretrainedLayerSpec(
@@ -45,10 +57,13 @@ class GraphormerEncoderMP(nn.Module):
                     i,
                     load_ckpt=load_ckpt,
                     pretrained_ckpt_path=os.path.join(
-                        args.loadmfmcheck_path, "model.layers.{}.pt".format(i)
+                        args.loadmfmcheck_path, ckp_list[layer_id]
                     ),
                     lora_mode="freeze",
+                    tp_model_size=args.tensor_model_parallel_size,
+                    tp_rank=parallel_state.get_tensor_model_parallel_rank(),
                 )
             )
+            layer_id += 1
 
         return cls.pipe_layer

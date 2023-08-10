@@ -54,6 +54,7 @@ def process_param(
                         param_groups[0]["params"].append(param)
                         if name.find("dummy") == -1:
                             sfm_logger.success(f"unfreeze layer: {name}")
+
     elif len(freeze_list) > 0:
         freeze_list, freeze_layer_name_list = split_param_and_layer_name(unfreeze_list)
         for name, param in net.named_parameters():
