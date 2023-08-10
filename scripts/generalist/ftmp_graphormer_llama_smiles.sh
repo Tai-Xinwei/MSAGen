@@ -216,7 +216,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
           --tokenizer-type GPTSentencePieceTokenizer --tokenizer-model $tokenizer_model \
           --no-query-key-layer-scaling  --attention-dropout 0 --hidden-dropout 0 \
           --use-rotary-position-embeddings --disable-bias-linear --seq-length 2048 \
-          $ds_args --load_ckpt
+          $ds_args #--load_ckpt
 
 
 # if [ $OMPI_COMM_WORLD_RANK == 0 ]; then

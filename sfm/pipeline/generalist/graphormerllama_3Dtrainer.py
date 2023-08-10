@@ -136,7 +136,6 @@ class Trainer3D:
 
     def train_tensor_pipeline(self):
         logger.info("start 3D parallelism training")
-        self.save_ckp(0)
 
         for global_step in range(1, self.args.total_num_steps + 1):
             self.model_engine.train_batch()

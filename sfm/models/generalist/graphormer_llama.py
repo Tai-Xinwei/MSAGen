@@ -58,65 +58,65 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
         adaptor_config = self.init_adaptor_config(args, llama_config)
 
         self.llama_config = llama_config
-        # if args.tensor_model_parallel_size > 1:
-        mp_config = self.init_mp_config(args, llama_config)
-        self.llama_config = mp_config
+        if args.tensor_model_parallel_size > 1:
+            mp_config = self.init_mp_config(args, llama_config)
+            self.llama_config = mp_config
 
         self.pipe_layers = []
         if args.pipeline_model_parallel_size == 0:
             self.graphormer_encoder = GraphormerSentenceEncoder(graphormer_config)
             self.decoder = LlamaForCausalLM(llama_config)
             self.adaptor = HybridEmbeddings(adaptor_config)
-        # elif args.tensor_model_parallel_size == 1:
-        #     self.pipe_layers.extend(
-        #         [
-        #             PretrainedLayerSpec(
-        #                 GraphormerSentenceEncoderPP,
-        #                 graphormer_config,
-        #                 load_ckpt=args.load_ckpt,
-        #                 pretrained_ckpt_path=args.loadmfmcheck_path,
-        #                 lora_mode="freeze",
-        #             )
-        #         ]
-        #     )
+        elif args.tensor_model_parallel_size == 1:
+            self.pipe_layers.extend(
+                [
+                    PretrainedLayerSpec(
+                        GraphormerSentenceEncoderPP,
+                        graphormer_config,
+                        load_ckpt=args.load_ckpt,
+                        pretrained_ckpt_path=args.loadmfmcheck_path,
+                        lora_mode="freeze",
+                    )
+                ]
+            )
 
-        #     self.pipe_layers.extend(
-        #         [
-        #             PretrainedLayerSpec(
-        #                 LlamaEmbeddingsPP,
-        #                 llama_config,
-        #                 new_num_tokens=vocab_size,
-        #                 load_ckpt=args.load_ckpt,
-        #                 pretrained_ckpt_path=os.path.join(
-        #                     args.llm_model_name_or_path, "model.hybrid_emb.pt"
-        #                 ),
-        #                 lora_mode="full",
-        #             )
-        #         ]
-        #     )
+            self.pipe_layers.extend(
+                [
+                    PretrainedLayerSpec(
+                        LlamaEmbeddingsPP,
+                        llama_config,
+                        new_num_tokens=vocab_size,
+                        load_ckpt=args.load_ckpt,
+                        pretrained_ckpt_path=os.path.join(
+                            args.llm_model_name_or_path, "model.hybrid_emb.pt"
+                        ),
+                        lora_mode="full",
+                    )
+                ]
+            )
 
-        #     self.pipe_layers.extend(
-        #         [
-        #             PretrainedLayerSpec(
-        #                 HybridEmbeddingsPP,
-        #                 adaptor_config,
-        #                 new_num_tokens=vocab_size,
-        #                 load_ckpt=args.load_ckpt,
-        #             )
-        #         ]
-        #     )
+            self.pipe_layers.extend(
+                [
+                    PretrainedLayerSpec(
+                        HybridEmbeddingsPP,
+                        adaptor_config,
+                        new_num_tokens=vocab_size,
+                        load_ckpt=args.load_ckpt,
+                    )
+                ]
+            )
 
-        #     self.pipe_layers.extend(
-        #         LlamaModelPP.to_layers(
-        #             args,
-        #             llama_config,
-        #             load_ckpt=args.load_ckpt,
-        #             new_num_tokens=vocab_size,
-        #         )
-        #     )
-        #     self.loss = CopilotCriterionsPP(
-        #         self.llama_config, self.llama_config.vocab_size
-        #     )
+            self.pipe_layers.extend(
+                LlamaModelPP.to_layers(
+                    args,
+                    llama_config,
+                    load_ckpt=args.load_ckpt,
+                    new_num_tokens=vocab_size,
+                )
+            )
+            self.loss = CopilotCriterionsPP(
+                self.llama_config, self.llama_config.vocab_size
+            )
         else:
             layer_id = 0
             self.pipe_layers.extend(

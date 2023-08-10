@@ -45,3 +45,8 @@ Finetuning Llama2 + Graphormer on 4 GPUs:
 ```
 bash scripts/generalist/ft_graphormer_llama_smiles.sh
 ```
+
+Finetuning Llama2 + Graphormer PP + TP + Zero1:
+```
+bash scripts/generalist/ftmp_graphormer_llama_smiles.sh
+```
