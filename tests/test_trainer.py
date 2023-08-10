@@ -68,7 +68,7 @@ class Test_Trainer(unittest.TestCase):
     def test_trainer(self):
         with tempfile.TemporaryDirectory() as save_dir:
             config = TrainerConfig(
-                epochs=3,
+                total_num_epochs=3,
                 save_dir=save_dir,
                 gradient_accumulation_steps=2,
                 log_interval=10,

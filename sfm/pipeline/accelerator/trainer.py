@@ -266,7 +266,7 @@ class Trainer(object):
             trainable_num,
         )
 
-        for epoch in range(self.args.epochs):
+        for epoch in range(self.args.total_num_epochs):
             self.state.epoch = epoch
             self.accelerator.before_epoch(epoch)
 

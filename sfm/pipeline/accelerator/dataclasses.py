@@ -30,7 +30,6 @@ class DistributedConfig:
 
 @dataclass
 class TrainerConfig:
-    epochs: int = 1
     seed: int = 46
     fp16: bool = False
     auto_cast: bool = False
