@@ -136,7 +136,7 @@ class SingleNodeAccelerator(Accelerator):
             model_output = self.model.compute_loss(pred, batch_data)
             loss = model_output.loss / len(grouped_batch_data)
 
-            if torch.isnan(loss) or torch.isinf(loss):
+            if torch.isnan(loss).item() or torch.isinf(loss).item():
                 logger.info("loss is nan or inf. skip this batch")
                 continue
             else:
@@ -160,9 +160,18 @@ class SingleNodeAccelerator(Accelerator):
         with torch.no_grad():
             pred = self.model(batch_data)
             model_output = self.model.compute_loss(pred, batch_data)
+
+        if hasattr(batch_data, "batch_size"):
+            num_examples = batch_data.batch_size
+        elif hasattr(model_output, "num_examples"):
+            num_examples = model_output.num_examples
+        else:
+            logger.info("num_examples is not found. set to None")
+            num_examples = None
+
         return ValidLogOutput(
             valid_loss=model_output.loss.item(),
-            num_examples=batch_data.batch_size,
+            num_examples=num_examples,
             extra_output=model_output.log_output,
         )
 
@@ -241,6 +250,7 @@ class DdpAccelerator(SingleNodeAccelerator):
             self.model,
             device_ids=[self.local_rank],
             output_device=self.local_rank,
+            find_unused_parameters=True,
         )
 
     def barrier(self):
@@ -265,11 +275,11 @@ class DdpAccelerator(SingleNodeAccelerator):
             )
 
             with maybe_no_sync:
-                pred = self.model(batch_data)
+                pred = self.ddp_model(batch_data)
                 model_output = self.model.compute_loss(pred, batch_data)
                 loss = model_output.loss / len(grouped_batch_data)
 
-                if torch.isnan(loss) or torch.isinf(loss):
+                if torch.isnan(loss).item() or torch.isinf(loss).item():
                     logger.info("loss is nan or inf. skip this batch")
                     continue
                 else:
@@ -393,6 +403,18 @@ class DeepSpeedAccelerator(Accelerator):
                 raise ValueError(
                     f"Unsupported accelerator strategy: {self.args.strategy}"
                 )
+
+            self.args.deepspeed_config["optimizer"]["params"]["lr"] = self.args.max_lr
+
+            self.args.deepspeed_config["scheduler"]["params"][
+                "total_num_steps"
+            ] = self.args.total_num_steps
+            self.args.deepspeed_config["scheduler"]["params"][
+                "warmup_num_steps"
+            ] = self.args.warmup_num_steps
+            self.args.deepspeed_config["scheduler"]["params"][
+                "warmup_max_lr"
+            ] = self.args.max_lr
 
             self.args.deepspeed_config[
                 "gradient_clipping"

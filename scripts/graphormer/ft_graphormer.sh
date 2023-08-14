@@ -42,7 +42,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_names}" ] && dataset_names="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${strategy}" ] && strategy=Zero3
+[ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -145,7 +145,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/graphormer/ft_graphormer.py \
           --strategy $strategy \
           --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
           --gradient_accumulation_steps $gradient_accumulation_steps \
-          --save_epoch_interval $save_epoch_interval --epochs $epochs \
+          --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --log_interval $log_interval
 
 

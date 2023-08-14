@@ -1,15 +1,10 @@
 # -*- coding: utf-8 -*-
 # Copyright 2022 Microsoft Corporation.
-import math
 from typing import Callable, List, Optional, Tuple
-
-from deepspeed.runtime.lr_schedules import WarmupLR
-from torch.optim import Adam, Optimizer
 
 from sfm.logging.loggers import logger as sfm_logger
 
-# from deepspeed.ops.adam import DeepSpeedCPUAdam as Adam
-# from apex.optimizers import FusedAdam as Adam
+from apex.optimizers import FusedAdam as Adam  # isort:skip
 
 
 def split_param_and_layer_name(name_list: List[str]) -> Tuple[List[str], List[int]]:

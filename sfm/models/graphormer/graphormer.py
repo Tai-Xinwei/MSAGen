@@ -202,6 +202,7 @@ class Graphormer(nn.Module):
             segment_labels=segment_labels,
             perturb=perturb,
         )
+        # logger.info("encoder x: {}".format(x))
 
         inner_states, node_output, sentence_rep = self.decoder(
             x, attn_bias, delta_pos, inner_states

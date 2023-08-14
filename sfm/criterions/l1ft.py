@@ -8,6 +8,8 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from sfm.logging import logger
+
 
 class L1Criterions(nn.Module):
     def __init__(self, reduction="mean", data_mean=0.0, data_std=1.0) -> None:
@@ -19,8 +21,8 @@ class L1Criterions(nn.Module):
     def forward(self, batch_data: Dict, logits: Tensor):
         with torch.no_grad():
             y = batch_data["y"]
-        logits = logits[:, 0, :].reshape(-1)
-
+        logits = logits[:, 0, :].reshape(-1).float()
+        # logger.info("logits: {}, y: {}".format(logits, y))
         loss = self.l1(
             logits, (y[: logits.size(0)] - self.datasetmean) / self.datasetstd
         )
@@ -35,7 +37,7 @@ class L1CriterionsPP(L1Criterions):
         logits = logits[:, 0, :].reshape(-1)
 
         loss = self.l1(
-            logits, (y[: logits.size(0)] - self.datasetmean) / self.datasetstd
+            logits.float(), (y[: logits.size(0)] - self.datasetmean) / self.datasetstd
         )
 
         return loss

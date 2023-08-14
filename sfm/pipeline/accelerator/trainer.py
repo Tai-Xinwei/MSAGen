@@ -188,7 +188,7 @@ class Trainer(object):
 
     def build_log_output(self, loss, extra_output=None) -> TrainLogOutput:
         try:
-            lr = self.lr_scheduler.get_last_lr()[0]
+            lr = self.accelerator.lr_scheduler.get_last_lr()[0]
         except:
             lr = 0.0
 
@@ -271,9 +271,10 @@ class Trainer(object):
             self.accelerator.before_epoch(epoch)
 
             logger.info("Start Training for epoch: {}", self.state.epoch)
+            _iter = copy.deepcopy(self.train_data_loader)
 
             loss_accumulator = LossAccumulator()
-            for i, grouped_batch_data in enumerate(self.train_data_loader):
+            for i, grouped_batch_data in enumerate(_iter):
                 model_output = self.accelerator.train_step(grouped_batch_data)
                 loss_accumulator.add(model_output.loss, model_output.num_examples)
 
@@ -290,6 +291,8 @@ class Trainer(object):
                 if self.should_save_batch_checkpoint():
                     checkpoint_name = f"checkpoint_E{epoch}_B{i}.pt"
                     self.save_checkpoint(checkpoint_name)
+
+            del _iter
 
             log_output = self.build_log_output(loss_accumulator.averge_loss)
             metric_logger.log(log_output, "train")

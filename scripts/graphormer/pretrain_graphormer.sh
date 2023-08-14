@@ -124,7 +124,7 @@ else
 fi
 
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/graphormer/pretrain_graphormer.py \
+torchrun sfm/tasks/graphormer/pretrain_graphormer.py \
     --num_classes 128 \
     --encoder_attention_heads $num_head \
     --encoder_layers $layers \
@@ -149,7 +149,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/graphormer/pretrain_graphormer.py \
     --warmup_num_steps $warmup_num_steps \
     --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
     --gradient_accumulation_steps $gradient_accumulation_steps \
-    --save_epoch_interval $save_epoch_interval --epochs $epochs \
+    --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
     --save_batch_interval $save_batch_interval --log_interval $log_interval
 
 
