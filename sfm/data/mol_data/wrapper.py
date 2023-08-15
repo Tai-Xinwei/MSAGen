@@ -42,6 +42,8 @@ from rdkit.Chem import AllChem
 from torch_geometric.data import Data, InMemoryDataset
 from tqdm import tqdm
 
+from sfm.logging import logger
+
 from . import algos
 
 # import algos
@@ -514,7 +516,6 @@ def preprocess_item(item, mask_ratio=0.5):
 
     N = x.size(0)
     x = convert_to_single_emb(x)
-
     # node adj matrix [N, N] bool
     adj = torch.zeros([N, N], dtype=torch.bool)
     adj[edge_index[0, :], edge_index[1, :]] = True

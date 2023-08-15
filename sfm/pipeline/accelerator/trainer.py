@@ -271,10 +271,9 @@ class Trainer(object):
             self.accelerator.before_epoch(epoch)
 
             logger.info("Start Training for epoch: {}", self.state.epoch)
-            _iter = copy.deepcopy(self.train_data_loader)
 
             loss_accumulator = LossAccumulator()
-            for i, grouped_batch_data in enumerate(_iter):
+            for i, grouped_batch_data in enumerate(self.train_data_loader):
                 model_output = self.accelerator.train_step(grouped_batch_data)
                 loss_accumulator.add(model_output.loss, model_output.num_examples)
 
@@ -291,8 +290,6 @@ class Trainer(object):
                 if self.should_save_batch_checkpoint():
                     checkpoint_name = f"checkpoint_E{epoch}_B{i}.pt"
                     self.save_checkpoint(checkpoint_name)
-
-            del _iter
 
             log_output = self.build_log_output(loss_accumulator.averge_loss)
             metric_logger.log(log_output, "train")
@@ -318,9 +315,8 @@ class Trainer(object):
 
         # TODO: add other metrics
         loss_accumulator = LossAccumulator()
-        _iter = copy.deepcopy(self.valid_data_loader)
 
-        for idx, batch_data in enumerate(_iter):
+        for idx, batch_data in enumerate(self.valid_data_loader):
             output = self.accelerator.valid_step(batch_data)
             loss_accumulator.add(output.valid_loss, output.num_examples)
 

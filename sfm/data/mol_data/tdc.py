@@ -10,6 +10,7 @@ import pyximport
 
 pyximport.install(setup_args={"include_dirs": np.get_include()})
 
+import copy
 from multiprocessing import Pool
 from typing import Callable, List, Optional, Tuple, Union
 
@@ -23,6 +24,8 @@ from rdkit import Chem
 # import numpy as np
 from rdkit.Chem import AllChem, MACCSkeys
 from torch_geometric.data import Data, InMemoryDataset
+
+from sfm.logging import logger
 
 from . import algos
 
@@ -291,7 +294,7 @@ class TDCDataset(InMemoryDataset):
     @lru_cache(maxsize=16)
     def __getitem__(self, idx):
         item = self.data[idx]
-        return preprocess_item(item)
+        return preprocess_item(copy.deepcopy(item))
 
 
 @torch.jit.script
@@ -307,7 +310,7 @@ def preprocess_item(item, mask_ratio=0.5):
     edge_attr, edge_index, x = item.edge_attr, item.edge_index.to(torch.int64), item.x
 
     N = x.size(0)
-    x = convert_to_single_emb(x)
+    x0 = convert_to_single_emb(x)
 
     # node adj matrix [N, N] bool
     adj = torch.zeros([N, N], dtype=torch.bool)
@@ -361,7 +364,7 @@ def preprocess_item(item, mask_ratio=0.5):
     #         "node_mask": node_mask,
     #         }
     # combine
-    item.x = x
+    item.x = x0
     item.attn_bias = attn_bias
     item.attn_edge_type = attn_edge_type
     item.spatial_pos = spatial_pos

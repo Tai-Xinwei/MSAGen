@@ -42,7 +42,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_names}" ] && dataset_names="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${strategy}" ] && strategy=Zero1
+[ -z "${strategy}" ] && strategy=DDP
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -103,6 +103,8 @@ export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
+# export CUDA_VISIBLE_DEVICES=0
+# export CUDA_LAUNCH_BLOCKING=1
 
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]

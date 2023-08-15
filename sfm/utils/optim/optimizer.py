@@ -2,9 +2,13 @@
 # Copyright 2022 Microsoft Corporation.
 from typing import Callable, List, Optional, Tuple
 
-from sfm.logging.loggers import logger as sfm_logger
+from sfm.logging.loggers import logger
 
-from apex.optimizers import FusedAdam as Adam  # isort:skip
+try:
+    from apex.optimizers import FusedAdam as Adam  # isort:skip
+except:
+    logger.info("apex is not installed, using pytorch AdamW with fp32 optimizer states")
+    from adam import AdamW as Adam  # isort:skip
 
 
 def split_param_and_layer_name(name_list: List[str]) -> Tuple[List[str], List[int]]:
@@ -42,13 +46,13 @@ def process_param(
             if nl in unfreeze_layer_name_list:
                 param_groups[0]["params"].append(param)
                 if name.find("dummy") == -1:
-                    sfm_logger.success(f"unfreeze layer: {name}")
+                    logger.success(f"unfreeze layer: {name}")
             else:
                 for unfreeze_name in unfreeze_list:
                     if name.find(unfreeze_name) != -1:
                         param_groups[0]["params"].append(param)
                         if name.find("dummy") == -1:
-                            sfm_logger.success(f"unfreeze layer: {name}")
+                            logger.success(f"unfreeze layer: {name}")
 
     elif len(freeze_list) > 0:
         freeze_list, freeze_layer_name_list = split_param_and_layer_name(unfreeze_list)
@@ -56,13 +60,13 @@ def process_param(
             nl = int(name.split(".")[0])
             if nl in freeze_layer_name_list:
                 flag = True
-                sfm_logger.success(f"freeze layer: {name}")
+                logger.success(f"freeze layer: {name}")
             else:
                 for freeze_name in freeze_list:
                     flag = False
                     if name.find(freeze_name) != -1:
                         flag = True
-                        sfm_logger.success(f"freeze {name}")
+                        logger.success(f"freeze {name}")
                         break
             if not flag:
                 param_groups[0]["params"].append(param)

@@ -31,13 +31,11 @@ class PretrainedLayerSpec(LayerSpec):
             else:
                 ds_logger.warn(f"Checkpoint {self.pretrained_ckpt_path} is not found.")
 
-        # self.resize_token_embeddings(self.new_num_tokens)
-
-        # # TODO: LORA
-        # if self.lora_mode == "freeze":
-        #     layer = self.create_peft_model(layer, lora=False)
-        # elif self.lora_mode == "lora":
-        #     layer = self.create_peft_model(layer, lora=True)
+            # # TODO: LORA
+            if self.lora_mode == "lora":
+                layer = self.create_peft_model(layer, lora=True)
+            # elif self.lora_mode == "freeze":
+            #     layer = self.create_peft_model(layer, lora=False)
 
         return layer
 

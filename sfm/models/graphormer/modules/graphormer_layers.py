@@ -10,6 +10,7 @@ from torch_cluster import radius_graph
 from torch_geometric.nn import MessagePassing
 from torch_scatter import scatter
 
+from sfm.logging import logger
 from sfm.modules.FairseqDropout import FairseqDropout
 from sfm.modules.get_activation_fn import get_activation_fn
 
