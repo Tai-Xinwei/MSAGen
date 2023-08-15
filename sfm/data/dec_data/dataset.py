@@ -1,29 +1,18 @@
 # -*- coding: utf-8 -*-
 from dataclasses import dataclass
 from enum import Enum
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generic,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import Dict, List
 
 import torch
 
-from sfm.data.dataset import InMemoryFoundationModelDataset
+from sfm.data.dataset import Batch, InMemoryFoundationModelDataset
 from sfm.data.text import Text
 
 
-class EntityType(Enum):
+class TokenType(Enum):
+    Text = 0
     SMILES = 1
-    FASTA = 2
+    # FASTA = 2
 
 
 @dataclass
@@ -37,19 +26,30 @@ class TokenIdRange:
     end: int
 
 
-class TextMixedWithEntityData(Text):
+class TextMixedWithEntityData(Batch):
     """
     This represent a text mixed with entities (e.g., SMILES, FASTA, etc.).
     However, everying is in the form of text.
     """
 
     def __init__(
-        self, token_seq: torch.Tensor, entity_id_rage: Dict[EntityType, TokenIdRange]
+        self, token_seq: torch.Tensor, entity_id_rage: Dict[TokenType, TokenIdRange]
     ) -> None:
-        super().__init__(token_seq)
+        super().__init__(
+            batch_size=TextMixedWithEntityData.compute_batch_size(token_seq)
+        )
+
+        self.token_seq = token_seq
         self.entity_id_rage = entity_id_rage
 
-    def entity_mask(self, entity_type: EntityType) -> torch.Tensor:
+    @staticmethod
+    def compute_batch_size(token_seq: torch.Tensor) -> int:
+        if len(token_seq.shape) == 1:
+            return 1
+        else:
+            return token_seq.shape[0]
+
+    def entity_mask(self, entity_type: TokenType) -> torch.Tensor:
         """
         Return a mask of the entity_type.
         """
