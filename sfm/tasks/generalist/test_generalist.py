@@ -2,9 +2,9 @@
 import json
 import os
 import shutil
-import sys
 from dataclasses import dataclass
 
+import numpy as np
 import torch
 import transformers
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
@@ -70,11 +70,11 @@ def download_model(
             num_layers = 36
         model_size = "7B"
     elif model_name.find("65B") != -1 or model_name.find("65b") != -1:
-        if model_name.find("llama2") != -1:
-            num_layers = 85
-        else:
-            num_layers = 84
+        num_layers = 84
         model_size = "65B"
+    elif model_name.find("70B") != -1 or model_name.find("70b") != -1:
+        num_layers = 85
+        model_size = "70B"
     else:
         raise ValueError(f"Unknown model size in {model_name}")
 
@@ -113,6 +113,17 @@ def convert(in_dir, out_dir, num_layers, llm_model_name_or_path, convert_offset)
     total_size = 0
     index_map = {"weight_map": {}}
     sfm_logger.info("Converting model...")
+
+    need_convert = False
+    need_convert |= not os.path.exists(f"{out_dir}/config.json")
+    need_convert |= not os.path.exists(f"{out_dir}/pytorch_model.bin.index.json")
+    for i in range(num_layers):
+        need_convert |= not os.path.exists(f"{out_dir}/layer_{i:02d}-model_states.bin")
+
+    if not need_convert:
+        sfm_logger.info("Converted model exists.")
+        return
+
     shutil.copy(f"{llm_model_name_or_path}/config.json", f"{out_dir}/")
     for i in tqdm(range(num_layers)):
         new_model_states = {}
@@ -123,21 +134,32 @@ def convert(in_dir, out_dir, num_layers, llm_model_name_or_path, convert_offset)
             if key.find("dummy") != -1:
                 continue
             weight = model_states[key]
-            if i == 0:
-                # molecular model
-                new_key = "graphormer_encoder." + key
-            elif i == 1:
-                # embed tokens
-                new_key = "decoder.model." + key
-            elif i == 2:
-                # hybrid embedding
-                new_key = "adaptor." + key
-            elif i < num_layers - convert_offset:
-                new_key = f"decoder.model.layers.{i - 3}." + key
-            elif i == num_layers - convert_offset:
-                new_key = "decoder.model." + key
-            else:
-                new_key = "decoder." + key
+            if convert_offset == 2:  # llama2
+                if i == 0:
+                    # molecular model
+                    new_key = "graphormer_encoder." + key
+                elif i == 1:
+                    # embed tokens
+                    new_key = "decoder.model." + key
+                elif i == 2:
+                    # hybrid embedding
+                    new_key = "adaptor." + key
+                elif i < num_layers - convert_offset:
+                    new_key = f"decoder.model.layers.{i - 3}." + key
+                elif i == num_layers - convert_offset:
+                    new_key = "decoder.model." + key
+                else:
+                    new_key = "decoder." + key
+            else:  # llama
+                if i == 0:
+                    new_key = "model.molecule_embedding." + key
+                elif i < num_layers - 3:
+                    new_key = f"model.layers.{i - 1}." + key
+                elif i == num_layers - 3:
+                    new_key = "model.norm." + key
+                else:
+                    new_key = "llama_lm_head_and_loss." + key
+
             index_map["weight_map"][new_key] = f"layer_{i:02d}-model_states.bin"
             total_size += weight.nelement() * weight.element_size()
             new_model_states[new_key] = weight
@@ -177,15 +199,20 @@ def get_tokenizer(llm_model_name_or_path):
     return tokenizer
 
 
+def batch_mol(molecules, num_batches):
+    num_molecules = len(molecules)
+    batch_size = (num_molecules + num_batches - 1) // num_batches
+    batch_start = batch_size * np.arange(num_batches)
+    batch_end = batch_start + batch_size
+    batch_end[batch_end > num_molecules] = num_molecules
+    return [molecules[batch_start[i] : batch_end[i]] for i in range(num_batches)]
+
+
 @cli(GraphormerConfig, GeneralistConfig, TestGeneralistConfig, DistributedConfig)
 def main(args) -> None:
     tokenizer = get_tokenizer(args.llm_model_name_or_path)
 
-    with init_empty_weights():
-        model = GraphormerLlamaModel(args, tokenizer.vocab_size)
-    device_map = create_device_map(args.num_gpus, model.llama_config.num_hidden_layers)
-
-    local_model_path, num_layers, _, convert_offset = download_model(
+    local_model_path, num_layers, model_size, convert_offset = download_model(
         args.test_checkpoint_path,
         args.test_global_step,
         args.local_checkpoint_path,
@@ -193,6 +220,18 @@ def main(args) -> None:
         args.remote_checkpoint_storage_account,
         args.remote_checkpoint_storage_container,
     )
+
+    if model_size == "7B":
+        with torch.no_grad():
+            model = GraphormerLlamaModel(args, tokenizer.vocab_size)
+            model = model.to(device=f"cuda:{args.local_rank}")
+        device_map = {"": f"cuda:{args.local_rank}"}
+    else:
+        with init_empty_weights():
+            model = GraphormerLlamaModel(args, tokenizer.vocab_size)
+        device_map = create_device_map(
+            args.num_gpus, model.llama_config.num_hidden_layers
+        )
 
     convert(
         local_model_path,
@@ -216,8 +255,12 @@ def main(args) -> None:
     with open(args.smiles_list_fname, "r") as in_file:
         smiless = [smi.strip() for smi in list(in_file.readlines())]
 
+    if model_size == "7B":
+        smiless = batch_mol(smiless, int(os.environ["WORLD_SIZE"]))[args.local_rank]
+
+    local_rank = args.local_rank if args.local_rank >= 0 else 0
     sfm_logger.info("Start testing...")
-    with open(args.output_fname, "w") as out_file:
+    with open(f"{args.output_fname}.{local_rank}", "w") as out_file:
         for smi in tqdm(smiless):
             num_atoms = smiles2graph_removeh(smi)["x"].size()[0]
             for question in questions:
@@ -233,7 +276,7 @@ def main(args) -> None:
                     truncation=True,
                 ).input_ids[0]
                 input_ids[input_ids == 0] = -1
-                input_ids = input_ids.to("cuda")
+                input_ids = input_ids.to(f"cuda:{local_rank}")
                 res = model.generate_with_smiles(
                     input_ids.unsqueeze(0),
                     do_sample=True,

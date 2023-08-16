@@ -9,10 +9,11 @@ import os
 from typing import Dict, List, Optional
 
 import torch
+from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
+from transformers.models.llama import LlamaForCausalLM, LlamaModel
 from transformers.models.llama.configuration_llama import LlamaConfig
-from transformers.models.llama.modeling_llama import LlamaForCausalLM
 
 from megatron.core import parallel_state
 from sfm.criterions.copilotloss import CopilotCriterionsPP
@@ -29,10 +30,24 @@ from sfm.models.llama2.llama_modules_3dmp import LlamaEmbeddingsMP, LlamaModelMP
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
+from sfm.utils.move_to_device import move_to_device
 
 from .modules.graphormer_encoder import GraphormerSentenceEncoderPP
 from .modules.hybrid_emb import AdaptorConfig, HybridEmbeddings, HybridEmbeddingsPP
 from .modules.hybrid_emb_3dmp import HybridEmbeddingsMP
+
+
+class LlamaModelTextMolMasked(LlamaModel):
+    # Copied from transformers.models.bart.modeling_bart.BartDecoder._prepare_decoder_attention_mask
+    pass  # TODO: implement this
+
+
+class LlamaForCausalLMTextMolMasked(LlamaForCausalLM):
+    _tied_weights_keys = ["lm_head.weight"]
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.model = LlamaModelTextMolMasked(config)
 
 
 class GraphormerLlamaModel(SFMPipelineModelMixin):
@@ -201,6 +216,8 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
         """
 
         batched_data = batch_collater_for_graphormer(smiles)
+        if input_ids is not None:
+            batched_data = move_to_device(batched_data, device=input_ids.device)
         batched_data["out_degree"] = batched_data["in_degree"]
         batched_data["attn_edge_type"] = None
 

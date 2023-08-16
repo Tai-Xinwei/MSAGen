@@ -24,6 +24,7 @@ from torch.utils.data import Dataset
 from torch_geometric.data import Data, InMemoryDataset
 from tqdm import tqdm
 
+from sfm.logging.loggers import logger
 from sfm.utils.jload import jload
 
 from . import algos
@@ -634,10 +635,10 @@ class SupervisedProcessedData(Dataset):
                     self.weight_dict[(start_index, self.len)] = self.dataset_ratios[i]
             self.mol_data_offset.append(num_mols)
 
-        logging.warning(f"{self.len} sentences loaded.")
+        logger.info(f"{self.len} sentences loaded.")
         for dataset_name in self.dataset_count:
             for dataset_split in self.dataset_count[dataset_name]:
-                logging.warning(
+                logger.info(
                     f"Dataset {dataset_name} split {dataset_split}: {self.dataset_count[dataset_name][dataset_split]} loaded, {self.dataset_filtered[dataset_name][dataset_split]} filtered."
                 )
 
@@ -889,10 +890,10 @@ class SupervisedProcessedDataWithSmiles(Dataset):
                     read_env.close()
                 if self.dataset_ratios is not None:
                     self.weight_dict[(start_index, self.len)] = self.dataset_ratios[i]
-        logging.warning(f"{self.len} sentences loaded.")
+        logger.info(f"{self.len} sentences loaded.")
         for dataset_name in self.dataset_count:
             for dataset_split in self.dataset_count[dataset_name]:
-                logging.warning(
+                logger.info(
                     f"Dataset {dataset_name} split {dataset_split}: {self.dataset_count[dataset_name][dataset_split]} loaded, {self.dataset_filtered[dataset_name][dataset_split]} filtered."
                 )
 

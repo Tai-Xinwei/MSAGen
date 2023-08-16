@@ -50,16 +50,16 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
 [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
 [ -z "${mol_size_path}" ] && mol_size_path="/home/peiran/FMproj/chemical-copilot/mol_size_dict.pkl"
-[ -z "${save_batch_interval}"] && save_batch_interval=20
+[ -z "${save_batch_interval}"] && save_batch_interval=500
 
 [ -z "${add_3d}" ] && add_3d=false
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=8
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
 [ -z "${strategy}" ] && strategy=Pipeline
 
 [ -z "${launcher}" ] && launcher='openmpi'
-[ -z "${hostfile}" ] && hostfile='/job/hostfile'
+[ -z "${hostfile}" ] && hostfile='./hostfile'
 [ -z "${MASTER_PORT}" ] && MASTER_PORT=12345
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
@@ -73,6 +73,7 @@ echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
 echo "MASTER_PORT: ${MASTER_PORT}"
 echo "NCCL_SOCKET_IFNAME: ${NCCL_SOCKET_IFNAME}"
+echo "RANK : ${RANK}"
 echo "LOCAL_RANK : ${LOCAL_RANK}"
 echo "OMPI_COMM_WORLD_RANK: ${OMPI_COMM_WORLD_RANK}"
 echo "OMPI_COMM_WORLD_SIZE: ${OMPI_COMM_WORLD_SIZE}"

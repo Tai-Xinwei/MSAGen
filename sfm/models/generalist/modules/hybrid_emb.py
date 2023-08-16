@@ -47,6 +47,8 @@ class AdaptorConfig(PretrainedConfig):
             relevant if `config.is_decoder=True`.
         tie_word_embeddings(`bool`, *optional*, defaults to `False`):
             Whether to tie weight embeddings
+        mask_text_to_mol_attention (`bool`,  *optional*, defaults to `False`):
+            Whether to mask the attention from text tokens to molecule tokens
         Example:
 
     ```python
@@ -76,6 +78,7 @@ class AdaptorConfig(PretrainedConfig):
         bos_token_id=1,
         eos_token_id=2,
         tie_word_embeddings=False,
+        mask_text_to_mol_attention=False,
         mfm_hidden_size=None,
         **kwargs,
     ):
@@ -86,6 +89,7 @@ class AdaptorConfig(PretrainedConfig):
         self.hidden_act = hidden_act
         self.rms_norm_eps = rms_norm_eps
         self.use_cache = use_cache
+        self.mask_text_to_mol_attention = mask_text_to_mol_attention
         self.mfm_hidden_size = mfm_hidden_size
         super().__init__(
             pad_token_id=pad_token_id,
@@ -484,7 +488,7 @@ class HybridEmbeddings(nn.Module):
         if past_key_values_length > 0:
             mask = torch.cat(
                 [
-                    torch.zeros(
+                    torch.ones(
                         tgt_len, past_key_values_length, dtype=mask.dtype, device=device
                     ),
                     mask,
@@ -516,7 +520,12 @@ class HybridEmbeddings(nn.Module):
 
     # Copied from transformers.models.bart.modeling_bart.BartDecoder._prepare_decoder_attention_mask
     def _prepare_decoder_attention_mask(
-        self, attention_mask, input_shape, inputs_embeds, past_key_values_length
+        self,
+        attention_mask,
+        input_shape,
+        inputs_embeds,
+        past_key_values_length,
+        input_ids,
     ):
         # create causal mask
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
@@ -529,6 +538,17 @@ class HybridEmbeddings(nn.Module):
                 past_key_values_length=past_key_values_length,
             )
 
+        if self.config.mask_text_to_mol_attention and input_shape[-1] > 1:
+            mol_token_mask = input_ids < 0
+            if attention_mask is not None:
+                mol_token_mask &= attention_mask
+            mol_token_atten_mask = mol_token_mask.unsqueeze(1).unsqueeze(
+                2
+            ) & mol_token_mask.unsqueeze(1).unsqueeze(-1)
+            mol_token_atten_mask[~mol_token_mask, :] = True
+        else:
+            mol_token_atten_mask = None
+
         if attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
             expanded_attn_mask = self._expand_mask(
@@ -540,6 +560,9 @@ class HybridEmbeddings(nn.Module):
                 if combined_attention_mask_bool is None
                 else expanded_attn_mask & combined_attention_mask_bool
             )
+
+        if mol_token_atten_mask is not None:
+            combined_attention_mask_bool &= mol_token_atten_mask
 
         return combined_attention_mask_bool
 
@@ -666,6 +689,7 @@ class HybridEmbeddingsPP(HybridEmbeddings):
             (batch_size, seq_length),
             inputs_embeds,
             past_key_values_length,
+            input_ids,
         )
 
         hidden_states = inputs_embeds.to(mol_emb.dtype)
