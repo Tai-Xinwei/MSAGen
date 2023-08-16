@@ -82,6 +82,7 @@ class HybridEmbeddingsMP(HybridEmbeddings):
             (batch_size, seq_length),
             inputs_embeds,
             past_key_values_length,
+            input_ids,
         )
 
         # convert size to [seq_length, batch_size, hidden_size] for decoder layer

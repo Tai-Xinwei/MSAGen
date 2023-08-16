@@ -495,6 +495,10 @@ class HybridEmbeddings(nn.Module):
                 ],
                 dim=-1,
             )
+        assert (
+            mask.dtype == torch.bool
+        ), f"expected mask to have dtype torch.bool, but got {mask.dtype}"
+
         return mask[None, None, :, :].expand(
             bsz, 1, tgt_len, tgt_len + past_key_values_length
         )

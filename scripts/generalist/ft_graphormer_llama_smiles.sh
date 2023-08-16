@@ -54,7 +54,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${add_3d}" ] && add_3d=false
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=8
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
 [ -z "${strategy}" ] && strategy=Pipeline
 
