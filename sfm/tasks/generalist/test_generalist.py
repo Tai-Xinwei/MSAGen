@@ -33,6 +33,7 @@ class TestGeneralistConfig:
     smiles_list_fname: str
     infer_batch_size: int
     output_fname: str
+    seed: int
 
 
 def create_device_map(num_gpus, num_llama_layers):
