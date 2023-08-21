@@ -59,7 +59,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     if tokenizer.unk_token is None:
         special_tokens_dict["unk_token"] = DEFAULT_UNK_TOKEN
 
-    # special_tokens_dict["additional_special_tokens"] = CHEMICAL_TOKENS
+    special_tokens_dict["additional_special_tokens"] = CHEMICAL_TOKENS
     tokenizer.add_special_tokens(special_tokens_dict)
 
     """ Make dataset and collator for supervised fine-tuning. """
@@ -75,6 +75,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         # dataset_ratios=args.dataset_ratios,
         pool_mode=args.pool_mode,
         embedding_length=args.embedding_length,
+        num_token_id=tokenizer.encode("<num>", add_special_tokens=False)[0],
     )
 
     return dict(train_dataset=dataset, eval_dataset=None, vocab_size=len(tokenizer))
@@ -83,8 +84,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
 @cli(DistributedTrainConfig, GraphormerConfig, GeneralistConfig)
 def main(args) -> None:
     data_module = make_supervised_data_module(args, mode="train")
-    logger.info("length of dataset", len(data_module["train_dataset"]))
-
+    logger.info(f"length of dataset: {len(data_module['train_dataset'])}")
     if args.tensor_model_parallel_size == 1:
         trainer = Trainer(
             args,

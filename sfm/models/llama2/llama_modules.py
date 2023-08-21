@@ -159,6 +159,32 @@ class LlamaEmbeddingsPP(nn.Module):
         return mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids
 
 
+class Num_MLP(nn.Module):
+    def __init__(
+        self,
+        in_features,
+        hidden_features=None,
+        out_features=None,
+        act_layer=nn.GELU,
+        drop=0.0,
+    ):
+        super(Num_MLP, self).__init__()
+        out_features = out_features or in_features
+        hidden_features = hidden_features or in_features
+        self.fc1 = nn.Linear(in_features, hidden_features)
+        self.act = act_layer()
+        self.fc2 = nn.Linear(hidden_features, out_features)
+        self.drop = nn.Dropout(drop)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.act(x)
+        x = self.drop(x)
+        x = self.fc2(x)
+        x = self.drop(x)
+        return x
+
+
 class LlamaHead(nn.Module):
     def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
         super().__init__()
@@ -171,6 +197,7 @@ class LlamaHead(nn.Module):
 
         # self.weight = self.lm_head.weight.data.requires_grad_().cuda()
         # self.weight.grad = torch.zeros_like(self.weight)
+        self.num_head = Num_MLP(config.hidden_size, 4 * config.hidden_size, 1)
 
     @property
     def emb_weight(self):
@@ -205,8 +232,9 @@ class LlamaHead(nn.Module):
         hidden_states = input_tuple[0]
 
         lm_logits = self.lm_head(hidden_states)
+        num_logits = self.num_head(hidden_states)
 
-        return lm_logits
+        return (lm_logits, num_logits)
 
 
 class LlamaModelPP(LlamaPreTrainedModel):

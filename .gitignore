@@ -154,3 +154,12 @@ dmypy.json
 
 #AMLT
 .amltconfig
+/models
+
+tmp_data
+tmp_codes
+# .vscode
+.vscode*/
+
+# data
+*.mdb

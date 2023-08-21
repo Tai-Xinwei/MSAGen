@@ -50,6 +50,7 @@ def create_device_map(num_gpus, num_llama_layers):
             device_map[f"decoder.model.layers.{j}"] = i
     device_map["decoder.model.norm"] = num_gpus - 1
     device_map["decoder.lm_head"] = 0
+    device_map["decoder.num_head"] = 0
     return device_map
 
 

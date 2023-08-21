@@ -16,7 +16,7 @@ from transformers.models.llama import LlamaForCausalLM, LlamaModel
 from transformers.models.llama.configuration_llama import LlamaConfig
 
 from megatron.core import parallel_state
-from sfm.criterions.copilotloss import CopilotCriterionsPP
+from sfm.criterions.copilotloss import CopilotCriterionsNumPP, CopilotCriterionsPP
 from sfm.data.mol_data.moltext_dataset import batch_collater_for_graphormer
 from sfm.logging.loggers import logger
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
@@ -129,7 +129,10 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                     new_num_tokens=vocab_size,
                 )
             )
-            self.loss = CopilotCriterionsPP(
+            # self.loss = CopilotCriterionsPP(
+            #     self.llama_config, self.llama_config.vocab_size
+            # )
+            self.loss = CopilotCriterionsNumPP(
                 self.llama_config, self.llama_config.vocab_size
             )
         else:
@@ -412,7 +415,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
         loss = self.loss(pred, batch)
         return ModelOutput(
             loss=loss,
-            num_examples=pred.size()[0],
+            num_examples=pred[0].size()[0],
             log_output={"loss": float(loss.detach())},
         )
 

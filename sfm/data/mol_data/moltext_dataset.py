@@ -780,6 +780,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         dataset_ratios: Optional[str] = None,
         pool_mode: Optional[str] = "full",
         embedding_length: int = 20,
+        num_token_id: int = 32003,
     ) -> None:
         super().__init__()
         self.data_path = data_path
@@ -804,6 +805,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         self.molecule_max_size = molecule_max_size
         self.pool_mode = pool_mode
         self.embedding_length = embedding_length
+        self.num_token_id = num_token_id
 
         threshold_maxmol = 8
 
@@ -908,7 +910,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
             if equal_ratio:
                 self.weight_dict = None
 
-    def _calc_input_len(self, input_ids, source_len, smiless, mol_sizes):
+    def _calc_input_len(self, input_ids, source_len, smiless, mol_sizes, nums=None):
         try:
             mol_sizes = torch.tensor(mol_sizes)
             if torch.any(torch.isnan(mol_sizes)) or torch.any(
@@ -935,13 +937,18 @@ class SupervisedProcessedDataWithSmiles(Dataset):
     def __getitem__(self, i) -> Dict[str, torch.Tensor]:
         dataset_name, dataset_split, key = self.index_to_key_map[i]
         if not self.in_memory:
-            input_ids, input_ids_len, smiless, mol_sizes = pkl.loads(
+            data = pkl.loads(
                 self.read_txns[dataset_name][dataset_split].get(key.encode())
             )
         else:
-            input_ids, input_ids_len, smiless, mol_sizes = self.in_memory_data[
-                dataset_name
-            ][dataset_split][key]
+            data = self.in_memory_data[dataset_name][dataset_split][key]
+
+        nums = None
+        if len(data) == 4:
+            input_ids, input_ids_len, smiless, mol_sizes = data
+        elif len(data) == 5:
+            input_ids, input_ids_len, smiless, mol_sizes, nums = data
+
         if isinstance(input_ids, list):
             input_ids = torch.tensor(input_ids, dtype=torch.int64)
 
@@ -981,7 +988,17 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         labels = input_ids.clone()
         labels[:input_ids_len] = IGNORE_INDEX
         labels[labels < 0] = IGNORE_INDEX
-        return dict(input_ids=input_ids, labels=labels, smiless=smiless)
+
+        num_labels = torch.zeros_like(input_ids, dtype=torch.float)
+        num_labels[:] = IGNORE_INDEX
+        label_poss = labels == self.num_token_id
+        if nums is not None:
+            num_labels[label_poss] = torch.tensor(nums, dtype=torch.float)
+        # labels = torch.stack([labels, num_labels], dim=-1)
+
+        return dict(
+            input_ids=input_ids, labels=labels, smiless=smiless, num_labels=num_labels
+        )
 
     def collater(self, samples):
         return self.data_collater(samples)
@@ -1196,15 +1213,18 @@ class DataCollatorForSupervisedDataset(object):
     add_mfm: bool
 
     def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
-        input_ids, labels, smiless = tuple(
+        input_ids, labels, smiless, num_labels = tuple(
             [instance[key] for instance in instances]
-            for key in ("input_ids", "labels", "smiless")
+            for key in ("input_ids", "labels", "smiless", "num_labels")
         )
         input_ids = torch.nn.utils.rnn.pad_sequence(
             input_ids, batch_first=True, padding_value=self.pad_token_id
         )
         labels = torch.nn.utils.rnn.pad_sequence(
             labels, batch_first=True, padding_value=IGNORE_INDEX
+        )
+        num_labels = torch.nn.utils.rnn.pad_sequence(
+            num_labels, batch_first=True, padding_value=IGNORE_INDEX
         )
 
         batched_molecules = {
@@ -1238,12 +1258,14 @@ class DataCollatorForSupervisedDataset(object):
                 (
                     labels,
                     input_ids.ne(self.pad_token_id),
+                    num_labels,
                 ),
             )
         else:
             return dict(
                 input_ids=input_ids,
                 labels=labels,
+                num_labels=num_labels,
                 attention_mask=input_ids.ne(self.pad_token_id),
                 **batched_molecules,
             )

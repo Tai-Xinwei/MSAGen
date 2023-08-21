@@ -30,11 +30,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 
 # [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot'
-[ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-20230724'
+# [ -z "${data_path}" ] && data_path='/home/v-peiqizhi/data/chemical-copilot-20230724'
+[ -z "${data_path}" ] && data_path='/home/v-peiqizhi/SFM_framework/tmp_data/ESOL'
 # [ -z "${dataset_names}" ] && dataset_names='tdc'
 # [ -z "${dataset_splits}" ] && dataset_splits='all-instruction'
 [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
-[ -z "${dataset_splits}" ] && dataset_splits='clean'
+# [ -z "${dataset_splits}" ] && dataset_splits='clean'
+[ -z "${dataset_splits}" ] && dataset_splits='train'
 [ -z "${dataset_ratios}" ] && dataset_ratios='1.0,1.0'
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
@@ -42,24 +44,24 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 # [ -z "${save_dir}" ] && save_dir='/mnt/shiyu/models/converted/llama2'
-[ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/llama2'
+[ -z "${save_dir}" ] && save_dir='/home/v-peiqizhi/SFM_framework/output/ESOL_training_0816'
 [ -z "${smiles_dict_path}" ] && smiles_dict_path="/home/peiran/FMproj/chemical-copilot/mol2idx_dict.jsonl"
 # [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/checkpoint7_new.pt"
-[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
+[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/v-peiqizhi/models/graphormer_ckpts/checkpoint7_new.pt"
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/MetaLLM-converted/7B-pp"
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/v-peiqizhi/models/converted/llama-2-7b"
 [ -z "${mol_size_path}" ] && mol_size_path="/home/peiran/FMproj/chemical-copilot/mol_size_dict.pkl"
 [ -z "${save_batch_interval}"] && save_batch_interval=500
 
 [ -z "${add_3d}" ] && add_3d=false
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
 [ -z "${strategy}" ] && strategy=Pipeline
 
 [ -z "${launcher}" ] && launcher='openmpi'
-[ -z "${hostfile}" ] && hostfile='./hostfile'
+[ -z "${hostfile}" ] && hostfile='/job/hostfile'
 [ -z "${MASTER_PORT}" ] && MASTER_PORT=12345
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
@@ -73,7 +75,6 @@ echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
 echo "MASTER_PORT: ${MASTER_PORT}"
 echo "NCCL_SOCKET_IFNAME: ${NCCL_SOCKET_IFNAME}"
-echo "RANK : ${RANK}"
 echo "LOCAL_RANK : ${LOCAL_RANK}"
 echo "OMPI_COMM_WORLD_RANK: ${OMPI_COMM_WORLD_RANK}"
 echo "OMPI_COMM_WORLD_SIZE: ${OMPI_COMM_WORLD_SIZE}"
@@ -139,6 +140,51 @@ else
   fi
 fi
 
+mkdir -p $save_dir
+
+DS_CONFIG=$save_dir/deepspeed.json
+
+[ -z "${zero_strategy}" ] && zero_strategy=1
+[ -z "${micro_batch_size}" ] && micro_batch_size=4
+[ -z "${global_batch_size}" ] && global_batch_size=32
+
+cat <<EOT > $DS_CONFIG
+{
+  "train_batch_size" : $global_batch_size,
+  "train_micro_batch_size_per_gpu": $micro_batch_size,
+  "steps_per_print": 10,
+  "zero_optimization": {
+    "stage": $zero_strategy
+  },
+  "fp16": {
+    "enabled": true
+  },
+  "optimizer": {
+    "type": "Adam",
+    "params": {
+      "lr": 0.0000,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "eps": 1e-8,
+      "weight_decay": 0.0
+    }
+  },
+  "scheduler": {
+    "type": "WarmupDecayLR",
+    "params": {
+      "warmup_type": "linear",
+      "total_num_steps": $total_num_steps,
+      "warmup_max_lr": $max_lr,
+      "warmup_num_steps": $warmup_num_steps,
+    }
+  },
+}
+EOT
+
+ds_args="--deepspeed_config $DS_CONFIG"
+set -x
 torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --num_classes 1 \
           --encoder_attention_heads $num_head \
@@ -170,11 +216,11 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --strategy $strategy \
           --embedding_length $embedding_length \
           --model_max_length $model_max_length \
-          --deepspeed_config ./config_file/ds_config_pp.json \
           --pp_partition_layer_name "LlamaDecoderLayerPP" \
           --load_ckpt \
           --unfreeze_param_list "adaptor" \
-          --save_batch_interval $save_batch_interval
+          --save_batch_interval $save_batch_interval \
+          $ds_args | tee -a $save_dir/train.log
 
 
 # if [ $OMPI_COMM_WORLD_RANK == 0 ]; then

@@ -28,7 +28,8 @@ code:
 
 jobs:
 - name: ft_100MMFM_70Bppllama_graphqformer1_moldesc+funcgroup+chembi-adaptor-2e-5
-  sku: 4xG16
+  sku: 4x G16
+  mpi: true
   process_count_per_node: 1
   command:
   - mkdir /blob/ds_dataset/output
