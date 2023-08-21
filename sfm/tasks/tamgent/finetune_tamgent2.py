@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-from argparse import ArgumentParser
 
 from sfm.data.tamgent2.datasets import TextToMolDataset
 from sfm.models.tamgent.model import Tamgent2, Tamgent2Config
