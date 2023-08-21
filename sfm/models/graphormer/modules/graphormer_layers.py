@@ -302,10 +302,6 @@ class Graph3DBias(nn.Module):
         gbf_result = self.gbf_proj(edge_feature)
         graph_attn_bias = gbf_result
 
-        # @ Roger added: mask atom
-
-        # graph_attn_bias[node_mask.squeeze(-1)[:, None, :].bool().repeat(1, n_node, 1)] = self.mask_bias.weight.squeeze(0)
-
         graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous()
         graph_attn_bias.masked_fill_(
             padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")

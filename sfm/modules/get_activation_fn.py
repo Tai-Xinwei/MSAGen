@@ -6,10 +6,23 @@
 
 import math
 import warnings
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+
+def get_available_activation_fns() -> List:
+    return [
+        "relu",
+        "gelu",
+        "relu_squared",
+        "gelu_fast",  # deprecated
+        "gelu_accurate",
+        "tanh",
+        "linear",
+    ]
 
 
 def deprecation_warning(message, stacklevel=3):

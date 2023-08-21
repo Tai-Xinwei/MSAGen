@@ -195,7 +195,7 @@ class GatedEquivariantBlock(nn.Module):
 
 
 class EquivariantVectorOutput(nn.Module):
-    def __init__(self, hidden_channels=768, activation="silu"):
+    def __init__(self, hidden_channels=768, activation="silu", d_tilde=1):
         super(EquivariantVectorOutput, self).__init__()
         self.output_network = nn.ModuleList(
             [
@@ -209,11 +209,11 @@ class EquivariantVectorOutput(nn.Module):
             ]
         )
 
-    #     self.reset_parameters()
+        self.reset_parameters(d_tilde)
 
-    # def reset_parameters(self):
-    #     for layer in self.output_network:
-    #         layer.reset_parameters()
+    def reset_parameters(self, d_tilde):
+        for layer in self.output_network:
+            layer.reset_parameters(d_tilde)
 
     def forward(self, x, v):
         for layer in self.output_network:
@@ -245,7 +245,7 @@ class EquivariantLayerNorm(nn.Module):
         self.eps = eps
         self.elementwise_linear = elementwise_linear
         if self.elementwise_linear:
-            self.weight = Parameter(
+            self.weight = nn.Parameter(
                 torch.empty(self.normalized_shape, **factory_kwargs)
             )
         else:
@@ -308,7 +308,7 @@ class EquivariantLayerNorm(nn.Module):
 
 
 class InvariantAttention(nn.Module):
-    def __init__(self, hidden_channels, head_dim, dropout):
+    def __init__(self, hidden_channels, head_dim, dropout, d_tilde=1):
         super().__init__()
         self.hidden_channels = hidden_channels
         self.head_dim = head_dim
@@ -317,17 +317,17 @@ class InvariantAttention(nn.Module):
         self.out_proj = nn.Linear(hidden_channels, hidden_channels, bias=True)
 
         self.dropout = dropout
-
         self.attn_ln = nn.LayerNorm(hidden_channels)
+        self.scaling = ((self.head_dim / d_tilde) ** 0.5) / self.head_dim
 
-    #     self.reset_parameters()
+        self.reset_parameters(1)
 
-    # def reset_parameters(self):
-    #     nn.init.xavier_uniform_(self.out_proj.weight)
-    #     self.out_proj.bias.data.fill_(0)
+    def reset_parameters(self, d_tilde):
+        nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        self.out_proj.bias.data.fill_(0)
 
     def forward(self, q, k, v, attn_bias, key_padding_mask):
-        q = q * (self.head_dim**-0.5)
+        q = q * self.scaling
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
 
@@ -372,23 +372,23 @@ class InvariantAttention(nn.Module):
 
 
 class EquivariantAttention(nn.Module):
-    def __init__(self, hidden_channels, head_dim, dropout):
+    def __init__(self, hidden_channels, head_dim, dropout, d_tilde=1):
         super().__init__()
         self.hidden_channels = hidden_channels
         self.head_dim = head_dim
         self.num_heads = hidden_channels // head_dim
         self.out_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.dropout = dropout
-
         self.attn_ln = EquivariantLayerNorm(hidden_channels)
+        self.scaling = ((self.head_dim / (d_tilde * 3)) ** 0.5) / self.head_dim
 
-    #     self.reset_parameters()
+        self.reset_parameters(1)
 
-    # def reset_parameters(self):
-    #     nn.init.xavier_uniform_(self.out_proj.weight)
+    def reset_parameters(self, d_tilde):
+        nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
 
     def forward(self, q, k, v, attn_bias, key_padding_mask):
-        q = q * ((self.head_dim * 3) ** -0.5)
+        q = q * self.scaling
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
 
@@ -446,7 +446,6 @@ class EquivariantAttention(nn.Module):
             .transpose(2, 3)
             .reshape(bsz, tgt_len, 3, self.hidden_channels)
         )
-
         attn = self.attn_ln(attn)
 
         attn = self.out_proj(attn)
@@ -455,7 +454,7 @@ class EquivariantAttention(nn.Module):
 
 
 class InvariantSelfAttention(nn.Module):
-    def __init__(self, hidden_channels, head_dim, num_heads, dropout):
+    def __init__(self, hidden_channels, head_dim, num_heads, dropout, d_tilde=1):
         super().__init__()
         self.head_dim = head_dim
         self.num_heads = num_heads
@@ -466,15 +465,15 @@ class InvariantSelfAttention(nn.Module):
             hidden_channels, head_dim, dropout
         )
 
-    #     self.reset_parameters()
+        self.reset_parameters(1)
 
-    # def reset_parameters(self):
-    #     nn.init.xavier_uniform_(self.q_proj.weight)
-    #     self.q_proj.bias.data.fill_(0)
-    #     nn.init.xavier_uniform_(self.k_proj.weight)
-    #     self.k_proj.bias.data.fill_(0)
-    #     nn.init.xavier_uniform_(self.v_proj.weight)
-    #     self.v_proj.bias.data.fill_(0)
+    def reset_parameters(self, d_tilde):
+        nn.init.xavier_uniform_(self.q_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        self.q_proj.bias.data.fill_(0)
+        nn.init.xavier_uniform_(self.k_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        self.k_proj.bias.data.fill_(0)
+        nn.init.xavier_uniform_(self.v_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        self.v_proj.bias.data.fill_(0)
 
     def forward(self, x, attn_bias, mask):
         q = self.q_proj(x)
@@ -487,7 +486,7 @@ class InvariantSelfAttention(nn.Module):
 
 
 class EquivariantSelfAttention(nn.Module):
-    def __init__(self, hidden_channels, head_dim, num_heads, dropout):
+    def __init__(self, hidden_channels, head_dim, num_heads, dropout, d_tilde=1):
         super().__init__()
         self.head_dim = head_dim
         self.num_heads = num_heads
@@ -498,12 +497,12 @@ class EquivariantSelfAttention(nn.Module):
             hidden_channels, head_dim, dropout
         )
 
-    #     self.reset_parameters()
+        self.reset_parameters(1)
 
-    # def reset_parameters(self):
-    #     nn.init.xavier_uniform_(self.q_proj.weight)
-    #     nn.init.xavier_uniform_(self.k_proj.weight)
-    #     nn.init.xavier_uniform_(self.v_proj.weight)
+    def reset_parameters(self, d_tilde):
+        nn.init.xavier_uniform_(self.q_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        nn.init.xavier_uniform_(self.k_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        nn.init.xavier_uniform_(self.v_proj.weight, gain=1.0 / math.sqrt(d_tilde))
 
     def forward(self, vec, attn_bias, mask):
         q = self.q_proj(vec)
@@ -516,7 +515,7 @@ class EquivariantSelfAttention(nn.Module):
 
 
 class Invariant2EquivariantAttention(nn.Module):
-    def __init__(self, hidden_channels, head_dim, num_heads, dropout):
+    def __init__(self, hidden_channels, head_dim, num_heads, dropout, d_tilde=1):
         super().__init__()
         self.head_dim = head_dim
         self.num_heads = num_heads
@@ -529,15 +528,15 @@ class Invariant2EquivariantAttention(nn.Module):
             hidden_channels, head_dim, dropout
         )
 
-    #     self.reset_parameters()
+        self.reset_parameters(1)
 
-    # def reset_parameters(self):
-    #     nn.init.xavier_uniform_(self.q_proj.weight)
-    #     self.q_proj.bias.data.fill_(0)
-    #     nn.init.xavier_uniform_(self.k1_proj.weight)
-    #     nn.init.xavier_uniform_(self.k2_proj.weight)
-    #     nn.init.xavier_uniform_(self.v1_proj.weight)
-    #     nn.init.xavier_uniform_(self.v2_proj.weight)
+    def reset_parameters(self, d_tilde):
+        nn.init.xavier_uniform_(self.q_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        self.q_proj.bias.data.fill_(0)
+        nn.init.xavier_uniform_(self.k1_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        nn.init.xavier_uniform_(self.k2_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        nn.init.xavier_uniform_(self.v1_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        nn.init.xavier_uniform_(self.v2_proj.weight, gain=1.0 / math.sqrt(d_tilde))
 
     def forward(self, x, vec, attn_bias, mask):
         q = self.q_proj(x)
@@ -555,7 +554,14 @@ class Invariant2EquivariantAttention(nn.Module):
 
 class Equivariant2InvariantAttention(nn.Module):
     def __init__(
-        self, hidden_channels, head_dim, num_heads, dropout, eQi_choice, gbf_args
+        self,
+        hidden_channels,
+        head_dim,
+        num_heads,
+        dropout,
+        eQi_choice,
+        gbf_args,
+        d_tilde=1,
     ):
         super().__init__()
         self.head_dim = head_dim
@@ -577,16 +583,16 @@ class Equivariant2InvariantAttention(nn.Module):
             hidden_channels, head_dim, dropout
         )
 
-    #     self.reset_parameters()
+        self.reset_parameters(1)
 
-    # def reset_parameters(self):
-    #     nn.init.xavier_uniform_(self.q_proj.weight)
-    #     nn.init.xavier_uniform_(self.k1_proj.weight)
-    #     self.k1_proj.bias.data.fill_(0)
-    #     nn.init.xavier_uniform_(self.k2_proj.weight)
-    #     nn.init.xavier_uniform_(self.v1_proj.weight)
-    #     self.v1_proj.bias.data.fill_(0)
-    #     nn.init.xavier_uniform_(self.v2_proj.weight)
+    def reset_parameters(self, d_tilde):
+        nn.init.xavier_uniform_(self.q_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        nn.init.xavier_uniform_(self.k1_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        self.k1_proj.bias.data.fill_(0)
+        nn.init.xavier_uniform_(self.k2_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        nn.init.xavier_uniform_(self.v1_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        self.v1_proj.bias.data.fill_(0)
+        nn.init.xavier_uniform_(self.v2_proj.weight, gain=1.0 / math.sqrt(d_tilde))
 
     def forward(self, x, vec, attn_bias, mask, pos_unit, gbf_args):
         q = self.q_proj(vec)
@@ -678,6 +684,7 @@ class EncoderLayer(nn.Module):
         eQi_choice: str = "original",
         gbf_args=None,
         layer_index=0,
+        d_tilde=1,
     ):
         super().__init__()
 
@@ -725,23 +732,35 @@ class EncoderLayer(nn.Module):
         self.activation_dropout = activation_dropout
         self.attention_dropout = attention_dropout
 
-    #     self.reset_parameters()
+        self.reset_parameters()
 
-    # def reset_parameters(self):
-    #     self.invariant_attn_layer_norm.reset_parameters()
-    #     self.equivariant_attn_layer_norm.reset_parameters()
+    def reset_parameters(self, d_tilde=1.0):
+        self.invariant_attn_layer_norm.reset_parameters()
+        self.equivariant_attn_layer_norm.reset_parameters()
 
-    #     nn.init.xavier_uniform_(self.invariant_fc1.weight)
-    #     self.invariant_fc1.bias.data.fill_(0)
-    #     nn.init.xavier_uniform_(self.invariant_fc2.weight)
-    #     self.invariant_fc2.bias.data.fill_(0)
-    #     nn.init.xavier_uniform_(self.equivariant_fc1.weight)
-    #     self.equivariant_fc1.bias.data.fill_(0)
-    #     nn.init.xavier_uniform_(self.equivariant_fc2.weight)
-    #     nn.init.xavier_uniform_(self.equivariant_fc3.weight)
+        nn.init.xavier_uniform_(
+            self.invariant_fc1.weight, gain=1.0 / math.sqrt(d_tilde)
+        )
+        self.invariant_fc1.bias.data.fill_(0)
+        nn.init.xavier_uniform_(
+            self.invariant_fc2.weight, gain=1.0 / math.sqrt(d_tilde)
+        )
+        self.invariant_fc2.bias.data.fill_(0)
+        nn.init.xavier_uniform_(
+            self.equivariant_fc1.weight, gain=1.0 / math.sqrt(d_tilde)
+        )
+        self.equivariant_fc1.bias.data.fill_(0)
+        nn.init.xavier_uniform_(
+            self.equivariant_fc2.weight, gain=1.0 / math.sqrt(d_tilde)
+        )
+        nn.init.xavier_uniform_(
+            self.equivariant_fc3.weight, gain=1.0 / math.sqrt(d_tilde)
+        )
 
-    #     self.invariant_ffn_layer_norm.reset_parameters()
-    #     self.equivariant_ffn_layer_norm.reset_parameters()
+        self.invariant_ffn_layer_norm.reset_parameters()
+        self.equivariant_ffn_layer_norm.reset_parameters()
+        self.invariant_ffn_layer_norm_2.reset_parameters()
+        self.equivariant_ffn_layer_norm_2.reset_parameters()
 
     def forward(
         self,
