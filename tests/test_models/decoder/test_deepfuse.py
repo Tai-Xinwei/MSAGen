@@ -6,7 +6,8 @@ from unittest.mock import patch
 import torch
 
 from sfm.data.dec_data.dataset import MixedTokenDataset, TextSpan, TokenType
-from sfm.models.decoder.deepfuse import DecDeepFuse, DecDeepFuseConfig
+from sfm.models.decoder.deepfuse.config import DecDeepFuseConfig
+from sfm.models.decoder.deepfuse.model import DecDeepFuse
 
 
 class MockTokenizer:
@@ -26,7 +27,14 @@ class TestDeepFuse(unittest.TestCase):
         self.text_tokenizer = MockTokenizer()
         self.entity_tokenizer = MockTokenizer()
 
+    def load_from_pretrained(self):
+        pass
+
     @patch("sfm.data.dec_data.dataset.MixedTokenDataset.init_tokenziers", tok)
+    @patch(
+        "sfm.models.decoder.deepfuse.model.DecDeepFuse.load_from_pretrained",
+        load_from_pretrained,
+    )
     def test_deepfuse(self):
         config = DecDeepFuseConfig(layer_usage="NMSNMS", vocab_size=1000)
 
