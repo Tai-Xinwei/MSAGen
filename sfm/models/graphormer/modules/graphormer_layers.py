@@ -265,9 +265,8 @@ class Graph3DBias(nn.Module):
         #     0.5, module_name=self.__class__.__name__
         # )
 
-    def forward(self, batched_data):
-        pos, x, node_type_edge = (
-            batched_data["pos"],
+    def forward(self, batched_data, pos):
+        x, node_type_edge = (
             batched_data["x"],
             batched_data["node_type_edge"],
         )  # pos shape: [n_graphs, n_nodes, 3]

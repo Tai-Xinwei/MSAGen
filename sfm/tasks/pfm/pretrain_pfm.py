@@ -5,8 +5,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
-from sfm.criterions.mae3ddiff import DiffMAE3dCriterions
-from sfm.data.mol_data.dataset import BatchedDataDataset, PCQPreprocessedData
+from sfm.criterions.mae3d import ProteinMAE3dCriterions
+from sfm.data.prot_data.dataset import BatchedDataDataset, ProteinLMDBDataset
 from sfm.logging import logger
 from sfm.models.pfm.pfm_config import PFMConfig
 from sfm.models.pfm.pfmmodel import PFMModel
@@ -19,25 +19,23 @@ from sfm.utils.optim.set_lr import groupWarmupDecayLR
 
 @cli(DistributedTrainConfig, PFMConfig)
 def main(args) -> None:
-    # TODO: Dataset need to be replaced
-    dataset = PCQPreprocessedData(
-        args, dataset_name=args.dataset_names, dataset_path=args.data_path
+    assert (
+        args.data_path is not None and len(args.data_path) > 0
+    ), f"lmdb_path is {args.data_path} it should not be None or empty"
+
+    dataset = ProteinLMDBDataset(
+        args,
     )
 
-    trainset = dataset.dataset_train
+    # trainset = dataset.dataset_train
 
     train_data = BatchedDataDataset(
-        trainset,
-        dataset_version="2D" if dataset.dataset_name == "PCQM4M-LSC-V2" else "3D",
-        min_node=dataset.max_node,
-        max_node=dataset.max_node2,
-        multi_hop_max_dist=dataset.multi_hop_max_dist,
-        spatial_pos_max=dataset.spatial_pos_max,
+        dataset,
         args=args,
+        vocab=dataset.vocab,
     )
 
-    # TODO: Loss need to be replaced
-    model = PFMModel(args, loss_fn=DiffMAE3dCriterions)
+    model = PFMModel(args, loss_fn=ProteinMAE3dCriterions)
 
     optimizer, _ = myAdam(
         model,

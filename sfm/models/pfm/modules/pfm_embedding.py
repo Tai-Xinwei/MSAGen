@@ -16,13 +16,11 @@ class PFMEmbedding(nn.Module):
         super().__init__()
         self.pfm_config = pfm_config
         self.residue_feature = ResidueFeature(
-            num_heads=pfm_config.num_attention_heads,
-            num_atoms=pfm_config.num_atoms,
-            num_in_degree=pfm_config.num_in_degree,
-            num_out_degree=pfm_config.num_out_degree,
+            num_residues=pfm_config.num_residues,
             hidden_dim=pfm_config.embedding_dim,
-            n_layers=pfm_config.num_encoder_layers,
-            no_2d=pfm_config.no_2d,
+            max_len=1024,
+            prop_feat=True,
+            angle_feat=True,
         )
 
         self.edge_3d_emb = (
@@ -43,21 +41,19 @@ class PFMEmbedding(nn.Module):
         # self.graph_3d_bias = Graph3DBias()
 
     def forward(
-        self, batched_data, padding_mask, node_mask, mask_2d=None, mask_3d=None
+        self, batched_data, padding_mask, pos=None, mask_aa=None, mask_pos=None
     ):
-        x = self.residue_feature(batched_data, mask_2d=mask_2d)
-        if self.pfm_config.add_3d:
-            pos = batched_data["pos"]
+        x = self.residue_feature(batched_data, mask_aa=mask_aa)
+        if mask_pos is not None and self.pfm_config.add_3d:
             node_type_edge = batched_data["node_type_edge"]
             edge_feature, merged_edge_features, delta_pos = self.edge_3d_emb(
-                pos, node_type_edge, padding_mask, node_mask
+                pos, node_type_edge, padding_mask, mask_pos
             )
-            if mask_3d is not None:
-                merged_edge_features, delta_pos = (
-                    merged_edge_features * mask_3d[:, None, None],
-                    delta_pos * mask_3d[:, None, None, None],
-                )
 
-            x[:, 1:, :] = x[:, 1:, :] + merged_edge_features * 0.01
+            merged_edge_features = merged_edge_features.masked_fill(mask_pos, 0.0)
+            delta_pos = delta_pos.masked_fill(mask_pos.unsqueeze(-1), 0.0)
 
-        return x, pos, edge_feature, delta_pos
+            x = x + merged_edge_features * 0.01
+            # x[:, 1:, :] = x[:, 1:, :] + merged_edge_features * 0.01
+
+        return x, edge_feature, delta_pos

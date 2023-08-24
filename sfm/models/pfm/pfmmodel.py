@@ -20,6 +20,7 @@ from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
 from .modules.pfm_encoder import NodeDecoder, PFMEncoder
+from .modules.UnifiedDecoder import UnifiedDecoder
 
 
 class PFMModel(Model):
@@ -37,7 +38,7 @@ class PFMModel(Model):
         if args.rank == 0:
             logger.info(self.args)
 
-        self.L1loss = loss_fn(reduction="mean", data_mean=data_mean, data_std=data_std)
+        self.loss = loss_fn(args)
 
         self.net = PFM(args, pfm_config)
         self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
@@ -89,12 +90,12 @@ class PFMModel(Model):
         return self.net(batched_data, **kwargs)
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
-        # TODO: loss needs to be rewritten
-        pass
-        # logits = model_output[0]
-        # bs = logits.shape[0]
-        # loss = self.L1loss(batch_data, logits)
-        # return ModelOutput(loss=loss, log_output={}, num_examples=bs)
+        logits = model_output[0]
+        node_output = model_output[1]
+        mask_pos = model_output[2]
+        bs = logits.shape[0]
+        loss = self.loss(batch_data, logits, node_output, mask_pos)
+        return ModelOutput(loss=loss, log_output={}, num_examples=bs)
 
     def config_optimizer(self):
         """
@@ -127,8 +128,21 @@ class PFM(nn.Module):
         # Remove head is set to true during fine-tuning
         self.load_softmax = not args.ft  # getattr(args, "remove_head", False)
         print("if finetune:", args.ft)
-        self.decoder = NodeDecoder(
-            args.encoder_embed_dim, args.encoder_attention_heads, args=args
+        # self.decoder = NodeDecoder(
+        #     args.encoder_embed_dim, args.encoder_attention_heads, args=args
+        # )
+        self.decoder = UnifiedDecoder(
+            args,
+            num_pred_attn_layer=args.num_pred_attn_layer,
+            embedding_dim=args.encoder_embed_dim,
+            num_attention_heads=args.encoder_attention_heads,
+            ffn_embedding_dim=args.encoder_ffn_embed_dim,
+            dropout=args.dropout,
+            attention_dropout=args.attention_dropout,
+            activation_dropout=args.act_dropout,
+            num_3d_bias_kernel=args.num_3d_bias_kernel,
+            num_edges=args.num_edges,
+            num_atoms=args.num_atoms,
         )
 
         self.masked_lm_pooler = nn.Linear(
@@ -149,7 +163,7 @@ class PFM(nn.Module):
 
             if not self.share_input_output_embed:
                 self.embed_out = nn.Linear(
-                    args.encoder_embed_dim, args.num_classes, bias=False
+                    args.encoder_embed_dim, args.num_residues, bias=False
                 )
 
             if args.sent_loss:
@@ -157,9 +171,9 @@ class PFM(nn.Module):
                     args.encoder_embed_dim, self.sentence_out_dim, bias=False
                 )
         else:
-            if isinstance(args.num_classes, int):
+            if isinstance(args.num_residues, int):
                 self.proj_out = nn.Linear(
-                    args.encoder_embed_dim, args.num_classes, bias=True
+                    args.encoder_embed_dim, args.num_residues, bias=True
                 )
             else:
                 raise NotImplementedError
@@ -199,15 +213,26 @@ class PFM(nn.Module):
 
         # batched_data = {"x": x, "pos": pos, "node_type_edge": node_type_edge, "node_mask": node_mask, "attn_bias": attn_bias, "spatial_pos": spatial_pos, "edge_input": edge_input, "attn_edge_type": attn_edge_type}
 
-        x, attn_bias, delta_pos, inner_states, _ = self.sentence_encoder(
+        (
+            x,
+            _,
+            _,
+            pos,
+            inner_states,
+            padding_mask,
+            mask_pos,
+        ) = self.sentence_encoder(
             batched_data,
             segment_labels=segment_labels,
             perturb=perturb,
         )
         # logger.info("encoder x: {}".format(x))
 
-        inner_states, node_output, sentence_rep = self.decoder(
-            x, attn_bias, delta_pos, inner_states
+        # inner_states, node_output, sentence_rep = self.decoder(
+        #     x, attn_bias, delta_pos, inner_states
+        # )
+        node_output = self.decoder(
+            batched_data, x, pos, padding_mask, mask_pos=mask_pos
         )
 
         x = inner_states[-1].transpose(0, 1)
@@ -220,7 +245,7 @@ class PFM(nn.Module):
 
         x = self.layer_norm(self.activation_fn(self.lm_head_transform_weight(x)))
 
-        pooled_output = self.pooler_activation(self.masked_lm_pooler(sentence_rep))
+        # pooled_output = self.pooler_activation(self.masked_lm_pooler(sentence_rep))
 
         # project back to size of vocabulary
         if self.share_input_output_embed and hasattr(
@@ -237,10 +262,10 @@ class PFM(nn.Module):
         if self.proj_out is not None:
             x = self.proj_out(x)
 
-        if self.sentence_projection_layer:
-            self.sentence_projection_layer(pooled_output)
+        # if self.sentence_projection_layer:
+        #     self.sentence_projection_layer(pooled_output)
 
-        return x, node_output
+        return (x, node_output, mask_pos)
         # return x, node_output, {
         #     "inner_states": inner_states,
         #     "pooled_output": pooled_output,

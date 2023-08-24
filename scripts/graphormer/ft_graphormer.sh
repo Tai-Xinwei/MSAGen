@@ -42,7 +42,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_names}" ] && dataset_names="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
-[ -z "${strategy}" ] && strategy=DDP
+[ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'

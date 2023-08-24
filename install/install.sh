@@ -27,6 +27,7 @@ pip install mlflow azureml-mlflow
 pip install torch==2.0.1 --upgrade
 pip install wandb
 pip install loguru
+pip install -U xformers
 
 # For generalist
 pip install transformers

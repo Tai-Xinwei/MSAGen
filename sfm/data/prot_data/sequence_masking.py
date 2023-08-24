@@ -104,8 +104,67 @@ def BERT_sequence_masking(
     return new_seq, mask, rand_mask
 
 
+def transformerM_masking(
+    item: dict,
+    args: dict,
+    seed: int,
+    mask_idx: int,
+    standard_toks: List[int],
+):
+    mask_prob = args.mask_prob
+    leave_unmasked_prob = args.leave_unmasked_prob
+    random_token_prob = args.random_token_prob
+    mask_multiple_length = args.mask_multiple_length
+    mask_stdev = args.mask_stdev
+
+    assert 0.0 < mask_prob < 1.0
+    assert 0.0 <= random_token_prob <= 1.0
+    assert 0.0 <= leave_unmasked_prob <= 1.0
+    assert random_token_prob + leave_unmasked_prob <= 1.0
+    assert mask_multiple_length >= 1
+    assert mask_stdev >= 0.0
+
+    # decide elements to mask
+    seq = item["aa"]
+    size = len(seq)
+    mask_type = np.full(size, False)
+    mask_pos = np.full(size, False)
+
+    # at least mask one element or one span
+    num_mask = int(mask_prob * size / float(mask_multiple_length) + 1)
+
+    # GLM like masking
+    mask_type_idc = np.random.choice(size, num_mask, replace=False)
+    mask_pos_idc = np.random.choice(size, num_mask, replace=False)
+
+    mask_type_idc = mask_type_idc[mask_type_idc < len(mask_type_idc)]
+    mask_pos_idc = mask_pos_idc[mask_pos_idc < len(mask_pos_idc)]
+
+    try:
+        mask_type[mask_type_idc] = True
+    except:  # something wrong
+        logging.error(
+            f"Assigning mask indexes {mask_type_idc} to mask {mask_type} failed!"
+        )
+        raise
+
+    new_seq = deepcopy(seq)
+    new_seq[mask_type] = mask_idx
+
+    try:
+        mask_pos[mask_pos_idc] = True
+    except:  # something wrong
+        logging.error(
+            f"Assigning mask indexes {mask_pos_idc} to mask {mask_pos} failed!"
+        )
+        raise
+
+    return new_seq, mask_type, mask_pos
+
+
 masking_registry = {
     "no": no_sequence_masking,
     "bert": BERT_sequence_masking,
+    "transformerM": transformerM_masking,
     # TODO: add more
 }

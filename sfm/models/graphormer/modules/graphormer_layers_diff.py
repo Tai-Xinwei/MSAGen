@@ -141,8 +141,8 @@ class Graph3DBiasDiff(Graph3DBias):
             args, num_heads, num_edges, n_layers, embed_dim, num_kernel, no_share_rpe
         )
 
-    def forward(self, batched_data):
+    def forward(self, batched_data, pos):
         graph_attn_bias, merge_edge_features, delta_pos = super(
             Graph3DBiasDiff, self
-        ).forward(batched_data)
+        ).forward(batched_data, pos)
         return graph_attn_bias, merge_edge_features, delta_pos

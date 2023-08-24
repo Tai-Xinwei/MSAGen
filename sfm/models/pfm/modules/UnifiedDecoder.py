@@ -878,9 +878,8 @@ class UnifiedDecoder(nn.Module):
         node_type_edge, node_type = (
             # batched_data["pos"],
             batched_data["node_type_edge"],
-            batched_data["x"][:, :, 0],
+            batched_data["x"][:, :],
         )
-        node_mask = batched_data["node_mask"]
         n_node = pos.shape[1]
 
         uni_delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
@@ -889,23 +888,23 @@ class UnifiedDecoder(nn.Module):
 
         # r_i/||r_i|| * gbf(||r_i||)
         pos_norm = pos.norm(dim=-1)
-        gbf_node_type_mask = node_mask.squeeze(-1)
+        gbf_node_type_mask = mask_pos.squeeze(-1)
         node_type = node_type.masked_fill(gbf_node_type_mask.bool(), 0).to(node_type)
 
         uni_gbf_pos_feature = self.unified_gbf_pos(pos_norm, node_type.unsqueeze(-1))
         uni_pos_feature = uni_gbf_pos_feature.masked_fill(
-            padding_mask[:, 1:].unsqueeze(-1), 0.0
+            padding_mask[:, :].unsqueeze(-1), 0.0
         )
         uni_vec_value = self.unified_vec_proj(uni_pos_feature).unsqueeze(-2)
         vec = pos.unsqueeze(-1) * uni_vec_value
 
-        vec = vec.masked_fill(padding_mask[:, 1:].unsqueeze(-1).unsqueeze(-1), 0.0)
+        vec = vec.masked_fill(padding_mask[:, :].unsqueeze(-1).unsqueeze(-1), 0.0)
         pos_mean_centered_dist = pos.norm(dim=-1)
         pos_mean_centered_unit = pos / (pos_mean_centered_dist.unsqueeze(-1) + 1e-5)
 
         # attn_bias
-        node_mask_i = node_mask.unsqueeze(-2).repeat(1, 1, n_node, 1)
-        node_mask_j = node_mask.unsqueeze(1).repeat(1, n_node, 1, 1)
+        node_mask_i = mask_pos.unsqueeze(-2).repeat(1, 1, n_node, 1)
+        node_mask_j = mask_pos.unsqueeze(1).repeat(1, n_node, 1, 1)
         new_node_mask = torch.cat([node_mask_i, node_mask_j], dim=-1).bool()
         node_type_edge = node_type_edge.masked_fill(new_node_mask, 0).to(node_type_edge)
 
@@ -915,11 +914,11 @@ class UnifiedDecoder(nn.Module):
             self.unified_bias_proj(uni_gbf_feature).permute(0, 3, 1, 2).contiguous()
         )
         uni_graph_attn_bias = uni_graph_attn_bias.masked_fill(
-            padding_mask[:, 1:].unsqueeze(1).unsqueeze(2), float("-inf")
+            padding_mask[:, :].unsqueeze(1).unsqueeze(2), float("-inf")
         )
 
-        output = x.contiguous().transpose(0, 1)[:, 1:, :]
-        output = output.masked_fill(padding_mask[:, 1:].unsqueeze(-1), 0.0)
+        output = x.contiguous().transpose(0, 1)[:, :, :]
+        output = output.masked_fill(padding_mask[:, :].unsqueeze(-1), 0.0)
         for layer in self.unified_encoder_layers:
             output, vec = layer(
                 output,
@@ -928,15 +927,19 @@ class UnifiedDecoder(nn.Module):
                 uni_graph_attn_bias,
                 uni_graph_attn_bias,
                 uni_graph_attn_bias,
-                padding_mask[:, 1:],
+                padding_mask[:, :],
                 [pos_mean_centered_unit, uni_delta_pos],
                 [dist, node_type_edge],
             )
 
         node_output = self.unified_final_equivariant_ln(vec)
         output = self.unified_final_invariant_ln(output)
-
         node_output = self.unified_output_layer(node_output).squeeze(-1)
-        node_output = node_output.masked_fill(padding_mask[:, 1:].unsqueeze(-1), 0.0)
+        node_output = node_output.masked_fill(padding_mask[:, :].unsqueeze(-1), 0.0)
+
+        if mask_pos is not None:
+            node_output = node_output * (
+                1.0 - mask_pos.repeat(1, 1, node_output.shape[-1]).to(node_output)
+            )
 
         return node_output

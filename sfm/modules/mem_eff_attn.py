@@ -8,6 +8,7 @@ import math
 from typing import Optional, Tuple
 
 import torch
+import xformers.ops as xops
 from torch import Tensor, nn
 
 from .FairseqDropout import FairseqDropout
@@ -16,7 +17,7 @@ from .quant_noise import quant_noise
 from .rotary_embedding import RotaryEmbedding
 
 
-class MultiheadAttention(nn.Module):
+class MemEffAttn(nn.Module):
     """Multi-headed attention.
 
     See "Attention Is All You Need" for more details.
@@ -43,9 +44,7 @@ class MultiheadAttention(nn.Module):
         self.qkv_same_dim = self.kdim == embed_dim and self.vdim == embed_dim
 
         self.num_heads = num_heads
-        self.dropout_module = FairseqDropout(
-            dropout, module_name=self.__class__.__name__
-        )
+        self.dropout = dropout
 
         self.head_dim = embed_dim // num_heads
         assert (
@@ -144,7 +143,7 @@ class MultiheadAttention(nn.Module):
                 return the average attention weights over all heads.
         """
         if need_head_weights:
-            need_weights = True
+            pass
 
         tgt_len, bsz, embed_dim = query.size()
 
@@ -165,19 +164,20 @@ class MultiheadAttention(nn.Module):
 
         q = (
             q.contiguous()
-            .view(tgt_len, bsz * self.num_heads, self.head_dim)
+            .view(tgt_len, bsz, self.num_heads, self.head_dim)
             .transpose(0, 1)
         )
+
         if k is not None:
             k = (
                 k.contiguous()
-                .view(-1, bsz * self.num_heads, self.head_dim)
+                .view(src_len, bsz, self.num_heads, self.head_dim)
                 .transpose(0, 1)
             )
         if v is not None:
             v = (
                 v.contiguous()
-                .view(-1, bsz * self.num_heads, self.head_dim)
+                .view(src_len, bsz, self.num_heads, self.head_dim)
                 .transpose(0, 1)
             )
 
@@ -196,63 +196,62 @@ class MultiheadAttention(nn.Module):
         if key_padding_mask is not None:
             assert key_padding_mask.size(0) == bsz
             assert key_padding_mask.size(1) == src_len
-
-        # q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
-        # k = k.view(bsz, self.num_heads, src_len, self.head_dim)
-        # v = v.view(bsz, self.num_heads, src_len, self.head_dim)
-        # attn_mask = key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool)
-        # with torch.backends.cuda.sdp_kernel(enable_math=True, enable_mem_efficient=True):
-        #     attn = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=0.1)
-
-        attn_weights = torch.bmm(q, k.transpose(1, 2))
-        attn_weights = self.apply_sparse_mask(attn_weights, tgt_len, src_len, bsz)
-
-        assert list(attn_weights.size()) == [bsz * self.num_heads, tgt_len, src_len]
-
-        if attn_bias is not None:
-            attn_weights += attn_bias.contiguous().view(
-                bsz * self.num_heads, tgt_len, src_len
+            # expand_src_len = smallest number larger than src_len and divisible by 8
+            expand_src_len = (src_len + 7) // 8 * 8
+            attn_mask = (
+                key_padding_mask.unsqueeze(1)
+                .unsqueeze(2)
+                .repeat(1, self.num_heads, tgt_len, 1)
+                .bool()
             )
+            # pad last dimension of attn_bias from src_len to expand_src_len
+            if expand_src_len > src_len:
+                attn_mask_pad = torch.ones(
+                    (bsz, self.num_heads, tgt_len, expand_src_len - src_len),
+                    device=key_padding_mask.device,
+                    dtype=key_padding_mask.dtype,
+                ).bool()
+                attn_mask = torch.cat([attn_mask, attn_mask_pad], dim=-1)
+                attn_bias_pad = torch.zeros(
+                    (bsz, self.num_heads, tgt_len, expand_src_len - src_len),
+                    device=attn_bias.device,
+                    dtype=attn_bias.dtype,
+                )
+                attn_bias = torch.cat([attn_bias, attn_bias_pad], dim=-1)
+                k_pad = torch.zeros(
+                    (bsz, expand_src_len - src_len, self.num_heads, self.head_dim),
+                    device=attn_bias.device,
+                    dtype=attn_bias.dtype,
+                )
+                v_pad = torch.zeros(
+                    (bsz, expand_src_len - src_len, self.num_heads, self.head_dim),
+                    device=attn_bias.device,
+                    dtype=attn_bias.dtype,
+                )
+                k = torch.cat([k, k_pad], dim=1)
+                v = torch.cat([v, v_pad], dim=1)
 
-        if attn_mask is not None:
-            attn_mask = attn_mask.unsqueeze(0)
-            attn_weights += attn_mask
+            attn_bias = attn_bias.masked_fill(attn_mask, float("-inf"))
 
-        if key_padding_mask is not None:
-            # don't attend to padding symbols
-            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            attn_weights = attn_weights.masked_fill(
-                key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
-                float("-inf"),
-            )
-            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
+        # q = q.permute(0, 2, 1, 3)
+        # k = k.permute(0, 2, 1, 3)
+        # v = v.permute(0, 2, 1, 3)
+        # with torch.backends.cuda.sdp_kernel(
+        #     enable_math=True, enable_mem_efficient=True
+        # ):
+        #     attn = torch.nn.functional.scaled_dot_product_attention(
+        #         q, k, v, attn_mask=attn_bias, dropout_p=self.dropout
+        #     )
 
-        if before_softmax:
-            return attn_weights, v
-
-        # attn_weights_float = utils.softmax(
-        #     attn_weights, dim=-1, onnx_trace=self.onnx_trace
-        # )
-        attn_weights_float = nn.functional.softmax(attn_weights, dim=-1)
-        attn_weights = attn_weights_float.type_as(attn_weights)
-        attn_probs = self.dropout_module(attn_weights)
-
-        assert v is not None
-        attn = torch.bmm(attn_probs, v)
-        assert list(attn.size()) == [bsz * self.num_heads, tgt_len, self.head_dim]
+        attn = xops.memory_efficient_attention(
+            q, k, v, p=self.dropout, attn_bias=attn_bias
+        )
 
         attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
         attn = self.layer_norm(attn)
         attn = self.out_proj(attn)
 
         attn_weights: Optional[Tensor] = None
-        if need_weights:
-            attn_weights = attn_weights_float.view(
-                bsz, self.num_heads, tgt_len, src_len
-            ).transpose(1, 0)
-            if not need_head_weights:
-                # average attention weights over heads
-                attn_weights = attn_weights.mean(dim=0)
 
         return attn, attn_weights
 

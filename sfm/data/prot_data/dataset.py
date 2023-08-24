@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
 import logging
+import os
+import sys
 from pathlib import Path
 from typing import Any, List
 
 import lmdb
 import numpy as np
-from collater import collate_fn
-from process import bstr2obj
-from sequence_masking import masking_registry
-from spatial_noise import noise_registry
-from vocalubary import Alphabet
+import torch
 
 from sfm.data.dataset import FoundationModelDataset
+from sfm.logging import logger
 
-logger = logging.getLogger(__name__)
+from .collater import collate_fn
+from .process import bstr2obj
+from .sequence_masking import masking_registry
+from .spatial_noise import noise_registry
+from .vocalubary import Alphabet
 
 
 class ProteinLMDBDataset(FoundationModelDataset):
@@ -29,19 +32,19 @@ class ProteinLMDBDataset(FoundationModelDataset):
 
         self.args = self.set_default_args(args)
 
-        logger.info(args)
+        logger.info(self.args)
 
-        self.lmdb_path = Path(args.lmdb_path)
+        self.lmdb_path = Path(self.args.data_path)
         assert self.lmdb_path.is_dir(), f"Processed file not found: {self.lmdb_path}"
 
-        self.vocab = Alphabet.from_architecture(args.vocab)
+        self.vocab = Alphabet()
 
-        self.seed = args.seed
-        self.seq_masking_method = args.seq_masking_method
+        self.seed = self.args.seed
+        self.seq_masking_method = self.args.seq_masking_method
 
-        self.noise_method = args.noise_method
-        self.pos_noise = args.pos_noise
-        self.ang_noise = args.ang_noise
+        self.noise_method = self.args.noise_method
+        self.pos_noise = self.args.pos_noise
+        self.ang_noise = self.args.ang_noise
 
         self.env = lmdb.open(
             str(self.lmdb_path), subdir=True, readonly=True, lock=False, readahead=False
@@ -52,12 +55,13 @@ class ProteinLMDBDataset(FoundationModelDataset):
         self.sizes, self.names = metadata["sizes"], metadata["names"]
         self.comment = metadata["comment"]
 
+        # self.split_dataset()
+
     def set_default_args(self, args):
-        args.lmdb_path = getattr(args, "lmdb_path", None)
-        args.vocab = getattr(args, "vocab", "ESM-1b")
+        args.data_path = getattr(args, "data_path", None)
 
         args.seed = getattr(args, "seed", "2023")
-        args.seq_masking_method = getattr(args, "seq_masking_method", "bert")
+        args.seq_masking_method = getattr(args, "seq_masking_method", "transformerM")
 
         args.mask_prob = getattr(args, "mask_prob", 0.15)
         args.leave_unmasked_prob = getattr(args, "leave_unmasked_prob", 0.1)
@@ -76,6 +80,14 @@ class ProteinLMDBDataset(FoundationModelDataset):
 
         return args
 
+    # def split_dataset(self, ratio=0.9):
+    #     dataset_len = len(self.names)
+    #     self.train_idx, self.valid_idx = np.split(
+    #         np.arange(dataset_len), [int(dataset_len * ratio)]
+    #     )
+    #     self.dataset_train = self.index_select(self.train_idx)
+    #     self.dataset_val = self.index_select(self.valid_idx)
+
     def __getitem__(self, index: int) -> dict:
         key = self.names[index]
         value = self.txn.get(key.encode())
@@ -83,6 +95,12 @@ class ProteinLMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
         item = {"id": index, **data}
+        if len(item["aa"]) > self.args.max_num_aa:
+            return self.__getitem__(index + 1)
+        """
+        - add physichemical properties
+        """
+        # tokens = [self.vocab.tok_to_idx[tok] for tok in item["raw_aa"]]
 
         """
         - convert string sequence to int index
@@ -95,6 +113,15 @@ class ProteinLMDBDataset(FoundationModelDataset):
         item["aa"] = np.array(tokens, dtype=np.int64)
 
         """
+        - add residue properties
+        """
+        properties = self.vocab.feat_idx(item["aa"])
+        for prop_name in ["chem_polar", "net_charge"]:
+            item[prop_name] = np.array(properties[prop_name], dtype=np.int64)
+        for prop_name in ["hydropathy", "mol_mass"]:
+            item[prop_name] = np.array(properties[prop_name], dtype=np.float32)
+
+        """
         - mask the sequence in different ways
         """
         seed = int(hash((self.seed, index)) % 1e6)
@@ -103,12 +130,19 @@ class ProteinLMDBDataset(FoundationModelDataset):
         assert (
             "mask_idx" not in seq
         ), "Item already contains mask_idx key, this is not expected!"
-        masked_seq, mask, replace_mask = masking_registry[self.seq_masking_method](
+
+        # masked_seq, mask, replace_mask = masking_registry[self.seq_masking_method](
+        #     item, self.args, seed, self.vocab.mask_idx, self.vocab.standard_toks
+        # )
+
+        masked_seq, mask_type, mask_pos = masking_registry[self.seq_masking_method](
             item, self.args, seed, self.vocab.mask_idx, self.vocab.standard_toks
         )
-        item["masked_aa"] = masked_seq
-        item["mask"] = mask
-        item["replace_mask"] = replace_mask
+
+        item["masked_aa"] = mask_type
+        # item["mask"] = mask
+        # item["replace_mask"] = replace_mask
+        item["mask_pos"] = mask_pos
 
         """
         Add noise to the coordinate or angles, manupilate the item['pos']/item['ang']:
@@ -145,6 +179,29 @@ class ProteinLMDBDataset(FoundationModelDataset):
         return collate_fn(samples, self.vocab)
 
 
+class BatchedDataDataset(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        dataset,
+        vocab,
+        args=None,
+    ):
+        super().__init__()
+        self.dataset = dataset
+        self.args = args
+        self.vocab = vocab
+
+    def __getitem__(self, index):
+        item = self.dataset[int(index)]
+        return item
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def collate(self, samples):
+        return collate_fn(samples, self.vocab)
+
+
 if __name__ == "__main__":
 
     class Namespace:
@@ -152,9 +209,7 @@ if __name__ == "__main__":
             self.__dict__.update(kwargs)
 
     args = Namespace()
-    args.lmdb_path = (
-        "/embedding/lihe/workspace/bio/pfm/data/sampled/downloads/pfm/48organism.lmdb"
-    )
+    args.lmdb_path = "/mnt/protein/48organism.lmdb/"
 
     print(args)
     print("=================")
@@ -164,4 +219,4 @@ if __name__ == "__main__":
     data = dataset[12]
     for k, v in data.items():
         print(k, v.shape if isinstance(v, np.ndarray) else v)
-    # print(data)
+    print(data)

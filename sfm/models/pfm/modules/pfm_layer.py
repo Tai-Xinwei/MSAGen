@@ -5,10 +5,6 @@ from typing import Callable
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from modules.FairseqDropout import FairseqDropout
-from torch import Tensor
-
-# from fairseq import utils
 
 
 def init_params(module, n_layers):
@@ -30,81 +26,97 @@ class ResidueFeature(nn.Module):
 
     def __init__(
         self,
-        num_heads,
-        num_atoms,
-        num_in_degree,
-        num_out_degree,
+        num_residues,
         hidden_dim,
-        n_layers,
-        no_2d=False,
+        max_len=1024,
+        prop_feat=True,
+        angle_feat=True,
     ):
         super(ResidueFeature, self).__init__()
-        # self.num_heads = num_heads
-        # self.num_atoms = num_atoms
-        # self.no_2d = no_2d
 
-        # # 1 for graph token
-        # self.atom_encoder = nn.Embedding(num_atoms + 1, hidden_dim, padding_idx=0)
-        # self.in_degree_encoder = nn.Embedding(num_in_degree, hidden_dim, padding_idx=0)
-        # self.out_degree_encoder = nn.Embedding(
-        #     num_out_degree, hidden_dim, padding_idx=0
-        # )
+        self.num_residues = num_residues
+        self.hidden_dim = hidden_dim
+        self.prop_feat = prop_feat
+        self.angle_feat = angle_feat
 
-        # self.graph_token = nn.Embedding(1, hidden_dim)
+        self.token_embed = nn.Embedding(num_residues, hidden_dim)
+        self.atom_mask_embedding = nn.Embedding(9, hidden_dim, padding_idx=None)
 
-        # self.apply(lambda module: init_params(module, n_layers=n_layers))
+        if self.prop_feat:
+            # [ Chemical polarity ]
+            ### 0 - Polar
+            ### 1 - Nonpolar
+            ### 2 - Brønsted base
+            ### 3 - Brønsted acid
+            ### 4 - Brønsted acid and base
+            ### 5 - Basic polar
+            ### 6 - Unknown
+            # [ Net charge at pH 7.4 ]
+            ### 0 - Neutral
+            ### 1 - Positive
+            ### 2 - Negative
+            ### 3 - Unknown
+            # [ Hydropathy index ]
+            ### real value
+            # [ Molecular mass ]
+            ### real value
+            self.prop_nets = nn.ModuleDict(
+                {
+                    "chem_polar": nn.Embedding(7, hidden_dim),
+                    "net_charge": nn.Embedding(4, hidden_dim),
+                    "hydropathy": nn.Linear(1, hidden_dim, bias=False),
+                    "mol_mass": nn.Linear(1, hidden_dim, bias=False),
+                }
+            )
 
-    def forward(self, batched_data, mask_2d=None):
-        pass
-        # x, in_degree, out_degree = (
-        #     batched_data["x"],
-        #     batched_data["in_degree"],
-        #     batched_data["out_degree"],
-        # )
-        # n_graph, n_node = x.size()[:2]
+        if self.angle_feat:
+            self.angle_embed = nn.Linear(3, hidden_dim, bias=False)
 
-        # # node feauture + graph token
-        # node_feature = self.atom_encoder(x).sum(dim=-2)  # [n_graph, n_node, n_hidden]
+    def forward(self, batched_data, mask_aa=None):
+        x = self.token_embed(batched_data["x"])
 
-        # if not self.no_2d:
-        #     degree_feature = self.in_degree_encoder(
-        #         in_degree
-        #     ) + self.out_degree_encoder(out_degree)
-        #     if mask_2d is not None:
-        #         degree_feature = degree_feature * mask_2d[:, None, None]
-        #     node_feature = node_feature + degree_feature
+        mask_embedding = self.atom_mask_embedding.weight.sum(dim=0)
 
-        # graph_token_feature = self.graph_token.weight.unsqueeze(0).repeat(n_graph, 1, 1)
+        if self.prop_feat:
+            for prop_name, prop_net in self.prop_nets.items():
+                prop_data = batched_data[prop_name]
+                if prop_data.dtype == torch.float:
+                    prop_data = prop_data.to(x.dtype)
+                x = x + prop_net(prop_data)
 
-        # graph_node_feature = torch.cat([graph_token_feature, node_feature], dim=1)
+        if self.angle_feat:
+            angle_data = batched_data["ang"].to(x.dtype) / 180.0
+            anlge_mask = angle_data == float("inf")
+            x = x + self.angle_embed(angle_data.masked_fill(anlge_mask, 0.0))
+        x[mask_aa.bool().squeeze(-1)] = mask_embedding
 
-        # return graph_node_feature
+        return x
 
 
 class Edge3DEmbedding(nn.Module):
     def __init__(self, num_edges, embed_dim, num_kernel):
-        super(Graph3DBias, self).__init__()
+        super(Edge3DEmbedding, self).__init__()
         self.num_edges = num_edges
         self.num_kernel = num_kernel
         self.embed_dim = embed_dim
 
         self.gbf = GaussianLayer(self.num_kernel, num_edges)
 
-        if self.num_kernel != self.embed_dim:
-            self.edge_proj = nn.Linear(self.num_kernel, self.embed_dim)
-        else:
-            self.edge_proj = None
+        # if self.num_kernel != self.embed_dim:
+        self.edge_proj = nn.Linear(self.num_kernel, self.embed_dim)
+        # else:
+        # self.edge_proj = None
 
-    def forward(self, pos, node_type_edge, padding_mask, node_mask):
+    def forward(self, pos, node_type_edge, padding_mask, mask_pos):
         n_graph, n_node, _ = pos.shape
 
         delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
         dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
         delta_pos /= dist.unsqueeze(-1) + 1e-5
 
-        if node_mask is not None:
-            node_mask_i = node_mask.unsqueeze(-2).repeat(1, 1, n_node, 1)
-            node_mask_j = node_mask.unsqueeze(1).repeat(1, n_node, 1, 1)
+        if mask_pos is not None:
+            node_mask_i = mask_pos.unsqueeze(-2).repeat(1, 1, n_node, 1)
+            node_mask_j = mask_pos.unsqueeze(1).repeat(1, n_node, 1, 1)
             new_node_mask = torch.cat([node_mask_i, node_mask_j], dim=-1).bool()
             node_type_edge = node_type_edge.masked_fill(new_node_mask, 0).to(
                 node_type_edge
@@ -124,9 +136,9 @@ class Edge3DEmbedding(nn.Module):
         sum_edge_features = edge_feature.sum(dim=-2)
         merge_edge_features = self.edge_proj(sum_edge_features)
 
-        if node_mask is not None:
+        if mask_pos is not None:
             merge_edge_features = merge_edge_features.masked_fill_(
-                padding_mask.unsqueeze(-1) + node_mask.bool(), 0.0
+                padding_mask.unsqueeze(-1) + mask_pos.bool(), 0.0
             )
         else:
             merge_edge_features = merge_edge_features.masked_fill_(
@@ -183,6 +195,28 @@ class Graph3DBias(nn.Module):
         )
 
         return graph_attn_bias
+
+
+# class RBF(nn.Module):
+#     def __init__(self, K):
+#         super(RBF, self).__init__()
+#         self.K = K
+#         self.centres = nn.Parameter(torch.Tensor(K, 1))
+#         self.log_sigmas = nn.Parameter(torch.Tensor(K))
+#         self.reset_parameters()
+
+#     def reset_parameters(self):
+#         nn.init.normal_(self.centres, 0, 1)
+#         nn.init.constant_(self.log_sigmas, 0)
+
+#     #  - Input: (N, in_features) where N is an arbitrary batch size
+#     #  - Output: (N, out_features) where N is an arbitrary batch size
+#     def forward(self, input):
+#         size = (input.size(0), self.K, 1)
+#         x = input.unsqueeze(1).expand(size)
+#         c = self.centres.unsqueeze(0).expand(size)
+#         distances = (x - c).pow(2).sum(-1).pow(0.5) / torch.exp(self.log_sigmas).unsqueeze(0)
+#         return torch.exp(-1*distances.pow(2))
 
 
 @torch.jit.script

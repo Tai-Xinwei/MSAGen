@@ -278,6 +278,7 @@ class GraphormerSentenceEncoder(nn.Module):
         attn_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # compute padding mask. This is needed for multi-head attention
+        pos = None
         if not self.args.ft:
             ori_pos = batched_data["pos"]
             node_mask = batched_data["node_mask"]
@@ -286,7 +287,7 @@ class GraphormerSentenceEncoder(nn.Module):
                 * self.args.noise_scale
             )
             noise = noise.masked_fill_(~node_mask.bool(), 0.0)
-            batched_data["pos"] = ori_pos + noise
+            pos = ori_pos + noise
 
         data_x = batched_data["x"]
         n_graph, n_node = data_x.size()[:2]
@@ -319,7 +320,7 @@ class GraphormerSentenceEncoder(nn.Module):
         delta_pos = None
         if self.graph_3d_bias is not None and not (batched_data["pos"] == 0).all():
             attn_bias_3d, merged_edge_features, delta_pos = self.graph_3d_bias(
-                batched_data
+                batched_data, pos
             )
             if mask_3d is not None:
                 merged_edge_features, delta_pos = (
@@ -371,7 +372,7 @@ class GraphormerSentenceEncoder(nn.Module):
             if not last_state_only:
                 inner_states.append(x)
 
-        return x, attn_bias, delta_pos, inner_states, padding_mask
+        return x, attn_bias, delta_pos, pos, inner_states, padding_mask
 
 
 class NodeDecoder(nn.Module):

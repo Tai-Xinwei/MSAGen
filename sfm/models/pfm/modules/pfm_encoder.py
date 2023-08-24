@@ -5,13 +5,13 @@ from typing import Optional, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
-from modules.FairseqDropout import FairseqDropout
-from modules.layer_norm import LayerNorm
-from modules.multihead_attention import MultiheadAttention
-from modules.quant_noise import quant_noise as apply_quant_noise_
-from utils import LayerDropModuleList
 
 from sfm.models.graphormer.modules.graphormer_layers import NodeTaskHead
+from sfm.modules.FairseqDropout import FairseqDropout
+from sfm.modules.layer_norm import LayerNorm
+from sfm.modules.multihead_attention import MultiheadAttention
+from sfm.modules.quant_noise import quant_noise as apply_quant_noise_
+from sfm.utils import LayerDropModuleList
 
 from .pfm_embedding import PFMEmbedding
 from .pfm_encoder_layer import PFMEncoderLayer
@@ -115,6 +115,7 @@ class PFMEncoder(nn.Module):
                         droppath_prob=droppath_probs[nl],
                         nl=nl,
                         args=args,
+                        pfm_config=pfm_config,
                     )
                 ]
             )
@@ -125,6 +126,15 @@ class PFMEncoder(nn.Module):
                 p.data.mul_(init_scale)
 
         self.args = args
+
+        if pfm_config.transformer_m_pretrain:
+            try:
+                mode_prob = [float(item) for item in pfm_config.mode_prob.split(",")]
+                assert len(mode_prob) == 2
+                assert sum(mode_prob) == 1.0
+            except:
+                mode_prob = [0.5, 0.5]
+            self.mode_prob = mode_prob
 
     def build_transformer_sentence_encoder_layer(
         self,
@@ -142,6 +152,7 @@ class PFMEncoder(nn.Module):
         droppath_prob,
         nl,
         args,
+        pfm_config=None,
     ):
         return PFMEncoderLayer(
             embedding_dim=embedding_dim,
@@ -158,6 +169,7 @@ class PFMEncoder(nn.Module):
             droppath_prob=droppath_prob,
             nl=nl,
             args=args,
+            pfm_config=pfm_config,
         )
 
     def forward(
@@ -172,38 +184,41 @@ class PFMEncoder(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # compute padding mask. This is needed for multi-head attention
 
-        node_mask = None
-        if not self.args.ft:
-            ori_pos = batched_data["pos"]
-            node_mask = batched_data["node_mask"]
-            noise = (
-                torch.randn(ori_pos.shape, device=ori_pos.device)
-                * self.args.noise_scale
-            )
-            noise = noise.masked_fill_(~node_mask.bool(), 0.0)
-            batched_data["pos"] = ori_pos + noise
+        residue_seq = batched_data["x"]
+        n_graph, n_node = residue_seq.size()[:2]
 
-        data_x = batched_data["x"]
-        n_graph, n_node = data_x.size()[:2]
-        padding_mask = (data_x[:, :, 0]).eq(0)  # B x T x 1
-        padding_mask_cls = torch.zeros(
-            n_graph, 1, device=padding_mask.device, dtype=padding_mask.dtype
+        mask_aa = batched_data["masked_aa"]
+        mask_pos = batched_data["mask_pos"]
+        if self.pfm_config.transformer_m_pretrain:
+            # 0: independent mask_aa and mask_pos
+            # 1: mask_aa and mask_pos are the same
+            mask_choice = np.random.choice(np.arange(2), n_graph, p=[1.0 / 2, 1.0 / 2])
+            mask = torch.tensor([i for i in mask_choice]).to(batched_data["pos"])
+            mask = (
+                mask.unsqueeze(1).unsqueeze(-1).repeat(1, n_node, 1)
+            )  # [ngraph, nnode+1]
+            mask_pos = torch.where(mask == 1, mask_aa, mask_pos)
+
+        # add noise to pos with mask_pos==true
+        ori_pos = batched_data["pos"]
+        noise = (
+            torch.randn(ori_pos.shape, device=ori_pos.device) * self.args.noise_scale
         )
-        padding_mask = torch.cat((padding_mask_cls, padding_mask), dim=1)
+        noise = noise.masked_fill_(mask_pos.bool(), 0.0)
+        pos = ori_pos + noise
 
-        mask_2d = None
-        # if self.pfm_config.transformer_m_pretrain:
-        #     mask_choice = np.random.choice(np.arange(3), n_graph, p=[1.0 / 3, 1.0 / 3, 1.0 / 3])
-        #     mask = torch.tensor([mask_dict[i] for i in mask_choice]).to(batched_data['pos'])
-        #     mask_2d = mask[:, 0]
-        #     mask_3d = mask[:, 1]
+        padding_mask = (residue_seq[:, :]).eq(0)  # B x T x 1
 
-        x, pos, edge_feature, delta_pos = self.pfm_emb(
-            batched_data, padding_mask, node_mask, mask_2d=mask_2d
+        x, edge_feature, delta_pos = self.pfm_emb(
+            batched_data,
+            padding_mask,
+            pos=pos,
+            mask_aa=mask_aa,
+            mask_pos=mask_pos,
         )
 
         if perturb is not None:
-            x[:, 1:, :] = x[:, 1:, :] + perturb
+            x[:, :, :] = x[:, :, :] + perturb
 
         if self.embed_scale is not None:
             x = x * self.embed_scale
@@ -229,17 +244,19 @@ class PFMEncoder(nn.Module):
                 edge_feature=edge_feature,
                 self_attn_padding_mask=padding_mask,
                 self_attn_mask=attn_mask,
+                mask_pos=mask_pos,
             )
             if not last_state_only:
                 inner_states.append(x)
 
-        attn_bias = (
-            attn_bias.contiguous()
-            .view(n_graph, self.num_attention_heads, n_node + 1, n_node + 1)
-            .contiguous()
-        )
+        if attn_bias is not None:
+            attn_bias = (
+                attn_bias.contiguous()
+                .view(n_graph, self.num_attention_heads, n_node, n_node)
+                .contiguous()
+            )
 
-        return x, attn_bias, delta_pos, inner_states, padding_mask
+        return x, attn_bias, delta_pos, pos, inner_states, padding_mask, mask_pos
 
 
 class NodeDecoder(nn.Module):

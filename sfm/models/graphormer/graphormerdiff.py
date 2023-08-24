@@ -178,13 +178,20 @@ class GraphormerDiff(nn.Module):
 
         # batched_data = {"x": x, "pos": pos, "node_type_edge": node_type_edge, "node_mask": node_mask, "attn_bias": attn_bias, "spatial_pos": spatial_pos, "edge_input": edge_input, "attn_edge_type": attn_edge_type}
 
-        x, attn_bias, delta_pos, inner_states, padding_mask = self.sentence_encoder(
+        (
+            x,
+            attn_bias,
+            delta_pos,
+            pos,
+            inner_states,
+            padding_mask,
+        ) = self.sentence_encoder(
             batched_data,
             segment_labels=segment_labels,
             perturb=perturb,
         )
 
-        node_output = self.decoder(batched_data, x, delta_pos, padding_mask)
+        node_output = self.decoder(batched_data, x, pos, padding_mask)
 
         x = x.transpose(0, 1)
 

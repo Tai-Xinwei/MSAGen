@@ -138,6 +138,7 @@ class Trainer(object):
     def resume(self):
         self.save_dir.mkdir(parents=True, exist_ok=True)
         checkpoint_list_path = self.save_dir / "checkpoint_list.txt"
+
         if checkpoint_list_path.exists():
             with open(checkpoint_list_path, "r") as f:
                 checkpoint_list = f.read().splitlines()
@@ -254,7 +255,8 @@ class Trainer(object):
         assert self.train_data_loader is not None
 
         self.model.before_training()
-        self.resume()
+        if self.args.ifresume:
+            self.resume()
 
         total_num = sum(p.numel() for p in self.model.parameters())
         trainable_num = sum(

@@ -571,7 +571,7 @@ class DeepSpeedAccelerator(Accelerator):
     def load_checkpoint(self, ckpt_id: int) -> TrainerState:
         _, cliend_sd = self.model_engine.load_checkpoint(
             self.args.save_dir,
-            ckpt_id=ckpt_id,
+            # ckpt_id=ckpt_id,
         )
 
         return TrainerState(**cliend_sd)

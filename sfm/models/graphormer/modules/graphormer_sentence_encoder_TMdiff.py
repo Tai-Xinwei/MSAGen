@@ -167,10 +167,11 @@ class GraphormerSentenceEncoderDiff(GraphormerSentenceEncoder):
             self._noise_sample(ori_pos, time)
             .masked_fill(~node_mask.bool(), 0.0)
             .to(ori_pos.dtype)
-            .half()
         )
-        vis_pos = ori_pos.masked_fill(node_mask.bool(), 0.0).to(ori_pos.dtype).half()
-        batched_data["pos"] = noisy_pos + vis_pos
+        vis_pos = ori_pos.masked_fill(node_mask.bool(), 0.0).to(ori_pos.dtype)
+        pos = noisy_pos + vis_pos
+        if self.args.fp16:
+            pos = pos.half()
 
         data_x = batched_data["x"]
         n_graph, n_node = data_x.size()[:2]
@@ -204,6 +205,9 @@ class GraphormerSentenceEncoderDiff(GraphormerSentenceEncoder):
         else:
             x = self.graph_node_feature(batched_data, time, mask_2d=mask_2d)
 
+        if self.args.fp16:
+            x = x.half()
+
         if perturb is not None:
             x[:, 1:, :] = x[:, 1:, :] + perturb
 
@@ -214,7 +218,7 @@ class GraphormerSentenceEncoderDiff(GraphormerSentenceEncoder):
         delta_pos = None
         if self.graph_3d_bias is not None and not (batched_data["pos"] == 0).all():
             attn_bias_3d, merged_edge_features, delta_pos = self.graph_3d_bias(
-                batched_data
+                batched_data, pos
             )
             if mask_3d is not None:
                 merged_edge_features, delta_pos = (
@@ -266,4 +270,4 @@ class GraphormerSentenceEncoderDiff(GraphormerSentenceEncoder):
             if not last_state_only:
                 inner_states.append(x)
 
-        return x, attn_bias, delta_pos, inner_states, padding_mask
+        return x, attn_bias, delta_pos, pos, inner_states, padding_mask

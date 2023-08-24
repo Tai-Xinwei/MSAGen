@@ -7,14 +7,15 @@ echo 'Solving MKL done!'
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=15
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-[ -z "${hidden_size}" ] && hidden_size=768
-[ -z "${ffn_size}" ] && ffn_size=3072
+[ -z "${layers}" ] && layers=12
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
+[ -z "${hidden_size}" ] && hidden_size=512
+[ -z "${ffn_size}" ] && ffn_size=2048
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=128
+[ -z "${max_num_aa}" ] && max_num_aa=1024
 
 [ -z "${dropout}" ] && dropout=0.0
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -28,24 +29,26 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_lr}" ] && max_lr=1e-4
 [ -z "${total_num_steps}" ] && total_num_steps=10000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
-[ -z "${train_batch_size}" ] && train_batch_size=1024
-[ -z "${val_batch_size}" ] && val_batch_size=16
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${train_batch_size}" ] && train_batch_size=4
+[ -z "${val_batch_size}" ] && val_batch_size=1
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1000
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 
-[ -z "${data_path}" ] && data_path='/mnt/data/pm6-86m-3d-filter'
+[ -z "${mode_prob}" ] && mode_prob='0.5,0.5' # prob of independent mask_pos, mask_type and non-independent
+[ -z "${strategy}" ] && strategy=Zero1
+
+[ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 # [ -z "${dataset_name}" ] && dataset_name="PCQM4M-LSC-V2-3D"
-[ -z "${dataset_name}" ] && dataset_name="PM6-Full-3D"
+[ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
-[ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -123,9 +126,9 @@ else
   fi
 fi
 
+# echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/graphormer/pretrain_graphormer.py \
-    --num_classes 128 \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
     --encoder_attention_heads $num_head \
     --encoder_layers $layers \
     --encoder_ffn_embed_dim $ffn_size \
