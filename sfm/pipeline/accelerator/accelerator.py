@@ -9,7 +9,6 @@ from typing import List, Optional, Union
 
 import deepspeed
 import torch
-from torch.cuda.amp import GradScaler, autocast
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 

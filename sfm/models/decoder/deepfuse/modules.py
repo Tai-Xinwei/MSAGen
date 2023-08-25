@@ -18,8 +18,8 @@ from transformers.models.llama.modeling_llama import (
     apply_rotary_pos_emb,
 )
 
-from sfm.data.dec_data.dataset import TokenType
-from sfm.models.decoder.deepfuse.config import DecDeepFuseConfig, SciDeocerType
+from sfm.data.dec_data.datasets import TokenType
+from sfm.models.decoder.deepfuse.config import DecDeepFuseConfig, EntityDecoderType
 from sfm.models.decoder.deepfuse.hidden_state import HiddenState
 
 
@@ -81,7 +81,7 @@ class MLP(nn.Module):
         if token_type == TokenType.Text:
             self.mlp = LlamaMLP(config)
         else:
-            if config.entity_decoder_model_type == SciDeocerType.BioGPT:
+            if config.entity_decoder_model_type == EntityDecoderType.BioGPT:
                 self.mlp = BioGPTMLP(config)
             else:
                 config_copy = deepcopy(config)
@@ -94,7 +94,9 @@ class MLP(nn.Module):
 
 
 class AttnQKVProj(nn.Module):
-    def __init__(self, config: DecDeepFuseConfig, token_type: TokenType, kind: str):
+    def __init__(
+        self, config: DecDeepFuseConfig, token_type: TokenType, kind: str, bias: bool
+    ):
         super().__init__()
         self.config = config
         self.token_type = token_type
@@ -109,14 +111,14 @@ class AttnQKVProj(nn.Module):
                 )
             else:
                 self.layer = nn.Linear(
-                    config.hidden_size, config.hidden_size, bias=False
+                    config.hidden_size, config.hidden_size, bias=bias
                 )
-            self.out_proj = nn.Identity()
+            self.out_adapter = nn.Identity()
         else:
             self.layer = nn.Linear(
-                config.entity_hidden_size, config.entity_hidden_size, bias=False
+                config.entity_hidden_size, config.entity_hidden_size, bias=bias
             )
-            self.out_proj = Adapter(
+            self.out_adapter = Adapter(
                 config,
                 self.config.entity_head_dim,
                 self.config.head_dim,
@@ -137,7 +139,7 @@ class AttnQKVProj(nn.Module):
                 self.config.entity_head_dim,
             )
 
-            x = self.out_proj(x)
+            x = self.out_adapter(x)
 
             # Then, duplicate the heads
             replica = (
@@ -174,21 +176,25 @@ class AttnQKVProj(nn.Module):
 
 
 class AttnOutputProj(nn.Module):
-    def __init__(self, config: DecDeepFuseConfig, token_type: TokenType) -> None:
+    def __init__(
+        self, config: DecDeepFuseConfig, token_type: TokenType, bias: bool
+    ) -> None:
         super().__init__()
         self.config = config
         self.token_type = token_type
 
         if token_type == TokenType.Text:
-            self.proj = nn.Identity()
-            self.layer = nn.Linear(config.hidden_size, config.hidden_size)
+            self.adapter = nn.Identity()
+            self.layer = nn.Linear(config.hidden_size, config.hidden_size, bias=bias)
 
         else:
-            self.proj = nn.Linear(
-                self.config.head_dim,
-                self.config.entity_head_dim,
+            self.adapter = Adapter(
+                config, self.config.head_dim, self.config.entity_head_dim
             )
-            self.layer = nn.Linear(config.entity_hidden_size, config.entity_hidden_size)
+
+            self.layer = nn.Linear(
+                config.entity_hidden_size, config.entity_hidden_size, bias=bias
+            )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         bsz, head, _ = x.shape
@@ -207,7 +213,7 @@ class AttnOutputProj(nn.Module):
                 self.config.entity_head_dim,
             )
             x = x.mean(dim=1)
-            x = self.proj(x)
+            x = self.adapter(x)
 
         x = x.reshape(bsz, -1)
 
@@ -232,16 +238,22 @@ class FusedAttn(nn.Module):
         self.o_proj_dict = nn.ModuleDict()
 
         for token_type in TokenType:
+            bias = (
+                token_type == TokenType.Entity
+                and config.entity_decoder_model_type == EntityDecoderType.BioGPT
+            )
             self.q_proj_dict[token_type.name] = AttnQKVProj(
-                config, token_type, kind="q"
+                config, token_type, kind="q", bias=bias
             )
             self.k_proj_dict[token_type.name] = AttnQKVProj(
-                config, token_type, kind="k"
+                config, token_type, kind="k", bias=bias
             )
             self.v_proj_dict[token_type.name] = AttnQKVProj(
-                config, token_type, kind="v"
+                config, token_type, kind="v", bias=bias
             )
-            self.o_proj_dict[token_type.name] = AttnOutputProj(config, token_type)
+            self.o_proj_dict[token_type.name] = AttnOutputProj(
+                config, token_type, bias=bias
+            )
 
         self.head_dim = config.head_dim
         self.max_position_embeddings = config.max_position_embeddings
@@ -281,9 +293,9 @@ class FusedAttn(nn.Module):
         position_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
     ) -> HiddenState:
-        query_hidden = h.apply_all_type_mapping(self.q_proj_dict)
-        key_hidden = h.apply_all_type_mapping(self.k_proj_dict)
-        value_hidden = h.apply_all_type_mapping(self.v_proj_dict)
+        query_hidden = h.apply_all_types_mapping(self.q_proj_dict)
+        key_hidden = h.apply_all_types_mapping(self.k_proj_dict)
+        value_hidden = h.apply_all_types_mapping(self.v_proj_dict)
 
         query_states = query_hidden.to_dense()
         key_states = key_hidden.to_dense()
@@ -314,7 +326,9 @@ class FusedAttn(nn.Module):
         attn_output = attn_output.transpose(1, 2)
 
         attn_output_hidden = HiddenState.from_dense(attn_output, h.token_type_mask)
-        attn_output_hidden = attn_output_hidden.apply_all_type_mapping(self.o_proj_dict)
+        attn_output_hidden = attn_output_hidden.apply_all_types_mapping(
+            self.o_proj_dict
+        )
 
         return attn_output_hidden
 
@@ -416,13 +430,13 @@ class MixLayer(DeepFuseLayerBase):
         position_ids: torch.Tensor,
     ) -> HiddenState:
         res = h
-        h = h.apply_all_type_mapping(self.attn_norm)
+        h = h.apply_all_types_mapping(self.attn_norm)
         h = self.attn(h, attention_mask=attention_mask, position_ids=position_ids)
         h = h + res
 
         res = h
-        h = h.apply_all_type_mapping(self.mlp_norm)
-        h = h.apply_all_type_mapping(self.mlp)
+        h = h.apply_all_types_mapping(self.mlp_norm)
+        h = h.apply_all_types_mapping(self.mlp)
         h = h + res
 
         return h
@@ -451,43 +465,42 @@ class MixLayer(DeepFuseLayerBase):
         ret[f"{prefix}.attn_norm.Text.weight"] = llama_state_dict[
             "input_layernorm.weight"
         ]
-        ret[f"{prefix}.attn_norm.Text.bias"] = llama_state_dict[
+        ret[f"{prefix}.mlp_norm.Text.weight"] = llama_state_dict[
             "post_attention_layernorm.weight"
         ]
         ret[f"{prefix}.attn.rotary_emb.inv_freq"] = llama_state_dict[
-            "rotary_emb.inv_freq"
+            "self_attn.rotary_emb.inv_freq"
         ]
 
         # Entity decoder params
         for name in ["q_proj", "k_proj", "v_proj", "out_proj"]:
-            source_name = (
-                f"biogpt.layers.{entity_layer_id}.self_attn.{name[0]}_proj_dict.weight"
-            )
-            mapped_name = f"{prefix}.attn.{name}_dict.Entity.layer.weight"
+            source_name = f"biogpt.layers.{entity_layer_id}.self_attn.{name}.weight"
+            mapped_name = f"{prefix}.attn.{name[0]}_proj_dict.Entity.layer.weight"
             ret[mapped_name] = entity_decoder_state_dict[source_name]
 
-            source_name = (
-                f"biogpt.layers.{entity_layer_id}.self_attn.{name[0]}_proj_dict.bias"
-            )
-            mapped_name = f"{prefix}.attn.{name}_dict.Entity.layer.bias"
+            source_name = f"biogpt.layers.{entity_layer_id}.self_attn.{name}.bias"
+            mapped_name = f"{prefix}.attn.{name[0]}_proj_dict.Entity.layer.bias"
             ret[mapped_name] = entity_decoder_state_dict[source_name]
 
         for name in ["fc1", "fc2"]:
             source_name = f"biogpt.layers.{entity_layer_id}.{name}.weight"
-            mapped_name = f"{prefix}.mlp.Entity.{name}.weight"
+            mapped_name = f"{prefix}.mlp.Entity.mlp.{name}.weight"
             ret[mapped_name] = entity_decoder_state_dict[source_name]
 
             source_name = f"biogpt.layers.{entity_layer_id}.{name}.bias"
-            mapped_name = f"{prefix}.mlp.Entity.{name}.bias"
+            mapped_name = f"{prefix}.mlp.Entity.mlp.{name}.bias"
             ret[mapped_name] = entity_decoder_state_dict[source_name]
 
         for name in ["self_attn_layer_norm", "final_layer_norm"]:
+            norm_name = "attn_norm" if name == "self_attn_layer_norm" else "mlp_norm"
+
             source_name = f"biogpt.layers.{entity_layer_id}.{name}.weight"
-            mapped_name = f"{prefix}.attn_norm.Entity.{name}.weight"
+
+            mapped_name = f"{prefix}.{norm_name}.Entity.weight"
             ret[mapped_name] = entity_decoder_state_dict[source_name]
 
             source_name = f"biogpt.layers.{entity_layer_id}.{name}.bias"
-            mapped_name = f"{prefix}.attn_norm.Entity.{name}.bias"
+            mapped_name = f"{prefix}.{norm_name}.Entity.bias"
             ret[mapped_name] = entity_decoder_state_dict[source_name]
 
         return ret
@@ -510,8 +523,11 @@ class SeperateLayer(DeepFuseLayerBase):
         if token_type == TokenType.Text:
             return LlamaDecoderLayer(config)
         else:
-            if config.entity_decoder_model_type == SciDeocerType.BioGPT:
-                return BioGptDecoderLayer(config)
+            if config.entity_decoder_model_type == EntityDecoderType.BioGPT:
+                config_copy = deepcopy(config)
+                config_copy.hidden_size = config.entity_hidden_size
+                config_copy.intermediate_size = config.entity_intermediate_size
+                return BioGptDecoderLayer(config_copy)
             else:
                 return LlamaDecoderLayer(config)
 
@@ -548,5 +564,10 @@ class SeperateLayer(DeepFuseLayerBase):
 
         # Entity decoder params
         for k, v in entity_decoder_state_dict.items():
-            ret[f"{prefix}.layers.Entity.{k}"] = v
+            source_prefix = f"biogpt.layers.{entity_layer_id}."
+            if not k.startswith(source_prefix):
+                continue
+            source_name = k[len(source_prefix) :]
+            target_name = f"{prefix}.layers.Entity.{source_name}"
+            ret[target_name] = v
         return ret

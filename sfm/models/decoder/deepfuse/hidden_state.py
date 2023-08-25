@@ -5,7 +5,7 @@ from typing import Dict
 import torch
 import torch.nn as nn
 
-from sfm.data.dec_data.dataset import TokenType
+from sfm.data.dec_data.datasets import TokenType
 
 
 @dataclass
@@ -27,6 +27,14 @@ class HiddenState:
     def seq_len(self):
         return self.token_type_mask.shape[1]
 
+    @property
+    def dtype(self):
+        return self.x_dict[TokenType.Text].dtype
+
+    @property
+    def device(self):
+        return self.x_dict[TokenType.Text].device
+
     def __add__(self, other):
         return HiddenState(
             x_dict={k: v + other.x_dict[k] for k, v in self.x_dict.items()},
@@ -39,7 +47,7 @@ class HiddenState:
         x_dict[token_type] = x
         return HiddenState(x_dict, self.token_type_mask)
 
-    def apply_all_type_mapping(self, fn: nn.ModuleDict, **kwargs):
+    def apply_all_types_mapping(self, fn: nn.ModuleDict, **kwargs):
         x_dict_new = {k: fn[k.name](x, **kwargs) for k, x in self.x_dict.items()}
         return HiddenState(x_dict_new, self.token_type_mask)
 

@@ -1,14 +1,19 @@
 # -*- coding: utf-8 -*-
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
 
+from sfm.data.dec_data.datasets import TokenType
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 
 
-class SciDeocerType(str, Enum):
-    BioGPT = "biogpt"
-    LLaMA = "llama"
+class EntityDecoderType(str, Enum):
+    BioGPT = "BioGPT"
+    LLaMA = "LLaMA"
+
+
+class TextDecoderType(str, Enum):
+    LLaMA2_7B = "LLaMA2_7B"
 
 
 class LayerUsage(str, Enum):
@@ -18,55 +23,69 @@ class LayerUsage(str, Enum):
 
     @staticmethod
     def from_str(s: str) -> List["LayerUsage"]:
-        return [LayerUsage(c) for c in s]
+        return [LayerUsage(c) for c in s if c in "MSN"]
+
+
+@dataclass
+class DataConfig:
+    data_type: str = "text2mol"  # text2mol, mixed,
+
+    # For text2mol
+    train_mol_path: str = "/blob/shufxi/data/tamgent/chebi/train.textmol.smi"
+    train_txt_path: str = "/blob/shufxi/data/tamgent/chebi/train.textmol.desc"
+    val_mol_path: str = "/blob/shufxi/data/tamgent/chebi/val.textmol.smi"
+    val_text_path: str = "/blob/shufxi/data/tamgent/chebi/val.textmol.smi"
 
 
 @dataclass
 class DecDeepFuseConfig(DistributedTrainConfig):
     freeze_text_encoder: bool = True
 
-    llama_model: str = "/blob/shufxi/llama/7B"
-    entity_decoder_model: str = "/blob/shufxi/molxpt"
-    entity_decoder_model_type: SciDeocerType = SciDeocerType.BioGPT
-    max_txt_len_llama: int = 500
-    max_txt_len_smiles: int = 2048
-    end_sym: str = "\n"
+    llama_model: str = "/hai1/ds_dataset/llama2/llama-2-7b"
+    entity_decoder_model: str = "/home/shufxi/mixgpt/mixgpt_new/ckpt"
+    llama_model_type: TextDecoderType = TextDecoderType.LLaMA2_7B
+    entity_decoder_model_type: EntityDecoderType = EntityDecoderType.BioGPT
+    max_text_len: int = 1024
+    max_entity_len: int = 1024
 
-    train_data_path: str = ""
-    val_data_path: str = ""
+    hidden_size: int = 0
+    intermediate_size: int = 0
+    hidden_act: str = ""
+    num_hidden_layers: int = 0
 
-    hidden_size: int = 1024
-    intermediate_size: int = 4096
-    hidden_act: str = "gelu"
+    entity_hidden_act: str = ""
+    entity_hidden_size: int = 0
+    entity_intermediate_size: int = 0
+    entity_num_hidden_layers: int = 0
 
-    entity_hidden_act: str = "gelu"
-    entity_hidden_size: int = 1024
-    entity_intermediate_size: int = 1024
-
-    num_attention_heads: int = 16
-    num_key_value_heads: int = 1  # KV grouping
-    entity_num_attention_heads: int = (
-        16  # For now, assume to be less than or equal to num_attention_heads
-    )
+    num_attention_heads: int = 0
+    num_key_value_heads: int = 0  # KV grouping
+    entity_num_attention_heads: int = 0
     rms_norm_eps: float = 1e-6
     rope_scaling: Optional[Dict[str, float]] = None
 
     num_adapter_layers: int = 2
-    adapter_hidden_size: int = 1024
+    adapter_hidden_size: int = 64
     adapter_activation: str = "gelu"
 
     vocab_size: int = 0  # total vocab size
+    entity_vocab_size: int = 0  # total entity vocab size
 
     # This is a string representing how the science decoder layers are used.
     # For example, "MSNMSN" means that:
-    # the first and fourth layers are used for Mixing,
-    # the second and fifth layers are used Separately, i.e., no attention between them,
-    # and the third and sixth layers are Not used, i.e., only text layers are used.
+    # the first and fourth layers are used for *M*ixing,
+    # the second and fifth layers are used *S*eparately, i.e., no attention between them,
+    # and the third and sixth layers are *N*ot used, i.e., only text layers are used.
     # The string lenth should be equal to the number of text layers.
-    layer_usage: str = ""
+    # You can also use any separator, e.g., "M-S-N-M-S-N".
+    layer_usage: str = "NNNN-SSSS-MSSS-SSSS-SSSS-MSSS-SSSS-NNNN"
 
-    text_loss_weight: float = 0.0
-    entity_loss_weight: float = 1.0
+    loss_weight: Dict[str, float] = field(
+        default_factory=lambda: {
+            TokenType.Text.name: 1.0,
+            TokenType.Entity.name: 1.0,
+        }
+    )
 
     pretraining_tp: int = 0
 
@@ -80,9 +99,36 @@ class DecDeepFuseConfig(DistributedTrainConfig):
 
     @property
     def max_position_embeddings(self):
-        return self.max_txt_len_llama + self.max_txt_len_smiles
+        return max(self.max_text_len, self.max_entity_len)
 
     # The following are used by BioGptDecoderLayer
     attention_probs_dropout_prob: float = 0.0
     hidden_dropout_prob: float = 0.0
     activation_dropout: float = 0.0
+
+    iters_per_epoch: int = 0
+
+
+def llama2_7b_default_config():
+    return {
+        "hidden_act": "silu",
+        "hidden_size": 4096,
+        "intermediate_size": 11008,
+        "max_entity_len": 2048,
+        "num_attention_heads": 32,
+        "num_hidden_layers": 32,
+        "num_key_value_heads": 32,
+        "rms_norm_eps": 1e-05,
+        "vocab_size": 32000,
+    }
+
+
+def mix_gpt_default_config():
+    return {
+        "entity_hidden_act": "gelu",
+        "entity_hidden_size": 1024,
+        "entity_intermediate_size": 4096,
+        "entity_num_attention_heads": 16,
+        "entity_num_hidden_layers": 24,
+        "entity_vocab_size": 1488,
+    }

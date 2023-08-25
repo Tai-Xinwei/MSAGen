@@ -9,6 +9,7 @@ from transformers import AutoTokenizer
 
 from sfm.data.dataset import Batch, FoundationModelDataset
 from sfm.data.tamgent2.tokenizer import MolxptTokenizer
+from sfm.logging import logger
 
 
 class TokenType(Enum):
@@ -16,17 +17,6 @@ class TokenType(Enum):
     Entity = 1  # Any kind of scientific entity
     # SMILES = 2
     # FASTA = 3
-
-
-@dataclass
-class TokenIdRange:
-    """
-    For entities, we use special tokens to represent them, e.g., <m>C rather than C.
-    Thus, for each type of entity, we assign [strat, end) token ids to it.
-    """
-
-    start: int
-    end: int
 
 
 @dataclass
@@ -45,13 +35,13 @@ class MixedTokenData(Batch):
         self,
         token_seq: torch.Tensor,
         token_seq_len: Union[int, torch.Tensor],
-        entity_id_rage: Dict[TokenType, TokenIdRange],
+        token_type_mask: torch.Tensor,
     ) -> None:
         super().__init__(batch_size=MixedTokenData.compute_batch_size(token_seq))
 
         self.token_seq = token_seq
-        self.entity_id_rage = entity_id_rage
         self.token_seq_len = token_seq_len
+        self.token_type_mask = token_type_mask
 
     @staticmethod
     def compute_batch_size(token_seq: torch.Tensor) -> int:
@@ -59,22 +49,6 @@ class MixedTokenData(Batch):
             return 1
         else:
             return token_seq.shape[0]
-
-    @property
-    def token_type_mask(self) -> torch.Tensor:
-        ret = torch.zeros_like(self.token_seq, dtype=torch.int8)
-        for entity_type in TokenType:
-            ret[self.entity_mask(entity_type)] = entity_type.value
-
-        return ret
-
-    def entity_mask(self, entity_type: TokenType) -> torch.Tensor:
-        """
-        Return a mask of the entity_type.
-        """
-        return (self.token_seq >= self.entity_id_rage[entity_type].start) & (
-            self.token_seq < self.entity_id_rage[entity_type].end
-        )
 
 
 class MixedTokenDataset(FoundationModelDataset):
@@ -84,6 +58,7 @@ class MixedTokenDataset(FoundationModelDataset):
         text_tokenizer: str,
         entity_tokenizer: str,  # TODO: support multiple entity tokenizers
         max_text_len: int,
+        max_entity_len: int,
     ) -> None:
         super().__init__()
         self.sents = sents
@@ -91,14 +66,8 @@ class MixedTokenDataset(FoundationModelDataset):
         self.init_tokenziers(text_tokenizer, entity_tokenizer)
 
         self.max_text_len = max_text_len
-
-        self.entity_id_rage = {
-            TokenType.Text: TokenIdRange(0, self.text_tokenizer.vocab_size),
-            TokenType.Entity: TokenIdRange(
-                self.text_tokenizer.vocab_size,
-                self.text_tokenizer.vocab_size + self.entity_tokenizer.vocab_size,
-            ),
-        }
+        self.max_entity_len = max_entity_len
+        self.pad_idx = 0  # TODO: use tokenizer.pad_token_id
 
     def init_tokenziers(self, text_tokenizer: str, entity_tokenizer: str):
         self.text_tokenizer = AutoTokenizer.from_pretrained(
@@ -115,12 +84,13 @@ class MixedTokenDataset(FoundationModelDataset):
         sent = self.sents[index]
 
         token_seq = []
+        token_type_seq = []
         for span in sent:
             if span.type == TokenType.Text:
                 tokens = self.text_tokenizer(
                     span.text,
                     return_tensors="pt",
-                    padding="longest",
+                    padding="do_not_pad",
                     truncation=True,
                     max_length=self.max_text_len,
                 )
@@ -128,53 +98,57 @@ class MixedTokenDataset(FoundationModelDataset):
                 tokens = self.entity_tokenizer(
                     span.text,
                     return_tensors="pt",
-                    padding="longest",
+                    padding="do_not_pad",
                     truncation=True,
-                    max_length=self.max_text_len,
-                )
-
-                tokens["input_ids"] = (
-                    tokens["input_ids"] + self.entity_id_rage[TokenType.Entity].start
+                    max_length=self.max_entity_len,
                 )
 
             else:
                 raise ValueError(f"Unknown token type: {span.type}")
+
             token_seq.append(tokens["input_ids"])
+            token_type_seq.append(
+                torch.ones_like(tokens["input_ids"], dtype=torch.int8) * span.type.value
+            )
 
-        token_seq = torch.cat(token_seq, dim=0)
+        token_seq = torch.cat(token_seq, dim=1)
         token_seq_len = token_seq.shape[0]
+        token_type_mask = torch.cat(token_type_seq, dim=1)
 
-        return MixedTokenData(token_seq, token_seq_len, self.entity_id_rage)
+        return MixedTokenData(token_seq, token_seq_len, token_type_mask)
 
     def collate(self, batch: List[MixedTokenData]) -> MixedTokenData:
         """
         Collate a batch of MixedTokenData.
         """
-        # make sure that the entity_id_rage is the same for all the texts in the batch
-        entity_id_rage = batch[0].entity_id_rage
-        for item in batch:
-            if item.entity_id_rage != entity_id_rage:
-                raise ValueError(
-                    "The entity_id_rage is not the same for all the texts in the batch."
-                )
 
         # pad the token_seq
-        pad_idx = self.text_tokenizer.pad_token_id
         batched_tokens = torch.nn.utils.rnn.pad_sequence(
-            [text.token_seq for text in batch],
+            [text.token_seq[0] for text in batch],
             batch_first=True,
-            padding_value=pad_idx,
+            padding_value=self.pad_idx,
         )
 
         token_seq_len = torch.tensor(
             [text.token_seq_len for text in batch], dtype=torch.int64
         )
 
-        return MixedTokenData(batched_tokens, token_seq_len, entity_id_rage)
+        batched_token_type_mask = torch.nn.utils.rnn.pad_sequence(
+            [text.token_type_mask[0] for text in batch],
+            batch_first=True,
+            padding_value=self.pad_idx,
+        )
+
+        return MixedTokenData(batched_tokens, token_seq_len, batched_token_type_mask)
 
     @classmethod
     def from_jsonl(
-        cls, path: str, text_tokenizer: str, entity_tokenizer: str, max_text_len: int
+        cls,
+        path: str,
+        text_tokenizer: str,
+        entity_tokenizer: str,
+        max_text_len: int,
+        max_entity_len: int,
     ):
         """
         Read a jsonl file, and return a MixedTokenDataset.
@@ -184,4 +158,48 @@ class MixedTokenDataset(FoundationModelDataset):
             for line in f:
                 spans = json.loads(line)
                 data.append([TextSpan(**span) for span in spans])
-        return cls(data, text_tokenizer, entity_tokenizer, max_text_len)
+        return cls(data, text_tokenizer, entity_tokenizer, max_text_len, max_entity_len)
+
+    @classmethod
+    def from_text_to_mol(
+        cls,
+        mol_path: str,
+        text_path,
+        text_tokenizer: str,
+        entity_tokenizer: str,
+        max_text_len: int,
+        max_entity_len: int,
+        show_example: bool = False,
+    ):
+        """
+        A special case that read from "text to mol" dataset.
+        """
+
+        with open(mol_path, "r") as f:
+            mol_lines = f.read().splitlines()
+
+        with open(text_path, "r") as f:
+            text_lines = f.read().splitlines()
+
+        assert len(mol_lines) == len(text_lines)
+        data_size = len(mol_lines)
+
+        data = []
+        logger.info(
+            "Loading data from {} and {}. Data size {}", mol_path, text_path, data_size
+        )
+        for mol_line, text_line in zip(mol_lines, text_lines):
+            data.append(
+                [
+                    TextSpan(text_line, TokenType.Text),
+                    TextSpan(
+                        mol_line.replace("<m>", "").replace(" ", ""), TokenType.Entity
+                    ),
+                ]
+            )
+
+        logger.info("Loaded {}/{} data", len(data), data_size)
+        if show_example:
+            logger.info("First example:\n {}", data[0])
+
+        return cls(data, text_tokenizer, entity_tokenizer, max_text_len, max_entity_len)

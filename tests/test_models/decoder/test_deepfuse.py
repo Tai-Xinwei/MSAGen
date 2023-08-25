@@ -5,9 +5,9 @@ from unittest.mock import patch
 
 import torch
 
-from sfm.data.dec_data.dataset import MixedTokenDataset, TextSpan, TokenType
+from sfm.data.dec_data.datasets import MixedTokenDataset, TextSpan, TokenType
 from sfm.models.decoder.deepfuse.config import DecDeepFuseConfig
-from sfm.models.decoder.deepfuse.model import DecDeepFuse
+from sfm.models.decoder.deepfuse.model import DecDeepFuseModel
 
 
 class MockTokenizer:
@@ -18,7 +18,7 @@ class MockTokenizer:
     def __call__(self, text, *args, **kwargs) -> Any:
         token_ids = [ord(x) for x in text.split()]
         return {
-            "input_ids": torch.tensor(token_ids),
+            "input_ids": torch.tensor([token_ids]),
         }
 
 
@@ -30,15 +30,31 @@ class TestDeepFuse(unittest.TestCase):
     def load_from_pretrained(self):
         pass
 
-    @patch("sfm.data.dec_data.dataset.MixedTokenDataset.init_tokenziers", tok)
+    @patch("sfm.data.dec_data.datasets.MixedTokenDataset.init_tokenziers", tok)
     @patch(
-        "sfm.models.decoder.deepfuse.model.DecDeepFuse.load_from_pretrained",
+        "sfm.models.decoder.deepfuse.model.DecDeepFuseModel.load_from_pretrained",
         load_from_pretrained,
     )
     def test_deepfuse(self):
-        config = DecDeepFuseConfig(layer_usage="NMSNMS", vocab_size=1000)
+        config = DecDeepFuseConfig(
+            layer_usage="NMSNMS",
+            vocab_size=1000,
+            entity_vocab_size=1000,
+            num_hidden_layers=6,
+            hidden_size=256,
+            intermediate_size=256,
+            num_attention_heads=4,
+            num_key_value_heads=4,
+            hidden_act="gelu",
+            entity_hidden_size=256,
+            entity_intermediate_size=256,
+            entity_num_attention_heads=4,
+            entity_num_hidden_layers=4,
+            entity_hidden_act="gelu",
+            adapter_hidden_size=256,
+        )
 
-        model = DecDeepFuse(config)
+        model = DecDeepFuseModel(config)
 
         sents = [
             [
@@ -48,7 +64,7 @@ class TestDeepFuse(unittest.TestCase):
             [TextSpan("g h", TokenType.Entity), TextSpan("i j k", TokenType.Entity)],
         ]
 
-        dataset = MixedTokenDataset(sents, "", "", 10)
+        dataset = MixedTokenDataset(sents, "", "", 10, 10)
 
         data = [dataset[i] for i in range(len(dataset))]
         batch = dataset.collate(data)

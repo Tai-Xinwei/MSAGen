@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import ast
+import typing
 from argparse import ArgumentParser
 from dataclasses import _MISSING_TYPE, fields
 from enum import Enum
@@ -36,11 +38,32 @@ def argument_exists(parser, arg_name):
     )
 
 
+def unwarp_optional(field_type: typing.Type):
+    if typing.get_origin(field_type) == typing.Union:
+        args = typing.get_args(field_type)
+        if len(args) == 2 and args[1] == type(None) and args[0] != type(None):
+            return args[0]
+    return field_type
+
+
+def is_enum_type(tp: typing.Type) -> bool:
+    return isinstance(tp, type) and issubclass(tp, Enum)
+
+
+def is_collection(tp: typing.Type) -> bool:
+    if hasattr(tp, "__origin__"):
+        tp = tp.__origin__
+
+    return tp in (list, tuple, set)
+
+
 def add_dataclass_to_parser(configs, parser: ArgumentParser):
     for config in configs:
         group = parser.add_argument_group(config.__name__)
         for field in fields(config):
             name = field.name.replace("-", "_")
+
+            field_type = unwarp_optional(field.type)
 
             # if name in exist_configs:
             if argument_exists(parser, name):
@@ -54,12 +77,14 @@ def add_dataclass_to_parser(configs, parser: ArgumentParser):
             else:
                 default = None
 
-            if field.type == bool:
+            if field_type == bool:
                 action = "store_false" if default else "store_true"
                 group.add_argument("--" + name, action=action, default=default)
-            elif issubclass(field.type, Enum):
+            elif is_enum_type(field_type):
                 parse_enum = make_enum_praser(field.type)
                 group.add_argument("--" + name, type=parse_enum, default=default)
+            elif is_collection(field_type):
+                group.add_argument("--" + name, type=ast.literal_eval, default=default)
             else:
                 group.add_argument("--" + name, type=field.type, default=default)
 
@@ -70,7 +95,9 @@ def from_args(args, config):
     kwargs = {}
     for field in fields(config):
         name = field.name.replace("-", "_")
-        kwargs[name] = getattr(args, name)
+        value = getattr(args, name, None)
+        if value is not None:
+            kwargs[name] = value
     return config(**kwargs)
 
 
