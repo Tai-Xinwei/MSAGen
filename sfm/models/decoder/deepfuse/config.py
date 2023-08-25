@@ -89,6 +89,8 @@ class DecDeepFuseConfig(DistributedTrainConfig):
 
     pretraining_tp: int = 0
 
+    new_token_count: int = 0
+
     @property
     def head_dim(self):
         return self.hidden_size // self.num_attention_heads
@@ -131,4 +133,18 @@ def mix_gpt_default_config():
         "entity_num_attention_heads": 16,
         "entity_num_hidden_layers": 24,
         "entity_vocab_size": 1488,
+        "new_token_count": len(
+            [
+                "[M]",
+                "[/M]",
+                "[P]",
+                "[/P]",
+                "[A]",
+                "[/A]",
+                "[T]",
+                "[/T]",
+                "[R]",
+                "[PAD]",
+            ]
+        ),
     }

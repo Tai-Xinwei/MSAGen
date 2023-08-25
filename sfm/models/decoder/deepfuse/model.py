@@ -44,7 +44,7 @@ class DecDeepFuseModel(Model):
         self.embed_tokens = nn.ModuleDict(
             {
                 TokenType.Text.name: nn.Embedding(
-                    config.vocab_size, config.hidden_size
+                    config.vocab_size + config.new_token_count, config.hidden_size
                 ),
                 TokenType.Entity.name: nn.Embedding(
                     config.entity_vocab_size, config.entity_hidden_size
@@ -88,7 +88,9 @@ class DecDeepFuseModel(Model):
         self.lm_head = nn.ModuleDict(
             {
                 TokenType.Text.name: nn.Linear(
-                    config.hidden_size, config.vocab_size, bias=False
+                    config.hidden_size,
+                    config.vocab_size + config.new_token_count,
+                    bias=False,
                 ),
                 TokenType.Entity.name: nn.Linear(
                     config.entity_hidden_size, config.entity_vocab_size, bias=False
@@ -97,6 +99,22 @@ class DecDeepFuseModel(Model):
         )
 
         self.load_from_pretrained()
+
+    def extend_emb(self, emb: torch.Tensor) -> torch.Tensor:
+        new_emb = torch.zeros(
+            (emb.shape[0] + self.config.new_token_count, emb.shape[1]),
+            device=emb.device,
+        )
+        new_emb[: emb.shape[0], :] = emb
+
+        mean, std = emb.mean(dim=0), emb.std(dim=0)
+        new_emb[-self.config.new_token_count :] = (
+            torch.randn((self.config.new_token_count, emb.shape[1]), device=emb.device)
+            * std
+            + mean
+        )
+
+        return new_emb
 
     def load_from_pretrained(self):
         """
@@ -116,10 +134,12 @@ class DecDeepFuseModel(Model):
 
         # Embedding
         lambda_state_dict = torch.load(f"{self.config.llama_model}/model.hybrid_emb.pt")
-        mapped_state_dict["text_embed_tokens.weight"] = lambda_state_dict[
-            "embed_tokens.weight"
-        ]
-        mapped_state_dict["entity_embed_tokens.weight"] = entity_decoder_state_dict[
+
+        mapped_state_dict["embed_tokens.Text.weight"] = self.extend_emb(
+            lambda_state_dict["embed_tokens.weight"]
+        )
+
+        mapped_state_dict["embed_tokens.Entity.weight"] = entity_decoder_state_dict[
             "biogpt.embed_tokens.weight"
         ]
 
@@ -157,7 +177,9 @@ class DecDeepFuseModel(Model):
 
         # output layer
         lambda_state_dict = torch.load(f"{self.config.llama_model}/model.lm_head.pt")
-        mapped_state_dict["lm_head.Text.weight"] = lambda_state_dict["lm_head.weight"]
+        mapped_state_dict["lm_head.Text.weight"] = self.extend_emb(
+            lambda_state_dict["lm_head.weight"]
+        )
         mapped_state_dict["lm_head.Entity.weight"] = entity_decoder_state_dict[
             "output_projection.weight"
         ]
@@ -166,10 +188,10 @@ class DecDeepFuseModel(Model):
         total_random_init_params = 0
         for k, v in self.state_dict().items():
             if k not in mapped_state_dict:
-                kind = "adapter" if "adapter" in k else "other"
+                kind = "adapter" if "adapter" in k else "layer"
 
                 logger.info(
-                    f"Random init {kind} layer: name {k} , shape {v.shape}, dtype {v.dtype}, size {v.nelement()}"
+                    f"Random init {kind} {k}, shape {v.shape}, dtype {v.dtype}, size {v.nelement()}"
                 )
 
                 mapped_state_dict[k] = v
@@ -207,18 +229,6 @@ class DecDeepFuseModel(Model):
 
         return combined_attention_mask
 
-    def _make_key_padding_mask(
-        self, seq_len: torch.Tensor, max_len: int, dtype: torch.dtype
-    ) -> torch.Tensor:
-        bsz = seq_len.shape[0]
-        mask = torch.full((bsz, max_len), 0, dtype=dtype, device=seq_len.device)
-
-        # TODO: convert to index computation
-        for i in range(bsz):
-            mask[i, : seq_len[i]] = 1
-
-        return mask
-
     def forward(
         self,
         batch: MixedTokenData,
@@ -235,9 +245,7 @@ class DecDeepFuseModel(Model):
         position_ids = torch.arange(0, seq_len, dtype=torch.long, device=h.device)
         position_ids = position_ids.unsqueeze(0)
 
-        attention_mask = self._make_key_padding_mask(
-            batch.token_seq_len, seq_len, h.dtype
-        )
+        attention_mask = batch.non_padding_mask.to(h.dtype)
 
         # Only BioGPT uses the learned positional embedding
         if self.embed_positions is not None:
@@ -266,16 +274,20 @@ class DecDeepFuseModel(Model):
         loss_by_type = {}
         loss_fct = nn.CrossEntropyLoss()
         total_loss = 0
+
+        padding_state = HiddenState.from_dense(
+            batch.non_padding_mask, batch.token_type_mask
+        )
+
+        label_state = HiddenState.from_dense(batch.label_seq, batch.token_type_mask)
+
         for token_type in TokenType:
+            # The logits and lables have been shifted by one in the data loader
             logits = pred.x_dict[token_type].float()
-            shift_logits = logits[..., :-1, :].contiguous()
+            labels = label_state.x_dict[token_type].long()
+            non_pad_mask = padding_state.x_dict[token_type].bool()
 
-            labels = batch.token_seq[batch.token_type_mask == token_type.value]
-            shift_labels = labels[..., 1:].contiguous()
-
-            loss = loss_fct(
-                shift_logits.view(-1, logits.shape[-1]), shift_labels.view(-1)
-            )
+            loss = loss_fct(logits[non_pad_mask], labels[non_pad_mask])
 
             loss_by_type[f"{token_type}_loss"] = loss.item()
             total_loss += loss * self.config.loss_weight[token_type.name]

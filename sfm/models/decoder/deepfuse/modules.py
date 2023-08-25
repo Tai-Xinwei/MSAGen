@@ -38,6 +38,8 @@ class Adapter(nn.Module):
     def __init__(self, config: DecDeepFuseConfig, in_dim, out_dim):
         super().__init__()
         self.config = config
+        self.in_dim = in_dim
+        self.out_dim = out_dim
 
         self.layers = nn.ModuleList([])
         hidden_dims = (
@@ -210,7 +212,7 @@ class AttnOutputProj(nn.Module):
                 bsz,
                 replica,
                 self.config.entity_num_attention_heads,
-                self.config.entity_head_dim,
+                self.config.head_dim,
             )
             x = x.mean(dim=1)
             x = self.adapter(x)

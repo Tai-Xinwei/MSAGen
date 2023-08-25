@@ -2,7 +2,7 @@
 import ast
 import typing
 from argparse import ArgumentParser
-from dataclasses import _MISSING_TYPE, fields
+from dataclasses import MISSING, fields
 from enum import Enum
 
 from sfm.logging import logger
@@ -70,9 +70,9 @@ def add_dataclass_to_parser(configs, parser: ArgumentParser):
                 logger.warning(f"Duplicate config name: {name}, not added to parser")
                 continue
 
-            if field.default != _MISSING_TYPE:
+            if field.default != MISSING:
                 default = field.default
-            elif field.default_factory != _MISSING_TYPE:
+            elif field.default_factory != MISSING:
                 default = field.default_factory()
             else:
                 default = None

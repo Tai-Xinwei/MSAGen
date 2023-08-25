@@ -8,7 +8,7 @@ import torch
 from transformers import AutoTokenizer
 
 from sfm.data.dataset import Batch, FoundationModelDataset
-from sfm.data.tamgent2.tokenizer import MolxptTokenizer
+from sfm.data.dec_data.SFMDecTokenizer import SFMDecTokenizer
 from sfm.logging import logger
 
 
@@ -25,30 +25,22 @@ class TextSpan:
     type: TokenType
 
 
+@dataclass
 class MixedTokenData(Batch):
     """
     This represent a text mixed with entities (e.g., SMILES, FASTA, etc.).
     However, everying is in the form of text.
     """
 
-    def __init__(
-        self,
-        token_seq: torch.Tensor,
-        token_seq_len: Union[int, torch.Tensor],
-        token_type_mask: torch.Tensor,
-    ) -> None:
-        super().__init__(batch_size=MixedTokenData.compute_batch_size(token_seq))
+    token_seq: torch.Tensor
+    token_seq_len: Union[int, torch.Tensor]
+    token_type_mask: torch.Tensor
+    label_seq: torch.Tensor
+    pad_idx: int
 
-        self.token_seq = token_seq
-        self.token_seq_len = token_seq_len
-        self.token_type_mask = token_type_mask
-
-    @staticmethod
-    def compute_batch_size(token_seq: torch.Tensor) -> int:
-        if len(token_seq.shape) == 1:
-            return 1
-        else:
-            return token_seq.shape[0]
+    @property
+    def non_padding_mask(self):
+        return self.token_seq.eq(self.pad_idx).logical_not()
 
 
 class MixedTokenDataset(FoundationModelDataset):
@@ -67,55 +59,138 @@ class MixedTokenDataset(FoundationModelDataset):
 
         self.max_text_len = max_text_len
         self.max_entity_len = max_entity_len
-        self.pad_idx = 0  # TODO: use tokenizer.pad_token_id
+        self.pad_idx = self.text_tokenizer.pad_token_id
 
     def init_tokenziers(self, text_tokenizer: str, entity_tokenizer: str):
+        self.entity_tokenizer = SFMDecTokenizer.from_pretrained(
+            entity_tokenizer, use_fast=False
+        )
+
         self.text_tokenizer = AutoTokenizer.from_pretrained(
             text_tokenizer, use_fast=False
         )
-        self.entity_tokenizer = MolxptTokenizer.from_pretrained(
-            entity_tokenizer, use_fast=False
+
+        self.text_tokenizer.add_special_tokens(
+            {
+                "pad_token": "[PAD]",
+            },
+        )
+
+        self.text_tokenizer.add_special_tokens(
+            {
+                "additional_special_tokens": [
+                    "[M]",
+                    "[/M]",
+                    "[P]",
+                    "[/P]",
+                    "[A]",
+                    "[/A]",
+                    "[T]",
+                    "[/T]",
+                    "[R]",
+                ]
+            }
         )
 
     def __len__(self):
         return len(self.sents)
 
     def __getitem__(self, index) -> MixedTokenData:
+        """
+        The data will be in the following format like:
+        Input:  <bos> text | [M]  <m>C | [/M] text
+        Output: text  [M]  | <m>C [/M] | text <eos>
+        Type:   text  text | ent  ent  | text  text
+
+        Note:
+        - We assume that the first span is always text. i.e, we can't generate a molecule without text.
+        - The LLM is responsible for generating the first token of the molecule like [M].
+            It can also geerate <eos> to terminate the generaton.
+            Thus, we need to add those special tokens to LLM vocab.
+        - The Entity decoder is responsible for generating the last token of the molecule like [/M]
+        """
+
         sent = self.sents[index]
 
-        token_seq = []
-        token_type_seq = []
+        span_token_ids = []
         for span in sent:
             if span.type == TokenType.Text:
                 tokens = self.text_tokenizer(
                     span.text,
-                    return_tensors="pt",
-                    padding="do_not_pad",
                     truncation=True,
                     max_length=self.max_text_len,
-                )
+                    add_special_tokens=False,
+                )["input_ids"]
             elif span.type == TokenType.Entity:
                 tokens = self.entity_tokenizer(
                     span.text,
-                    return_tensors="pt",
-                    padding="do_not_pad",
                     truncation=True,
                     max_length=self.max_entity_len,
-                )
-
+                    add_special_tokens=False,
+                )["input_ids"]
             else:
                 raise ValueError(f"Unknown token type: {span.type}")
 
-            token_seq.append(tokens["input_ids"])
-            token_type_seq.append(
-                torch.ones_like(tokens["input_ids"], dtype=torch.int8) * span.type.value
-            )
+            span_token_ids.append(tokens)
 
-        token_seq = torch.cat(token_seq, dim=1)
+        token_seq = []
+        token_type_seq = []
+        label_seq = []
+        entity_end_token = None
+        eos_added = False
+        for i in range(len(span_token_ids)):
+            tokens = span_token_ids[i][:]
+            labels = span_token_ids[i][:]
+            span_type = sent[i].type
+
+            if span_type == TokenType.Text:
+                if i == 0:
+                    tokens = [self.text_tokenizer.bos_token_id] + tokens
+                else:
+                    assert entity_end_token is not None
+                    tokens = [entity_end_token] + tokens
+                    entity_end_token = None
+
+                if i == len(sent) - 1:
+                    labels = labels + [self.text_tokenizer.eos_token_id]
+                    eos_added = True
+                else:
+                    next_span_start_str = self.entity_tokenizer.convert_ids_to_tokens(
+                        span_token_ids[i + 1][:1]
+                    )[0].rstrip("</w>")
+                    labels = labels + self.text_tokenizer.convert_tokens_to_ids(
+                        [next_span_start_str]
+                    )
+            elif span_type == TokenType.Entity:
+                entity_end_token = tokens[-1]
+                tokens = tokens[:-1]  # remove [/X] in the end
+                labels = labels[1:]  # remove [X] in the beginning
+
+            assert len(tokens) == len(labels)
+            token_seq.extend(tokens)
+            token_type_seq.extend([span_type.value] * len(tokens))
+            label_seq.extend(labels)
+
+        if not eos_added:
+            # This means the last span is an entity
+            assert entity_end_token is not None
+            token_seq.append(entity_end_token)
+            token_type_seq.append(TokenType.Text.value)
+            label_seq.append(self.text_tokenizer.eos_token_id)
+
+        token_seq = torch.IntTensor(token_seq)
         token_seq_len = token_seq.shape[0]
-        token_type_mask = torch.cat(token_type_seq, dim=1)
+        token_type_mask = torch.ShortTensor(token_type_seq)
+        label_seq = torch.IntTensor(label_seq)
 
-        return MixedTokenData(token_seq, token_seq_len, token_type_mask)
+        return MixedTokenData(
+            token_seq=token_seq,
+            token_seq_len=token_seq_len,
+            token_type_mask=token_type_mask,
+            label_seq=label_seq,
+            pad_idx=self.pad_idx,
+            batch_size=1,
+        )
 
     def collate(self, batch: List[MixedTokenData]) -> MixedTokenData:
         """
@@ -124,7 +199,7 @@ class MixedTokenDataset(FoundationModelDataset):
 
         # pad the token_seq
         batched_tokens = torch.nn.utils.rnn.pad_sequence(
-            [text.token_seq[0] for text in batch],
+            [text.token_seq for text in batch],
             batch_first=True,
             padding_value=self.pad_idx,
         )
@@ -134,12 +209,25 @@ class MixedTokenDataset(FoundationModelDataset):
         )
 
         batched_token_type_mask = torch.nn.utils.rnn.pad_sequence(
-            [text.token_type_mask[0] for text in batch],
+            [text.token_type_mask for text in batch],
             batch_first=True,
             padding_value=self.pad_idx,
         )
 
-        return MixedTokenData(batched_tokens, token_seq_len, batched_token_type_mask)
+        batched_label_seq = torch.nn.utils.rnn.pad_sequence(
+            [text.label_seq for text in batch],
+            batch_first=True,
+            padding_value=self.pad_idx,
+        )
+
+        return MixedTokenData(
+            token_seq=batched_tokens,
+            token_seq_len=token_seq_len,
+            token_type_mask=batched_token_type_mask,
+            label_seq=batched_label_seq,
+            pad_idx=self.pad_idx,
+            batch_size=len(batch),
+        )
 
     @classmethod
     def from_jsonl(
@@ -193,7 +281,11 @@ class MixedTokenDataset(FoundationModelDataset):
                 [
                     TextSpan(text_line, TokenType.Text),
                     TextSpan(
-                        mol_line.replace("<m>", "").replace(" ", ""), TokenType.Entity
+                        mol_line.replace("<m>", "")
+                        .replace(" ", "")
+                        .replace("<start-of-mol>", "[M]")
+                        .replace("<end-of-mol>", "[/M]"),
+                        TokenType.Entity,
                     ),
                 ]
             )

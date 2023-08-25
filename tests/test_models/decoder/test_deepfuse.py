@@ -13,13 +13,21 @@ from sfm.models.decoder.deepfuse.model import DecDeepFuseModel
 class MockTokenizer:
     def __init__(self):
         self.vocab_size = ord("z") + 1
-        self.pad_token_id = 0
+        self.pad_token_id = 46
+        self.bos_token_id = 0
+        self.eos_token_id = 1
 
     def __call__(self, text, *args, **kwargs) -> Any:
         token_ids = [ord(x) for x in text.split()]
         return {
-            "input_ids": torch.tensor([token_ids]),
+            "input_ids": token_ids,
         }
+
+    def convert_ids_to_tokens(self, token_ids):
+        return [chr(x) for x in token_ids]
+
+    def convert_tokens_to_ids(self, tokens):
+        return [ord(x) for x in tokens]
 
 
 class TestDeepFuse(unittest.TestCase):
@@ -70,7 +78,7 @@ class TestDeepFuse(unittest.TestCase):
         batch = dataset.collate(data)
 
         assert batch.batch_size == 2
-        assert batch.token_seq.shape == (2, 6)
+        assert batch.token_seq.shape == (2, 7), f"{batch.token_seq.shape}"
 
         output = model(batch)
         assert output is not None
