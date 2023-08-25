@@ -72,6 +72,6 @@ class GraphormerSentenceEncoderPP(GraphormerSentenceEncoder):
         batched_data["edge_input"] = edge_input
         batched_data["attn_edge_type"] = None
 
-        x, _, _, _, padding_mask = super().forward(batched_data)
+        x, _, _, _, _, padding_mask = super().forward(batched_data)
 
         return (x, padding_mask, llm_mask, input_ids)

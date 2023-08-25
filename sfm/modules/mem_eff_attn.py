@@ -193,7 +193,7 @@ class MemEffAttn(nn.Module):
         if self.rot_emb:
             q, k = self.rot_emb(q, k)
 
-        if key_padding_mask is not None:
+        if key_padding_mask is not None and attn_bias is not None:
             assert key_padding_mask.size(0) == bsz
             assert key_padding_mask.size(1) == src_len
             # expand_src_len = smallest number larger than src_len and divisible by 8

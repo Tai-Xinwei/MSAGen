@@ -111,7 +111,7 @@ def transformerM_masking(
     mask_idx: int,
     standard_toks: List[int],
 ):
-    mask_prob = args.mask_prob
+    mask_prob = args.mask_ratio
     leave_unmasked_prob = args.leave_unmasked_prob
     random_token_prob = args.random_token_prob
     mask_multiple_length = args.mask_multiple_length

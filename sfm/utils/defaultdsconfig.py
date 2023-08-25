@@ -30,4 +30,10 @@ DEFAULT_DS_CONFIG = {
     "fp16": {"enabled": True, "auto_cast": False},
     "gradient_clipping": 1.0,
     "steps_per_print": 100,
+    "wandb": {
+        "enabled": False,
+        "team": "yourteam",
+        "group": "yourgroup",
+        "project": "yourproject",
+    },
 }

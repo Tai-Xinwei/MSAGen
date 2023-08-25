@@ -231,7 +231,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
 
         if batched_data is not None:
             # generate mol emb
-            mol_emb, _, _, _, mol_padding_mask = self.graphormer_encoder(
+            mol_emb, _, _, _, _, mol_padding_mask = self.graphormer_encoder(
                 batched_data,
             )
 
@@ -294,7 +294,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
 
         if batched_data is not None:
             # generate mol emb
-            mol_emb, _, _, _, mol_padding_mask = self.graphormer_encoder(
+            mol_emb, _, _, _, _, mol_padding_mask = self.graphormer_encoder(
                 batched_data,
             )
 

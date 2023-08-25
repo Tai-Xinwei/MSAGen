@@ -14,7 +14,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=128
+[ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=8
 [ -z "${max_num_aa}" ] && max_num_aa=1024
 
 [ -z "${dropout}" ] && dropout=0.0
@@ -27,17 +27,17 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=1e-4
-[ -z "${total_num_steps}" ] && total_num_steps=10000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=600
-[ -z "${train_batch_size}" ] && train_batch_size=4
+[ -z "${total_num_steps}" ] && total_num_steps=100000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=6000
+[ -z "${train_batch_size}" ] && train_batch_size=16
 [ -z "${val_batch_size}" ] && val_batch_size=1
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
-[ -z "${save_epoch_interval}" ] && save_epoch_interval=1000
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
+[ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 
-[ -z "${mode_prob}" ] && mode_prob='0.5,0.5' # prob of independent mask_pos, mask_type and non-independent
+[ -z "${mode_prob}" ] && mode_prob='0.4,0.3,0.3' # prob of independent mask_pos, mask_type and non-independent
 [ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
@@ -109,6 +109,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
+wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
+
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -135,13 +137,14 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
     --encoder_embed_dim $hidden_size \
     --droppath_prob $droppath_prob \
     --attn_dropout $attn_dropout \
+    --num_3d_bias_kernel $num_3d_bias_kernel \
     --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
     --sandwich_ln \
     --dataset_names $dataset_name \
     --data_path $data_path \
     --save_dir $save_dir \
     --seed 666666 \
-    --add_3d --fp16 \
+    --fp16 --add_3d \
     --mask_ratio $mask_ratio \
     --noise_scale $noise_scale \
     --num_pred_attn_layer $num_pred_attn_layer \
@@ -154,6 +157,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
     --gradient_accumulation_steps $gradient_accumulation_steps \
     --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
     --save_batch_interval $save_batch_interval --log_interval $log_interval
+    # --wandb --wandb_group PFM --wandb_team icuppjin --wandb_project DiffMFM
 
 
 sleep inf

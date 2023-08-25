@@ -88,6 +88,7 @@ class ResidueFeature(nn.Module):
             angle_data = batched_data["ang"].to(x.dtype) / 180.0
             anlge_mask = angle_data == float("inf")
             x = x + self.angle_embed(angle_data.masked_fill(anlge_mask, 0.0))
+
         x[mask_aa.bool().squeeze(-1)] = mask_embedding
 
         return x
@@ -257,6 +258,12 @@ class NonLinear(nn.Module):
             hidden = input
         self.layer1 = nn.Linear(input, hidden)
         self.layer2 = nn.Linear(hidden, output_size)
+        # self.layer1.weight.register_hook(self.print_grad)
+
+    # make sure attn_bias has gradient
+    def print_grad(self, grad):
+        print(torch.max(grad))
+        return grad
 
     def forward(self, x):
         x = self.layer1(x)

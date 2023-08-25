@@ -6,6 +6,8 @@ import torch
 import torch.distributed as dist
 import torch.nn as nn
 
+from sfm.logging import logger
+
 
 class MAE3dCriterions(nn.Module):
     def __init__(self, args) -> None:
@@ -97,30 +99,36 @@ class ProteinMAE3dCriterions(nn.Module):
         self.loss_pos = nn.L1Loss(reduction=reduction)
         self.args = args
 
-    def forward(self, batch_data, logits, node_output, mask_pos):
-        with torch.no_grad():
-            mask_aa = batch_data["masked_aa"]
-            aa_seq = batch_data["x"][mask_aa.squeeze(-1).bool()]
+    def forward(self, batch_data, logits, node_output, mask_pos, mask_aa):
+        if mask_aa.any():
+            with torch.no_grad():
+                aa_seq = batch_data["x"][mask_aa.squeeze(-1).bool()]
 
-        logits = logits[:, :, :][mask_aa.squeeze(-1).bool()]
+            logits = logits[:, :, :][mask_aa.squeeze(-1).bool()]
 
-        type_loss = (
-            self.loss_type(
-                logits.view(-1, logits.size(-1)).to(torch.float32),
-                aa_seq.view(-1),
+            type_loss = (
+                self.loss_type(
+                    logits.view(-1, logits.size(-1)).to(torch.float32),
+                    aa_seq.view(-1),
+                )
+                * self.args.atom_loss_coeff
             )
-            * self.args.atom_loss_coeff
-        )
+        else:
+            type_loss = 0.0
 
-        node_output = node_output[~mask_pos.squeeze(-1)]
-        ori_pos = batch_data["pos"][~mask_pos.squeeze(-1)]
-        pos_loss = (
-            self.loss_pos(node_output.to(torch.float32), ori_pos.to(torch.float32)).sum(
-                dim=-1
+        if mask_pos.any():
+            node_output = node_output[mask_pos.squeeze(-1)]
+            ori_pos = batch_data["pos"][mask_pos.squeeze(-1)]
+            pos_loss = (
+                self.loss_pos(
+                    node_output.to(torch.float32), ori_pos.to(torch.float32)
+                ).sum(dim=-1)
+                * self.args.pos_loss_coeff
             )
-            * self.args.pos_loss_coeff
-        )
+        else:
+            pos_loss = 0.0
 
+        # logger.info(f"loss_type: {type_loss}, loss_pos: {pos_loss}")
         loss = type_loss + pos_loss
 
-        return loss
+        return loss, {"loss_type": type_loss, "loss_pos": pos_loss}

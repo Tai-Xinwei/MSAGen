@@ -64,6 +64,12 @@ class TrainerConfig:
     weight_decay: float = 0.0
     total_num_epochs: int = 100
 
+    # wandb
+    wandb: bool = False
+    wandb_team: str = ""
+    wandb_group: str = ""
+    wandb_project: str = ""
+
     # adam
     beta1: float = 0.9
     beta2: float = 0.999

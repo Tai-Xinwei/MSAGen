@@ -130,10 +130,10 @@ class PFMEncoder(nn.Module):
         if pfm_config.transformer_m_pretrain:
             try:
                 mode_prob = [float(item) for item in pfm_config.mode_prob.split(",")]
-                assert len(mode_prob) == 2
+                assert len(mode_prob) == 3
                 assert sum(mode_prob) == 1.0
             except:
-                mode_prob = [0.5, 0.5]
+                mode_prob = [0.4, 0.3, 0.3]
             self.mode_prob = mode_prob
 
     def build_transformer_sentence_encoder_layer(
@@ -187,17 +187,34 @@ class PFMEncoder(nn.Module):
         residue_seq = batched_data["x"]
         n_graph, n_node = residue_seq.size()[:2]
 
+        # 1 is pad token, 2 is eos token
+        padding_mask = (residue_seq[:, :]).eq(1)  # B x T x 1
+        eos_mask = (residue_seq[:, :]).eq(2)
+
         mask_aa = batched_data["masked_aa"]
         mask_pos = batched_data["mask_pos"]
         if self.pfm_config.transformer_m_pretrain:
-            # 0: independent mask_aa and mask_pos
-            # 1: mask_aa and mask_pos are the same
-            mask_choice = np.random.choice(np.arange(2), n_graph, p=[1.0 / 2, 1.0 / 2])
-            mask = torch.tensor([i for i in mask_choice]).to(batched_data["pos"])
+            # 0:  mask_aa and mask_pos are the same
+            # 1:  mask_aa is full and no mask_pos
+            # 2:  mask_pos is full and no mask_aa
+            mask_choice = np.random.choice(np.arange(3), n_graph, p=self.mode_prob)
+            mask = torch.tensor([i for i in mask_choice]).to(batched_data["pos"].device)
             mask = (
                 mask.unsqueeze(1).unsqueeze(-1).repeat(1, n_node, 1)
             )  # [ngraph, nnode+1]
-            mask_pos = torch.where(mask == 1, mask_aa, mask_pos)
+            mask_pos = torch.where(mask == 0, mask_aa, mask_pos)
+            mask_pos = torch.where(mask == 1, False, mask_pos)
+            mask_pos = torch.where(mask == 2, True, mask_pos)
+            mask_aa = torch.where(mask == 1, True, mask_aa)
+            mask_aa = torch.where(mask == 2, False, mask_aa)
+
+            # cls token should not be masked
+            mask_aa[:, 0, :] = False
+            mask_pos[:, 0, :] = False
+            mask_aa = mask_aa.masked_fill(padding_mask.bool().unsqueeze(-1), False)
+            mask_aa = mask_aa.masked_fill(eos_mask.bool().unsqueeze(-1), False)
+            mask_pos = mask_pos.masked_fill(padding_mask.bool().unsqueeze(-1), False)
+            mask_pos = mask_pos.masked_fill(eos_mask.bool().unsqueeze(-1), False)
 
         # add noise to pos with mask_pos==true
         ori_pos = batched_data["pos"]
@@ -206,8 +223,6 @@ class PFMEncoder(nn.Module):
         )
         noise = noise.masked_fill_(mask_pos.bool(), 0.0)
         pos = ori_pos + noise
-
-        padding_mask = (residue_seq[:, :]).eq(0)  # B x T x 1
 
         x, edge_feature, delta_pos = self.pfm_emb(
             batched_data,
@@ -256,7 +271,16 @@ class PFMEncoder(nn.Module):
                 .contiguous()
             )
 
-        return x, attn_bias, delta_pos, pos, inner_states, padding_mask, mask_pos
+        return (
+            x,
+            attn_bias,
+            delta_pos,
+            pos,
+            inner_states,
+            padding_mask,
+            mask_pos,
+            mask_aa,
+        )
 
 
 class NodeDecoder(nn.Module):

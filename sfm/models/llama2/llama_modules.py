@@ -194,7 +194,6 @@ class LlamaHead(nn.Module):
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.learnable_cutoff = learnable_cutoff
         # self.lm_head.weight.register_hook(self.freeze_parital_weight_hook)
-
         # self.weight = self.lm_head.weight.data.requires_grad_().cuda()
         # self.weight.grad = torch.zeros_like(self.weight)
         self.num_head = Num_MLP(config.hidden_size, 4 * config.hidden_size, 1)

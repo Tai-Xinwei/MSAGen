@@ -44,6 +44,8 @@ class PFMEmbedding(nn.Module):
         self, batched_data, padding_mask, pos=None, mask_aa=None, mask_pos=None
     ):
         x = self.residue_feature(batched_data, mask_aa=mask_aa)
+        edge_feature = None
+        delta_pos = None
         if mask_pos is not None and self.pfm_config.add_3d:
             node_type_edge = batched_data["node_type_edge"]
             edge_feature, merged_edge_features, delta_pos = self.edge_3d_emb(
@@ -54,6 +56,6 @@ class PFMEmbedding(nn.Module):
             delta_pos = delta_pos.masked_fill(mask_pos.unsqueeze(-1), 0.0)
 
             x = x + merged_edge_features * 0.01
-            # x[:, 1:, :] = x[:, 1:, :] + merged_edge_features * 0.01
+            # edge_feature = torch.zeros_like(edge_feature)
 
         return x, edge_feature, delta_pos

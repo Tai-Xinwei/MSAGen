@@ -93,9 +93,13 @@ class PFMModel(Model):
         logits = model_output[0]
         node_output = model_output[1]
         mask_pos = model_output[2]
+        mask_aa = model_output[3]
         bs = logits.shape[0]
-        loss = self.loss(batch_data, logits, node_output, mask_pos)
-        return ModelOutput(loss=loss, log_output={}, num_examples=bs)
+        output = self.loss(batch_data, logits, node_output, mask_pos, mask_aa)
+        loss = output[0]
+        if len(output) > 1:
+            log_loss = output[1]
+        return ModelOutput(loss=loss, log_output=log_loss, num_examples=bs)
 
     def config_optimizer(self):
         """
@@ -221,6 +225,7 @@ class PFM(nn.Module):
             inner_states,
             padding_mask,
             mask_pos,
+            mask_aa,
         ) = self.sentence_encoder(
             batched_data,
             segment_labels=segment_labels,
@@ -265,7 +270,7 @@ class PFM(nn.Module):
         # if self.sentence_projection_layer:
         #     self.sentence_projection_layer(pooled_output)
 
-        return (x, node_output, mask_pos)
+        return (x, node_output, mask_pos, mask_aa)
         # return x, node_output, {
         #     "inner_states": inner_states,
         #     "pooled_output": pooled_output,

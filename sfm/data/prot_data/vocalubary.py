@@ -88,7 +88,7 @@ class Alphabet(object):
         prepend_toks: Sequence[str] = ("<cls>", "<pad>", "<eos>", "<unk>"),
         append_toks: Sequence[str] = ("<mask>",),
         prepend_bos: bool = True,
-        append_eos: bool = False,
+        append_eos: bool = True,
     ):
         self.standard_toks = list(standard_toks)
         self.prepend_toks = list(prepend_toks)

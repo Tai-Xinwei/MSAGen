@@ -167,7 +167,7 @@ class PFMEncoderLayer(nn.Module):
         modules similar to the original Transformer implementation.
         """
         # x: T x B x C
-
+        self_3d_attn_bias = None
         if self.pfm_config.add_3d:
             # [bs, nHead, nnode+1, nnode+1]
             self_3d_attn_bias = self.graph_3d_bias(self_attn_padding_mask, edge_feature)
