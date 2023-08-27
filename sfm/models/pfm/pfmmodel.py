@@ -236,6 +236,7 @@ class PFM(nn.Module):
         # inner_states, node_output, sentence_rep = self.decoder(
         #     x, attn_bias, delta_pos, inner_states
         # )
+
         node_output = self.decoder(
             batched_data, x, pos, padding_mask, mask_pos=mask_pos
         )

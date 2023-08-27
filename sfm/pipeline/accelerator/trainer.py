@@ -85,11 +85,74 @@ class LossAccumulator(object):
         self.sum += loss * num_examples
         self.num_examples += num_examples
 
+    def reset(self):
+        self.sum = 0.0
+        self.num_examples = 0
+
     @property
     def averge_loss(self):
         if self.num_examples == 0:
             return 0
         return self.sum / self.num_examples
+
+
+class LogAccumulator(object):
+    def __init__(self):
+        self.sum = 0
+        self.num_examples = 0
+        self.extra_log = {}
+        self.extra_log_num = {}
+
+    def add(self, loss, num_examples, extra_log=None):
+        if loss is None:
+            return
+
+        if type(loss) == torch.Tensor:
+            loss = loss.item()
+
+        if type(num_examples) == torch.Tensor:
+            num_examples = num_examples.item()
+
+        if num_examples is None or num_examples <= 0:
+            return
+
+        if np.isnan(loss) or np.isinf(loss):
+            return
+
+        self.sum += loss * num_examples
+        self.num_examples += num_examples
+
+        if extra_log is not None:
+            for k, v in extra_log.items():
+                if k not in self.extra_log and isinstance(v, (torch.Tensor, float)):
+                    if isinstance(v, torch.Tensor):
+                        self.extra_log[k] = v.item()
+                    else:
+                        self.extra_log[k] = v
+                    self.extra_log_num[k] = 1
+                elif k in self.extra_log and isinstance(v, (torch.Tensor, float)):
+                    if isinstance(v, torch.Tensor):
+                        self.extra_log[k] += v.item()
+                    else:
+                        self.extra_log[k] += v
+                    self.extra_log_num[k] += 1
+
+    def reset(self):
+        self.sum = 0.0
+        self.num_examples = 0
+        for k, v in self.extra_log.items():
+            self.extra_log[k] = 0.0
+            self.extra_log_num[k] = 0
+
+    @property
+    def averge_loss(self):
+        if self.num_examples == 0:
+            return 0
+        return self.sum / self.num_examples
+
+    @property
+    def averge_log(self):
+        return {k: v / self.extra_log_num[k] for k, v in self.extra_log.items()}
 
 
 class Trainer(object):
@@ -275,9 +338,15 @@ class Trainer(object):
             logger.info("Start Training for epoch: {}", self.state.epoch)
 
             loss_accumulator = LossAccumulator()
+            interval_loss_accumulator = LogAccumulator()
             for i, grouped_batch_data in enumerate(self.train_data_loader):
                 model_output = self.accelerator.train_step(grouped_batch_data)
                 loss_accumulator.add(model_output.loss, model_output.num_examples)
+                interval_loss_accumulator.add(
+                    model_output.loss,
+                    model_output.num_examples,
+                    model_output.log_output,
+                )
 
                 # Log and save checkpoint
                 self.state.batch = i
@@ -285,8 +354,11 @@ class Trainer(object):
 
                 if self.should_log():
                     log_output = self.build_log_output(
-                        model_output.loss, model_output.log_output
+                        # model_output.loss, model_output.log_output
+                        interval_loss_accumulator.averge_loss,
+                        interval_loss_accumulator.averge_log,
                     )
+                    interval_loss_accumulator.reset()
                     metric_logger.log(log_output, "train_inner")
 
                 if self.should_save_batch_checkpoint():

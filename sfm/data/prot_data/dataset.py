@@ -125,10 +125,10 @@ class ProteinLMDBDataset(FoundationModelDataset):
         - mask the sequence in different ways
         """
         seed = int(hash((self.seed, index)) % 1e6)
-        seq = item["aa"]
+        item["aa"]
         # {"id": index, 'aa': aa, 'pos': pos, 'ang': ang, 'conf': conf_score, "name": name}
         assert (
-            "mask_idx" not in seq
+            "mask_idx" not in item
         ), "Item already contains mask_idx key, this is not expected!"
 
         # masked_seq, mask, replace_mask = masking_registry[self.seq_masking_method](

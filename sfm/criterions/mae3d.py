@@ -113,12 +113,18 @@ class ProteinMAE3dCriterions(nn.Module):
                 )
                 * self.args.atom_loss_coeff
             )
+            # compute type accuracy
+            type_acc = (
+                logits.view(-1, logits.size(-1)).argmax(dim=-1) == aa_seq
+            ).sum().to(torch.float32) / aa_seq.view(-1).size(0)
         else:
-            type_loss = 0.0
+            type_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
+            type_acc = 0.0
 
         if mask_pos.any():
             node_output = node_output[mask_pos.squeeze(-1)]
-            ori_pos = batch_data["pos"][mask_pos.squeeze(-1)]
+            with torch.no_grad():
+                ori_pos = batch_data["pos"][mask_pos.squeeze(-1)]
             pos_loss = (
                 self.loss_pos(
                     node_output.to(torch.float32), ori_pos.to(torch.float32)
@@ -126,9 +132,13 @@ class ProteinMAE3dCriterions(nn.Module):
                 * self.args.pos_loss_coeff
             )
         else:
-            pos_loss = 0.0
+            pos_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
-        # logger.info(f"loss_type: {type_loss}, loss_pos: {pos_loss}")
         loss = type_loss + pos_loss
 
-        return loss, {"loss_type": type_loss, "loss_pos": pos_loss}
+        return loss, {
+            "total_loss": loss,
+            "loss_type": type_loss,
+            "loss_pos": pos_loss,
+            "type_acc": type_acc,
+        }

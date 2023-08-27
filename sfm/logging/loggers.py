@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, fields
+from typing import Dict, Union
 
+import torch
 from loguru import logger
 
 from sfm.utils.dist_utils import is_master_node
@@ -26,19 +28,33 @@ def get_logger():
     return logger
 
 
+# Custom function to handle tensor attributes
+def dataclass_to_dict(dataclass_obj: Union[dataclass, Dict]) -> Dict:
+    if isinstance(dataclass_obj, dict):
+        return dataclass_obj
+    result = {}
+    for field in fields(dataclass_obj):
+        value = getattr(dataclass_obj, field.name)
+        if isinstance(value, torch.Tensor) and not value.is_leaf:
+            result[field.name] = value.clone().detach()
+        else:
+            result[field.name] = value
+    return result
+
+
 class MetricLogger(object):
     def log(self, metrics, prefix=""):
         if not is_master_node():
             return
 
-        if wandb.run is None:
-            # Log to console
-            logger.info(metrics)
-        else:
+        # if wandb.run is None:
+        # Log to console
+        logger.info(metrics)
+        if wandb.run is not None:
             if type(metrics) is dict:
                 log_data = metrics
             elif hasattr(metrics, "__dataclass_fields__"):
-                log_data = asdict(metrics)
+                log_data = dataclass_to_dict(metrics)
 
                 if "extra_output" in log_data:
                     extra_output = log_data["extra_output"]

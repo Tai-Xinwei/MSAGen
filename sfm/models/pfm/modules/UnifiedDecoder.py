@@ -937,9 +937,4 @@ class UnifiedDecoder(nn.Module):
         node_output = self.unified_output_layer(node_output).squeeze(-1)
         node_output = node_output.masked_fill(padding_mask[:, :].unsqueeze(-1), 0.0)
 
-        if mask_pos is not None:
-            node_output = node_output * (
-                1.0 - mask_pos.repeat(1, 1, node_output.shape[-1]).to(node_output)
-            )
-
         return node_output

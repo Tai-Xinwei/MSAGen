@@ -121,7 +121,7 @@ def format_extra_output(raw_extra_output):
                 extra_output.append(f"{k}: {v:.4g}")
             else:
                 v = v.detach().cpu().numpy()
-            extra_output.append(f"{k}: {v}")
+                extra_output.append(f"{k}: {v}")
         elif isinstance(v, float):
             extra_output.append(f"{k}: {v:.4g}")
         else:

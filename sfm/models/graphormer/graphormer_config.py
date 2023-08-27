@@ -38,6 +38,7 @@ class GraphormerConfig:
     ddpm_beta_start: float = 0.0001
     ddpm_beta_end: float = 0.02
     ddpm_schedule: str = "linear"
+    noise_mode: str = "const"
 
     def __init__(
         self,
@@ -51,6 +52,11 @@ class GraphormerConfig:
                 args.max_positions = args.tokens_per_sample
             except:
                 args.max_positions = args.max_nodes
+
+        # set attributes of args to self
+        for k, v in asdict(self).items():
+            if hasattr(args, k):
+                setattr(self, k, getattr(args, k))
 
         self.num_atoms = args.num_atoms
         self.num_in_degree = args.num_in_degree

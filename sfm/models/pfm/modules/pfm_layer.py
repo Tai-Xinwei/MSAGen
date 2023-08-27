@@ -31,6 +31,7 @@ class ResidueFeature(nn.Module):
         max_len=1024,
         prop_feat=True,
         angle_feat=True,
+        t_timesteps=1010,
     ):
         super(ResidueFeature, self).__init__()
 
@@ -41,6 +42,8 @@ class ResidueFeature(nn.Module):
 
         self.token_embed = nn.Embedding(num_residues, hidden_dim)
         self.atom_mask_embedding = nn.Embedding(9, hidden_dim, padding_idx=None)
+
+        self.time_embedding = nn.Embedding(t_timesteps, hidden_dim)
 
         if self.prop_feat:
             # [ Chemical polarity ]
@@ -72,7 +75,7 @@ class ResidueFeature(nn.Module):
         if self.angle_feat:
             self.angle_embed = nn.Linear(3, hidden_dim, bias=False)
 
-    def forward(self, batched_data, mask_aa=None):
+    def forward(self, batched_data, time=None, mask_aa=None, mask_pos=None):
         x = self.token_embed(batched_data["x"])
 
         mask_embedding = self.atom_mask_embedding.weight.sum(dim=0)
@@ -90,6 +93,14 @@ class ResidueFeature(nn.Module):
             x = x + self.angle_embed(angle_data.masked_fill(anlge_mask, 0.0))
 
         x[mask_aa.bool().squeeze(-1)] = mask_embedding
+
+        if time is not None:
+            # t = torch.tensor([time], dtype=x.dtype, device=x.device).unsqueeze(0)
+            time_embedding = (
+                torch.zeros_like(x).to(x) + self.time_embedding(time)[:, None, :]
+            )
+            time_embedding = time_embedding.masked_fill(~mask_pos.bool(), 0.0)
+            x = x + time_embedding
 
         return x
 

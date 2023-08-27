@@ -143,7 +143,8 @@ class PFMEncoderLayer(nn.Module):
         add_rope=False,
     ):
         # TODO: needs to be replaced by flash-att
-        return MemEffAttn(
+        # return MemEffAttn(
+        return MultiheadAttention(
             embed_dim,
             num_attention_heads,
             dropout=dropout,
@@ -171,13 +172,13 @@ class PFMEncoderLayer(nn.Module):
         if self.pfm_config.add_3d:
             # [bs, nHead, nnode+1, nnode+1]
             self_3d_attn_bias = self.graph_3d_bias(self_attn_padding_mask, edge_feature)
-            if mask_pos is not None:
-                self_3d_attn_bias = self_3d_attn_bias.masked_fill_(
-                    (
-                        (self_3d_attn_bias != float("-inf")) * mask_pos[:, None, :, :]
-                    ).bool(),
-                    0.0,
-                )
+            # if mask_pos is not None:
+            #     self_3d_attn_bias = self_3d_attn_bias.masked_fill_(
+            #         (
+            #             (self_3d_attn_bias != float("-inf")) * mask_pos[:, None, :, :]
+            #         ).bool(),
+            #         0.0,
+            #     )
 
         residual = x
         x = self.top_layer_norm(x)

@@ -9,7 +9,6 @@ class PFMConfig(GraphormerConfig):
     model_type = "pfm"
 
     add_rope: bool = True
-    mode_prob: str = "0.5,0.5"
     num_residues: int = 32
     max_num_aa: int = 1024
 
@@ -19,3 +18,6 @@ class PFMConfig(GraphormerConfig):
         **kwargs,
     ):
         super().__init__(args)
+        for k, v in asdict(self).items():
+            if hasattr(args, k):
+                setattr(self, k, getattr(args, k))

@@ -41,9 +41,17 @@ class PFMEmbedding(nn.Module):
         # self.graph_3d_bias = Graph3DBias()
 
     def forward(
-        self, batched_data, padding_mask, pos=None, mask_aa=None, mask_pos=None
+        self,
+        batched_data,
+        padding_mask,
+        pos=None,
+        mask_aa=None,
+        mask_pos=None,
+        time=None,
     ):
-        x = self.residue_feature(batched_data, mask_aa=mask_aa)
+        x = self.residue_feature(
+            batched_data, mask_aa=mask_aa, mask_pos=mask_pos, time=time
+        )
         edge_feature = None
         delta_pos = None
         if mask_pos is not None and self.pfm_config.add_3d:
@@ -53,9 +61,11 @@ class PFMEmbedding(nn.Module):
             )
 
             merged_edge_features = merged_edge_features.masked_fill(mask_pos, 0.0)
-            delta_pos = delta_pos.masked_fill(mask_pos.unsqueeze(-1), 0.0)
+            # delta_pos = delta_pos.masked_fill(mask_pos.unsqueeze(-1), 0.0)
 
             x = x + merged_edge_features * 0.01
+
+            # TEST: set 3d edge_feature to zero
             # edge_feature = torch.zeros_like(edge_feature)
 
         return x, edge_feature, delta_pos

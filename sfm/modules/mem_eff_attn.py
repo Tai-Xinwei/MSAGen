@@ -231,7 +231,7 @@ class MemEffAttn(nn.Module):
                 k = torch.cat([k, k_pad], dim=1)
                 v = torch.cat([v, v_pad], dim=1)
 
-            attn_bias = attn_bias.masked_fill(attn_mask, float("-inf"))
+            attn_bias = attn_bias.masked_fill_(attn_mask, float("-inf"))
 
         # q = q.permute(0, 2, 1, 3)
         # k = k.permute(0, 2, 1, 3)

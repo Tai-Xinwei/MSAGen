@@ -130,18 +130,17 @@ def transformerM_masking(
     mask_type = np.full(size, False)
     mask_pos = np.full(size, False)
 
-    # at least mask one element or one span
-    num_mask = int(mask_prob * size / float(mask_multiple_length) + 1)
+    # at least mask one element or one span, do not mask cls and eos
+    num_mask = int(mask_prob * (size - 2) / float(mask_multiple_length) + 1)
 
     # GLM like masking
-    mask_type_idc = np.random.choice(size, num_mask, replace=False)
-    mask_pos_idc = np.random.choice(size, num_mask, replace=False)
+    mask_type_idc = np.random.choice(size - 2, num_mask, replace=False)
+    mask_pos_idc = np.random.choice(size - 2, num_mask, replace=False)
 
-    mask_type_idc = mask_type_idc[mask_type_idc < len(mask_type_idc)]
-    mask_pos_idc = mask_pos_idc[mask_pos_idc < len(mask_pos_idc)]
-
+    # mask_type_idc = mask_type_idc[mask_type_idc < len(mask_type_idc)]
+    # mask_pos_idc = mask_pos_idc[mask_pos_idc < len(mask_pos_idc)]
     try:
-        mask_type[mask_type_idc] = True
+        mask_type[mask_type_idc + 1] = True
     except:  # something wrong
         logging.error(
             f"Assigning mask indexes {mask_type_idc} to mask {mask_type} failed!"

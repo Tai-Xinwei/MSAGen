@@ -126,15 +126,127 @@ class PFMEncoder(nn.Module):
                 p.data.mul_(init_scale)
 
         self.args = args
+        try:
+            mode_prob = [float(item) for item in pfm_config.mode_prob.split(",")]
+            assert len(mode_prob) == 3
+            assert sum(mode_prob) == 1.0
+        except:
+            mode_prob = [0.4, 0.3, 0.3]
+        self.mode_prob = mode_prob
 
-        if pfm_config.transformer_m_pretrain:
-            try:
-                mode_prob = [float(item) for item in pfm_config.mode_prob.split(",")]
-                assert len(mode_prob) == 3
-                assert sum(mode_prob) == 1.0
-            except:
-                mode_prob = [0.4, 0.3, 0.3]
-            self.mode_prob = mode_prob
+        self.t_timesteps = args.t_timesteps
+        assert args.ddpm_schedule in ["linear", "quadratic", "sigmoid", "cosine"]
+        (
+            self.sqrt_alphas_cumprod,
+            self.sqrt_one_minus_alphas_cumprod,
+        ) = self._beta_schedule(
+            args.t_timesteps,
+            args.ddpm_beta_start,
+            args.ddpm_beta_end,
+            args.ddpm_schedule,
+        )
+
+    def _beta_schedule(self, t_timesteps, beta_start, beta_end, schedule_type="linear"):
+        if schedule_type == "linear":
+            beta_list = torch.linspace(beta_start, beta_end, t_timesteps)
+        elif schedule_type == "quadratic":
+            beta_list = (
+                torch.linspace(beta_start**0.5, beta_end**0.5, t_timesteps) ** 2
+            )
+        elif schedule_type == "sigmoid":
+            betas = torch.linspace(-6, 6, t_timesteps)
+            beta_list = torch.sigmoid(betas) * (beta_end - beta_start) + beta_start
+        elif schedule_type == "cosine":
+            s = 0.008
+            steps = t_timesteps + 1
+            x = torch.linspace(0, t_timesteps, steps)
+            alphas_cumprod = (
+                torch.cos(((x / t_timesteps) + s) / (1 + s) * torch.pi * 0.5) ** 2
+            )
+            alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
+            betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
+            beta_list = torch.clip(betas, 0.0001, 0.9999)
+        else:
+            raise NotImplementedError
+
+        alphas = 1 - beta_list
+        alphas_cumprod = torch.cumprod(alphas, dim=0)
+        sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
+        sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - alphas_cumprod)
+        return sqrt_alphas_cumprod, sqrt_one_minus_alphas_cumprod
+
+    def _extract(self, a, t, x_shape):
+        batch_size = t.shape[0]
+        out = a.gather(-1, t.cpu())
+        return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
+
+    def _noise_sample(self, x_start, t):
+        noise = torch.randn_like(x_start) * 1.0
+
+        sqrt_alphas_cumprod_t = self._extract(
+            self.sqrt_alphas_cumprod, t, x_start.shape
+        )
+        sqrt_one_minus_alphas_cumprod_t = self._extract(
+            self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
+        )
+
+        return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
+
+    def _set_noise(self, ori_pos, mask_pos):
+        if self.pfm_config.noise_mode == "const":
+            noise = (
+                torch.randn(ori_pos.shape, device=ori_pos.device)
+                * self.args.noise_scale
+            )
+            noise = noise.masked_fill_(~mask_pos.bool(), 0.0)
+            pos = ori_pos + noise
+            return pos, None
+        elif self.pfm_config.noise_mode == "diff":
+            time = torch.randint(
+                0, self.t_timesteps, (ori_pos.shape[0],), device=ori_pos.device
+            ).long()
+
+            noisy_pos = (
+                self._noise_sample(ori_pos, time)
+                .masked_fill(~mask_pos.bool(), 0.0)
+                .to(ori_pos.dtype)
+            )
+            vis_pos = ori_pos.masked_fill(mask_pos.bool(), 0.0).to(ori_pos.dtype)
+            pos = noisy_pos + vis_pos
+            return pos, time
+        else:
+            raise Exception(
+                f"noise mode {self.pfm_config.noise_mode} not implemented, please choose from ['const', 'diff']"
+            )
+
+    def _set_mask(self, mask_aa, mask_pos, residue_seq):
+        n_graph, n_node = residue_seq.size()[:2]
+
+        # 1 is pad token, 2 is eos token
+        padding_mask = (residue_seq[:, :]).eq(1)  # B x T x 1
+        eos_mask = (residue_seq[:, :]).eq(2)
+
+        # # 0:  mask_aa and mask_pos are the same
+        # # 1:  mask_aa is full and no mask_pos
+        # # 2:  mask_pos is full and no mask_aa
+        mask_choice = np.random.choice(np.arange(3), n_graph, p=self.mode_prob)
+        mask = torch.tensor([i for i in mask_choice]).to(residue_seq.device)
+        mask = mask.unsqueeze(1).unsqueeze(-1).repeat(1, n_node, 1)  # [ngraph, nnode+1]
+        mask_pos = torch.where(mask == 0, mask_aa, mask_pos)
+        mask_pos = torch.where(mask == 1, False, mask_pos)
+        mask_pos = torch.where(mask == 2, True, mask_pos)
+        mask_aa = torch.where(mask == 1, True, mask_aa)
+        mask_aa = torch.where(mask == 2, False, mask_aa)
+
+        # # cls token should not be masked
+        mask_aa[:, 0, :] = False
+        mask_pos[:, 0, :] = False
+        mask_aa = mask_aa.masked_fill_(padding_mask.bool().unsqueeze(-1), False)
+        mask_aa = mask_aa.masked_fill_(eos_mask.bool().unsqueeze(-1), False)
+        mask_pos = mask_pos.masked_fill_(padding_mask.bool().unsqueeze(-1), False)
+        mask_pos = mask_pos.masked_fill_(eos_mask.bool().unsqueeze(-1), False)
+
+        return mask_aa, mask_pos, padding_mask, eos_mask
 
     def build_transformer_sentence_encoder_layer(
         self,
@@ -185,44 +297,17 @@ class PFMEncoder(nn.Module):
         # compute padding mask. This is needed for multi-head attention
 
         residue_seq = batched_data["x"]
-        n_graph, n_node = residue_seq.size()[:2]
-
-        # 1 is pad token, 2 is eos token
-        padding_mask = (residue_seq[:, :]).eq(1)  # B x T x 1
-        eos_mask = (residue_seq[:, :]).eq(2)
-
         mask_aa = batched_data["masked_aa"]
         mask_pos = batched_data["mask_pos"]
-        if self.pfm_config.transformer_m_pretrain:
-            # 0:  mask_aa and mask_pos are the same
-            # 1:  mask_aa is full and no mask_pos
-            # 2:  mask_pos is full and no mask_aa
-            mask_choice = np.random.choice(np.arange(3), n_graph, p=self.mode_prob)
-            mask = torch.tensor([i for i in mask_choice]).to(batched_data["pos"].device)
-            mask = (
-                mask.unsqueeze(1).unsqueeze(-1).repeat(1, n_node, 1)
-            )  # [ngraph, nnode+1]
-            mask_pos = torch.where(mask == 0, mask_aa, mask_pos)
-            mask_pos = torch.where(mask == 1, False, mask_pos)
-            mask_pos = torch.where(mask == 2, True, mask_pos)
-            mask_aa = torch.where(mask == 1, True, mask_aa)
-            mask_aa = torch.where(mask == 2, False, mask_aa)
-
-            # cls token should not be masked
-            mask_aa[:, 0, :] = False
-            mask_pos[:, 0, :] = False
-            mask_aa = mask_aa.masked_fill(padding_mask.bool().unsqueeze(-1), False)
-            mask_aa = mask_aa.masked_fill(eos_mask.bool().unsqueeze(-1), False)
-            mask_pos = mask_pos.masked_fill(padding_mask.bool().unsqueeze(-1), False)
-            mask_pos = mask_pos.masked_fill(eos_mask.bool().unsqueeze(-1), False)
-
-        # add noise to pos with mask_pos==true
         ori_pos = batched_data["pos"]
-        noise = (
-            torch.randn(ori_pos.shape, device=ori_pos.device) * self.args.noise_scale
+
+        n_graph, n_node = residue_seq.size()[:2]
+
+        mask_aa, mask_pos, padding_mask, _ = self._set_mask(
+            mask_aa, mask_pos, residue_seq
         )
-        noise = noise.masked_fill_(mask_pos.bool(), 0.0)
-        pos = ori_pos + noise
+
+        pos, time = self._set_noise(ori_pos, mask_pos)
 
         x, edge_feature, delta_pos = self.pfm_emb(
             batched_data,
@@ -230,6 +315,7 @@ class PFMEncoder(nn.Module):
             pos=pos,
             mask_aa=mask_aa,
             mask_pos=mask_pos,
+            time=time,
         )
 
         if perturb is not None:
