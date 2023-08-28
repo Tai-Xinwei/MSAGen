@@ -12,7 +12,9 @@ import torch
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 
+from sfm.data.data_utils import batch_by_size
 from sfm.data.dataset import Batch, Data, FoundationModelDataset
+from sfm.data.dynamics_loader import DynamicBatchSampler, DynamicDataLoader
 from sfm.logging import logger
 from sfm.pipeline.accelerator.dataclasses import (
     ModelOutput,
@@ -491,8 +493,8 @@ class DeepSpeedAccelerator(Accelerator):
                 args=self.args,
                 model=self.model,
                 model_parameters=self.model.parameters(),
-                training_data=self.train_data,
-                collate_fn=self.train_data.collate,
+                # training_data=self.train_data,
+                # collate_fn=self.train_data.collate,
                 optimizer=self.optimizer,
                 lr_scheduler=self.lr_scheduler,
             )
@@ -504,10 +506,53 @@ class DeepSpeedAccelerator(Accelerator):
     def build_data_loader(
         self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
     ):
+        if self.args.dynamic_loader:
+            assert (
+                self.args.strategy is not TrainStrategy.Pipeline
+            ), "dyanmic loader is not supported in pipeline mode"
+
+            train_batch_size_per_gpu = self.args.train_batch_size // (
+                self.model_engine.dp_world_size * self.args.gradient_accumulation_steps
+            )
+            assert (
+                train_batch_size_per_gpu > 0
+            ), "train_batch_size_per_gpu should be greater than 0"
+
+            # sampler = torch.utils.data.distributed.DistributedSampler(
+            #     self.train_data,
+            #     num_replicas=self.model_engine.dp_world_size,
+            #     rank=self.model_engine.global_rank,
+            #     shuffle=False,
+            # )
+            # dynamic_sampler = DynamicBatchSampler(
+            #     sampler,
+            #     num_tokens_fn=self.train_data.num_tokens,
+            #     max_size=self.args.max_num_aa,
+            #     max_tokens=self.args.max_tokens,
+            # )
+            # self.train_data_loader = DataLoader(
+            #     dataset=self.train_data,
+            #     collate_fn=self.train_data.collate,
+            #     batch_sampler=dynamic_sampler,
+            # )
+
+            self.train_data_loader = DynamicDataLoader(
+                dataset=self.train_data,
+                batch_by_size_fn=batch_by_size,
+                max_tokens=self.args.max_tokens,
+                num_tokens_fn=self.train_data.num_tokens,
+                collate_fn=self.train_data.collate,
+                shuffle=False,
+                drop_last=False,
+                num_replicas=self.model_engine.dp_world_size,
+                rank=self.model_engine.global_rank,
+            )
+
         if self.valid_data:
             validsampler = torch.utils.data.distributed.DistributedSampler(
                 self.valid_data,
                 num_replicas=self.model_engine.dp_world_size,
+                rank=self.model_engine.global_rank,
                 shuffle=False,
             )
             valid_batch_size_per_gpu = self.args.val_batch_size // (

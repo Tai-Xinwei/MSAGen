@@ -23,14 +23,17 @@ def main(args) -> None:
         args.data_path is not None and len(args.data_path) > 0
     ), f"lmdb_path is {args.data_path} it should not be None or empty"
 
-    dataset = ProteinLMDBDataset(
-        args,
-    )
+    dataset = ProteinLMDBDataset(args)
 
-    # trainset = dataset.dataset_train
+    trainset, valset = dataset.split_dataset(sort=True)
 
     train_data = BatchedDataDataset(
-        dataset,
+        trainset,
+        args=args,
+        vocab=dataset.vocab,
+    )
+    val_data = BatchedDataDataset(
+        valset,
         args=args,
         vocab=dataset.vocab,
     )
@@ -60,6 +63,7 @@ def main(args) -> None:
         args,
         model,
         train_data=train_data,
+        valid_data=val_data,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
     )

@@ -39,7 +39,7 @@ def batch_by_size(
     num_tokens_fn,
     num_tokens_vec=None,
     max_tokens=None,
-    max_sentences=None,
+    max_samples=None,
     required_batch_size_multiple=1,
     fixed_shapes=None,
 ):
@@ -66,7 +66,7 @@ def batch_by_size(
 
     # added int() to avoid TypeError: an integer is required
     max_tokens = int(max_tokens) if max_tokens is not None else -1
-    max_sentences = max_sentences if max_sentences is not None else -1
+    max_samples = max_samples if max_samples is not None else -1
     bsz_mult = required_batch_size_multiple
 
     if not isinstance(indices, np.ndarray):
@@ -81,7 +81,7 @@ def batch_by_size(
                 indices,
                 num_tokens_fn,
                 max_tokens,
-                max_sentences,
+                max_samples,
                 bsz_mult,
             )
         else:
@@ -89,7 +89,7 @@ def batch_by_size(
                 indices,
                 num_tokens_vec,
                 max_tokens,
-                max_sentences,
+                max_samples,
                 bsz_mult,
             )
 
@@ -108,3 +108,53 @@ def batch_by_size(
         )
         fixed_shapes_sorted = fixed_shapes[sort_order]
         return batch_fixed_shapes_fast(indices, num_tokens_fn, fixed_shapes_sorted)
+
+
+def collect_filtered(function, iterable, filtered):
+    """
+    Similar to :func:`filter` but collects filtered elements in ``filtered``.
+
+    Args:
+        function (callable): function that returns ``False`` for elements that
+            should be filtered
+        iterable (iterable): iterable to filter
+        filtered (list): list to store filtered elements
+    """
+    for el in iterable:
+        if function(el):
+            yield el
+        else:
+            filtered.append(el)
+
+
+def _filter_by_size_dynamic(indices, size_fn, max_positions, raise_exception=False):
+    def compare_leq(a, b):
+        return a <= b if not isinstance(a, tuple) else max(a) <= b
+
+    def check_size(idx):
+        if isinstance(max_positions, float) or isinstance(max_positions, int):
+            return size_fn(idx) <= max_positions
+        elif isinstance(max_positions, dict):
+            idx_size = size_fn(idx)
+            assert isinstance(idx_size, dict)
+            intersect_keys = set(max_positions.keys()) & set(idx_size.keys())
+            return all(
+                all(
+                    a is None or b is None or a <= b
+                    for a, b in zip(idx_size[key], max_positions[key])
+                )
+                for key in intersect_keys
+            )
+        else:
+            # For MultiCorpusSampledDataset, will generalize it later
+            if not isinstance(size_fn(idx), Iterable):
+                return all(size_fn(idx) <= b for b in max_positions)
+            return all(
+                a is None or b is None or a <= b
+                for a, b in zip(size_fn(idx), max_positions)
+            )
+
+    ignored = []
+    itr = collect_filtered(check_size, indices, ignored)
+    indices = np.fromiter(itr, dtype=np.int64, count=-1)
+    return indices, ignored

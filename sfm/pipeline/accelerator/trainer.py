@@ -389,10 +389,16 @@ class Trainer(object):
 
         # TODO: add other metrics
         loss_accumulator = LossAccumulator()
+        interval_loss_accumulator = LogAccumulator()
 
         for idx, batch_data in enumerate(self.valid_data_loader):
             output = self.accelerator.valid_step(batch_data)
             loss_accumulator.add(output.valid_loss, output.num_examples)
+            interval_loss_accumulator.add(
+                output.valid_loss,
+                output.num_examples,
+                output.extra_output,
+            )
 
             if (idx + 1) % self.args.val_batch_log_interval == 0:
                 logger.info(
@@ -409,6 +415,7 @@ class Trainer(object):
         valid_log = ValidLogOutput(
             valid_loss=total_loss / num_examples,
             num_examples=num_examples,
-            extra_output={},
+            extra_output=interval_loss_accumulator.averge_log,
         )
+
         metric_logger.log(valid_log, "valid")

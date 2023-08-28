@@ -36,6 +36,8 @@ class TrainerConfig:
     bf16: bool = False
     grad_scaler_init: float = 1.0
     gradient_accumulation_steps: int = 1
+    dynamic_loader: bool = False
+    max_tokens: int = 2048
     train_batch_size: int = 1
     val_batch_size: int = 1
     val_batch_interval: int = 0

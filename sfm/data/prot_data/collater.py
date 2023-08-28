@@ -4,6 +4,8 @@ from typing import List, Union
 import numpy as np
 import torch
 
+from sfm.logging import logger
+
 from .vocalubary import Alphabet
 
 
@@ -85,7 +87,7 @@ def collate_fn(samples: List[dict], vocab: Alphabet):
             for s in samples
         ]
     )
-
+    # logger.debug("naa: {}".format(batch["x"].shape))
     for prop_idx, prop_name in enumerate(
         ["chem_polar", "net_charge", "hydropathy", "mol_mass"]
     ):

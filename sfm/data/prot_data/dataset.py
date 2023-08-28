@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import os
+import random
 import sys
 from pathlib import Path
 from typing import Any, List
@@ -9,6 +10,7 @@ import lmdb
 import numpy as np
 import torch
 
+from sfm.data.data_utils import _filter_by_size_dynamic
 from sfm.data.dataset import FoundationModelDataset
 from sfm.logging import logger
 
@@ -32,7 +34,7 @@ class ProteinLMDBDataset(FoundationModelDataset):
 
         self.args = self.set_default_args(args)
 
-        logger.info(self.args)
+        # logger.info(self.args)
 
         self.lmdb_path = Path(self.args.data_path)
         assert self.lmdb_path.is_dir(), f"Processed file not found: {self.lmdb_path}"
@@ -55,7 +57,14 @@ class ProteinLMDBDataset(FoundationModelDataset):
         self.sizes, self.names = metadata["sizes"], metadata["names"]
         self.comment = metadata["comment"]
 
-        # self.split_dataset()
+        self.filter_indices_by_size(
+            indices=np.array(range(len(self.names))), max_sizes=self.args.max_num_aa
+        )
+
+    def __sort__(self):
+        sorted_names_sizes = sorted(zip(self.names, self.sizes), key=lambda x: x[1])
+        self.names = [name for name, size in sorted_names_sizes]
+        self.sizes = [size for name, size in sorted_names_sizes]
 
     def set_default_args(self, args):
         args.data_path = getattr(args, "data_path", None)
@@ -80,13 +89,32 @@ class ProteinLMDBDataset(FoundationModelDataset):
 
         return args
 
-    # def split_dataset(self, ratio=0.9):
-    #     dataset_len = len(self.names)
-    #     self.train_idx, self.valid_idx = np.split(
-    #         np.arange(dataset_len), [int(dataset_len * ratio)]
-    #     )
-    #     self.dataset_train = self.index_select(self.train_idx)
-    #     self.dataset_val = self.index_select(self.valid_idx)
+    def split_dataset(self, validation_ratio=0.03, sort=False):
+        num_samples = len(self.names)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(666).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(self.args)
+        dataset_train.names = [self.names[idx] for idx in training_indices]
+        dataset_train.sizes = [self.sizes[idx] for idx in training_indices]
+
+        dataset_val = self.__class__(self.args)
+        dataset_val.names = [self.names[idx] for idx in validation_indices]
+        dataset_val.sizes = [self.sizes[idx] for idx in validation_indices]
+
+        if sort:
+            dataset_train.__sort__()
+            dataset_val.__sort__()
+
+        return dataset_train, dataset_val
 
     def __getitem__(self, index: int) -> dict:
         key = self.names[index]
@@ -95,8 +123,9 @@ class ProteinLMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
         item = {"id": index, **data}
-        if len(item["aa"]) > self.args.max_num_aa:
-            return self.__getitem__(index + 1)
+        # if len(item["aa"]) > self.args.max_num_aa:
+        #     return self.__getitem__(index + 1)
+
         """
         - add physichemical properties
         """
@@ -175,8 +204,45 @@ class ProteinLMDBDataset(FoundationModelDataset):
     def num_tokens(self, index: int) -> int:
         return self.sizes[index]
 
-    def collater(self, samples: List[dict]) -> dict:
+    def num_tokens_vec(self, indices):
+        raise NotImplementedError
+
+    def collate(self, samples: List[dict]) -> dict:
         return collate_fn(samples, self.vocab)
+
+    def filter_indices_by_size(self, indices, max_sizes):
+        """
+        Filter a list of sample indices. Remove those that are longer than
+        specified in *max_sizes*.
+
+        WARNING: don't update, override method in child classes
+
+        Args:
+            indices (np.array): original array of sample indices
+            max_sizes (int or list[int] or tuple[int]): max sample size,
+                can be defined separately for src and tgt (then list or tuple)
+
+        Returns:
+            np.array: filtered sample array
+            list: list of removed indices
+        """
+        if isinstance(max_sizes, float) or isinstance(max_sizes, int):
+            if hasattr(self, "sizes") and isinstance(self.sizes, np.ndarray):
+                ignored = indices[self.sizes[indices] > max_sizes].tolist()
+                indices = indices[self.sizes[indices] <= max_sizes]
+            elif hasattr(self, "sizes") and isinstance(self.sizes, list):
+                sizes = np.array(self.sizes)
+                ignored = indices[np.array(sizes[indices]) > max_sizes].tolist()
+                indices = indices[np.array(sizes[indices]) <= max_sizes]
+            else:
+                indices, ignored = _filter_by_size_dynamic(
+                    indices, self.size, max_sizes
+                )
+        else:
+            indices, ignored = _filter_by_size_dynamic(indices, self.size, max_sizes)
+
+        self.sizes = [self.sizes[idx] for idx in indices]
+        self.names = [self.names[idx] for idx in indices]
 
 
 class BatchedDataDataset(torch.utils.data.Dataset):
@@ -200,6 +266,9 @@ class BatchedDataDataset(torch.utils.data.Dataset):
 
     def collate(self, samples):
         return collate_fn(samples, self.vocab)
+
+    def num_tokens(self, index: int) -> int:
+        return self.dataset.sizes[index]
 
 
 if __name__ == "__main__":

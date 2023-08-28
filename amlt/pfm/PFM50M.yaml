@@ -64,6 +64,8 @@ jobs:
   - export total_num_steps=1000000
   - export warmup_num_steps=1000
   - export train_batch_size=512
+  - export val_batch_size=512
+  - export max_tokens=2048
   - export gradient_accumulation_steps=4
   - export log_interval=100
   - export loadcheck_path=/blob/pfmexp/output/pfmtest/checkpoints

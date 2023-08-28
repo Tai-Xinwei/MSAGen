@@ -31,10 +31,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 [ -z "${train_batch_size}" ] && train_batch_size=16
-[ -z "${val_batch_size}" ] && val_batch_size=1
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${max_tokens}" ] && max_tokens=4096
+[ -z "${val_batch_size}" ] && val_batch_size=16
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000
+[ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 
@@ -139,34 +140,35 @@ fi
 # echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
-    --encoder_attention_heads $num_head \
-    --encoder_layers $layers \
-    --encoder_ffn_embed_dim $ffn_size \
-    --encoder_embed_dim $hidden_size \
-    --droppath_prob $droppath_prob \
-    --attn_dropout $attn_dropout \
-    --num_3d_bias_kernel $num_3d_bias_kernel \
-    --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
-    --sandwich_ln \
-    --dataset_names $dataset_name \
-    --data_path $data_path \
-    --save_dir $save_dir \
-    --seed 666666 \
-    --fp16 --add_3d \
-    --mask_ratio $mask_ratio \
-    --noise_scale $noise_scale \
-    --num_pred_attn_layer $num_pred_attn_layer \
-    --d_tilde $d_tilde \
-    --max_lr $max_lr \
-    --mode_prob $mode_prob \
-    --strategy $strategy \
-    --total_num_steps $total_num_steps \
-    --warmup_num_steps $warmup_num_steps \
-    --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
-    --gradient_accumulation_steps $gradient_accumulation_steps \
-    --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
-    --save_batch_interval $save_batch_interval --log_interval $log_interval \
-    --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+          --encoder_attention_heads $num_head \
+          --encoder_layers $layers \
+          --encoder_ffn_embed_dim $ffn_size \
+          --encoder_embed_dim $hidden_size \
+          --droppath_prob $droppath_prob \
+          --attn_dropout $attn_dropout \
+          --num_3d_bias_kernel $num_3d_bias_kernel \
+          --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
+          --sandwich_ln \
+          --dataset_names $dataset_name \
+          --data_path $data_path \
+          --save_dir $save_dir \
+          --seed 666666 \
+          --fp16 --add_3d \
+          --mask_ratio $mask_ratio \
+          --noise_scale $noise_scale \
+          --num_pred_attn_layer $num_pred_attn_layer \
+          --d_tilde $d_tilde \
+          --max_lr $max_lr \
+          --mode_prob $mode_prob \
+          --strategy $strategy \
+          --total_num_steps $total_num_steps \
+          --warmup_num_steps $warmup_num_steps \
+          --dynamic_loader --max_tokens $max_tokens \
+          --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
+          --gradient_accumulation_steps $gradient_accumulation_steps \
+          --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
+          --save_batch_interval $save_batch_interval --log_interval $log_interval \
+          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
 
 sleep inf
