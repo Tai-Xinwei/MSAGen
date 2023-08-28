@@ -3,31 +3,59 @@ import unittest
 from typing import Any
 from unittest.mock import patch
 
-import torch
-
 from sfm.data.dec_data.datasets import MixedTokenDataset, TextSpan, TokenType
 from sfm.models.decoder.deepfuse.config import DecDeepFuseConfig
 from sfm.models.decoder.deepfuse.model import DecDeepFuseModel
 
 
-class MockTokenizer:
+class MockTokenizer(object):
     def __init__(self):
-        self.vocab_size = ord("z") + 1
-        self.pad_token_id = 46
+        self.vocab_size = 100
+        self.pad_token_id = 99
         self.bos_token_id = 0
         self.eos_token_id = 1
 
+        self.text_base = 10
+        self.entity_base = 50
+
+    def token_to_id(self, token):
+        if token == "<s>":
+            return self.bos_token_id
+        elif token == "</s>":
+            return self.eos_token_id
+        elif token == "<pad>":
+            return self.pad_token_id
+        elif token[0] == "[" and token[-1] == "]":
+            if token[1] == "/":
+                return ord(token[2:-1]) - ord("A") + self.entity_base + 10
+            else:
+                return ord(token[1:-1]) - ord("A") + self.entity_base
+        else:
+            return ord(token) - ord("a") + self.text_base
+
+    def id_to_token(self, id):
+        if id == self.bos_token_id:
+            return "<s>"
+        elif id == self.eos_token_id:
+            return "</s>"
+        elif id == self.pad_token_id:
+            return "<pad>"
+        elif id >= self.entity_base:
+            return "[" + chr(id - self.entity_base + ord("A")) + "]"
+        else:
+            return chr(id - self.text_base + ord("a"))
+
     def __call__(self, text, *args, **kwargs) -> Any:
-        token_ids = [ord(x) for x in text.split()]
+        token_ids = [self.token_to_id(x) for x in text.split()]
         return {
             "input_ids": token_ids,
         }
 
     def convert_ids_to_tokens(self, token_ids):
-        return [chr(x) for x in token_ids]
+        return [self.id_to_token(x) for x in token_ids]
 
     def convert_tokens_to_ids(self, tokens):
-        return [ord(x) for x in tokens]
+        return [self.token_to_id(x) for x in tokens]
 
 
 class TestDeepFuse(unittest.TestCase):
@@ -67,9 +95,12 @@ class TestDeepFuse(unittest.TestCase):
         sents = [
             [
                 TextSpan("a b c", TokenType.Text),
-                TextSpan("d e f", TokenType.Entity),
+                TextSpan("[M] e [/M]", TokenType.Entity),
             ],
-            [TextSpan("g h", TokenType.Entity), TextSpan("i j k", TokenType.Entity)],
+            [
+                TextSpan("[M] h [/M]", TokenType.Entity),
+                TextSpan("[M] j [/M]", TokenType.Entity),
+            ],
         ]
 
         dataset = MixedTokenDataset(sents, "", "", 10, 10)

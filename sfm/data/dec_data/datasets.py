@@ -11,6 +11,18 @@ from sfm.data.dataset import Batch, FoundationModelDataset
 from sfm.data.dec_data.SFMDecTokenizer import SFMDecTokenizer
 from sfm.logging import logger
 
+ENTITY_MARKERS = [
+    "[M]",
+    "[/M]",
+    "[P]",
+    "[/P]",
+    "[A]",
+    "[/A]",
+    "[T]",
+    "[/T]",
+    "[R]",
+]
+
 
 class TokenType(Enum):
     Text = 0  # Natural language text
@@ -77,33 +89,32 @@ class MixedTokenDataset(FoundationModelDataset):
         )
 
         self.text_tokenizer.add_special_tokens(
-            {
-                "additional_special_tokens": [
-                    "[M]",
-                    "[/M]",
-                    "[P]",
-                    "[/P]",
-                    "[A]",
-                    "[/A]",
-                    "[T]",
-                    "[/T]",
-                    "[R]",
-                ]
-            }
+            {"additional_special_tokens": ENTITY_MARKERS}
         )
 
     def __len__(self):
         return len(self.sents)
 
+    def entity_marker_from_entity_id_to_text_id(self, marker_id):
+        token_str = self.entity_tokenizer.convert_ids_to_tokens([marker_id])[0].rstrip(
+            "</w>"
+        )
+
+        assert (
+            token_str[0] == "[" and token_str[-1] == "]"
+        ), f"Invalid entity marker: {token_str}"
+
+        return self.text_tokenizer.convert_tokens_to_ids([token_str])[0]
+
     def __getitem__(self, index) -> MixedTokenData:
         """
         The data will be in the following format like:
+        raw text: "text [M] m<C> [/M] text"
         Input:  <bos> text | [M]  <m>C | [/M] text
-        Output: text  [M]  | <m>C [/M] | text <eos>
+        Label:  text  [M]  | <m>C [/M] | text <eos>
         Type:   text  text | ent  ent  | text  text
 
         Note:
-        - We assume that the first span is always text. i.e, we can't generate a molecule without text.
         - The LLM is responsible for generating the first token of the molecule like [M].
             It can also geerate <eos> to terminate the generaton.
             Thus, we need to add those special tokens to LLM vocab.
@@ -137,46 +148,56 @@ class MixedTokenDataset(FoundationModelDataset):
         token_type_seq = []
         label_seq = []
         entity_end_token = None
-        eos_added = False
+
+        # token_seq always starts with <bos> and handled by LLM
+        token_seq.append(self.text_tokenizer.bos_token_id)
+        token_type_seq.append(TokenType.Text.value)
+
         for i in range(len(span_token_ids)):
             tokens = span_token_ids[i][:]
             labels = span_token_ids[i][:]
             span_type = sent[i].type
 
             if span_type == TokenType.Text:
-                if i == 0:
-                    tokens = [self.text_tokenizer.bos_token_id] + tokens
+                if entity_end_token is None:  # The first span is text
+                    token_seq.extend(tokens)
+                    label_seq.extend(labels)
+                    token_type_seq.extend([TokenType.Text.value] * len(tokens))
                 else:
-                    assert entity_end_token is not None
-                    tokens = [entity_end_token] + tokens
+                    token_seq.extend([entity_end_token] + tokens)
                     entity_end_token = None
 
-                if i == len(sent) - 1:
-                    labels = labels + [self.text_tokenizer.eos_token_id]
-                    eos_added = True
-                else:
-                    next_span_start_str = self.entity_tokenizer.convert_ids_to_tokens(
-                        span_token_ids[i + 1][:1]
-                    )[0].rstrip("</w>")
-                    labels = labels + self.text_tokenizer.convert_tokens_to_ids(
-                        [next_span_start_str]
-                    )
+                    label_seq.extend(labels)
+                    token_type_seq.extend([TokenType.Text.value] * (len(tokens) + 1))
+
             elif span_type == TokenType.Entity:
-                entity_end_token = tokens[-1]
-                tokens = tokens[:-1]  # remove [/X] in the end
-                labels = labels[1:]  # remove [X] in the beginning
+                if entity_end_token is not None:
+                    token_seq.append(entity_end_token)
+                    token_type_seq.append(TokenType.Text.value)
+                    entity_end_token = None
 
-            assert len(tokens) == len(labels)
-            token_seq.extend(tokens)
-            token_type_seq.extend([span_type.value] * len(tokens))
-            label_seq.extend(labels)
+                entity_begin_token = self.entity_marker_from_entity_id_to_text_id(
+                    tokens[0]
+                )
+                entity_end_token = self.entity_marker_from_entity_id_to_text_id(
+                    tokens[-1]
+                )
+                token_seq.extend(tokens[:-1])
 
-        if not eos_added:
-            # This means the last span is an entity
-            assert entity_end_token is not None
+                label_seq.extend([entity_begin_token] + tokens[1:])
+                token_type_seq.extend([TokenType.Entity.value] * (len(tokens) - 1))
+
+        if entity_end_token is not None:
             token_seq.append(entity_end_token)
             token_type_seq.append(TokenType.Text.value)
-            label_seq.append(self.text_tokenizer.eos_token_id)
+            entity_end_token = None
+
+        label_seq.append(self.text_tokenizer.eos_token_id)
+
+        assert len(token_seq) == len(label_seq), f"{len(token_seq)} != {len(label_seq)}"
+        assert len(token_seq) == len(
+            token_type_seq
+        ), f"{len(token_seq)} != {len(token_type_seq)}"
 
         token_seq = torch.IntTensor(token_seq)
         token_seq_len = token_seq.shape[0]
