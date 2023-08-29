@@ -170,9 +170,9 @@ cat <<EOT > $DS_CONFIG
       "warmup_type": "linear",
       "total_num_steps": $total_num_steps,
       "warmup_max_lr": $max_lr,
-      "warmup_num_steps": $warmup_num_steps,
+      "warmup_num_steps": $warmup_num_steps
     }
-  },
+  }
 }
 EOT
 
