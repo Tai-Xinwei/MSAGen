@@ -160,7 +160,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --d_tilde $d_tilde \
           --max_lr $max_lr \
           --mode_prob $mode_prob \
-          --strategy $strategy \
           --total_num_steps $total_num_steps \
           --warmup_num_steps $warmup_num_steps \
           --dynamic_loader --max_tokens $max_tokens --max_length $max_length \
@@ -170,6 +169,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
+          # --strategy $strategy \
 
 sleep inf
 sleep inf

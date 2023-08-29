@@ -31,7 +31,13 @@ export MKL_THREADING_LAYER='GNU'
 
 # [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot'
 # [ -z "${data_path}" ] && data_path='/home/v-peiqizhi/data/chemical-copilot-20230724'
-[ -z "${data_path}" ] && data_path='/home/v-peiqizhi/SFM_framework/tmp_data/ESOL'
+# [ -z "${data_path}" ] && data_path='/home/v-peiqizhi/SFM_framework/tmp_data/ESOL'
+# [ -z "${data_path}" ] && data_path='/sfm/ds_dataset/qizhi_numerical/freesolv'
+# [ -z "${data_path}" ] && data_path='/sfm/ds_dataset/qizhi_numerical/bbbp'
+# [ -z "${data_path}" ] && data_path='/sfm/ds_dataset/qizhi_numerical/bace'
+# [ -z "${data_path}" ] && data_path='/sfm/ds_dataset/qizhi_numerical/lipo'
+# [ -z "${data_path}" ] && data_path='/sfm/ds_dataset/qizhi_numerical/hiv'
+[ -z "${data_path}" ] && data_path='/sfm/ds_dataset/qizhi_numerical/molnet_3_reg_up'
 # [ -z "${dataset_names}" ] && dataset_names='tdc'
 # [ -z "${dataset_splits}" ] && dataset_splits='all-instruction'
 [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
@@ -44,7 +50,16 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 # [ -z "${save_dir}" ] && save_dir='/mnt/shiyu/models/converted/llama2'
-[ -z "${save_dir}" ] && save_dir='/home/v-peiqizhi/SFM_framework/output/ESOL_training_0816'
+# [ -z "${save_dir}" ] && save_dir='/home/v-peiqizhi/SFM_framework/output/ESOL_training_0816'
+# [ -z "${save_dir}" ] && save_dir='/sfm/ds_dataset/output/qizhi_ft/freesolv_training_0824'
+# [ -z "${save_dir}" ] && save_dir='/sfm/ds_dataset/output/qizhi_ft/bbbp_training_0824'
+# [ -z "${save_dir}" ] && save_dir='/sfm/ds_dataset/output/qizhi_ft/bace_training_0824'
+# [ -z "${save_dir}" ] && save_dir='/sfm/ds_dataset/output/qizhi_ft/lipo_training_0826'
+# [ -z "${save_dir}" ] && save_dir='/sfm/ds_dataset/output/qizhi_ft/hiv_training_0825'
+# [ -z "${save_dir}" ] && save_dir='/sfm/ds_dataset/output/qizhi_ft/bbbp_training_mlp_0828'
+# [ -z "${save_dir}" ] && save_dir='/sfm/ds_dataset/output/qizhi_ft/freesolv_only_lmloss_0829'
+[ -z "${save_dir}" ] && save_dir='/sfm/ds_dataset/output/qizhi_ft/molnet_3_reg_up_0829'
+
 [ -z "${smiles_dict_path}" ] && smiles_dict_path="/home/peiran/FMproj/chemical-copilot/mol2idx_dict.jsonl"
 # [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/checkpoint7_new.pt"
 [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/v-peiqizhi/models/graphormer_ckpts/checkpoint7_new.pt"
@@ -52,7 +67,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
 [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/v-peiqizhi/models/converted/llama-2-7b"
 [ -z "${mol_size_path}" ] && mol_size_path="/home/peiran/FMproj/chemical-copilot/mol_size_dict.pkl"
-[ -z "${save_batch_interval}"] && save_batch_interval=500
+[ -z "${save_batch_interval}"] && save_batch_interval=1000
 
 [ -z "${add_3d}" ] && add_3d=false
 [ -z "${no_2d}" ] && no_2d=false
@@ -122,7 +137,10 @@ echo "pool_mode: ${pool_mode}"
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin a88403970290781c26d2d5a6c07fe56df2116fc4
+# wandb login --relogin a88403970290781c26d2d5a6c07fe56df2116fc4
+export WANDB_API_KEY=a88403970290781c26d2d5a6c07fe56df2116fc4
+# export WANDB_PROJECT=Num_Dec
+# export WANDB_RUN_NAME=molnet_3_reg_upsample
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -145,8 +163,8 @@ mkdir -p $save_dir
 DS_CONFIG=$save_dir/deepspeed.json
 
 [ -z "${zero_strategy}" ] && zero_strategy=1
-[ -z "${micro_batch_size}" ] && micro_batch_size=4
-[ -z "${global_batch_size}" ] && global_batch_size=32
+[ -z "${micro_batch_size}" ] && micro_batch_size=8
+[ -z "${global_batch_size}" ] && global_batch_size=8
 
 cat <<EOT > $DS_CONFIG
 {
@@ -179,6 +197,12 @@ cat <<EOT > $DS_CONFIG
       "warmup_max_lr": $max_lr,
       "warmup_num_steps": $warmup_num_steps
     }
+  },
+  "wandb": {
+    "enabled": true,
+    "team": "yourteam",
+    "group": "yourgroup",
+    "project": "Num_Dec",
   }
 }
 EOT
@@ -220,6 +244,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --load_ckpt \
           --unfreeze_param_list "adaptor" \
           --save_batch_interval $save_batch_interval \
+          --log_interval 100000000 \
           $ds_args | tee -a $save_dir/train.log
 
 
