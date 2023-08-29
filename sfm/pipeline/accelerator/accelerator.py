@@ -570,7 +570,7 @@ class DeepSpeedAccelerator(Accelerator):
                 max_length=self.args.max_length,
                 num_tokens_fn=self.train_data.num_tokens,
                 collate_fn=self.train_data.collate,
-                shuffle=False,
+                shuffle=True,
                 drop_last=False,
                 num_replicas=self.model_engine.dp_world_size,
                 rank=self.model_engine.global_rank,

@@ -163,3 +163,6 @@ tmp_codes
 
 # data
 *.mdb
+tools/numerical_decoder/tmp_molnet.py
+tools/numerical_decoder/llama_tokenizer.py
+get_result.py

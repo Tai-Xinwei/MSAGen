@@ -29,7 +29,7 @@ code:
 
 jobs:
 - name: pfmtest
-  sku: 4x G16
+  sku: G16
   mpi: true
   process_count_per_node: 1
   command:
@@ -63,8 +63,8 @@ jobs:
   - export pipeline_model_parallel_size=0
   - export total_num_steps=1000000
   - export warmup_num_steps=1000
-  - export train_batch_size=512
-  - export val_batch_size=512
+  - export train_batch_size=64
+  - export val_batch_size=64
   - export max_tokens=4096
   - export max_length=1024
   - export gradient_accumulation_steps=4
