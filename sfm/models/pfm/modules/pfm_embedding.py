@@ -61,7 +61,7 @@ class PFMEmbedding(nn.Module):
             )
 
             merged_edge_features = merged_edge_features.masked_fill(mask_pos, 0.0)
-            # delta_pos = delta_pos.masked_fill(mask_pos.unsqueeze(-1), 0.0)
+            delta_pos = delta_pos.masked_fill(mask_pos.unsqueeze(-1), 0.0)
 
             x = x + merged_edge_features * 0.01
 

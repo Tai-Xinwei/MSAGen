@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import copy
 import random
+import time
 from pathlib import Path
 from typing import Optional, Union
 
@@ -97,11 +98,14 @@ class LossAccumulator(object):
 
 
 class LogAccumulator(object):
-    def __init__(self):
+    def __init__(self, world_size=1, allreduce_fn=None):
         self.sum = 0
         self.num_examples = 0
         self.extra_log = {}
         self.extra_log_num = {}
+        self.start_time = time.time()
+        self.allreduce_fn = allreduce_fn
+        self.world_size = world_size
 
     def add(self, loss, num_examples, extra_log=None):
         if loss is None:
@@ -126,20 +130,21 @@ class LogAccumulator(object):
             for k, v in extra_log.items():
                 if k not in self.extra_log and isinstance(v, (torch.Tensor, float)):
                     if isinstance(v, torch.Tensor):
-                        self.extra_log[k] = v.item()
+                        self.extra_log[k] = v.item() * num_examples
                     else:
-                        self.extra_log[k] = v
-                    self.extra_log_num[k] = 1
+                        self.extra_log[k] = v * num_examples
+                    self.extra_log_num[k] = 1 * num_examples
                 elif k in self.extra_log and isinstance(v, (torch.Tensor, float)):
                     if isinstance(v, torch.Tensor):
-                        self.extra_log[k] += v.item()
+                        self.extra_log[k] += v.item() * num_examples
                     else:
-                        self.extra_log[k] += v
-                    self.extra_log_num[k] += 1
+                        self.extra_log[k] += v * num_examples
+                    self.extra_log_num[k] += 1 * num_examples
 
     def reset(self):
         self.sum = 0.0
         self.num_examples = 0
+        self.start_time = time.time()
         for k, v in self.extra_log.items():
             self.extra_log[k] = 0.0
             self.extra_log_num[k] = 0
@@ -150,9 +155,19 @@ class LogAccumulator(object):
             return 0
         return self.sum / self.num_examples
 
+    def _allreducelog(self, log_dict: dict = {}, log_num_dict: dict = {}):
+        return self.allreduce_fn(log_dict, log_num_dict)
+
     @property
     def averge_log(self):
-        return {k: v / self.extra_log_num[k] for k, v in self.extra_log.items()}
+        self.extra_log["SamplePerSec"] = self.num_examples / (
+            time.time() - self.start_time
+        )
+        self.extra_log_num["SamplePerSec"] = 1.0 / self.world_size
+        if self.world_size == 1 or self.allreduce_fn is None:
+            return {k: v / self.extra_log_num[k] for k, v in self.extra_log.items()}
+        else:
+            return self._allreducelog(self.extra_log, self.extra_log_num)
 
 
 class Trainer(object):
@@ -191,6 +206,8 @@ class Trainer(object):
         self.state = TrainerState(args=args)
 
         self.save_dir = Path(self.args.save_dir)
+
+        self.world_size = self.accelerator.world_size
 
     def save_checkpoint(self, name: str):
         self.accelerator.save_checkpoint(name)
@@ -338,7 +355,9 @@ class Trainer(object):
             logger.info("Start Training for epoch: {}", self.state.epoch)
 
             loss_accumulator = LossAccumulator()
-            interval_loss_accumulator = LogAccumulator()
+            interval_loss_accumulator = LogAccumulator(
+                self.accelerator.world_size, self.accelerator._allreducelog
+            )
             for i, grouped_batch_data in enumerate(self.train_data_loader):
                 model_output = self.accelerator.train_step(grouped_batch_data)
                 loss_accumulator.add(model_output.loss, model_output.num_examples)
@@ -389,7 +408,9 @@ class Trainer(object):
 
         # TODO: add other metrics
         loss_accumulator = LossAccumulator()
-        interval_loss_accumulator = LogAccumulator()
+        interval_loss_accumulator = LogAccumulator(
+            self.accelerator.world_size, self.accelerator._allreducelog
+        )
 
         for idx, batch_data in enumerate(self.valid_data_loader):
             output = self.accelerator.valid_step(batch_data)

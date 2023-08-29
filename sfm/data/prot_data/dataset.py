@@ -58,7 +58,7 @@ class ProteinLMDBDataset(FoundationModelDataset):
         self.comment = metadata["comment"]
 
         self.filter_indices_by_size(
-            indices=np.array(range(len(self.names))), max_sizes=self.args.max_num_aa
+            indices=np.array(range(len(self.names))), max_sizes=self.args.max_length
         )
 
     def __sort__(self):
@@ -123,7 +123,7 @@ class ProteinLMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
         item = {"id": index, **data}
-        # if len(item["aa"]) > self.args.max_num_aa:
+        # if len(item["aa"]) > self.args.max_length:
         #     return self.__getitem__(index + 1)
 
         """

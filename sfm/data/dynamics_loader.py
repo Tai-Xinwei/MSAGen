@@ -19,6 +19,7 @@ class DynamicDataLoader(DataLoader):
         self.collate_fn = collate_fn
         self.max_samples = kwargs.pop("max_sample", None)
         self.max_tokens = kwargs.pop("max_tokens", None)
+        self.max_length = kwargs.pop("max_length", 1024)
         self.num_replicas = kwargs.pop("num_replicas", 1)
         self.rank = kwargs.pop("rank", 0)
         self.shuffle = kwargs.pop("shuffle", False)
@@ -63,9 +64,10 @@ class DynamicDataLoader(DataLoader):
 
     def __iter__(self):
         local_indices = self.__set_dist_indices()
-
+        # logger.debug(f"local_indices: {len(local_indices)}")
         batches = self.batch_by_size_fn(
             indices=local_indices,
+            max_length=self.max_length,
             num_tokens_fn=self.num_tokens_fn,
             max_tokens=self.max_tokens,
             max_samples=self.max_samples,

@@ -11,6 +11,7 @@ class PFMConfig(GraphormerConfig):
     add_rope: bool = True
     num_residues: int = 32
     max_num_aa: int = 1024
+    task: str = "mae"
 
     def __init__(
         self,

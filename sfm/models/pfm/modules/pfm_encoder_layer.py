@@ -169,17 +169,17 @@ class PFMEncoderLayer(nn.Module):
         """
         # x: T x B x C
         self_3d_attn_bias = None
-        if self.pfm_config.add_3d:
+        if self.pfm_config.add_3d and self.pfm_config.noise_mode == "mae":
             # [bs, nHead, nnode, nnode]
             self_3d_attn_bias = self.graph_3d_bias(self_attn_padding_mask, edge_feature)
             # mae task need to mask the 3d attn bias
-            # if mask_pos is not None:
-            #     self_3d_attn_bias = self_3d_attn_bias.masked_fill_(
-            #         (
-            #             (self_3d_attn_bias != float("-inf")) * mask_pos[:, None, :, :]
-            #         ).bool(),
-            #         0.0,
-            #     )
+            if mask_pos is not None:
+                self_3d_attn_bias = self_3d_attn_bias.masked_fill_(
+                    (
+                        (self_3d_attn_bias != float("-inf")) * mask_pos[:, None, :, :]
+                    ).bool(),
+                    0.0,
+                )
 
         residual = x
         x = self.top_layer_norm(x)

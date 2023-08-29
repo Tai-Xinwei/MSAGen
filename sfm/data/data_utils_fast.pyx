@@ -2,6 +2,7 @@ import numpy as np
 
 cimport cython
 cimport numpy as np
+from libc.math cimport sqrt
 
 
 cdef extern from "stdbool.h":
@@ -17,6 +18,7 @@ ctypedef int64_t DTYPE_t
 cpdef list batch_by_size_vec(
     np.ndarray[int64_t, ndim=1] indices,
     np.ndarray[int64_t, ndim=1] num_tokens_vec,
+    int64_t max_length,
     int64_t max_tokens,
     int64_t max_sentences,
     int32_t bsz_mult,
@@ -48,6 +50,7 @@ cpdef list batch_by_size_vec(
     cdef int32_t batch_start = 0
     cdef int64_t tail_max_tokens = 0
     cdef int64_t batch_max_tokens = 0
+    cdef int64_t max_tokens_resized = 0
 
     for pos in range(indices_len):
         # At every pos we keep stats about the last complete batch [batch_start:batch_end),
@@ -72,8 +75,10 @@ cpdef list batch_by_size_vec(
         new_batch_sentences = new_batch_end - batch_start
         new_batch_num_tokens = new_batch_sentences * new_batch_max_tokens
 
+        max_tokens_resized = <int> (sqrt(max_length / new_batch_max_tokens) * max_tokens)
+
         overflow = (new_batch_sentences > max_sentences > 0 or
-                    new_batch_num_tokens > max_tokens > 0)
+                    new_batch_num_tokens > max_tokens_resized > 0)
         size_matches_with_bsz_mult = (new_batch_sentences < bsz_mult or
                                       new_batch_sentences % bsz_mult == 0)
 
@@ -105,6 +110,7 @@ cpdef list batch_by_size_vec(
 cpdef list batch_by_size_fn(
     np.ndarray[DTYPE_t, ndim=1] indices,
     num_tokens_fn,
+    int64_t max_length,
     int64_t max_tokens,
     int64_t max_sentences,
     int32_t bsz_mult,
@@ -117,7 +123,7 @@ cpdef list batch_by_size_fn(
     cdef int64_t pos
     for pos in range(indices_len):
         num_tokens_vec[pos] = num_tokens_fn(indices_view[pos])
-    return batch_by_size_vec(indices, num_tokens_vec, max_tokens,
+    return batch_by_size_vec(indices, num_tokens_vec, max_length, max_tokens,
         max_sentences, bsz_mult,)
 
 

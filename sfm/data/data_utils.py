@@ -37,6 +37,7 @@ except ValueError:
 def batch_by_size(
     indices,
     num_tokens_fn,
+    max_length=1024,
     num_tokens_vec=None,
     max_tokens=None,
     max_samples=None,
@@ -80,6 +81,7 @@ def batch_by_size(
             b = batch_by_size_fn(
                 indices,
                 num_tokens_fn,
+                max_length,
                 max_tokens,
                 max_samples,
                 bsz_mult,

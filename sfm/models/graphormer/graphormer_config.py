@@ -12,6 +12,7 @@ class GraphormerConfig:
     encoder_layers: int = 24
     num_pred_attn_layer: int = 4
     num_3d_bias_kernel: int = 128
+    max_length: int = 1024
 
     droppath_prob: float = 0.0
     act_dropout: float = 0.1

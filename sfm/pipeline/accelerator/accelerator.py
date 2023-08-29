@@ -81,6 +81,7 @@ class SingleNodeAccelerator(Accelerator):
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
         self.device = device
+        self.world_size = 1
         if not torch.cuda.is_available():
             self.device = "cpu"
         self.scaler = FP16Scaler(
@@ -211,6 +212,10 @@ class SingleNodeAccelerator(Accelerator):
 
     def sync_valid_loss(self, total_loss, num_examples):
         return total_loss, num_examples
+
+    @staticmethod
+    def _allreducelog(log_dict: dict = {}, log_num_dict: dict = {}):
+        return None
 
 
 class DdpAccelerator(SingleNodeAccelerator):
@@ -344,6 +349,24 @@ class DdpAccelerator(SingleNodeAccelerator):
         num_examples = num_examples.item()
 
         return total_loss, num_examples
+
+    @staticmethod
+    def _allreducelog(log_dict: dict = {}, log_num_dict: dict = {}):
+        for k, v in log_dict.items():
+            if not isinstance(v, torch.Tensor):
+                v = torch.tensor(v)
+            v = v.cuda()
+            torch.distributed.all_reduce(v, op=torch.distributed.ReduceOp.SUM)
+            log_dict[k] = v.item()
+
+        for k, v in log_num_dict.items():
+            if not isinstance(v, torch.Tensor):
+                v = torch.tensor(v)
+            v = v.cuda()
+            torch.distributed.all_reduce(v, op=torch.distributed.ReduceOp.SUM)
+            log_num_dict[k] = v.item()
+
+        return {k: v / log_num_dict[k] for k, v in log_dict.items()}
 
 
 class DeepSpeedAccelerator(Accelerator):
@@ -493,12 +516,16 @@ class DeepSpeedAccelerator(Accelerator):
                 args=self.args,
                 model=self.model,
                 model_parameters=self.model.parameters(),
-                # training_data=self.train_data,
-                # collate_fn=self.train_data.collate,
+                training_data=self.train_data,
+                collate_fn=self.train_data.collate,
                 optimizer=self.optimizer,
                 lr_scheduler=self.lr_scheduler,
             )
         self.build_data_loader(self.train_data, self.valid_data)
+
+    @property
+    def world_size(self) -> int:
+        return self.model_engine.dp_world_size
 
     def barrier(self):
         deepspeed.comm.barrier()
@@ -540,6 +567,7 @@ class DeepSpeedAccelerator(Accelerator):
                 dataset=self.train_data,
                 batch_by_size_fn=batch_by_size,
                 max_tokens=self.args.max_tokens,
+                max_length=self.args.max_length,
                 num_tokens_fn=self.train_data.num_tokens,
                 collate_fn=self.train_data.collate,
                 shuffle=False,
@@ -640,3 +668,21 @@ class DeepSpeedAccelerator(Accelerator):
         num_examples = num_examples.item()
 
         return total_loss, num_examples
+
+    @staticmethod
+    def _allreducelog(log_dict: dict = {}, log_num_dict: dict = {}):
+        for k, v in log_dict.items():
+            if not isinstance(v, torch.Tensor):
+                v = torch.tensor(v)
+            v = v.cuda()
+            deepspeed.comm.all_reduce(v)
+            log_dict[k] = v.item()
+
+        for k, v in log_num_dict.items():
+            if not isinstance(v, torch.Tensor):
+                v = torch.tensor(v)
+            v = v.cuda()
+            deepspeed.comm.all_reduce(v)
+            log_num_dict[k] = v.item()
+
+        return {k: v / log_num_dict[k] for k, v in log_dict.items()}

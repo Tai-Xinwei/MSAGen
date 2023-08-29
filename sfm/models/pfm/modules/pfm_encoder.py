@@ -193,7 +193,9 @@ class PFMEncoder(nn.Module):
         return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
 
     def _set_noise(self, ori_pos, mask_pos):
-        if self.pfm_config.noise_mode == "const":
+        if self.pfm_config.noise_mode == "mae":
+            return ori_pos, None
+        elif self.pfm_config.noise_mode == "const":
             noise = (
                 torch.randn(ori_pos.shape, device=ori_pos.device)
                 * self.args.noise_scale
