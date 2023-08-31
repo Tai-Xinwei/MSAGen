@@ -28,6 +28,8 @@ from packaging import version as pkg_version
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
+from sfm.data.sampler import WeightedDistributedSampler
+
 from .mypp_module import PipelineError, PipelineModule
 
 TARGET_ID = -2
@@ -270,12 +272,20 @@ class SFMPipeEngine(DeepSpeedEngine):
         self.has_attention_mask = value
 
     def _build_data_iter(self, dataset):
-        sampler = torch.utils.data.distributed.DistributedSampler(
-            dataset,
-            num_replicas=self.dp_world_size,
-            rank=self.mpu.get_data_parallel_rank(),
-            shuffle=True,
-        )
+        if hasattr(dataset, "weight_dict") and dataset.weight_dict is not None:
+            sampler = WeightedDistributedSampler(
+                dataset,
+                weight_dict=dataset.weight_dict,
+                num_replicas=self.dp_world_size,
+                rank=self.mpu.get_data_parallel_rank(),
+            )
+        else:
+            sampler = torch.utils.data.distributed.DistributedSampler(
+                dataset,
+                num_replicas=self.dp_world_size,
+                rank=self.mpu.get_data_parallel_rank(),
+                shuffle=True,
+            )
         # Build a loader and make it repeating.
         pipe_dataloader = self.deepspeed_io(dataset, data_sampler=sampler)
         pipe_dataloader = RepeatingLoader(pipe_dataloader)
