@@ -13,6 +13,7 @@ from .graphormer_layers import (
     NonLinear,
     init_params,
 )
+from .graphormer_timestep_encoder import TimeStepEncoder
 
 
 class GraphNodeFeatureDiff(GraphNodeFeature):
@@ -31,6 +32,8 @@ class GraphNodeFeatureDiff(GraphNodeFeature):
         n_layers,
         no_2d=False,
         t_timesteps=1010,
+        time_embedding_type="positional",
+        time_embedding_mlp=True,
     ):
         super(GraphNodeFeatureDiff, self).__init__(
             args,
@@ -42,7 +45,12 @@ class GraphNodeFeatureDiff(GraphNodeFeature):
             n_layers,
             no_2d,
         )
-        self.time_embedding = nn.Embedding(t_timesteps, hidden_dim)
+        self.time_embedding = TimeStepEncoder(
+            t_timesteps,
+            hidden_dim,
+            timestep_emb_type=time_embedding_type,
+            mlp=time_embedding_mlp,
+        )
 
     def forward(self, batched_data, t=0, mask_2d=None):
         x, in_degree, out_degree = (
