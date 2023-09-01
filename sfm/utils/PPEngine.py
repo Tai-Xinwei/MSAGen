@@ -23,13 +23,14 @@ from deepspeed.runtime.engine import (
 from deepspeed.runtime.pipe import p2p, schedule
 from deepspeed.runtime.utils import PartitionedTensor
 from deepspeed.runtime.zero.config import ZeroStageEnum
-from deepspeed.utils import OnDevice, instrument_w_nvtx, log_dist, logger
+from deepspeed.utils import instrument_w_nvtx, log_dist
 from deepspeed.utils.timer import ThroughputTimer
 from packaging import version as pkg_version
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
 from sfm.data.sampler import WeightedDistributedSampler
+from sfm.logging import logger, metric_logger
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 
 from .mypp_module import PipelineError, PipelineModule
@@ -434,13 +435,13 @@ class SFMPipeEngine(DeepSpeedEngine):
                 elapsed = self.timers("train_batch").elapsed(reset=True) / 1000.0
                 iter_time = elapsed / self.steps_per_print()
                 tput = self.train_batch_size() / iter_time
-                print(
+                logger.info(
                     f"steps: {self.global_steps} "
                     f"loss: {self.agg_train_loss:0.4f} "
                     f"iter time (s): {iter_time:0.3f} "
                     f"samples/sec: {tput:0.3f}"
                 )
-                print(self.agg_loss_log)
+                metric_logger.log(self.agg_loss_log, "train_inner")
 
         # Monitoring
         if self.global_rank == 0 and self.monitor.enabled:
@@ -879,7 +880,9 @@ class SFMPipeEngine(DeepSpeedEngine):
                     self.total_loss[idx] += l.detach()
 
             for k, v in self.loss_log.items():
-                self.total_loss_log_dict[k] += self.loss_log[k].detach().item()
+                if type(v) == torch.Tensor:
+                    v = v.detach().item()
+                self.total_loss_log_dict[k] += v
 
     def _exec_backward_pass(self, buffer_id):
         assert self.optimizer is not None, (

@@ -3,6 +3,7 @@
 DEFAULT_DS_CONFIG = {
     "train_batch_size": 2,
     "gradient_accumulation_steps": 1,
+    "zero_allow_untested_optimizer": True,
     "optimizer": {
         "type": "Adam",
         "params": {

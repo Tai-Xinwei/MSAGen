@@ -259,7 +259,7 @@ class DecDeepFuseModel(SFMPipelineModelMixin):
 
             loss = loss_fct(logits[non_pad_mask], labels[non_pad_mask])
 
-            loss_by_type[f"{token_type}_loss"] = loss.item()
+            loss_by_type[f"{token_type.name}_loss"] = loss.item()
             total_loss += loss * self.config.loss_weight[token_type.name]
 
         return ModelOutput(
@@ -269,9 +269,6 @@ class DecDeepFuseModel(SFMPipelineModelMixin):
         )
 
     def config_optimizer(self) -> Tuple[Optimizer, LRScheduler]:
-        # TODO: PP don't support custom optimizer yet.
-        return None, None
-
         num_parameters = 0
         p_wd, p_non_wd = [], []
         for n, p in self.named_parameters():
