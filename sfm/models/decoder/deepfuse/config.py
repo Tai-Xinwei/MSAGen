@@ -80,6 +80,7 @@ class DecDeepFuseConfig(DistributedTrainConfig):
     # and the third and sixth layers are *N*ot used, i.e., only text layers are used.
     # The string lenth should be equal to the number of text layers.
     # You can also use any separator, e.g., "M-S-N-M-S-N".
+    # layer_usage: str = "NNNN-SSSS-MSSS-SSSS-SSSS-MSSS-SSSS-NNNN"
     layer_usage: str = "NNNN-SSSS-MSSS-SSSS-SSSS-MSSS-SSSS-NNNN"
 
     loss_weight: Dict[str, float] = field(
@@ -116,8 +117,8 @@ class DecDeepFuseConfig(DistributedTrainConfig):
 def llama2_7b_default_config():
     return {
         "hidden_act": "silu",
-        "hidden_size": 4096,
-        "intermediate_size": 11008,
+        "hidden_size": 256,
+        "intermediate_size": 1024,
         "max_entity_len": 2048,
         "num_attention_heads": 32,
         "num_hidden_layers": 32,
@@ -130,8 +131,8 @@ def llama2_7b_default_config():
 def mix_gpt_default_config():
     return {
         "entity_hidden_act": "gelu",
-        "entity_hidden_size": 1024,
-        "entity_intermediate_size": 4096,
+        "entity_hidden_size": 256,
+        "entity_intermediate_size": 1024,
         "entity_num_attention_heads": 16,
         "entity_num_hidden_layers": 24,
         "entity_vocab_size": 1488,

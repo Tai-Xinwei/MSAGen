@@ -596,14 +596,14 @@ class DeepSpeedAccelerator(Accelerator):
                 shuffle=True,
                 drop_last=False,
                 num_replicas=self.model_engine.dp_world_size,
-                rank=self.model_engine.global_rank,
+                rank=self.model_engine.mpu.get_data_parallel_rank(),
             )
 
         if self.valid_data:
             validsampler = torch.utils.data.distributed.DistributedSampler(
                 self.valid_data,
                 num_replicas=self.model_engine.dp_world_size,
-                rank=self.model_engine.global_rank,
+                rank=self.model_engine.mpu.get_data_parallel_rank(),
                 shuffle=False,
             )
             valid_batch_size_per_gpu = self.args.val_batch_size // (
