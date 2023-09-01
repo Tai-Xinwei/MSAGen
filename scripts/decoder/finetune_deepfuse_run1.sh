@@ -17,7 +17,7 @@ deepspeed --num_gpu=$NUM_GPUS --master_port=12345 \
     sfm/tasks/decoder/train_dec_deepfuse.py \
     --strategy Pipeline --pipeline_model_parallel_size 4 \
     --pp_partition_layer_name manual  \
-    --pp_part_list, '[0, 9, 17, 25, 34]', \
+    --pp_part_list '[0, 9, 17, 25, 34]' \
     --init_lr 3e-5 \
     --min_lr 8e-6 \
     --warmup_lr 1e-6 \

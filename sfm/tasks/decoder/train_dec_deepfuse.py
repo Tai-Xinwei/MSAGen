@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
 from dataclasses import replace
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.extend([".", ".."])
+
 
 from sfm.data.dec_data.datasets import MixedTokenDataset, TokenType
 from sfm.models.decoder.deepfuse.config import (
