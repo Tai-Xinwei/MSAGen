@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-from dataclasses import asdict, dataclass, fields
+from dataclasses import dataclass, fields, is_dataclass
 from typing import Dict, Union
 
 import torch
@@ -47,26 +47,28 @@ class MetricLogger(object):
         if not is_master_node():
             return
 
-        # if wandb.run is None:
-        # Log to console
-        logger.info(metrics)
+        log_data = {}
+        if type(metrics) is dict:
+            log_data = metrics
+        elif is_dataclass(metrics):
+            log_data = dataclass_to_dict(metrics)
+
+            if "extra_output" in log_data:
+                extra_output = log_data["extra_output"]
+                if extra_output is not None:
+                    for k, v in extra_output.items():
+                        log_data[k] = v
+                del log_data["extra_output"]
+
+        for k in log_data:
+            if isinstance(log_data[k], torch.Tensor):
+                log_data[k] = log_data[k].detach().item()
+
+        logger.info(" | ".join([f"{k}={v:.4g}" for k, v in log_data.items()]))
         if wandb.run is not None:
-            if type(metrics) is dict:
-                log_data = metrics
-            elif hasattr(metrics, "__dataclass_fields__"):
-                log_data = dataclass_to_dict(metrics)
-
-                if "extra_output" in log_data:
-                    extra_output = log_data["extra_output"]
-                    if extra_output is not None:
-                        for k, v in extra_output.items():
-                            log_data[k] = v
-                    del log_data["extra_output"]
-
             # Add prefix
             if prefix:
                 log_data = {f"{prefix}/{k}": v for k, v in log_data.items()}
-
             wandb.log(log_data)
 
 

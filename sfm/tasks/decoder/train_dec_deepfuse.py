@@ -2,7 +2,7 @@
 import os
 from dataclasses import replace
 
-from sfm.data.dec_data.datasets import MixedTokenDataset
+from sfm.data.dec_data.datasets import MixedTokenDataset, TokenType
 from sfm.models.decoder.deepfuse.config import (
     DataConfig,
     DecDeepFuseConfig,
@@ -67,8 +67,11 @@ def main(args):
     )
 
     model = DecDeepFuseModel(config)
+    loss_log_dict = {f"{token_type.name}_loss": 0.0 for token_type in TokenType}
 
-    trainer = Trainer(config, model, train_dataset, val_dataset)
+    trainer = Trainer(
+        config, model, train_dataset, val_dataset, loss_log_dict=loss_log_dict
+    )
     trainer.train()
 
 
