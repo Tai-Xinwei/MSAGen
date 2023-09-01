@@ -412,11 +412,11 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
         return config
 
     def compute_loss(self, pred, batch) -> ModelOutput:
-        loss = self.loss(pred, batch)
+        loss, loss_log = self.loss(pred, batch)
         return ModelOutput(
             loss=loss,
             num_examples=pred[0].size()[0],
-            log_output={"loss": float(loss.detach())},
+            log_output=loss_log,
         )
 
     def config_optimizer(self) -> tuple[Optimizer, LRScheduler]:

@@ -51,7 +51,8 @@ class CopilotCriterionsPP(CopilotCriterions):
 
         loss = self.l1(shift_logits, shift_labels)
 
-        return loss
+        loss_log = {"loss": float(loss.detach())}
+        return (loss, loss_log)
 
 
 class CopilotCriterionsNumPP(CopilotCriterions):
@@ -109,17 +110,20 @@ class CopilotCriterionsNumPP(CopilotCriterions):
         else:
             lm_binary_loss = torch.tensor(0.0).to(loss.device)
 
-        # For local single A100 training
-        self.global_step += 1
+        # # For local single A100 training
+        # self.global_step += 1
 
-        if self.global_step % 10 == 0:
-            logger.info(
-                f"lm_loss, {loss}, num_loss, {num_loss} bce_loss, {lm_binary_loss}"
-            )
-            # # TODO: this should use wandb inside, check pfm/pretrain_pfm.sh
-            # if self.wandb_log:
-            #     wandb.log(
-            #         {"lm_loss": loss, "num_loss": num_loss, "bce_loss": lm_binary_loss}
-            #     )
+        # if self.global_step % 10 == 0:
+        #     logger.info(
+        #         f"lm_loss, {loss}, num_loss, {num_loss} bce_loss, {lm_binary_loss}"
+        #     )
+        # # TODO: this should use wandb inside, check pfm/pretrain_pfm.sh
+        # if self.wandb_log:
+        #     wandb.log(
+        #         {"lm_loss": loss, "num_loss": num_loss, "bce_loss": lm_binary_loss}
+        #     )
 
-        return loss + num_loss + lm_binary_loss
+        loss_log = {"lm_loss": loss, "num_loss": num_loss, "bce_loss": lm_binary_loss}
+        total_loss = loss + num_loss + lm_binary_loss
+
+        return (total_loss, loss_log)

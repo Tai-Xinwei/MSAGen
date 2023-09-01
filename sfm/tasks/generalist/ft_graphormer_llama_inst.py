@@ -91,6 +91,7 @@ def main(args) -> None:
             train_data=data_module["train_dataset"],
             valid_data=data_module["eval_dataset"],
             model=GraphormerLlamaModel(args, data_module["vocab_size"]),
+            loss_log_dict={"lm_loss": 0.0, "num_loss": 0.0, "bce_loss": 0.0},
         )
     else:
         raise Exception("Check ft3d_graphormer_llama_inst.py")

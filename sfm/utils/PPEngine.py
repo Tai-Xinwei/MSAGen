@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import copy
 import os
 from types import MethodType
 from typing import Optional, Union
@@ -29,6 +30,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
 from sfm.data.sampler import WeightedDistributedSampler
+from sfm.pipeline.accelerator.dataclasses import ModelOutput
 
 from .mypp_module import PipelineError, PipelineModule
 
@@ -410,6 +412,8 @@ class SFMPipeEngine(DeepSpeedEngine):
         self.module.train()
         self.total_loss = None
         self._compute_loss = True
+        self.loss_log = None
+        self.total_loss_log_dict = copy.deepcopy(self.module.loss_log_dict)
 
         # Do the work
         self.timers("train_batch").start()
@@ -420,6 +424,8 @@ class SFMPipeEngine(DeepSpeedEngine):
         )
         self._exec_schedule(sched)
         self.agg_train_loss = self._aggregate_total_loss()
+        self.agg_loss_log = self._aggregate_loss_log(self.total_loss_log_dict)
+        # self.agg_loss_log = self.total_loss_log_dict
 
         self.timers("train_batch").stop()
 
@@ -434,6 +440,7 @@ class SFMPipeEngine(DeepSpeedEngine):
                     f"iter time (s): {iter_time:0.3f} "
                     f"samples/sec: {tput:0.3f}"
                 )
+                print(self.agg_loss_log)
 
         # Monitoring
         if self.global_rank == 0 and self.monitor.enabled:
@@ -445,6 +452,14 @@ class SFMPipeEngine(DeepSpeedEngine):
                 )
             ]
             self.monitor.write_events(self.summary_events)
+            self.loss_log_events = [
+                (
+                    "Train/Samples/train_loss_log",
+                    self.agg_loss_log,
+                    self.global_samples,
+                )
+            ]
+            self.monitor.write_events(self.loss_log_events)
 
         if (
             self.wall_clock_breakdown()
@@ -670,6 +685,38 @@ class SFMPipeEngine(DeepSpeedEngine):
 
         return agg_loss
 
+    def _aggregate_loss_log(self, loss_log):
+        # Scale loss, average among DP ranks, and bcast loss to the rest of my DP group
+        agg_loss_log = {}
+        if self.is_last_stage():
+            for k, v in loss_log.items():
+                loss = self._scale_loss_by_gas(v).clone().detach()
+                if self.is_data_parallel:
+                    dist.all_reduce(loss, group=self.mpu.get_data_parallel_group())
+                    loss /= self.dp_world_size
+                assert self.global_rank in self.grid.pp_group
+                agg_loss_log[k] = loss
+                dist.broadcast(
+                    tensor=loss,
+                    src=self.global_rank,
+                    group=self.mpu.get_pipe_parallel_group(),
+                )
+        else:
+            # Get loss from last stage
+            loss_log = self.module.loss_log_dict
+            src_rank = self.grid.stage_to_global(self.num_stages - 1)
+            assert src_rank in self.grid.pp_group
+            for k, v in loss_log.items():
+                loss = torch.Tensor([0.0]).to(self.device)
+                dist.broadcast(
+                    tensor=loss, src=src_rank, group=self.grid.get_pipe_parallel_group()
+                )
+                agg_loss_log[k] = loss.clone().detach().item()
+
+        # logger.info(f'_aggregate_loss_log is {agg_loss_log}')
+
+        return agg_loss_log
+
     def set_dataloader(self, loader):
         """"""
         if self.is_first_stage() or self.is_last_stage():
@@ -795,7 +842,19 @@ class SFMPipeEngine(DeepSpeedEngine):
         if self.is_last_stage():
             if self._compute_loss and self.module.loss_fn is not None:
                 labels = self.pipe_buffers["labels"][buffer_id]
-                self.loss = self.module.loss_fn(outputs, labels)
+                # self.loss = self.module.loss_fn(outputs, labels)
+                output = self.module.loss_fn(outputs, labels)
+                if isinstance(output, ModelOutput):
+                    self.loss = output.loss
+                    self.loss_log = output.log_output
+                elif isinstance(output, torch.Tensor):
+                    self.loss = output
+                    self.loss_log = {}
+                elif isinstance(output, tuple):
+                    self.loss = output[0]
+                    self.loss_log = output[1]
+                else:
+                    raise ValueError(f"Unexpected loss type {type(output)}")
                 self.labels = labels
             else:
                 # Some models just return loss from forward()
@@ -818,6 +877,9 @@ class SFMPipeEngine(DeepSpeedEngine):
                     self.total_loss = [torch.zeros_like(l) for l in self.loss]
                 for idx, l in enumerate(self.loss):
                     self.total_loss[idx] += l.detach()
+
+            for k, v in self.loss_log.items():
+                self.total_loss_log_dict[k] += self.loss_log[k].detach().item()
 
     def _exec_backward_pass(self, buffer_id):
         assert self.optimizer is not None, (
