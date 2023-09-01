@@ -372,7 +372,14 @@ class DdpAccelerator(SingleNodeAccelerator):
 
 class DeepSpeedAccelerator(Accelerator):
     def __init__(
-        self, args, model, optimizer, lr_scheduler, train_data, valid_data
+        self,
+        args,
+        model,
+        optimizer,
+        lr_scheduler,
+        train_data,
+        valid_data,
+        loss_log_dict={},
     ) -> None:
         super().__init__()
         self.args = args
@@ -381,6 +388,7 @@ class DeepSpeedAccelerator(Accelerator):
         self.lr_scheduler = lr_scheduler
         self.train_data = train_data
         self.valid_data = valid_data
+        self.loss_log_dict = loss_log_dict
 
     @property
     def grad_scale(self) -> float:
@@ -491,12 +499,13 @@ class DeepSpeedAccelerator(Accelerator):
 
             self.model = SFMPipelineModule(
                 self.model,
-                loss_fn=lambda pred, label: self.model.compute_loss(pred, label).loss,
+                loss_fn=lambda pred, label: self.model.compute_loss(pred, label),
                 num_stages=self.args.deepspeed_config.get(
                     "num_pp_stages", self.args.pipeline_model_parallel_size
                 ),
                 partition_method=pp_partition_layer_name,
                 part_list=self.args.pp_part_list,
+                loss_log_dict=self.loss_log_dict,
             )
             unfreeze_params = self.get_unfreeze_param_list(
                 self.args.unfreeze_param_list

@@ -180,6 +180,7 @@ class Trainer(object):
         test_data: Optional[Dataset] = None,
         optimizer: Optional[torch.optim.Optimizer] = None,
         lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
+        loss_log_dict: Optional[dict] = {},
     ):
         super().__init__()
         self.args = args
@@ -197,7 +198,7 @@ class Trainer(object):
             self.optimizer = optimizer
             self.lr_scheduler = lr_scheduler
 
-        self.accelerator = self.build_accelerator()
+        self.accelerator = self.build_accelerator(loss_log_dict=loss_log_dict)
         self.accelerator.set_up()
 
         if args.strategy.find("Zero") == -1:
@@ -234,7 +235,7 @@ class Trainer(object):
             with open(checkpoint_list_path, "w") as f:
                 f.write("")
 
-    def build_accelerator(self) -> Accelerator:
+    def build_accelerator(self, loss_log_dict: Optional[dict] = {}) -> Accelerator:
         if self.args.strategy == TrainStrategy.Single:
             return SingleNodeAccelerator(
                 self.args,
@@ -256,6 +257,7 @@ class Trainer(object):
                 self.lr_scheduler,
                 self.train_data,
                 self.valid_data,
+                loss_log_dict=loss_log_dict,
             )
         elif self.args.strategy == TrainStrategy.DDP:
             return DdpAccelerator(

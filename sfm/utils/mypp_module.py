@@ -138,6 +138,7 @@ class PipelineModule(nn.Module):
         activation_checkpoint_func=checkpointing.checkpoint,
         checkpointable_layers=None,
         device=None,
+        loss_log_dict={},
     ):
         super().__init__()
 
@@ -147,6 +148,10 @@ class PipelineModule(nn.Module):
         self.micro_offset = 0
         self.device = f"cuda:{device}"
         self.loss_fn = loss_fn
+
+        self.loss_log_dict = {}
+        for k, v in loss_log_dict.items():
+            self.loss_log_dict[k] = torch.Tensor([loss_log_dict[k]]).cuda()
 
         self.checkpointable_layers = checkpointable_layers
         if checkpointable_layers is not None:
