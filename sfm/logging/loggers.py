@@ -19,7 +19,7 @@ def get_logger():
         logger.remove()  # remove default handler
         handlers["console"] = logger.add(
             sys.stdout,
-            format="[<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green>][<cyan>{level}</cyan>]: {message}",
+            format="[{time:YYYY-MM-DD HH:mm:ss.SSS}][{level}]: {message}",
             colorize=True,
             filter=console_log_filter,
             enqueue=True,

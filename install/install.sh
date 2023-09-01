@@ -9,6 +9,7 @@ pip install ogb==1.3.6
 pip install rdkit-pypi==2021.9.3
 pip install tensorboard
 pip install numba
+pip install mpi4py
 
 pip install torch-scatter==2.1.1 -f https://pytorch-geometric.com/whl/torch-2.0.0+cu117.html --upgrade
 pip install torch-sparse==0.6.17 -f https://pytorch-geometric.com/whl/torch-2.0.0+cu117.html --upgrade

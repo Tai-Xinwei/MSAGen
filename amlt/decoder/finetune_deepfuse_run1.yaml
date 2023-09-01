@@ -1,0 +1,41 @@
+description: finetune deepfuse stage 1 (adapter only)
+
+env_defaults:
+  NODES: 1
+  GPUS: 16
+  WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+
+target:
+    service: amlk8s
+    name: itphyperdgx2cl1
+    vc: hai1
+
+environment:
+  image: shufxi/mfmds:20230807
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+
+storage:
+  blob:
+    storage_account_name: hai1data # Storage account
+    container_name: mfm # Container name
+    mount_dir: /blob
+
+code:
+  local_dir: .
+
+jobs:
+- name: finetune_deepfuse_run1
+  sku: ${NODES}G${GPUS}
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=deepfuse
+  - bash ./install/install.sh
+  - pip install -e .
+  - bash scripts/decoder/finetune_deepfuse_run1.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g

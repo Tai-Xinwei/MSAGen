@@ -32,14 +32,16 @@ class DataConfig:
 
     # For text2mol
     train_mol_path: str = "/blob/shufxi/data/tamgent/chebi/train.textmol.smi"
-    train_txt_path: str = "/blob/shufxi/data/tamgent/chebi/train.textmol.desc"
+    train_text_path: str = "/blob/shufxi/data/tamgent/chebi/train.textmol.desc"
     val_mol_path: str = "/blob/shufxi/data/tamgent/chebi/val.textmol.smi"
-    val_text_path: str = "/blob/shufxi/data/tamgent/chebi/val.textmol.smi"
+    val_text_path: str = "/blob/shufxi/data/tamgent/chebi/val.textmol.desc"
 
 
 @dataclass
 class DecDeepFuseConfig(DistributedTrainConfig):
-    freeze_text_encoder: bool = True
+    freeze_text_model: bool = True
+    finetune_text_extra_emb: bool = True
+    freeze_entity_model: bool = True
 
     llama_model: str = "/hai1/ds_dataset/llama2/llama-2-7b"
     entity_decoder_model: str = "/home/shufxi/mixgpt/mixgpt_new/ckpt"

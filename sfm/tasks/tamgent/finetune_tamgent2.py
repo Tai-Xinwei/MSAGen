@@ -13,7 +13,7 @@ def main(args):
     config = arg_utils.from_args(args, Tamgent2Config)
 
     train_dataset = TextToMolDataset.from_files(
-        config.train_mol_path, config.train_txt_path
+        config.train_mol_path, config.train_text_path
     )
     val_dataset = TextToMolDataset.from_files(config.val_mol_path, config.val_text_path)
 

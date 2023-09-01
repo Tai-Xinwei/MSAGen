@@ -54,6 +54,31 @@ class MixedTokenData(Batch):
     def non_padding_mask(self):
         return self.token_seq.eq(self.pad_idx).logical_not()
 
+    def to_tuple(self):
+        t = (
+            self.token_seq,
+            self.token_seq_len,
+            self.token_type_mask,
+            self.label_seq,
+            torch.LongTensor([self.pad_idx]),
+            torch.LongTensor([self.batch_size]),
+        )
+        return (t, t)
+
+    @classmethod
+    def from_tuple(cls, t):
+        if len(t) == 2:
+            t = t[0]
+
+        return cls(
+            token_seq=t[0],
+            token_seq_len=t[1],
+            token_type_mask=t[2],
+            label_seq=t[3],
+            pad_idx=t[4].item(),
+            batch_size=t[5].item(),
+        )
+
 
 class MixedTokenDataset(FoundationModelDataset):
     def __init__(
@@ -63,6 +88,7 @@ class MixedTokenDataset(FoundationModelDataset):
         entity_tokenizer: str,  # TODO: support multiple entity tokenizers
         max_text_len: int,
         max_entity_len: int,
+        return_tuple: bool = False,
     ) -> None:
         super().__init__()
         self.sents = sents
@@ -72,6 +98,7 @@ class MixedTokenDataset(FoundationModelDataset):
         self.max_text_len = max_text_len
         self.max_entity_len = max_entity_len
         self.pad_idx = self.text_tokenizer.pad_token_id
+        self.return_tuple = return_tuple
 
     def init_tokenziers(self, text_tokenizer: str, entity_tokenizer: str):
         self.entity_tokenizer = SFMDecTokenizer.from_pretrained(
@@ -204,7 +231,7 @@ class MixedTokenDataset(FoundationModelDataset):
         token_type_mask = torch.ShortTensor(token_type_seq)
         label_seq = torch.IntTensor(label_seq)
 
-        return MixedTokenData(
+        data = MixedTokenData(
             token_seq=token_seq,
             token_seq_len=token_seq_len,
             token_type_mask=token_type_mask,
@@ -213,10 +240,18 @@ class MixedTokenDataset(FoundationModelDataset):
             batch_size=1,
         )
 
+        if self.return_tuple:
+            data = data.to_tuple()
+
+        return data
+
     def collate(self, batch: List[MixedTokenData]) -> MixedTokenData:
         """
         Collate a batch of MixedTokenData.
         """
+
+        if self.return_tuple:
+            batch = [MixedTokenData.from_tuple(t) for t in batch]
 
         # pad the token_seq
         batched_tokens = torch.nn.utils.rnn.pad_sequence(
@@ -241,7 +276,7 @@ class MixedTokenDataset(FoundationModelDataset):
             padding_value=self.pad_idx,
         )
 
-        return MixedTokenData(
+        batch = MixedTokenData(
             token_seq=batched_tokens,
             token_seq_len=token_seq_len,
             token_type_mask=batched_token_type_mask,
@@ -249,6 +284,11 @@ class MixedTokenDataset(FoundationModelDataset):
             pad_idx=self.pad_idx,
             batch_size=len(batch),
         )
+
+        if self.return_tuple:
+            batch = batch.to_tuple()
+
+        return batch
 
     @classmethod
     def from_jsonl(

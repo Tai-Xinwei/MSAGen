@@ -148,3 +148,7 @@ dmypy.json
 
 #pycharm
 .idea
+
+
+#no need test for running in cluster
+/tests/

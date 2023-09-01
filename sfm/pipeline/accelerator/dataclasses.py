@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional
 
 import torch
 
@@ -49,6 +49,7 @@ class TrainerConfig:
     log_interval: int = 10000
     strategy: TrainStrategy = TrainStrategy.Single
     pp_partition_layer_name: str = ""
+    pp_part_list: Optional[List[int]] = None
     cpu: bool = False
     ifresume: bool = False
     load_ckpt: bool = False

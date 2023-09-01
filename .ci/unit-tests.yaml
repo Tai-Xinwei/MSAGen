@@ -19,7 +19,7 @@ steps:
 # Cache Conda environment
 - task: Cache@2
   inputs:
-    key: 'conda | "$(Agent.OS)" | install/install.sh | v1'
+    key: 'conda | "$(Agent.OS)" | install/install.sh | v2 '
     restoreKeys: |
       conda | "$(Agent.OS)"
     path: $(CONDA_ENV_DIR)
@@ -45,5 +45,6 @@ steps:
     conda activate $(CONDA_ENV_DIR)/$(CONDA_ENV_NAME)
     # Install pytest and run tests
     pip install -e .
+    python setup_cython.py build_ext --inplace
     pytest tests/
   displayName: 'Install and run unit tests'
