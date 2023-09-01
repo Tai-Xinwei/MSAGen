@@ -24,8 +24,9 @@ class SFMPipelineModule(PipelineModule, Model):
         self,
         model: SFMPipelineModelMixin,
         loss_fn: Module,
-        partition_layer_name: str,
+        partition_method: str,
         num_stages: Optional[int] = None,
+        part_list: Optional[List[int]] = None,
     ):
         super().__init__(
             model.to_layers(),
@@ -35,10 +36,11 @@ class SFMPipelineModule(PipelineModule, Model):
             seed_layers=False,
             seed_fn=None,
             base_seed=1234,
-            partition_method=f"type:{partition_layer_name}",
+            partition_method=partition_method,
             activation_checkpoint_interval=0,
             activation_checkpoint_func=checkpointing.checkpoint,
             checkpointable_layers=None,
+            part_list=part_list,
         )
         self.model = model
 

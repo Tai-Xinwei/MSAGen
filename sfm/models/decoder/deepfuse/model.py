@@ -1,30 +1,26 @@
 # -*- coding: utf-8 -*-
-from typing import Tuple
+from typing import List, Tuple
 
 import torch
 import torch.nn as nn
+from torch.nn import Module
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
-from transformers.models.biogpt.modeling_biogpt import BioGptLearnedPositionalEmbedding
-from transformers.models.llama.modeling_llama import _expand_mask, _make_causal_mask
 
-from sfm.data.dec_data.datasets import MixedTokenData, TokenType
+from sfm.data.dec_data.datasets import ENTITY_MARKERS, MixedTokenData, TokenType
 from sfm.logging import logger
-from sfm.models.decoder.deepfuse.config import (
-    DecDeepFuseConfig,
-    EntityDecoderType,
-    LayerUsage,
-)
+from sfm.models.decoder.deepfuse.config import DecDeepFuseConfig, LayerUsage
 from sfm.models.decoder.deepfuse.hidden_state import HiddenState
 from sfm.models.decoder.deepfuse.modules import (
+    Embed,
+    Head,
     MixLayer,
     SeperateLayer,
     TextOnly,
-    make_norm_dict,
 )
 from sfm.models.tamgent.scheduler import LinearWarmupCosineLRScheduler
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
-from sfm.pipeline.accelerator.trainer import Model
+from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils.optim.adam import AdamW
 
 """
@@ -36,29 +32,11 @@ TODO:
 """
 
 
-class DecDeepFuseModel(Model):
+class DecDeepFuseModel(SFMPipelineModelMixin):
     def __init__(self, config: DecDeepFuseConfig) -> None:
         super().__init__()
         self.config = config
-
-        self.embed_tokens = nn.ModuleDict(
-            {
-                TokenType.Text.name: nn.Embedding(
-                    config.vocab_size + config.new_token_count, config.hidden_size
-                ),
-                TokenType.Entity.name: nn.Embedding(
-                    config.entity_vocab_size, config.entity_hidden_size
-                ),
-            }
-        )
-
-        if config.entity_decoder_model_type == EntityDecoderType.BioGPT:
-            # Only BioGPT uses the learned positional embedding
-            self.embed_positions = BioGptLearnedPositionalEmbedding(
-                config.max_position_embeddings, config.entity_hidden_size
-            )
-        else:
-            self.embed_positions = None
+        self.embed = Embed(config)
 
         self.decoder_layers = nn.ModuleList([])
         self.layer_usage = LayerUsage.from_str(config.layer_usage)
@@ -82,23 +60,10 @@ class DecDeepFuseModel(Model):
             else:
                 raise ValueError(f"Unknown layer usage {usage}")
 
-        self.final_norm = make_norm_dict(config)
-
-        # self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-        self.lm_head = nn.ModuleDict(
-            {
-                TokenType.Text.name: nn.Linear(
-                    config.hidden_size,
-                    config.vocab_size + config.new_token_count,
-                    bias=False,
-                ),
-                TokenType.Entity.name: nn.Linear(
-                    config.entity_hidden_size, config.entity_vocab_size, bias=False
-                ),
-            }
-        )
+        self.head = Head(config)
 
         self.load_from_pretrained()
+        self.freeze_params()
 
     def extend_emb(self, emb: torch.Tensor) -> torch.Tensor:
         new_emb = torch.zeros(
@@ -135,15 +100,15 @@ class DecDeepFuseModel(Model):
         # Embedding
         lambda_state_dict = torch.load(f"{self.config.llama_model}/model.hybrid_emb.pt")
 
-        mapped_state_dict["embed_tokens.Text.weight"] = self.extend_emb(
+        mapped_state_dict["embed.embed_tokens.Text.weight"] = self.extend_emb(
             lambda_state_dict["embed_tokens.weight"]
         )
 
-        mapped_state_dict["embed_tokens.Entity.weight"] = entity_decoder_state_dict[
-            "biogpt.embed_tokens.weight"
-        ]
+        mapped_state_dict[
+            "embed.embed_tokens.Entity.weight"
+        ] = entity_decoder_state_dict["biogpt.embed_tokens.weight"]
 
-        mapped_state_dict["embed_positions.weight"] = entity_decoder_state_dict[
+        mapped_state_dict["embed.embed_positions.weight"] = entity_decoder_state_dict[
             "biogpt.embed_positions.weight"
         ]
 
@@ -167,20 +132,22 @@ class DecDeepFuseModel(Model):
                 entity_layer_id += 1
         # Final norm
         lambda_state_dict = torch.load(f"{self.config.llama_model}/model.norm.pt")
-        mapped_state_dict["final_norm.Text.weight"] = lambda_state_dict["norm.weight"]
-        mapped_state_dict["final_norm.Entity.weight"] = entity_decoder_state_dict[
+        mapped_state_dict["head.final_norm.Text.weight"] = lambda_state_dict[
+            "norm.weight"
+        ]
+        mapped_state_dict["head.final_norm.Entity.weight"] = entity_decoder_state_dict[
             "biogpt.layer_norm.weight"
         ]
-        mapped_state_dict["final_norm.Entity.bias"] = entity_decoder_state_dict[
+        mapped_state_dict["head.final_norm.Entity.bias"] = entity_decoder_state_dict[
             "biogpt.layer_norm.bias"
         ]
 
         # output layer
         lambda_state_dict = torch.load(f"{self.config.llama_model}/model.lm_head.pt")
-        mapped_state_dict["lm_head.Text.weight"] = self.extend_emb(
+        mapped_state_dict["head.lm_head.Text.weight"] = self.extend_emb(
             lambda_state_dict["lm_head.weight"]
         )
-        mapped_state_dict["lm_head.Entity.weight"] = entity_decoder_state_dict[
+        mapped_state_dict["head.lm_head.Entity.weight"] = entity_decoder_state_dict[
             "output_projection.weight"
         ]
 
@@ -199,78 +166,81 @@ class DecDeepFuseModel(Model):
 
         logger.info(f"Total random init params count: {total_random_init_params:,}")
 
+        # remove all "inv_freq" as they are buffers, which cannot be loaded
+        for k in list(mapped_state_dict.keys()):
+            if "inv_freq" in k:
+                del mapped_state_dict[k]
+
         self.load_state_dict(mapped_state_dict)
 
-    # See transformers.models.bart.modeling_bart.BartDecoder
-    def _prepare_decoder_attention_mask(
-        self, attention_mask, input_shape, inputs_embeds, past_key_values_length
-    ):
-        # create causal mask
-        # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-        combined_attention_mask = None
-        if input_shape[-1] > 1:
-            combined_attention_mask = _make_causal_mask(
-                input_shape,
-                inputs_embeds.dtype,
-                device=inputs_embeds.device,
-                past_key_values_length=past_key_values_length,
-            )
+    def freeze_params(self):
+        if self.config.freeze_text_model:
+            logger.info("Freezing text encoder")
+            for param in self.embed.embed_tokens.Text.parameters():
+                param.requires_grad = False
 
-        if attention_mask is not None:
-            # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-            expanded_attn_mask = _expand_mask(
-                attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]
-            ).to(inputs_embeds.device)
-            combined_attention_mask = (
-                expanded_attn_mask
-                if combined_attention_mask is None
-                else expanded_attn_mask + combined_attention_mask
-            )
+            for param in self.head.final_norm.Text.parameters():
+                param.requires_grad = False
 
-        return combined_attention_mask
+            for param in self.head.lm_head.Text.parameters():
+                param.requires_grad = False
+
+            for layer in self.decoder_layers:
+                layer.freeze_text_model()
+
+            if self.config.finetune_text_extra_emb:
+                logger.info("Finetuning text extra embeddings")
+                finetuned_emb_count = len(ENTITY_MARKERS) + 1  # +1 for PAD
+
+                def grad_filter_hook(grad):
+                    # Only finetune of the last finetuned_emb_count embeddings
+                    # But keep the gradients of the rest of the embeddings
+                    grad[:-finetuned_emb_count] = 0
+                    return grad
+
+                for param in self.embed.embed_tokens.Text.parameters():
+                    param.requires_grad = True
+                    param.register_hook(lambda grad: grad_filter_hook(grad))
+
+                for param in self.head.lm_head.Text.parameters():
+                    param.requires_grad = True
+                    param.register_hook(lambda grad: grad_filter_hook(grad))
+
+        if self.config.freeze_entity_model:
+            logger.info("Freezing entity encoder")
+
+            for param in self.embed.embed_tokens.Entity.parameters():
+                param.requires_grad = False
+
+            for param in self.head.final_norm.Entity.parameters():
+                param.requires_grad = False
+
+            for param in self.head.lm_head.Entity.parameters():
+                param.requires_grad = False
+
+            for layer in self.decoder_layers:
+                layer.freeze_entity_model()
 
     def forward(
         self,
         batch: MixedTokenData,
     ) -> HiddenState:
-        h = HiddenState.from_dense(batch.token_seq, batch.token_type_mask)
+        tensors = batch.to_tuple()[0]
 
-        h = h.apply_all_types_mapping(self.embed_tokens)
-
-        (
-            bsz,
-            seq_len,
-        ) = batch.token_type_mask.shape
-
-        position_ids = torch.arange(0, seq_len, dtype=torch.long, device=h.device)
-        position_ids = position_ids.unsqueeze(0)
-
-        attention_mask = batch.non_padding_mask.to(h.dtype)
-
-        # Only BioGPT uses the learned positional embedding
-        if self.embed_positions is not None:
-            positions = self.embed_positions(attention_mask, past_key_values_length=0)
-            x = (
-                h.x_dict[TokenType.Entity]
-                + positions[batch.token_type_mask == TokenType.Entity.value]
-            )
-            h = h.update_x_dict(TokenType.Entity, x)
-
-        attention_mask = self._prepare_decoder_attention_mask(
-            attention_mask, (bsz, seq_len), x, 0
-        )
-
-        tensors = h.to_tuple() + (attention_mask, position_ids)
+        tensors = self.embed(tensors)
 
         for layer in self.decoder_layers:
             tensors = layer(tensors)
 
-        h = HiddenState.from_tuple(tensors[:-2])
-        h = h.apply_all_types_mapping(self.lm_head)
+        h_tuple = self.head(tensors)
 
-        return h
+        return HiddenState.from_tuple(h_tuple)
 
     def compute_loss(self, pred: HiddenState, batch: MixedTokenData):
+        if type(pred) is tuple:
+            pred = HiddenState.from_tuple(pred)
+            batch = MixedTokenData.from_tuple(batch)
+
         loss_by_type = {}
         loss_fct = nn.CrossEntropyLoss()
         total_loss = 0
@@ -299,6 +269,9 @@ class DecDeepFuseModel(Model):
         )
 
     def config_optimizer(self) -> Tuple[Optimizer, LRScheduler]:
+        # TODO: PP don't support custom optimizer yet.
+        return None, None
+
         num_parameters = 0
         p_wd, p_non_wd = [], []
         for n, p in self.named_parameters():
@@ -339,3 +312,6 @@ class DecDeepFuseModel(Model):
             warmup_start_lr=warmup_start_lr,
         )
         return optimizer, scheduler
+
+    def to_layers(self) -> List[Module]:
+        return [self.embed] + list(self.decoder_layers) + [self.head]

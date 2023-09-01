@@ -17,7 +17,7 @@ from sfm.utils.optim.adam import AdamW
 
 @dataclass
 class Tamgent2Config(DistributedTrainConfig):
-    freeze_text_encoder: bool = True
+    freeze_text_model: bool = True
     text_hidden_size: int = 4096
     llama_model: str = "/blob/shufxi/llama/7B"
     molxpt_model: str = "/blob/shufxi/molxpt"
@@ -34,7 +34,7 @@ class Tamgent2Config(DistributedTrainConfig):
 
     # Dataset
     train_mol_path: str = "/blob/shufxi/data/tamgent/chebi/train.textmol.smi"
-    train_txt_path: str = "/blob/shufxi/data/tamgent/chebi/train.textmol.desc"
+    train_text_path: str = "/blob/shufxi/data/tamgent/chebi/train.textmol.desc"
     val_mol_path: str = "/blob/shufxi/data/tamgent/chebi/val.textmol.smi"
     val_text_path: str = "/blob/shufxi/data/tamgent/chebi/val.textmol.smi"
 
@@ -61,10 +61,10 @@ class Tamgent2(Model):
         self.init_Qformer()
         self.init_smi_decoder()
 
-        self.freeze_text_encoder()
+        self.freeze_text_model()
 
-    def freeze_text_encoder(self):
-        if self.args.freeze_text_encoder:
+    def freeze_text_model(self):
+        if self.args.freeze_text_model:
             for name, param in self.text_encoder.named_parameters():
                 param.requires_grad = False
 
@@ -72,7 +72,7 @@ class Tamgent2(Model):
             logging.info("freeze text encoder")
 
     def before_batch(self):
-        if self.args.freeze_text_encoder:
+        if self.args.freeze_text_model:
             self.text_encoder.eval()
 
     def init_text_tokenizer(self, path):

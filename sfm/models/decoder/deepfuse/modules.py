@@ -6,7 +6,10 @@ from typing import Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
-from transformers.models.biogpt.modeling_biogpt import BioGptDecoderLayer
+from transformers.models.biogpt.modeling_biogpt import (
+    BioGptDecoderLayer,
+    BioGptLearnedPositionalEmbedding,
+)
 from transformers.models.llama.modeling_llama import (
     ACT2FN,
     LlamaDecoderLayer,
@@ -15,10 +18,12 @@ from transformers.models.llama.modeling_llama import (
     LlamaMLP,
     LlamaRMSNorm,
     LlamaRotaryEmbedding,
+    _expand_mask,
+    _make_causal_mask,
     apply_rotary_pos_emb,
 )
 
-from sfm.data.dec_data.datasets import TokenType
+from sfm.data.dec_data.datasets import MixedTokenData, TokenType
 from sfm.models.decoder.deepfuse.config import DecDeepFuseConfig, EntityDecoderType
 from sfm.models.decoder.deepfuse.hidden_state import HiddenState
 
@@ -32,6 +37,121 @@ def make_norm_dict(config: DecDeepFuseConfig) -> nn.ModuleDict:
             TokenType.Entity.name: nn.LayerNorm(config.entity_hidden_size),
         }
     )
+
+
+class Embed(nn.Module):
+    def __init__(self, config) -> None:
+        super().__init__()
+
+        self.embed_tokens = nn.ModuleDict(
+            {
+                TokenType.Text.name: nn.Embedding(
+                    config.vocab_size + config.new_token_count, config.hidden_size
+                ),
+                TokenType.Entity.name: nn.Embedding(
+                    config.entity_vocab_size, config.entity_hidden_size
+                ),
+            }
+        )
+
+        if config.entity_decoder_model_type == EntityDecoderType.BioGPT:
+            # Only BioGPT uses the learned positional embedding
+            self.embed_positions = BioGptLearnedPositionalEmbedding(
+                config.max_position_embeddings, config.entity_hidden_size
+            )
+        else:
+            self.embed_positions = None
+
+    def forward(self, input_tuple) -> Tuple[torch.Tensor]:
+        batch = MixedTokenData.from_tuple(input_tuple)
+
+        hidden_tuple = tuple(
+            batch.token_seq[batch.token_type_mask == t.value] for t in TokenType
+        ) + (batch.token_type_mask,)
+
+        h = HiddenState.from_tuple(hidden_tuple)
+        h = h.apply_all_types_mapping(self.embed_tokens)
+
+        bsz, seq_len = batch.token_type_mask.shape
+        position_ids = torch.arange(0, seq_len, dtype=torch.long, device=h.device)
+        position_ids = position_ids.unsqueeze(0)
+
+        non_padding_mask = batch.non_padding_mask
+        attention_mask = non_padding_mask.to(h.dtype)
+
+        # Only BioGPT uses the learned positional embedding
+        if self.embed_positions is not None:
+            positions = self.embed_positions(attention_mask, past_key_values_length=0)
+            x = (
+                h.x_dict[TokenType.Entity]
+                + positions[batch.token_type_mask == TokenType.Entity.value]
+            )
+            h = h.update_x_dict(TokenType.Entity, x)
+
+        attention_mask = self._prepare_decoder_attention_mask(
+            attention_mask, (bsz, seq_len), x, 0
+        )
+
+        return h.to_tuple() + (attention_mask, position_ids)
+
+    # See transformers.models.bart.modeling_bart.BartDecoder
+    def _prepare_decoder_attention_mask(
+        self, attention_mask, input_shape, inputs_embeds, past_key_values_length
+    ):
+        # create causal mask
+        # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
+        combined_attention_mask = None
+        if input_shape[-1] > 1:
+            combined_attention_mask = _make_causal_mask(
+                input_shape,
+                inputs_embeds.dtype,
+                device=inputs_embeds.device,
+                past_key_values_length=past_key_values_length,
+            )
+
+        if attention_mask is not None:
+            # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
+            expanded_attn_mask = _expand_mask(
+                attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]
+            ).to(inputs_embeds.device)
+            combined_attention_mask = (
+                expanded_attn_mask
+                if combined_attention_mask is None
+                else expanded_attn_mask + combined_attention_mask
+            )
+
+        return combined_attention_mask
+
+
+class Head(nn.Module):
+    """
+    The output head, including the final ln and lm_head
+    """
+
+    def __init__(self, config: DecDeepFuseConfig) -> None:
+        super().__init__()
+
+        self.final_norm = make_norm_dict(config)
+
+        # self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.lm_head = nn.ModuleDict(
+            {
+                TokenType.Text.name: nn.Linear(
+                    config.hidden_size,
+                    config.vocab_size + config.new_token_count,
+                    bias=False,
+                ),
+                TokenType.Entity.name: nn.Linear(
+                    config.entity_hidden_size, config.entity_vocab_size, bias=False
+                ),
+            }
+        )
+
+    def forward(self, x):
+        h = HiddenState.from_tuple(x[:-2])
+        h = h.apply_all_types_mapping(self.final_norm)
+        h = h.apply_all_types_mapping(self.lm_head)
+        return h.to_tuple()
 
 
 class Adapter(nn.Module):
@@ -334,6 +454,30 @@ class FusedAttn(nn.Module):
 
         return attn_output_hidden
 
+    def freeze_text_model(self):
+        for parm_dict in [
+            self.q_proj_dict,
+            self.k_proj_dict,
+            self.k_proj_dict,
+            self.o_proj_dict,
+        ]:
+            for param in parm_dict[TokenType.Text.name].parameters():
+                param.requires_grad = False
+
+            for param in self.rotary_emb.parameters():
+                param.requires_grad = False
+
+    def freeze_entity_model(self):
+        for parm_dict in [
+            self.q_proj_dict,
+            self.k_proj_dict,
+            self.k_proj_dict,
+            self.o_proj_dict,
+        ]:
+            for name, param in parm_dict.named_parameters():
+                if "adapter" not in name:
+                    param.requires_grad = False
+
 
 class DeepFuseLayerBase(ABC, nn.Module):
     def __init__(self, config: DecDeepFuseConfig) -> None:
@@ -374,6 +518,14 @@ class DeepFuseLayerBase(ABC, nn.Module):
     ):
         raise NotImplementedError
 
+    @abstractmethod
+    def freeze_text_model(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def freeze_entity_model(self):
+        raise NotImplementedError
+
 
 class TextOnly(DeepFuseLayerBase):
     """
@@ -409,6 +561,13 @@ class TextOnly(DeepFuseLayerBase):
             ret[f"{prefix}.text_layer.{k}"] = v
 
         return ret
+
+    def freeze_text_model(self):
+        for param in self.text_layer.parameters():
+            param.requires_grad = False
+
+    def freeze_entity_model(self):
+        pass
 
 
 class MixLayer(DeepFuseLayerBase):
@@ -507,6 +666,21 @@ class MixLayer(DeepFuseLayerBase):
 
         return ret
 
+    def freeze_text_model(self):
+        self.attn.freeze_text_model()
+
+        for modele_dict in [self.mlp, self.attn_norm, self.mlp_norm]:
+            for param in modele_dict.parameters():
+                param.requires_grad = False
+
+    def freeze_entity_model(self):
+        self.attn.freeze_entity_model()
+
+        for modele_dict in [self.mlp, self.attn_norm, self.mlp_norm]:
+            for name, param in modele_dict.named_parameters():
+                if "adapter" not in name:
+                    param.requires_grad = False
+
 
 class SeperateLayer(DeepFuseLayerBase):
     """
@@ -573,3 +747,11 @@ class SeperateLayer(DeepFuseLayerBase):
             target_name = f"{prefix}.layers.Entity.{source_name}"
             ret[target_name] = v
         return ret
+
+    def freeze_text_model(self):
+        for param in self.layers.Text.parameters():
+            param.requires_grad = False
+
+    def freeze_entity_model(self):
+        for param in self.layers.Entity.parameters():
+            param.requires_grad = False

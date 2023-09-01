@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import math
 import multiprocessing
 import os
 from abc import ABC, abstractmethod
@@ -417,6 +418,9 @@ class DeepSpeedAccelerator(Accelerator):
 
             self.args.deepspeed_config["fp16"]["enabled"] = self.args.fp16
             self.args.deepspeed_config["fp16"]["auto_cast"] = self.args.auto_cast
+            self.args.deepspeed_config["fp16"]["initial_scale_power"] = round(
+                math.log2(self.args.grad_scaler_init)
+            )
 
             if (
                 self.args.strategy == TrainStrategy.Zero1
@@ -474,15 +478,25 @@ class DeepSpeedAccelerator(Accelerator):
         self.set_ds_config()
 
         if self.args.strategy == TrainStrategy.Pipeline:
+            assert (
+                self.args.pipeline_model_parallel_size > 0
+            ), f"invalid model parallel size: {self.args.pipeline_model_parallel_size}"
+
+            pp_partition_layer_name = self.args.deepspeed_config.get(
+                "pp_partition_layer_name", self.args.pp_partition_layer_name
+            )
+
+            if pp_partition_layer_name not in ["parameters", "uniform", "manual"]:
+                pp_partition_layer_name = "type:" + pp_partition_layer_name
+
             self.model = SFMPipelineModule(
                 self.model,
                 loss_fn=lambda pred, label: self.model.compute_loss(pred, label).loss,
                 num_stages=self.args.deepspeed_config.get(
                     "num_pp_stages", self.args.pipeline_model_parallel_size
                 ),
-                partition_layer_name=self.args.deepspeed_config.get(
-                    "pp_partition_layer_name", self.args.pp_partition_layer_name
-                ),
+                partition_method=pp_partition_layer_name,
+                part_list=self.args.pp_part_list,
             )
             unfreeze_params = self.get_unfreeze_param_list(
                 self.args.unfreeze_param_list

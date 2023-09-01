@@ -195,6 +195,9 @@ class PipelineModule(nn.Module):
         self.stage_id = self._topo.get_coord(self.global_rank).pipe
 
         # Initialize partition information
+        logger.info(
+            f"RANK={self.global_rank} initializing pipeline, num_stages={self.num_stages}, num_layers={len(layers)}"
+        )
         self._layer_specs = list(layers)
         self._num_layers = len(self._layer_specs)
         self._local_start = 0
