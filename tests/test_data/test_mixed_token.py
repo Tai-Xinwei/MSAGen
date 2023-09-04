@@ -120,7 +120,7 @@ class TestMixedToken(unittest.TestCase):
         expected = MixedTokenData(
             token_seq=torch.IntTensor([0, 10, 11, 12]),  # [<s> a b c]
             token_seq_len=4,
-            token_type_mask=torch.ShortTensor([0, 0, 0, 0]),
+            token_type_mask=torch.ByteTensor([0, 0, 0, 0]),
             label_seq=torch.IntTensor([10, 11, 12, 1]),  # [a b c </s>]
             pad_idx=99,
             batch_size=1,
@@ -139,7 +139,7 @@ class TestMixedToken(unittest.TestCase):
         expected = MixedTokenData(
             token_seq=torch.IntTensor([0, 50, 10, 11, 12, 60]),  # [<s> [M] a b c [/M]]
             token_seq_len=6,
-            token_type_mask=torch.ShortTensor([0, 1, 1, 1, 1, 0]),
+            token_type_mask=torch.ByteTensor([0, 1, 1, 1, 1, 0]),
             label_seq=torch.IntTensor([50, 10, 11, 12, 60, 1]),  # [[M] a b c [/M] </s>]
             pad_idx=99,
             batch_size=1,
@@ -161,7 +161,7 @@ class TestMixedToken(unittest.TestCase):
                 [0, 10, 11, 12, 50, 13, 14, 60]
             ),  # [<s> a b c [A] d e [/A]
             token_seq_len=8,
-            token_type_mask=torch.ShortTensor([0, 0, 0, 0, 1, 1, 1, 0]),
+            token_type_mask=torch.ByteTensor([0, 0, 0, 0, 1, 1, 1, 0]),
             label_seq=torch.IntTensor(
                 [10, 11, 12, 50, 13, 14, 60, 1]
             ),  # [a b c [A] d e [/A] </s>]
@@ -185,7 +185,7 @@ class TestMixedToken(unittest.TestCase):
                 [0, 50, 10, 11, 60, 12, 13, 14]
             ),  # [<s> [A] a b [/A] c d e]
             token_seq_len=8,
-            token_type_mask=torch.ShortTensor([0, 1, 1, 1, 0, 0, 0, 0]),
+            token_type_mask=torch.ByteTensor([0, 1, 1, 1, 0, 0, 0, 0]),
             label_seq=torch.IntTensor(
                 [50, 10, 11, 60, 12, 13, 14, 1]
             ),  # [[A] a b [/A] c d e </s>]
@@ -212,7 +212,7 @@ class TestMixedToken(unittest.TestCase):
                 [0, 10, 11, 12, 50, 13, 14, 60, 15, 16, 17, 51, 18, 19, 61, 20, 21, 22]
             ),  # [<s> a b c [A] d e [/A] f g h [B] i j [/B] k l m]
             token_seq_len=18,
-            token_type_mask=torch.ShortTensor(
+            token_type_mask=torch.ByteTensor(
                 [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0]
             ),
             label_seq=torch.IntTensor(
@@ -238,7 +238,7 @@ class TestMixedToken(unittest.TestCase):
                 [0, 50, 10, 11, 60, 51, 12, 13, 61]
             ),  # [<s> [A] a b [/A] [B] c d [/B]
             token_seq_len=9,
-            token_type_mask=torch.ShortTensor([0, 1, 1, 1, 0, 1, 1, 1, 0]),
+            token_type_mask=torch.ByteTensor([0, 1, 1, 1, 0, 1, 1, 1, 0]),
             label_seq=torch.IntTensor(
                 [50, 10, 11, 60, 51, 12, 13, 61, 1]
             ),  # [[A] a b [/A] [B] c d [/B] </s>]

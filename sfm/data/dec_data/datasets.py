@@ -228,7 +228,7 @@ class MixedTokenDataset(FoundationModelDataset):
 
         token_seq = torch.IntTensor(token_seq)
         token_seq_len = token_seq.shape[0]
-        token_type_mask = torch.ShortTensor(token_type_seq)
+        token_type_mask = torch.ByteTensor(token_type_seq)
         label_seq = torch.IntTensor(label_seq)
 
         data = MixedTokenData(
@@ -267,7 +267,7 @@ class MixedTokenDataset(FoundationModelDataset):
         batched_token_type_mask = torch.nn.utils.rnn.pad_sequence(
             [text.token_type_mask for text in batch],
             batch_first=True,
-            padding_value=self.pad_idx,
+            padding_value=torch.iinfo(batch[0].token_type_mask.dtype).max,
         )
 
         batched_label_seq = torch.nn.utils.rnn.pad_sequence(

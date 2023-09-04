@@ -153,6 +153,7 @@ class DecDeepFuseModel(SFMPipelineModelMixin):
 
         # Init the rest of the parameters, e.g., adapters
         total_random_init_params = 0
+        has_inv_freq = False
         for k, v in self.state_dict().items():
             if k not in mapped_state_dict:
                 kind = "adapter" if "adapter" in k else "layer"
@@ -164,25 +165,30 @@ class DecDeepFuseModel(SFMPipelineModelMixin):
                 mapped_state_dict[k] = v
                 total_random_init_params += v.nelement()
 
+            if "inv_freq" in k:
+                has_inv_freq = True
+
         logger.info(f"Total random init params count: {total_random_init_params:,}")
 
-        # remove all "inv_freq" as they are buffers, which cannot be loaded
-        for k in list(mapped_state_dict.keys()):
-            if "inv_freq" in k:
-                del mapped_state_dict[k]
+        if not has_inv_freq:
+            # remove all "inv_freq" as they are buffers, which cannot be loaded
+            # seems a bug in huggingface
+            for k in list(mapped_state_dict.keys()):
+                if "inv_freq" in k:
+                    del mapped_state_dict[k]
 
         self.load_state_dict(mapped_state_dict)
 
     def freeze_params(self):
         if self.config.freeze_text_model:
             logger.info("Freezing text encoder")
-            for param in self.embed.embed_tokens.Text.parameters():
+            for param in self.embed.embed_tokens[TokenType.Text.name].parameters():
                 param.requires_grad = False
 
-            for param in self.head.final_norm.Text.parameters():
+            for param in self.head.final_norm[TokenType.Text.name].parameters():
                 param.requires_grad = False
 
-            for param in self.head.lm_head.Text.parameters():
+            for param in self.head.lm_head[TokenType.Text.name].parameters():
                 param.requires_grad = False
 
             for layer in self.decoder_layers:
@@ -198,24 +204,24 @@ class DecDeepFuseModel(SFMPipelineModelMixin):
                     grad[:-finetuned_emb_count] = 0
                     return grad
 
-                for param in self.embed.embed_tokens.Text.parameters():
+                for param in self.embed.embed_tokens[TokenType.Text.name].parameters():
                     param.requires_grad = True
                     param.register_hook(lambda grad: grad_filter_hook(grad))
 
-                for param in self.head.lm_head.Text.parameters():
+                for param in self.head.lm_head[TokenType.Text.name].parameters():
                     param.requires_grad = True
                     param.register_hook(lambda grad: grad_filter_hook(grad))
 
         if self.config.freeze_entity_model:
             logger.info("Freezing entity encoder")
 
-            for param in self.embed.embed_tokens.Entity.parameters():
+            for param in self.embed.embed_tokens[TokenType.Entity.name].parameters():
                 param.requires_grad = False
 
-            for param in self.head.final_norm.Entity.parameters():
+            for param in self.head.final_norm[TokenType.Entity.name].parameters():
                 param.requires_grad = False
 
-            for param in self.head.lm_head.Entity.parameters():
+            for param in self.head.lm_head[TokenType.Entity.name].parameters():
                 param.requires_grad = False
 
             for layer in self.decoder_layers:
