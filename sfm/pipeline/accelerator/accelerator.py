@@ -469,7 +469,11 @@ class DeepSpeedAccelerator(Accelerator):
 
     def get_unfreeze_param_list(self, unfreeze_param_name_list: str):
         if unfreeze_param_name_list == "":
-            return None
+            logger.info(
+                "unfreeze_param_list is empty, unfreeze all parameters with gradient"
+            )
+            return [param for param in self.model.parameters() if param.requires_grad]
+
         unfreeze_param = []
         unfreeze_param_name_list = list(
             filter(lambda x: x != "", unfreeze_param_name_list.split(","))
@@ -479,6 +483,7 @@ class DeepSpeedAccelerator(Accelerator):
                 if name.find(param_name) != -1:
                     unfreeze_param.append(param)
                     break
+
         return unfreeze_param
 
     def set_up(self):

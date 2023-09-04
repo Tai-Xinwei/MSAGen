@@ -39,6 +39,17 @@ def make_norm_dict(config: DecDeepFuseConfig) -> nn.ModuleDict:
     )
 
 
+# True <> -inf
+def mask_to_float(mask: torch.BoolTensor, dtype) -> torch.Tensor:
+    ret = torch.zeros_like(mask, dtype=dtype, device=mask.device)
+    ret[mask] = torch.finfo(dtype).min
+    return ret
+
+
+def mask_to_bool(mask: torch.Tensor) -> torch.BoolTensor:
+    return mask <= torch.finfo(mask.dtype).min
+
+
 class Embed(nn.Module):
     def __init__(self, config) -> None:
         super().__init__()
@@ -91,6 +102,8 @@ class Embed(nn.Module):
         attention_mask = self._prepare_decoder_attention_mask(
             attention_mask, (bsz, seq_len), x, 0
         )
+
+        attention_mask = mask_to_bool(attention_mask)
 
         return h.to_tuple() + (attention_mask, position_ids)
 
@@ -493,7 +506,9 @@ class DeepFuseLayerBase(ABC, nn.Module):
         attention_mask = x[-2]
         position_ids = x[-1]
 
-        ret = self.forward_impl(h, attention_mask, position_ids)
+        attention_mask_float = mask_to_float(attention_mask, h.dtype)
+
+        ret = self.forward_impl(h, attention_mask_float, position_ids)
 
         return ret.to_tuple() + (attention_mask, position_ids)
 

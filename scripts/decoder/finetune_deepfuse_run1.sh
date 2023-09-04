@@ -24,9 +24,9 @@ deepspeed --num_gpu=$NUM_GPUS --master_port=12345 \
     --weight_decay 0.05 \
     --total_num_epochs 25 \
     --warmup_num_steps 5000 \
-    --train_batch_size 2 \
+    --train_batch_size 8 \
     --gradient_accumulation_steps 1 \
-    --val_batch_size 2 \
+    --val_batch_size 8 \
     --save_dir $AMLT_OUTPUT_DIR \
     --log_interval 20 \
     --fp16 \
