@@ -75,7 +75,9 @@ cpdef list batch_by_size_vec(
         new_batch_sentences = new_batch_end - batch_start
         new_batch_num_tokens = new_batch_sentences * new_batch_max_tokens
 
-        max_tokens_resized = <int> (sqrt(max_length / new_batch_max_tokens) * max_tokens)
+        max_tokens_resized = <int> (max_tokens)
+        # max_tokens_resized = <int> (sqrt(max_length / new_batch_max_tokens) * max_tokens)
+        # max_tokens_resized = <int> (1.0 * max_length / new_batch_max_tokens * max_tokens)
 
         overflow = (new_batch_sentences > max_sentences > 0 or
                     new_batch_num_tokens > max_tokens_resized > 0)
