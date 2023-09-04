@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import math
+from typing import Optional
 
+import deepspeed
 import numpy as np
 import torch
 from torch.utils.data import BatchSampler, DataLoader, Sampler
@@ -9,14 +11,15 @@ from torch.utils.data import BatchSampler, DataLoader, Sampler
 from sfm.logging import logger
 
 
-class DynamicDataLoader(DataLoader):
+class DynamicDistributedSampler(Sampler):
     def __init__(
-        self, dataset, batch_by_size_fn, num_tokens_fn, collate_fn, *args, **kwargs
+        self, dataset, batch_by_size_fn, num_tokens_fn, collate_fn=None, *args, **kwargs
     ):
         self.dataset = dataset
         self.batch_by_size_fn = batch_by_size_fn
         self.num_tokens_fn = num_tokens_fn
         self.collate_fn = collate_fn
+        self.drop_last = kwargs.pop("drop_last", False)
         self.max_samples = kwargs.pop("max_sample", None)
         self.max_tokens = kwargs.pop("max_tokens", None)
         self.max_length = kwargs.pop("max_length", 1024)
@@ -25,23 +28,42 @@ class DynamicDataLoader(DataLoader):
         self.shuffle = kwargs.pop("shuffle", False)
         self.seed = kwargs.pop("seed", 0)
         self.epoch = kwargs.pop("epoch", 0)
-        super().__init__(dataset, collate_fn=collate_fn, *args, **kwargs)
 
-    def __set_dist_indices(self):
-        if self.drop_last and len(self.dataset) % self.num_replicas != 0:  # type: ignore[arg-type]
+        # define micro batches, only sequence of micro batches will be shuffled
+        self.__set_micro_batch_indices()
+        super().__init__(dataset, *args, **kwargs)
+
+    def sort_dataset(self, indices):
+        sort_indices = sorted(indices, key=lambda x: self.num_tokens_fn(x))
+        return sort_indices
+
+    def __set_micro_batch_indices(self):
+        indices = list(range(len(self.dataset)))
+        indices = self.sort_dataset(indices)
+        self.batches = self.batch_by_size_fn(
+            indices=indices,
+            max_length=self.max_length,
+            num_tokens_fn=self.num_tokens_fn,
+            max_tokens=self.max_tokens,
+            max_samples=self.max_samples,
+            required_batch_size_multiple=1,
+        )
+
+    def __set_dist_indices(self, length):
+        if self.drop_last and length % self.num_replicas != 0:  # type: ignore[arg-type]
             self.num_samples = math.ceil(
-                (len(self.dataset) - self.num_replicas) / self.num_replicas  # type: ignore[arg-type]
+                (length - self.num_replicas) / self.num_replicas  # type: ignore[arg-type]
             )
         else:
-            self.num_samples = math.ceil(len(self.dataset) / self.num_replicas)  # type: ignore[arg-type]
+            self.num_samples = math.ceil(length / self.num_replicas)  # type: ignore[arg-type]
         self.total_size = self.num_samples * self.num_replicas
 
         if self.shuffle:
             g = torch.Generator()
             g.manual_seed(self.seed + self.epoch)
-            indices = torch.randperm(len(self.dataset), generator=g).tolist()  # type: ignore[arg-type]
+            indices = torch.randperm(length, generator=g).tolist()  # type: ignore[arg-type]
         else:
-            indices = list(range(len(self.dataset)))  # type: ignore[arg-type]
+            indices = list(range(length))  # type: ignore[arg-type]
 
         if not self.drop_last:
             # add extra samples to make it evenly divisible
@@ -60,24 +82,31 @@ class DynamicDataLoader(DataLoader):
         # subsample
         local_indices = indices[self.rank : self.total_size : self.num_replicas]
         assert len(local_indices) == self.num_samples
+        self.epoch += 1
         return local_indices
 
-    def __iter__(self):
-        local_indices = self.__set_dist_indices()
-        # logger.debug(f"local_indices: {len(local_indices)}")
-        batches = self.batch_by_size_fn(
-            indices=local_indices,
-            max_length=self.max_length,
-            num_tokens_fn=self.num_tokens_fn,
-            max_tokens=self.max_tokens,
-            max_samples=self.max_samples,
-            required_batch_size_multiple=1,
-        )
+    def set_epoch(self, epoch: Optional[int] = None) -> None:
+        r"""
+        Sets the epoch for this sampler. When :attr:`shuffle=True`, this ensures all replicas
+        use a different random ordering for each epoch. Otherwise, the next iteration of this
+        sampler will yield the same ordering.
 
-        for batch_indices in batches:
-            # logger.debug(f"batch_indices: {len(batch_indices)}")
-            batch_data = [self.dataset[idx] for idx in batch_indices]
-            yield self.collate_fn(batch_data)
+        Args:
+            epoch (int): Epoch number.
+        """
+        if epoch is None:
+            self.epoch += 1
+        else:
+            self.epoch = epoch
+
+    def __iter__(self):
+        local_batch_id = self.__set_dist_indices(len(self.batches))
+        for batch_indices in local_batch_id:
+            # logger.success(f"local rank: {self.rank}, local_indices: {len(self.batches[batch_indices])}")
+            # deepspeed.comm.barrier()
+            yield self.batches[batch_indices]
+
+        self.set_epoch()
 
 
 class DynamicBatchSampler(Sampler):

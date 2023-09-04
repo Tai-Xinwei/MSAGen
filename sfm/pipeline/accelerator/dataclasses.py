@@ -36,7 +36,6 @@ class TrainerConfig:
     bf16: bool = False
     grad_scaler_init: float = 1.0
     gradient_accumulation_steps: int = 1
-    dynamic_loader: bool = False
     max_tokens: int = 2048
     train_batch_size: int = 1
     val_batch_size: int = 1
@@ -54,6 +53,10 @@ class TrainerConfig:
     ifresume: bool = False
     load_ckpt: bool = False
     unfreeze_param_list: str = ""
+
+    # dataloader strategy
+    daliLoader: bool = False
+    dynamic_loader: bool = False
 
     gradient_clipping: float = 1.0
     total_num_steps: int = 1000

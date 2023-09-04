@@ -7,7 +7,7 @@ echo 'Solving MKL done!'
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=6
+[ -z "${layers}" ] && layers=4
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${hidden_size}" ] && hidden_size=256
 [ -z "${ffn_size}" ] && ffn_size=1024
@@ -30,16 +30,16 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_lr}" ] && max_lr=4e-4
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
-[ -z "${train_batch_size}" ] && train_batch_size=16
-[ -z "${max_tokens}" ] && max_tokens=4096
-[ -z "${val_batch_size}" ] && val_batch_size=16
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
+[ -z "${train_batch_size}" ] && train_batch_size=64
+[ -z "${max_tokens}" ] && max_tokens=3600
+[ -z "${val_batch_size}" ] && val_batch_size=64
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 
-[ -z "${mode_prob}" ] && mode_prob='0.5,0.25,0.25' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.4,0.3,0.3' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 [ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
@@ -158,18 +158,18 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
           --d_tilde $d_tilde \
+          --strategy $strategy \
           --max_lr $max_lr \
           --mode_prob $mode_prob \
           --total_num_steps $total_num_steps \
           --warmup_num_steps $warmup_num_steps \
-          --dynamic_loader --max_tokens $max_tokens --max_length $max_length \
-          --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
+          --train_batch_size $train_batch_size --val_batch_size $val_batch_size --max_length $max_length \
+          --dynamic_loader --max_tokens $max_tokens \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
-          # --strategy $strategy \
 
 sleep inf
 sleep inf

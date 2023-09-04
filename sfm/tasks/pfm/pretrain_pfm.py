@@ -25,7 +25,7 @@ def main(args) -> None:
 
     dataset = ProteinLMDBDataset(args)
 
-    trainset, valset = dataset.split_dataset(sort=True)
+    trainset, valset = dataset.split_dataset(sort=False)
 
     train_data = BatchedDataDataset(
         trainset,
