@@ -15,6 +15,7 @@ from sfm.pipeline.accelerator.accelerator import (
     Accelerator,
     DdpAccelerator,
     DeepSpeedAccelerator,
+    GroupedBatchIter,
     SingleNodeAccelerator,
 )
 from sfm.pipeline.accelerator.dataclasses import (
@@ -33,33 +34,6 @@ def seed_everything(seed):
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
-
-
-class GroupedBatchIter(object):
-    """
-    This class is used to group batches into a larger batch. i.e., gradient accumulation.
-    """
-
-    def __init__(self, it, group_size, drop_last=False):
-        self.it = it
-        self.group_size = group_size
-        self.drop_last = drop_last
-
-    def __iter__(self):
-        chunk = []
-        for item in self.it:
-            chunk.append(item)
-            if len(chunk) == self.group_size:
-                yield chunk
-                chunk = []
-        if not self.drop_last and chunk:
-            yield chunk
-
-    def __len__(self):
-        if self.drop_last:
-            return len(self.it) // self.group_size
-        else:
-            return (len(self.it) + self.group_size - 1) // self.group_size
 
 
 class LossAccumulator(object):
@@ -315,7 +289,7 @@ class Trainer(object):
     def should_do_epoch_validate(self) -> bool:
         return (
             self.args.val_epoch_interval > 0
-            and self.state.epoch % self.args.val_epoch_interval == 0
+            and (self.state.epoch + 1) % self.args.val_epoch_interval == 0
         )
 
     @property
@@ -373,6 +347,9 @@ class Trainer(object):
                 self.state.batch = i
                 self.state.global_step += 1
 
+                if self.should_do_batch_validate():
+                    self.validate()
+
                 if self.should_log():
                     log_output = self.build_log_output(
                         # model_output.loss, model_output.log_output
@@ -406,7 +383,11 @@ class Trainer(object):
             logger.warning("No validation data, skip validation")
             return
 
-        logger.info("Start validation for epoch: {}", self.state.epoch)
+        logger.info(
+            "Start validation for epoch: {}, global step: {}",
+            self.state.epoch,
+            self.state.global_step,
+        )
 
         # TODO: add other metrics
         loss_accumulator = LossAccumulator()

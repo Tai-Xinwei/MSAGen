@@ -291,7 +291,8 @@ class SFMPipeEngine(DeepSpeedEngine):
             )
         # Build a loader and make it repeating.
         pipe_dataloader = self.deepspeed_io(dataset, data_sampler=sampler)
-        pipe_dataloader = RepeatingLoader(pipe_dataloader)
+        # NOTE: we don't repeat training data loader automatically as originally done in DeepSpeed
+        # pipe_dataloader = RepeatingLoader(pipe_dataloader)
         self.set_dataloader(pipe_dataloader)
 
     def _exec_reduce_tied_grads(self):
@@ -533,7 +534,7 @@ class SFMPipeEngine(DeepSpeedEngine):
 
         # Do the work
         sched = schedule.InferenceSchedule(
-            micro_batches=1,  # self.micro_batches,
+            micro_batches=self.micro_batches,
             stages=self.num_stages,
             stage_id=self.stage_id,
         )
