@@ -107,6 +107,7 @@ echo "dataset_name: ${dataset_name}"
 echo "noise_scale: ${noise_scale}"
 echo "mask_ratio: ${mask_ratio}"
 echo "mode_prob: ${mode_prob}"
+echo "noise_mode: ${noise_mode}"
 echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 
 # export NCCL_ASYNC_ERROR_HADNLING=1
@@ -160,7 +161,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --d_tilde $d_tilde \
           --strategy $strategy \
           --max_lr $max_lr \
-          --mode_prob $mode_prob \
+          --mode_prob $mode_prob --noise_mode $noise_mode\
           --total_num_steps $total_num_steps \
           --warmup_num_steps $warmup_num_steps \
           --train_batch_size $train_batch_size --val_batch_size $val_batch_size --max_length $max_length \

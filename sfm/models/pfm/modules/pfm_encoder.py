@@ -146,7 +146,9 @@ class PFMEncoder(nn.Module):
             args.ddpm_schedule,
         )
 
-    def _beta_schedule(self, t_timesteps, beta_start, beta_end, schedule_type="linear"):
+    def _beta_schedule(
+        self, t_timesteps, beta_start, beta_end, schedule_type="sigmoid"
+    ):
         if schedule_type == "linear":
             beta_list = torch.linspace(beta_start, beta_end, t_timesteps)
         elif schedule_type == "quadratic":

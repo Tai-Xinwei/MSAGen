@@ -128,13 +128,6 @@ class LlamaEmbeddingsPP(nn.Module):
         self.learnable_cutoff = learnable_cutoff
         self.embed_tokens.weight.register_hook(self.freeze_parital_weight_hook)
 
-        # self.weight = self.embed_tokens.weight.data.requires_grad_().cuda()
-        # self.weight.grad = torch.zeros_like(self.weight)
-
-        # self.partial_learnable_emb = PartialGradEmbedding(
-        #     self.embed_tokens, new_embedding_cutoff=32000
-        # )
-
     @property
     def emb_weight(self):
         return self.embed_tokens.weight
@@ -148,10 +141,8 @@ class LlamaEmbeddingsPP(nn.Module):
     ):
         mol_emb, mol_padding_mask, llm_mask, input_ids = input_tuple
 
-        # Get text embeddings from language model
         mol_idx_mask = input_ids < 0  # B, T
-        ## all freeze
-        # with torch.no_grad():
+
         text_embeds = self.embed_tokens(
             input_ids.masked_fill(mol_idx_mask, 0)
         )  # B, T, hidden_size
@@ -193,9 +184,7 @@ class LlamaHead(nn.Module):
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.learnable_cutoff = learnable_cutoff
-        # self.lm_head.weight.register_hook(self.freeze_parital_weight_hook)
-        # self.weight = self.lm_head.weight.data.requires_grad_().cuda()
-        # self.weight.grad = torch.zeros_like(self.weight)
+        self.lm_head.weight.register_hook(self.freeze_parital_weight_hook)
         self.num_head = Num_MLP(config.hidden_size, 4 * config.hidden_size, 1)
 
     @property

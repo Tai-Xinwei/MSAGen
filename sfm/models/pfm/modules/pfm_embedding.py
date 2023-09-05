@@ -57,11 +57,12 @@ class PFMEmbedding(nn.Module):
         if mask_pos is not None and self.pfm_config.add_3d:
             node_type_edge = batched_data["node_type_edge"]
             edge_feature, merged_edge_features, delta_pos = self.edge_3d_emb(
-                pos, node_type_edge, padding_mask, mask_pos
+                pos, node_type_edge, padding_mask, mask_aa
             )
 
-            merged_edge_features = merged_edge_features.masked_fill(mask_pos, 0.0)
-            delta_pos = delta_pos.masked_fill(mask_pos.unsqueeze(-1), 0.0)
+            if self.pfm_config.noise_mode == "mae":
+                merged_edge_features = merged_edge_features.masked_fill(mask_pos, 0.0)
+                delta_pos = delta_pos.masked_fill(mask_pos.unsqueeze(-1), 0.0)
 
             x = x + merged_edge_features * 0.01
 
