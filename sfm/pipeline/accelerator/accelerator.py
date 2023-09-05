@@ -720,13 +720,18 @@ class DeepSpeedAccelerator(Accelerator):
     def valid_step(self, batch_data: Union[Data, List]) -> ValidLogOutput:
         self.model_engine.module.eval()
         if self.args.strategy == TrainStrategy.Pipeline:
-            pred = self.model_engine.eval_batch(iter(batch_data)).detach().item()
+            pred, log_loss = self.model_engine.eval_batch(iter(batch_data))
+            pred = pred.detach().item()
             torch.cuda.empty_cache()
+            extra_output = {
+                k: v.detach().item() if isinstance(v, torch.Tensor) else v
+                for k, v in log_loss.items()
+            }
             return ValidLogOutput(
                 valid_loss=pred,
                 num_examples=self.args.deepspeed_config["train_batch_size"]
                 / self.model_engine.dp_world_size,
-                extra_output={"loss": pred},
+                extra_output=extra_output,
             )
         else:
             batch_data = move_to_device(

@@ -510,6 +510,7 @@ class SFMPipeEngine(DeepSpeedEngine):
         """
         self.eval_return_logits = return_logits
         self.module.eval()
+        self.total_loss_log_dict = copy.deepcopy(self.module.loss_log_dict)
 
         # Curriculum learning could change activation shape
         if self.curriculum_enabled_legacy():
@@ -552,6 +553,8 @@ class SFMPipeEngine(DeepSpeedEngine):
                 self.fwd_outputs, reduce=reduce_output, reduce_dp=False
             )
 
+        self.agg_loss_log = self._aggregate_loss_log(self.total_loss_log_dict)
+
         if compute_loss:
             eval_output = self._bcast_pipe_scalar(eval_output)
         else:
@@ -580,7 +583,7 @@ class SFMPipeEngine(DeepSpeedEngine):
             self.labels = None
             return eval_output, outputs, labels
 
-        return eval_output
+        return eval_output, self.agg_loss_log
 
     def set_train_batch_size(self, train_batch_size):
         """Adjust the global batch size by increasing or decreasing the number of
