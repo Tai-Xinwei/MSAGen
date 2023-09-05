@@ -99,7 +99,7 @@ class LogAccumulator(object):
 
         self.sum += loss * num_examples
         self.num_examples += num_examples
-        # logger.debug("LogAccumulator: {} {}", loss, num_examples)
+
         if extra_log is not None:
             for k, v in extra_log.items():
                 if k not in self.extra_log and isinstance(v, (torch.Tensor, float)):
