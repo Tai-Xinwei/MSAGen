@@ -72,7 +72,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         mol_embed_type="atoms",
         molecule_max_size=512,
         pad_token_id=tokenizer.pad_token_id,
-        # dataset_ratios=args.dataset_ratios,
+        dataset_ratios=args.dataset_ratios,
         pool_mode=args.pool_mode,
         embedding_length=args.embedding_length,
         num_token_id=tokenizer.encode("<num>", add_special_tokens=False)[0],

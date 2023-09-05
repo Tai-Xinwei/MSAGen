@@ -10,6 +10,7 @@ from typing import List, Optional, Union
 
 import deepspeed
 import torch
+from deepspeed.runtime.dataloader import DeepSpeedDataLoader
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 
@@ -28,6 +29,33 @@ from sfm.utils.move_to_device import move_to_device
 from sfm.utils.PPEngine import initialize as initialize_pp_engine
 
 from .pipeline_module import SFMPipelineModule
+
+
+class GroupedBatchIter(object):
+    """
+    This class is used to group batches into a larger batch. i.e., gradient accumulation.
+    """
+
+    def __init__(self, it, group_size, drop_last=False):
+        self.it = it
+        self.group_size = group_size
+        self.drop_last = drop_last
+
+    def __iter__(self):
+        chunk = []
+        for item in self.it:
+            chunk.append(item)
+            if len(chunk) == self.group_size:
+                yield chunk
+                chunk = []
+        if not self.drop_last and chunk:
+            yield chunk
+
+    def __len__(self):
+        if self.drop_last:
+            return len(self.it) // self.group_size
+        else:
+            return (len(self.it) + self.group_size - 1) // self.group_size
 
 
 class Accelerator(ABC):
@@ -534,6 +562,12 @@ class DeepSpeedAccelerator(Accelerator):
                 optimizer=self.optimizer,
                 lr_scheduler=self.lr_scheduler,
             )
+            self.args.gradient_accumulation_steps = (
+                self.model_engine.gradient_accumulation_steps()
+            )
+            self.args.deepspeed_config[
+                "gradient_accumulation_steps"
+            ] = self.args.gradient_accumulation_steps
         else:
             (
                 self.model_engine,
@@ -557,6 +591,21 @@ class DeepSpeedAccelerator(Accelerator):
 
     def barrier(self):
         deepspeed.comm.barrier()
+
+    def before_epoch(self, epoch: int):
+        if self.args.strategy == TrainStrategy.Pipeline:
+            if isinstance(self.train_data_loader, DeepSpeedDataLoader):
+                if hasattr(self.train_data_loader.data_sampler, "set_epoch"):
+                    self.train_data_loader.data_sampler.set_epoch(epoch)
+            elif isinstance(self.train_data_loader, DataLoader):
+                if hasattr(self.train_data_loader.batch_sampler, "set_epoch"):
+                    self.train_data_loader.batch_sampler.set_epoch(epoch)
+            else:
+                raise ValueError(
+                    f"Unknown training data loader type {type(self.train_data_loader)}"
+                )
+        else:
+            super().before_epoch(epoch)
 
     def build_data_loader(
         self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
@@ -595,19 +644,6 @@ class DeepSpeedAccelerator(Accelerator):
                 batch_sampler=dynamic_sampler,
             )
 
-            # self.train_data_loader = DynamicDataLoader(
-            #     dataset=self.train_data,
-            #     batch_by_size_fn=batch_by_size,
-            #     max_tokens=self.args.max_tokens,
-            #     max_length=self.args.max_length,
-            #     num_tokens_fn=self.train_data.num_tokens,
-            #     collate_fn=self.train_data.collate,
-            #     shuffle=True,
-            #     drop_last=False,
-            #     num_replicas=self.model_engine.dp_world_size,
-            #     rank=dp_rank,
-            # )
-
         elif self.args.daliLoader:
             raise NotImplementedError
 
@@ -618,9 +654,19 @@ class DeepSpeedAccelerator(Accelerator):
                 rank=dp_rank,
                 shuffle=False,
             )
-            valid_batch_size_per_gpu = self.args.val_batch_size // (
-                self.model_engine.dp_world_size * self.args.gradient_accumulation_steps
-            )
+            if self.args.strategy == TrainStrategy.Pipeline:
+                logger.warning(
+                    f"Using pipeline training of DeepSpeed, will validate with train_batch_size {self.args.deepspeed_config['train_batch_size']}, "
+                    f"val_batch_size {self.args.val_batch_size} is being ignored."
+                )
+                valid_batch_size_per_gpu = (
+                    self.model_engine.train_micro_batch_size_per_gpu()
+                )
+            else:
+                valid_batch_size_per_gpu = self.args.val_batch_size // (
+                    self.model_engine.dp_world_size
+                    * self.args.gradient_accumulation_steps
+                )
             assert (
                 valid_batch_size_per_gpu > 0
             ), "valid_batch_size_per_gpu should be greater than 0"
@@ -632,13 +678,20 @@ class DeepSpeedAccelerator(Accelerator):
                 collate_fn=self.valid_data.collate,
                 drop_last=False,
             )
+
+            if self.args.strategy == TrainStrategy.Pipeline:
+                self.valid_data_loader = GroupedBatchIter(
+                    self.valid_data_loader,
+                    self.args.gradient_accumulation_steps,
+                    drop_last=True,
+                )
         else:
             self.valid_data_loader = None
 
     def train_step(self, grouped_batch_data) -> ModelOutput:
         self.model_engine.module.train()
         if self.args.strategy == TrainStrategy.Pipeline:
-            loss = self.model_engine.train_batch()
+            loss = self.model_engine.train_batch(iter(grouped_batch_data))
             model_output = ModelOutput(
                 loss=loss,
                 num_examples=self.args.deepspeed_config["train_batch_size"],
@@ -664,21 +717,31 @@ class DeepSpeedAccelerator(Accelerator):
         torch.cuda.empty_cache()
         return model_output
 
-    def valid_step(self, batch_data: Data) -> ValidLogOutput:
+    def valid_step(self, batch_data: Union[Data, List]) -> ValidLogOutput:
         self.model_engine.module.eval()
-        batch_data = move_to_device(
-            batch_data, device=self.args.local_rank, non_blocking=True
-        )
+        if self.args.strategy == TrainStrategy.Pipeline:
+            pred = self.model_engine.eval_batch(iter(batch_data)).detach().item()
+            torch.cuda.empty_cache()
+            return ValidLogOutput(
+                valid_loss=pred,
+                num_examples=self.args.deepspeed_config["train_batch_size"]
+                / self.model_engine.dp_world_size,
+                extra_output={"loss": pred},
+            )
+        else:
+            batch_data = move_to_device(
+                batch_data, device=self.args.local_rank, non_blocking=True
+            )
 
-        pred = self.model_engine(batch_data)
-        model_output = self.model.compute_loss(pred, batch_data)
+            pred = self.model_engine(batch_data)
+            model_output = self.model.compute_loss(pred, batch_data)
 
-        torch.cuda.empty_cache()
-        return ValidLogOutput(
-            valid_loss=model_output.loss.detach().item(),
-            num_examples=model_output.num_examples,
-            extra_output=model_output.log_output,
-        )
+            torch.cuda.empty_cache()
+            return ValidLogOutput(
+                valid_loss=model_output.loss.detach().item(),
+                num_examples=model_output.num_examples,
+                extra_output=model_output.log_output,
+            )
 
     def save_checkpoint(self, ckpt_id: str, extra_state: Optional[dict] = None):
         self.model_engine.save_checkpoint(
@@ -701,6 +764,10 @@ class DeepSpeedAccelerator(Accelerator):
         deepspeed.comm.all_reduce(num_examples)
         total_loss = total_loss.item()
         num_examples = num_examples.item()
+
+        if self.args.strategy == TrainStrategy.Pipeline:
+            total_loss /= self.model_engine.num_stages
+            num_examples /= self.model_engine.num_stages
 
         return total_loss, num_examples
 
