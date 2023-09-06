@@ -80,6 +80,7 @@ class SFMPipeEngine(DeepSpeedEngine):
         has_bool_tensors=False,
         model_ckpt_list=None,
         copilot_train=False,
+        repeat_dataloader=False,  # TODO: to be removed, this is for compat of the legacy trainer
         *super_args,
         **super_kwargs,
     ):
@@ -100,6 +101,8 @@ class SFMPipeEngine(DeepSpeedEngine):
         self.model_ckpt_list = model_ckpt_list
         # used to disable the pipeline all-reduce when used with 1-bit Adam/1-bit LAMB
         self.pipeline_enable_backward_allreduce = True
+
+        self.repeat_dataloader = repeat_dataloader
 
         if self.elasticity_enabled():
             if not self.is_elastic_model_parallel_supported():
@@ -292,7 +295,8 @@ class SFMPipeEngine(DeepSpeedEngine):
         # Build a loader and make it repeating.
         pipe_dataloader = self.deepspeed_io(dataset, data_sampler=sampler)
         # NOTE: we don't repeat training data loader automatically as originally done in DeepSpeed
-        # pipe_dataloader = RepeatingLoader(pipe_dataloader)
+        if self.repeat_dataloader:
+            pipe_dataloader = RepeatingLoader(pipe_dataloader)
         self.set_dataloader(pipe_dataloader)
 
     def _exec_reduce_tied_grads(self):
@@ -1946,6 +1950,7 @@ def initialize(
     copilot_train=False,
     config=None,
     config_params=None,
+    repeat_dataloader=False,  # TODO: to be removed, this is for compating the legacy trainer
 ):
     """Initialize the DeepSpeed Engine.
 
@@ -2060,6 +2065,7 @@ def initialize(
         config_class=config_class,
         model_ckpt_list=model_ckpt_list,
         copilot_train=copilot_train,
+        repeat_dataloader=repeat_dataloader,  # TODO: to be removed, this is for compat of the legacy trainer
     )
 
     return_items = [

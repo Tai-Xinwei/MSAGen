@@ -299,7 +299,13 @@ class LlamaEmbeddingsMP(Embedding, SFMModule):
         return self.word_embeddings.weight
 
     def freeze_parital_weight_hook(self, grad):
-        grad[: self.learnable_cutoff, :] = 0
+        # offset the learnable cutoff by vocabulary partitioning in tensor parallel
+        if self.learnable_cutoff >= self.word_embeddings.vocab_end_index:
+            grad[:, :] = 0
+        elif self.learnable_cutoff > self.word_embeddings.vocab_start_index:
+            grad[
+                : self.learnable_cutoff - self.word_embeddings.vocab_start_index, :
+            ] = 0
         return grad
 
     def forward(
@@ -324,6 +330,48 @@ class LlamaEmbeddingsMP(Embedding, SFMModule):
         return mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids
 
 
+class NumMLPMP(nn.Module):
+    def __init__(
+        self,
+        config,
+        in_features,
+        hidden_features=None,
+        out_features=None,
+        act_layer=nn.GELU,
+        drop=0.0,
+    ):
+        super(NumMLPMP, self).__init__()
+        out_features = out_features or in_features
+        hidden_features = hidden_features or in_features
+        self.hidden_features = hidden_features
+        self.fc1 = tensor_parallel.ColumnParallelLinear(
+            input_size=in_features,
+            output_size=hidden_features,
+            config=config,
+            init_method=config.init_method,
+            gather_output=False,
+            bias=True,
+        )
+        self.act = act_layer()
+        self.fc2 = tensor_parallel.RowParallelLinear(
+            input_size=hidden_features,
+            output_size=1,
+            config=config,
+            init_method=config.output_layer_init_method,
+            bias=True,
+            input_is_parallel=True,
+        )
+        self.drop = nn.Dropout(drop)
+
+    def forward(self, x):
+        x = self.fc1(x)[0]
+        x = self.act(x)
+        x = self.drop(x)
+        x = self.fc2(x)[0]
+        x = self.drop(x)
+        return x
+
+
 class LlamaHeadMP(SFMModule):
     def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
         super().__init__()
@@ -337,13 +385,22 @@ class LlamaHeadMP(SFMModule):
             config=config,
             init_method=config.init_method,
         )
+        self.lm_head.weight.register_hook(self.freeze_parital_weight_hook)
+        self.learnable_cutoff = learnable_cutoff
+        self.num_head = NumMLPMP(config, config.hidden_size, 4 * config.hidden_size, 1)
 
     @property
     def emb_weight(self):
         return self.lm_head.weight
 
     def freeze_parital_weight_hook(self, grad):
-        grad[: self.learnable_cutoff, :] = 0
+        tp_rank = parallel_state.get_tensor_model_parallel_rank()
+        linear_column_start = self.lm_head.output_size_per_partition * tp_rank
+        linear_column_end = linear_column_start + self.lm_head.output_size_per_partition
+        if self.learnable_cutoff >= linear_column_end:
+            grad[:, :] = 0
+        elif self.learnable_cutoff > linear_column_start:
+            grad[: self.learnable_cutoff - linear_column_start, :] = 0
         return grad
 
     def forward(self, inputs):
@@ -358,7 +415,9 @@ class LlamaHeadMP(SFMModule):
         # export demension of lm_logits [batch_size, seq_len, hidden_size]
         lm_logits = self.lm_head(hidden_states)[0].transpose(0, 1)
 
-        return lm_logits
+        num_logits = self.num_head(hidden_states)
+
+        return lm_logits, num_logits
 
 
 class LlamaModelMP(LlamaPreTrainedModel):

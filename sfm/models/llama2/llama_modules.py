@@ -150,7 +150,7 @@ class LlamaEmbeddingsPP(nn.Module):
         return mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids
 
 
-class Num_MLP(nn.Module):
+class NumMLP(nn.Module):
     def __init__(
         self,
         in_features,
@@ -159,7 +159,7 @@ class Num_MLP(nn.Module):
         act_layer=nn.GELU,
         drop=0.0,
     ):
-        super(Num_MLP, self).__init__()
+        super(NumMLP, self).__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
         self.fc1 = nn.Linear(in_features, hidden_features)
@@ -185,7 +185,7 @@ class LlamaHead(nn.Module):
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.learnable_cutoff = learnable_cutoff
         self.lm_head.weight.register_hook(self.freeze_parital_weight_hook)
-        self.num_head = Num_MLP(config.hidden_size, 4 * config.hidden_size, 1)
+        self.num_head = NumMLP(config.hidden_size, 4 * config.hidden_size, 1)
 
     @property
     def emb_weight(self):
