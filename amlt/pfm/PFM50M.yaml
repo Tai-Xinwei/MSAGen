@@ -56,7 +56,7 @@ jobs:
   - export noise_mode=diff
   - export noise_scale=0.2
   - export mask_ratio=0.5
-  - export mode_prob=0.4,0.3,0.3
+  - export mode_prob=1.0,0.0,0.0
   - export d_tilde=1.0
   - export max_lr=4e-4
   - export strategy=Zero1

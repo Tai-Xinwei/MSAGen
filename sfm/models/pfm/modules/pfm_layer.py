@@ -107,7 +107,8 @@ class ResidueFeature(nn.Module):
             time_embedding = (
                 torch.zeros_like(x).to(x) + self.time_embedding(time)[:, None, :]
             )
-            t0_emb = torch.zeros_like(x).to(x) + self.time_embedding(0)[:, None, :]
+            t0 = torch.zeros_like(time).to(time)
+            t0_emb = torch.zeros_like(x).to(x) + self.time_embedding(t0)[:, None, :]
             time_embedding = torch.where(mask_pos.bool(), time_embedding, t0_emb)
 
             x = x + time_embedding
