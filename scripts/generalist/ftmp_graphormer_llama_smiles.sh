@@ -216,6 +216,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft3d_graphormer_llama_inst.py \
           --tokenizer-type GPTSentencePieceTokenizer --tokenizer-model $tokenizer_model \
           --no-query-key-layer-scaling  --attention-dropout 0 --hidden-dropout 0 \
           --use-rotary-position-embeddings --disable-bias-linear --seq-length 2048 \
+          --pp_partition_layer_name "manual" \
+          --pp_part_list '[0, 40, 61]' \
           $ds_args #--load_ckpt
 
 

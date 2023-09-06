@@ -20,7 +20,7 @@ from megatron.initialize import initialize_megatron
 from megatron.model.utils import init_method_normal
 from megatron.tokenizer.tokenizer import _vocab_size_with_padding
 from sfm.criterions.copilotloss import CopilotCriterionsPP
-from sfm.criterions.copilotloss3d import CopilotCriterionsMP
+from sfm.criterions.copilotloss3d import CopilotCriterionsMP, CopilotCriterionsNumMP
 from sfm.data.mol_data.moltext_dataset import SupervisedProcessedDataWithSmiles
 from sfm.logging import logger
 from sfm.models.generalist.generalist_config import GeneralistConfig
@@ -86,7 +86,7 @@ class Trainer3D:
         criterion = (
             CopilotCriterionsPP(args, vocab_size)
             if args.tensor_model_parallel_size == 1
-            else CopilotCriterionsMP
+            else CopilotCriterionsNumMP(args, vocab_size)
         )
 
         net = PipelineModule(
@@ -94,6 +94,9 @@ class Trainer3D:
             topology=topo,
             loss_fn=criterion,
             device=args.local_rank,
+            partition_method=args.pp_partition_layer_name,
+            part_list=args.pp_part_list,
+            loss_log_dict={"lm_loss": 0.0, "num_loss": 0.0, "bce_loss": 0.0},
         )
 
         optimizer, param_groups = myAdam(
@@ -122,6 +125,7 @@ class Trainer3D:
             model_parameters=param_groups,  # [p for p in net.parameters() if p.requires_grad],
             training_data=train_data,
             collate_fn=train_data.collater,
+            repeat_dataloader=True,
         )
 
     def resume(self, resume_path, ckpt_id=None):
@@ -139,7 +143,7 @@ class Trainer3D:
 
         for global_step in range(1, self.args.total_num_steps + 1):
             self.model_engine.train_batch()
-            if global_step % 100 == 0:
+            if global_step % 500 == 0:
                 self.save_ckp(global_step)
 
             torch.cuda.empty_cache()
