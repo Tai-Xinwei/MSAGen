@@ -63,7 +63,7 @@ jobs:
   - export pipeline_model_parallel_size=0
   - export total_num_steps=1000000
   - export warmup_num_steps=1000
-  - export train_batch_size=256
+  - export train_batch_size=128
   - export val_batch_size=128
   - export max_tokens=4096
   - export max_length=1024

@@ -30,12 +30,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 
 # [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot'
-[ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-20230724'
+[ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-new'
 # [ -z "${dataset_names}" ] && dataset_names='tdc'
 # [ -z "${dataset_splits}" ] && dataset_splits='all-instruction'
-[ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
-[ -z "${dataset_splits}" ] && dataset_splits='clean'
-[ -z "${dataset_ratios}" ] && dataset_ratios='1.0,1.0'
+# [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
+[ -z "${dataset_names}" ] && dataset_names='tdc'
+[ -z "${dataset_splits}" ] && dataset_splits='all-instruction'
+[ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
 [ -z "${model_max_length}" ] && model_max_length=512
