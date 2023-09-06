@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .timestep_encoder import TimeStepEncoder
+
 
 def init_params(module, n_layers):
     if isinstance(module, nn.Linear):
@@ -32,6 +34,8 @@ class ResidueFeature(nn.Module):
         prop_feat=True,
         angle_feat=True,
         t_timesteps=1010,
+        time_embedding_type="positional",
+        time_embedding_mlp=True,
     ):
         super(ResidueFeature, self).__init__()
 
@@ -43,7 +47,12 @@ class ResidueFeature(nn.Module):
         self.token_embed = nn.Embedding(num_residues, hidden_dim)
         self.atom_mask_embedding = nn.Embedding(9, hidden_dim, padding_idx=None)
 
-        self.time_embedding = nn.Embedding(t_timesteps, hidden_dim)
+        self.time_embedding = TimeStepEncoder(
+            t_timesteps,
+            hidden_dim,
+            timestep_emb_type=time_embedding_type,
+            mlp=time_embedding_mlp,
+        )
 
         if self.prop_feat:
             # [ Chemical polarity ]
@@ -95,11 +104,13 @@ class ResidueFeature(nn.Module):
         x[mask_aa.bool().squeeze(-1)] = mask_embedding
 
         if time is not None:
-            # t = torch.tensor([time], dtype=x.dtype, device=x.device).unsqueeze(0)
             time_embedding = (
                 torch.zeros_like(x).to(x) + self.time_embedding(time)[:, None, :]
             )
-            time_embedding = time_embedding.masked_fill(~mask_pos.bool(), 0.0)
+            t0 = torch.zeros_like(time).to(time)
+            t0_emb = torch.zeros_like(x).to(x) + self.time_embedding(t0)[:, None, :]
+            time_embedding = torch.where(mask_pos.bool(), time_embedding, t0_emb)
+
             x = x + time_embedding
 
         return x
@@ -119,16 +130,16 @@ class Edge3DEmbedding(nn.Module):
         # else:
         # self.edge_proj = None
 
-    def forward(self, pos, node_type_edge, padding_mask, mask_pos):
+    def forward(self, pos, node_type_edge, padding_mask, mask_aa):
         n_graph, n_node, _ = pos.shape
 
         delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
         dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
         delta_pos /= dist.unsqueeze(-1) + 1e-5
 
-        if mask_pos is not None:
-            node_mask_i = mask_pos.unsqueeze(-2).repeat(1, 1, n_node, 1)
-            node_mask_j = mask_pos.unsqueeze(1).repeat(1, n_node, 1, 1)
+        if mask_aa is not None:
+            node_mask_i = mask_aa.unsqueeze(-2).repeat(1, 1, n_node, 1)
+            node_mask_j = mask_aa.unsqueeze(1).repeat(1, n_node, 1, 1)
             new_node_mask = torch.cat([node_mask_i, node_mask_j], dim=-1).bool()
             node_type_edge = node_type_edge.masked_fill(new_node_mask, 0).to(
                 node_type_edge
@@ -148,14 +159,9 @@ class Edge3DEmbedding(nn.Module):
         sum_edge_features = edge_feature.sum(dim=-2)
         merge_edge_features = self.edge_proj(sum_edge_features)
 
-        if mask_pos is not None:
-            merge_edge_features = merge_edge_features.masked_fill_(
-                padding_mask.unsqueeze(-1) + mask_pos.bool(), 0.0
-            )
-        else:
-            merge_edge_features = merge_edge_features.masked_fill_(
-                padding_mask.unsqueeze(-1), 0.0
-            )
+        merge_edge_features = merge_edge_features.masked_fill_(
+            padding_mask.unsqueeze(-1), 0.0
+        )
 
         return edge_feature, merge_edge_features, delta_pos
 

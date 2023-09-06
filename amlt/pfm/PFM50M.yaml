@@ -29,7 +29,7 @@ code:
 
 jobs:
 - name: pfmtest
-  sku: 2x G16
+  sku: G16
   mpi: true
   process_count_per_node: 1
   command:
@@ -53,18 +53,18 @@ jobs:
   - export weight_decay=0.0
   - export droppath_prob=0.0
   - export max_num_aa=1024
-  - export noise_mode=const
+  - export noise_mode=diff
   - export noise_scale=0.2
   - export mask_ratio=0.5
-  - export mode_prob=0.4,0.3,0.3
+  - export mode_prob=1.0,0.0,0.0
   - export d_tilde=1.0
   - export max_lr=4e-4
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=1000000
   - export warmup_num_steps=1000
-  - export train_batch_size=512
-  - export val_batch_size=512
+  - export train_batch_size=256
+  - export val_batch_size=128
   - export max_tokens=4096
   - export max_length=1024
   - export gradient_accumulation_steps=4
