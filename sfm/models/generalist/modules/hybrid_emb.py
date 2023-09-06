@@ -403,27 +403,47 @@ class HybridEmbeddings(nn.Module):
             token_embed = torch.where(mol_idx_mask, pooled_rep, token_embed)
         elif self.mode == "full":
             mol_rep = self.mol_adaptor(mol_rep)  # [:, 1:, :]  # B, nnode, H
-            new_token_embed = torch.empty_like(token_embed)
+            # # Out-of-place operation fix the bug with Tensor Parallelism
+            # Create a new tensor with the same shape and device as token_embed
+            new_token_embed = token_embed.clone()
+            del token_embed
 
+            cur_mol_idx = 0
+            mol_idx_offset = 0
             for bidx in range(B):
                 mask_idx_list = mol_idx_mask[bidx].nonzero()
                 start = mask_idx_list[0]
-                end = mask_idx_list[-1]
-                # # In-place operation
-                # token_embed[bidx, start : end + 1, :] = mol_rep[
-                #     bidx, : end - start + 1, :
-                # ]
+                end = start
+                pos = 0
+                pos_e = 0
+                num_mol = 0
+                while pos < len(mask_idx_list):
+                    start = mask_idx_list[pos]
+                    pos_e = pos
+                    while pos_e < len(mask_idx_list):
+                        end = mask_idx_list[pos_e]
+                        if (
+                            pos_e + 1 >= len(mask_idx_list)
+                            or mask_idx_list[pos_e + 1] != end + 1
+                        ):
+                            break
+                        pos_e += 1
 
-                # # Out-of-place operation fix the bug with Tensor Parallelism
-                # Create a new tensor with the same shape and device as token_embed
-                # Copy the parts of token_embed that are not being replaced
-                new_token_embed[bidx, :start, :] = token_embed[bidx, :start, :]
-                new_token_embed[bidx, end + 1 :, :] = token_embed[bidx, end + 1 :, :]
+                    # # In-place operation
+                    # token_embed[bidx, start : end + 1, :] = mol_rep[
+                    #     bidx, : end - start + 1, :
+                    # ]
 
-                # Copy the mol_rep slice into the new tensor
-                new_token_embed[bidx, start : end + 1, :] = mol_rep[
-                    bidx, : end - start + 1, :
-                ]
+                    # Copy the mol_rep slice into the new tensor
+                    cur_mol_idx = -input_ids[bidx, start] - 1
+                    new_token_embed[bidx, start : end + 1, :] = mol_rep[
+                        mol_idx_offset + cur_mol_idx, : end - start + 1, :
+                    ]
+
+                    pos = pos_e + 1
+                    num_mol = max(num_mol, cur_mol_idx + 1)
+
+                mol_idx_offset += num_mol
 
             # Assign the new tensor to token_embed
             token_embed = new_token_embed
