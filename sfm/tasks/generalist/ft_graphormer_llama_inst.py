@@ -3,28 +3,21 @@ import os
 import sys
 from typing import Dict
 
-import deepspeed
-import torch
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
-from argparse import ArgumentParser
-
 from transformers import AutoTokenizer
 
+from megatron.arguments import parse_megatron_args
+from megatron.core.transformer.transformer_config import TransformerConfig
+from megatron.initialize import initialize_megatron
 from sfm.data.mol_data.moltext_dataset import SupervisedProcessedDataWithSmiles
 from sfm.logging import logger
 from sfm.models.generalist import GraphormerLlamaModel
 from sfm.models.generalist.generalist_config import GeneralistConfig
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
-from sfm.pipeline.accelerator.dataclasses import (
-    DistributedTrainConfig,
-    TrainerConfig,
-    TrainStrategy,
-)
+from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig, TrainStrategy
 from sfm.pipeline.accelerator.trainer import Trainer
-from sfm.utils import arg_utils
 from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
 from sfm.utils.cli_utils import cli
 
@@ -78,23 +71,38 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         num_token_id=tokenizer.encode("<num>", add_special_tokens=False)[0],
     )
 
-    return dict(train_dataset=dataset, eval_dataset=None, vocab_size=len(tokenizer))
+    return dict(
+        train_dataset=dataset,
+        eval_dataset=None,
+        vocab_size=len(tokenizer),
+        tokenizer=tokenizer,
+    )
 
 
-@cli(DistributedTrainConfig, GraphormerConfig, GeneralistConfig)
+@cli(
+    DistributedTrainConfig,
+    GraphormerConfig,
+    GeneralistConfig,
+    TransformerConfig,
+    parse_megatron_args,
+)
 def main(args) -> None:
     data_module = make_supervised_data_module(args, mode="train")
+
+    if args.strategy == TrainStrategy.ThreeD:
+        initialize_megatron(args, tokenizer=data_module["tokenizer"])
+
     logger.info(f"length of dataset: {len(data_module['train_dataset'])}")
-    if args.tensor_model_parallel_size == 1:
-        trainer = Trainer(
-            args,
-            train_data=data_module["train_dataset"],
-            valid_data=data_module["eval_dataset"],
-            model=GraphormerLlamaModel(args, data_module["vocab_size"]),
-            loss_log_dict={"lm_loss": 0.0, "num_loss": 0.0, "bce_loss": 0.0},
-        )
-    else:
-        raise Exception("Check ft3d_graphormer_llama_inst.py")
+
+    model = GraphormerLlamaModel(args, data_module["vocab_size"])
+
+    trainer = Trainer(
+        args,
+        train_data=data_module["train_dataset"],
+        valid_data=data_module["eval_dataset"],
+        model=model,
+        loss_log_dict={"lm_loss": 0.0, "num_loss": 0.0, "bce_loss": 0.0},
+    )
     trainer.train()
 
 

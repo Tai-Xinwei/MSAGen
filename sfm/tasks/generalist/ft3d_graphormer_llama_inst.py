@@ -13,7 +13,7 @@ from sfm.pipeline.generalist.graphormerllama_3Dtrainer import Trainer3D
 
 def main() -> None:
     freeze_list = []
-    unfreeze_list = ["adaptor", "dummy", "0.layers.22", "0.layers.23"]
+    unfreeze_list = ["mol_adaptor", "mol_rep_layernorm", "dummy", "lm_head", "num_head"]
 
     trainer = Trainer3D(
         freeze_list=freeze_list,

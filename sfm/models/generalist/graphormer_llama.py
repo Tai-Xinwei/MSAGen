@@ -4,7 +4,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-import math
 import os
 from typing import Dict, List, Optional
 
@@ -16,7 +15,7 @@ from transformers.models.llama import LlamaForCausalLM, LlamaModel
 from transformers.models.llama.configuration_llama import LlamaConfig
 
 from megatron.core import parallel_state
-from sfm.criterions.copilotloss import CopilotCriterionsNumPP, CopilotCriterionsPP
+from sfm.criterions.copilotloss import CopilotCriterionsNumMP, CopilotCriterionsNumPP
 from sfm.data.mol_data.moltext_dataset import batch_collater_for_graphormer
 from sfm.logging.loggers import logger
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
@@ -27,7 +26,7 @@ from sfm.models.graphormer.modules.graphormer_sentence_encoder_mp import (
 from sfm.models.llama2.llama2mp_config import MPLlamaConfig
 from sfm.models.llama2.llama_modules import LlamaEmbeddingsPP, LlamaModelPP
 from sfm.models.llama2.llama_modules_3dmp import LlamaEmbeddingsMP, LlamaModelMP
-from sfm.pipeline.accelerator.dataclasses import ModelOutput
+from sfm.pipeline.accelerator.dataclasses import ModelOutput, TrainStrategy
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
 from sfm.utils.move_to_device import move_to_device
@@ -73,16 +72,22 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
         adaptor_config = self.init_adaptor_config(args, llama_config)
 
         self.llama_config = llama_config
-        if args.tensor_model_parallel_size > 1:
+        if args.strategy == TrainStrategy.ThreeD:
+            args.padded_vocab_size = max(args.padded_vocab_size, vocab_size)
+            vocab_size = args.padded_vocab_size
+            llama_config.vocab_size = vocab_size
             mp_config = self.init_mp_config(args, llama_config)
             self.llama_config = mp_config
 
         self.pipe_layers = []
-        if args.pipeline_model_parallel_size == 0:
+        if (
+            args.strategy != TrainStrategy.ThreeD
+            and args.strategy != TrainStrategy.Pipeline
+        ):
             self.graphormer_encoder = GraphormerSentenceEncoder(graphormer_config)
             self.decoder = LlamaForCausalLM(llama_config)
             self.adaptor = HybridEmbeddings(adaptor_config)
-        elif args.tensor_model_parallel_size == 1:
+        elif args.strategy == TrainStrategy.Pipeline:
             self.pipe_layers.extend(
                 [
                     PretrainedLayerSpec(
@@ -129,9 +134,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                     new_num_tokens=vocab_size,
                 )
             )
-            # self.loss = CopilotCriterionsPP(
-            #     self.llama_config, self.llama_config.vocab_size
-            # )
+
             self.loss = CopilotCriterionsNumPP(
                 self.llama_config, self.llama_config.vocab_size
             )
@@ -156,7 +159,12 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                         new_num_tokens=vocab_size,
                         load_ckpt=args.load_ckpt,
                         pretrained_ckpt_path=os.path.join(
-                            args.llm_model_name_or_path, ckp_list[layer_id]
+                            args.llm_model_name_or_path,
+                            ckp_list[layer_id]
+                            if len(ckp_list) > 0
+                            else "layer_{}-model_00-model_states.pt".format(
+                                str(layer_id).zfill(2)
+                            ),
                         ),
                         lora_mode="full",
                         tp_model_size=args.tensor_model_parallel_size,
@@ -175,7 +183,12 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                         new_num_tokens=vocab_size,
                         load_ckpt=args.load_ckpt,
                         pretrained_ckpt_path=os.path.join(
-                            args.llm_model_name_or_path, ckp_list[layer_id]
+                            args.llm_model_name_or_path,
+                            ckp_list[layer_id]
+                            if len(ckp_list) > 0
+                            else "layer_{}-model_00-model_states.pt".format(
+                                str(layer_id).zfill(2)
+                            ),
                         ),
                         tp_model_size=args.tensor_model_parallel_size,
                         tp_rank=parallel_state.get_tensor_model_parallel_rank(),
@@ -193,6 +206,10 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                     ckp_list=ckp_list,
                     new_num_tokens=vocab_size,
                 )
+            )
+
+            self.loss = CopilotCriterionsNumMP(
+                self.llama_config, self.llama_config.vocab_size
             )
 
     @torch.no_grad()

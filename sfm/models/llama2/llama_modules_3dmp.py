@@ -442,7 +442,12 @@ class LlamaModelMP(LlamaPreTrainedModel):
                     i,
                     load_ckpt=load_ckpt,
                     pretrained_ckpt_path=os.path.join(
-                        args.llm_model_name_or_path, ckp_list[layer_id]
+                        args.llm_model_name_or_path,
+                        ckp_list[layer_id]
+                        if len(ckp_list) > 0
+                        else "layer_{}-model_00-model_states.pt".format(
+                            str(layer_id).zfill(2)
+                        ),
                     ),
                     lora_mode="freeze",
                     tp_model_size=args.tensor_model_parallel_size,
@@ -456,7 +461,12 @@ class LlamaModelMP(LlamaPreTrainedModel):
                 config,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    args.llm_model_name_or_path, ckp_list[layer_id]
+                    args.llm_model_name_or_path,
+                    ckp_list[layer_id]
+                    if len(ckp_list) > 0
+                    else "layer_{}-model_00-model_states.pt".format(
+                        str(layer_id).zfill(2)
+                    ),
                 ),
                 lora_mode="freeze",
                 tp_model_size=args.tensor_model_parallel_size,
@@ -471,7 +481,12 @@ class LlamaModelMP(LlamaPreTrainedModel):
                 new_num_tokens=new_num_tokens,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    args.llm_model_name_or_path, ckp_list[layer_id]
+                    args.llm_model_name_or_path,
+                    ckp_list[layer_id]
+                    if len(ckp_list) > 0
+                    else "layer_{}-model_00-model_states.pt".format(
+                        str(layer_id).zfill(2)
+                    ),
                 ),
                 lora_mode="freeze",
                 tp_model_size=args.tensor_model_parallel_size,

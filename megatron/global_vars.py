@@ -82,7 +82,7 @@ def _set_signal_handler():
     _GLOBAL_SIGNAL_HANDLER = dist_signal_handler.DistributedSignalHandler().__enter__()
 
 
-def set_global_variables(args):
+def set_global_variables(args, tokenizer = None):
     """Set args, tokenizer, tensorboard-writer, adlr-autoresume, and timers."""
 
     assert args is not None
@@ -91,7 +91,7 @@ def set_global_variables(args):
     set_args(args)
 
     _build_num_microbatches_calculator(args)
-    _ = _build_tokenizer(args)
+    _ = _build_tokenizer(args, tokenizer)
     _set_tensorboard_writer(args)
     _set_adlr_autoresume(args)
     _set_timers(args)
@@ -119,11 +119,11 @@ def _build_num_microbatches_calculator(args):
     _GLOBAL_NUM_MICROBATCHES_CALCULATOR = build_num_microbatches_calculator(args)
 
 
-def _build_tokenizer(args):
+def _build_tokenizer(args, tokenizer = None):
     """Initialize tokenizer."""
     global _GLOBAL_TOKENIZER
     _ensure_var_is_not_initialized(_GLOBAL_TOKENIZER, "tokenizer")
-    _GLOBAL_TOKENIZER = build_tokenizer(args)
+    _GLOBAL_TOKENIZER = build_tokenizer(args, tokenizer)
     return _GLOBAL_TOKENIZER
 
 
