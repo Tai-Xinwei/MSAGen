@@ -29,10 +29,12 @@ from megatron.utils import is_rank_0
 
 
 def initialize_megatron(
-    extra_args_provider=None,
+    args=None,
     args_defaults={},
-    ignore_unknown_args=False,
+    # TODO (comment to be compatible with SFM. need more elegant solution)
+    # ignore_unknown_args=False,
     allow_no_cuda=False,
+    tokenizer=None,
 ):
     """Set global variables, initialize distributed, and
     set autoresume and random seeds.
@@ -47,7 +49,8 @@ def initialize_megatron(
         assert get_accelerator().is_available(), "Megatron requires accelerator."
 
     # Parse arguments
-    args = parse_args(extra_args_provider, ignore_unknown_args)
+    # TODO (comment to be compatible with SFM. need more elegant solution)
+    #args = parse_args(extra_args_provider, ignore_unknown_args)
 
     if args.use_checkpoint_args or args_defaults.get("use_checkpoint_args", False):
         assert args.load is not None, "--use-checkpoints-args requires --load argument"
@@ -57,7 +60,7 @@ def initialize_megatron(
 
     # set global args, build tokenizer, and set adlr-autoresume,
     # tensorboard-writer, and timers.
-    set_global_variables(args)
+    set_global_variables(args, tokenizer)
 
     # torch.distributed initialization
     def finish_mpu_init():
@@ -242,15 +245,18 @@ def _initialize_distributed():
             get_accelerator().set_device(device)  # only do so when device_count > 0
 
     # Call the init process
-    if args.deepspeed or args.ds_inference:
-        deepspeed.init_distributed()
-    else:
-        torch.distributed.init_process_group(
-            backend=args.distributed_backend,
-            world_size=args.world_size,
-            rank=args.rank,
-            timeout=timedelta(minutes=args.distributed_timeout_minutes),
-        )
+
+    # TODO (comment to be compatible with SFM. need more elegant solution)
+    # if args.deepspeed or args.ds_inference:
+    deepspeed.init_distributed()
+    # else:
+    #     torch.distributed.init_process_group(
+    #         backend=args.distributed_backend,
+    #         world_size=args.world_size,
+    #         rank=args.rank,
+    #         timeout=timedelta(minutes=args.distributed_timeout_minutes),
+    #     )
+    #    )
 
     # Set the tensor model-parallel, pipeline model-parallel, and
     # data-parallel communicators.
@@ -275,8 +281,9 @@ def _initialize_distributed():
                     f"{mpu.get_pipeline_model_parallel_world_size()}"
                 )
 
-    if args.deepspeed and args.deepspeed_activation_checkpointing:
-        setup_deepspeed_random_and_activation_checkpointing(args)
+    # TODO (comment to be compatible with SFM. need more elegant solution)
+    # if args.deepspeed and args.deepspeed_activation_checkpointing:
+    #    setup_deepspeed_random_and_activation_checkpointing(args)
 
 
 def _init_autoresume():

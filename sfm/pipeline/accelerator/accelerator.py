@@ -11,6 +11,7 @@ from typing import List, Optional, Union
 import deepspeed
 import torch
 from deepspeed.runtime.dataloader import DeepSpeedDataLoader
+from deepspeed.runtime.pipe.topology import PipeModelDataParallelTopology
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 
@@ -518,7 +519,10 @@ class DeepSpeedAccelerator(Accelerator):
         deepspeed.init_distributed(dist_backend=self.args.dist_backend)
         self.set_ds_config()
 
-        if self.args.strategy == TrainStrategy.Pipeline:
+        if (
+            self.args.strategy == TrainStrategy.Pipeline
+            or self.args.strategy == TrainStrategy.ThreeD
+        ):
             assert (
                 self.args.pipeline_model_parallel_size > 0
             ), f"invalid model parallel size: {self.args.pipeline_model_parallel_size}"
@@ -530,6 +534,17 @@ class DeepSpeedAccelerator(Accelerator):
             if pp_partition_layer_name not in ["parameters", "uniform", "manual"]:
                 pp_partition_layer_name = "type:" + pp_partition_layer_name
 
+            if self.args.strategy == TrainStrategy.ThreeD:
+                from megatron.core import mpu
+
+                topology = PipeModelDataParallelTopology(
+                    num_pp=mpu.get_pipeline_model_parallel_world_size(),
+                    num_mp=mpu.get_tensor_model_parallel_world_size(),
+                    num_dp=mpu.get_data_parallel_world_size(),
+                )
+            else:
+                topology = None
+
             self.model = SFMPipelineModule(
                 self.model,
                 loss_fn=lambda pred, label: self.model.compute_loss(pred, label),
@@ -539,6 +554,7 @@ class DeepSpeedAccelerator(Accelerator):
                 partition_method=pp_partition_layer_name,
                 part_list=self.args.pp_part_list,
                 loss_log_dict=self.loss_log_dict,
+                topology=topology,
             )
             unfreeze_params = self.get_unfreeze_param_list(
                 self.args.unfreeze_param_list
@@ -593,7 +609,10 @@ class DeepSpeedAccelerator(Accelerator):
         deepspeed.comm.barrier()
 
     def before_epoch(self, epoch: int):
-        if self.args.strategy == TrainStrategy.Pipeline:
+        if (
+            self.args.strategy == TrainStrategy.Pipeline
+            or self.args.strategy == TrainStrategy.ThreeD
+        ):
             if isinstance(self.train_data_loader, DeepSpeedDataLoader):
                 if hasattr(self.train_data_loader.data_sampler, "set_epoch"):
                     self.train_data_loader.data_sampler.set_epoch(epoch)
@@ -610,7 +629,10 @@ class DeepSpeedAccelerator(Accelerator):
     def build_data_loader(
         self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
     ):
-        if self.args.strategy == TrainStrategy.Pipeline:
+        if (
+            self.args.strategy == TrainStrategy.Pipeline
+            or self.args.strategy == TrainStrategy.ThreeD
+        ):
             dp_rank = self.model_engine.mpu.get_data_parallel_rank()
         else:
             dp_rank = self.model_engine.global_rank
@@ -679,7 +701,10 @@ class DeepSpeedAccelerator(Accelerator):
                 drop_last=False,
             )
 
-            if self.args.strategy == TrainStrategy.Pipeline:
+            if (
+                self.args.strategy == TrainStrategy.Pipeline
+                or self.args.strategy == TrainStrategy.ThreeD
+            ):
                 self.valid_data_loader = GroupedBatchIter(
                     self.valid_data_loader,
                     self.args.gradient_accumulation_steps,
@@ -690,7 +715,10 @@ class DeepSpeedAccelerator(Accelerator):
 
     def train_step(self, grouped_batch_data) -> ModelOutput:
         self.model_engine.module.train()
-        if self.args.strategy == TrainStrategy.Pipeline:
+        if (
+            self.args.strategy == TrainStrategy.Pipeline
+            or self.args.strategy == TrainStrategy.ThreeD
+        ):
             loss = self.model_engine.train_batch(iter(grouped_batch_data))
             model_output = ModelOutput(
                 loss=loss,
@@ -719,7 +747,10 @@ class DeepSpeedAccelerator(Accelerator):
 
     def valid_step(self, batch_data: Union[Data, List]) -> ValidLogOutput:
         self.model_engine.module.eval()
-        if self.args.strategy == TrainStrategy.Pipeline:
+        if (
+            self.args.strategy == TrainStrategy.Pipeline
+            or self.args.strategy == TrainStrategy.ThreeD
+        ):
             pred, log_loss = self.model_engine.eval_batch(iter(batch_data))
             pred = pred.detach().item()
             torch.cuda.empty_cache()
@@ -770,9 +801,16 @@ class DeepSpeedAccelerator(Accelerator):
         total_loss = total_loss.item()
         num_examples = num_examples.item()
 
-        if self.args.strategy == TrainStrategy.Pipeline:
-            total_loss /= self.model_engine.num_stages
-            num_examples /= self.model_engine.num_stages
+        if (
+            self.args.strategy == TrainStrategy.Pipeline
+            or self.args.strategy == TrainStrategy.ThreeD
+        ):
+            total_loss /= (
+                self.model_engine.num_stages * self.model_engine.model_parallel_size
+            )
+            num_examples /= (
+                self.model_engine.num_stages * self.model_engine.model_parallel_size
+            )
 
         return total_loss, num_examples
 

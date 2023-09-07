@@ -41,12 +41,33 @@ class MPLlamaConfig(LlamaConfig):
             if hasattr(args, f.name):
                 setattr(self, f.name, getattr(args, f.name))
 
+        super().__init__(
+            pad_token_id=pad_token_id,
+            bos_token_id=bos_token_id,
+            eos_token_id=eos_token_id,
+            tie_word_embeddings=tie_word_embeddings,
+            vocab_size=vocab_size,
+            max_position_embeddings=max_position_embeddings,
+            hidden_size=hidden_size,
+            intermediate_size=intermediate_size,
+            num_hidden_layers=num_hidden_layers,
+            num_attention_heads=num_attention_heads,
+            num_key_value_heads=num_key_value_heads,
+            hidden_act=hidden_act,
+            initializer_range=initializer_range,
+            rms_norm_eps=rms_norm_eps,
+            pretraining_tp=pretraining_tp,
+            use_cache=use_cache,
+            rope_scaling=rope_scaling,
+            **kwargs,
+        )
+
         setattr(self, "persist_layer_norm", not args.no_persist_layer_norm)
         setattr(self, "layernorm_zero_centered_gamma", args.apply_layernorm_1p)
         setattr(self, "deallocate_pipeline_outputs", True)
         setattr(self, "pipeline_dtype", args.params_dtype)
-        setattr(self, "batch_p2p_comm", vocab_size)
-        setattr(self, "vocab_size", not args.overlap_p2p_comm)
+        setattr(self, "vocab_size", vocab_size)
+        setattr(self, "batch_p2p_comm", not args.overlap_p2p_comm)
         setattr(self, "activation_func", torch.nn.functional.silu)
         setattr(self, "gated_linear_unit", True)
         setattr(self, "bias_gelu_fusion", False)
@@ -75,24 +96,3 @@ class MPLlamaConfig(LlamaConfig):
             self.output_layer_init_method = scaled_init_method_normal(
                 self.init_method_std, num_hidden_layers
             )
-
-        super().__init__(
-            pad_token_id=pad_token_id,
-            bos_token_id=bos_token_id,
-            eos_token_id=eos_token_id,
-            tie_word_embeddings=tie_word_embeddings,
-            vocab_size=vocab_size,
-            max_position_embeddings=max_position_embeddings,
-            hidden_size=hidden_size,
-            intermediate_size=intermediate_size,
-            num_hidden_layers=num_hidden_layers,
-            num_attention_heads=num_attention_heads,
-            num_key_value_heads=num_key_value_heads,
-            hidden_act=hidden_act,
-            initializer_range=initializer_range,
-            rms_norm_eps=rms_norm_eps,
-            pretraining_tp=pretraining_tp,
-            use_cache=use_cache,
-            rope_scaling=rope_scaling,
-            **kwargs,
-        )

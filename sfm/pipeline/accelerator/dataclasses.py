@@ -13,6 +13,7 @@ class TrainStrategy(str, Enum):
     Zero3 = "Zero3"
     Single = "Single"
     Pipeline = "Pipeline"
+    ThreeD = "ThreeD"
 
 
 # Will be removed, use DistributedTrainConfig instead

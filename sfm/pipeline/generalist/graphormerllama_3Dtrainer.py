@@ -19,8 +19,7 @@ from megatron.core import mpu, tensor_parallel
 from megatron.initialize import initialize_megatron
 from megatron.model.utils import init_method_normal
 from megatron.tokenizer.tokenizer import _vocab_size_with_padding
-from sfm.criterions.copilotloss import CopilotCriterionsPP
-from sfm.criterions.copilotloss3d import CopilotCriterionsMP, CopilotCriterionsNumMP
+from sfm.criterions.copilotloss import CopilotCriterionsNumMP, CopilotCriterionsPP
 from sfm.data.mol_data.moltext_dataset import SupervisedProcessedDataWithSmiles
 from sfm.logging import logger
 from sfm.models.generalist.generalist_config import GeneralistConfig
@@ -96,7 +95,7 @@ class Trainer3D:
             device=args.local_rank,
             partition_method=args.pp_partition_layer_name,
             part_list=args.pp_part_list,
-            loss_log_dict={"lm_loss": 0.0, "num_loss": 0.0, "bce_loss": 0.0},
+            loss_log_dict={"lm_loss": 0.0, "num_loss": 0.0},
         )
 
         optimizer, param_groups = myAdam(

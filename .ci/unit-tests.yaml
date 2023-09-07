@@ -16,12 +16,14 @@ variables:
   CONDA_ENV_DIR: $(Pipeline.Workspace)/.conda_env
 
 steps:
+# Checkout settings
+- checkout: self
+  submodules: recursive # checkout submodules recursively
+
 # Cache Conda environment
 - task: Cache@2
   inputs:
-    key: 'conda | "$(Agent.OS)" | install/install.sh | v2 '
-    restoreKeys: |
-      conda | "$(Agent.OS)"
+    key: 'conda | "$(Agent.OS)" | install/install.sh | v2'
     path: $(CONDA_ENV_DIR)
   displayName: Cache Conda environment
 

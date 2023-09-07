@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import inspect
 import os
 from argparse import ArgumentParser
 from functools import wraps
@@ -10,11 +11,20 @@ from sfm.utils import arg_utils, dist_utils, env_init
 import wandb  # isort:skip
 
 
-def cli(*cfg_classes):
+def cli(*cfg_classes_and_funcs):
     def decorator(main):
         @wraps(main)
         def wrapper():
             parser = ArgumentParser()
+            cfg_classes = []
+            cfg_funcs = []
+            for cfg in cfg_classes_and_funcs:
+                if inspect.isclass(cfg):
+                    cfg_classes.append(cfg)
+                else:
+                    cfg_funcs.append(cfg)
+            for cfg_func in cfg_funcs:
+                parser = cfg_func(parser)
             parser = arg_utils.add_dataclass_to_parser(cfg_classes, parser)
             args = parser.parse_args()
 

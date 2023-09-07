@@ -28,11 +28,12 @@ class SFMPipelineModule(PipelineModule, Model):
         num_stages: Optional[int] = None,
         loss_log_dict: Optional[dict] = {},
         part_list: Optional[List[int]] = None,
+        topology=None,
     ):
         super().__init__(
             model.to_layers(),
             num_stages=num_stages,
-            topology=None,
+            topology=topology,
             loss_fn=loss_fn,
             seed_layers=False,
             seed_fn=None,

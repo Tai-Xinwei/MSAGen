@@ -39,7 +39,12 @@ class GraphormerEncoderMP(nn.Module):
                 mp_config,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    args.loadmfmcheck_path, ckp_list[layer_id]
+                    args.loadmfmcheck_path,
+                    ckp_list[layer_id]
+                    if len(ckp_list) > 0
+                    else "layer_{}-model_00-model_states.pt".format(
+                        str(layer_id).zfill(2)
+                    ),
                 ),
                 lora_mode="freeze",
                 tp_model_size=args.tensor_model_parallel_size,
@@ -57,7 +62,12 @@ class GraphormerEncoderMP(nn.Module):
                     i,
                     load_ckpt=load_ckpt,
                     pretrained_ckpt_path=os.path.join(
-                        args.loadmfmcheck_path, ckp_list[layer_id]
+                        args.loadmfmcheck_path,
+                        ckp_list[layer_id]
+                        if len(ckp_list) > 0
+                        else "layer_{}-model_00-model_states.pt".format(
+                            str(layer_id).zfill(2)
+                        ),
                     ),
                     lora_mode="freeze",
                     tp_model_size=args.tensor_model_parallel_size,

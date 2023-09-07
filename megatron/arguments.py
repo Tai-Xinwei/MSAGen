@@ -18,6 +18,36 @@ from megatron.global_vars import get_retro_args, set_retro_args
 from tools.retro.utils import get_args_path as get_retro_args_path
 from sfm.logging import logger
 
+def parse_args_extra(parser):
+    # Standard arguments.
+    parser = _add_network_size_args(parser)
+    parser = _add_regularization_args(parser)
+    parser = _add_training_args(parser)
+    parser = _add_initialization_args(parser)
+    parser = _add_learning_rate_args(parser)
+    parser = _add_checkpointing_args(parser)
+    parser = _add_mixed_precision_args(parser)
+    parser = _add_distributed_args(parser)
+    parser = _add_validation_args(parser)
+    parser = _add_data_args(parser)
+    parser = _add_autoresume_args(parser)
+    parser = _add_biencoder_args(parser)
+    parser = _add_vision_args(parser)
+    parser = _add_logging_args(parser)
+    parser = _add_zero_args(parser)
+    parser = _add_memoryopt_args(parser)
+    parser = _add_activation_checkpoint_args(parser)
+    parser = _add_distillation_args(parser)
+    parser = _add_inference_args(parser)
+    parser = _add_transformer_engine_args(parser)
+    parser = _add_retro_args(parser)
+
+    parser.add_argument("--ds-pipeline-enabled", default=True)
+    parser.add_argument("--rank", default=int(os.getenv("RANK", "0")))
+    parser.add_argument("--world-size", default=int(os.getenv("WORLD_SIZE", "1")))
+
+    return parser
+
 def parse_args(extra_args_provider=None, ignore_unknown_args=False):
     """Parse all arguments."""
     parser = argparse.ArgumentParser(
@@ -430,8 +460,10 @@ def validate_args(args, defaults={}):
     # TODO: currently DeepSpeed seems to be incompatible with
     # async_tensor_model_parallel_allreduce thus temporarily disabling it.
     # Need further investigation.
-    if args.deepspeed:
-        args.async_tensor_model_parallel_allreduce = False
+
+    # TODO (comment to be compatible with SFM. need more elegant solution)
+    #if args.deepspeed:
+    args.async_tensor_model_parallel_allreduce = False
 
     if os.environ.get("CUDA_DEVICE_MAX_CONNECTIONS") != "1":
         if args.sequence_parallel:
@@ -936,7 +968,7 @@ def _add_logging_args(parser):
         type=int,
         default=1000,
         help="Size of the tensorboard queue for pending events "
-        "and summaries before one of the ‘add’ calls forces a "
+        "and summaries before one of the 'add' calls forces a "
         "flush to disk.",
     )
     group.add_argument(
