@@ -18,7 +18,7 @@ from megatron.global_vars import get_retro_args, set_retro_args
 from tools.retro.utils import get_args_path as get_retro_args_path
 from sfm.logging import logger
 
-def parse_args_extra(parser):
+def parse_megatron_args(parser):
     # Standard arguments.
     parser = _add_network_size_args(parser)
     parser = _add_regularization_args(parser)
