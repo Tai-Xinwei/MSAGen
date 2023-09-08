@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import math
 import os
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Mapping, Optional, Tuple
 
 import torch
 from torch import nn
@@ -19,6 +19,7 @@ from transformers.models.llama.modeling_llama import (
     LlamaForCausalLM,
     LlamaMLP,
     LlamaRMSNorm,
+    LlamaRotaryEmbedding,
 )
 
 from megatron.core import parallel_state, tensor_parallel
@@ -206,7 +207,46 @@ class LlamaDecoderLayerMP(SFMModule):
         # partial rotary embeddings, which is better than full rotary
         # Wang and Komatsuzaki et al
         # https://github.com/kingoflolz/mesh-transformer-jax/
-        self.rotary_pos_emb = RotaryEmbedding(rotary_dim)
+        self.rotary_pos_emb = LlamaRotaryEmbedding(
+            rotary_dim, config.max_position_embeddings
+        )
+
+    def auto_partition_load_state_dict(
+        self,
+        state_dict: Mapping[str, Any],
+        tp_model_size: int,
+        tp_rank: int,
+        strict: bool = True,
+    ):
+        # update key mapping
+        keys = list(state_dict.keys())
+        new_state_dict = {}
+        for key in keys:
+            param = state_dict[key]
+            if key == "self_attn.o_proj.weight":
+                new_state_dict["self_attn.dense.weight"] = param
+            elif key == "self_attn.q_proj.weight":
+                q_proj_weight = param
+            elif key == "self_attn.k_proj.weight":
+                k_proj_weight = param
+            elif key == "self_attn.v_proj.weight":
+                v_proj_weight = param
+            elif key == "self_attn.rotary_emb.inv_freq":
+                self.rotary_pos_emb.inv_freq[:] = param[:]
+            else:
+                new_state_dict[key] = param
+        new_state_dict["self_attn.query_key_value.weight"] = torch.cat(
+            [q_proj_weight, k_proj_weight, v_proj_weight], dim=0
+        )
+
+        del state_dict
+
+        return super().auto_partition_load_state_dict(
+            state_dict=new_state_dict,
+            tp_model_size=tp_model_size,
+            tp_rank=tp_rank,
+            strict=strict,
+        )
 
     def forward(
         self,
@@ -231,7 +271,7 @@ class LlamaDecoderLayerMP(SFMModule):
                 (see `past_key_values`).
             past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
         """
-        hidden_states, attention_mask_bool = input_tuple
+        hidden_states, attention_mask_bool, position_ids = input_tuple
         # size of hidden_states: (seq_len, batch_size, hidden_size)
 
         # # convert mask from bool to int
@@ -240,11 +280,12 @@ class LlamaDecoderLayerMP(SFMModule):
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
 
-        batch_len = min(hidden_states.shape[0], self.seq_length)
+        seq_len = min(hidden_states.shape[0], self.seq_length)
         hidden_states, _ = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask_bool,
-            rotary_pos_emb=self.rotary_pos_emb(batch_len),
+            rotary_pos_emb=self.rotary_pos_emb(hidden_states.transpose(0, 1), seq_len),
+            position_ids=position_ids,
         )
         hidden_states = residual + hidden_states
 
@@ -254,7 +295,7 @@ class LlamaDecoderLayerMP(SFMModule):
         hidden_states = self.mlp(hidden_states)
         hidden_states = residual + hidden_states
 
-        outputs = (hidden_states, attention_mask_bool)
+        outputs = (hidden_states, attention_mask_bool, position_ids)
         return outputs
 
 
@@ -265,7 +306,7 @@ class FusedLlamaNorm(SFMModule):
         self.norm = MixedFusedRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
     def forward(self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]):
-        hidden_states, _ = input_tuple
+        hidden_states, _, _ = input_tuple
 
         hidden_states = self.norm(hidden_states)
 
@@ -297,6 +338,36 @@ class LlamaEmbeddingsMP(Embedding, SFMModule):
     @property
     def emb_weight(self):
         return self.word_embeddings.weight
+
+    def auto_partition_load_state_dict(
+        self,
+        state_dict: Mapping[str, Any],
+        tp_model_size: int,
+        tp_rank: int,
+        strict: bool = True,
+    ):
+        keys = list(state_dict.keys())
+        new_state_dict = {}
+        for key in keys:
+            param = state_dict[key]
+            if key == "embed_tokens.weight":
+                if param.size()[0] < self.config.vocab_size:
+                    mean_embedding = torch.mean(param, dim=0)
+                    param = torch.cat(
+                        [param]
+                        + [
+                            mean_embedding.unsqueeze(0)
+                            for _ in range(self.config.vocab_size - param.size()[0])
+                        ],
+                        dim=0,
+                    )
+                new_state_dict["word_embeddings.weight"] = param
+
+        del state_dict
+
+        return super().auto_partition_load_state_dict(
+            new_state_dict, tp_model_size, tp_rank, strict
+        )
 
     def freeze_parital_weight_hook(self, grad):
         # offset the learnable cutoff by vocabulary partitioning in tensor parallel
@@ -393,6 +464,36 @@ class LlamaHeadMP(SFMModule):
     def emb_weight(self):
         return self.lm_head.weight
 
+    def auto_partition_load_state_dict(
+        self,
+        state_dict: Mapping[str, Any],
+        tp_model_size: int,
+        tp_rank: int,
+        strict: bool = True,
+    ):
+        keys = list(state_dict.keys())
+        new_state_dict = {}
+        for key in keys:
+            param = state_dict[key]
+            if key == "lm_head.weight":
+                if param.size()[0] < self.config.vocab_size:
+                    mean_embedding = torch.mean(param, dim=0)
+                    param = torch.cat(
+                        [param]
+                        + [
+                            mean_embedding.unsqueeze(0)
+                            for _ in range(self.config.vocab_size - param.size()[0])
+                        ],
+                        dim=0,
+                    )
+                new_state_dict[key] = param
+
+        del state_dict
+
+        return super().auto_partition_load_state_dict(
+            new_state_dict, tp_model_size, tp_rank, strict
+        )
+
     def freeze_parital_weight_hook(self, grad):
         tp_rank = parallel_state.get_tensor_model_parallel_rank()
         linear_column_start = self.lm_head.output_size_per_partition * tp_rank
@@ -442,12 +543,7 @@ class LlamaModelMP(LlamaPreTrainedModel):
                     i,
                     load_ckpt=load_ckpt,
                     pretrained_ckpt_path=os.path.join(
-                        args.llm_model_name_or_path,
-                        ckp_list[layer_id]
-                        if len(ckp_list) > 0
-                        else "layer_{}-model_00-model_states.pt".format(
-                            str(layer_id).zfill(2)
-                        ),
+                        args.llm_model_name_or_path, f"model.layers.{i}.pt"
                     ),
                     lora_mode="freeze",
                     tp_model_size=args.tensor_model_parallel_size,
@@ -461,12 +557,7 @@ class LlamaModelMP(LlamaPreTrainedModel):
                 config,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    args.llm_model_name_or_path,
-                    ckp_list[layer_id]
-                    if len(ckp_list) > 0
-                    else "layer_{}-model_00-model_states.pt".format(
-                        str(layer_id).zfill(2)
-                    ),
+                    args.llm_model_name_or_path, "model.norm.pt"
                 ),
                 lora_mode="freeze",
                 tp_model_size=args.tensor_model_parallel_size,
@@ -481,12 +572,7 @@ class LlamaModelMP(LlamaPreTrainedModel):
                 new_num_tokens=new_num_tokens,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    args.llm_model_name_or_path,
-                    ckp_list[layer_id]
-                    if len(ckp_list) > 0
-                    else "layer_{}-model_00-model_states.pt".format(
-                        str(layer_id).zfill(2)
-                    ),
+                    args.llm_model_name_or_path, "model.lm_head.pt"
                 ),
                 lora_mode="freeze",
                 tp_model_size=args.tensor_model_parallel_size,

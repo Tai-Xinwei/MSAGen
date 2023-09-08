@@ -20,7 +20,7 @@ from megatron.model import LayerNorm
 from megatron.model.enums import AttnMaskType, AttnType, LayerType
 from megatron.model.fused_bias_gelu import bias_gelu_impl
 from megatron.model.fused_softmax import FusedScaleMaskSoftmax
-from megatron.model.rotary_pos_embedding import apply_rotary_pos_emb
+from transformers.models.llama.modeling_llama import apply_rotary_pos_emb
 from megatron.model.utils import attention_mask_func, erf_gelu, openai_gelu
 from sfm.logging import logger
 
@@ -709,6 +709,7 @@ class ParallelAttention(MegatronModule):
         encoder_output=None,
         inference_params=None,
         rotary_pos_emb=None,
+        position_ids=None,
     ):
         # # hidden_states: [sq, b, h]
         # logger.debug(f"hiddens_states shape: {hidden_states.shape}, rot_pos_emb: {rotary_pos_emb.shape}")
@@ -868,9 +869,12 @@ class ParallelAttention(MegatronModule):
 
         # apply relative positional encoding (rotary embedding)
         if rotary_pos_emb is not None:
-            q_pos_emb, k_pos_emb = rotary_pos_emb
-            query_layer = apply_rotary_pos_emb(query_layer, q_pos_emb)
-            key_layer = apply_rotary_pos_emb(key_layer, k_pos_emb)
+            cos, sin = rotary_pos_emb
+            query_layer, key_layer = apply_rotary_pos_emb(
+                # [sq, b, np, hn] -> [b, np, sq, hn], and then [b, np, sq, hn] -> [sq, b, np, hn]
+                query_layer.permute(1, 2, 0, 3), key_layer.permute(1, 2, 0, 3), cos, sin, position_ids)
+            query_layer = query_layer.permute(2, 0, 1, 3)
+            key_layer = key_layer.permute(2, 0, 1, 3)
             # TODO, can apply positional embedding to value_layer so it has
             # absolute positional embedding.
             # otherwise, only relative positional embedding takes effect
