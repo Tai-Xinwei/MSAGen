@@ -159,12 +159,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                         new_num_tokens=vocab_size,
                         load_ckpt=args.load_ckpt,
                         pretrained_ckpt_path=os.path.join(
-                            args.llm_model_name_or_path,
-                            ckp_list[layer_id]
-                            if len(ckp_list) > 0
-                            else "layer_{}-model_00-model_states.pt".format(
-                                str(layer_id).zfill(2)
-                            ),
+                            args.llm_model_name_or_path, "model.hybrid_emb.pt"
                         ),
                         lora_mode="full",
                         tp_model_size=args.tensor_model_parallel_size,
@@ -186,9 +181,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                             args.llm_model_name_or_path,
                             ckp_list[layer_id]
                             if len(ckp_list) > 0
-                            else "layer_{}-model_00-model_states.pt".format(
-                                str(layer_id).zfill(2)
-                            ),
+                            else "model.hybrid_emb.pt",
                         ),
                         tp_model_size=args.tensor_model_parallel_size,
                         tp_rank=parallel_state.get_tensor_model_parallel_rank(),

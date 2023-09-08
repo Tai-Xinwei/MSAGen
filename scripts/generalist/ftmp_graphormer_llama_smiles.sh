@@ -36,7 +36,7 @@
 # checkpoint and log settings
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${save_dir}" ] && save_dir='/mnt/shiyu/checkpoints/llama2-local-debug'
-[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/checkpoint7_new.pt"
+[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/"
 [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
 [ -z "${wandb_key}" ] && wandb_key=5d03b7a46d10f86ff45c4aedc570660a523edc0b
 [ -z "${wandb_project_name}" ] && wandb_project_name="chemical-generalist"
@@ -68,7 +68,7 @@ if [[ "${strategy}" == "ThreeD" ]]; then
   MEGATRON_ARGS="--micro-batch-size $micro_batch_size --global-batch-size $global_batch_size \
     --num-layers $layers --hidden-size $llm_hidden_size --seq-length $max_position_embeddings \
     --max-position-embeddings $max_position_embeddings --num-attention-heads $num_head \
-    --seq-length $max_position_embeddings"
+    --seq-length $max_position_embeddings --disable-bias-linear --no-position-embedding"
 else
   MEGATRON_ARGS=""
 fi
@@ -138,6 +138,8 @@ echo "===================================== training parallelism ===============
 echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 echo "strategy: ${strategy}"
+echo "pp_partition_layer_name: ${pp_partition_layer_name}"
+echo "pp_part_list: ${pp_part_list}"
 
 echo "===================================== training parameters for generalist ====================================="
 echo "micro_batch_size: ${micro_batch_size}"
