@@ -103,7 +103,7 @@ def replace_num(data):
     if cur_num_ptr == 0:
         return data
     for i, num in enumerate(nums):
-        data["text"].replace(f"<<|num{i}|>>", f"<num> {num} </num>")
+        data["text"] = data["text"].replace(f"<<|num{i}|>>", f"<num> {num} </num>")
     return data
 
 def tokenize_sample(in_fname, out_dir_name, is_instruction=False, add_mol_token=False):
