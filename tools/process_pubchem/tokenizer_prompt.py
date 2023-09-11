@@ -103,7 +103,7 @@ def replace_num(data):
     if cur_num_ptr == 0:
         return data
     for i, num in enumerate(nums):
-        data["text"].replace(f"<<|num{i}|>>", f"<num> {num} </num>")
+        data["text"] = data["text"].replace(f"<<|num{i}|>>", f"<num> {num} </num>")
     return data
 
 def tokenize_sample(in_fname, out_dir_name, is_instruction=False, add_mol_token=False):
@@ -247,6 +247,8 @@ if __name__ == "__main__":
     for file in os.listdir('/mnt/pubchem/prompt/'):
         if file.endswith('.json'):
             files.append(os.path.join('/mnt/pubchem/prompt/', file))
+    length = len(files)
+    files = files[:length//4]
     print(files)
 
     outpth = '/mnt/pubchem/prompt_tokenized/'
