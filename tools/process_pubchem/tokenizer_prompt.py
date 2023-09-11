@@ -247,6 +247,8 @@ if __name__ == "__main__":
     for file in os.listdir('/mnt/pubchem/prompt/'):
         if file.endswith('.json'):
             files.append(os.path.join('/mnt/pubchem/prompt/', file))
+    length = len(files)
+    files = files[:length//4]
     print(files)
 
     outpth = '/mnt/pubchem/prompt_tokenized/'

@@ -12,6 +12,7 @@ from sfm.modules.layer_norm import LayerNorm
 from sfm.modules.multihead_attention import MultiheadAttention
 from sfm.modules.quant_noise import quant_noise as apply_quant_noise_
 from sfm.utils import LayerDropModuleList
+from sfm.utils.pipelinemode import pipemode, pipemodegradcheck
 
 from .pfm_embedding import PFMEmbedding
 from .pfm_encoder_layer import PFMEncoderLayer

@@ -412,6 +412,8 @@ class HybridEmbeddings(nn.Module):
             mol_idx_offset = 0
             for bidx in range(B):
                 mask_idx_list = mol_idx_mask[bidx].nonzero()
+                if len(mask_idx_list) == 0:
+                    continue
                 start = mask_idx_list[0]
                 end = start
                 pos = 0

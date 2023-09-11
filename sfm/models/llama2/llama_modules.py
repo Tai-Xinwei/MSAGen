@@ -23,6 +23,7 @@ from transformers.models.llama.modeling_llama import (
 
 from sfm.logging import logger
 from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec
+from sfm.utils.pipelinemode import pipemode
 
 
 class LlamaMLPAdapter(nn.Module):

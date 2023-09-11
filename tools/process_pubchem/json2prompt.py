@@ -100,6 +100,7 @@ Question_list = {
 
 def item2prompt(idx, item):
     items = []
+    text = ""
     for k, v in Question_list.items():
         if k not in item:
             continue

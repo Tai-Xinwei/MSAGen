@@ -30,9 +30,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_lr}" ] && max_lr=4e-4
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
-[ -z "${train_batch_size}" ] && train_batch_size=64
-[ -z "${max_tokens}" ] && max_tokens=3600
-[ -z "${val_batch_size}" ] && val_batch_size=64
+[ -z "${train_batch_size}" ] && train_batch_size=16
+[ -z "${max_tokens}" ] && max_tokens=2048
+[ -z "${val_batch_size}" ] && val_batch_size=16
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
@@ -168,8 +168,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --dynamic_loader --max_tokens $max_tokens \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
-          --save_batch_interval $save_batch_interval --log_interval $log_interval \
-          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+          --save_batch_interval $save_batch_interval --log_interval $log_interval
+          # --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
 
 sleep inf
