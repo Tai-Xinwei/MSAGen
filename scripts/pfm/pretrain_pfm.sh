@@ -140,6 +140,7 @@ fi
 
 # echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
+
 torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \

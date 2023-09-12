@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import math
 import os
+from abc import abstractmethod
 from typing import List, Optional, Tuple, Union
 
 import torch
@@ -120,7 +121,7 @@ def lm_logits(embedding, input_tuple):
     return logits
 
 
-class LlamaEmbeddingsPP(nn.Module):
+class LlamaEmbeddingsBase(nn.Module):
     def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
         super().__init__()
         self.embed_tokens = torch.nn.Embedding(
@@ -129,6 +130,90 @@ class LlamaEmbeddingsPP(nn.Module):
         self.learnable_cutoff = learnable_cutoff
         self.embed_tokens.weight.register_hook(self.freeze_parital_weight_hook)
 
+    # Copied from transformers.models.bart.modeling_bart._make_causal_mask
+    def _make_causal_mask(
+        self,
+        input_ids_shape: torch.Size,
+        dtype: torch.dtype,
+        device: torch.device,
+        past_key_values_length: int = 0,
+    ):
+        """
+        Make causal mask used for bi-directional self-attention.
+        """
+        bsz, tgt_len = input_ids_shape
+        mask = torch.full((tgt_len, tgt_len), False, device=device)
+        mask_cond = torch.arange(mask.size(-1), device=device)
+        mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), True)
+        # mask = mask.to(dtype)
+
+        if past_key_values_length > 0:
+            mask = torch.cat(
+                [
+                    torch.ones(
+                        tgt_len, past_key_values_length, dtype=mask.dtype, device=device
+                    ),
+                    mask,
+                ],
+                dim=-1,
+            )
+        assert (
+            mask.dtype == torch.bool
+        ), f"expected mask to have dtype torch.bool, but got {mask.dtype}"
+
+        return mask[None, None, :, :].expand(
+            bsz, 1, tgt_len, tgt_len + past_key_values_length
+        )
+
+    # Copied from transformers.models.bart.modeling_bart._expand_mask
+    def _expand_mask(
+        self, mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None
+    ):
+        """
+        Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
+        """
+        bsz, src_len = mask.size()
+        tgt_len = tgt_len if tgt_len is not None else src_len
+
+        expanded_mask = mask[:, None, None, :].expand(
+            bsz, 1, tgt_len, src_len
+        )  # .to(dtype)
+
+        return expanded_mask.to(torch.bool)
+
+    def _prepare_decoder_attention_mask(
+        self,
+        attention_mask,
+        input_shape,
+        inputs_embeds,
+        past_key_values_length,
+        input_ids,
+    ):
+        # create causal mask
+        # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
+        combined_attention_mask_bool = None
+        if input_shape[-1] > 1:
+            combined_attention_mask_bool = self._make_causal_mask(
+                input_shape,
+                inputs_embeds.dtype,
+                device=inputs_embeds.device,
+                past_key_values_length=past_key_values_length,
+            )
+
+        if attention_mask is not None:
+            # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
+            expanded_attn_mask = self._expand_mask(
+                attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]
+            ).to(inputs_embeds.device)
+
+            combined_attention_mask_bool = (
+                expanded_attn_mask
+                if combined_attention_mask_bool is None
+                else expanded_attn_mask & combined_attention_mask_bool
+            )
+
+        return combined_attention_mask_bool
+
     @property
     def emb_weight(self):
         return self.embed_tokens.weight
@@ -136,6 +221,15 @@ class LlamaEmbeddingsPP(nn.Module):
     def freeze_parital_weight_hook(self, grad):
         grad[: self.learnable_cutoff, :] = 0
         return grad
+
+    @abstractmethod
+    def forward():
+        raise NotImplementedError
+
+
+class LlamaEmbeddingsPP(LlamaEmbeddingsBase):
+    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
+        super().__init__(config, learnable_cutoff=learnable_cutoff)
 
     def forward(
         self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
@@ -236,7 +330,9 @@ class LlamaModelPP(LlamaPreTrainedModel):
         self.pipe_layer = []
 
     @classmethod
-    def to_layers(cls, args, config, new_num_tokens=None, load_ckpt=False):
+    def to_layers(
+        cls, args, config, learnable_cutoff=32001, new_num_tokens=None, load_ckpt=False
+    ):
         cls.pipe_layer = []
         for i in range(config.num_hidden_layers):
             cls.pipe_layer.append(
@@ -266,6 +362,7 @@ class LlamaModelPP(LlamaPreTrainedModel):
             PretrainedLayerSpec(
                 LlamaHead,
                 config,
+                learnable_cutoff=learnable_cutoff,
                 new_num_tokens=new_num_tokens,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
