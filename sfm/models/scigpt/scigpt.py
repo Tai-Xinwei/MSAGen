@@ -4,32 +4,15 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-import logging
-import math
-import os
 from typing import Optional
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
-from transformers.models.llama.configuration_llama import LlamaConfig
-from transformers.models.llama.modeling_llama import (
-    LlamaAttention,
-    LlamaDecoderLayer,
-    LlamaForCausalLM,
-    LlamaMLP,
-    LlamaRMSNorm,
-)
 
 from sfm.logging import logger
-from sfm.modules.get_activation_fn import get_activation_fn
-from sfm.modules.layer_norm import LayerNorm
-from sfm.modules.quant_noise import quant_noise
 from sfm.pipeline.accelerator.dataclasses import ModelOutput, TrainStrategy
 from sfm.pipeline.accelerator.trainer import Model
-from sfm.utils.pretrained_layer_spec import PretrainedLayerSpec
 
 from .modules.scigpt_modules import Scigpt, SciGPTModelPP
 from .scigpt_config import ScigptConfig
