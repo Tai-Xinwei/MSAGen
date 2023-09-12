@@ -135,6 +135,7 @@ class SFMPipeEngine(DeepSpeedEngine):
 
         #  Set Stage Inf
         self.num_stages = self.grid.pipe_parallel_size
+        self.model_parallel_size = self.grid.model_parallel_size
         self.stage_id = self.grid.get_stage_id()
         self.prev_stage = self.stage_id - 1
         self.next_stage = self.stage_id + 1
