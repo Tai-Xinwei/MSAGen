@@ -30,12 +30,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 
 # [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot'
-[ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-new'
 # [ -z "${dataset_names}" ] && dataset_names='tdc'
 # [ -z "${dataset_splits}" ] && dataset_splits='all-instruction'
 # [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
-[ -z "${dataset_names}" ] && dataset_names='tdc'
-[ -z "${dataset_splits}" ] && dataset_splits='all-instruction'
+[ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-new'
+[ -z "${dataset_names}" ] && dataset_names='moleculenet'
+[ -z "${dataset_splits}" ] && dataset_splits='dev'
 [ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
@@ -173,10 +173,10 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --model_max_length $model_max_length \
           --deepspeed_config ./config_file/ds_config_pp.json \
           --pp_partition_layer_name "LlamaDecoderLayerPP" \
-          --load_ckpt \
           --unfreeze_param_list "adaptor" \
           --save_batch_interval $save_batch_interval
 
+          # --load_ckpt \
 
 # if [ $OMPI_COMM_WORLD_RANK == 0 ]; then
 #   sleep 600

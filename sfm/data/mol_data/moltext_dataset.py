@@ -12,7 +12,7 @@ import pickle as pkl
 from argparse import Namespace
 from dataclasses import dataclass, field
 from multiprocessing import Pool
-from typing import Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import lmdb
 import numpy as np
@@ -57,6 +57,14 @@ PROMPT_DICT = {
 @torch.jit.script
 def convert_to_single_emb(x, offset: int = 512):
     feature_num = x.size(1) if len(x.size()) > 1 else 1
+    feature_offset = 1 + torch.arange(0, feature_num * offset, offset, dtype=torch.long)
+    x = x + feature_offset
+    return x
+
+
+@torch.jit.script
+def convert_to_single_emb_last(x, offset: int = 512):
+    feature_num = x.size(-1) if len(x.size()) > 1 else 1
     feature_offset = 1 + torch.arange(0, feature_num * offset, offset, dtype=torch.long)
     x = x + feature_offset
     return x
@@ -1138,7 +1146,7 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
         node_atom_j = node_atom_type.unsqueeze(0).repeat(n_nodes, 1)
         node_atom_j = pad_spatial_pos_unsqueeze(node_atom_j, max_node_num).unsqueeze(-1)
         node_atom_edge = torch.cat([node_atom_i, node_atom_j], dim=-1)
-        node_atom_edge = convert_to_single_emb(node_atom_edge)
+        node_atom_edge = convert_to_single_emb_last(node_atom_edge)
         node_type_edges.append(node_atom_edge.long())
 
     node_type_edge = torch.cat(node_type_edges)
@@ -1156,7 +1164,7 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
     )
 
 
-def smiles2graph_removeh(smiles_string, pos=[]):
+def smiles2graph_removeh(smiles_string, pos=None):
     """
     Converts SMILES string to graph Data object
     :input: SMILES string (str)
@@ -1204,7 +1212,8 @@ def smiles2graph_removeh(smiles_string, pos=[]):
     graph["edge_attr"] = torch.tensor(edge_attr)
     graph["x"] = torch.tensor(x)
     graph["num_nodes"] = len(x)
-    if pos == []:
+
+    if pos is None:
         graph["pos"] = None
     else:
         graph["pos"] = torch.tensor(pos)
@@ -1212,9 +1221,10 @@ def smiles2graph_removeh(smiles_string, pos=[]):
     return graph
 
 
-def batch_collater_for_graphormer(smiless: List[str], pos: List[float]):
+def batch_collater_for_graphormer(smiless: List[str], poses: List[Any]):
     graphs = [
-        preprocess_item(Data(**smiles2graph_removeh(smiles, pos))) for smiles in smiless
+        preprocess_item(Data(**smiles2graph_removeh(smiles, pos)))
+        for smiles, pos in zip(smiless, poses)
     ]
     return collator(graphs)
 
@@ -1254,11 +1264,12 @@ class DataCollatorForSupervisedDataset(object):
         smiles = []
         pos = []
         for smis in smiless:
-            if type(smis) == str:
-                smiles.append(smis)
-            elif type(smis) == list:
-                smiles.append(smis[0])
-                pos.append(smis[1])
+            if len(smis) > 0 and type(smis[0]) == str:
+                smiles.extend(smis)
+                pos.extend([None for _ in range(len(smis))])
+            elif len(smis) > 0 and type(smis[0]) == list:
+                smiles.extend(smis[0])
+                pos.extend(smis[1])
 
         batched_molecules = batch_collater_for_graphormer(smiles, pos)
         batched_molecules["out_degree"] = batched_molecules["in_degree"]
