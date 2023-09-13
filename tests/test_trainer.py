@@ -13,6 +13,7 @@ from torch.optim.lr_scheduler import LRScheduler
 from sfm.data.dataset import Batch, Data, FoundationModelDataset
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model, Trainer, TrainerConfig
+from sfm.utils.mypp_module import partition_by_layers
 
 
 @dataclass
@@ -85,6 +86,14 @@ class Test_Trainer(unittest.TestCase):
                 valid_data=valid_data,
             )
             trainer.train()
+
+
+class TestPPLayerPartition(unittest.TestCase):
+    def test_pp_layer_partition(self):
+        for num_layers in range(100):
+            binary_weights = [0] + [1] * num_layers + [0] * 4
+            for num_stages in range(1, num_layers):
+                partition_by_layers(binary_weights, num_stages, len(binary_weights))
 
 
 if __name__ == "__main__":
