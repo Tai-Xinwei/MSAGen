@@ -88,6 +88,48 @@ class TiedLayerSpec(LayerSpec):
         self.tied_weight_attr = tied_weight_attr
 
 
+def partition_by_layers(binary_weights, num_stages, num_total_layers):
+    if num_stages <= 1:
+        parts = [0, num_total_layers]
+    else:
+        num_total_part_layers = int(torch.sum(torch.tensor(binary_weights)))
+        if num_total_part_layers < num_stages:
+            raise ValueError(
+                f"number of partitioned layers {num_total_part_layers} is smaller than the number of pipeline stages {num_stages}"
+            )
+        min_layers_per_stage = num_total_part_layers // num_stages
+        num_rest_layers = num_total_part_layers % num_stages
+        num_layers_by_stages = [min_layers_per_stage] * num_stages
+        if num_rest_layers > 0:
+            if num_rest_layers == 1:
+                # assign to second stage
+                num_layers_by_stages[1] += 1
+            else:
+                # skip first stage, specialized for generalist
+                rest_layer_step_size = (num_stages - 2) // (num_rest_layers - 1)
+                for stage_id in range(
+                    1, 1 + num_rest_layers * rest_layer_step_size, rest_layer_step_size
+                ):
+                    num_layers_by_stages[stage_id] += 1
+        num_layers_by_stages_cum_sum = torch.tensor(num_layers_by_stages).cumsum(dim=-1)
+        parts = [0]
+        cur_weight = binary_weights[0]
+        cur_stage = 0
+        for layer_id in range(num_total_layers - 1):
+            cur_weight += binary_weights[layer_id + 1]
+            if cur_weight > num_layers_by_stages_cum_sum[cur_stage]:
+                parts.append(layer_id + 1)
+                cur_stage += 1
+        parts.append(num_total_layers)
+        assert (
+            int(num_layers_by_stages_cum_sum[-1]) == num_total_part_layers
+        ), f"{int(num_layers_by_stages_cum_sum[-1])} vs. {num_total_part_layers}"
+    assert (
+        len(parts) == num_stages + 1
+    ), f"{len(parts)} vs. {num_stages + 1}, {num_layers_by_stages_cum_sum}"
+    return parts
+
+
 class PipelineModule(nn.Module):
     """Modules to be parallelized with pipeline parallelism.
 
@@ -432,37 +474,9 @@ class PipelineModule(nn.Module):
             binary_weights = [0] * len(self._layer_specs)
             for idx in self._find_layer_type(layertype):
                 binary_weights[idx] = 1
-            if num_stages <= 1:
-                self.parts = [0, len(self._layer_specs)]
-            else:
-                num_total_part_layers = int(torch.sum(torch.tensor(binary_weights)))
-                min_layers_per_stage = num_total_part_layers // num_stages
-                num_rest_layers = (
-                    num_total_part_layers - min_layers_per_stage * num_stages
-                )
-                num_layers_by_stages = [min_layers_per_stage] * num_stages
-                if num_rest_layers > 0:
-                    if num_rest_layers == 1:
-                        # assign to second stage
-                        num_layers_by_stages[1] += 1
-                    else:
-                        # skip first stage, specialized for generalist
-                        rest_layer_step_size = (num_stages - 1) // (num_rest_layers - 1)
-                        for stage_id in range(1, num_stages, rest_layer_step_size - 1):
-                            num_layers_by_stages[stage_id] += 1
-                num_layers_by_stages_cum_sum = torch.tensor(
-                    num_layers_by_stages
-                ).cumsum(dim=-1)
-                self.parts = [0]
-                cur_weight = binary_weights[0]
-                cur_stage = 0
-                for layer_id in range(len(self._layer_specs) - 1):
-                    cur_weight += binary_weights[layer_id + 1]
-                    if cur_weight > num_layers_by_stages_cum_sum[cur_stage]:
-                        self.parts.append(layer_id + 1)
-                        cur_stage += 1
-                self.parts.append(len(self._layer_specs))
-                assert len(self.parts) == num_stages + 1
+            self.parts = partition_by_layers(
+                binary_weights, num_stages, len(self._layer_specs)
+            )
         elif method == "profile":
             raise NotImplementedError(f"Partitioning method {method} not implemented.")
         elif method == "manual":
