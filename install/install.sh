@@ -6,7 +6,7 @@ echo "pip install start"
 # # # python=3.9, cuda 11.7
 pip install deepspeed==0.10.0
 pip install ogb==1.3.6
-pip install rdkit-pypi==2021.9.3
+pip install rdkit-pypi==2023.3.3
 pip install tensorboard
 pip install numba
 pip install mpi4py
@@ -34,6 +34,7 @@ pip install -U xformers
 pip install transformers
 pip install peft
 pip install sentencepiece
+conda install -c conda-forge openbabel
 
 # For tamgent
 pip install sacremoses

@@ -187,16 +187,6 @@ def _tokenize_fn_moleculenet(
 
         tokenized_list.append(input_id)
 
-    # tokenized_list = [
-    #     tokenizer(
-    #         text,
-    #         return_tensors="pt",
-    #         padding="longest",
-    #         max_length=tokenizer.model_max_length,
-    #         truncation=True,
-    #     )
-    #     for text in strings
-    # ]
     input_ids = labels = tokenized_list
     input_ids_lens = labels_lens = [
         tokenized.ne(tokenizer.pad_token_id).sum().item()
@@ -208,25 +198,6 @@ def _tokenize_fn_moleculenet(
         input_ids_lens=input_ids_lens,
         labels_lens=labels_lens,
     )
-
-
-# @dataclass
-# class DataCollatorForSupervisedDataset(object):
-#     """Collate examples for supervised fine-tuning."""
-
-#     tokenizer: transformers.PreTrainedTokenizer
-
-#     def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
-#         input_ids, labels = tuple([instance[key] for instance in instances] for key in ("input_ids", "labels"))
-#         input_ids = torch.nn.utils.rnn.pad_sequence(
-#             input_ids, batch_first=True, padding_value=self.tokenizer.pad_token_id
-#         )
-#         labels = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=IGNORE_INDEX)
-#         return dict(
-#             input_ids=input_ids,
-#             labels=labels,
-#             attention_mask=input_ids.ne(self.tokenizer.pad_token_id),
-#         )
 
 
 def preprocess_mask(
@@ -1036,6 +1007,12 @@ def preprocess_item(item):
     item.spatial_pos = spatial_pos
     item.in_degree = adj.long().sum(dim=1).view(-1)
     item.edge_input = torch.from_numpy(edge_input).long()
+    if item.pos is None:
+        item.pos = torch.zeros([N, 3], dtype=torch.float)
+        item.mask3d = torch.tensor([1.0]).bool()
+    else:
+        item.mask3d = torch.tensor([0.0]).bool()
+        item.pos = item.pos - torch.mean(item.pos, dim=0, keepdim=True)
 
     return item
 
@@ -1099,6 +1076,15 @@ def pad_3d_unsqueeze(x, padlen1, padlen2, padlen3):
     return x.unsqueeze(0)
 
 
+def pad_pos_unsqueeze(x, padlen):
+    xlen, xdim = x.size()
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen, xdim], dtype=x.dtype)
+        new_x[:xlen, :] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
 def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
     items = [
         (
@@ -1107,6 +1093,8 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
             item.in_degree,
             item.x,
             item.edge_input[:, :, :multi_hop_max_dist, :],
+            item.pos,
+            item.mask3d,
         )
         for item in items
     ]
@@ -1116,10 +1104,13 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
         in_degrees,
         xs,
         edge_inputs,
+        poses,
+        mask3ds,
     ) = zip(*items)
 
     for idx, _ in enumerate(attn_biases):
         attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float("-inf")
+
     max_node_num = max(i.size(0) for i in xs)
     num_atoms = torch.tensor([int(i.size(0)) for i in xs]).long()
     max_dist = max(i.size(-2) for i in edge_inputs)
@@ -1135,6 +1126,23 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
     )
     in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num) for i in in_degrees])
 
+    mask3d = torch.cat([i.unsqueeze(0) for i in mask3ds])
+    pos = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in poses])
+
+    node_type_edges = []
+    for idx in range(len(items)):
+        node_atom_type = items[idx][3][:, 0]
+        n_nodes = items[idx][3].shape[0]
+        node_atom_i = node_atom_type.unsqueeze(-1).repeat(1, n_nodes)
+        node_atom_i = pad_spatial_pos_unsqueeze(node_atom_i, max_node_num).unsqueeze(-1)
+        node_atom_j = node_atom_type.unsqueeze(0).repeat(n_nodes, 1)
+        node_atom_j = pad_spatial_pos_unsqueeze(node_atom_j, max_node_num).unsqueeze(-1)
+        node_atom_edge = torch.cat([node_atom_i, node_atom_j], dim=-1)
+        node_atom_edge = convert_to_single_emb(node_atom_edge)
+        node_type_edges.append(node_atom_edge.long())
+
+    node_type_edge = torch.cat(node_type_edges)
+
     return dict(
         num_atoms=num_atoms,
         attn_bias=attn_bias,
@@ -1142,10 +1150,13 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
         in_degree=in_degree,
         x=x,
         edge_input=edge_input,
+        pos=pos,
+        mask3d=mask3d,
+        node_type_edge=node_type_edge,
     )
 
 
-def smiles2graph_removeh(smiles_string):
+def smiles2graph_removeh(smiles_string, pos=[]):
     """
     Converts SMILES string to graph Data object
     :input: SMILES string (str)
@@ -1193,13 +1204,17 @@ def smiles2graph_removeh(smiles_string):
     graph["edge_attr"] = torch.tensor(edge_attr)
     graph["x"] = torch.tensor(x)
     graph["num_nodes"] = len(x)
+    if pos == []:
+        graph["pos"] = None
+    else:
+        graph["pos"] = torch.tensor(pos)
 
     return graph
 
 
-def batch_collater_for_graphormer(smiless: List[str]):
+def batch_collater_for_graphormer(smiless: List[str], pos: List[float]):
     graphs = [
-        preprocess_item(Data(**smiles2graph_removeh(smiles))) for smiles in smiless
+        preprocess_item(Data(**smiles2graph_removeh(smiles, pos))) for smiles in smiless
     ]
     return collator(graphs)
 
@@ -1237,9 +1252,15 @@ class DataCollatorForSupervisedDataset(object):
             "num_atoms": None,
         }
         smiles = []
+        pos = []
         for smis in smiless:
-            smiles.extend(smis)
-        batched_molecules = batch_collater_for_graphormer(smiles)
+            if type(smis) == str:
+                smiles.append(smis)
+            elif type(smis) == list:
+                smiles.append(smis[0])
+                pos.append(smis[1])
+
+        batched_molecules = batch_collater_for_graphormer(smiles, pos)
         batched_molecules["out_degree"] = batched_molecules["in_degree"]
         if self.use_pp:
             return (
@@ -1254,6 +1275,9 @@ class DataCollatorForSupervisedDataset(object):
                     batched_molecules["spatial_pos"],
                     batched_molecules["edge_input"],
                     batched_molecules["num_atoms"],
+                    batched_molecules["pos"],
+                    batched_molecules["mask3d"],
+                    batched_molecules["node_type_edge"],
                 ],
                 (
                     labels,

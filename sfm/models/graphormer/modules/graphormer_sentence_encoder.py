@@ -334,6 +334,16 @@ class GraphormerSentenceEncoder(nn.Module):
                     ).bool(),
                     0.0,
                 )
+
+            if "mask3d" in batched_data:
+                mask3d_filter = batched_data["mask3d"]  # False for 3d, True for no 3d
+                attn_bias_3d = attn_bias_3d.masked_fill_(
+                    mask3d_filter[:, None, None, None], 0.0
+                )
+                merged_edge_features = merged_edge_features.masked_fill_(
+                    mask3d_filter[:, None, None], 0.0
+                )
+
             attn_bias[:, :, 1:, 1:] = attn_bias[:, :, 1:, 1:] + attn_bias_3d
             x[:, 1:, :] = x[:, 1:, :] + merged_edge_features * 0.01
 

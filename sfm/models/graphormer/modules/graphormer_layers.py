@@ -270,6 +270,7 @@ class Graph3DBias(nn.Module):
             batched_data["x"],
             batched_data["node_type_edge"],
         )  # pos shape: [n_graphs, n_nodes, 3]
+
         if not self.args.ft:
             node_mask = batched_data["node_mask"]
         # pos.requires_grad_(True)

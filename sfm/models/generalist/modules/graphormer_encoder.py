@@ -41,12 +41,6 @@ class GraphormerSentenceEncoderPP(GraphormerSentenceEncoder):
     @classmethod
     def config(cls):
         return cls.graphormer_config
-        # return GraphormerConfig(
-        #     hidden_size=cls.embedding_dim,
-        #     intermediate_size=cls.ffn_embedding_dim,
-        #     num_attention_heads=cls.num_attention_heads,
-        #     hidden_act="relu",
-        # )
 
     def forward(self, input_batchdata: Tuple):
         (
@@ -60,6 +54,9 @@ class GraphormerSentenceEncoderPP(GraphormerSentenceEncoder):
             spatial_pos,
             edge_input,
             num_atoms,
+            pos,
+            mask3d,
+            node_type_edge,
         ) = input_batchdata
 
         # create dict for batched data
@@ -71,6 +68,9 @@ class GraphormerSentenceEncoderPP(GraphormerSentenceEncoder):
         batched_data["x"] = x
         batched_data["edge_input"] = edge_input
         batched_data["attn_edge_type"] = None
+        batched_data["pos"] = pos
+        batched_data["mask3d"] = mask3d
+        batched_data["node_type_edge"] = node_type_edge
 
         x, _, _, _, _, padding_mask = super().forward(batched_data)
 
