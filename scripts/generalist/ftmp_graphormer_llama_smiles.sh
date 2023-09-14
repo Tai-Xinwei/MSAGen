@@ -17,12 +17,18 @@
 [ -z "${weight_decay}" ] && weight_decay=0.0
 [ -z "${sandwich_ln}" ] && sandwich_ln=true
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
+if [[ "${sandwich_ln}" == "true" ]]; then
+  sandwich_ln="--sandwich_ln"
+else
+  sandwich_ln=""
+fi
 
 # general training parameters
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=2e-5
 [ -z "${total_num_steps}" ] && total_num_steps=10000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
+[ -z "${seed}" ] && seed=12345
 
 # generalist dataset settings
 [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
@@ -34,12 +40,18 @@
 [ -z "${model_max_length}" ] && model_max_length=512
 
 # checkpoint and log settings
-[ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${save_dir}" ] && save_dir='/mnt/shiyu/checkpoints/llama2-local-debug'
+[ -z "${save_batch_interval}" ] && save_batch_interval=500
 [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/"
 [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
+[ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir=""
+[ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id=""
 [ -z "${wandb_key}" ] && wandb_key=5d03b7a46d10f86ff45c4aedc570660a523edc0b
 [ -z "${wandb_project_name}" ] && wandb_project_name="chemical-generalist"
+if [[ $finetune_from_checkpoint_dir != "" ]]; then
+  finetune_from_checkpoint_dir="--finetune_from_checkpoint_dir ${finetune_from_checkpoint_dir}"
+  finetune_from_checkpoint_id="--finetune_from_checkpoint_id ${finetune_from_checkpoint_id}"
+fi
 
 # training parallelism
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=2
@@ -55,13 +67,13 @@ elif [[ ${strategy} == "Zero3" ]]; then
 fi
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="manual"
 [ -z "${pp_part_list}" ] && pp_part_list="[0, 40, 61]"
+[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="adaptor"
 
 # training parameters for generalist
 [ -z "${micro_batch_size}" ] && micro_batch_size=1
 [ -z "${global_batch_size}" ] && global_batch_size=64
 [ -z "${max_position_embeddings}" ] && max_position_embeddings=2048
 [ -z "${llm_hidden_size}" ] && llm_hidden_size=4096
-[ -z "${seed}" ] && seed=12345
 
 # prepare megatron args
 if [[ "${strategy}" == "ThreeD" ]]; then
@@ -116,6 +128,7 @@ echo "d_tilde: ${d_tilde}"
 echo "max_lr: ${max_lr}"
 echo "total_num_steps: ${total_num_steps}"
 echo "warmup_num_steps: ${warmup_num_steps}"
+echo "seed: ${seed}"
 
 
 echo "===================================== generalist dataset settings ====================================="
@@ -128,11 +141,12 @@ echo "embedding_length: ${embedding_length}"
 echo "model_max_length: ${model_max_length}"
 
 echo "===================================== checkpoint and log settings ====================================="
-echo "loadcheck_path: ${loadcheck_path}"
 echo "save_dir: ${save_dir}"
+echo "save_batch_interval: ${save_batch_interval}"
 echo "loadmfmcheck_path: ${loadmfmcheck_path}"
 echo "llm_model_name_or_path: ${llm_model_name_or_path}"
-echo "output_path: ${output_path}"
+echo "wandb_key: ${wandb_key}"
+echo "wandb_project_name: ${wandb_project_name}"
 
 echo "===================================== training parallelism ====================================="
 echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
@@ -146,7 +160,6 @@ echo "micro_batch_size: ${micro_batch_size}"
 echo "global_batch_size: ${global_batch_size}"
 echo "max_position_embeddings: ${max_position_embeddings}"
 echo "llm_hidden_size: ${llm_hidden_size}"
-echo "seed: ${seed}"
 
 echo "===================================== end of parameters ======================================"
 echo -e "\n\n"
@@ -170,6 +183,7 @@ fi
 
 wandb login --relogin ${wandb_key}
 
+mkdir -p $save_dir
 DS_CONFIG=$save_dir/deepspeed.json
 
 cat <<EOT > $DS_CONFIG
@@ -211,40 +225,49 @@ cat <<EOT > $DS_CONFIG
 }
 EOT
 
+if [[ $OMPI_COMM_WORLD_SIZE > 1 ]]; then
+  cp sfm/utils/barrier.py . && touch READY && python -u barrier.py $OMPI_COMM_WORLD_SIZE $OMPI_COMM_WORLD_RANK
+fi
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
-          --num_classes 1 \
-          --encoder_attention_heads $num_head \
           --encoder_layers $layers \
-          --encoder_ffn_embed_dim $ffn_size \
-          --encoder_embed_dim $hidden_size \
-          --droppath_prob $droppath_prob \
-          --attn_dropout $attn_dropout \
-          --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
-          --sandwich_ln \
-          --data_path $data_path \
-          --pipeline-model-parallel-size $pipeline_model_parallel_size \
-          --tensor-model-parallel-size $tensor_model_parallel_size \
-          --seed $seed \
-          --ft --fp16 \
-          --d_tilde $d_tilde \
           --num_pred_attn_layer $num_pred_attn_layer \
+          --encoder_embed_dim $hidden_size \
+          --encoder_ffn_embed_dim $ffn_size \
+          --encoder_attention_heads $num_head \
+          --num_3d_bias_kernel $num_3d_bias_kernel \
+          --dropout $dropout \
+          --act_dropout $act_dropout \
+          --attn_dropout $attn_dropout \
+          --weight_decay $weight_decay \
+          ${sandwich_ln} \
+          --droppath_prob $droppath_prob \
+          --d_tilde $d_tilde \
           --max_lr $max_lr \
-          --save_dir $save_dir \
           --total_num_steps $total_num_steps \
           --warmup_num_steps $warmup_num_steps \
-          --loadcheck_path $loadcheck_path \
-          --llm_model_name_or_path $llm_model_name_or_path \
-          --loadmfmcheck_path $loadmfmcheck_path \
+          --seed $seed \
+          --data_path $data_path \
           --dataset_names $dataset_names \
           --dataset_splits $dataset_splits \
           --dataset_ratios $dataset_ratios \
           --pool_mode $pool_mode \
           --embedding_length $embedding_length \
           --model_max_length $model_max_length \
+          --save_dir $save_dir \
+          --save_batch_interval $save_batch_interval \
+          --loadmfmcheck_path $loadmfmcheck_path \
+          --llm_model_name_or_path $llm_model_name_or_path \
+          ${finetune_from_checkpoint_dir} \
+          ${finetune_from_checkpoint_id} \
+          --pipeline-model-parallel-size $pipeline_model_parallel_size \
+          --tensor-model-parallel-size $tensor_model_parallel_size \
+          --strategy $strategy \
           --pp_partition_layer_name $pp_partition_layer_name \
           --pp_part_list "${pp_part_list}" \
-          --strategy $strategy \
+          --unfreeze_param_list $unfreeze_param_list \
+          --ft \
+          --fp16 \
           --load_ckpt \
           --deepspeed_config=$DS_CONFIG \
           ${MEGATRON_ARGS}

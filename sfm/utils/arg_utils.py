@@ -86,7 +86,7 @@ def add_dataclass_to_parser(configs, parser: ArgumentParser):
             elif is_collection(field_type):
                 group.add_argument("--" + name, type=ast.literal_eval, default=default)
             else:
-                group.add_argument("--" + name, type=field.type, default=default)
+                group.add_argument("--" + name, type=field_type, default=default)
 
     return parser
 

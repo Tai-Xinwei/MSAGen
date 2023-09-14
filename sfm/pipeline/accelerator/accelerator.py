@@ -79,7 +79,13 @@ class Accelerator(ABC):
         pass
 
     @abstractmethod
-    def load_checkpoint(self, ckpt_id: Union[int, str]) -> TrainerState:
+    def load_checkpoint(
+        self,
+        ckpt_dir: Path,
+        ckpt_id: Union[int, str],
+        trainer_state: TrainerState,
+        model_states_only: bool = False,
+    ) -> TrainerState:
         pass
 
     @abstractmethod
@@ -226,19 +232,25 @@ class SingleNodeAccelerator(Accelerator):
         with open(save_dir / "checkpoint_list.txt", "a") as f:
             f.write(ckpt_id + "\n")
 
-    def load_checkpoint(self, ckpt_id: str) -> TrainerState:
-        save_dir = Path(self.args.save_dir)
-        checkpoint_path = save_dir / ckpt_id
+    def load_checkpoint(
+        self,
+        ckpt_dir: Path,
+        ckpt_id: Union[int, str],
+        trainer_state: TrainerState,
+        model_states_only: bool = False,
+    ) -> TrainerState:
+        checkpoint_path = ckpt_dir / str(ckpt_id)
         checkpoint = torch.load(checkpoint_path)
         self.model.load_state_dict(checkpoint["model"])
-        self.optimizer.load_state_dict(checkpoint["optimizer"])
-        self.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
+        if not model_states_only:
+            self.optimizer.load_state_dict(checkpoint["optimizer"])
+            self.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
 
-        state = TrainerState(args=self.args)
-        for k, v in checkpoint.items():
-            if k not in ["model", "optimizer", "lr_scheduler"]:
-                setattr(state, k, v)
-        return state
+        if not model_states_only:
+            for k, v in checkpoint.items():
+                if k not in ["model", "optimizer", "lr_scheduler"]:
+                    setattr(trainer_state, k, v)
+        return trainer_state
 
     def sync_valid_loss(self, total_loss, num_examples):
         return total_loss, num_examples
@@ -785,13 +797,26 @@ class DeepSpeedAccelerator(Accelerator):
             client_state={"ckpt_id": ckpt_id},
         )
 
-    def load_checkpoint(self, ckpt_id: int) -> TrainerState:
+    def load_checkpoint(
+        self,
+        ckpt_dir: Path,
+        ckpt_id: Union[int, str],
+        trainer_state: TrainerState,
+        model_states_only: bool = False,
+    ) -> TrainerState:
+        if isinstance(ckpt_id, int):
+            ckpt_id = str(ckpt_id)
         _, cliend_sd = self.model_engine.load_checkpoint(
-            self.args.save_dir,
-            # ckpt_id=ckpt_id,
+            str(ckpt_dir),
+            load_optimizer_states=(not model_states_only),
+            load_lr_scheduler_states=(not model_states_only),
+            load_module_only=model_states_only,
+            tag=ckpt_id,
         )
 
-        return TrainerState(**cliend_sd)
+        if not model_states_only:
+            trainer_state.global_step = self.model_engine.global_steps
+        return trainer_state
 
     def sync_valid_loss(self, total_loss, num_examples):
         total_loss = torch.Tensor([total_loss]).cuda()

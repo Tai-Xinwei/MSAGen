@@ -1,8 +1,7 @@
- # Steps to run:
-# 1. copy data folder https://itpeus4data.blob.core.windows.net/shuz/data/pcq-pos-custom/ to your Azure storage blob container
-# 2. copy script mae_3d.sh in FoundationModelProp/ to your Azure storage blob container
-# 3. Specify the Azure storage account and container to use
-# 4. Submit the job with this yaml file
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+# train a chemical generalist
 
 description: chemical-copilot
 
@@ -27,56 +26,71 @@ code:
   local_dir: ../../
 
 jobs:
-- name: ft_100MMFM_70Bppllama_graphqformer1_moldesc+funcgroup+chembi-adaptor-2e-5
-  sku: 4x G16
+- name: ft_100MMFM_70Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi+chemcop-adaptor+graphormer-special-tokens-2e-5-pp16-nonprem
+  sku: 2xG16
   mpi: true
   process_count_per_node: 1
   command:
-  - mkdir /blob/ds_dataset/output
-  - mkdir /blob/ds_dataset/output/ft_100MMFM_70Bppllama_graphqformer1_moldesc+funcgroup+chembi-adaptor-2e-5
-  - export output_path=/blob/ds_dataset/output/ft_100MMFM_70Bppllama_graphqformer1_moldesc+funcgroup+chembi-adaptor-2e-5/
-  - mkdir ./output
-  - export path=run.sh
+  # molecule model parameters
   - export layers=24
   - export num_pred_attn_layer=1
   - export hidden_size=768
   - export ffn_size=768
   - export num_head=32
-  - export llm_hidden_size=8192
-  - export llm_ffn_size=28672
   - export num_3d_bias_kernel=128
-  - export atom_loss_coeff=1.0
-  - export pos_loss_coeff=1.0
-  - export sandwich_ln="true"
+
+  # molecule model training parameters
   - export dropout=0.0
-  - export attn_dropout=0.1
   - export act_dropout=0.1
+  - export attn_dropout=0.1
   - export weight_decay=0.0
+  - export sandwich_ln="true"
   - export droppath_prob=0.0
-  - export pipeline_model_parallel_size=16
-  - export noise_scale=0.2
-  - export mask_ratio=0.5
+
+  # general training parameters
   - export d_tilde=1.0
-  - export max_lr=2e-5
+  - export max_lr=2e-4
   - export total_num_steps=200000
   - export warmup_num_steps=12000
-  - export embedding_length=20
-  - export data_path=/blob/data/chemical-copilot-20230724/
-  - export smiles_dict_path=/blob/data/chemical-copilot/mol2idx_dict.jsonl
-  - export mol_size_path=/blob/data/chemical-copilot/mol_size_dict.pkl
+  - export seed=12345
+
+  # generalist dataset settings
+  - export data_path=/blob/data/chemical-copilot-special-token/
+  - export dataset_names=mol-instruction-mol-desc,functional-group,chebi,func-group-list-and-desc
+  - export dataset_splits=clean,all,all,all
+  - export dataset_ratios=3.0,1.0,3.0,1.0
   - export pool_mode="full"
-  - export dataset_names=mol-instruction-mol-desc,functional-group,chembi
-  - export dataset_splits=clean,all,all
+  - export embedding_length=20
+  - export model_max_length=512
+
+  # checkpoint and log settings
+  - export save_dir=/blob/checkpoints/ft_100MMFM_70Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi+chemcop-adaptor+graphormer-special-tokens-2e-4-pp16-nonprem
+  - export save_batch_interval=500
   - export loadmfmcheck_path=/blob/ds_dataset/ddpm100M/checkpoint7_new.pt
-  - export loadllmcheck_path=/blob/ds_dataset/llama2/llama-2-70b/
   - export llm_model_name_or_path=/blob/ds_dataset/llama2/llama-2-70b/
-  - export save_dir=/blob/checkpoints/llama2-70b-mol-desc-func-group-chembi-adaptor-2e-5
-  - export model_max_length=256
-  - export hostfile=./scripts/generalist/hostfile
-  - export D_NODE=4
+  - export finetune_from_checkpoint_dir=/blob/ds_dataset/output/ft_100MMFM_70Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi-adaptor-special-tokens-2e-4-pp16-prem/
+  - export finetune_from_checkpoint_id=global_step1499
+  - export wandb_key=974f8bd90204c0396737c20ec04a3b4ca924ea9a
+  - export wandb_project_name=chemical-copilot
+
+  # training parallelism
+  - export pipeline_model_parallel_size=16
+  - export tensor_model_parallel_size=1
+  - export strategy=Pipeline
+  - export pp_partition_layer_name="LlamaDecoderLayerPP"
+  - export pp_part_list="[]"
+  - export unfreeze_param_list="adapter,lm_head,num_head,mol_rep_layernorm,embed_tokens"
+
+  # training parameters for generalist
+  - export micro_batch_size=1
+  - export global_batch_size=64
+  - export max_position_embeddings=2048
+  - export llm_hidden_size=4096 # this is only for ThreeD parallelism strategy, used by megatron
+
+  # setup environment
   - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
   - bash ./install/install.sh && bash ./install/install_megatron.sh
-  - bash ./scripts/generalist/ft_graphormer_llama_smiles.sh
+  - bash ./scripts/generalist/ftmp_graphormer_llama_smiles.sh
   submit_args:
     container_args:
       shm_size: 1024g
