@@ -277,10 +277,6 @@ class Graph3DBiasPipe(Graph3DBias):
         gbf_result = self.gbf_proj(edge_feature)
         graph_attn_bias = gbf_result
 
-        # @ Roger added: mask atom
-
-        # graph_attn_bias[node_mask.squeeze(-1)[:, None, :].bool().repeat(1, n_node, 1)] = self.mask_bias.weight.squeeze(0)
-
         graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous()
         graph_attn_bias.masked_fill_(
             padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
@@ -301,7 +297,6 @@ class Graph3DBiasPipe(Graph3DBias):
             merge_edge_features = merge_edge_features.masked_fill_(
                 padding_mask.unsqueeze(-1), 0.0
             )
-        # pos_3d_factor = self.pos_3d_dropout(self.pos_3d_factor)
 
         return graph_attn_bias, merge_edge_features, delta_pos
 

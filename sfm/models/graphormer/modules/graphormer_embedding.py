@@ -13,7 +13,7 @@ from sfm.logging import logger
 from sfm.modules.FairseqDropout import FairseqDropout
 
 from .graphormer_layers import GraphAttnBias, GraphNodeFeature
-from .graphormer_layers_mp import GraphAttnBiasMP, GraphNodeFeatureMP
+from .graphormer_layers_mp import Graph3DBiasMP, GraphAttnBiasMP, GraphNodeFeatureMP
 
 
 class GraphormerEmbeddingMP(SFMModule):
@@ -70,8 +70,6 @@ class GraphormerEmbeddingMP(SFMModule):
             hidden_dim=graphormer_config.embedding_dim,
             n_layers=graphormer_config.num_encoder_layers,
             no_2d=graphormer_config.no_2d,
-            # add_3d=add_3d,
-            # args=args,
         )
 
         self.graph_attn_bias = GraphAttnBiasMP(
@@ -88,21 +86,24 @@ class GraphormerEmbeddingMP(SFMModule):
             hidden_dim=graphormer_config.num_attention_heads,
             n_layers=graphormer_config.num_encoder_layers,
             no_2d=graphormer_config.no_2d,
-            # add_3d=add_3d,
-            # args=args,
         )
 
         assert graphormer_config.add_3d is False, "3D bias is not supported in MP mode"
-        # self.graph_3d_bias = Graph3DBiasPipe(
-        #     args,
-        #     num_heads=num_attention_heads * (num_encoder_layers + 1),
-        #     num_edges=num_edges,
-        #     n_layers=num_encoder_layers,
-        #     embed_dim=embedding_dim,
-        #     num_kernel=num_3d_bias_kernel,
-        #     no_share_rpe=False,
-        #     # args=args,
-        # ) if add_3d else None
+        self.graph_3d_bias = (
+            Graph3DBiasMP(
+                mp_config,
+                args,
+                num_heads=graphormer_config.num_attention_heads
+                * (graphormer_config.num_encoder_layers + 1),
+                num_edges=graphormer_config.num_edges,
+                n_layers=graphormer_config.num_encoder_layers,
+                embed_dim=graphormer_config.embedding_dim,
+                num_kernel=graphormer_config.num_3d_bias_kernel,
+                no_share_rpe=False,
+            )
+            if graphormer_config.add_3d
+            else None
+        )
 
     def forward(self, input_batchdata: tuple):
         (
@@ -116,6 +117,9 @@ class GraphormerEmbeddingMP(SFMModule):
             spatial_pos,
             edge_input,
             num_atoms,
+            pos,
+            mask3d_filter,
+            node_type_edge,
         ) = input_batchdata
 
         # assert type(idx) == torch.Tensor
@@ -161,6 +165,19 @@ class GraphormerEmbeddingMP(SFMModule):
         )  # B x (nhead x (nlayer+1)) x T x T
 
         # tp 3d bias is not implemented, it's not needed in the generalist task
+        if self.graph_3d_bias is not None:
+            input_tuple3 = (pos, x_0, node_type_edge, None)
+            attn_bias_3d, merged_edge_features, delta_pos = self.graph_3d_bias(
+                input_tuple3
+            )
+            attn_bias_3d = attn_bias_3d.masked_fill_(
+                mask3d_filter[:, None, None, None], 0.0
+            )
+            merged_edge_features = merged_edge_features.masked_fill_(
+                mask3d_filter[:, None, None], 0.0
+            )
+            attn_bias[:, :, 1:, 1:] = attn_bias[:, :, 1:, 1:] + attn_bias_3d
+            x[:, 1:, :] = x[:, 1:, :] + merged_edge_features * 0.01
 
         # add embed_scale, drop, and layer norm
         if self.embed_scale is not None:

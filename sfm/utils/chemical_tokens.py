@@ -12,4 +12,8 @@ CHEMICAL_TOKENS = [
     "</dna>",
     "<rna>",
     "</rna>",
+    "<ans>",
+    "</ans>",
+    "<xyz>",
+    "</xyz>",
 ]

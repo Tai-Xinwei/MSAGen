@@ -31,11 +31,11 @@ export MKL_THREADING_LAYER='GNU'
 
 # [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot'
 [ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-new'
-# [ -z "${dataset_names}" ] && dataset_names='tdc'
-# [ -z "${dataset_splits}" ] && dataset_splits='all-instruction'
-# [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
 [ -z "${dataset_names}" ] && dataset_names='tdc'
 [ -z "${dataset_splits}" ] && dataset_splits='all-instruction'
+# [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
+# [ -z "${dataset_names}" ] && dataset_names='moleculenet'
+# [ -z "${dataset_splits}" ] && dataset_splits='dev'
 [ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
@@ -174,51 +174,10 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --deepspeed_config ./config_file/ds_config_pp.json \
           --pp_partition_layer_name "LlamaDecoderLayerPP" \
           --load_ckpt \
+          --add_3d \
           --unfreeze_param_list "adaptor" \
           --save_batch_interval $save_batch_interval
 
-
-# if [ $OMPI_COMM_WORLD_RANK == 0 ]; then
-#   sleep 600
-#   deepspeed --force_multi --hostfile=$hostfile sfm/tasks/ft_graphormerllama.py \
-#     --num-classes 1 \
-#     --encoder_attention_heads $num_head \
-#     --encoder_layers $layers \
-#     --encoder_ffn_embed_dim $ffn_size \
-#     --encoder_embed_dim $hidden_size \
-#     --droppath_prob $droppath_prob \
-#     --attn_dropout $attn_dropout \
-#     --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
-#     --sandwich_ln \
-#     --dataset-name $dataset_name \
-#     --data_path $data_path \
-#     --output_path $output_path \
-#     --pipeline_parallelism $pipeline_parallelism \
-#     --seed 666667 \
-#     --ft \
-#     --d_tilde $d_tilde \
-#     --num_pred_attn_layer $num_pred_attn_layer \
-#     --max_lr $max_lr \
-#     --output_path $output_path \
-#     --total_num_steps $total_num_steps \
-#     --warmup_num_steps $warmup_num_steps \
-#     --loadcheck_path $loadcheck_path \
-#     --deepspeed --deepspeed_config ./config_file/ds_config_pp.json \
-#     --smiles_dict_path $smiles_dict_path \
-#     --mol_size_path $mol_size_path \
-#     --llm_model_name_or_path $llm_model_name_or_path \
-#     --loadmfmcheck_path $loadmfmcheck_path \
-#     --dataset_names $dataset_names \
-#     --dataset_splits $dataset_splits \
-#     --pool_mode $pool_mode \
-#     --strategy $strategy \
-#     --embedding_length $embedding_length \
-#     --model_max_length $model_max_length \
-#     --pp_partition_layer_name "LlamaDecoderLayerPP" \
-#     --load_ckpt \
-#     --unfreeze_param_list "adaptor,graphormer" \
-#     --save_batch_interval $save_batch_interval
-# fi
 
 sleep inf
 sleep inf
