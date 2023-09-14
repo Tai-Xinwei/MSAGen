@@ -1134,7 +1134,7 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
     )
     in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num) for i in in_degrees])
 
-    mask3d = torch.cat([i.unsqueeze(0) for i in mask3ds])
+    mask3d = torch.cat([i for i in mask3ds])
     pos = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in poses])
 
     node_type_edges = []

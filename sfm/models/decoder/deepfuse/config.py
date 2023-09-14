@@ -64,6 +64,7 @@ class DecDeepFuseConfig(DistributedTrainConfig):
     num_key_value_heads: int = 0  # KV grouping
     entity_num_attention_heads: int = 0
     rms_norm_eps: float = 1e-6
+    rope_theta: float = 10000.0
     rope_scaling: Optional[Dict[str, float]] = None
 
     num_adapter_layers: int = 2

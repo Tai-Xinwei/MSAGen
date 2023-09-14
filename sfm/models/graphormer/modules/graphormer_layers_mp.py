@@ -327,109 +327,162 @@ class GraphAttnBiasMP(SFMModule):
         return graph_attn_bias
 
 
-# class Graph3DBias(nn.Module):
-#     """
-#     Compute 3D attention bias according to the position information for each head.
-#     """
+class Graph3DBiasMP(SFMModule):
+    """
+    Compute 3D attention bias according to the position information for each head.
+    """
 
-#     def __init__(
-#         self,
-#         config,
-#         args,
-#         num_heads,
-#         num_edges,
-#         n_layers,
-#         embed_dim,
-#         num_kernel,
-#         no_share_rpe=False,
-#     ):
-#         super(Graph3DBias, self).__init__()
-#         self.num_heads = num_heads
-#         self.num_edges = num_edges
-#         self.n_layers = n_layers
-#         self.no_share_rpe = no_share_rpe
-#         self.num_kernel = num_kernel
-#         self.embed_dim = embed_dim
-#         self.args = args
+    def __init__(
+        self,
+        mp_config,
+        args,
+        num_heads,
+        num_edges,
+        n_layers,
+        embed_dim,
+        num_kernel,
+        no_share_rpe=False,
+    ):
+        super(Graph3DBiasMP, self).__init__()
+        self.num_heads = num_heads
+        self.num_edges = num_edges
+        self.n_layers = n_layers
+        self.no_share_rpe = no_share_rpe
+        self.num_kernel = num_kernel
+        self.embed_dim = embed_dim
+        self.args = args
 
-#         rpe_heads = (
-#             self.num_heads * self.n_layers if self.no_share_rpe else self.num_heads
-#         )
-#         self.gbf = GaussianLayer(self.num_kernel, num_edges)
-#         self.gbf_proj = NonLinear(self.num_kernel, rpe_heads)
+        rpe_heads = (
+            self.num_heads * self.n_layers if self.no_share_rpe else self.num_heads
+        )
+        rpe_heads_per_tprank = rpe_heads // mp_config.tensor_model_parallel_size
 
-#         if self.num_kernel != self.embed_dim:
-#             self.edge_proj = nn.Linear(self.num_kernel, self.embed_dim)
-#         else:
-#             self.edge_proj = None
+        self.gbf = GaussianLayerMP(self.num_kernel, num_edges)
+        self.gbf_proj = NonLinearMP(mp_config, self.num_kernel, rpe_heads_per_tprank)
 
-#         self.mask_bias = tensor_parallel.VocabParallelEmbedding(
-#             1, num_heads, config=config, init_method=config.init_method
-#         )
+        self.edge_proj = nn.Linear(self.num_kernel, self.embed_dim)
+
+    def forward(self, input_tuple: tuple):
+        pos, x, node_type_edge, node_mask = input_tuple
+
+        padding_mask = x.eq(0).all(dim=-1)
+        n_graph, n_node, _ = pos.shape
+
+        delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
+        dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
+        delta_pos /= dist.unsqueeze(-1) + 1e-5
+
+        if not self.args.ft and node_mask is not None:
+            node_mask_i = node_mask.unsqueeze(-2).repeat(1, 1, n_node, 1)
+            node_mask_j = node_mask.unsqueeze(1).repeat(1, n_node, 1, 1)
+            new_node_mask = torch.cat([node_mask_i, node_mask_j], dim=-1).bool()
+            node_type_edge = node_type_edge.masked_fill(new_node_mask, 0).to(
+                node_type_edge
+            )
+
+        edge_feature = self.gbf(
+            dist,
+            torch.zeros_like(dist).long()
+            if node_type_edge is None
+            else node_type_edge.long(),
+        )
+        gbf_result = self.gbf_proj(edge_feature)
+        graph_attn_bias = gbf_result
+
+        graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous()
+        graph_attn_bias.masked_fill_(
+            padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
+        )
+
+        edge_feature = edge_feature.masked_fill(
+            padding_mask.unsqueeze(1).unsqueeze(-1).to(torch.bool), 0.0
+        )
+
+        sum_edge_features = edge_feature.sum(dim=-2)
+        merge_edge_features = self.edge_proj(sum_edge_features)
+
+        if not self.args.ft and node_mask is not None:
+            merge_edge_features = merge_edge_features.masked_fill_(
+                padding_mask.unsqueeze(-1) + node_mask.bool(), 0.0
+            )
+        else:
+            merge_edge_features = merge_edge_features.masked_fill_(
+                padding_mask.unsqueeze(-1), 0.0
+            )
+
+        return graph_attn_bias, merge_edge_features, delta_pos
 
 
-#     def forward(self, batched_data):
-#         pos, x, node_type_edge = (
-#             batched_data["pos"],
-#             batched_data["x"],
-#             batched_data["node_type_edge"],
-#         )  # pos shape: [n_graphs, n_nodes, 3]
-#         if not self.args.ft:
-#             node_mask = batched_data["node_mask"]
-#         # pos.requires_grad_(True)
+@torch.jit.script
+def gaussian(x, mean, std):
+    pi = 3.14159
+    a = (2 * pi) ** 0.5
+    return torch.exp(-0.5 * (((x - mean) / std) ** 2)) / (a * std)
 
-#         padding_mask = x.eq(0).all(dim=-1)
-#         n_graph, n_node, _ = pos.shape
 
-#         # @ Roger added:
-#         # pos = pos.masked_fill(node_mask.bool(), 0.0)
+class GaussianLayerMP(SFMModule):
+    def __init__(self, K=128, edge_types=512 * 3):
+        super().__init__()
+        self.K = K
+        self.means = nn.Embedding(1, K)
+        self.stds = nn.Embedding(1, K)
+        self.mul = nn.Embedding(edge_types, 1, padding_idx=0)
+        self.bias = nn.Embedding(edge_types, 1, padding_idx=0)
+        nn.init.uniform_(self.means.weight, 0, 3)
+        nn.init.uniform_(self.stds.weight, 0, 3)
+        nn.init.constant_(self.bias.weight, 0)
+        nn.init.constant_(self.mul.weight, 1)
 
-#         delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
-#         dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
-#         delta_pos /= dist.unsqueeze(-1) + 1e-5
+    def forward(self, x, edge_types):
+        mul = self.mul(edge_types).sum(dim=-2)
+        bias = self.bias(edge_types).sum(dim=-2)
+        x = mul * x.unsqueeze(-1) + bias
+        x = x.expand(-1, -1, -1, self.K)
+        mean = self.means.weight.float().view(-1)
+        std = self.stds.weight.float().view(-1).abs() + 1e-2
+        return gaussian(x.float(), mean, std).type_as(self.means.weight)
 
-#         if not self.args.ft:
-#             node_mask_i = node_mask.unsqueeze(-2).repeat(1, 1, n_node, 1)
-#             node_mask_j = node_mask.unsqueeze(1).repeat(1, n_node, 1, 1)
-#             new_node_mask = torch.cat([node_mask_i, node_mask_j], dim=-1).bool()
-#             node_type_edge = node_type_edge.masked_fill(new_node_mask, 0).to(
-#                 node_type_edge
-#             )
 
-#         edge_feature = self.gbf(
-#             dist,
-#             torch.zeros_like(dist).long()
-#             if node_type_edge is None
-#             else node_type_edge.long(),
-#         )
-#         gbf_result = self.gbf_proj(edge_feature)
-#         graph_attn_bias = gbf_result
+class NonLinearMP(SFMModule):
+    def __init__(
+        self,
+        config,
+        input,
+        output_size,
+        hidden=None,
+        enable_expert_tensor_parallelism: bool = False,
+        moe: bool = False,
+    ):
+        super(NonLinearMP, self).__init__()
 
-#         # @ Roger added: mask atom
+        if hidden is None:
+            hidden = input
 
-#         # graph_attn_bias[node_mask.squeeze(-1)[:, None, :].bool().repeat(1, n_node, 1)] = self.mask_bias.weight.squeeze(0)
+        self.gate_proj = tensor_parallel.ColumnParallelLinear(
+            input,
+            hidden,
+            config=config,
+            init_method=config.init_method,
+            bias=True,
+            gather_output=False,
+            skip_bias_add=True,
+            moe=moe,
+            enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
+        )
 
-#         graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous()
-#         graph_attn_bias.masked_fill_(
-#             padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
-#         )
+        self.down_proj = self.dense_4h_to_h = tensor_parallel.RowParallelLinear(
+            hidden,
+            output_size,
+            config=config,
+            init_method=config.output_layer_init_method,
+            bias=True,
+            input_is_parallel=True,
+            moe=moe,
+            enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
+        )
 
-#         edge_feature = edge_feature.masked_fill(
-#             padding_mask.unsqueeze(1).unsqueeze(-1).to(torch.bool), 0.0
-#         )
-
-#         sum_edge_features = edge_feature.sum(dim=-2)
-#         merge_edge_features = self.edge_proj(sum_edge_features)
-
-#         if not self.args.ft:
-#             merge_edge_features = merge_edge_features.masked_fill_(
-#                 padding_mask.unsqueeze(-1) + node_mask.bool(), 0.0
-#             )
-#         else:
-#             merge_edge_features = merge_edge_features.masked_fill_(
-#                 padding_mask.unsqueeze(-1), 0.0
-#             )
-
-#         # pos_3d_factor = self.pos_3d_dropout(self.pos_3d_factor)
-
-#         return graph_attn_bias, merge_edge_features, delta_pos
+    def forward(self, x):
+        x = self.layer1(x)[0]
+        x = F.gelu(x)
+        x = self.layer2(x)[0]
+        return x
