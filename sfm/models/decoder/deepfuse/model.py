@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-from typing import List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
 from torch.nn import Module
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
+from transformers import GenerationMixin
 
 from sfm.data.dec_data.datasets import ENTITY_MARKERS, MixedTokenData, TokenType
 from sfm.logging import logger
@@ -28,15 +29,43 @@ TODO:
 
 1. We don't use any dropout now as LLaMA seems not using it.
 2. Only support one entity type now.
-3. KV caching for faster decoding
 """
 
 
-class DecDeepFuseModel(SFMPipelineModelMixin):
+class GenerationOutput(object):
+    def __init__(
+        self, hidden: HiddenState, past_key_values: List[torch.Tensor]
+    ) -> None:
+        self.hidden = hidden
+        self.past_key_values = past_key_values
+
+    @property
+    def logits(self):
+        # As the vocab size are different, we use the max vocab size
+        max_vocab_size = max([v.shape[-1] for v in self.hidden.x_dict.values()])
+        x_dict_new = {}
+
+        for token_type, x in self.hidden.x_dict.items():
+            x_dict_new[token_type] = torch.zeros(
+                (x.shape[0], max_vocab_size), device=x.device
+            )
+            x_dict_new[token_type][:, : x.shape[-1]] = x
+
+        h_new = HiddenState(x_dict_new, self.hidden.token_type_mask)
+        return h_new.to_dense()
+
+    def __contains__(self, item):
+        return item in self.__dict__
+
+    def __index__(self, item):
+        return self.__dict__[item]
+
+
+class DecDeepFuseModel(SFMPipelineModelMixin, GenerationMixin):
     def __init__(self, config: DecDeepFuseConfig) -> None:
         super().__init__()
         self.config = config
-        self.embed = Embed(config)
+        self.embed = Embed(config=config)
 
         self.decoder_layers = nn.ModuleList([])
         self.layer_usage = LayerUsage.from_str(config.layer_usage)
@@ -62,8 +91,9 @@ class DecDeepFuseModel(SFMPipelineModelMixin):
 
         self.head = Head(config)
 
-        self.load_from_pretrained()
-        self.freeze_params()
+        if config.load_from_pretrained:
+            self.load_from_pretrained()
+            self.freeze_params()
 
     def extend_emb(self, emb: torch.Tensor) -> torch.Tensor:
         new_emb = torch.zeros(
@@ -230,17 +260,54 @@ class DecDeepFuseModel(SFMPipelineModelMixin):
     def forward(
         self,
         batch: MixedTokenData,
+        return_dict: bool = False,
+        output_attentions: bool = False,
+        output_hidden_states: bool = False,
+        past_key_values: Optional[List[torch.FloatTensor]] = None,
+        use_cache: bool = False,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.Tensor] = None,
     ) -> HiddenState:
-        tensors = batch.to_tuple()[0]
+        tensors = batch.to_tuple()[0] + (
+            attention_mask,
+            position_ids,
+            None if past_key_values is None else past_key_values[-1],
+        )
 
         tensors = self.embed(tensors)
 
-        for layer in self.decoder_layers:
-            tensors = layer(tensors)
+        h = HiddenState.from_tuple(tensors[:-2])
+        attention_mask, position_ids = tensors[-2:]
+
+        all_past_key_values = []
+        for idx, layer in enumerate(self.decoder_layers):
+            past_key_value = past_key_values[idx] if past_key_values else None
+
+            # Here we intentionally use the forwad_impl rather than forward
+            # as we want to use kV caching
+            h, past_key_value = layer.forward_impl(
+                h=h,
+                attention_mask=attention_mask,
+                position_ids=position_ids,
+                past_key_value=past_key_value,
+                use_cache=use_cache,
+            )
+            all_past_key_values.append(past_key_value)
+
+        tensors = h.to_tuple()
 
         h_tuple = self.head(tensors)
 
-        return HiddenState.from_tuple(h_tuple)
+        h = HiddenState.from_tuple(h_tuple)
+        if use_cache:
+            # this means we are generating
+            return GenerationOutput(
+                hidden=h,
+                past_key_values=all_past_key_values,
+            )
+
+        else:
+            return h
 
     def compute_loss(self, pred: HiddenState, batch: MixedTokenData):
         if type(pred) is tuple:
@@ -318,3 +385,113 @@ class DecDeepFuseModel(SFMPipelineModelMixin):
 
     def to_layers(self) -> List[Module]:
         return [self.embed] + list(self.decoder_layers) + [self.head]
+
+    # for generation mixin
+    def can_generate(self):
+        return True
+
+    @property
+    def main_input_name(self):
+        return "input_ids"
+
+    @property
+    def device(self):
+        return next(self.parameters()).device
+
+    def prepare_inputs_for_generation(
+        self,
+        input_ids: torch.Tensor,
+        batch: MixedTokenData,
+        use_cache: bool,
+        past_key_values: Optional[List[torch.Tensor]] = None,
+        position_ids: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        special_token_mapping: Optional[List[Tuple[int, int]]] = None,
+    ):
+        if past_key_values:
+            # When past_key_values are provided, we need to update the batch
+            # and recompute the token_type_mask.
+            # We also need to update the token_ids from different vocab
+
+            assert (
+                special_token_mapping is not None
+            ), "special_token_mapping must be provided when past_key_values is provided"
+
+            text_id_to_entity = {idx[0]: idx[1] for idx in special_token_mapping}
+            entity_id_to_text = {idx[1]: idx[0] for idx in special_token_mapping}
+
+            bsz = batch.batch_size
+
+            new_input_ids = torch.zeros(
+                (bsz, 1), dtype=batch.token_seq.dtype, device=batch.token_seq.device
+            )
+            new_token_type_mask = torch.zeros(
+                (bsz, 1),
+                dtype=batch.token_type_mask.dtype,
+                device=batch.token_type_mask.device,
+            )
+
+            for i in range(bsz):
+                last_token_type = batch.token_type_mask[i][-1].item()
+                last_gen_token = input_ids[i][-1].item()
+                if last_token_type == TokenType.Text.value:
+                    if (
+                        last_gen_token in text_id_to_entity
+                    ):  # start of entity generation
+                        new_input_ids[i, 0] = text_id_to_entity[last_gen_token]
+                        new_token_type_mask[i, 0] = TokenType.Entity.value
+                    else:
+                        new_input_ids[i, 0] = last_gen_token
+                        new_token_type_mask[i, 0] = TokenType.Text.value
+                elif last_token_type == TokenType.Entity.value:
+                    if last_gen_token in entity_id_to_text:  # end of entity generation
+                        new_input_ids[i, 0] = entity_id_to_text[last_gen_token]
+                        new_token_type_mask[i, 0] = TokenType.Text.value
+                    else:
+                        new_input_ids[i, 0] = last_gen_token
+                        new_token_type_mask[i, 0] = TokenType.Entity.value
+
+            batch.token_seq = new_input_ids
+            batch.token_type_mask = new_token_type_mask
+
+            if attention_mask is not None and position_ids is None:
+                # create position_ids on the fly for batch generation
+                position_ids = attention_mask.long().cumsum(-1) - 1
+                position_ids.masked_fill_(attention_mask == 0, 1)
+                position_ids = position_ids[:, -1].unsqueeze(-1)
+
+            return {
+                "batch": batch,
+                "use_cache": use_cache,
+                "past_key_values": past_key_values,
+                "position_ids": position_ids,
+                "attention_mask": attention_mask,
+            }
+
+        else:
+            # First span, no past_key_values
+            # No need to update the batch
+            return {
+                "batch": batch,
+                "use_cache": use_cache,
+                "past_key_values": None,
+                "position_ids": position_ids,
+                "attention_mask": attention_mask,
+            }
+
+    def _extract_past_from_model_output(
+        self, outputs: GenerationOutput, standardize_cache_format: bool = False
+    ):
+        return outputs.past_key_values
+
+    @staticmethod
+    def _reorder_cache(past_key_values, beam_idx):
+        reordered_past = ()
+        for layer_past in past_key_values:
+            reordered_past += (
+                tuple(
+                    past_state.index_select(0, beam_idx.to(past_state.device))
+                    for past_state in layer_past
+                ),
+            )
+        return reordered_past

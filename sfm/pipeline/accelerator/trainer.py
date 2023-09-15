@@ -182,32 +182,67 @@ class Trainer(object):
 
         self.save_dir = Path(self.args.save_dir)
 
+        if self.args.finetune_from_checkpoint_dir is not None:
+            self.finetune_from_checkpoint_dir = Path(
+                self.args.finetune_from_checkpoint_dir
+            )
+        else:
+            self.finetune_from_checkpoint_dir = None
+
         self.world_size = self.accelerator.world_size
 
     def save_checkpoint(self, name: str):
         self.accelerator.save_checkpoint(name)
 
-    def load_checkpoint(self, ckpt_id: Union[int, str]):
-        self.state = self.accelerator.load_checkpoint(ckpt_id)
+    def _load_checkpoint(self, path: Path, model_states_only: bool = False):
+        checkpoint_list_path = path / "checkpoint_list.txt"
+        latest_path = path / "latest"  # latest path for DeepSpeed
 
-    def resume(self):
-        self.save_dir.mkdir(parents=True, exist_ok=True)
-        checkpoint_list_path = self.save_dir / "checkpoint_list.txt"
-
-        if checkpoint_list_path.exists():
+        checkpoint_last = None
+        if model_states_only and self.args.finetune_from_checkpoint_id is not None:
+            checkpoint_last = self.args.finetune_from_checkpoint_id
+        elif checkpoint_list_path.exists():
             with open(checkpoint_list_path, "r") as f:
                 checkpoint_list = f.read().splitlines()
             if len(checkpoint_list) > 0:
                 checkpoint_last = checkpoint_list[-1]
-                checkpoint_path = self.save_dir / checkpoint_last
-                if checkpoint_path.exists():
-                    logger.info("Resume from checkpoint: ", checkpoint_path)
-                    self.load_checkpoint(checkpoint_last)
+        elif latest_path.exists():
+            with open(latest_path, "r") as f:
+                latest_list = f.read().splitlines()
+            if len(latest_list) > 0:
+                checkpoint_last = latest_list[-1]
+
+        if checkpoint_last is not None:
+            checkpoint_path = path / checkpoint_last
+            if checkpoint_path.exists():
+                if not model_states_only:
+                    logger.info(f"Resume from checkpoint: {checkpoint_path}")
                 else:
-                    logger.info("Not resume from checkpoint")
+                    logger.info(f"Finetune from checkpoint: {checkpoint_path}")
+                self.state = self.accelerator.load_checkpoint(
+                    path,
+                    checkpoint_last,
+                    self.state,
+                    model_states_only=model_states_only,
+                )
+            else:
+                logger.warning(f"Checkpoint path {checkpoint_path} does not exist.")
         else:
-            with open(checkpoint_list_path, "w") as f:
-                f.write("")
+            logger.warning(
+                f"Non-empty checkpoint_list.txt or latest file is not present in {path}, or finetune_from_checkpoint_id is not provided. No checkpoint is loaded."
+            )
+
+    def resume(self):
+        self.save_dir.mkdir(parents=True, exist_ok=True)
+        self._load_checkpoint(self.save_dir)
+
+    def finetune_from_checkpoint(self):
+        if self.finetune_from_checkpoint_dir is not None:
+            self._load_checkpoint(
+                self.finetune_from_checkpoint_dir, model_states_only=True
+            )
+        else:
+            logger.warning("No finetune_from_checkpoint_dir is provided.")
 
     def build_accelerator(self, loss_log_dict: Optional[dict] = {}) -> Accelerator:
         if self.args.strategy == TrainStrategy.Single:
@@ -314,6 +349,8 @@ class Trainer(object):
         self.model.before_training()
         if self.args.ifresume:
             self.resume()
+        elif self.args.finetune_from_checkpoint_dir is not None:
+            self.finetune_from_checkpoint()
 
         total_num = sum(p.numel() for p in self.model.parameters())
         trainable_num = sum(

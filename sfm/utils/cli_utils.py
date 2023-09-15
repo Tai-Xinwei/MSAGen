@@ -64,7 +64,10 @@ def cli(*cfg_classes_and_funcs):
                 main(args)
             except Exception as e:
                 logger.exception(e)
-                raise e
+                logger.error(
+                    "====================================Fail!===================================="
+                )
+                exit()
 
             logger.success(
                 "====================================Done!===================================="

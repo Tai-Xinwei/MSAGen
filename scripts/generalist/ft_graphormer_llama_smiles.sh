@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-ulimit -c unlimited
-
-echo 'Solving MKL done!'
-export MKL_SERVICE_FORCE_INTEL=1
-export MKL_THREADING_LAYER='GNU'
 
 [ -z "${layers}" ] && layers=24
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4

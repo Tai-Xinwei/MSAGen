@@ -78,15 +78,15 @@ def add_dataclass_to_parser(configs, parser: ArgumentParser):
                 default = None
 
             if field_type == bool:
-                action = "store_false" if default else "store_true"
-                group.add_argument("--" + name, action=action, default=default)
+                group.add_argument("--" + name, action="store_true", default=default)
+                group.add_argument("--no_" + name, action="store_false", dest=name)
             elif is_enum_type(field_type):
                 parse_enum = make_enum_praser(field.type)
                 group.add_argument("--" + name, type=parse_enum, default=default)
             elif is_collection(field_type):
                 group.add_argument("--" + name, type=ast.literal_eval, default=default)
             else:
-                group.add_argument("--" + name, type=field.type, default=default)
+                group.add_argument("--" + name, type=field_type, default=default)
 
     return parser
 

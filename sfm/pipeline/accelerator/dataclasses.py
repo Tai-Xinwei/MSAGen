@@ -54,6 +54,8 @@ class TrainerConfig:
     ifresume: bool = False
     load_ckpt: bool = False
     unfreeze_param_list: str = ""
+    finetune_from_checkpoint_dir: Optional[str] = None
+    finetune_from_checkpoint_id: Optional[str] = None
 
     # dataloader strategy
     daliLoader: bool = False
