@@ -178,8 +178,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --unfreeze_param_list "adaptor" \
           --save_batch_interval $save_batch_interval
 
-          # --load_ckpt \
-
 sleep inf
 sleep inf
 sleep inf
