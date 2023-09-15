@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, Tuple
 
 import torch
 import torch.nn as nn
@@ -35,6 +35,30 @@ class HiddenState:
     def device(self):
         return self.x_dict[TokenType.Text].device
 
+    @property
+    def logits(self):
+        # For generation, the generator expecta a logit tensor of shape [B, T, V]
+        # However, here the V could be different for each token type
+        # Thus, we need to extend to the max V and fill the rest with -inf
+
+        max_vocab_size = max([v.shape[-1] for v in self.x_dict.values()])
+        ret = torch.empty(
+            (
+                self.batch_size,
+                self.seq_len,
+                max_vocab_size,
+            ),
+            device=self.device,
+            dtype=self.dtype,
+        )
+
+        torch.fill_(ret, torch.finfo(self.dtype).min)
+
+        for k, v in self.x_dict.items():
+            ret[self.token_type_mask == k.value][:, : v.shape[-1]] = v
+
+        return ret
+
     def __add__(self, other):
         return HiddenState(
             x_dict={k: v + other.x_dict[k] for k, v in self.x_dict.items()},
@@ -54,11 +78,19 @@ class HiddenState:
     def to_dense(self) -> torch.Tensor:
         # All tensor must have the dim [N, *, ...]
         # If we want to concat them, we need to make sure that the last dims is the same
-
-        extra_dims = self.x_dict[TokenType.Text].shape[1:]
+        for k, v in self.x_dict.items():
+            if v.numel() != 0:
+                extra_dims = v.shape[1:]
+                break
+        else:
+            return torch.empty(0, device=self.device, dtype=self.dtype)
 
         # Check all dim are the same
         for k, v in self.x_dict.items():
+            # check empty_first:
+            if v.numel() == 0:
+                continue
+
             assert v.shape[1:] == extra_dims
 
         ret = torch.zeros(
@@ -96,16 +128,19 @@ class HiddenState:
 
         batch[self.token_type_mask == token_type.value] = self.x_dict[token_type]
 
-        attention_mask_new = (
-            attention_mask  # [B, 1, SRC_LEN, TGT_LEN], the 2nd dim head
-        )
+        # [B, 1, SRC_LEN, TGT_LEN], the 2nd dim head
+        attention_mask_new = attention_mask.clone()
 
         not_to_attend_mask = (self.token_type_mask != token_type.value)[
             :, None, None, :
         ].expand_as(attention_mask_new)
 
-        val = torch.finfo(attention_mask.dtype).min
-        attention_mask_new[not_to_attend_mask] = val
+        if attention_mask.dtype == torch.bool:
+            # see `mask_to_float`.
+            attention_mask_new[not_to_attend_mask] = True
+        else:
+            val = torch.finfo(attention_mask.dtype).min
+            attention_mask_new[not_to_attend_mask] = val
 
         return batch, attention_mask_new
 

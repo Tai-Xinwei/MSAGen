@@ -45,7 +45,6 @@ class MixedTokenData(Batch):
     """
 
     token_seq: torch.Tensor
-    token_seq_len: Union[int, torch.Tensor]
     token_type_mask: torch.Tensor
     label_seq: torch.Tensor
     pad_idx: int
@@ -57,7 +56,6 @@ class MixedTokenData(Batch):
     def to_tuple(self):
         t = (
             self.token_seq,
-            self.token_seq_len,
             self.token_type_mask,
             self.label_seq,
             torch.LongTensor([self.pad_idx]),
@@ -72,11 +70,10 @@ class MixedTokenData(Batch):
 
         return cls(
             token_seq=t[0],
-            token_seq_len=t[1],
-            token_type_mask=t[2],
-            label_seq=t[3],
-            pad_idx=t[4].item(),
-            batch_size=t[5].item(),
+            token_type_mask=t[1],
+            label_seq=t[2],
+            pad_idx=t[3].item(),
+            batch_size=t[4].item(),
         )
 
 
@@ -89,6 +86,7 @@ class MixedTokenDataset(FoundationModelDataset):
         max_text_len: int,
         max_entity_len: int,
         return_tuple: bool = False,
+        pad_left: bool = False,
     ) -> None:
         super().__init__()
         self.sents = sents
@@ -99,6 +97,7 @@ class MixedTokenDataset(FoundationModelDataset):
         self.max_entity_len = max_entity_len
         self.pad_idx = self.text_tokenizer.pad_token_id
         self.return_tuple = return_tuple
+        self.pad_left = pad_left
 
     def init_tokenziers(self, text_tokenizer: str, entity_tokenizer: str):
         self.entity_tokenizer = SFMDecTokenizer.from_pretrained(
@@ -147,6 +146,14 @@ class MixedTokenDataset(FoundationModelDataset):
             Thus, we need to add those special tokens to LLM vocab.
         - The Entity decoder is responsible for generating the last token of the molecule like [/M]
         """
+
+        if isinstance(index, slice):
+            batch = []
+            step = index.step if index.step is not None else 1
+            for i in range(index.start, index.stop, step):
+                batch.append(self[i])
+
+            return self.collate(batch)
 
         sent = self.sents[index]
 
@@ -227,13 +234,11 @@ class MixedTokenDataset(FoundationModelDataset):
         ), f"{len(token_seq)} != {len(token_type_seq)}"
 
         token_seq = torch.IntTensor(token_seq)
-        token_seq_len = token_seq.shape[0]
         token_type_mask = torch.ByteTensor(token_type_seq)
         label_seq = torch.IntTensor(label_seq)
 
         data = MixedTokenData(
             token_seq=token_seq,
-            token_seq_len=token_seq_len,
             token_type_mask=token_type_mask,
             label_seq=label_seq,
             pad_idx=self.pad_idx,
@@ -245,6 +250,21 @@ class MixedTokenDataset(FoundationModelDataset):
 
         return data
 
+    def pad_sequence(self, batch: List[torch.Tensor], pad_idx):
+        if self.pad_left:
+            batch = [t.flip(0) for t in batch]
+
+        batch = torch.nn.utils.rnn.pad_sequence(
+            batch,
+            batch_first=True,
+            padding_value=pad_idx,
+        )
+
+        if self.pad_left:
+            batch = batch.flip(1)
+
+        return batch
+
     def collate(self, batch: List[MixedTokenData]) -> MixedTokenData:
         """
         Collate a batch of MixedTokenData.
@@ -254,31 +274,23 @@ class MixedTokenDataset(FoundationModelDataset):
             batch = [MixedTokenData.from_tuple(t) for t in batch]
 
         # pad the token_seq
-        batched_tokens = torch.nn.utils.rnn.pad_sequence(
+        batched_tokens = self.pad_sequence(
             [text.token_seq for text in batch],
-            batch_first=True,
-            padding_value=self.pad_idx,
+            self.pad_idx,
         )
 
-        token_seq_len = torch.tensor(
-            [text.token_seq_len for text in batch], dtype=torch.int64
-        )
-
-        batched_token_type_mask = torch.nn.utils.rnn.pad_sequence(
+        batched_token_type_mask = self.pad_sequence(
             [text.token_type_mask for text in batch],
-            batch_first=True,
-            padding_value=torch.iinfo(batch[0].token_type_mask.dtype).max,
+            torch.iinfo(batch[0].token_type_mask.dtype).max,
         )
 
-        batched_label_seq = torch.nn.utils.rnn.pad_sequence(
+        batched_label_seq = self.pad_sequence(
             [text.label_seq for text in batch],
-            batch_first=True,
-            padding_value=self.pad_idx,
+            self.pad_idx,
         )
 
         batch = MixedTokenData(
             token_seq=batched_tokens,
-            token_seq_len=token_seq_len,
             token_type_mask=batched_token_type_mask,
             label_seq=batched_label_seq,
             pad_idx=self.pad_idx,

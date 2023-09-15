@@ -74,7 +74,8 @@ class Embed(nn.Module):
             self.embed_positions = None
 
     def forward(self, input_tuple) -> Tuple[torch.Tensor]:
-        batch = MixedTokenData.from_tuple(input_tuple)
+        batch = MixedTokenData.from_tuple(input_tuple[:-3])
+        attention_mask, position_ids, past_key_value = input_tuple[-3:]
 
         hidden_tuple = tuple(
             batch.token_seq[batch.token_type_mask == t.value] for t in TokenType
@@ -84,26 +85,59 @@ class Embed(nn.Module):
         h = h.apply_all_types_mapping(self.embed_tokens)
 
         bsz, seq_len = batch.token_type_mask.shape
-        position_ids = torch.arange(0, seq_len, dtype=torch.long, device=h.device)
-        position_ids = position_ids.unsqueeze(0)
+        if position_ids is None:
+            position_ids = torch.arange(0, seq_len, dtype=torch.long, device=h.device)
+            position_ids = position_ids.unsqueeze(0)
 
-        non_padding_mask = batch.non_padding_mask
-        attention_mask = non_padding_mask.to(h.dtype)
+        if past_key_value is None:
+            past_key_values_length = 0
+        else:
+            past_key_values_length = past_key_value[0].shape[2]
 
-        # Only BioGPT uses the learned positional embedding
-        if self.embed_positions is not None:
-            positions = self.embed_positions(attention_mask, past_key_values_length=0)
-            x = (
-                h.x_dict[TokenType.Entity]
-                + positions[batch.token_type_mask == TokenType.Entity.value]
+        if attention_mask is None:
+            # During training, we use the non_padding_mask
+            non_padding_mask = batch.non_padding_mask
+            attention_mask = non_padding_mask.to(h.dtype)
+
+            # Only BioGPT uses the learned positional embedding
+            if self.embed_positions is not None:
+                positions = self.embed_positions(
+                    attention_mask, past_key_values_length=past_key_values_length
+                )
+                x = (
+                    h.x_dict[TokenType.Entity]
+                    + positions[batch.token_type_mask == TokenType.Entity.value]
+                )
+                h = h.update_x_dict(TokenType.Entity, x)
+
+            attention_mask = self._prepare_decoder_attention_mask(
+                attention_mask, (bsz, seq_len), x, past_key_values_length
             )
-            h = h.update_x_dict(TokenType.Entity, x)
 
-        attention_mask = self._prepare_decoder_attention_mask(
-            attention_mask, (bsz, seq_len), x, 0
-        )
+            attention_mask = mask_to_bool(attention_mask)
+        elif attention_mask.dim() == 2:
+            # The HF generator will pass in a 2D attention mask
 
-        attention_mask = mask_to_bool(attention_mask)
+            # Only BioGPT uses the learned positional embedding
+            if self.embed_positions is not None:
+                positions = self.embed_positions(
+                    attention_mask, past_key_values_length=past_key_values_length
+                )
+                x = (
+                    h.x_dict[TokenType.Entity]
+                    + positions[batch.token_type_mask == TokenType.Entity.value]
+                )
+                h = h.update_x_dict(TokenType.Entity, x)
+
+            attention_mask = self._prepare_decoder_attention_mask(
+                attention_mask,
+                (bsz, seq_len),
+                h.x_dict[TokenType.Text],
+                past_key_values_length,
+            )
+            attention_mask = mask_to_bool(attention_mask)
+        else:
+            raise Exception(f"Unknown attention mask, shape {attention_mask.shape}")
 
         return h.to_tuple() + (attention_mask, position_ids)
 
@@ -161,7 +195,7 @@ class Head(nn.Module):
         )
 
     def forward(self, x):
-        h = HiddenState.from_tuple(x[:-2])
+        h = HiddenState.from_tuple(x)
         h = h.apply_all_types_mapping(self.final_norm)
         h = h.apply_all_types_mapping(self.lm_head)
         return h.to_tuple()
@@ -350,7 +384,8 @@ class AttnOutputProj(nn.Module):
             x = x.mean(dim=1)
             x = self.adapter(x)
 
-        x = x.reshape(bsz, -1)
+        dim = math.prod(x.shape[1:])
+        x = x.reshape(bsz, dim)
 
         x = self.layer(x)
         return x
@@ -427,23 +462,37 @@ class FusedAttn(nn.Module):
         h: HiddenState,
         position_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
+        past_key_value: Optional[Tuple[torch.Tensor]] = None,
+        use_cache: bool = False,
     ) -> HiddenState:
         query_hidden = h.apply_all_types_mapping(self.q_proj_dict)
         key_hidden = h.apply_all_types_mapping(self.k_proj_dict)
         value_hidden = h.apply_all_types_mapping(self.v_proj_dict)
 
-        query_states = query_hidden.to_dense()
+        query_states = query_hidden.to_dense()  # [B, T, H, D]
         key_states = key_hidden.to_dense()
         value_states = value_hidden.to_dense()
 
-        query_states = query_states.transpose(1, 2)
+        query_states = query_states.transpose(1, 2)  # [B, H, T, D]
         key_states = key_states.transpose(1, 2)
         value_states = value_states.transpose(1, 2)
 
-        cos, sin = self.rotary_emb(value_states, seq_len=h.seq_len)
+        kv_seq_len = key_states.shape[2]
+
+        if past_key_value is not None:
+            kv_seq_len += past_key_value[0].shape[2]
+
+        cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
         query_states, key_states = apply_rotary_pos_emb(
             query_states, key_states, cos, sin, position_ids
         )
+
+        if past_key_value is not None:
+            past_key, past_value = past_key_value
+            key_states = torch.cat([past_key, key_states], dim=2)
+            value_states = torch.cat([past_value, value_states], dim=2)
+
+        past_key_value = (key_states, value_states) if use_cache else None
 
         attn_weights = torch.matmul(
             query_states, key_states.transpose(2, 3)
@@ -465,7 +514,7 @@ class FusedAttn(nn.Module):
             self.o_proj_dict
         )
 
-        return attn_output_hidden
+        return attn_output_hidden, past_key_value
 
     def freeze_text_model(self):
         for parm_dict in [
@@ -502,13 +551,15 @@ class DeepFuseLayerBase(ABC, nn.Module):
     """
 
     def forward(self, x: Tuple[torch.Tensor]) -> Tuple[torch.Tensor]:
-        h = HiddenState.from_tuple(x[:-2])
-        attention_mask = x[-2]
-        position_ids = x[-1]
+        h = HiddenState.from_tuple(x[:2])
+        attention_mask = x[3]
+        position_ids = x[4]
 
         attention_mask_float = mask_to_float(attention_mask, h.dtype)
 
-        ret = self.forward_impl(h, attention_mask_float, position_ids)
+        ret, _ = self.forward_impl(
+            h, attention_mask_float, position_ids, past_key_value=None, use_cache=False
+        )
 
         return ret.to_tuple() + (attention_mask, position_ids)
 
@@ -519,6 +570,8 @@ class DeepFuseLayerBase(ABC, nn.Module):
         h: HiddenState,
         attention_mask: torch.Tensor,
         position_ids: torch.Tensor,
+        past_key_value: Tuple[torch.Tensor],
+        use_cache: bool,
     ) -> HiddenState:
         raise NotImplementedError
 
@@ -556,12 +609,24 @@ class TextOnly(DeepFuseLayerBase):
         h: HiddenState,
         attention_mask: torch.Tensor,
         position_ids: torch.Tensor,
+        past_key_value: Tuple[torch.Tensor],
+        use_cache: bool,
     ) -> HiddenState:
         x, attention_mask = h.to_single_type_batch(TokenType.Text, attention_mask)
-        x = self.text_layer(x, attention_mask=attention_mask, position_ids=position_ids)
+        x = self.text_layer(
+            x,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_value=past_key_value,
+            use_cache=use_cache,
+        )
 
-        x = x[0]  # LLaMA returns a tuple
-        return h.update_single_type_batch(TokenType.Text, x)
+        if use_cache:
+            x, present_key_value = x
+            h = h.update_single_type_batch(TokenType.Text, x)
+            return h, present_key_value
+        else:
+            return h.update_single_type_batch(TokenType.Text, x[0]), None
 
     @staticmethod
     def map_state_dict(
@@ -604,10 +669,18 @@ class MixLayer(DeepFuseLayerBase):
         h: HiddenState,
         attention_mask: torch.Tensor,
         position_ids: torch.Tensor,
+        past_key_value: Tuple[torch.Tensor],
+        use_cache: bool,
     ) -> HiddenState:
         res = h
         h = h.apply_all_types_mapping(self.attn_norm)
-        h = self.attn(h, attention_mask=attention_mask, position_ids=position_ids)
+        h, present_key_value = self.attn(
+            h,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_value=past_key_value,
+            use_cache=use_cache,
+        )
         h = h + res
 
         res = h
@@ -615,7 +688,7 @@ class MixLayer(DeepFuseLayerBase):
         h = h.apply_all_types_mapping(self.mlp)
         h = h + res
 
-        return h
+        return h, present_key_value
 
     @staticmethod
     def map_state_dict(
@@ -727,18 +800,65 @@ class SeperateLayer(DeepFuseLayerBase):
         h: HiddenState,
         attention_mask: torch.Tensor,
         position_ids: torch.Tensor,
+        past_key_value: Tuple[torch.Tensor],
+        use_cache: bool,
     ) -> HiddenState:
+        if use_cache:
+            if past_key_value is None:
+                # first time, there is no past key value even the cache is enabled
+                past_key_value_dict = None
+            else:
+                past_key_value_dict = {
+                    TokenType.Text.name: (past_key_value[0], past_key_value[1]),
+                    TokenType.Entity.name: (past_key_value[2], past_key_value[3]),
+                }
+            present_key_value_dict = {}
+        else:
+            past_key_value_dict = None
+            present_key_value_dict = None
+
         for token_type in TokenType:
             x, attention_mask_t = h.to_single_type_batch(token_type, attention_mask)
+            past_key_value_for_type = (
+                None
+                if past_key_value_dict is None
+                else past_key_value_dict[token_type.name]
+            )
+
             if type(self.layers[token_type.name]) == BioGptDecoderLayer:
-                x = self.layers[token_type.name](x, attention_mask=attention_mask_t)[0]
+                ret = self.layers[token_type.name](
+                    x,
+                    attention_mask=attention_mask_t,
+                    past_key_value=past_key_value_for_type,
+                    use_cache=use_cache,
+                )
             else:
-                x = self.layers[token_type.name](
-                    x, attention_mask=attention_mask_t, position_ids=position_ids
-                )[0]
+                ret = self.layers[token_type.name](
+                    x,
+                    attention_mask=attention_mask_t,
+                    position_ids=position_ids,
+                    past_key_value=past_key_value_for_type,
+                    use_cache=use_cache,
+                )
+            if use_cache:
+                x, present_key_value = ret
+                present_key_value_dict[token_type.name] = present_key_value
+            else:
+                x = ret[0]
+
             h = h.update_single_type_batch(token_type, x)
 
-        return h
+        if use_cache:
+            present_key_value = (
+                present_key_value_dict[TokenType.Text.name][0],
+                present_key_value_dict[TokenType.Text.name][1],
+                present_key_value_dict[TokenType.Entity.name][0],
+                present_key_value_dict[TokenType.Entity.name][1],
+            )
+        else:
+            present_key_value = None
+
+        return h, present_key_value
 
     @staticmethod
     def map_state_dict(
