@@ -18,8 +18,8 @@ from torch_geometric.data import Data, InMemoryDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer
 
-from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
 from sfm.utils.move_to_device import move_to_device
+from sfm.utils.science_tokens import SCIENCE_TAG_TOKENS
 
 from .collator import collator
 from .moltext_dataset import smiles2graph_removeh
@@ -64,7 +64,7 @@ class MolTokenizer:
         if text_tokenizer.unk_token is None:
             special_tokens_dict["unk_token"] = DEFAULT_UNK_TOKEN
 
-        special_tokens_dict["additional_special_tokens"] = CHEMICAL_TOKENS
+        special_tokens_dict["additional_special_tokens"] = SCIENCE_TAG_TOKENS
         text_tokenizer.add_special_tokens(special_tokens_dict)
 
         self.text_tokenizer = text_tokenizer

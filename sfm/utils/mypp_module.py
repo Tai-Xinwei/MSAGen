@@ -218,7 +218,7 @@ class PipelineModule(nn.Module):
         self.world_group = dist.new_group(ranks=range(dist.get_world_size()))
         self.global_rank = dist.get_rank(group=self.world_group)
         self.world_size = dist.get_world_size(group=self.world_group)
-        self.local_rank = int(os.environ.get("LOCAL_RANK", None))
+        self.local_rank = int(os.environ.get("LOCAL_RANK", 0))
         assert self.local_rank is not None
 
         if topology:

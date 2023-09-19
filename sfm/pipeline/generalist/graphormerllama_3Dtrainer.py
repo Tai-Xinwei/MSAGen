@@ -28,11 +28,11 @@ from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.pipeline.accelerator.dataclasses import TrainerConfig
 from sfm.utils import PPEngine
 from sfm.utils.arg_utils import ExtraArgsProvider
-from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
 from sfm.utils.get_paranum import count_paranum
 from sfm.utils.mypp_module import PipelineModule
 from sfm.utils.optim.optimizer import myAdam
 from sfm.utils.optim.set_lr import groupWarmupDecayLR
+from sfm.utils.science_tokens import SCIENCE_TAG_TOKENS
 
 
 class Trainer3D:
@@ -185,7 +185,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     if tokenizer.unk_token is None:
         special_tokens_dict["unk_token"] = DEFAULT_UNK_TOKEN
 
-    # special_tokens_dict["additional_special_tokens"] = CHEMICAL_TOKENS
+    # special_tokens_dict["additional_special_tokens"] = SCIENCE_TAG_TOKENS
     tokenizer.add_special_tokens(special_tokens_dict)
 
     """ Make dataset and collator for supervised fine-tuning. """

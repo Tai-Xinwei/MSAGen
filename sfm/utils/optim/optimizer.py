@@ -8,7 +8,7 @@ try:
     from apex.optimizers import FusedAdam as Adam  # isort:skip
 except:
     logger.info("apex is not installed, using pytorch AdamW with fp32 optimizer states")
-    from adam import AdamW as Adam  # isort:skip
+    from sfm.utils.optim.adam import AdamW as Adam  # isort:skip
 
 
 def split_param_and_layer_name(name_list: List[str]) -> Tuple[List[str], List[int]]:
