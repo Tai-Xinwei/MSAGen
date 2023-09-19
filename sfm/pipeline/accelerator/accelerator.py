@@ -522,6 +522,7 @@ class DeepSpeedAccelerator(Accelerator):
         for name, param in self.model.named_parameters():
             for param_name in unfreeze_param_name_list:
                 if name.find(param_name) != -1:
+                    logger.info(f"Unfreezing {name}")
                     unfreeze_param.append(param)
                     break
 
@@ -621,6 +622,7 @@ class DeepSpeedAccelerator(Accelerator):
         deepspeed.comm.barrier()
 
     def before_epoch(self, epoch: int):
+        super().before_epoch(epoch)
         if (
             self.args.strategy == TrainStrategy.Pipeline
             or self.args.strategy == TrainStrategy.ThreeD
@@ -635,8 +637,10 @@ class DeepSpeedAccelerator(Accelerator):
                 raise ValueError(
                     f"Unknown training data loader type {type(self.train_data_loader)}"
                 )
-        else:
-            super().before_epoch(epoch)
+        # set seed of data sampler
+        if hasattr(self.train_data_loader.data_sampler, "seed"):
+            logger.info(f"Setting seed of data loader to {self.args.seed}.")
+            self.train_data_loader.data_sampler.seed = self.args.seed
 
     def build_data_loader(
         self, train_data: FoundationModelDataset, val_data: FoundationModelDataset

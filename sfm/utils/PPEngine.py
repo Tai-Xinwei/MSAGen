@@ -1650,7 +1650,7 @@ class SFMPipeEngine(DeepSpeedEngine):
         )
 
         load_zero_checkpoint = self.zero_optimization() or self.bfloat16_enabled()
-        if load_zero_checkpoint and load_path is not None:
+        if load_zero_checkpoint and load_path is not None and (not load_module_only):
             success = self._load_zero_checkpoint(
                 load_dir, tag, load_optimizer_states=load_optimizer_states
             )

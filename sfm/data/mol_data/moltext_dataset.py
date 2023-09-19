@@ -932,6 +932,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
             input_ids = torch.tensor(input_ids, dtype=torch.int64)
 
         input_ids_len = int(input_ids_len)
+        original_input_ids_len = input_ids_len
         if self.mol_embed_type == "atoms":
             mol_pos = torch.nonzero(input_ids < 0).squeeze(-1)
             mol_pos = torch.cat(
@@ -946,7 +947,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
                         new_input_ids.extend(
                             torch.ones([mol_sizes[-mol_idx - 1] - 1]) * mol_idx
                         )
-                        if mol_pos[j + 1] < input_ids_len:
+                        if mol_pos[j + 1] < original_input_ids_len:
                             input_ids_len += mol_sizes[-mol_idx - 1] - 1
                 elif self.pool_mode == "qformer":
                     new_input_ids.extend(input_ids[mol_pos[j] : mol_pos[j + 1]])
@@ -955,7 +956,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
                         new_input_ids.extend(
                             torch.ones([self.embedding_length - 1]) * mol_idx
                         )
-                        if mol_pos[j + 1] < input_ids_len:
+                        if mol_pos[j + 1] < original_input_ids_len:
                             input_ids_len += self.embedding_length - 1
                 else:
                     raise Exception(f"Pool mode {self.pool_mode} not supported yet")

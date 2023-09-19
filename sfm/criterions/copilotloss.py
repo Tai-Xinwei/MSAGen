@@ -59,7 +59,8 @@ class CopilotCriterionsPP(CopilotCriterions):
 class CopilotCriterionsNumPP(CopilotCriterions):
     def __init__(self, config, vocab_size=32001, reduction="mean") -> None:
         super().__init__(config, vocab_size, reduction)
-        self.l_num = nn.L1Loss(reduction=reduction)
+        self.reduction = reduction
+        self.l_num = nn.L1Loss(reduction="sum")
         self.l_bce = nn.BCEWithLogitsLoss(reduction=reduction)
         self.global_step = 0
         # TODO
@@ -84,13 +85,13 @@ class CopilotCriterionsNumPP(CopilotCriterions):
 
         loss = self.l1(shift_logits, shift_labels)
 
-        num_idx = num_labels != -100
-        if num_idx.any():
-            num_labels = num_labels[num_idx]
-            num_logits = num_logits[num_idx].view(-1)
-            num_loss = self.l_num(num_logits, num_labels)
-        else:
-            num_loss = torch.tensor(0.0).to(loss.device)
+        num_idx = (num_labels != -100).view(-1)
+        num_labels = num_labels.view(-1).masked_fill(~num_idx, 0.0)
+        num_logits = num_logits.view(-1).masked_fill(~num_idx, 0.0)
+
+        num_loss = self.l_num(num_logits, num_labels)
+        if self.reduction == "mean" and num_idx.any():
+            num_loss /= torch.sum(num_idx)
 
         if self.mlp_bce:
             lm_binary_label_mask = (labels == 8241) | (labels == 3782)
@@ -133,7 +134,8 @@ class CopilotCriterionsNumPP(CopilotCriterions):
 class CopilotCriterionsNumMP(CopilotCriterions):
     def __init__(self, config, vocab_size=32001, reduction="mean") -> None:
         super().__init__(config, vocab_size, reduction)
-        self.l_num = nn.L1Loss(reduction=reduction)
+        self.reduction = reduction
+        self.l_num = nn.L1Loss(reduction="sum")
         self.global_step = 0
         self.wandb_log = True
 
@@ -167,13 +169,13 @@ class CopilotCriterionsNumMP(CopilotCriterions):
         else:
             loss = torch.sum(loss * loss_mask) / loss_mask.sum()
 
-        num_idx = num_labels != -100
-        if num_idx.any():
-            num_labels = num_labels[num_idx]
-            num_logits = num_logits[num_idx].view(-1).contiguous()
-            num_loss = self.l_num(num_logits, num_labels)
-        else:
-            num_loss = torch.tensor(0.0).to(loss.device)
+        num_idx = (num_labels != -100).view(-1)
+        num_labels = num_labels.view(-1).masked_fill(~num_idx, 0.0)
+        num_logits = num_logits.view(-1).masked_fill(~num_idx, 0.0)
+
+        num_loss = self.l_num(num_logits, num_labels)
+        if self.reduction == "mean" and num_idx.any():
+            num_loss /= torch.sum(num_idx)
 
         loss_log = {"lm_loss": loss, "num_loss": num_loss}
         total_loss = loss + num_loss
