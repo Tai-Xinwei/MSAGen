@@ -558,7 +558,7 @@ class DeepSpeedAccelerator(Accelerator):
             else:
                 topology = None
 
-            self.model = SFMPipelineModule(
+            self.ppmodel = SFMPipelineModule(
                 self.model,
                 loss_fn=lambda pred, label: self.model.compute_loss(pred, label),
                 num_stages=self.args.deepspeed_config.get(
@@ -572,11 +572,16 @@ class DeepSpeedAccelerator(Accelerator):
             unfreeze_params = self.get_unfreeze_param_list(
                 self.args.unfreeze_param_list
             )
+            self.optimizer, self.lr_scheduler = self.model.config_optimizer(
+                self.ppmodel
+            )
+
             model_parameters = (
                 unfreeze_params
                 if unfreeze_params is not None
-                else self.model.parameters()
+                else self.ppmodel.parameters()
             )
+
             (
                 self.model_engine,
                 self.optimizer,
@@ -584,7 +589,7 @@ class DeepSpeedAccelerator(Accelerator):
                 self.lr_scheduler,
             ) = initialize_pp_engine(
                 args=self.args,
-                model=self.model,
+                model=self.ppmodel,
                 model_parameters=model_parameters,
                 training_data=self.train_data,
                 collate_fn=self.train_data.collate,

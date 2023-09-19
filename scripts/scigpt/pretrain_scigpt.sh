@@ -20,8 +20,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_lr}" ] && max_lr=4e-4
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
-[ -z "${train_batch_size}" ] && train_batch_size=4
-[ -z "${val_batch_size}" ] && val_batch_size=4
+[ -z "${train_batch_size}" ] && train_batch_size=1
+[ -z "${val_batch_size}" ] && val_batch_size=1
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
@@ -30,12 +30,12 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${strategy}" ] && strategy=Pipeline
 
-[ -z "${dict_path}" ] && dict_path='/mnt/protein/scigpt/sample/scigpt_llama2_unidict.txt'
-[ -z "${train_data_path}" ] && train_data_path='/mnt/protein/scigpt/sample/scigpt.sample.train.txt'
-[ -z "${valid_data_path}" ] && valid_data_path='/mnt/protein/scigpt/sample/scigpt.sample.valid.txt'
+[ -z "${dict_path}" ] && dict_path='/home/peiran/FMproj/llama2/llama-2-7b'
+[ -z "${train_data_path}" ] && train_data_path='/mnt/protein/scigpt/v1/valid.npy'
+[ -z "${valid_data_path}" ] && valid_data_path='/mnt/protein/scigpt/v1/valid.npy'
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${save_dir}" ] && save_dir='/mnt/output/'
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=2
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
 
 [ -z "${wandb_group}" ] && wandb_group=scigpt
 [ -z "${wandb_team}" ] && wandb_team=icuppjin
