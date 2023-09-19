@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from dataclasses import asdict, dataclass
+from typing import Dict, Optional
 
 from transformers.models.llama.configuration_llama import LlamaConfig
 
@@ -9,6 +10,7 @@ class ScigptConfig(LlamaConfig):
     model_type = "scigpt"
 
     vocab_size: int = 32000
+    learnable_cutoff: int = 32000
     hidden_size: int = 768
     intermediate_size: int = 4096
     num_hidden_layers: int = 32
@@ -20,65 +22,21 @@ class ScigptConfig(LlamaConfig):
     initializer_range: float = 0.02
     rms_norm_eps: float = 1e-6
     use_cache: bool = True
-    pad_token_id: int = None
+    pad_token_id: int = 32000
     bos_token_id: int = 1
     eos_token_id: int = 2
     pretraining_tp: int = 1
     tie_word_embeddings: bool = False
     rope_theta: float = 10000.0
-    rope_scaling = None
+    rope_scaling: Optional[Dict[str, str]] = None
 
     dict_path: str = ""
     train_data_path: str = ""
     valid_data_path: str = ""
-    loadcheck_path: str = ""
+    load_from_pretrained: str = ""
 
     ft: bool = False
     infer: bool = False
-
-    def __init__(
-        self,
-        args,
-        **kwargs,
-    ):
-        super().__init__(kwargs)
-        scigpt_base_architecture(args)
-
-        # set attributes of args to self
-        for k, v in asdict(self).items():
-            if hasattr(args, k):
-                setattr(self, k, getattr(args, k))
-
-        self.vocab_size = args.vocab_size
-        self.hidden_size = args.hidden_size
-        self.intermediate_size = args.intermediate_size
-        self.num_hidden_layers = args.num_hidden_layers
-        self.num_attention_heads = args.num_attention_heads
-
-        self.num_key_value_heads = args.num_key_value_heads
-        self.hidden_act = args.hidden_act
-        self.max_position_embeddings = args.max_position_embeddings
-        self.initializer_range = args.initializer_range
-        self.rms_norm_eps = args.rms_norm_eps
-        self.use_cache = args.use_cache
-        self.pad_token_id = args.pad_token_id
-        self.bos_token_id = args.bos_token_id
-        self.eos_token_id = args.eos_token_id
-
-        self.pretraining_tp = args.pretraining_tp
-        self.tie_word_embeddings = args.tie_word_embeddings
-        self.rope_theta = args.rope_theta
-        self.rope_scaling = args.rope_scaling
-
-        self.dict_path = args.dict_path
-        self.train_data_path = args.train_data_path
-        self.valid_data_path = args.valid_data_path
-        self.loadcheck_path = args.loadcheck_path
-
-        self.ft = args.ft
-        self.pretraining_tp = args.pretraining_tp
-
-        self.args = args
 
 
 def scigpt_base_architecture(args):

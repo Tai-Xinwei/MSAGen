@@ -155,11 +155,7 @@ class DynamicBatchSampler(Sampler):
         for idx in self.sampler:
             idx_length = self.num_tokens_fn(idx)
             if not (self.min_size <= idx_length <= self.max_size):
-                # logger.warning(
-                #     "sentence at index {} of size {} exceeds max_tokens, the sentence is ignored".format(
-                #         idx, idx_length
-                #     )
-                # )
+                # Ignore the sentence that not in the range of min_size and max_size
                 continue
 
             index_buckets = math.floor(

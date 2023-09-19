@@ -4,12 +4,13 @@ import random
 from dataclasses import dataclass
 from typing import Any, List, Union
 
+import numpy as np
 import torch
+from torch.utils.data import Dataset, IterableDataset
 
 from sfm.data.dataset import Batch, Data, InMemoryFoundationModelDataset
+from sfm.data.sci_data import SFMDecTokenizer
 from sfm.logging import logger
-
-from .tokenizer import SciTokenizer
 
 
 # allow pad_num to be int or float
@@ -27,7 +28,7 @@ def pad_1d_unsqueeze(
     return x.unsqueeze(0)
 
 
-def collate_fn(samples: List[dict], vocab: SciTokenizer):
+def collate_fn(samples: List[dict], vocab: SFMDecTokenizer):
     """
     Overload BaseWrapperDataset.collater
     May be future changes need config
@@ -56,7 +57,7 @@ def collate_fn(samples: List[dict], vocab: SciTokenizer):
     return batch
 
 
-def collate_fn_pp(samples: List[dict], vocab: SciTokenizer):
+def collate_fn_pp(samples: List[dict], vocab: SFMDecTokenizer):
     """
     Overload BaseWrapperDataset.collater
     May be future changes need config
@@ -109,9 +110,29 @@ class BatchedDataDataset(torch.utils.data.Dataset):
         return self.dataset.sizes[index]
 
 
+class ProcessedSciDataset(torch.utils.data.Dataset):
+    def __init__(self, path: str, padding_idx):
+        super().__init__()
+        self.data = np.load(path, mmap_mode="r")
+        self.padding_idx = padding_idx
+
+    def __getitem__(self, index):
+        return torch.from_numpy(self.data[index].astype(np.int64))
+
+    def __len__(self):
+        return self.data.shape[0]
+
+    def collate(self, samples):
+        input_ids = torch.stack(samples, dim=0)
+        padding_mask = input_ids.ne(self.padding_idx)
+        input = tuple([input_ids, padding_mask])
+        labels = input
+        return (input, labels)
+
+
 class SciDataset(InMemoryFoundationModelDataset):
     def __init__(self, dict_path, data_path, args):
-        self.vocab = SciTokenizer.from_file(dict_path)
+        self.vocab = SFMDecTokenizer.from_file(dict_path)
         self.args = args
         self.max_position_embeddings = args.max_position_embeddings
 
@@ -129,28 +150,3 @@ class SciDataset(InMemoryFoundationModelDataset):
         item = dict()
         item["tokens"] = self.vocab.encode(self.data[index])
         return item
-
-
-if __name__ == "__main__":
-
-    class Namespace:
-        def __init__(self, **kwargs):
-            self.__dict__.update(kwargs)
-
-    args = Namespace()
-    args.dict_path = "/mnt/protein/scigpt/sample/dict.txt"
-    args.train_data_path = "/mnt/protein/scigpt/sample/scigpt.train.txt"
-
-    print(args)
-    print("=================")
-    print("Test sci dataset")
-    dataset = SciDataset(args.dict_path, args.train_data_path)
-    print(len(dataset))
-    print(dataset[12])
-    print()
-    batch_dataset = BatchedDataDataset(dataset)
-    print(
-        batch_dataset.collate([dataset[0], dataset[1111], dataset[2222], dataset[3333]])
-    )
-    # print()
-    # print(batch_dataset.collate([dataset[6123], dataset[6001], dataset[6299], dataset[6599]]))

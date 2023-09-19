@@ -18,8 +18,8 @@ from sfm.models.generalist.generalist_config import GeneralistConfig
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig, TrainStrategy
 from sfm.pipeline.accelerator.trainer import Trainer
-from sfm.utils.chemical_tokens import CHEMICAL_TOKENS
 from sfm.utils.cli_utils import cli
+from sfm.utils.science_tokens import SCIENCE_TAG_TOKENS
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "[PAD]"
@@ -52,7 +52,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     if tokenizer.unk_token is None:
         special_tokens_dict["unk_token"] = DEFAULT_UNK_TOKEN
 
-    special_tokens_dict["additional_special_tokens"] = CHEMICAL_TOKENS
+    special_tokens_dict["additional_special_tokens"] = SCIENCE_TAG_TOKENS
     tokenizer.add_special_tokens(special_tokens_dict)
 
     """ Make dataset and collator for supervised fine-tuning. """
