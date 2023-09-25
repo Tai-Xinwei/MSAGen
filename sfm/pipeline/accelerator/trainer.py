@@ -166,11 +166,14 @@ class Trainer(object):
         self.valid_data = valid_data
         self.test_data = test_data
 
-        if optimizer is None and args.strategy not in [
+        if optimizer is not None and args.strategy in [
             TrainStrategy.Pipeline,
             TrainStrategy.ThreeD,
         ]:
-            self.optimizer, self.lr_scheduler = model.config_optimizer()
+            logger.error(
+                "Pipeline and 3D need to provide optimizer and lr_scheduler in model.config_optimizer()."
+            )
+            raise NotImplementedError
         else:
             self.optimizer = optimizer
             self.lr_scheduler = lr_scheduler

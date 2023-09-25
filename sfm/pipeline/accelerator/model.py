@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Optional, Tuple
 
 from torch import nn
 from torch.optim import Optimizer
@@ -15,7 +15,9 @@ class Model(nn.Module, ABC):
         pass
 
     @abstractmethod
-    def config_optimizer(self) -> Tuple[Optimizer, LRScheduler]:
+    def config_optimizer(
+        self, model: Optional[nn.Module]
+    ) -> Tuple[Optimizer, LRScheduler]:
         """
         Return the optimizer and learning rate scheduler for this model.
 
