@@ -32,7 +32,8 @@ def check_grad_requirements(output, index_or_key=0):
                 # raise ValueError("Float tensors must have gradients")
             else:
                 hooked_check_grad = partial(check_grad_hook, index_or_key, tensor)
-                tensor.register_hook(hooked_check_grad)
+                hook_handle = tensor.register_hook(hooked_check_grad)
+                hook_handle.remove()
 
         elif tensor.dtype in (
             torch.int8,
