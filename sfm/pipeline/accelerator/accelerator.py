@@ -540,12 +540,24 @@ class DeepSpeedAccelerator(Accelerator):
         unfreeze_param_name_list = list(
             filter(lambda x: x != "", unfreeze_param_name_list.split(","))
         ) + ["dummy"]
-        for name, param in self.model.named_parameters():
-            for param_name in unfreeze_param_name_list:
-                if name.find(param_name) != -1:
-                    logger.info(f"Unfreezing {name}")
-                    unfreeze_param.append(param)
-                    break
+
+        if (
+            self.args.strategy == TrainStrategy.Pipeline
+            or self.args.strategy == TrainStrategy.ThreeD
+        ):
+            for name, param in self.ppmodel.named_parameters():
+                for param_name in unfreeze_param_name_list:
+                    if name.find(param_name) != -1:
+                        logger.info(f"Unfreezing {name}")
+                        unfreeze_param.append(param)
+                        break
+        else:
+            for name, param in self.model.named_parameters():
+                for param_name in unfreeze_param_name_list:
+                    if name.find(param_name) != -1:
+                        logger.info(f"Unfreezing {name}")
+                        unfreeze_param.append(param)
+                        break
 
         return unfreeze_param
 
@@ -594,7 +606,7 @@ class DeepSpeedAccelerator(Accelerator):
                 self.args.unfreeze_param_list
             )
             self.optimizer, self.lr_scheduler = self.model.config_optimizer(
-                self.ppmodel
+                model=self.ppmodel
             )
 
             model_parameters = (

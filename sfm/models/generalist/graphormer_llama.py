@@ -429,5 +429,5 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             log_output=loss_log,
         )
 
-    def config_optimizer(self) -> tuple[Optimizer, LRScheduler]:
+    def config_optimizer(self, model=None) -> tuple[Optimizer, LRScheduler]:
         return (None, None)

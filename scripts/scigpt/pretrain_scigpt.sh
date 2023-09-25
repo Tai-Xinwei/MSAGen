@@ -136,8 +136,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/scigpt/pretrain_scigpt.py \
           --save_batch_interval $save_batch_interval \
           --log_interval $log_interval \
           --strategy $strategy \
-          --pipeline_model_parallel_size $pipeline_model_parallel_size
-          # --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+          --pipeline_model_parallel_size $pipeline_model_parallel_size \
+          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
 
 sleep inf
