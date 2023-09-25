@@ -30,31 +30,13 @@ def main(args) -> None:
     train_dataset = ProcessedSciDataset(args.train_data_path, tokenizer.pad_token_id)
     valid_dataset = ProcessedSciDataset(args.valid_data_path, tokenizer.pad_token_id)
 
-    config = arg_utils.from_args(args, ScigptConfig)
-    model = ScigptModel(config)
-
-    optimizer, _ = myAdam(
-        model,
-        lr=args.max_lr,
-        betas=[0.9, 0.999],
-        weight_decay=args.weight_decay,
-        eps=1e-8,
-    )
-
-    groupWarmupDecayLR(
-        optimizer,
-        total_num_steps=args.total_num_steps,
-        warmup_max_lr=args.max_lr,
-        warmup_num_steps=args.warmup_num_steps,
-    )
+    model = ScigptModel(args)
 
     trainer = Trainer(
         args,
         model=model,
         train_data=train_dataset,
         valid_data=valid_dataset,
-        # optimizer=optimizer,
-        # lr_scheduler=lr_scheduler,
     )
     trainer.train()
 

@@ -11,6 +11,8 @@ from sfm.models.scigpt.modules import SciGPTEmbeddingsPP
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
+from sfm.utils.optim.optimizer import myAdam
+from sfm.utils.optim.set_lr import groupWarmupDecayLR
 
 
 class ScigptModel(SFMPipelineModelMixin):
@@ -66,5 +68,21 @@ class ScigptModel(SFMPipelineModelMixin):
             log_loss = {}
         return ModelOutput(loss=loss, log_output=log_loss, num_examples=bs)
 
-    def config_optimizer(self) -> Tuple[Optional[Optimizer], Optional[LRScheduler]]:
-        return (None, None)
+    def config_optimizer(
+        self, model
+    ) -> Tuple[Optional[Optimizer], Optional[LRScheduler]]:
+        optimizer, _ = myAdam(
+            model,
+            lr=self.config.max_lr,
+            betas=[0.9, 0.999],
+            weight_decay=self.config.weight_decay,
+            eps=1e-8,
+        )
+
+        lr_scheduler = groupWarmupDecayLR(
+            optimizer,
+            total_num_steps=self.config.total_num_steps,
+            warmup_max_lr=self.config.max_lr,
+            warmup_num_steps=self.config.warmup_num_steps,
+        )
+        return (optimizer, lr_scheduler)

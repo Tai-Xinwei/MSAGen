@@ -166,7 +166,10 @@ class Trainer(object):
         self.valid_data = valid_data
         self.test_data = test_data
 
-        if optimizer is None:
+        if optimizer is None and args.strategy not in [
+            TrainStrategy.Pipeline,
+            TrainStrategy.ThreeD,
+        ]:
             self.optimizer, self.lr_scheduler = model.config_optimizer()
         else:
             self.optimizer = optimizer
