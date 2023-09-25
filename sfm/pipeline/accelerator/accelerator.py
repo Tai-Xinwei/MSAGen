@@ -118,6 +118,7 @@ class SingleNodeAccelerator(Accelerator):
         self.lr_scheduler = lr_scheduler
         self.device = device
         self.world_size = 1
+
         if not torch.cuda.is_available():
             self.device = "cpu"
         self.scaler = FP16Scaler(
@@ -132,7 +133,8 @@ class SingleNodeAccelerator(Accelerator):
         return self.scaler.scale
 
     def set_up(self):
-        pass
+        if self.optimizer is None:
+            self.optimizer, self.lr_scheduler = self.model.config_optimizer()
 
     def barrier(self):
         pass
@@ -265,6 +267,7 @@ class DdpAccelerator(SingleNodeAccelerator):
         super().__init__(args, model, optimizer, lr_scheduler, device="cuda")
 
     def set_up(self):
+        super().set_up()
         assert "WORLD_SIZE" in os.environ, "WORLD_SIZE must be set to use DDP"
         assert "RANK" in os.environ, "RANK must be set to use DDP"
         assert "LOCAL_RANK" in os.environ, "LOCAL_RANK must be set to use DDP"
@@ -348,16 +351,34 @@ class DdpAccelerator(SingleNodeAccelerator):
     def build_data_loader(
         self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
     ):
-        self.train_sampler = DistributedSampler(
-            train_data, num_replicas=self.world_size, rank=self.rank
-        )
-        self.train_data_loader = DataLoader(
-            train_data,
-            sampler=self.train_sampler,
-            batch_size=self.args.train_batch_size,
-            collate_fn=train_data.collate,
-            drop_last=True,
-        )
+        if self.args.dynamic_loader:
+            self.train_sampler = DynamicDistributedSampler(
+                dataset=train_data,
+                batch_by_size_fn=batch_by_size,
+                max_tokens=self.args.max_tokens,
+                max_length=self.args.max_length,
+                num_tokens_fn=train_data.num_tokens,
+                shuffle=True,
+                drop_last=False,
+                num_replicas=self.world_size,
+                rank=self.rank,
+            )
+            self.train_data_loader = DataLoader(
+                dataset=train_data,
+                collate_fn=train_data.collate,
+                batch_sampler=self.train_sampler,
+            )
+        else:
+            self.train_sampler = DistributedSampler(
+                train_data, num_replicas=self.world_size, rank=self.rank
+            )
+            self.train_data_loader = DataLoader(
+                train_data,
+                sampler=self.train_sampler,
+                batch_size=self.args.train_batch_size,
+                collate_fn=train_data.collate,
+                drop_last=True,
+            )
 
         if val_data:
             validsampler = torch.utils.data.distributed.DistributedSampler(
@@ -603,6 +624,9 @@ class DeepSpeedAccelerator(Accelerator):
                 "gradient_accumulation_steps"
             ] = self.args.gradient_accumulation_steps
         else:
+            if self.optimizer is None:
+                self.optimizer, self.lr_scheduler = self.model.config_optimizer()
+
             (
                 self.model_engine,
                 self.optimizer,
@@ -642,10 +666,20 @@ class DeepSpeedAccelerator(Accelerator):
                 raise ValueError(
                     f"Unknown training data loader type {type(self.train_data_loader)}"
                 )
+
         # set seed of data sampler
-        if hasattr(self.train_data_loader.data_sampler, "seed"):
-            logger.info(f"Setting seed of data loader to {self.args.seed}.")
-            self.train_data_loader.data_sampler.seed = self.args.seed
+        if isinstance(self.train_data_loader, DeepSpeedDataLoader):
+            if hasattr(self.train_data_loader.data_sampler, "seed"):
+                logger.info(f"Setting seed of data loader to {self.args.seed}.")
+                self.train_data_loader.data_sampler.seed = self.args.seed
+        elif isinstance(self.train_data_loader, DataLoader):
+            if hasattr(self.train_data_loader.batch_sampler, "seed"):
+                logger.info(f"Setting seed of data loader to {self.args.seed}.")
+                self.train_data_loader.batch_sampler.seed = self.args.seed
+        else:
+            raise ValueError(
+                f"Unknown training data loader type {type(self.train_data_loader)}"
+            )
 
     def build_data_loader(
         self, train_data: FoundationModelDataset, val_data: FoundationModelDataset
