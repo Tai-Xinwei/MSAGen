@@ -52,11 +52,12 @@ def batch_by_size(
         indices (List[int]): ordered list of dataset indices
         num_tokens_fn (callable): function that returns the number of tokens at
             a given index
+        max_length (int, optional): max number of tokens in one sample
         num_tokens_vec (List[int], optional): precomputed vector of the number
             of tokens for each index in indices (to enable faster batch generation)
         max_tokens (int, optional): max number of tokens in each batch
             (default: None).
-        max_sentences (int, optional): max number of sentences in each
+        max_samples (int, optional): max number of sentences in each
             batch (default: None).
         required_batch_size_multiple (int, optional): require batch size to
             be less than N or a multiple of N (default: 1).

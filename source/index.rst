@@ -10,6 +10,31 @@ Welcome to A4SFramework's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   api/index
+
+
+User-friendly Interface
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+
+
+Large Distributed Training
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+
+
+Installation
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
 
 
 Indices and tables
