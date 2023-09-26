@@ -1,19 +1,29 @@
 # -*- coding: utf-8 -*-
 
-from sfm.data.sci_data.dataset import BatchedDataDataset, ProcessedSciDataset
+from sfm.data.sci_data.dataset import ProcessedSciDataset
 from sfm.data.sci_data.SFMDecTokenizer import SFMDecTokenizer
-from sfm.logging import logger
-from sfm.models.scigpt.config import ScigptConfig
+from sfm.models.scigpt.config import (
+    ScigptConfig,
+    scigpt_7b_config,
+    scigpt_350m_config,
+    scigpt_shallow_config,
+    scigpt_tiny_config,
+)
 from sfm.models.scigpt.scigpt import ScigptModel
-from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils import arg_utils
 from sfm.utils.cli_utils import cli
-from sfm.utils.optim.optimizer import myAdam
-from sfm.utils.optim.set_lr import groupWarmupDecayLR
+
+config_registry = {
+    "scigpt_tiny": scigpt_tiny_config,
+    "scigpt_shallow": scigpt_shallow_config,
+    "scigpt_350m": scigpt_350m_config,
+    "scigpt": scigpt_shallow_config,
+    "scigpt_7b": scigpt_7b_config,
+}
 
 
-@cli(DistributedTrainConfig, ScigptConfig)
+@cli(ScigptConfig)
 def main(args) -> None:
     assert (
         args.train_data_path is not None and len(args.train_data_path) > 0
@@ -27,13 +37,20 @@ def main(args) -> None:
     args.vocab_size = len(tokenizer)  # now we have new tokens
     args.pad_token_id = tokenizer.pad_token_id
 
-    train_dataset = ProcessedSciDataset(args.train_data_path, tokenizer.pad_token_id)
-    valid_dataset = ProcessedSciDataset(args.valid_data_path, tokenizer.pad_token_id)
+    config = arg_utils.from_args(args, ScigptConfig)
+    config = config_registry.get(config.model_type, scigpt_tiny_config)(config)
 
-    model = ScigptModel(args)
+    model = ScigptModel(config)
+
+    train_dataset = ProcessedSciDataset(
+        config.train_data_path, tokenizer.pad_token_id, config.max_position_embeddings
+    )
+    valid_dataset = ProcessedSciDataset(
+        config.valid_data_path, tokenizer.pad_token_id, config.max_position_embeddings
+    )
 
     trainer = Trainer(
-        args,
+        config,
         model=model,
         train_data=train_dataset,
         valid_data=valid_dataset,

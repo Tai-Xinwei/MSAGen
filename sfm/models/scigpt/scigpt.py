@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
+import os
 from typing import Optional, Tuple
 
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 from sfm.criterions.autoregressive import AutoregressiveCriterion
-from sfm.models.llama2.llama_modules import LlamaDecoderLayerPP, LlamaHead
+from sfm.models.llama2.llama_modules import LlamaDecoderLayerPP, LlamaHead, LlamaNorm
 from sfm.models.scigpt.config import ScigptConfig
 from sfm.models.scigpt.modules import SciGPTEmbeddingsPP
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
@@ -28,12 +29,16 @@ class ScigptModel(SFMPipelineModelMixin):
 
     def to_layers(self):
         layers = []
+        ckpt_folder = self.config.pretrained_ckpt_path
+
         layers.append(
             PretrainedLayerSpec(
                 SciGPTEmbeddingsPP,
                 self.config,
+                new_num_tokens=self.config.vocab_size,
                 learnable_cutoff=self.config.learnable_cutoff,
-                load_ckpt=self.config.load_from_pretrained,
+                pretrained_ckpt_path=os.path.join(ckpt_folder, "model.hybrid_emb.pt"),
+                load_ckpt=self.config.load_ckpt,
             )
         )
 
@@ -43,15 +48,29 @@ class ScigptModel(SFMPipelineModelMixin):
                     LlamaDecoderLayerPP,
                     self.config,
                     i,
-                    load_ckpt=self.config.load_from_pretrained,
+                    pretrained_ckpt_path=os.path.join(
+                        ckpt_folder, f"model.layers.{i}.pt"
+                    ),
+                    load_ckpt=self.config.load_ckpt,
                 )
             )
+
+        layers.append(
+            PretrainedLayerSpec(
+                LlamaNorm,
+                self.config,
+                pretrained_ckpt_path=os.path.join(ckpt_folder, "model.norm.pt"),
+                load_ckpt=self.config.load_ckpt,
+            )
+        )
         layers.append(
             PretrainedLayerSpec(
                 LlamaHead,
                 self.config,
+                new_num_tokens=self.config.vocab_size,
                 learnable_cutoff=self.config.learnable_cutoff,
-                load_ckpt=self.config.load_from_pretrained,
+                pretrained_ckpt_path=os.path.join(ckpt_folder, "model.lm_head.pt"),
+                load_ckpt=self.config.load_ckpt,
             )
         )
 
@@ -74,8 +93,8 @@ class ScigptModel(SFMPipelineModelMixin):
         optimizer, _ = myAdam(
             model,
             lr=self.config.max_lr,
-            betas=[0.9, 0.999],
-            weight_decay=self.config.weight_decay,
+            betas=[self.config.beta1, self.config.beta2],
+            weight_decay=self.config.weight_decay,  # bugbug, weight_decay is not used in the optimizer
             eps=1e-8,
         )
 

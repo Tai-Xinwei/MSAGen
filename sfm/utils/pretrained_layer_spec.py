@@ -143,6 +143,15 @@ class PretrainedLayerSpec(LayerSpec):
                     dtype=old_head_weight.dtype,
                     device=old_head_weight.device,
                 )
+
+                mean = old_head_weight.mean(dim=0, keepdim=True).expand_as(
+                    new_head.weight
+                )
+                std = old_head_weight.std(dim=0, keepdim=True).expand_as(
+                    new_head.weight
+                )
+                new_head.weight.data = torch.normal(mean=mean, std=std)
+
                 new_head.weight.data[
                     : old_head_weight.size(0), :
                 ] = old_head_weight.data
@@ -166,7 +175,16 @@ class PretrainedLayerSpec(LayerSpec):
                     dtype=old_embed_weight.dtype,
                     device=old_embed_weight.device,
                 )
-                new_embed.weight.data.normal_(mean=0.0, std=1.0)
+
+                mean = old_embed_weight.mean(dim=0, keepdim=True).expand_as(
+                    new_embed.weight
+                )
+                std = old_embed_weight.std(dim=0, keepdim=True).expand_as(
+                    new_embed.weight
+                )
+
+                new_embed.weight.data = torch.normal(mean=mean, std=std)
+
                 new_embed.weight.data[
                     : old_embed_weight.size(0), :
                 ] = old_embed_weight.data

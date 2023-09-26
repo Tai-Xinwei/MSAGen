@@ -17,10 +17,10 @@ class AutoregressiveCriterion(nn.Module):
         self.vocab_size = config.vocab_size
 
     def forward(self, output, label):
-        if self.config.pipeline_model_parallel_size == 0:
-            labels = label["x"]
-        else:
+        if type(label) == tuple:
             labels = label[0]
+        else:
+            labels = label["x"]
 
         logits = output
 

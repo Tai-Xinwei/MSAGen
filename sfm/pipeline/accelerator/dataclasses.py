@@ -82,6 +82,7 @@ class TrainerConfig:
     # adam
     beta1: float = 0.9
     beta2: float = 0.999
+    eps: float = 1e-8
 
     def __str__(self):
         return (
