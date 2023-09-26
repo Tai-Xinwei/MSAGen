@@ -221,10 +221,6 @@ class ProteinLMDBDataset(FoundationModelDataset):
             indices (np.array): original array of sample indices
             max_sizes (int or list[int] or tuple[int]): max sample size,
                 can be defined separately for src and tgt (then list or tuple)
-
-        Returns:
-            np.array: filtered sample array
-            list: list of removed indices
         """
         if isinstance(max_sizes, float) or isinstance(max_sizes, int):
             if hasattr(self, "sizes") and isinstance(self.sizes, np.ndarray):

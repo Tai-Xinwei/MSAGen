@@ -596,9 +596,6 @@ class SFMPipeEngine(DeepSpeedEngine):
         (i.e., ``train_micro_batch_size_per_gpu``) is not changed.
         Args:
             train_batch_size (int): The new global batch size for training.
-        Raises:
-            ValueError: if ``train_batch_size`` is not divisible by the
-                configured micro-batch size and data parallelism.
         """
         super().set_train_batch_size(train_batch_size)
         self.micro_batches = self.gradient_accumulation_steps()

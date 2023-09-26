@@ -10,6 +10,7 @@ Welcome to A4SFramework's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   api/index
 
 
 Indices and tables
