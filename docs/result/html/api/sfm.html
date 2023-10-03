@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sfm package &mdash; A4SFramework ai4science documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=c1325062"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sfm.criterions package" href="sfm.criterions.html" />
+    <link rel="prev" title="sfm" href="modules.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
+
+
+
+          <a href="../index.html" class="icon icon-home">
+            A4SFramework
+          </a>
+              <div class="version">
+                0.0.5
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../userfriendly.html">User-friendly Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../distributed.html">Large Distributed Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modelzoo.html">Model Zoo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datapipeline.html">Data Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../trainargs.html">Training Args</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">sfm</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">sfm package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#subpackages">Subpackages</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html">sfm.criterions package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html">sfm.data package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.logging.html">sfm.logging package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.html">sfm.models package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html">sfm.modules package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.html">sfm.pipeline package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.html">sfm.tasks package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html">sfm.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-sfm">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">A4SFramework</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">sfm</a></li>
+      <li class="breadcrumb-item active">sfm package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/sfm.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <section id="sfm-package">
+<h1>sfm package<a class="headerlink" href="#sfm-package" title="Link to this heading"></a></h1>
+<section id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="sfm.criterions.html">sfm.criterions package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sfm.criterions.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions.autoregressive">sfm.criterions.autoregressive module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.autoregressive.AutoregressiveCriterion"><code class="docutils literal notranslate"><span class="pre">AutoregressiveCriterion</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.autoregressive.AutoregressiveCriterion.forward"><code class="docutils literal notranslate"><span class="pre">AutoregressiveCriterion.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.autoregressive.AutoregressiveCriterion.training"><code class="docutils literal notranslate"><span class="pre">AutoregressiveCriterion.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions.copilotloss">sfm.criterions.copilotloss module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.copilotloss.CopilotCriterions"><code class="docutils literal notranslate"><span class="pre">CopilotCriterions</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.copilotloss.CopilotCriterions.forward"><code class="docutils literal notranslate"><span class="pre">CopilotCriterions.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.copilotloss.CopilotCriterions.training"><code class="docutils literal notranslate"><span class="pre">CopilotCriterions.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.copilotloss.CopilotCriterionsNumMP"><code class="docutils literal notranslate"><span class="pre">CopilotCriterionsNumMP</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.copilotloss.CopilotCriterionsNumMP.forward"><code class="docutils literal notranslate"><span class="pre">CopilotCriterionsNumMP.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.copilotloss.CopilotCriterionsNumMP.training"><code class="docutils literal notranslate"><span class="pre">CopilotCriterionsNumMP.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.copilotloss.CopilotCriterionsNumPP"><code class="docutils literal notranslate"><span class="pre">CopilotCriterionsNumPP</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.copilotloss.CopilotCriterionsNumPP.forward"><code class="docutils literal notranslate"><span class="pre">CopilotCriterionsNumPP.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.copilotloss.CopilotCriterionsNumPP.training"><code class="docutils literal notranslate"><span class="pre">CopilotCriterionsNumPP.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.copilotloss.CopilotCriterionsPP"><code class="docutils literal notranslate"><span class="pre">CopilotCriterionsPP</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.copilotloss.CopilotCriterionsPP.forward"><code class="docutils literal notranslate"><span class="pre">CopilotCriterionsPP.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.copilotloss.CopilotCriterionsPP.training"><code class="docutils literal notranslate"><span class="pre">CopilotCriterionsPP.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions.l1ft">sfm.criterions.l1ft module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.l1ft.BinaryCriterions"><code class="docutils literal notranslate"><span class="pre">BinaryCriterions</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.l1ft.BinaryCriterions.forward"><code class="docutils literal notranslate"><span class="pre">BinaryCriterions.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.l1ft.BinaryCriterions.training"><code class="docutils literal notranslate"><span class="pre">BinaryCriterions.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.l1ft.L1Criterions"><code class="docutils literal notranslate"><span class="pre">L1Criterions</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.l1ft.L1Criterions.forward"><code class="docutils literal notranslate"><span class="pre">L1Criterions.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.l1ft.L1Criterions.training"><code class="docutils literal notranslate"><span class="pre">L1Criterions.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.l1ft.L1CriterionsPP"><code class="docutils literal notranslate"><span class="pre">L1CriterionsPP</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.l1ft.L1CriterionsPP.forward"><code class="docutils literal notranslate"><span class="pre">L1CriterionsPP.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.l1ft.L1CriterionsPP.training"><code class="docutils literal notranslate"><span class="pre">L1CriterionsPP.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions.mae2d">sfm.criterions.mae2d module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae2d.MAE2d_criterions"><code class="docutils literal notranslate"><span class="pre">MAE2d_criterions</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae2d.MAE2d_criterions.forward"><code class="docutils literal notranslate"><span class="pre">MAE2d_criterions.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae2d.MAE2d_criterions.training"><code class="docutils literal notranslate"><span class="pre">MAE2d_criterions.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions.mae3d">sfm.criterions.mae3d module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae3d.MAE3dCriterions"><code class="docutils literal notranslate"><span class="pre">MAE3dCriterions</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae3d.MAE3dCriterions.forward"><code class="docutils literal notranslate"><span class="pre">MAE3dCriterions.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae3d.MAE3dCriterions.training"><code class="docutils literal notranslate"><span class="pre">MAE3dCriterions.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae3d.MAE3dCriterionsPP"><code class="docutils literal notranslate"><span class="pre">MAE3dCriterionsPP</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae3d.MAE3dCriterionsPP.forward"><code class="docutils literal notranslate"><span class="pre">MAE3dCriterionsPP.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae3d.MAE3dCriterionsPP.tensors_decode"><code class="docutils literal notranslate"><span class="pre">MAE3dCriterionsPP.tensors_decode()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae3d.MAE3dCriterionsPP.training"><code class="docutils literal notranslate"><span class="pre">MAE3dCriterionsPP.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae3d.ProteinMAE3dCriterions"><code class="docutils literal notranslate"><span class="pre">ProteinMAE3dCriterions</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae3d.ProteinMAE3dCriterions.forward"><code class="docutils literal notranslate"><span class="pre">ProteinMAE3dCriterions.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae3d.ProteinMAE3dCriterions.training"><code class="docutils literal notranslate"><span class="pre">ProteinMAE3dCriterions.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions.mae3ddiff">sfm.criterions.mae3ddiff module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae3ddiff.DiffMAE3dCriterions"><code class="docutils literal notranslate"><span class="pre">DiffMAE3dCriterions</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae3ddiff.DiffMAE3dCriterions.forward"><code class="docutils literal notranslate"><span class="pre">DiffMAE3dCriterions.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#sfm.criterions.mae3ddiff.DiffMAE3dCriterions.training"><code class="docutils literal notranslate"><span class="pre">DiffMAE3dCriterions.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sfm.data.html">sfm.data package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sfm.data.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.dec_data.html">sfm.data.dec_data package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.dec_data.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.dec_data.html#module-sfm.data.dec_data.SFMDecTokenizer">sfm.data.dec_data.SFMDecTokenizer module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.dec_data.html#module-sfm.data.dec_data.datasets">sfm.data.dec_data.datasets module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.dec_data.html#module-sfm.data.dec_data">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.mol_data.html">sfm.data.mol_data package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.mol_data.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.mol_data.html#module-sfm.data.mol_data.algos">sfm.data.mol_data.algos module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.mol_data.html#module-sfm.data.mol_data.collator">sfm.data.mol_data.collator module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.mol_data.html#module-sfm.data.mol_data.dataset">sfm.data.mol_data.dataset module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.mol_data.html#module-sfm.data.mol_data.molftdataapi">sfm.data.mol_data.molftdataapi module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.mol_data.html#module-sfm.data.mol_data.moltext_dataset">sfm.data.mol_data.moltext_dataset module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.mol_data.html#module-sfm.data.mol_data.moltokenizer">sfm.data.mol_data.moltokenizer module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.mol_data.html#module-sfm.data.mol_data.tdc">sfm.data.mol_data.tdc module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.mol_data.html#module-sfm.data.mol_data.wrapper">sfm.data.mol_data.wrapper module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.mol_data.html#module-sfm.data.mol_data.xyz2smiles">sfm.data.mol_data.xyz2smiles module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.mol_data.html#module-sfm.data.mol_data">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.prot_data.html">sfm.data.prot_data package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.prot_data.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.prot_data.html#module-sfm.data.prot_data.collater">sfm.data.prot_data.collater module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.prot_data.html#module-sfm.data.prot_data.dataset">sfm.data.prot_data.dataset module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.prot_data.html#module-sfm.data.prot_data.process">sfm.data.prot_data.process module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.prot_data.html#module-sfm.data.prot_data.sequence_masking">sfm.data.prot_data.sequence_masking module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.prot_data.html#module-sfm.data.prot_data.spatial_noise">sfm.data.prot_data.spatial_noise module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.prot_data.html#module-sfm.data.prot_data.structure2lmdb">sfm.data.prot_data.structure2lmdb module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.prot_data.html#module-sfm.data.prot_data.util">sfm.data.prot_data.util module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.prot_data.html#module-sfm.data.prot_data.vocalubary">sfm.data.prot_data.vocalubary module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.prot_data.html#module-sfm.data.prot_data">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.sci_data.html">sfm.data.sci_data package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.sci_data.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.sci_data.html#module-sfm.data.sci_data.SFMDecTokenizer">sfm.data.sci_data.SFMDecTokenizer module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.sci_data.html#module-sfm.data.sci_data.dataset">sfm.data.sci_data.dataset module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.sci_data.html#module-sfm.data.sci_data">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.tamgent2.html">sfm.data.tamgent2 package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.tamgent2.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.tamgent2.html#module-sfm.data.tamgent2.datasets">sfm.data.tamgent2.datasets module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.tamgent2.html#module-sfm.data.tamgent2.tokenizer">sfm.data.tamgent2.tokenizer module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.tamgent2.html#module-sfm.data.tamgent2">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.data.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.data.html#module-sfm.data.data_utils">sfm.data.data_utils module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.data_utils.batch_by_size"><code class="docutils literal notranslate"><span class="pre">batch_by_size()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.data_utils.collect_filtered"><code class="docutils literal notranslate"><span class="pre">collect_filtered()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.data.html#module-sfm.data.data_utils_fast">sfm.data.data_utils_fast module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.data_utils_fast.batch_by_size_fn"><code class="docutils literal notranslate"><span class="pre">batch_by_size_fn()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.data_utils_fast.batch_by_size_vec"><code class="docutils literal notranslate"><span class="pre">batch_by_size_vec()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.data_utils_fast.batch_fixed_shapes_fast"><code class="docutils literal notranslate"><span class="pre">batch_fixed_shapes_fast()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.data.html#module-sfm.data.dataset">sfm.data.dataset module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.dataset.Batch"><code class="docutils literal notranslate"><span class="pre">Batch</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#sfm.data.dataset.Batch.batch_size"><code class="docutils literal notranslate"><span class="pre">Batch.batch_size</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.dataset.Data"><code class="docutils literal notranslate"><span class="pre">Data</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.dataset.FoundationModelDataset"><code class="docutils literal notranslate"><span class="pre">FoundationModelDataset</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#sfm.data.dataset.FoundationModelDataset.batch_by_size"><code class="docutils literal notranslate"><span class="pre">FoundationModelDataset.batch_by_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#sfm.data.dataset.FoundationModelDataset.collate"><code class="docutils literal notranslate"><span class="pre">FoundationModelDataset.collate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#sfm.data.dataset.FoundationModelDataset.get_batch_shapes"><code class="docutils literal notranslate"><span class="pre">FoundationModelDataset.get_batch_shapes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#sfm.data.dataset.FoundationModelDataset.num_tokens"><code class="docutils literal notranslate"><span class="pre">FoundationModelDataset.num_tokens()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#sfm.data.dataset.FoundationModelDataset.num_tokens_vec"><code class="docutils literal notranslate"><span class="pre">FoundationModelDataset.num_tokens_vec()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.dataset.InMemoryFoundationModelDataset"><code class="docutils literal notranslate"><span class="pre">InMemoryFoundationModelDataset</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.dataset.LMDBFoundationModelDataset"><code class="docutils literal notranslate"><span class="pre">LMDBFoundationModelDataset</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.data.html#module-sfm.data.dynamics_loader">sfm.data.dynamics_loader module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.dynamics_loader.DynamicBatchSampler"><code class="docutils literal notranslate"><span class="pre">DynamicBatchSampler</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#sfm.data.dynamics_loader.DynamicBatchSampler.is_batch_full"><code class="docutils literal notranslate"><span class="pre">DynamicBatchSampler.is_batch_full()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.dynamics_loader.DynamicDistributedSampler"><code class="docutils literal notranslate"><span class="pre">DynamicDistributedSampler</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#sfm.data.dynamics_loader.DynamicDistributedSampler.set_epoch"><code class="docutils literal notranslate"><span class="pre">DynamicDistributedSampler.set_epoch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#sfm.data.dynamics_loader.DynamicDistributedSampler.sort_dataset"><code class="docutils literal notranslate"><span class="pre">DynamicDistributedSampler.sort_dataset()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.data.html#module-sfm.data.molecule">sfm.data.molecule module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.molecule.Molecule"><code class="docutils literal notranslate"><span class="pre">Molecule</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#sfm.data.molecule.Molecule.from_smiles"><code class="docutils literal notranslate"><span class="pre">Molecule.from_smiles()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#sfm.data.molecule.Molecule.from_xyz_and_bond_index"><code class="docutils literal notranslate"><span class="pre">Molecule.from_xyz_and_bond_index()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.molecule.mol2graph"><code class="docutils literal notranslate"><span class="pre">mol2graph()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.data.html#module-sfm.data.sampler">sfm.data.sampler module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.sampler.WeightedDistributedSampler"><code class="docutils literal notranslate"><span class="pre">WeightedDistributedSampler</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.data.html#module-sfm.data.text">sfm.data.text module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.text.MixedText"><code class="docutils literal notranslate"><span class="pre">MixedText</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#sfm.data.text.MixedText.from_json"><code class="docutils literal notranslate"><span class="pre">MixedText.from_json()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html#sfm.data.text.Text"><code class="docutils literal notranslate"><span class="pre">Text</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#sfm.data.text.Text.from_raw_text"><code class="docutils literal notranslate"><span class="pre">Text.from_raw_text()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.data.html#module-sfm.data">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sfm.logging.html">sfm.logging package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sfm.logging.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.logging.html#module-sfm.logging.loggers">sfm.logging.loggers module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.logging.html#sfm.logging.loggers.MetricLogger"><code class="docutils literal notranslate"><span class="pre">MetricLogger</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.logging.html#sfm.logging.loggers.MetricLogger.log"><code class="docutils literal notranslate"><span class="pre">MetricLogger.log()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.logging.html#sfm.logging.loggers.console_log_filter"><code class="docutils literal notranslate"><span class="pre">console_log_filter()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.logging.html#sfm.logging.loggers.dataclass_to_dict"><code class="docutils literal notranslate"><span class="pre">dataclass_to_dict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.logging.html#sfm.logging.loggers.get_logger"><code class="docutils literal notranslate"><span class="pre">get_logger()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.logging.html#module-sfm.logging">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sfm.models.html">sfm.models package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sfm.models.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.models.decoder.html">sfm.models.decoder package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.decoder.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.decoder.html#module-sfm.models.decoder">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.models.generalist.html">sfm.models.generalist package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.generalist.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.generalist.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.generalist.html#module-sfm.models.generalist.generalist_config">sfm.models.generalist.generalist_config module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.generalist.html#module-sfm.models.generalist.graphormer_llama">sfm.models.generalist.graphormer_llama module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.generalist.html#module-sfm.models.generalist">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.models.graphormer.html">sfm.models.graphormer package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.graphormer.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.graphormer.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.graphormer.html#module-sfm.models.graphormer.graphormer">sfm.models.graphormer.graphormer module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.graphormer.html#module-sfm.models.graphormer.graphormer_config">sfm.models.graphormer.graphormer_config module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.graphormer.html#module-sfm.models.graphormer.graphormerdiff">sfm.models.graphormer.graphormerdiff module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.graphormer.html#module-sfm.models.graphormer">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.models.llama2.html">sfm.models.llama2 package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.llama2.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.llama2.html#module-sfm.models.llama2.convert_llamaweight2pp">sfm.models.llama2.convert_llamaweight2pp module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.llama2.html#module-sfm.models.llama2.llama2mp_config">sfm.models.llama2.llama2mp_config module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.llama2.html#module-sfm.models.llama2.llama_modules">sfm.models.llama2.llama_modules module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.llama2.html#module-sfm.models.llama2.llama_modules_3dmp">sfm.models.llama2.llama_modules_3dmp module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.llama2.html#module-sfm.models.llama2">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.models.pfm.html">sfm.models.pfm package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.pfm.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.pfm.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.pfm.html#module-sfm.models.pfm.pfm_config">sfm.models.pfm.pfm_config module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.pfm.html#module-sfm.models.pfm.pfmmodel">sfm.models.pfm.pfmmodel module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.pfm.html#module-sfm.models.pfm">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.models.scigpt.html">sfm.models.scigpt package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.scigpt.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.scigpt.html#module-sfm.models.scigpt.config">sfm.models.scigpt.config module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.scigpt.html#module-sfm.models.scigpt.modules">sfm.models.scigpt.modules module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.scigpt.html#module-sfm.models.scigpt.scigpt">sfm.models.scigpt.scigpt module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.scigpt.html#module-sfm.models.scigpt">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.models.tamgent.html">sfm.models.tamgent package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.tamgent.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.tamgent.html#module-sfm.models.tamgent.Qformer">sfm.models.tamgent.Qformer module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.tamgent.html#module-sfm.models.tamgent.model">sfm.models.tamgent.model module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.tamgent.html#module-sfm.models.tamgent.scheduler">sfm.models.tamgent.scheduler module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.tamgent.html#module-sfm.models.tamgent">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.models.html#module-sfm.models">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sfm.modules.html">sfm.modules package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.FairseqDropout">sfm.modules.FairseqDropout module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.FairseqDropout.FairseqDropout"><code class="docutils literal notranslate"><span class="pre">FairseqDropout</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.FairseqDropout.FairseqDropout.forward"><code class="docutils literal notranslate"><span class="pre">FairseqDropout.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.FairseqDropout.FairseqDropout.make_generation_fast_"><code class="docutils literal notranslate"><span class="pre">FairseqDropout.make_generation_fast_()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.FairseqDropout.FairseqDropout.training"><code class="docutils literal notranslate"><span class="pre">FairseqDropout.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.FlashAtt_bk">sfm.modules.FlashAtt_bk module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.FlashAtt_bk.FlashAtt"><code class="docutils literal notranslate"><span class="pre">FlashAtt</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.FlashAtt_bk.FlashAtt.forward"><code class="docutils literal notranslate"><span class="pre">FlashAtt.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.FlashAtt_bk.FlashAtt.prepare_for_onnx_export_"><code class="docutils literal notranslate"><span class="pre">FlashAtt.prepare_for_onnx_export_()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.FlashAtt_bk.FlashAtt.reset_parameters"><code class="docutils literal notranslate"><span class="pre">FlashAtt.reset_parameters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.FlashAtt_bk.FlashAtt.training"><code class="docutils literal notranslate"><span class="pre">FlashAtt.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.FlashAtt_bk.init_to_zero"><code class="docutils literal notranslate"><span class="pre">init_to_zero()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.droppath">sfm.modules.droppath module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.droppath.DropPath"><code class="docutils literal notranslate"><span class="pre">DropPath</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.droppath.DropPath.extra_repr"><code class="docutils literal notranslate"><span class="pre">DropPath.extra_repr()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.droppath.DropPath.forward"><code class="docutils literal notranslate"><span class="pre">DropPath.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.droppath.DropPath.training"><code class="docutils literal notranslate"><span class="pre">DropPath.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.fused_layernorm">sfm.modules.fused_layernorm module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.fused_layernorm.fusedLayerNorm"><code class="docutils literal notranslate"><span class="pre">fusedLayerNorm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.fused_layernorm.fusedLayerNorm.elementwise_affine"><code class="docutils literal notranslate"><span class="pre">fusedLayerNorm.elementwise_affine</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.fused_layernorm.fusedLayerNorm.eps"><code class="docutils literal notranslate"><span class="pre">fusedLayerNorm.eps</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.fused_layernorm.fusedLayerNorm.forward"><code class="docutils literal notranslate"><span class="pre">fusedLayerNorm.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.fused_layernorm.fusedLayerNorm.normalized_shape"><code class="docutils literal notranslate"><span class="pre">fusedLayerNorm.normalized_shape</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.fused_layernorm.test_layer_norm"><code class="docutils literal notranslate"><span class="pre">test_layer_norm()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.get_activation_fn">sfm.modules.get_activation_fn module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.get_activation_fn.deprecation_warning"><code class="docutils literal notranslate"><span class="pre">deprecation_warning()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.get_activation_fn.gelu"><code class="docutils literal notranslate"><span class="pre">gelu()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.get_activation_fn.gelu_accurate"><code class="docutils literal notranslate"><span class="pre">gelu_accurate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.get_activation_fn.get_activation_fn"><code class="docutils literal notranslate"><span class="pre">get_activation_fn()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.get_activation_fn.get_available_activation_fns"><code class="docutils literal notranslate"><span class="pre">get_available_activation_fns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.get_activation_fn.relu_squared"><code class="docutils literal notranslate"><span class="pre">relu_squared()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.layer_norm">sfm.modules.layer_norm module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.layer_norm.Fp32LayerNorm"><code class="docutils literal notranslate"><span class="pre">Fp32LayerNorm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.layer_norm.Fp32LayerNorm.elementwise_affine"><code class="docutils literal notranslate"><span class="pre">Fp32LayerNorm.elementwise_affine</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.layer_norm.Fp32LayerNorm.eps"><code class="docutils literal notranslate"><span class="pre">Fp32LayerNorm.eps</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.layer_norm.Fp32LayerNorm.forward"><code class="docutils literal notranslate"><span class="pre">Fp32LayerNorm.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.layer_norm.Fp32LayerNorm.normalized_shape"><code class="docutils literal notranslate"><span class="pre">Fp32LayerNorm.normalized_shape</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.layer_norm.FusedLayerNorm"><code class="docutils literal notranslate"><span class="pre">FusedLayerNorm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.layer_norm.FusedLayerNorm.forward"><code class="docutils literal notranslate"><span class="pre">FusedLayerNorm.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.layer_norm.FusedLayerNorm.training"><code class="docutils literal notranslate"><span class="pre">FusedLayerNorm.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.layer_norm.LayerNorm"><code class="docutils literal notranslate"><span class="pre">LayerNorm()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.mem_eff_attn">sfm.modules.mem_eff_attn module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.mem_eff_attn.MemEffAttn"><code class="docutils literal notranslate"><span class="pre">MemEffAttn</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.mem_eff_attn.MemEffAttn.apply_sparse_mask"><code class="docutils literal notranslate"><span class="pre">MemEffAttn.apply_sparse_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.mem_eff_attn.MemEffAttn.forward"><code class="docutils literal notranslate"><span class="pre">MemEffAttn.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.mem_eff_attn.MemEffAttn.prepare_for_onnx_export_"><code class="docutils literal notranslate"><span class="pre">MemEffAttn.prepare_for_onnx_export_()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.mem_eff_attn.MemEffAttn.reset_parameters"><code class="docutils literal notranslate"><span class="pre">MemEffAttn.reset_parameters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.mem_eff_attn.MemEffAttn.training"><code class="docutils literal notranslate"><span class="pre">MemEffAttn.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.multihead_attention">sfm.modules.multihead_attention module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.multihead_attention.MultiheadAttention"><code class="docutils literal notranslate"><span class="pre">MultiheadAttention</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.multihead_attention.MultiheadAttention.apply_sparse_mask"><code class="docutils literal notranslate"><span class="pre">MultiheadAttention.apply_sparse_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.multihead_attention.MultiheadAttention.forward"><code class="docutils literal notranslate"><span class="pre">MultiheadAttention.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.multihead_attention.MultiheadAttention.prepare_for_onnx_export_"><code class="docutils literal notranslate"><span class="pre">MultiheadAttention.prepare_for_onnx_export_()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.multihead_attention.MultiheadAttention.reset_parameters"><code class="docutils literal notranslate"><span class="pre">MultiheadAttention.reset_parameters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.multihead_attention.MultiheadAttention.training"><code class="docutils literal notranslate"><span class="pre">MultiheadAttention.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.parallelattentionbias">sfm.modules.parallelattentionbias module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.parallelattentionbias.CoreAttentionBias"><code class="docutils literal notranslate"><span class="pre">CoreAttentionBias</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.parallelattentionbias.CoreAttentionBias.forward"><code class="docutils literal notranslate"><span class="pre">CoreAttentionBias.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.parallelattentionbias.CoreAttentionBias.training"><code class="docutils literal notranslate"><span class="pre">CoreAttentionBias.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.parallelattentionbias.TPMultiheadAttention"><code class="docutils literal notranslate"><span class="pre">TPMultiheadAttention</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.parallelattentionbias.TPMultiheadAttention.forward"><code class="docutils literal notranslate"><span class="pre">TPMultiheadAttention.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.parallelattentionbias.TPMultiheadAttention.repeat_kv"><code class="docutils literal notranslate"><span class="pre">TPMultiheadAttention.repeat_kv()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.parallelattentionbias.TPMultiheadAttention.training"><code class="docutils literal notranslate"><span class="pre">TPMultiheadAttention.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.partial_grad_emb">sfm.modules.partial_grad_emb module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.partial_grad_emb.PartialGradEmbedding"><code class="docutils literal notranslate"><span class="pre">PartialGradEmbedding</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.partial_grad_emb.PartialGradEmbedding.forward"><code class="docutils literal notranslate"><span class="pre">PartialGradEmbedding.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.partial_grad_emb.PartialGradEmbedding.training"><code class="docutils literal notranslate"><span class="pre">PartialGradEmbedding.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.quant_noise">sfm.modules.quant_noise module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.quant_noise.quant_noise"><code class="docutils literal notranslate"><span class="pre">quant_noise()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.rotary_embedding">sfm.modules.rotary_embedding module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.rotary_embedding.RotaryEmbedding"><code class="docutils literal notranslate"><span class="pre">RotaryEmbedding</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.rotary_embedding.RotaryEmbedding.forward"><code class="docutils literal notranslate"><span class="pre">RotaryEmbedding.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.rotary_embedding.RotaryEmbedding.training"><code class="docutils literal notranslate"><span class="pre">RotaryEmbedding.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.rotary_embedding.apply_rotary_pos_emb"><code class="docutils literal notranslate"><span class="pre">apply_rotary_pos_emb()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.rotary_embedding.rotate_half"><code class="docutils literal notranslate"><span class="pre">rotate_half()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.sfmmodule">sfm.modules.sfmmodule module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html#sfm.modules.sfmmodule.SFMModule"><code class="docutils literal notranslate"><span class="pre">SFMModule</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.sfmmodule.SFMModule.auto_partition_load_state_dict"><code class="docutils literal notranslate"><span class="pre">SFMModule.auto_partition_load_state_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#sfm.modules.sfmmodule.SFMModule.training"><code class="docutils literal notranslate"><span class="pre">SFMModule.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.modules.html#module-sfm.modules">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sfm.pipeline.html">sfm.pipeline package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sfm.pipeline.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.pipeline.accelerator.html">sfm.pipeline.accelerator package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.accelerator.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.accelerator.html#module-sfm.pipeline.accelerator.accelerator">sfm.pipeline.accelerator.accelerator module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.accelerator.html#module-sfm.pipeline.accelerator.dataclasses">sfm.pipeline.accelerator.dataclasses module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.accelerator.html#module-sfm.pipeline.accelerator.fp16_scaler">sfm.pipeline.accelerator.fp16_scaler module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.accelerator.html#module-sfm.pipeline.accelerator.model">sfm.pipeline.accelerator.model module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.accelerator.html#module-sfm.pipeline.accelerator.pipeline_module">sfm.pipeline.accelerator.pipeline_module module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.accelerator.html#module-sfm.pipeline.accelerator.trainer">sfm.pipeline.accelerator.trainer module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.accelerator.html#module-sfm.pipeline.accelerator">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.pipeline.generalist.html">sfm.pipeline.generalist package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.generalist.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.generalist.html#module-sfm.pipeline.generalist.graphormerllama_3Dtrainer">sfm.pipeline.generalist.graphormerllama_3Dtrainer module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.generalist.html#module-sfm.pipeline.generalist">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.pipeline.html#module-sfm.pipeline">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sfm.tasks.html">sfm.tasks package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sfm.tasks.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.tasks.decoder.html">sfm.tasks.decoder package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.decoder.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.decoder.html#module-sfm.tasks.decoder.gen_dec_deepfuse">sfm.tasks.decoder.gen_dec_deepfuse module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.decoder.html#module-sfm.tasks.decoder.train_dec_deepfuse">sfm.tasks.decoder.train_dec_deepfuse module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.decoder.html#module-sfm.tasks.decoder">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.tasks.generalist.html">sfm.tasks.generalist package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.generalist.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.generalist.html#module-sfm.tasks.generalist.eval_generalist_metric">sfm.tasks.generalist.eval_generalist_metric module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.generalist.html#module-sfm.tasks.generalist.ft3d_graphormer_llama_inst">sfm.tasks.generalist.ft3d_graphormer_llama_inst module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.generalist.html#module-sfm.tasks.generalist.ft_graphormer_llama_inst">sfm.tasks.generalist.ft_graphormer_llama_inst module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.generalist.html#module-sfm.tasks.generalist.test_generalist">sfm.tasks.generalist.test_generalist module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.generalist.html#module-sfm.tasks.generalist.test_generalist_pp">sfm.tasks.generalist.test_generalist_pp module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.generalist.html#module-sfm.tasks.generalist">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.tasks.graphormer.html">sfm.tasks.graphormer package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.graphormer.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.graphormer.html#module-sfm.tasks.graphormer.ft_graphormer">sfm.tasks.graphormer.ft_graphormer module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.graphormer.html#module-sfm.tasks.graphormer.pretrain_graphormer">sfm.tasks.graphormer.pretrain_graphormer module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.graphormer.html#module-sfm.tasks.graphormer">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.tasks.pfm.html">sfm.tasks.pfm package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.pfm.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.pfm.html#module-sfm.tasks.pfm.pretrain_pfm">sfm.tasks.pfm.pretrain_pfm module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.pfm.html#module-sfm.tasks.pfm">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.tasks.scigpt.html">sfm.tasks.scigpt package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.scigpt.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.scigpt.html#module-sfm.tasks.scigpt.pretrain_scigpt">sfm.tasks.scigpt.pretrain_scigpt module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.scigpt.html#module-sfm.tasks.scigpt">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.tasks.tamgent.html">sfm.tasks.tamgent package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.tamgent.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.tamgent.html#module-sfm.tasks.tamgent.finetune_tamgent2">sfm.tasks.tamgent.finetune_tamgent2 module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.tamgent.html#module-sfm.tasks.tamgent">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.tasks.html#module-sfm.tasks">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sfm.utils.html">sfm.utils package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.optim.html">sfm.utils.optim package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.optim.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.optim.html#module-sfm.utils.optim.adam">sfm.utils.optim.adam module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.optim.html#module-sfm.utils.optim.optimizer">sfm.utils.optim.optimizer module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.optim.html#module-sfm.utils.optim.set_lr">sfm.utils.optim.set_lr module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.optim.html#module-sfm.utils.optim">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.FairseqDataset">sfm.utils.FairseqDataset module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.EpochListening"><code class="docutils literal notranslate"><span class="pre">EpochListening</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.EpochListening.can_reuse_epoch_itr_across_epochs"><code class="docutils literal notranslate"><span class="pre">EpochListening.can_reuse_epoch_itr_across_epochs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.EpochListening.set_epoch"><code class="docutils literal notranslate"><span class="pre">EpochListening.set_epoch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset"><code class="docutils literal notranslate"><span class="pre">FairseqDataset</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset.attr"><code class="docutils literal notranslate"><span class="pre">FairseqDataset.attr()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset.batch_by_size"><code class="docutils literal notranslate"><span class="pre">FairseqDataset.batch_by_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset.collate_tokens"><code class="docutils literal notranslate"><span class="pre">FairseqDataset.collate_tokens()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset.collater"><code class="docutils literal notranslate"><span class="pre">FairseqDataset.collater()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset.filter_indices_by_size"><code class="docutils literal notranslate"><span class="pre">FairseqDataset.filter_indices_by_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset.get_batch_shapes"><code class="docutils literal notranslate"><span class="pre">FairseqDataset.get_batch_shapes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset.num_tokens"><code class="docutils literal notranslate"><span class="pre">FairseqDataset.num_tokens()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset.num_tokens_vec"><code class="docutils literal notranslate"><span class="pre">FairseqDataset.num_tokens_vec()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset.ordered_indices"><code class="docutils literal notranslate"><span class="pre">FairseqDataset.ordered_indices()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset.prefetch"><code class="docutils literal notranslate"><span class="pre">FairseqDataset.prefetch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset.size"><code class="docutils literal notranslate"><span class="pre">FairseqDataset.size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset.supports_fetch_outside_dataloader"><code class="docutils literal notranslate"><span class="pre">FairseqDataset.supports_fetch_outside_dataloader</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqDataset.supports_prefetch"><code class="docutils literal notranslate"><span class="pre">FairseqDataset.supports_prefetch</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.FairseqDataset.FairseqIterableDataset"><code class="docutils literal notranslate"><span class="pre">FairseqIterableDataset</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.LayerDropModuleList">sfm.utils.LayerDropModuleList module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.LayerDropModuleList.LayerDropModuleList"><code class="docutils literal notranslate"><span class="pre">LayerDropModuleList</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.PPEngine">sfm.utils.PPEngine module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.DTYPE_TO_ID"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.DTYPE_TO_ID</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.ID_TO_DTYPE"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.ID_TO_DTYPE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.allreduce_gradients"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.allreduce_gradients()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.backward"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.backward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.eval_batch"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.eval_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.fast_load_checkpoint"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.fast_load_checkpoint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.forward"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.is_first_stage"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.is_first_stage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.is_gradient_accumulation_boundary"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.is_gradient_accumulation_boundary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.is_last_stage"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.is_last_stage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.load_checkpoint"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.load_checkpoint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.load_module_state_dict"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.load_module_state_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.log_for_device"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.log_for_device()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.mem_status"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.mem_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.module_state_dict"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.module_state_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.reset_activation_shape"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.reset_activation_shape()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.set_batch_fn"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.set_batch_fn()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.set_dataiterator"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.set_dataiterator()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.set_dataloader"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.set_dataloader()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.set_has_attention_mask"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.set_has_attention_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.set_train_batch_size"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.set_train_batch_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.step"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.step()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.tput_log"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.tput_log()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.train_batch"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.train_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.SFMPipeEngine.training"><code class="docutils literal notranslate"><span class="pre">SFMPipeEngine.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.initialize"><code class="docutils literal notranslate"><span class="pre">initialize()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.PPEngine.is_even"><code class="docutils literal notranslate"><span class="pre">is_even()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.arg_utils">sfm.utils.arg_utils module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.arg_utils.ExtraArgsProvider"><code class="docutils literal notranslate"><span class="pre">ExtraArgsProvider</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.arg_utils.add_dataclass_to_parser"><code class="docutils literal notranslate"><span class="pre">add_dataclass_to_parser()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.arg_utils.argument_exists"><code class="docutils literal notranslate"><span class="pre">argument_exists()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.arg_utils.from_args"><code class="docutils literal notranslate"><span class="pre">from_args()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.arg_utils.is_collection"><code class="docutils literal notranslate"><span class="pre">is_collection()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.arg_utils.is_enum_type"><code class="docutils literal notranslate"><span class="pre">is_enum_type()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.arg_utils.make_enum_praser"><code class="docutils literal notranslate"><span class="pre">make_enum_praser()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.arg_utils.unwarp_optional"><code class="docutils literal notranslate"><span class="pre">unwarp_optional()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.barrier">sfm.utils.barrier module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.barrier.check"><code class="docutils literal notranslate"><span class="pre">check()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.cli_utils">sfm.utils.cli_utils module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.cli_utils.cli"><code class="docutils literal notranslate"><span class="pre">cli()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.copilot_module">sfm.utils.copilot_module module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.copilot_module.CopilotModule"><code class="docutils literal notranslate"><span class="pre">CopilotModule</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.copilot_module.CopilotModule.forward"><code class="docutils literal notranslate"><span class="pre">CopilotModule.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.copilot_module.CopilotModule.training"><code class="docutils literal notranslate"><span class="pre">CopilotModule.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.copilot_module.LayerSpec"><code class="docutils literal notranslate"><span class="pre">LayerSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.copilot_module.LayerSpec.build"><code class="docutils literal notranslate"><span class="pre">LayerSpec.build()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.copilot_module.PipelineError"><code class="docutils literal notranslate"><span class="pre">PipelineError</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.copilot_module.TiedLayerSpec"><code class="docutils literal notranslate"><span class="pre">TiedLayerSpec</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.defaultdsconfig">sfm.utils.defaultdsconfig module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.dist_utils">sfm.utils.dist_utils module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.dist_utils.is_master_node"><code class="docutils literal notranslate"><span class="pre">is_master_node()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.env_init">sfm.utils.env_init module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.env_init.set_env"><code class="docutils literal notranslate"><span class="pre">set_env()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.get_paranum">sfm.utils.get_paranum module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.get_paranum.count_paranum"><code class="docutils literal notranslate"><span class="pre">count_paranum()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.jload">sfm.utils.jload module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.jload.jdump"><code class="docutils literal notranslate"><span class="pre">jdump()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.jload.jload"><code class="docutils literal notranslate"><span class="pre">jload()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.move_to_device">sfm.utils.move_to_device module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.move_to_device.OutputMixIn"><code class="docutils literal notranslate"><span class="pre">OutputMixIn</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.move_to_device.OutputMixIn.get"><code class="docutils literal notranslate"><span class="pre">OutputMixIn.get()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.move_to_device.OutputMixIn.iget"><code class="docutils literal notranslate"><span class="pre">OutputMixIn.iget()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.move_to_device.OutputMixIn.items"><code class="docutils literal notranslate"><span class="pre">OutputMixIn.items()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.move_to_device.OutputMixIn.keys"><code class="docutils literal notranslate"><span class="pre">OutputMixIn.keys()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.move_to_device.move_to_device"><code class="docutils literal notranslate"><span class="pre">move_to_device()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.myPipelineParallelGrid">sfm.utils.myPipelineParallelGrid module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.PipeDataParallelTopology"><code class="docutils literal notranslate"><span class="pre">PipeDataParallelTopology</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.PipeModelDataParallelTopology"><code class="docutils literal notranslate"><span class="pre">PipeModelDataParallelTopology</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.ProcessTopology"><code class="docutils literal notranslate"><span class="pre">ProcessTopology</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.ProcessTopology.filter_match"><code class="docutils literal notranslate"><span class="pre">ProcessTopology.filter_match()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.ProcessTopology.get_axis_comm_lists"><code class="docutils literal notranslate"><span class="pre">ProcessTopology.get_axis_comm_lists()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.ProcessTopology.get_axis_list"><code class="docutils literal notranslate"><span class="pre">ProcessTopology.get_axis_list()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.ProcessTopology.get_axis_names"><code class="docutils literal notranslate"><span class="pre">ProcessTopology.get_axis_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.ProcessTopology.get_coord"><code class="docutils literal notranslate"><span class="pre">ProcessTopology.get_coord()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.ProcessTopology.get_dim"><code class="docutils literal notranslate"><span class="pre">ProcessTopology.get_dim()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.ProcessTopology.get_rank"><code class="docutils literal notranslate"><span class="pre">ProcessTopology.get_rank()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.ProcessTopology.get_rank_repr"><code class="docutils literal notranslate"><span class="pre">ProcessTopology.get_rank_repr()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.ProcessTopology.world_size"><code class="docutils literal notranslate"><span class="pre">ProcessTopology.world_size()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_data_parallel_group"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_data_parallel_group()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_data_parallel_id"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_data_parallel_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_data_parallel_rank"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_data_parallel_rank()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_data_parallel_world_size"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_data_parallel_world_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_global_rank"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_global_rank()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_model_parallel_group"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_model_parallel_group()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_model_parallel_rank"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_model_parallel_rank()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_model_parallel_world_size"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_model_parallel_world_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_pipe_parallel_group"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_pipe_parallel_group()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_pipe_parallel_rank"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_pipe_parallel_rank()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_pipe_parallel_world_size"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_pipe_parallel_world_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_slice_parallel_group"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_slice_parallel_group()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_slice_parallel_rank"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_slice_parallel_rank()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_slice_parallel_world_size"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_slice_parallel_world_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.get_stage_id"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.get_stage_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.stage_to_global"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.stage_to_global()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.myPipelineParallelGrid.myPipelineParallelGrid.topology"><code class="docutils literal notranslate"><span class="pre">myPipelineParallelGrid.topology()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.mypp_module">sfm.utils.mypp_module module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.LayerSpec"><code class="docutils literal notranslate"><span class="pre">LayerSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.LayerSpec.build"><code class="docutils literal notranslate"><span class="pre">LayerSpec.build()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineError"><code class="docutils literal notranslate"><span class="pre">PipelineError</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule"><code class="docutils literal notranslate"><span class="pre">PipelineModule</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.allreduce_tied_weight_gradients"><code class="docutils literal notranslate"><span class="pre">PipelineModule.allreduce_tied_weight_gradients()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.ckpt_layer_path"><code class="docutils literal notranslate"><span class="pre">PipelineModule.ckpt_layer_path()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.ckpt_layer_path_list"><code class="docutils literal notranslate"><span class="pre">PipelineModule.ckpt_layer_path_list()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.ckpt_prefix"><code class="docutils literal notranslate"><span class="pre">PipelineModule.ckpt_prefix()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.fast_load_state_dir"><code class="docutils literal notranslate"><span class="pre">PipelineModule.fast_load_state_dir()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.forward"><code class="docutils literal notranslate"><span class="pre">PipelineModule.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.get_tied_weights_and_groups"><code class="docutils literal notranslate"><span class="pre">PipelineModule.get_tied_weights_and_groups()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.load_state_dir"><code class="docutils literal notranslate"><span class="pre">PipelineModule.load_state_dir()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.mpu"><code class="docutils literal notranslate"><span class="pre">PipelineModule.mpu()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.num_pipeline_stages"><code class="docutils literal notranslate"><span class="pre">PipelineModule.num_pipeline_stages()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.partitions"><code class="docutils literal notranslate"><span class="pre">PipelineModule.partitions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.save_state_dict"><code class="docutils literal notranslate"><span class="pre">PipelineModule.save_state_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.set_checkpoint_interval"><code class="docutils literal notranslate"><span class="pre">PipelineModule.set_checkpoint_interval()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.stage_owner"><code class="docutils literal notranslate"><span class="pre">PipelineModule.stage_owner()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.topology"><code class="docutils literal notranslate"><span class="pre">PipelineModule.topology()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.PipelineModule.training"><code class="docutils literal notranslate"><span class="pre">PipelineModule.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.TiedLayerSpec"><code class="docutils literal notranslate"><span class="pre">TiedLayerSpec</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.mypp_module.partition_by_layers"><code class="docutils literal notranslate"><span class="pre">partition_by_layers()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.peft">sfm.utils.peft module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.peft.create_peft_model"><code class="docutils literal notranslate"><span class="pre">create_peft_model()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.pipelinemode">sfm.utils.pipelinemode module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.pipelinemode.LlamaDecoderLayerTest"><code class="docutils literal notranslate"><span class="pre">LlamaDecoderLayerTest</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.pipelinemode.LlamaDecoderLayerTest.dict_forward"><code class="docutils literal notranslate"><span class="pre">LlamaDecoderLayerTest.dict_forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.pipelinemode.LlamaDecoderLayerTest.tensor_forward"><code class="docutils literal notranslate"><span class="pre">LlamaDecoderLayerTest.tensor_forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.pipelinemode.LlamaDecoderLayerTest.training"><code class="docutils literal notranslate"><span class="pre">LlamaDecoderLayerTest.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.pipelinemode.check_grad_requirements"><code class="docutils literal notranslate"><span class="pre">check_grad_requirements()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.pipelinemode.convert2list"><code class="docutils literal notranslate"><span class="pre">convert2list()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.pipelinemode.pipemode"><code class="docutils literal notranslate"><span class="pre">pipemode()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.pipelinemode.pipemodegradcheck"><code class="docutils literal notranslate"><span class="pre">pipemodegradcheck()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.pipelinemode.tuple2input"><code class="docutils literal notranslate"><span class="pre">tuple2input()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.pretrained_layer_spec">sfm.utils.pretrained_layer_spec module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.pretrained_layer_spec.PretrainedLayerSpec"><code class="docutils literal notranslate"><span class="pre">PretrainedLayerSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.pretrained_layer_spec.PretrainedLayerSpec.build"><code class="docutils literal notranslate"><span class="pre">PretrainedLayerSpec.build()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.pretrained_layer_spec.PretrainedLayerSpec.create_peft_model"><code class="docutils literal notranslate"><span class="pre">PretrainedLayerSpec.create_peft_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.pretrained_layer_spec.PretrainedLayerSpec.load_pretrained"><code class="docutils literal notranslate"><span class="pre">PretrainedLayerSpec.load_pretrained()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.pretrained_layer_spec.PretrainedLayerSpec.partition_load_pretrained"><code class="docutils literal notranslate"><span class="pre">PretrainedLayerSpec.partition_load_pretrained()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#sfm.utils.pretrained_layer_spec.PretrainedLayerSpec.resize_token_embeddings"><code class="docutils literal notranslate"><span class="pre">PretrainedLayerSpec.resize_token_embeddings()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.pretrained_layer_spec.TiedPretrainedLayerSpec"><code class="docutils literal notranslate"><span class="pre">TiedPretrainedLayerSpec</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html#sfm.utils.pretrained_layer_spec.load_ckp_tied_modules"><code class="docutils literal notranslate"><span class="pre">load_ckp_tied_modules()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.science_tokens">sfm.utils.science_tokens module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.utils.html#module-sfm.utils">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="module-sfm">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-sfm" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="modules.html" class="btn btn-neutral float-left" title="sfm" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sfm.criterions.html" class="btn btn-neutral float-right" title="sfm.criterions package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, MSR A4S team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+</body>
+</html>

@@ -391,7 +391,7 @@ class NumMLP(nn.Module):
 
 
 class LlamaHead(nn.Module):
-    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
+    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 0):
         super().__init__()
         self.config = config
 
@@ -450,7 +450,7 @@ class LlamaModelPP(LlamaPreTrainedModel):
 
     @classmethod
     def to_layers(
-        cls, args, config, learnable_cutoff=32001, new_num_tokens=None, load_ckpt=False
+        cls, args, config, learnable_cutoff=0, new_num_tokens=None, load_ckpt=False
     ):
         cls.pipe_layer = []
         for i in range(config.num_hidden_layers):
@@ -481,7 +481,6 @@ class LlamaModelPP(LlamaPreTrainedModel):
             PretrainedLayerSpec(
                 LlamaHead,
                 config,
-                learnable_cutoff=learnable_cutoff,
                 new_num_tokens=new_num_tokens,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(

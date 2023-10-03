@@ -111,16 +111,29 @@ class BatchedDataDataset(torch.utils.data.Dataset):
 
 
 class ProcessedSciDataset(torch.utils.data.Dataset):
-    def __init__(self, path: str, padding_idx):
+    def __init__(self, path: str, padding_idx, max_len: int):
         super().__init__()
         self.data = np.load(path, mmap_mode="r")
+        processed_seq_len = self.data.shape[1]
+        if processed_seq_len % max_len != 0:
+            raise ValueError(
+                f"processed_seq_len {processed_seq_len} is not divisible by max_len {max_len}"
+            )
+        self.replicate = processed_seq_len // max_len
+        self.max_len = max_len
         self.padding_idx = padding_idx
 
+        logger.info(
+            f"Loaded {path} with shape {self.data.shape}, max_len {max_len}, replicate {self.replicate}"
+        )
+
     def __getitem__(self, index):
-        return torch.from_numpy(self.data[index].astype(np.int64))
+        index, offset = divmod(index, self.replicate)
+        data = self.data[index][offset * self.max_len : (offset + 1) * self.max_len]
+        return torch.from_numpy(data.astype(np.int64))
 
     def __len__(self):
-        return self.data.shape[0]
+        return self.data.shape[0] * self.replicate
 
     def collate(self, samples):
         input_ids = torch.stack(samples, dim=0)

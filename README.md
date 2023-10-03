@@ -29,24 +29,6 @@ Medium: GCRHYP3C257, GCRHYP3C314, GCRHYP3C342, GCRHYP3C346 (OK to use with short
 Mild: GCRHYP3C108, GCRHYP3C218, GCRHYP3C225, GCRHYP3C253 (Good to use, port error happens rarely)
 ```
 
-## Example Scripts
+## Documentation
 
-Pretraining Graphormer on 4 GPUs:
-```
-bash scripts/graphormer/pretrain_graphormer.sh
-```
-
-Finetuning Graphormer on 4 GPUs:
-```
-bash scripts/graphormer/ft_graphormer.sh
-```
-
-Finetuning Llama2 + Graphormer on 4 GPUs:
-```
-bash scripts/generalist/ft_graphormer_llama_smiles.sh
-```
-
-Finetuning Llama2 + Graphormer PP + TP + Zero1:
-```
-bash scripts/generalist/ftmp_graphormer_llama_smiles.sh
-```
+[Check the documentation of the framework](https://aka.ms/A4SFramework)

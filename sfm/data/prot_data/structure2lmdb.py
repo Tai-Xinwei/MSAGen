@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import datetime
-import logging
 from pathlib import Path
 from typing import List
 
@@ -8,11 +7,10 @@ import click
 import lmdb
 import numpy as np
 from joblib import Parallel, delayed
-from process import bstr2obj, obj2bstr, process_cif, process_conf
 from tqdm import tqdm
 
-logging.basicConfig(level=logging.WARNING)
-logger = logging.getLogger(__name__)
+from sfm.data.prot_data.process import bstr2obj, obj2bstr, process_cif, process_conf
+from sfm.logging import logger
 
 
 def chunks(lst, n):

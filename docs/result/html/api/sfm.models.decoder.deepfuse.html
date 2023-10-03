@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sfm.models.decoder.deepfuse package &mdash; A4SFramework ai4science documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=c1325062"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sfm.models.generalist package" href="sfm.models.generalist.html" />
+    <link rel="prev" title="sfm.models.decoder package" href="sfm.models.decoder.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
+
+
+
+          <a href="../index.html" class="icon icon-home">
+            A4SFramework
+          </a>
+              <div class="version">
+                0.0.5
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../userfriendly.html">User-friendly Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../distributed.html">Large Distributed Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modelzoo.html">Model Zoo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datapipeline.html">Data Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../trainargs.html">Training Args</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">sfm</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="sfm.html">sfm package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="sfm.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html">sfm.criterions package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html">sfm.data package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.logging.html">sfm.logging package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="sfm.models.html">sfm.models package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html">sfm.modules package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.html">sfm.pipeline package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.html">sfm.tasks package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html">sfm.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.html#module-sfm">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">A4SFramework</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">sfm</a></li>
+          <li class="breadcrumb-item"><a href="sfm.html">sfm package</a></li>
+          <li class="breadcrumb-item"><a href="sfm.models.html">sfm.models package</a></li>
+          <li class="breadcrumb-item"><a href="sfm.models.decoder.html">sfm.models.decoder package</a></li>
+      <li class="breadcrumb-item active">sfm.models.decoder.deepfuse package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/sfm.models.decoder.deepfuse.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <section id="sfm-models-decoder-deepfuse-package">
+<h1>sfm.models.decoder.deepfuse package<a class="headerlink" href="#sfm-models-decoder-deepfuse-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-sfm.models.decoder.deepfuse.config">
+<span id="sfm-models-decoder-deepfuse-config-module"></span><h2>sfm.models.decoder.deepfuse.config module<a class="headerlink" href="#module-sfm.models.decoder.deepfuse.config" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DataConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.config.</span></span><span class="sig-name descname"><span class="pre">DataConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'text2mol'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_mol_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'/blob/shufxi/data/tamgent/chebi/train.textmol.smi'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_text_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'/blob/shufxi/data/tamgent/chebi/train.textmol.desc'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_mol_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'/blob/shufxi/data/tamgent/chebi/val.textmol.smi'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_text_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'/blob/shufxi/data/tamgent/chebi/val.textmol.desc'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DataConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DataConfig.data_type">
+<span class="sig-name descname"><span class="pre">data_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'text2mol'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DataConfig.data_type" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DataConfig.train_mol_path">
+<span class="sig-name descname"><span class="pre">train_mol_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'/blob/shufxi/data/tamgent/chebi/train.textmol.smi'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DataConfig.train_mol_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DataConfig.train_text_path">
+<span class="sig-name descname"><span class="pre">train_text_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'/blob/shufxi/data/tamgent/chebi/train.textmol.desc'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DataConfig.train_text_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DataConfig.val_mol_path">
+<span class="sig-name descname"><span class="pre">val_mol_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'/blob/shufxi/data/tamgent/chebi/val.textmol.smi'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DataConfig.val_mol_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DataConfig.val_text_path">
+<span class="sig-name descname"><span class="pre">val_text_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'/blob/shufxi/data/tamgent/chebi/val.textmol.desc'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DataConfig.val_text_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.config.</span></span><span class="sig-name descname"><span class="pre">DecDeepFuseConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seed:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">46</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fp16:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auto_cast:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bf16:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grad_scaler_init:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gradient_accumulation_steps:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tokens:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2048</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_batch_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_batch_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_batch_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_batch_log_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_epoch_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_dir:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'./checkpoints'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_batch_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_epoch_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">10000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strategy:</span> <span class="pre">sfm.pipeline.accelerator.dataclasses.TrainStrategy</span> <span class="pre">=</span> <span class="pre">&lt;TrainStrategy.Single:</span> <span class="pre">'Single'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp_partition_layer_name:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp_part_list:</span> <span class="pre">Optional[List[int]]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ifresume:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_ckpt:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unfreeze_param_list:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">finetune_from_checkpoint_dir:</span> <span class="pre">Optional[str]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">finetune_from_checkpoint_id:</span> <span class="pre">Optional[str]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">daliLoader:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dynamic_loader:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gradient_clipping:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_num_steps:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_num_steps:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">60</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_factor:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_lr:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_num_epochs:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_lr:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_lr:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">8e-05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_lr:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">8e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_decay:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_num_epochs:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wandb:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wandb_team:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wandb_group:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wandb_project:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta1:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta2:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.999</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_rank:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_rank:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pipeline_model_parallel_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tensor_model_parallel_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deepspeed_config:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_backend:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'nccl'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_from_pretrained:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freeze_text_model:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">finetune_text_extra_emb:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freeze_entity_model:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">llama_model:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'/hai1/ds_dataset/llama2/llama-2-7b'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_decoder_model:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'/home/shufxi/mixgpt/mixgpt_new/ckpt'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">llama_model_type:</span> <span class="pre">sfm.models.decoder.deepfuse.config.TextDecoderType</span> <span class="pre">=</span> <span class="pre">&lt;TextDecoderType.LLaMA2_7B:</span> <span class="pre">'LLaMA2_7B'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_decoder_model_type:</span> <span class="pre">sfm.models.decoder.deepfuse.config.EntityDecoderType</span> <span class="pre">=</span> <span class="pre">&lt;EntityDecoderType.BioGPT:</span> <span class="pre">'BioGPT'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_text_len:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1024</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_entity_len:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1024</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intermediate_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_act:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_hidden_layers:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_hidden_act:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_hidden_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_intermediate_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_num_hidden_layers:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_attention_heads:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_key_value_heads:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_num_attention_heads:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rms_norm_eps:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rope_theta:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">10000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rope_scaling:</span> <span class="pre">Optional[Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">float]]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_adapter_layers:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adapter_hidden_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adapter_activation:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'gelu'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vocab_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_vocab_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer_usage:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'NNNN-SSSS-MSSS-SSSS-SSSS-MSSS-SSSS-NNNN'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_weight:</span> <span class="pre">Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">float]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretraining_tp:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_token_count:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_probs_dropout_prob:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dropout_prob:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation_dropout:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iters_per_epoch:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_encoder_decoder:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.dataclasses.DistributedTrainConfig" title="sfm.pipeline.accelerator.dataclasses.DistributedTrainConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">DistributedTrainConfig</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.activation_dropout">
+<span class="sig-name descname"><span class="pre">activation_dropout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.activation_dropout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.adapter_activation">
+<span class="sig-name descname"><span class="pre">adapter_activation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'gelu'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.adapter_activation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.adapter_hidden_size">
+<span class="sig-name descname"><span class="pre">adapter_hidden_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">64</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.adapter_hidden_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.attention_probs_dropout_prob">
+<span class="sig-name descname"><span class="pre">attention_probs_dropout_prob</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.attention_probs_dropout_prob" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_decoder_model">
+<span class="sig-name descname"><span class="pre">entity_decoder_model</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'/home/shufxi/mixgpt/mixgpt_new/ckpt'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_decoder_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_decoder_model_type">
+<span class="sig-name descname"><span class="pre">entity_decoder_model_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.EntityDecoderType" title="sfm.models.decoder.deepfuse.config.EntityDecoderType"><span class="pre">EntityDecoderType</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'BioGPT'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_decoder_model_type" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_head_dim">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">entity_head_dim</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_head_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_hidden_act">
+<span class="sig-name descname"><span class="pre">entity_hidden_act</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_hidden_act" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_hidden_size">
+<span class="sig-name descname"><span class="pre">entity_hidden_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_hidden_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_intermediate_size">
+<span class="sig-name descname"><span class="pre">entity_intermediate_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_intermediate_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_num_attention_heads">
+<span class="sig-name descname"><span class="pre">entity_num_attention_heads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_num_attention_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_num_hidden_layers">
+<span class="sig-name descname"><span class="pre">entity_num_hidden_layers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_num_hidden_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_vocab_size">
+<span class="sig-name descname"><span class="pre">entity_vocab_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.entity_vocab_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.finetune_text_extra_emb">
+<span class="sig-name descname"><span class="pre">finetune_text_extra_emb</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.finetune_text_extra_emb" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.freeze_entity_model">
+<span class="sig-name descname"><span class="pre">freeze_entity_model</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.freeze_entity_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.freeze_text_model">
+<span class="sig-name descname"><span class="pre">freeze_text_model</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.freeze_text_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.head_dim">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">head_dim</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.head_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.hidden_act">
+<span class="sig-name descname"><span class="pre">hidden_act</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.hidden_act" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.hidden_dropout_prob">
+<span class="sig-name descname"><span class="pre">hidden_dropout_prob</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.hidden_dropout_prob" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.hidden_size">
+<span class="sig-name descname"><span class="pre">hidden_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.hidden_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.intermediate_size">
+<span class="sig-name descname"><span class="pre">intermediate_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.intermediate_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.is_encoder_decoder">
+<span class="sig-name descname"><span class="pre">is_encoder_decoder</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.is_encoder_decoder" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.iters_per_epoch">
+<span class="sig-name descname"><span class="pre">iters_per_epoch</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.iters_per_epoch" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.layer_usage">
+<span class="sig-name descname"><span class="pre">layer_usage</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'NNNN-SSSS-MSSS-SSSS-SSSS-MSSS-SSSS-NNNN'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.layer_usage" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.llama_model">
+<span class="sig-name descname"><span class="pre">llama_model</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'/hai1/ds_dataset/llama2/llama-2-7b'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.llama_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.llama_model_type">
+<span class="sig-name descname"><span class="pre">llama_model_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.TextDecoderType" title="sfm.models.decoder.deepfuse.config.TextDecoderType"><span class="pre">TextDecoderType</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'LLaMA2_7B'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.llama_model_type" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.load_from_pretrained">
+<span class="sig-name descname"><span class="pre">load_from_pretrained</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.load_from_pretrained" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.loss_weight">
+<span class="sig-name descname"><span class="pre">loss_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.loss_weight" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.max_entity_len">
+<span class="sig-name descname"><span class="pre">max_entity_len</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1024</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.max_entity_len" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.max_position_embeddings">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">max_position_embeddings</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.max_position_embeddings" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.max_text_len">
+<span class="sig-name descname"><span class="pre">max_text_len</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1024</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.max_text_len" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.new_token_count">
+<span class="sig-name descname"><span class="pre">new_token_count</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.new_token_count" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.num_adapter_layers">
+<span class="sig-name descname"><span class="pre">num_adapter_layers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.num_adapter_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.num_attention_heads">
+<span class="sig-name descname"><span class="pre">num_attention_heads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.num_attention_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.num_hidden_layers">
+<span class="sig-name descname"><span class="pre">num_hidden_layers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.num_hidden_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.num_key_value_heads">
+<span class="sig-name descname"><span class="pre">num_key_value_heads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.num_key_value_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.pretraining_tp">
+<span class="sig-name descname"><span class="pre">pretraining_tp</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.pretraining_tp" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.rms_norm_eps">
+<span class="sig-name descname"><span class="pre">rms_norm_eps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1e-06</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.rms_norm_eps" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.rope_scaling">
+<span class="sig-name descname"><span class="pre">rope_scaling</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.rope_scaling" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.rope_theta">
+<span class="sig-name descname"><span class="pre">rope_theta</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">10000.0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.rope_theta" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.vocab_size">
+<span class="sig-name descname"><span class="pre">vocab_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig.vocab_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.config.</span></span><span class="sig-name descname"><span class="pre">DecDeepFuseInferenceConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ckpt_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decoder_batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_new_tokens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig.ckpt_folder">
+<span class="sig-name descname"><span class="pre">ckpt_folder</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig.ckpt_folder" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig.decoder_batch_size">
+<span class="sig-name descname"><span class="pre">decoder_batch_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig.decoder_batch_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig.input_file">
+<span class="sig-name descname"><span class="pre">input_file</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig.input_file" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig.max_length">
+<span class="sig-name descname"><span class="pre">max_length</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">64</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig.max_length" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig.max_new_tokens">
+<span class="sig-name descname"><span class="pre">max_new_tokens</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">64</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig.max_new_tokens" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig.output_file">
+<span class="sig-name descname"><span class="pre">output_file</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseInferenceConfig.output_file" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.EntityDecoderType">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.config.</span></span><span class="sig-name descname"><span class="pre">EntityDecoderType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.EntityDecoderType" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>An enumeration.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.EntityDecoderType.BioGPT">
+<span class="sig-name descname"><span class="pre">BioGPT</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'BioGPT'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.EntityDecoderType.BioGPT" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.EntityDecoderType.LLaMA">
+<span class="sig-name descname"><span class="pre">LLaMA</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'LLaMA'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.EntityDecoderType.LLaMA" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.LayerUsage">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.config.</span></span><span class="sig-name descname"><span class="pre">LayerUsage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.LayerUsage" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>An enumeration.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.LayerUsage.Mixing">
+<span class="sig-name descname"><span class="pre">Mixing</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'M'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.LayerUsage.Mixing" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.LayerUsage.NotUsed">
+<span class="sig-name descname"><span class="pre">NotUsed</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'N'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.LayerUsage.NotUsed" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.LayerUsage.Seperate">
+<span class="sig-name descname"><span class="pre">Seperate</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'S'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.LayerUsage.Seperate" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.LayerUsage.from_str">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_str</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.LayerUsage" title="sfm.models.decoder.deepfuse.config.LayerUsage"><span class="pre">LayerUsage</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.LayerUsage.from_str" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.TextDecoderType">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.config.</span></span><span class="sig-name descname"><span class="pre">TextDecoderType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.TextDecoderType" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>An enumeration.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.TextDecoderType.LLaMA2_7B">
+<span class="sig-name descname"><span class="pre">LLaMA2_7B</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'LLaMA2_7B'</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.TextDecoderType.LLaMA2_7B" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.llama2_7b_default_config">
+<span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.config.</span></span><span class="sig-name descname"><span class="pre">llama2_7b_default_config</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.llama2_7b_default_config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.config.mix_gpt_default_config">
+<span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.config.</span></span><span class="sig-name descname"><span class="pre">mix_gpt_default_config</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.config.mix_gpt_default_config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-sfm.models.decoder.deepfuse.hidden_state">
+<span id="sfm-models-decoder-deepfuse-hidden-state-module"></span><h2>sfm.models.decoder.deepfuse.hidden_state module<a class="headerlink" href="#module-sfm.models.decoder.deepfuse.hidden_state" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.hidden_state.</span></span><span class="sig-name descname"><span class="pre">HiddenState</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="sfm.data.dec_data.html#sfm.data.dec_data.datasets.TokenType" title="sfm.data.dec_data.datasets.TokenType"><span class="pre">TokenType</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token_type_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>The x_dict reprensent a jadged tensor because the each token can have differernt dim</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.apply_all_types_mapping">
+<span class="sig-name descname"><span class="pre">apply_all_types_mapping</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ModuleDict</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.apply_all_types_mapping" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.batch_size">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">batch_size</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.batch_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.device">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">device</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.device" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.dtype">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">dtype</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.dtype" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.from_dense">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_dense</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token_type_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.from_dense" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.from_tuple">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_tuple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.from_tuple" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.logits">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">logits</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.logits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.seq_len">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">seq_len</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.seq_len" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.to_dense">
+<span class="sig-name descname"><span class="pre">to_dense</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.to_dense" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.to_single_type_batch">
+<span class="sig-name descname"><span class="pre">to_single_type_batch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="sfm.data.dec_data.html#sfm.data.dec_data.datasets.TokenType" title="sfm.data.dec_data.datasets.TokenType"><span class="pre">TokenType</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.to_single_type_batch" title="Link to this definition"></a></dt>
+<dd><p>Convert this ragged batch to a batch (BxTxC) with only one token type.
+Other kinds of tokens are masked out.
+This is useful when we want to apply a layer to only one token type.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.to_tuple">
+<span class="sig-name descname"><span class="pre">to_tuple</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.to_tuple" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.token_type_mask">
+<span class="sig-name descname"><span class="pre">token_type_mask</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tensor</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.token_type_mask" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.update_single_type_batch">
+<span class="sig-name descname"><span class="pre">update_single_type_batch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="sfm.data.dec_data.html#sfm.data.dec_data.datasets.TokenType" title="sfm.data.dec_data.datasets.TokenType"><span class="pre">TokenType</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.update_single_type_batch" title="Link to this definition"></a></dt>
+<dd><p>Update the x_dict with the new batch, after applying a layer to only one type.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.update_x_dict">
+<span class="sig-name descname"><span class="pre">update_x_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="sfm.data.dec_data.html#sfm.data.dec_data.datasets.TokenType" title="sfm.data.dec_data.datasets.TokenType"><span class="pre">TokenType</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.update_x_dict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.hidden_state.HiddenState.x_dict">
+<span class="sig-name descname"><span class="pre">x_dict</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="sfm.data.dec_data.html#sfm.data.dec_data.datasets.TokenType" title="sfm.data.dec_data.datasets.TokenType"><span class="pre">TokenType</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState.x_dict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sfm.models.decoder.deepfuse.model">
+<span id="sfm-models-decoder-deepfuse-model-module"></span><h2>sfm.models.decoder.deepfuse.model module<a class="headerlink" href="#module-sfm.models.decoder.deepfuse.model" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.model.</span></span><span class="sig-name descname"><span class="pre">DecDeepFuseModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig" title="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig"><span class="pre">DecDeepFuseConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.pipeline_module.SFMPipelineModelMixin" title="sfm.pipeline.accelerator.pipeline_module.SFMPipelineModelMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFMPipelineModelMixin</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">GenerationMixin</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.can_generate">
+<span class="sig-name descname"><span class="pre">can_generate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.can_generate" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.compute_loss">
+<span class="sig-name descname"><span class="pre">compute_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="sfm.data.dec_data.html#sfm.data.dec_data.datasets.MixedTokenData" title="sfm.data.dec_data.datasets.MixedTokenData"><span class="pre">MixedTokenData</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.compute_loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.config_optimizer">
+<span class="sig-name descname"><span class="pre">config_optimizer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Optimizer</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">LRScheduler</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.config_optimizer" title="Link to this definition"></a></dt>
+<dd><p>Return the optimizer and learning rate scheduler for this model.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Tuple[Optimizer, LRScheduler]:</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.device">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">device</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.device" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.extend_emb">
+<span class="sig-name descname"><span class="pre">extend_emb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">emb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.extend_emb" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="sfm.data.dec_data.html#sfm.data.dec_data.datasets.MixedTokenData" title="sfm.data.dec_data.datasets.MixedTokenData"><span class="pre">MixedTokenData</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_attentions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_hidden_states</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">past_key_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">FloatTensor</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.freeze_params">
+<span class="sig-name descname"><span class="pre">freeze_params</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.freeze_params" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.load_from_pretrained">
+<span class="sig-name descname"><span class="pre">load_from_pretrained</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.load_from_pretrained" title="Link to this definition"></a></dt>
+<dd><p>Load pretrained LLaMA and entity decoder.
+Here we need to rename the parameters to match the current model.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.main_input_name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">main_input_name</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.main_input_name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.prepare_inputs_for_generation">
+<span class="sig-name descname"><span class="pre">prepare_inputs_for_generation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="sfm.data.dec_data.html#sfm.data.dec_data.datasets.MixedTokenData" title="sfm.data.dec_data.datasets.MixedTokenData"><span class="pre">MixedTokenData</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">past_key_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">special_token_mapping</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.prepare_inputs_for_generation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.to_layers">
+<span class="sig-name descname"><span class="pre">to_layers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Module</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.to_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.GenerationOutput">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.model.</span></span><span class="sig-name descname"><span class="pre">GenerationOutput</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hidden</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">past_key_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.GenerationOutput" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.GenerationOutput.logits">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">logits</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.GenerationOutput.logits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sfm.models.decoder.deepfuse.modules">
+<span id="sfm-models-decoder-deepfuse-modules-module"></span><h2>sfm.models.decoder.deepfuse.modules module<a class="headerlink" href="#module-sfm.models.decoder.deepfuse.modules" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.Adapter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">Adapter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig" title="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig"><span class="pre">DecDeepFuseConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">in_dim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.Adapter" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.Adapter.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">TensorType</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.Adapter.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.Adapter.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.Adapter.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.AttnOutputProj">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">AttnOutputProj</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig" title="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig"><span class="pre">DecDeepFuseConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">token_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="sfm.data.dec_data.html#sfm.data.dec_data.datasets.TokenType" title="sfm.data.dec_data.datasets.TokenType"><span class="pre">TokenType</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">bias</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.AttnOutputProj" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.AttnOutputProj.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.AttnOutputProj.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.AttnOutputProj.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.AttnOutputProj.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.AttnQKVProj">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">AttnQKVProj</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig" title="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig"><span class="pre">DecDeepFuseConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">token_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="sfm.data.dec_data.html#sfm.data.dec_data.datasets.TokenType" title="sfm.data.dec_data.datasets.TokenType"><span class="pre">TokenType</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">kind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bias</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.AttnQKVProj" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.AttnQKVProj.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.AttnQKVProj.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.AttnQKVProj.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.AttnQKVProj.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.BioGPTMLP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">BioGPTMLP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig" title="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig"><span class="pre">DecDeepFuseConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.BioGPTMLP" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.BioGPTMLP.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.BioGPTMLP.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.BioGPTMLP.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.BioGPTMLP.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">DeepFuseLayerBase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig" title="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig"><span class="pre">DecDeepFuseConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase.forward_impl">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">forward_impl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">past_key_value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase.forward_impl" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase.freeze_entity_model">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">freeze_entity_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase.freeze_entity_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase.freeze_text_model">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">freeze_text_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase.freeze_text_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase.map_state_dict">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">map_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">llama_state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_layer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_decoder_state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase.map_state_dict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.Embed">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">Embed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.Embed" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.Embed.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_tuple</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.Embed.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.Embed.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.Embed.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.FusedAttn">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">FusedAttn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.FusedAttn" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>We first project all Q, K, V to text space, conduct attntion.
+Then project them back to entity space</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.FusedAttn.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LongTensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">past_key_value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.FusedAttn.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.FusedAttn.freeze_entity_model">
+<span class="sig-name descname"><span class="pre">freeze_entity_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.FusedAttn.freeze_entity_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.FusedAttn.freeze_text_model">
+<span class="sig-name descname"><span class="pre">freeze_text_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.FusedAttn.freeze_text_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.FusedAttn.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.FusedAttn.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.Head">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">Head</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig" title="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig"><span class="pre">DecDeepFuseConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.Head" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>The output head, including the final ln and lm_head</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.Head.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.Head.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.Head.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.Head.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.MLP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">MLP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig" title="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig"><span class="pre">DecDeepFuseConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">token_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="sfm.data.dec_data.html#sfm.data.dec_data.datasets.TokenType" title="sfm.data.dec_data.datasets.TokenType"><span class="pre">TokenType</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.MLP" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.MLP.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.MLP.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.MLP.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.MLP.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.MixLayer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">MixLayer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig" title="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig"><span class="pre">DecDeepFuseConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.MixLayer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase" title="sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">DeepFuseLayerBase</span></code></a></p>
+<p>The layer that mix the text and entity operations</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.MixLayer.forward_impl">
+<span class="sig-name descname"><span class="pre">forward_impl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">past_key_value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.MixLayer.forward_impl" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.MixLayer.freeze_entity_model">
+<span class="sig-name descname"><span class="pre">freeze_entity_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.MixLayer.freeze_entity_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.MixLayer.freeze_text_model">
+<span class="sig-name descname"><span class="pre">freeze_text_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.MixLayer.freeze_text_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.MixLayer.map_state_dict">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">map_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">llama_state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_layer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_decoder_state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.MixLayer.map_state_dict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.MixLayer.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.MixLayer.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.SeperateLayer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">SeperateLayer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig" title="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig"><span class="pre">DecDeepFuseConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.SeperateLayer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase" title="sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">DeepFuseLayerBase</span></code></a></p>
+<p>Both text and entity have their own layer</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.SeperateLayer.forward_impl">
+<span class="sig-name descname"><span class="pre">forward_impl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">past_key_value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.SeperateLayer.forward_impl" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.SeperateLayer.freeze_entity_model">
+<span class="sig-name descname"><span class="pre">freeze_entity_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.SeperateLayer.freeze_entity_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.SeperateLayer.freeze_text_model">
+<span class="sig-name descname"><span class="pre">freeze_text_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.SeperateLayer.freeze_text_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.SeperateLayer.map_state_dict">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">map_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">llama_state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_layer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_decoder_state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.SeperateLayer.map_state_dict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.SeperateLayer.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.SeperateLayer.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.TextOnly">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">TextOnly</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.TextOnly" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase" title="sfm.models.decoder.deepfuse.modules.DeepFuseLayerBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">DeepFuseLayerBase</span></code></a></p>
+<p>When the decoder layer is less than LLaMA layer, we use this to only process text</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.TextOnly.forward_impl">
+<span class="sig-name descname"><span class="pre">forward_impl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">past_key_value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.TextOnly.forward_impl" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.TextOnly.freeze_entity_model">
+<span class="sig-name descname"><span class="pre">freeze_entity_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.TextOnly.freeze_entity_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.TextOnly.freeze_text_model">
+<span class="sig-name descname"><span class="pre">freeze_text_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.TextOnly.freeze_text_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.TextOnly.map_state_dict">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">map_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">llama_state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_layer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_decoder_state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.TextOnly.map_state_dict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.TextOnly.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.TextOnly.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.make_norm_dict">
+<span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">make_norm_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig" title="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig"><span class="pre">DecDeepFuseConfig</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ModuleDict</span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.make_norm_dict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.mask_to_bool">
+<span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">mask_to_bool</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">BoolTensor</span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.mask_to_bool" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.modules.mask_to_float">
+<span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.modules.</span></span><span class="sig-name descname"><span class="pre">mask_to_float</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">BoolTensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.modules.mask_to_float" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-sfm.models.decoder.deepfuse">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-sfm.models.decoder.deepfuse" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sfm.models.decoder.html" class="btn btn-neutral float-left" title="sfm.models.decoder package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sfm.models.generalist.html" class="btn btn-neutral float-right" title="sfm.models.generalist package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, MSR A4S team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+</body>
+</html>

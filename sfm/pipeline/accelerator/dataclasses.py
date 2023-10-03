@@ -7,6 +7,26 @@ import torch
 
 
 class TrainStrategy(str, Enum):
+    """
+    TrainStrategy provides a convenient way to choose between different training strategies supported by the A4SFramework.
+
+    Args:
+        Single: The training is performed on a single device without any parallelism or distribution.
+
+        DDP: Distributed Data Parallel (DDP) training, where the model is replicated across multiple devices and gradients are synchronized.
+
+        Zero1: The first level of the ZeRO (Zero Redundancy Optimizer) parallelism strategy.
+
+        Zero2: The second level of the ZeRO parallelism strategy.
+
+        Zero3: The third level of the ZeRO parallelism strategy.
+
+        Pipeline: Pipeline parallelism, where the model is divided into stages and processed on
+        different devices in a pipeline fashion.
+
+        ThreeD: 3D parallelism, which combines data, model, and pipeline parallelism for large-scale training.
+    """
+
     DDP = "DDP"
     Zero1 = "Zero1"
     Zero2 = "Zero2"
@@ -19,6 +39,27 @@ class TrainStrategy(str, Enum):
 # Will be removed, use DistributedTrainConfig instead
 @dataclass
 class DistributedConfig:
+    """
+    DistributedConfig serves as a convenient way to store and manage various parameters required for efficient distributed training.
+
+    Args:
+        local_rank (int, default: -1): The local rank of the process within a node.
+
+        world_size (int, default: 1): The total number of processes involved in the distributed training.
+
+        node_rank (int, default: 0): The rank of the current node within the cluster.
+
+        rank (int, default: 0): The global rank of the process.
+
+        pipeline_model_parallel_size (int, default: 0): The size of the pipeline model parallel group.
+
+        tensor_model_parallel_size (int, default: 1): The size of the tensor model parallel group.
+
+        deepspeed_config (str, default: ''): The path to the DeepSpeed configuration file.
+
+        dist_backend (str, default: 'nccl'): The distributed backend to use for communication among processes.
+    """
+
     local_rank: int = -1
     world_size: int = 1
     node_rank: int = 0
@@ -31,6 +72,53 @@ class DistributedConfig:
 
 @dataclass
 class TrainerConfig:
+    """
+    This TrainerConfig class makes it easier to manage and modify training-related parameters.
+
+    Args:
+        seed: Seed for random number generation, ensuring reproducible results.
+
+        fp16, auto_cast, bf16: Flags for mixed precision training and related settings.
+
+        grad_scaler_init: Initial scaling factor for gradient scaling in mixed precision training.
+
+        gradient_accumulation_steps: Number of steps for accumulating gradients before updating weights.
+
+        max_tokens, train_batch_size, val_batch_size: Batch-related parameters for training and validation.
+
+        val_batch_interval, val_batch_log_interval, val_epoch_interval: Settings for validation intervals.
+
+        save_dir, save_batch_interval, save_epoch_interval: Settings for saving checkpoints and their intervals.
+
+        log_interval: Interval for logging training progress.
+
+        strategy: A TrainStrategy enumeration indicating the selected training strategy.
+
+        pp_partition_layer_name, pp_part_list: Settings related to pipeline parallelism.
+
+        cpu: Flag to indicate whether to use CPU for training.
+
+        ifresume, load_ckpt: Flags for resuming training from a checkpoint.
+
+        unfreeze_param_list, finetune_from_checkpoint_dir, finetune_from_checkpoint_id: Settings for fine-tuning from a checkpoint.
+
+        daliLoader, dynamic_loader: Flags for using DALI and dynamic data loaders.
+
+        gradient_clipping: Gradient clipping value.
+
+        total_num_steps, warmup_num_steps: Settings for the total number of training steps and warm-up steps.
+
+        warmup_factor, warmup_lr, warmup_num_epochs: Settings for the warm-up phase of training.
+        max_lr, init_lr, min_lr, weight_decay: Settings related to learning rates and weight decay.
+
+        total_num_epochs: The total number of training epochs.
+
+        wandb, wandb_team, wandb_group, wandb_project: Settings for Weights & Biases integration.
+
+        beta1, beta2, eps: Hyperparameters for the optimizer.
+
+    """
+
     seed: int = 46
     fp16: bool = False
     auto_cast: bool = False
@@ -82,6 +170,7 @@ class TrainerConfig:
     # adam
     beta1: float = 0.9
     beta2: float = 0.999
+    eps: float = 1e-8
 
     def __str__(self):
         return (
@@ -93,6 +182,27 @@ class TrainerConfig:
 
 @dataclass
 class DistributedTrainConfig(TrainerConfig):
+    """
+    DistributedTrainConfig is a combination of TrainerConfig and DistributedConfig.
+
+    Args:
+        local_rank (int, default: -1): The local rank of the process within a node.
+
+        world_size (int, default: 1): The total number of processes involved in the distributed training.
+
+        node_rank (int, default: 0): The rank of the current node within the cluster.
+
+        rank (int, default: 0): The global rank of the process.
+
+        pipeline_model_parallel_size (int, default: 0): The size of the pipeline model parallel group.
+
+        tensor_model_parallel_size (int, default: 1): The size of the tensor model parallel group.
+
+        deepspeed_config (str, default: ''): The path to the DeepSpeed configuration file.
+
+        dist_backend (str, default: 'nccl'): The distributed backend to use for communication among processes.
+    """
+
     local_rank: int = -1
     world_size: int = 1
     node_rank: int = 0
@@ -105,6 +215,19 @@ class DistributedTrainConfig(TrainerConfig):
 
 @dataclass
 class TrainerState:
+    """
+    The TrainerState class helps manage various training-related attributes, making it easier to monitor and control the progress of the training.
+
+    Args:
+        args: A TrainerConfig object that stores the configuration settings for the training process.
+
+        global_step (int, default: 0): The current global step of the training process, which is a count of the number of gradient updates performed.
+
+        epoch (int, default: 0): The current epoch of the training process, representing the number of times the entire dataset has been processed.
+
+        batch (int, default: 0): The current batch number within the current epoch.
+    """
+
     args: TrainerConfig
     global_step: int = 0
     epoch: int = 0

@@ -507,6 +507,13 @@ class DeepSpeedAccelerator(Accelerator):
                 )
 
             self.args.deepspeed_config["optimizer"]["params"]["lr"] = self.args.max_lr
+            self.args.deepspeed_config["optimizer"]["params"]["betas"] = [
+                self.args.beta1,
+                self.args.beta2,
+            ]
+            self.args.deepspeed_config["optimizer"]["params"][
+                "weight_decay"
+            ] = self.args.weight_decay
 
             self.args.deepspeed_config["scheduler"]["params"][
                 "total_num_steps"
@@ -608,6 +615,11 @@ class DeepSpeedAccelerator(Accelerator):
             self.optimizer, self.lr_scheduler = self.model.config_optimizer(
                 model=self.ppmodel
             )
+
+            if self.lr_scheduler is not None:
+                # When using custom scheduler, we need to set the scheduler type to None
+                # Otherwise, deepspeed will use that scheduler instead of the custom one
+                self.args.deepspeed_config["scheduler"]["type"] = None
 
             model_parameters = (
                 unfreeze_params

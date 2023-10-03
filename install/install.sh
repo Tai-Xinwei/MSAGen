@@ -19,6 +19,7 @@ pip install torch_cluster==1.6.1 -f https://pytorch-geometric.com/whl/torch-2.0.
 
 pip install Cython==0.29.32 --upgrade
 pip install torchvision==0.15.2 --upgrade
+pip install torcheval
 
 # pip install pytorch_forecasting
 pip install networkx
