@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sfm &mdash; A4SFramework ai4science documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=c1325062"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sfm package" href="sfm.html" />
+    <link rel="prev" title="Training Args" href="../trainargs.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
+
+
+
+          <a href="../index.html" class="icon icon-home">
+            A4SFramework
+          </a>
+              <div class="version">
+                0.0.5
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../userfriendly.html">User-friendly Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../distributed.html">Large Distributed Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modelzoo.html">Model Zoo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datapipeline.html">Data Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../trainargs.html">Training Args</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">sfm</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sfm.html">sfm package</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">A4SFramework</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">sfm</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/modules.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <section id="sfm">
+<h1>sfm<a class="headerlink" href="#sfm" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="sfm.html">sfm package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sfm.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sfm.criterions.html">sfm.criterions package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions.autoregressive">sfm.criterions.autoregressive module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions.copilotloss">sfm.criterions.copilotloss module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions.l1ft">sfm.criterions.l1ft module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions.mae2d">sfm.criterions.mae2d module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions.mae3d">sfm.criterions.mae3d module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions.mae3ddiff">sfm.criterions.mae3ddiff module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html#module-sfm.criterions">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.data.html">sfm.data package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#module-sfm.data.data_utils">sfm.data.data_utils module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#module-sfm.data.data_utils_fast">sfm.data.data_utils_fast module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#module-sfm.data.dataset">sfm.data.dataset module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#module-sfm.data.dynamics_loader">sfm.data.dynamics_loader module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#module-sfm.data.molecule">sfm.data.molecule module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#module-sfm.data.sampler">sfm.data.sampler module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#module-sfm.data.text">sfm.data.text module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html#module-sfm.data">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.logging.html">sfm.logging package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.logging.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.logging.html#module-sfm.logging.loggers">sfm.logging.loggers module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.logging.html#module-sfm.logging">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.models.html">sfm.models package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.html#module-sfm.models">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.modules.html">sfm.modules package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.FairseqDropout">sfm.modules.FairseqDropout module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.FlashAtt_bk">sfm.modules.FlashAtt_bk module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.droppath">sfm.modules.droppath module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.fused_layernorm">sfm.modules.fused_layernorm module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.get_activation_fn">sfm.modules.get_activation_fn module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.layer_norm">sfm.modules.layer_norm module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.mem_eff_attn">sfm.modules.mem_eff_attn module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.multihead_attention">sfm.modules.multihead_attention module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.parallelattentionbias">sfm.modules.parallelattentionbias module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.partial_grad_emb">sfm.modules.partial_grad_emb module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.quant_noise">sfm.modules.quant_noise module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.rotary_embedding">sfm.modules.rotary_embedding module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules.sfmmodule">sfm.modules.sfmmodule module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html#module-sfm.modules">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.pipeline.html">sfm.pipeline package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.html#module-sfm.pipeline">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.tasks.html">sfm.tasks package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.html#module-sfm.tasks">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.utils.html">sfm.utils package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.FairseqDataset">sfm.utils.FairseqDataset module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.LayerDropModuleList">sfm.utils.LayerDropModuleList module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.PPEngine">sfm.utils.PPEngine module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.arg_utils">sfm.utils.arg_utils module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.barrier">sfm.utils.barrier module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.cli_utils">sfm.utils.cli_utils module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.copilot_module">sfm.utils.copilot_module module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.defaultdsconfig">sfm.utils.defaultdsconfig module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.dist_utils">sfm.utils.dist_utils module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.env_init">sfm.utils.env_init module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.get_paranum">sfm.utils.get_paranum module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.jload">sfm.utils.jload module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.move_to_device">sfm.utils.move_to_device module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.myPipelineParallelGrid">sfm.utils.myPipelineParallelGrid module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.mypp_module">sfm.utils.mypp_module module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.peft">sfm.utils.peft module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.pipelinemode">sfm.utils.pipelinemode module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.pretrained_layer_spec">sfm.utils.pretrained_layer_spec module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils.science_tokens">sfm.utils.science_tokens module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html#module-sfm.utils">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sfm.html#module-sfm">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../trainargs.html" class="btn btn-neutral float-left" title="Training Args" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sfm.html" class="btn btn-neutral float-right" title="sfm package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, MSR A4S team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+</body>
+</html>

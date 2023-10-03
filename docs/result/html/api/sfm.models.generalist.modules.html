@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sfm.models.generalist.modules package &mdash; A4SFramework ai4science documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=c1325062"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sfm.models.graphormer package" href="sfm.models.graphormer.html" />
+    <link rel="prev" title="sfm.models.generalist package" href="sfm.models.generalist.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
+
+
+
+          <a href="../index.html" class="icon icon-home">
+            A4SFramework
+          </a>
+              <div class="version">
+                0.0.5
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../userfriendly.html">User-friendly Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../distributed.html">Large Distributed Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modelzoo.html">Model Zoo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datapipeline.html">Data Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../trainargs.html">Training Args</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">sfm</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="sfm.html">sfm package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="sfm.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html">sfm.criterions package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html">sfm.data package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.logging.html">sfm.logging package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="sfm.models.html">sfm.models package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html">sfm.modules package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.html">sfm.pipeline package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.html">sfm.tasks package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html">sfm.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.html#module-sfm">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">A4SFramework</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">sfm</a></li>
+          <li class="breadcrumb-item"><a href="sfm.html">sfm package</a></li>
+          <li class="breadcrumb-item"><a href="sfm.models.html">sfm.models package</a></li>
+          <li class="breadcrumb-item"><a href="sfm.models.generalist.html">sfm.models.generalist package</a></li>
+      <li class="breadcrumb-item active">sfm.models.generalist.modules package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/sfm.models.generalist.modules.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <section id="sfm-models-generalist-modules-package">
+<h1>sfm.models.generalist.modules package<a class="headerlink" href="#sfm-models-generalist-modules-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-sfm.models.generalist.modules.graphormer_encoder">
+<span id="sfm-models-generalist-modules-graphormer-encoder-module"></span><h2>sfm.models.generalist.modules.graphormer_encoder module<a class="headerlink" href="#module-sfm.models.generalist.modules.graphormer_encoder" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.graphormer_encoder.GraphormerSentenceEncoderPP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.generalist.modules.graphormer_encoder.</span></span><span class="sig-name descname"><span class="pre">GraphormerSentenceEncoderPP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">graphormer_config</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.graphormer_encoder.GraphormerSentenceEncoderPP" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="sfm.models.graphormer.modules.html#sfm.models.graphormer.modules.graphormer_sentence_encoder.GraphormerSentenceEncoder" title="sfm.models.graphormer.modules.graphormer_sentence_encoder.GraphormerSentenceEncoder"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphormerSentenceEncoder</span></code></a></p>
+<p>Implementation for a Bi-directional Transformer based Sentence Encoder used
+in BERT/XLM style pre-trained models.</p>
+<p>This first computes the token embedding using the token embedding matrix,
+position embeddings (if specified) and segment embeddings
+(if specified). After applying the specified number of
+TransformerEncoderLayers, it outputs all the internal states of the
+encoder as well as the final representation associated with the first
+token (usually CLS token).</p>
+<dl class="simple">
+<dt>Input:</dt><dd><ul class="simple">
+<li><p>tokens: B x T matrix representing sentences</p></li>
+<li><p>segment_labels: B x T matrix representing segment label for tokens</p></li>
+</ul>
+</dd>
+<dt>Output:</dt><dd><ul class="simple">
+<li><dl class="simple">
+<dt>a tuple of the following:</dt><dd><ul>
+<li><p>a list of internal model states used to compute the
+predictions where each tensor has shape T x B x C</p></li>
+<li><p>sentence representation associated with first input token
+in format B x C.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.graphormer_encoder.GraphormerSentenceEncoderPP.config">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">config</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.graphormer_encoder.GraphormerSentenceEncoderPP.config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.graphormer_encoder.GraphormerSentenceEncoderPP.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_batchdata</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.graphormer_encoder.GraphormerSentenceEncoderPP.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.graphormer_encoder.GraphormerSentenceEncoderPP.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.generalist.modules.graphormer_encoder.GraphormerSentenceEncoderPP.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sfm.models.generalist.modules.hybrid_emb">
+<span id="sfm-models-generalist-modules-hybrid-emb-module"></span><h2>sfm.models.generalist.modules.hybrid_emb module<a class="headerlink" href="#module-sfm.models.generalist.modules.hybrid_emb" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.AdaptorConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.generalist.modules.hybrid_emb.</span></span><span class="sig-name descname"><span class="pre">AdaptorConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vocab_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4096</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intermediate_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">11008</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_act</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'silu'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_position_embeddings</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2048</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rms_norm_eps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad_token_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bos_token_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eos_token_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tie_word_embeddings</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_text_to_mol_attention</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mfm_hidden_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.AdaptorConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">PretrainedConfig</span></code></p>
+<p>This is the configuration class to store the configuration of a [<cite>LlamaModel</cite>]. It is used to instantiate an LLaMA
+model according to the specified arguments, defining the model architecture. Instantiating a configuration with the
+defaults will yield a similar configuration to that of the LLaMA-7B.</p>
+<p>Configuration objects inherit from [<cite>PretrainedConfig</cite>] and can be used to control the model outputs. Read the
+documentation from [<cite>PretrainedConfig</cite>] for more information.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>vocab_size (<cite>int</cite>, <em>optional</em>, defaults to 32000):</dt><dd><p>Vocabulary size of the LLaMA model. Defines the number of different tokens that can be represented by the
+<cite>inputs_ids</cite> passed when calling [<cite>LlamaModel</cite>]</p>
+</dd>
+<dt>hidden_size (<cite>int</cite>, <em>optional</em>, defaults to 4096):</dt><dd><p>Dimension of the hidden representations.</p>
+</dd>
+<dt>intermediate_size (<cite>int</cite>, <em>optional</em>, defaults to 11008):</dt><dd><p>Dimension of the MLP representations.</p>
+</dd>
+<dt>num_hidden_layers (<cite>int</cite>, <em>optional</em>, defaults to 32):</dt><dd><p>Number of hidden layers in the Transformer encoder.</p>
+</dd>
+<dt>num_attention_heads (<cite>int</cite>, <em>optional</em>, defaults to 32):</dt><dd><p>Number of attention heads for each attention layer in the Transformer encoder.</p>
+</dd>
+<dt>hidden_act (<cite>str</cite> or <cite>function</cite>, <em>optional</em>, defaults to <cite>“silu”</cite>):</dt><dd><p>The non-linear activation function (function or string) in the decoder.</p>
+</dd>
+<dt>max_position_embeddings (<cite>int</cite>, <em>optional</em>, defaults to 2048):</dt><dd><p>The maximum sequence length that this model might ever be used with. Typically set this to something large
+just in case (e.g., 512 or 1024 or 2048).</p>
+</dd>
+<dt>initializer_range (<cite>float</cite>, <em>optional</em>, defaults to 0.02):</dt><dd><p>The standard deviation of the truncated_normal_initializer for initializing all weight matrices.</p>
+</dd>
+<dt>rms_norm_eps (<cite>float</cite>, <em>optional</em>, defaults to 1e-12):</dt><dd><p>The epsilon used by the rms normalization layers.</p>
+</dd>
+<dt>use_cache (<cite>bool</cite>, <em>optional</em>, defaults to <cite>True</cite>):</dt><dd><p>Whether or not the model should return the last key/values attentions (not used by all models). Only
+relevant if <cite>config.is_decoder=True</cite>.</p>
+</dd>
+<dt>tie_word_embeddings(<cite>bool</cite>, <em>optional</em>, defaults to <cite>False</cite>):</dt><dd><p>Whether to tie weight embeddings</p>
+</dd>
+<dt>mask_text_to_mol_attention (<cite>bool</cite>,  <em>optional</em>, defaults to <cite>False</cite>):</dt><dd><p>Whether to mask the attention from text tokens to molecule tokens</p>
+</dd>
+</dl>
+<p>Example:</p>
+</dd>
+</dl>
+<p><a href="#id1"><span class="problematic" id="id2">``</span></a><a href="#id3"><span class="problematic" id="id4">`</span></a>python
+&gt;&gt;&gt; from transformers import LlamaModel, LlamaConfig</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Initializing a LLaMA llama-7b style configuration</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">configuration</span> <span class="o">=</span> <span class="n">LlamaConfig</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Initializing a model from the llama-7b style configuration</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">LlamaModel</span><span class="p">(</span><span class="n">configuration</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Accessing the model configuration</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">configuration</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">config</span>
+<span class="go">```</span>
+</pre></div>
+</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.AdaptorConfig.model_type">
+<span class="sig-name descname"><span class="pre">model_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'graphormer_llama_adaptor'</span></em><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.AdaptorConfig.model_type" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.EmbedAttention">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.generalist.modules.hybrid_emb.</span></span><span class="sig-name descname"><span class="pre">EmbedAttention</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hidden_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_attention_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.EmbedAttention" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Multi-headed attention from ‘Attention Is All You Need’ paper</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.EmbedAttention.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hidden_states</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q_states</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LongTensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">past_key_value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_attentions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.EmbedAttention.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.EmbedAttention.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.EmbedAttention.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.HybridEmbeddings">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.generalist.modules.hybrid_emb.</span></span><span class="sig-name descname"><span class="pre">HybridEmbeddings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.generalist.modules.hybrid_emb.AdaptorConfig" title="sfm.models.generalist.modules.hybrid_emb.AdaptorConfig"><span class="pre">AdaptorConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">if_initialize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.HybridEmbeddings" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.HybridEmbeddings.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol_emb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol_padding_mask</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text_embeds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_ids</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.HybridEmbeddings.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.HybridEmbeddings.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.HybridEmbeddings.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.HybridEmbeddingsPP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.generalist.modules.hybrid_emb.</span></span><span class="sig-name descname"><span class="pre">HybridEmbeddingsPP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PretrainedConfig</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.HybridEmbeddingsPP" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sfm.models.generalist.modules.hybrid_emb.HybridEmbeddings" title="sfm.models.generalist.modules.hybrid_emb.HybridEmbeddings"><code class="xref py py-class docutils literal notranslate"><span class="pre">HybridEmbeddings</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.HybridEmbeddingsPP.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_tuple</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.HybridEmbeddingsPP.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.HybridEmbeddingsPP.resize_token_embeddings">
+<span class="sig-name descname"><span class="pre">resize_token_embeddings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_num_tokens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.HybridEmbeddingsPP.resize_token_embeddings" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.HybridEmbeddingsPP.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.HybridEmbeddingsPP.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.MLPAdapter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.generalist.modules.hybrid_emb.</span></span><span class="sig-name descname"><span class="pre">MLPAdapter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hidden_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intermediate_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_act</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.MLPAdapter" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.MLPAdapter.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.MLPAdapter.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.MLPAdapter.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.MLPAdapter.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.Qformer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.generalist.modules.hybrid_emb.</span></span><span class="sig-name descname"><span class="pre">Qformer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hidden_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_act</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'silu'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_attention_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dropout_prob</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.Qformer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.Qformer.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hidden_states</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.Qformer.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.Qformer.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.Qformer.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.QformerBlock">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.generalist.modules.hybrid_emb.</span></span><span class="sig-name descname"><span class="pre">QformerBlock</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hidden_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_attention_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dropout_prob</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_act</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'silu'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.QformerBlock" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.QformerBlock.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hidden_states</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.QformerBlock.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb.QformerBlock.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb.QformerBlock.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sfm.models.generalist.modules.hybrid_emb_3dmp">
+<span id="sfm-models-generalist-modules-hybrid-emb-3dmp-module"></span><h2>sfm.models.generalist.modules.hybrid_emb_3dmp module<a class="headerlink" href="#module-sfm.models.generalist.modules.hybrid_emb_3dmp" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb_3dmp.HybridEmbeddingsMP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.generalist.modules.hybrid_emb_3dmp.</span></span><span class="sig-name descname"><span class="pre">HybridEmbeddingsMP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PretrainedConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mpllama_config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PretrainedConfig</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb_3dmp.HybridEmbeddingsMP" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sfm.models.generalist.modules.hybrid_emb.HybridEmbeddings" title="sfm.models.generalist.modules.hybrid_emb.HybridEmbeddings"><code class="xref py py-class docutils literal notranslate"><span class="pre">HybridEmbeddings</span></code></a>, <a class="reference internal" href="sfm.modules.html#sfm.modules.sfmmodule.SFMModule" title="sfm.modules.sfmmodule.SFMModule"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFMModule</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb_3dmp.HybridEmbeddingsMP.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_tuple</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb_3dmp.HybridEmbeddingsMP.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.generalist.modules.hybrid_emb_3dmp.HybridEmbeddingsMP.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.generalist.modules.hybrid_emb_3dmp.HybridEmbeddingsMP.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sfm.models.generalist.modules">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-sfm.models.generalist.modules" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sfm.models.generalist.html" class="btn btn-neutral float-left" title="sfm.models.generalist package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sfm.models.graphormer.html" class="btn btn-neutral float-right" title="sfm.models.graphormer package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, MSR A4S team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+</body>
+</html>

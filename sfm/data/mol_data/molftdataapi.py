@@ -3,8 +3,9 @@ from multiprocessing import Pool
 from typing import Callable, List, Optional, Tuple, Union
 
 import torch
-from data.dataset import InMemoryFoundationModelDataset
 from torch_geometric.data import Data
+
+from sfm.data.dataset import InMemoryFoundationModelDataset
 
 from .collator import collator_ft
 from .wrapper import preprocess_item, smiles2graph

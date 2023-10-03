@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sfm.data.mol_data package &mdash; A4SFramework ai4science documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=c1325062"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sfm.data.prot_data package" href="sfm.data.prot_data.html" />
+    <link rel="prev" title="sfm.data.dec_data package" href="sfm.data.dec_data.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
+
+
+
+          <a href="../index.html" class="icon icon-home">
+            A4SFramework
+          </a>
+              <div class="version">
+                0.0.5
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../userfriendly.html">User-friendly Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../distributed.html">Large Distributed Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modelzoo.html">Model Zoo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datapipeline.html">Data Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../trainargs.html">Training Args</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">sfm</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="sfm.html">sfm package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="sfm.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html">sfm.criterions package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="sfm.data.html">sfm.data package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.logging.html">sfm.logging package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.models.html">sfm.models package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html">sfm.modules package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.html">sfm.pipeline package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.html">sfm.tasks package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html">sfm.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.html#module-sfm">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">A4SFramework</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">sfm</a></li>
+          <li class="breadcrumb-item"><a href="sfm.html">sfm package</a></li>
+          <li class="breadcrumb-item"><a href="sfm.data.html">sfm.data package</a></li>
+      <li class="breadcrumb-item active">sfm.data.mol_data package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/sfm.data.mol_data.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <section id="sfm-data-mol-data-package">
+<h1>sfm.data.mol_data package<a class="headerlink" href="#sfm-data-mol-data-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-sfm.data.mol_data.algos">
+<span id="sfm-data-mol-data-algos-module"></span><h2>sfm.data.mol_data.algos module<a class="headerlink" href="#module-sfm.data.mol_data.algos" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.algos.all_shortest_path_count">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.algos.</span></span><span class="sig-name descname"><span class="pre">all_shortest_path_count</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.algos.all_shortest_path_count" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.algos.all_shortest_path_count_custom">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.algos.</span></span><span class="sig-name descname"><span class="pre">all_shortest_path_count_custom</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.algos.all_shortest_path_count_custom" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.algos.floyd_warshall">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.algos.</span></span><span class="sig-name descname"><span class="pre">floyd_warshall</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.algos.floyd_warshall" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.algos.gen_edge_input">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.algos.</span></span><span class="sig-name descname"><span class="pre">gen_edge_input</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.algos.gen_edge_input" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.algos.gen_edge_input_with_node">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.algos.</span></span><span class="sig-name descname"><span class="pre">gen_edge_input_with_node</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.algos.gen_edge_input_with_node" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.algos.get_all_edges">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.algos.</span></span><span class="sig-name descname"><span class="pre">get_all_edges</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.algos.get_all_edges" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-sfm.data.mol_data.collator">
+<span id="sfm-data-mol-data-collator-module"></span><h2>sfm.data.mol_data.collator module<a class="headerlink" href="#module-sfm.data.mol_data.collator" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.collator">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">collator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">items</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_hop_max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_pos_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">infer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.collator" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.collator_3d">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">collator_3d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">items</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_hop_max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_pos_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">infer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.collator_3d" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.collator_3d_pp">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">collator_3d_pp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">items</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_hop_max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_pos_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">infer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.collator_3d_pp" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.collator_copilot">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">collator_copilot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">items</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_hop_max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_pos_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">infer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.collator_copilot" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.collator_copilot_multi_mol">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">collator_copilot_multi_mol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">items</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_hop_max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_pos_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">infer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad_token_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.collator_copilot_multi_mol" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.collator_copilot_multi_mol_PP">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">collator_copilot_multi_mol_PP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">items</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_hop_max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_pos_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">infer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad_token_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.collator_copilot_multi_mol_PP" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.collator_ft">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">collator_ft</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">items</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_hop_max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_pos_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.collator_ft" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.pad_1d_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">pad_1d_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.pad_1d_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.pad_2d_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">pad_2d_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.pad_2d_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.pad_3d_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">pad_3d_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen3</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.pad_3d_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.pad_attn_bias_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">pad_attn_bias_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.pad_attn_bias_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.pad_edge_type_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">pad_edge_type_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.pad_edge_type_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.pad_pos_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">pad_pos_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.pad_pos_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.collator.pad_spatial_pos_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.collator.</span></span><span class="sig-name descname"><span class="pre">pad_spatial_pos_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.collator.pad_spatial_pos_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-sfm.data.mol_data.dataset">
+<span id="sfm-data-mol-data-dataset-module"></span><h2>sfm.data.mol_data.dataset module<a class="headerlink" href="#module-sfm.data.mol_data.dataset" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.BatchedDataDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.dataset.</span></span><span class="sig-name descname"><span class="pre">BatchedDataDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'2D'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_node</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_hop_max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_pos_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1024</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ft</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">infer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.BatchedDataDataset" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.BatchedDataDataset.collate">
+<span class="sig-name descname"><span class="pre">collate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">samples</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.BatchedDataDataset.collate" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.BatchedDataDataset.collater">
+<span class="sig-name descname"><span class="pre">collater</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">samples</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.BatchedDataDataset.collater" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.BatchedDataDataset.collaterft">
+<span class="sig-name descname"><span class="pre">collaterft</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">samples</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.BatchedDataDataset.collaterft" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.DSDataLoader">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.dataset.</span></span><span class="sig-name descname"><span class="pre">DSDataLoader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_rank</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pin_memory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">collate_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_sampler</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefetch_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_parallel_world_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_parallel_rank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataloader_drop_last</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.DSDataLoader" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.PCQPreprocessedData">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.dataset.</span></span><span class="sig-name descname"><span class="pre">PCQPreprocessedData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'../FMproj/pm6-86m-3d'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.PCQPreprocessedData" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.PCQPreprocessedData.setup">
+<span class="sig-name descname"><span class="pre">setup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.PCQPreprocessedData.setup" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.PreprocessSmile">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.dataset.</span></span><span class="sig-name descname"><span class="pre">PreprocessSmile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smiles</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.PreprocessSmile" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">InMemoryDataset</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.PreprocessSmile.process">
+<span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.PreprocessSmile.process" title="Link to this definition"></a></dt>
+<dd><p>Processes the dataset to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.processed_dir</span></code> folder.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.PreprocessSmile.processed_file_names">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">processed_file_names</span></span><a class="headerlink" href="#sfm.data.mol_data.dataset.PreprocessSmile.processed_file_names" title="Link to this definition"></a></dt>
+<dd><p>The name of the files in the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.processed_dir</span></code> folder that
+must be present in order to skip processing.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.TargetDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.dataset.</span></span><span class="sig-name descname"><span class="pre">TargetDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.TargetDataset" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.TargetDataset.collater">
+<span class="sig-name descname"><span class="pre">collater</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">samples</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.TargetDataset.collater" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.data_prefetcher">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.dataset.</span></span><span class="sig-name descname"><span class="pre">data_prefetcher</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loader</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.data_prefetcher" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.data_prefetcher.next">
+<span class="sig-name descname"><span class="pre">next</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.data_prefetcher.next" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.data_prefetcher.preload">
+<span class="sig-name descname"><span class="pre">preload</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.data_prefetcher.preload" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.myDataLoader">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.dataset.</span></span><span class="sig-name descname"><span class="pre">myDataLoader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.myDataLoader" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">DataLoader</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.myDataLoader.batch_size">
+<span class="sig-name descname"><span class="pre">batch_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#sfm.data.mol_data.dataset.myDataLoader.batch_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.myDataLoader.dataset">
+<span class="sig-name descname"><span class="pre">dataset</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dataset</span><span class="p"><span class="pre">[</span></span><span class="pre">T_co</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#sfm.data.mol_data.dataset.myDataLoader.dataset" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.myDataLoader.drop_last">
+<span class="sig-name descname"><span class="pre">drop_last</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.data.mol_data.dataset.myDataLoader.drop_last" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.myDataLoader.num_workers">
+<span class="sig-name descname"><span class="pre">num_workers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#sfm.data.mol_data.dataset.myDataLoader.num_workers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.myDataLoader.pin_memory">
+<span class="sig-name descname"><span class="pre">pin_memory</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.data.mol_data.dataset.myDataLoader.pin_memory" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.myDataLoader.pin_memory_device">
+<span class="sig-name descname"><span class="pre">pin_memory_device</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#sfm.data.mol_data.dataset.myDataLoader.pin_memory_device" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.myDataLoader.prefetch_factor">
+<span class="sig-name descname"><span class="pre">prefetch_factor</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#sfm.data.mol_data.dataset.myDataLoader.prefetch_factor" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.myDataLoader.sampler">
+<span class="sig-name descname"><span class="pre">sampler</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Sampler</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span></em><a class="headerlink" href="#sfm.data.mol_data.dataset.myDataLoader.sampler" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.myDataLoader.timeout">
+<span class="sig-name descname"><span class="pre">timeout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#sfm.data.mol_data.dataset.myDataLoader.timeout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.dataset.smile2data">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.dataset.</span></span><span class="sig-name descname"><span class="pre">smile2data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.dataset.smile2data" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-sfm.data.mol_data.molftdataapi">
+<span id="sfm-data-mol-data-molftdataapi-module"></span><h2>sfm.data.mol_data.molftdataapi module<a class="headerlink" href="#module-sfm.data.mol_data.molftdataapi" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.molftdataapi.MolFTDataAPI">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.molftdataapi.</span></span><span class="sig-name descname"><span class="pre">MolFTDataAPI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.molftdataapi.MolFTDataAPI" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="sfm.data.html#sfm.data.dataset.InMemoryFoundationModelDataset" title="sfm.data.dataset.InMemoryFoundationModelDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">InMemoryFoundationModelDataset</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.molftdataapi.MolFTDataAPI.collator">
+<span class="sig-name descname"><span class="pre">collator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">samples</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.molftdataapi.MolFTDataAPI.collator" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.molftdataapi.MolFTDataAPI.smile2data">
+<span class="sig-name descname"><span class="pre">smile2data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smiles</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.molftdataapi.MolFTDataAPI.smile2data" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sfm.data.mol_data.moltext_dataset">
+<span id="sfm-data-mol-data-moltext-dataset-module"></span><h2>sfm.data.mol_data.moltext_dataset module<a class="headerlink" href="#module-sfm.data.mol_data.moltext_dataset" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.DataCollatorForSupervisedDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">DataCollatorForSupervisedDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pad_token_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_pp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_mfm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.DataCollatorForSupervisedDataset" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Collate examples for supervised fine-tuning.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.DataCollatorForSupervisedDataset.add_mfm">
+<span class="sig-name descname"><span class="pre">add_mfm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.DataCollatorForSupervisedDataset.add_mfm" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.DataCollatorForSupervisedDataset.pad_token_id">
+<span class="sig-name descname"><span class="pre">pad_token_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.DataCollatorForSupervisedDataset.pad_token_id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.DataCollatorForSupervisedDataset.use_pp">
+<span class="sig-name descname"><span class="pre">use_pp</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.DataCollatorForSupervisedDataset.use_pp" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.SupervisedMoleculeNetDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">SupervisedMoleculeNetDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_names</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smiles_dict_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tokenizer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PreTrainedTokenizer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'train'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pool_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cls'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedding_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.SupervisedMoleculeNetDataset" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></p>
+<p>Dataset for supervised fine-tuning.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.SupervisedMoleculeNetDataset.collater">
+<span class="sig-name descname"><span class="pre">collater</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">samples</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.SupervisedMoleculeNetDataset.collater" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.SupervisedProcessedData">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">SupervisedProcessedData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Namespace</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol_size_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol2idx_dict_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_names</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_splits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">in_memory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad_token_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pool_mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedding_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_ratios</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.SupervisedProcessedData" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.SupervisedProcessedData.collater">
+<span class="sig-name descname"><span class="pre">collater</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">samples</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.SupervisedProcessedData.collater" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.SupervisedProcessedDataWithSmiles">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">SupervisedProcessedDataWithSmiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_names</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_splits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">in_memory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_max_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol_embed_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">molecule_max_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad_token_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_ratios</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pool_mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'full'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedding_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_token_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">32003</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.SupervisedProcessedDataWithSmiles" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.SupervisedProcessedDataWithSmiles.collate">
+<span class="sig-name descname"><span class="pre">collate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">samples</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.SupervisedProcessedDataWithSmiles.collate" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.SupervisedProcessedDataWithSmiles.collater">
+<span class="sig-name descname"><span class="pre">collater</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">samples</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.SupervisedProcessedDataWithSmiles.collater" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.batch_collater_for_graphormer">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">batch_collater_for_graphormer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smiless</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">poses</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.batch_collater_for_graphormer" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.collator">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">collator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">items</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_hop_max_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_pos_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.collator" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.pad_1d_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">pad_1d_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.pad_1d_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.pad_2d_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">pad_2d_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.pad_2d_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.pad_3d_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">pad_3d_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen3</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.pad_3d_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.pad_attn_bias_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">pad_attn_bias_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.pad_attn_bias_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.pad_edge_type_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">pad_edge_type_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.pad_edge_type_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.pad_pos_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">pad_pos_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.pad_pos_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.pad_spatial_pos_unsqueeze">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">pad_spatial_pos_unsqueeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padlen</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.pad_spatial_pos_unsqueeze" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.preprocess">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">preprocess</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_ids</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">llm_mask</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.preprocess" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.preprocess_item">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">preprocess_item</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">item</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.preprocess_item" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.preprocess_mask">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">preprocess_mask</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tokenizer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PreTrainedTokenizer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.preprocess_mask" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.preprocess_moleculenet">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">preprocess_moleculenet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sources</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">targets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smiles_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tokenizer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PreTrainedTokenizer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nnodes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pool_mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'cls'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedding_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span></span></span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.preprocess_moleculenet" title="Link to this definition"></a></dt>
+<dd><p>Preprocess the data by tokenizing.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltext_dataset.smiles2graph_removeh">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltext_dataset.</span></span><span class="sig-name descname"><span class="pre">smiles2graph_removeh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smiles_string</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pos</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltext_dataset.smiles2graph_removeh" title="Link to this definition"></a></dt>
+<dd><p>Converts SMILES string to graph Data object
+:input: SMILES string (str)
+:return: graph object</p>
+</dd></dl>
+
+</section>
+<section id="module-sfm.data.mol_data.moltokenizer">
+<span id="sfm-data-mol-data-moltokenizer-module"></span><h2>sfm.data.mol_data.moltokenizer module<a class="headerlink" href="#module-sfm.data.mol_data.moltokenizer" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltokenizer.MolTokenizer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.moltokenizer.</span></span><span class="sig-name descname"><span class="pre">MolTokenizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltokenizer.MolTokenizer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltokenizer.MolTokenizer.split_text_and_mol">
+<span class="sig-name descname"><span class="pre">split_text_and_mol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.data.mol_data.moltokenizer.MolTokenizer.split_text_and_mol" title="Link to this definition"></a></dt>
+<dd><p>Split data into text and mol.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.moltokenizer.MolTokenizer.tokenize">
+<span class="sig-name descname"><span class="pre">tokenize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.moltokenizer.MolTokenizer.tokenize" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sfm.data.mol_data.tdc">
+<span id="sfm-data-mol-data-tdc-module"></span><h2>sfm.data.mol_data.tdc module<a class="headerlink" href="#module-sfm.data.mol_data.tdc" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.tdc.TDCDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.tdc.</span></span><span class="sig-name descname"><span class="pre">TDCDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_transform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.tdc.TDCDataset" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">InMemoryDataset</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.tdc.TDCDataset.preprocess">
+<span class="sig-name descname"><span class="pre">preprocess</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.tdc.TDCDataset.preprocess" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.tdc.get_rdk_descriptors">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.tdc.</span></span><span class="sig-name descname"><span class="pre">get_rdk_descriptors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smile</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.tdc.get_rdk_descriptors" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.tdc.mol2graph">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.tdc.</span></span><span class="sig-name descname"><span class="pre">mol2graph</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.tdc.mol2graph" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.tdc.preprocess_item">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.tdc.</span></span><span class="sig-name descname"><span class="pre">preprocess_item</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">item</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.tdc.preprocess_item" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.tdc.smiles2graph">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.tdc.</span></span><span class="sig-name descname"><span class="pre">smiles2graph</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smiles_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.tdc.smiles2graph" title="Link to this definition"></a></dt>
+<dd><p>Converts SMILES string to graph Data object
+:input: SMILES string (str)
+:return: graph object</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.tdc.smiles2graphpos">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.tdc.</span></span><span class="sig-name descname"><span class="pre">smiles2graphpos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smiles_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.tdc.smiles2graphpos" title="Link to this definition"></a></dt>
+<dd><p>Converts SMILES string to graph Data object
+:input: SMILES string (str)
+:return: graph object</p>
+</dd></dl>
+
+</section>
+<section id="module-sfm.data.mol_data.wrapper">
+<span id="sfm-data-mol-data-wrapper-module"></span><h2>sfm.data.mol_data.wrapper module<a class="headerlink" href="#module-sfm.data.mol_data.wrapper" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.MyPygPCQM4MDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.wrapper.</span></span><span class="sig-name descname"><span class="pre">MyPygPCQM4MDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">root='dataset'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smiles2graph=&lt;function</span> <span class="pre">smiles2graph&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_transform=None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.MyPygPCQM4MDataset" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset" title="sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">PygPCQM4Mv2Dataset</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.MyPygPCQM4MDataset.download">
+<span class="sig-name descname"><span class="pre">download</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.MyPygPCQM4MDataset.download" title="Link to this definition"></a></dt>
+<dd><p>Downloads the dataset to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.raw_dir</span></code> folder.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.MyPygPCQM4MDataset.process">
+<span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.MyPygPCQM4MDataset.process" title="Link to this definition"></a></dt>
+<dd><p>Processes the dataset to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.processed_dir</span></code> folder.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.MyPygPCQM4MPosDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.wrapper.</span></span><span class="sig-name descname"><span class="pre">MyPygPCQM4MPosDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">root='dataset'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smiles2graph=&lt;function</span> <span class="pre">smiles2graph&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_transform=None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.MyPygPCQM4MPosDataset" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset" title="sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">PygPCQM4Mv2PosDataset</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.MyPygPCQM4MPosDataset.download">
+<span class="sig-name descname"><span class="pre">download</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.MyPygPCQM4MPosDataset.download" title="Link to this definition"></a></dt>
+<dd><p>Downloads the dataset to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.raw_dir</span></code> folder.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.MyPygPCQM4MPosDataset.process">
+<span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.MyPygPCQM4MPosDataset.process" title="Link to this definition"></a></dt>
+<dd><p>Processes the dataset to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.processed_dir</span></code> folder.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PM6FullLMDBDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.wrapper.</span></span><span class="sig-name descname"><span class="pre">PM6FullLMDBDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">root</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_transform</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_filter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_node</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multi_hop_max_dist</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_pos_max</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_ratio</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PM6FullLMDBDataset" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">InMemoryDataset</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PM6FullLMDBDataset.get_idx_split">
+<span class="sig-name descname"><span class="pre">get_idx_split</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PM6FullLMDBDataset.get_idx_split" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PM6FullLMDBDataset.get_keys_list">
+<span class="sig-name descname"><span class="pre">get_keys_list</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PM6FullLMDBDataset.get_keys_list" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PM6FullLMDBDataset.init_env_list">
+<span class="sig-name descname"><span class="pre">init_env_list</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PM6FullLMDBDataset.init_env_list" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PM6FullLMDBDataset.msg_dir">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">msg_dir</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#sfm.data.mol_data.wrapper.PM6FullLMDBDataset.msg_dir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PM6FullLMDBDataset.processed_dir">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">processed_dir</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#sfm.data.mol_data.wrapper.PM6FullLMDBDataset.processed_dir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PM6FullLMDBDataset.processed_file_names">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">processed_file_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#sfm.data.mol_data.wrapper.PM6FullLMDBDataset.processed_file_names" title="Link to this definition"></a></dt>
+<dd><p>The name of the files in the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.processed_dir</span></code> folder that
+must be present in order to skip processing.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PM6FullLMDBDataset.raw_dir">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">raw_dir</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#sfm.data.mol_data.wrapper.PM6FullLMDBDataset.raw_dir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PM6FullLMDBDataset.raw_file_names">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">raw_file_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#sfm.data.mol_data.wrapper.PM6FullLMDBDataset.raw_file_names" title="Link to this definition"></a></dt>
+<dd><p>The name of the files in the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.raw_dir</span></code> folder that must
+be present in order to skip downloading.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PM6FullLMDBDataset.smiles_db_dir">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">smiles_db_dir</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#sfm.data.mol_data.wrapper.PM6FullLMDBDataset.smiles_db_dir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.wrapper.</span></span><span class="sig-name descname"><span class="pre">PygPCQM4Mv2Dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">root='dataset'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smiles2graph=&lt;function</span> <span class="pre">smiles2graph&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_transform=None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">InMemoryDataset</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset.download">
+<span class="sig-name descname"><span class="pre">download</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset.download" title="Link to this definition"></a></dt>
+<dd><p>Downloads the dataset to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.raw_dir</span></code> folder.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset.get_idx_split">
+<span class="sig-name descname"><span class="pre">get_idx_split</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset.get_idx_split" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset.process">
+<span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset.process" title="Link to this definition"></a></dt>
+<dd><p>Processes the dataset to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.processed_dir</span></code> folder.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset.processed_file_names">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">processed_file_names</span></span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset.processed_file_names" title="Link to this definition"></a></dt>
+<dd><p>The name of the files in the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.processed_dir</span></code> folder that
+must be present in order to skip processing.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset.raw_file_names">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">raw_file_names</span></span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2Dataset.raw_file_names" title="Link to this definition"></a></dt>
+<dd><p>The name of the files in the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.raw_dir</span></code> folder that must
+be present in order to skip downloading.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.wrapper.</span></span><span class="sig-name descname"><span class="pre">PygPCQM4Mv2PosDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">root='dataset'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smiles2graph=&lt;function</span> <span class="pre">smiles2graph&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_transform=None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">InMemoryDataset</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset.download">
+<span class="sig-name descname"><span class="pre">download</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset.download" title="Link to this definition"></a></dt>
+<dd><p>Downloads the dataset to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.raw_dir</span></code> folder.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset.get_idx_split">
+<span class="sig-name descname"><span class="pre">get_idx_split</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset.get_idx_split" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset.process">
+<span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset.process" title="Link to this definition"></a></dt>
+<dd><p>Processes the dataset to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.processed_dir</span></code> folder.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset.processed_file_names">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">processed_file_names</span></span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset.processed_file_names" title="Link to this definition"></a></dt>
+<dd><p>The name of the files in the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.processed_dir</span></code> folder that
+must be present in order to skip processing.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset.raw_file_names">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">raw_file_names</span></span><a class="headerlink" href="#sfm.data.mol_data.wrapper.PygPCQM4Mv2PosDataset.raw_file_names" title="Link to this definition"></a></dt>
+<dd><p>The name of the files in the <code class="xref py py-obj docutils literal notranslate"><span class="pre">self.raw_dir</span></code> folder that must
+be present in order to skip downloading.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.mol2graph">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.wrapper.</span></span><span class="sig-name descname"><span class="pre">mol2graph</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.mol2graph" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.preprocess_item">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.wrapper.</span></span><span class="sig-name descname"><span class="pre">preprocess_item</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">item</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.preprocess_item" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.smiles2graph">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.wrapper.</span></span><span class="sig-name descname"><span class="pre">smiles2graph</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smiles_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.smiles2graph" title="Link to this definition"></a></dt>
+<dd><p>Converts SMILES string to graph Data object
+:input: SMILES string (str)
+:return: graph object</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.wrapper.smiles2graphpos">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.wrapper.</span></span><span class="sig-name descname"><span class="pre">smiles2graphpos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smiles_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.wrapper.smiles2graphpos" title="Link to this definition"></a></dt>
+<dd><p>Converts SMILES string to graph Data object
+:input: SMILES string (str)
+:return: graph object</p>
+</dd></dl>
+
+</section>
+<section id="module-sfm.data.mol_data.xyz2smiles">
+<span id="sfm-data-mol-data-xyz2smiles-module"></span><h2>sfm.data.mol_data.xyz2smiles module<a class="headerlink" href="#module-sfm.data.mol_data.xyz2smiles" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.xyz2smiles.read_xyz_file">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.xyz2smiles.</span></span><span class="sig-name descname"><span class="pre">read_xyz_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.xyz2smiles.read_xyz_file" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.data.mol_data.xyz2smiles.xyz_to_smiles">
+<span class="sig-prename descclassname"><span class="pre">sfm.data.mol_data.xyz2smiles.</span></span><span class="sig-name descname"><span class="pre">xyz_to_smiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xyz_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.data.mol_data.xyz2smiles.xyz_to_smiles" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-sfm.data.mol_data">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-sfm.data.mol_data" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sfm.data.dec_data.html" class="btn btn-neutral float-left" title="sfm.data.dec_data package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sfm.data.prot_data.html" class="btn btn-neutral float-right" title="sfm.data.prot_data package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, MSR A4S team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+</body>
+</html>

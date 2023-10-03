@@ -156,6 +156,8 @@ def myAdam(net, impl=Adam, mode="adaptoronly", mfm_lora=False, **kwargs):
 
 WARMUP_LOG_RATE = "log"
 WARMUP_LINEAR_RATE = "linear"
+DECAY_LINEAR_RATE = "linear"
+DECAY_COSINE_RATE = "cosine"
 
 
 class groupWarmupDecayLR(WarmupLR):
@@ -168,7 +170,7 @@ class groupWarmupDecayLR(WarmupLR):
         warmup_min_lr (float or list): minimum learning rate. Default: 0
         warmup_max_lr (float or list): maximum learning rate. Default: 0.001
         warmup_num_steps (int): number of steps to warm up from min_lr to max_lr. Default: 1000
-        warmup_type {‘log’, ‘linear’}: increasing function from min_lr to max_lr during warmup. Default: log
+        warmup_type {'log', 'linear'}: increasing function from min_lr to max_lr during warmup. Default: log
         last_batch_iteration (int): The index of the last batch. Default: -1.
     Example:
         >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
@@ -191,6 +193,7 @@ class groupWarmupDecayLR(WarmupLR):
         warmup_type: str = WARMUP_LINEAR_RATE,
         last_batch_iteration: int = -1,
         d_tilde: float = 1.0,
+        decay_type: str = DECAY_LINEAR_RATE,
     ):
         self.total_num_steps = total_num_steps
         super(groupWarmupDecayLR, self).__init__(
@@ -202,6 +205,8 @@ class groupWarmupDecayLR(WarmupLR):
             last_batch_iteration,
         )
         self.d_tilde = d_tilde
+        self.decay_type = decay_type
+
         if self.total_num_steps < self.warmup_num_steps:
             logger.warning(
                 "total_num_steps {} is less than warmup_num_steps {}".format(
@@ -241,8 +246,19 @@ class groupWarmupDecayLR(WarmupLR):
                 )
             elif self.warmup_type == WARMUP_LINEAR_RATE:
                 return self.last_batch_iteration / self.warmup_num_steps
-        return max(
-            0.0,
-            float(self.total_num_steps - self.last_batch_iteration)
-            / float(max(1.0, self.total_num_steps - self.warmup_num_steps)),
-        )
+        else:
+            if self.decay_type == DECAY_LINEAR_RATE:
+                return max(
+                    0.0,
+                    float(self.total_num_steps - self.last_batch_iteration)
+                    / float(max(1.0, self.total_num_steps - self.warmup_num_steps)),
+                )
+            else:
+                return 0.5 * (
+                    1.0
+                    + math.cos(
+                        math.pi
+                        * float(self.last_batch_iteration - self.warmup_num_steps)
+                        / float(max(1.0, self.total_num_steps - self.warmup_num_steps))
+                    )
+                )

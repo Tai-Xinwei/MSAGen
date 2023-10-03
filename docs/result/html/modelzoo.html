@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Model Zoo &mdash; A4SFramework ai4science documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=c1325062"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Data Pipeline" href="datapipeline.html" />
+    <link rel="prev" title="Installation Guide" href="installation.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
+
+
+
+          <a href="index.html" class="icon icon-home">
+            A4SFramework
+          </a>
+              <div class="version">
+                0.0.5
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="userfriendly.html">User-friendly Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="distributed.html">Large Distributed Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Model Zoo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-sfm.models.graphormer.graphormer">Graphormer</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.graphormer.graphormer.Graphormer"><code class="docutils literal notranslate"><span class="pre">Graphormer</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.graphormer.graphormer.Graphormer.forward"><code class="docutils literal notranslate"><span class="pre">Graphormer.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.graphormer.graphormer.Graphormer.init_state_dict_weight"><code class="docutils literal notranslate"><span class="pre">Graphormer.init_state_dict_weight()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.graphormer.graphormer.Graphormer.training"><code class="docutils literal notranslate"><span class="pre">Graphormer.training</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.graphormer.graphormer.Graphormer.upgrade_state_dict_named"><code class="docutils literal notranslate"><span class="pre">Graphormer.upgrade_state_dict_named()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.graphormer.graphormer.GraphormerModel"><code class="docutils literal notranslate"><span class="pre">GraphormerModel</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.graphormer.graphormer.GraphormerModel.compute_loss"><code class="docutils literal notranslate"><span class="pre">GraphormerModel.compute_loss()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.graphormer.graphormer.GraphormerModel.config_optimizer"><code class="docutils literal notranslate"><span class="pre">GraphormerModel.config_optimizer()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.graphormer.graphormer.GraphormerModel.forward"><code class="docutils literal notranslate"><span class="pre">GraphormerModel.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.graphormer.graphormer.GraphormerModel.load_pretrained_weights"><code class="docutils literal notranslate"><span class="pre">GraphormerModel.load_pretrained_weights()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.graphormer.graphormer.GraphormerModel.max_positions"><code class="docutils literal notranslate"><span class="pre">GraphormerModel.max_positions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.graphormer.graphormer.GraphormerModel.training"><code class="docutils literal notranslate"><span class="pre">GraphormerModel.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sfm.models.decoder.deepfuse.model">SFM Decoder</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel"><code class="docutils literal notranslate"><span class="pre">DecDeepFuseModel</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.can_generate"><code class="docutils literal notranslate"><span class="pre">DecDeepFuseModel.can_generate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.compute_loss"><code class="docutils literal notranslate"><span class="pre">DecDeepFuseModel.compute_loss()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.config_optimizer"><code class="docutils literal notranslate"><span class="pre">DecDeepFuseModel.config_optimizer()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.device"><code class="docutils literal notranslate"><span class="pre">DecDeepFuseModel.device</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.extend_emb"><code class="docutils literal notranslate"><span class="pre">DecDeepFuseModel.extend_emb()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.forward"><code class="docutils literal notranslate"><span class="pre">DecDeepFuseModel.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.freeze_params"><code class="docutils literal notranslate"><span class="pre">DecDeepFuseModel.freeze_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.load_from_pretrained"><code class="docutils literal notranslate"><span class="pre">DecDeepFuseModel.load_from_pretrained()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.main_input_name"><code class="docutils literal notranslate"><span class="pre">DecDeepFuseModel.main_input_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.prepare_inputs_for_generation"><code class="docutils literal notranslate"><span class="pre">DecDeepFuseModel.prepare_inputs_for_generation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.to_layers"><code class="docutils literal notranslate"><span class="pre">DecDeepFuseModel.to_layers()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.training"><code class="docutils literal notranslate"><span class="pre">DecDeepFuseModel.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.GenerationOutput"><code class="docutils literal notranslate"><span class="pre">GenerationOutput</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.decoder.deepfuse.model.GenerationOutput.logits"><code class="docutils literal notranslate"><span class="pre">GenerationOutput.logits</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sfm.models.tamgent.model">Tamgent</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2"><code class="docutils literal notranslate"><span class="pre">Tamgent2</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2.before_batch"><code class="docutils literal notranslate"><span class="pre">Tamgent2.before_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2.compute_loss"><code class="docutils literal notranslate"><span class="pre">Tamgent2.compute_loss()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2.config_optimizer"><code class="docutils literal notranslate"><span class="pre">Tamgent2.config_optimizer()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2.emb_text"><code class="docutils literal notranslate"><span class="pre">Tamgent2.emb_text()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2.forward"><code class="docutils literal notranslate"><span class="pre">Tamgent2.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2.freeze_text_model"><code class="docutils literal notranslate"><span class="pre">Tamgent2.freeze_text_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2.init_Qformer"><code class="docutils literal notranslate"><span class="pre">Tamgent2.init_Qformer()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2.init_llama"><code class="docutils literal notranslate"><span class="pre">Tamgent2.init_llama()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2.init_mol_tokenizer"><code class="docutils literal notranslate"><span class="pre">Tamgent2.init_mol_tokenizer()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2.init_smi_decoder"><code class="docutils literal notranslate"><span class="pre">Tamgent2.init_smi_decoder()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2.init_text_tokenizer"><code class="docutils literal notranslate"><span class="pre">Tamgent2.init_text_tokenizer()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2.training"><code class="docutils literal notranslate"><span class="pre">Tamgent2.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.end_sym"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.end_sym</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.freeze_text_model"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.freeze_text_model</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.iters_per_epoch"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.iters_per_epoch</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.llama_model"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.llama_model</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.low_resource"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.low_resource</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.max_txt_len_llama"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.max_txt_len_llama</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.max_txt_len_smiles"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.max_txt_len_smiles</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.molxpt_model"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.molxpt_model</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.qformer_cross_attention_freq"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.qformer_cross_attention_freq</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.qformer_num_attention_heads"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.qformer_num_attention_heads</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.qformer_num_layer"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.qformer_num_layer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.qformer_num_query_token"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.qformer_num_query_token</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.text_hidden_size"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.text_hidden_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.train_mol_path"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.train_mol_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.train_text_path"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.train_text_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.val_mol_path"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.val_mol_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config.val_text_path"><code class="docutils literal notranslate"><span class="pre">Tamgent2Config.val_text_path</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#chemical-generalist">Chemical Generalist</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel"><code class="docutils literal notranslate"><span class="pre">GraphormerLlamaModel</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.compute_loss"><code class="docutils literal notranslate"><span class="pre">GraphormerLlamaModel.compute_loss()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.config_optimizer"><code class="docutils literal notranslate"><span class="pre">GraphormerLlamaModel.config_optimizer()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.forward"><code class="docutils literal notranslate"><span class="pre">GraphormerLlamaModel.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.generate"><code class="docutils literal notranslate"><span class="pre">GraphormerLlamaModel.generate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.generate_with_smiles"><code class="docutils literal notranslate"><span class="pre">GraphormerLlamaModel.generate_with_smiles()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.init_adaptor_config"><code class="docutils literal notranslate"><span class="pre">GraphormerLlamaModel.init_adaptor_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.init_mp_config"><code class="docutils literal notranslate"><span class="pre">GraphormerLlamaModel.init_mp_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.load_encoder_state_dict"><code class="docutils literal notranslate"><span class="pre">GraphormerLlamaModel.load_encoder_state_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.to_layers"><code class="docutils literal notranslate"><span class="pre">GraphormerLlamaModel.to_layers()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.training"><code class="docutils literal notranslate"><span class="pre">GraphormerLlamaModel.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.LlamaForCausalLMTextMolMasked"><code class="docutils literal notranslate"><span class="pre">LlamaForCausalLMTextMolMasked</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.LlamaForCausalLMTextMolMasked.training"><code class="docutils literal notranslate"><span class="pre">LlamaForCausalLMTextMolMasked.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.LlamaModelTextMolMasked"><code class="docutils literal notranslate"><span class="pre">LlamaModelTextMolMasked</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.generalist.graphormer_llama.LlamaModelTextMolMasked.training"><code class="docutils literal notranslate"><span class="pre">LlamaModelTextMolMasked.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sfm.models.scigpt.scigpt">SciGPT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.scigpt.scigpt.ScigptModel"><code class="docutils literal notranslate"><span class="pre">ScigptModel</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.scigpt.scigpt.ScigptModel.compute_loss"><code class="docutils literal notranslate"><span class="pre">ScigptModel.compute_loss()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.scigpt.scigpt.ScigptModel.config_optimizer"><code class="docutils literal notranslate"><span class="pre">ScigptModel.config_optimizer()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.scigpt.scigpt.ScigptModel.to_layers"><code class="docutils literal notranslate"><span class="pre">ScigptModel.to_layers()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.scigpt.scigpt.ScigptModel.training"><code class="docutils literal notranslate"><span class="pre">ScigptModel.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-sfm.models.llama2.llama_modules_3dmp">Llama2</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.FusedLlamaNorm"><code class="docutils literal notranslate"><span class="pre">FusedLlamaNorm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.FusedLlamaNorm.forward"><code class="docutils literal notranslate"><span class="pre">FusedLlamaNorm.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.FusedLlamaNorm.training"><code class="docutils literal notranslate"><span class="pre">FusedLlamaNorm.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaDecoderLayerMP"><code class="docutils literal notranslate"><span class="pre">LlamaDecoderLayerMP</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaDecoderLayerMP.auto_partition_load_state_dict"><code class="docutils literal notranslate"><span class="pre">LlamaDecoderLayerMP.auto_partition_load_state_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaDecoderLayerMP.forward"><code class="docutils literal notranslate"><span class="pre">LlamaDecoderLayerMP.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaDecoderLayerMP.training"><code class="docutils literal notranslate"><span class="pre">LlamaDecoderLayerMP.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP"><code class="docutils literal notranslate"><span class="pre">LlamaEmbeddingsMP</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.auto_partition_load_state_dict"><code class="docutils literal notranslate"><span class="pre">LlamaEmbeddingsMP.auto_partition_load_state_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.emb_weight"><code class="docutils literal notranslate"><span class="pre">LlamaEmbeddingsMP.emb_weight</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.forward"><code class="docutils literal notranslate"><span class="pre">LlamaEmbeddingsMP.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.freeze_parital_weight_hook"><code class="docutils literal notranslate"><span class="pre">LlamaEmbeddingsMP.freeze_parital_weight_hook()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.training"><code class="docutils literal notranslate"><span class="pre">LlamaEmbeddingsMP.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaForCausalLMTP"><code class="docutils literal notranslate"><span class="pre">LlamaForCausalLMTP</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaForCausalLMTP.training"><code class="docutils literal notranslate"><span class="pre">LlamaForCausalLMTP.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP"><code class="docutils literal notranslate"><span class="pre">LlamaHeadMP</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.auto_partition_load_state_dict"><code class="docutils literal notranslate"><span class="pre">LlamaHeadMP.auto_partition_load_state_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.emb_weight"><code class="docutils literal notranslate"><span class="pre">LlamaHeadMP.emb_weight</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.forward"><code class="docutils literal notranslate"><span class="pre">LlamaHeadMP.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.freeze_parital_weight_hook"><code class="docutils literal notranslate"><span class="pre">LlamaHeadMP.freeze_parital_weight_hook()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.training"><code class="docutils literal notranslate"><span class="pre">LlamaHeadMP.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaModelMP"><code class="docutils literal notranslate"><span class="pre">LlamaModelMP</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaModelMP.to_layers"><code class="docutils literal notranslate"><span class="pre">LlamaModelMP.to_layers()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.LlamaModelMP.training"><code class="docutils literal notranslate"><span class="pre">LlamaModelMP.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.NumMLPMP"><code class="docutils literal notranslate"><span class="pre">NumMLPMP</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.NumMLPMP.forward"><code class="docutils literal notranslate"><span class="pre">NumMLPMP.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.NumMLPMP.training"><code class="docutils literal notranslate"><span class="pre">NumMLPMP.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLP"><code class="docutils literal notranslate"><span class="pre">ParallelLlamaMLP</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLP.forward"><code class="docutils literal notranslate"><span class="pre">ParallelLlamaMLP.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLP.training"><code class="docutils literal notranslate"><span class="pre">ParallelLlamaMLP.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLPAdapter"><code class="docutils literal notranslate"><span class="pre">ParallelLlamaMLPAdapter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLPAdapter.forward"><code class="docutils literal notranslate"><span class="pre">ParallelLlamaMLPAdapter.forward()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLPAdapter.training"><code class="docutils literal notranslate"><span class="pre">ParallelLlamaMLPAdapter.training</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.models.llama2.llama_modules_3dmp.lm_logits_fn"><code class="docutils literal notranslate"><span class="pre">lm_logits_fn()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="datapipeline.html">Data Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="trainargs.html">Training Args</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/modules.html">sfm</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">A4SFramework</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Model Zoo</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/modelzoo.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <section id="model-zoo">
+<span id="modelzoo"></span><h1>Model Zoo<a class="headerlink" href="#model-zoo" title="Link to this heading"></a></h1>
+<p>This is a guide to use models in A4SFramework.</p>
+<section id="module-sfm.models.graphormer.graphormer">
+<span id="graphormer"></span><h2>Graphormer<a class="headerlink" href="#module-sfm.models.graphormer.graphormer" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.graphormer.graphormer.Graphormer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.graphormer.graphormer.</span></span><span class="sig-name descname"><span class="pre">Graphormer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">graphormer_config</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.graphormer.graphormer.Graphormer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>Encoder for Masked Language Modelling.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.graphormer.graphormer.Graphormer.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batched_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">perturb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">segment_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">masked_tokens</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">unused</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.graphormer.graphormer.Graphormer.forward" title="Link to this definition"></a></dt>
+<dd><p>Forward pass for Masked LM encoder. This first computes the token
+embedding using the token embedding matrix, position embeddings (if
+specified) and segment embeddings (if specified).</p>
+<p>Here we assume that the sentence representation corresponds to the
+output of the classification_token (see bert_task or cross_lingual_lm
+task for more details).
+Args:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>src_tokens: B x T matrix representing sentences</p></li>
+<li><p>segment_labels: B x T matrix representing segment label for tokens</p></li>
+</ul>
+</div></blockquote>
+<dl class="simple">
+<dt>Returns:</dt><dd><ul class="simple">
+<li><dl class="simple">
+<dt>a tuple of the following:</dt><dd><ul>
+<li><p>logits for predictions in format B x T x C to be used in
+softmax afterwards</p></li>
+<li><p>a dictionary of additional data, where ‘pooled_output’ contains
+the representation for classification_token and ‘inner_states’
+is a list of internal model states used to compute the
+predictions (similar in ELMO). ‘sentence_logits’
+is the prediction logit for NSP task and is only computed if
+this is specified in the input arguments.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.graphormer.graphormer.Graphormer.init_state_dict_weight">
+<span class="sig-name descname"><span class="pre">init_state_dict_weight</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">weight</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bias</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.graphormer.graphormer.Graphormer.init_state_dict_weight" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.graphormer.graphormer.Graphormer.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.graphormer.graphormer.Graphormer.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.graphormer.graphormer.Graphormer.upgrade_state_dict_named">
+<span class="sig-name descname"><span class="pre">upgrade_state_dict_named</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state_dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.graphormer.graphormer.Graphormer.upgrade_state_dict_named" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.graphormer.graphormer.GraphormerModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.graphormer.graphormer.</span></span><span class="sig-name descname"><span class="pre">GraphormerModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_mean</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_std</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">not_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.graphormer.graphormer.GraphormerModel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="userfriendly.html#sfm.pipeline.accelerator.model.Model" title="sfm.pipeline.accelerator.model.Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a></p>
+<p>Class for training a Masked Language Model. It also supports an
+additional sentence level prediction if the sent-loss argument is set.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.graphormer.graphormer.GraphormerModel.compute_loss">
+<span class="sig-name descname"><span class="pre">compute_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_data</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="api/sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.dataclasses.ModelOutput" title="sfm.pipeline.accelerator.dataclasses.ModelOutput"><span class="pre">ModelOutput</span></a></span></span><a class="headerlink" href="#sfm.models.graphormer.graphormer.GraphormerModel.compute_loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.graphormer.graphormer.GraphormerModel.config_optimizer">
+<span class="sig-name descname"><span class="pre">config_optimizer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.graphormer.graphormer.GraphormerModel.config_optimizer" title="Link to this definition"></a></dt>
+<dd><p>Return the optimizer and learning rate scheduler for this model.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>tuple[Optimizer, LRScheduler]:</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.graphormer.graphormer.GraphormerModel.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batched_data</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.graphormer.graphormer.GraphormerModel.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.graphormer.graphormer.GraphormerModel.load_pretrained_weights">
+<span class="sig-name descname"><span class="pre">load_pretrained_weights</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.graphormer.graphormer.GraphormerModel.load_pretrained_weights" title="Link to this definition"></a></dt>
+<dd><p>Load pretrained weights from a given state_dict.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.graphormer.graphormer.GraphormerModel.max_positions">
+<span class="sig-name descname"><span class="pre">max_positions</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.graphormer.graphormer.GraphormerModel.max_positions" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.graphormer.graphormer.GraphormerModel.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.graphormer.graphormer.GraphormerModel.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sfm.models.decoder.deepfuse.model">
+<span id="sfm-decoder"></span><h2>SFM Decoder<a class="headerlink" href="#module-sfm.models.decoder.deepfuse.model" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.model.</span></span><span class="sig-name descname"><span class="pre">DecDeepFuseModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="api/sfm.models.decoder.deepfuse.html#sfm.models.decoder.deepfuse.config.DecDeepFuseConfig" title="sfm.models.decoder.deepfuse.config.DecDeepFuseConfig"><span class="pre">DecDeepFuseConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="api/sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.pipeline_module.SFMPipelineModelMixin" title="sfm.pipeline.accelerator.pipeline_module.SFMPipelineModelMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFMPipelineModelMixin</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">GenerationMixin</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.can_generate">
+<span class="sig-name descname"><span class="pre">can_generate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.can_generate" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.compute_loss">
+<span class="sig-name descname"><span class="pre">compute_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="api/sfm.models.decoder.deepfuse.html#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="api/sfm.data.dec_data.html#sfm.data.dec_data.datasets.MixedTokenData" title="sfm.data.dec_data.datasets.MixedTokenData"><span class="pre">MixedTokenData</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.compute_loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.config_optimizer">
+<span class="sig-name descname"><span class="pre">config_optimizer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Optimizer</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">LRScheduler</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.config_optimizer" title="Link to this definition"></a></dt>
+<dd><p>Return the optimizer and learning rate scheduler for this model.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Tuple[Optimizer, LRScheduler]:</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.device">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">device</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.device" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.extend_emb">
+<span class="sig-name descname"><span class="pre">extend_emb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">emb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.extend_emb" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="api/sfm.data.dec_data.html#sfm.data.dec_data.datasets.MixedTokenData" title="sfm.data.dec_data.datasets.MixedTokenData"><span class="pre">MixedTokenData</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_attentions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_hidden_states</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">past_key_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">FloatTensor</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="api/sfm.models.decoder.deepfuse.html#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.freeze_params">
+<span class="sig-name descname"><span class="pre">freeze_params</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.freeze_params" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.load_from_pretrained">
+<span class="sig-name descname"><span class="pre">load_from_pretrained</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.load_from_pretrained" title="Link to this definition"></a></dt>
+<dd><p>Load pretrained LLaMA and entity decoder.
+Here we need to rename the parameters to match the current model.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.main_input_name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">main_input_name</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.main_input_name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.prepare_inputs_for_generation">
+<span class="sig-name descname"><span class="pre">prepare_inputs_for_generation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="api/sfm.data.dec_data.html#sfm.data.dec_data.datasets.MixedTokenData" title="sfm.data.dec_data.datasets.MixedTokenData"><span class="pre">MixedTokenData</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">past_key_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">special_token_mapping</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.prepare_inputs_for_generation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.to_layers">
+<span class="sig-name descname"><span class="pre">to_layers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Module</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.to_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.DecDeepFuseModel.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.DecDeepFuseModel.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.GenerationOutput">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.decoder.deepfuse.model.</span></span><span class="sig-name descname"><span class="pre">GenerationOutput</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hidden</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="api/sfm.models.decoder.deepfuse.html#sfm.models.decoder.deepfuse.hidden_state.HiddenState" title="sfm.models.decoder.deepfuse.hidden_state.HiddenState"><span class="pre">HiddenState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">past_key_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.GenerationOutput" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.decoder.deepfuse.model.GenerationOutput.logits">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">logits</span></span><a class="headerlink" href="#sfm.models.decoder.deepfuse.model.GenerationOutput.logits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sfm.models.tamgent.model">
+<span id="tamgent"></span><h2>Tamgent<a class="headerlink" href="#module-sfm.models.tamgent.model" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.tamgent.model.</span></span><span class="sig-name descname"><span class="pre">Tamgent2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.tamgent.model.Tamgent2Config" title="sfm.models.tamgent.model.Tamgent2Config"><span class="pre">Tamgent2Config</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="userfriendly.html#sfm.pipeline.accelerator.model.Model" title="sfm.pipeline.accelerator.model.Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2.before_batch">
+<span class="sig-name descname"><span class="pre">before_batch</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2.before_batch" title="Link to this definition"></a></dt>
+<dd><p>This method is called before each batch so you can do some preprocessing.
+For example, set some layers to eval mode to disable dropout.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2.compute_loss">
+<span class="sig-name descname"><span class="pre">compute_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="api/sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.dataclasses.ModelOutput" title="sfm.pipeline.accelerator.dataclasses.ModelOutput"><span class="pre">ModelOutput</span></a></span></span><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2.compute_loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2.config_optimizer">
+<span class="sig-name descname"><span class="pre">config_optimizer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2.config_optimizer" title="Link to this definition"></a></dt>
+<dd><p>Return the optimizer and learning rate scheduler for this model.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Tuple[Optimizer, LRScheduler]:</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2.emb_text">
+<span class="sig-name descname"><span class="pre">emb_text</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2.emb_text" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">samples</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2.freeze_text_model">
+<span class="sig-name descname"><span class="pre">freeze_text_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2.freeze_text_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2.init_Qformer">
+<span class="sig-name descname"><span class="pre">init_Qformer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2.init_Qformer" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2.init_llama">
+<span class="sig-name descname"><span class="pre">init_llama</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2.init_llama" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2.init_mol_tokenizer">
+<span class="sig-name descname"><span class="pre">init_mol_tokenizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2.init_mol_tokenizer" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2.init_smi_decoder">
+<span class="sig-name descname"><span class="pre">init_smi_decoder</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2.init_smi_decoder" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2.init_text_tokenizer">
+<span class="sig-name descname"><span class="pre">init_text_tokenizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2.init_text_tokenizer" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.tamgent.model.</span></span><span class="sig-name descname"><span class="pre">Tamgent2Config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seed:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">46</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fp16:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auto_cast:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bf16:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grad_scaler_init:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gradient_accumulation_steps:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tokens:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2048</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_batch_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_batch_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_batch_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_batch_log_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_epoch_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_dir:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'./checkpoints'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_batch_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_epoch_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">10000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strategy:</span> <span class="pre">sfm.pipeline.accelerator.dataclasses.TrainStrategy</span> <span class="pre">=</span> <span class="pre">&lt;TrainStrategy.Single:</span> <span class="pre">'Single'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp_partition_layer_name:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp_part_list:</span> <span class="pre">Optional[List[int]]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ifresume:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_ckpt:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unfreeze_param_list:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">finetune_from_checkpoint_dir:</span> <span class="pre">Optional[str]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">finetune_from_checkpoint_id:</span> <span class="pre">Optional[str]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">daliLoader:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dynamic_loader:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gradient_clipping:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_num_steps:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_num_steps:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">60</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_factor:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_lr:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_num_epochs:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_lr:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_lr:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">8e-05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_lr:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">8e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_decay:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_num_epochs:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wandb:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wandb_team:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wandb_group:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wandb_project:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta1:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta2:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.999</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_rank:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_rank:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pipeline_model_parallel_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tensor_model_parallel_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deepspeed_config:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_backend:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'nccl'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freeze_text_model:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text_hidden_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">4096</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">llama_model:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'/blob/shufxi/llama/7B'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">molxpt_model:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'/blob/shufxi/molxpt'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_txt_len_llama:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">500</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_txt_len_smiles:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2048</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_sym:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'\n'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_resource:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qformer_num_query_token:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qformer_num_layer:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qformer_cross_attention_freq:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qformer_num_attention_heads:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_mol_path:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'/blob/shufxi/data/tamgent/chebi/train.textmol.smi'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_text_path:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'/blob/shufxi/data/tamgent/chebi/train.textmol.desc'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_mol_path:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'/blob/shufxi/data/tamgent/chebi/val.textmol.smi'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_text_path:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'/blob/shufxi/data/tamgent/chebi/val.textmol.smi'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iters_per_epoch:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="api/sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.dataclasses.DistributedTrainConfig" title="sfm.pipeline.accelerator.dataclasses.DistributedTrainConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">DistributedTrainConfig</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.end_sym">
+<span class="sig-name descname"><span class="pre">end_sym</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'\n'</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.end_sym" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.freeze_text_model">
+<span class="sig-name descname"><span class="pre">freeze_text_model</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.freeze_text_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.iters_per_epoch">
+<span class="sig-name descname"><span class="pre">iters_per_epoch</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.iters_per_epoch" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.llama_model">
+<span class="sig-name descname"><span class="pre">llama_model</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'/blob/shufxi/llama/7B'</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.llama_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.low_resource">
+<span class="sig-name descname"><span class="pre">low_resource</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.low_resource" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.max_txt_len_llama">
+<span class="sig-name descname"><span class="pre">max_txt_len_llama</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">500</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.max_txt_len_llama" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.max_txt_len_smiles">
+<span class="sig-name descname"><span class="pre">max_txt_len_smiles</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2048</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.max_txt_len_smiles" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.molxpt_model">
+<span class="sig-name descname"><span class="pre">molxpt_model</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'/blob/shufxi/molxpt'</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.molxpt_model" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.qformer_cross_attention_freq">
+<span class="sig-name descname"><span class="pre">qformer_cross_attention_freq</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.qformer_cross_attention_freq" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.qformer_num_attention_heads">
+<span class="sig-name descname"><span class="pre">qformer_num_attention_heads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.qformer_num_attention_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.qformer_num_layer">
+<span class="sig-name descname"><span class="pre">qformer_num_layer</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.qformer_num_layer" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.qformer_num_query_token">
+<span class="sig-name descname"><span class="pre">qformer_num_query_token</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">32</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.qformer_num_query_token" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.text_hidden_size">
+<span class="sig-name descname"><span class="pre">text_hidden_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4096</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.text_hidden_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.train_mol_path">
+<span class="sig-name descname"><span class="pre">train_mol_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'/blob/shufxi/data/tamgent/chebi/train.textmol.smi'</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.train_mol_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.train_text_path">
+<span class="sig-name descname"><span class="pre">train_text_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'/blob/shufxi/data/tamgent/chebi/train.textmol.desc'</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.train_text_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.val_mol_path">
+<span class="sig-name descname"><span class="pre">val_mol_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'/blob/shufxi/data/tamgent/chebi/val.textmol.smi'</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.val_mol_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.tamgent.model.Tamgent2Config.val_text_path">
+<span class="sig-name descname"><span class="pre">val_text_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'/blob/shufxi/data/tamgent/chebi/val.textmol.smi'</span></em><a class="headerlink" href="#sfm.models.tamgent.model.Tamgent2Config.val_text_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="chemical-generalist">
+<h2>Chemical Generalist<a class="headerlink" href="#chemical-generalist" title="Link to this heading"></a></h2>
+<dl class="py class" id="module-sfm.models.generalist.graphormer_llama">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.GraphormerLlamaModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.generalist.graphormer_llama.</span></span><span class="sig-name descname"><span class="pre">GraphormerLlamaModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vocab_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ckp_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="api/sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.pipeline_module.SFMPipelineModelMixin" title="sfm.pipeline.accelerator.pipeline_module.SFMPipelineModelMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFMPipelineModelMixin</span></code></a></p>
+<p>Class for training a Masked Language Model. It also supports an
+additional sentence level prediction if the sent-loss argument is set.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.compute_loss">
+<span class="sig-name descname"><span class="pre">compute_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="api/sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.dataclasses.ModelOutput" title="sfm.pipeline.accelerator.dataclasses.ModelOutput"><span class="pre">ModelOutput</span></a></span></span><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.compute_loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.config_optimizer">
+<span class="sig-name descname"><span class="pre">config_optimizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Optimizer</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">LRScheduler</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.config_optimizer" title="Link to this definition"></a></dt>
+<dd><p>Return the optimizer and learning rate scheduler for this model.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Tuple[Optimizer, LRScheduler]:</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batched_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">perturb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">segment_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.generate">
+<span class="sig-name descname"><span class="pre">generate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batched_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LongTensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LongTensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">generate_kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">LongTensor</span></span></span><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.generate" title="Link to this definition"></a></dt>
+<dd><p>Overrides <cite>generate</cite> function to be able to use the model as a conditional generator.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>pixel_values (<cite>torch.FloatTensor</cite> of shape (batch_size, num_channels, height, width)):</dt><dd><p>Input images to be processed.</p>
+</dd>
+<dt>input_ids (<cite>torch.LongTensor</cite> of shape (batch_size, sequence_length), <em>optional</em>):</dt><dd><p>The sequence used as a prompt for the generation.</p>
+</dd>
+<dt>attention_mask (<cite>torch.LongTensor</cite> of shape (batch_size, sequence_length), <em>optional</em>):</dt><dd><p>Mask to avoid performing attention on padding token indices</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>captions (list): A list of strings of length batch_size * num_captions.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.generate_with_smiles">
+<span class="sig-name descname"><span class="pre">generate_with_smiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LongTensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LongTensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">generate_kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">LongTensor</span></span></span><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.generate_with_smiles" title="Link to this definition"></a></dt>
+<dd><p>Overrides <cite>generate</cite> function to be able to use the model as a conditional generator.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>pixel_values (<cite>torch.FloatTensor</cite> of shape (batch_size, num_channels, height, width)):</dt><dd><p>Input images to be processed.</p>
+</dd>
+<dt>input_ids (<cite>torch.LongTensor</cite> of shape (batch_size, sequence_length), <em>optional</em>):</dt><dd><p>The sequence used as a prompt for the generation.</p>
+</dd>
+<dt>attention_mask (<cite>torch.LongTensor</cite> of shape (batch_size, sequence_length), <em>optional</em>):</dt><dd><p>Mask to avoid performing attention on padding token indices</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>captions (list): A list of strings of length batch_size * num_captions.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.init_adaptor_config">
+<span class="sig-name descname"><span class="pre">init_adaptor_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">llama_config</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.init_adaptor_config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.init_mp_config">
+<span class="sig-name descname"><span class="pre">init_mp_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">llama_config</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.init_mp_config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.load_encoder_state_dict">
+<span class="sig-name descname"><span class="pre">load_encoder_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">graphormer_ckppth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">llama_ckppth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.load_encoder_state_dict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.to_layers">
+<span class="sig-name descname"><span class="pre">to_layers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.to_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.GraphormerLlamaModel.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.LlamaForCausalLMTextMolMasked">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.generalist.graphormer_llama.</span></span><span class="sig-name descname"><span class="pre">LlamaForCausalLMTextMolMasked</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.LlamaForCausalLMTextMolMasked" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">LlamaForCausalLM</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.LlamaForCausalLMTextMolMasked.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.LlamaForCausalLMTextMolMasked.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.LlamaModelTextMolMasked">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.generalist.graphormer_llama.</span></span><span class="sig-name descname"><span class="pre">LlamaModelTextMolMasked</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LlamaConfig</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.LlamaModelTextMolMasked" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">LlamaModel</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.generalist.graphormer_llama.LlamaModelTextMolMasked.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.generalist.graphormer_llama.LlamaModelTextMolMasked.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sfm.models.scigpt.scigpt">
+<span id="scigpt"></span><h2>SciGPT<a class="headerlink" href="#module-sfm.models.scigpt.scigpt" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.scigpt.scigpt.ScigptModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.scigpt.scigpt.</span></span><span class="sig-name descname"><span class="pre">ScigptModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="api/sfm.models.scigpt.html#sfm.models.scigpt.config.ScigptConfig" title="sfm.models.scigpt.config.ScigptConfig"><span class="pre">ScigptConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.scigpt.scigpt.ScigptModel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="api/sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.pipeline_module.SFMPipelineModelMixin" title="sfm.pipeline.accelerator.pipeline_module.SFMPipelineModelMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFMPipelineModelMixin</span></code></a></p>
+<p>Class for training a Masked Language Model. It also supports an
+additional sentence level prediction if the sent-loss argument is set.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.scigpt.scigpt.ScigptModel.compute_loss">
+<span class="sig-name descname"><span class="pre">compute_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_data</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="api/sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.dataclasses.ModelOutput" title="sfm.pipeline.accelerator.dataclasses.ModelOutput"><span class="pre">ModelOutput</span></a></span></span><a class="headerlink" href="#sfm.models.scigpt.scigpt.ScigptModel.compute_loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.scigpt.scigpt.ScigptModel.config_optimizer">
+<span class="sig-name descname"><span class="pre">config_optimizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Optimizer</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">LRScheduler</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.scigpt.scigpt.ScigptModel.config_optimizer" title="Link to this definition"></a></dt>
+<dd><p>Return the optimizer and learning rate scheduler for this model.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Tuple[Optimizer, LRScheduler]:</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.scigpt.scigpt.ScigptModel.to_layers">
+<span class="sig-name descname"><span class="pre">to_layers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.scigpt.scigpt.ScigptModel.to_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.scigpt.ScigptModel.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.scigpt.scigpt.ScigptModel.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sfm.models.llama2.llama_modules_3dmp">
+<span id="llama2"></span><h2>Llama2<a class="headerlink" href="#module-sfm.models.llama2.llama_modules_3dmp" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.FusedLlamaNorm">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.llama2.llama_modules_3dmp.</span></span><span class="sig-name descname"><span class="pre">FusedLlamaNorm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LlamaConfig</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.FusedLlamaNorm" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="api/sfm.modules.html#sfm.modules.sfmmodule.SFMModule" title="sfm.modules.sfmmodule.SFMModule"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFMModule</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.FusedLlamaNorm.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_tuple</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.FusedLlamaNorm.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.FusedLlamaNorm.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.FusedLlamaNorm.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaDecoderLayerMP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.llama2.llama_modules_3dmp.</span></span><span class="sig-name descname"><span class="pre">LlamaDecoderLayerMP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_layer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">LayerType.encoder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">self_attn_mask_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">AttnMaskType.padding</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">drop_path_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_experts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaDecoderLayerMP" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="api/sfm.modules.html#sfm.modules.sfmmodule.SFMModule" title="sfm.modules.sfmmodule.SFMModule"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFMModule</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaDecoderLayerMP.auto_partition_load_state_dict">
+<span class="sig-name descname"><span class="pre">auto_partition_load_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Mapping</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tp_model_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tp_rank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaDecoderLayerMP.auto_partition_load_state_dict" title="Link to this definition"></a></dt>
+<dd><p>Load a partition of the model from a checkpoint.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaDecoderLayerMP.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_tuple</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">FloatTensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaDecoderLayerMP.forward" title="Link to this definition"></a></dt>
+<dd><dl>
+<dt>Args:</dt><dd><p>hidden_states (<cite>torch.FloatTensor</cite>): input to the layer of shape <cite>(batch, seq_len, embed_dim)</cite>
+attention_mask (<cite>torch.FloatTensor</cite>, <em>optional</em>): attention mask of size</p>
+<blockquote>
+<div><p><cite>(batch, 1, tgt_len, src_len)</cite> where padding elements are indicated by very large negative values.</p>
+</div></blockquote>
+<dl class="simple">
+<dt>output_attentions (<cite>bool</cite>, <em>optional</em>):</dt><dd><p>Whether or not to return the attentions tensors of all attention layers. See <cite>attentions</cite> under
+returned tensors for more detail.</p>
+</dd>
+<dt>use_cache (<cite>bool</cite>, <em>optional</em>):</dt><dd><p>If set to <cite>True</cite>, <cite>past_key_values</cite> key value states are returned and can be used to speed up decoding
+(see <cite>past_key_values</cite>).</p>
+</dd>
+</dl>
+<p>past_key_value (<cite>Tuple(torch.FloatTensor)</cite>, <em>optional</em>): cached past key and value projection states</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaDecoderLayerMP.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaDecoderLayerMP.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.llama2.llama_modules_3dmp.</span></span><span class="sig-name descname"><span class="pre">LlamaEmbeddingsMP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LlamaConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">learnable_cutoff</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">32001</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Embedding</span></code>, <a class="reference internal" href="api/sfm.modules.html#sfm.modules.sfmmodule.SFMModule" title="sfm.modules.sfmmodule.SFMModule"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFMModule</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.auto_partition_load_state_dict">
+<span class="sig-name descname"><span class="pre">auto_partition_load_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Mapping</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tp_model_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tp_rank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.auto_partition_load_state_dict" title="Link to this definition"></a></dt>
+<dd><p>Load a partition of the model from a checkpoint.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.emb_weight">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">emb_weight</span></span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.emb_weight" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_tuple</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.freeze_parital_weight_hook">
+<span class="sig-name descname"><span class="pre">freeze_parital_weight_hook</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grad</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.freeze_parital_weight_hook" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaEmbeddingsMP.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaForCausalLMTP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.llama2.llama_modules_3dmp.</span></span><span class="sig-name descname"><span class="pre">LlamaForCausalLMTP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LlamaConfig</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaForCausalLMTP" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">LlamaForCausalLM</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaForCausalLMTP.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaForCausalLMTP.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.llama2.llama_modules_3dmp.</span></span><span class="sig-name descname"><span class="pre">LlamaHeadMP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LlamaConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">learnable_cutoff</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">32001</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="api/sfm.modules.html#sfm.modules.sfmmodule.SFMModule" title="sfm.modules.sfmmodule.SFMModule"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFMModule</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.auto_partition_load_state_dict">
+<span class="sig-name descname"><span class="pre">auto_partition_load_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Mapping</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tp_model_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tp_rank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.auto_partition_load_state_dict" title="Link to this definition"></a></dt>
+<dd><p>Load a partition of the model from a checkpoint.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.emb_weight">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">emb_weight</span></span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.emb_weight" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inputs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.freeze_parital_weight_hook">
+<span class="sig-name descname"><span class="pre">freeze_parital_weight_hook</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grad</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.freeze_parital_weight_hook" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaHeadMP.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaModelMP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.llama2.llama_modules_3dmp.</span></span><span class="sig-name descname"><span class="pre">LlamaModelMP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LlamaConfig</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaModelMP" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">LlamaPreTrainedModel</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaModelMP.to_layers">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">to_layers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_num_tokens</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_ckpt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ckp_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaModelMP.to_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.LlamaModelMP.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.LlamaModelMP.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.NumMLPMP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.llama2.llama_modules_3dmp.</span></span><span class="sig-name descname"><span class="pre">NumMLPMP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">in_features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_features=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_features=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">act_layer=&lt;class</span> <span class="pre">'torch.nn.modules.activation.GELU'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">drop=0.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.NumMLPMP" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.NumMLPMP.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.NumMLPMP.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.NumMLPMP.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.NumMLPMP.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.llama2.llama_modules_3dmp.</span></span><span class="sig-name descname"><span class="pre">ParallelLlamaMLP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LlamaConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_expert_tensor_parallelism</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moe</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLP" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="api/sfm.modules.html#sfm.modules.sfmmodule.SFMModule" title="sfm.modules.sfmmodule.SFMModule"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFMModule</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLP.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLP.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLP.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLP.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLPAdapter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.llama2.llama_modules_3dmp.</span></span><span class="sig-name descname"><span class="pre">ParallelLlamaMLPAdapter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">LlamaConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intermediate_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_act</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_expert_tensor_parallelism</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moe</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLPAdapter" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="api/sfm.modules.html#sfm.modules.sfmmodule.SFMModule" title="sfm.modules.sfmmodule.SFMModule"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFMModule</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLPAdapter.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLPAdapter.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLPAdapter.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.ParallelLlamaMLPAdapter.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.models.llama2.llama_modules_3dmp.lm_logits_fn">
+<span class="sig-prename descclassname"><span class="pre">sfm.models.llama2.llama_modules_3dmp.</span></span><span class="sig-name descname"><span class="pre">lm_logits_fn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">embedding</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_tuple</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.llama2.llama_modules_3dmp.lm_logits_fn" title="Link to this definition"></a></dt>
+<dd><p>LM logits using word embedding weights.</p>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="datapipeline.html" class="btn btn-neutral float-right" title="Data Pipeline" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, MSR A4S team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+</body>
+</html>

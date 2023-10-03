@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sfm.models.scigpt package &mdash; A4SFramework ai4science documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=c1325062"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sfm.models.tamgent package" href="sfm.models.tamgent.html" />
+    <link rel="prev" title="sfm.models.pfm.modules package" href="sfm.models.pfm.modules.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
+
+
+
+          <a href="../index.html" class="icon icon-home">
+            A4SFramework
+          </a>
+              <div class="version">
+                0.0.5
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../userfriendly.html">User-friendly Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../distributed.html">Large Distributed Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modelzoo.html">Model Zoo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datapipeline.html">Data Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../trainargs.html">Training Args</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">sfm</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="sfm.html">sfm package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="sfm.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="sfm.criterions.html">sfm.criterions package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.data.html">sfm.data package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.logging.html">sfm.logging package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="sfm.models.html">sfm.models package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.modules.html">sfm.modules package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.pipeline.html">sfm.pipeline package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.tasks.html">sfm.tasks package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sfm.utils.html">sfm.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sfm.html#module-sfm">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">A4SFramework</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">sfm</a></li>
+          <li class="breadcrumb-item"><a href="sfm.html">sfm package</a></li>
+          <li class="breadcrumb-item"><a href="sfm.models.html">sfm.models package</a></li>
+      <li class="breadcrumb-item active">sfm.models.scigpt package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/sfm.models.scigpt.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <section id="sfm-models-scigpt-package">
+<h1>sfm.models.scigpt package<a class="headerlink" href="#sfm-models-scigpt-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-sfm.models.scigpt.config">
+<span id="sfm-models-scigpt-config-module"></span><h2>sfm.models.scigpt.config module<a class="headerlink" href="#module-sfm.models.scigpt.config" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.scigpt.config.</span></span><span class="sig-name descname"><span class="pre">ScigptConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seed:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">46</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fp16:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auto_cast:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bf16:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grad_scaler_init:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gradient_accumulation_steps:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tokens:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2048</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_batch_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_batch_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_batch_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_batch_log_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_epoch_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_dir:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'./checkpoints'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_batch_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_epoch_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_interval:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">10000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strategy:</span> <span class="pre">sfm.pipeline.accelerator.dataclasses.TrainStrategy</span> <span class="pre">=</span> <span class="pre">&lt;TrainStrategy.Single:</span> <span class="pre">'Single'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp_partition_layer_name:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp_part_list:</span> <span class="pre">Optional[List[int]]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ifresume:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_ckpt:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unfreeze_param_list:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">finetune_from_checkpoint_dir:</span> <span class="pre">Optional[str]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">finetune_from_checkpoint_id:</span> <span class="pre">Optional[str]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">daliLoader:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dynamic_loader:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gradient_clipping:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_num_steps:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_num_steps:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">60</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_factor:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_lr:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warmup_num_epochs:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_lr:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_lr:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">8e-05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_lr:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">8e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_decay:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_num_epochs:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wandb:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wandb_team:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wandb_group:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wandb_project:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta1:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta2:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.999</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_rank:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_rank:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pipeline_model_parallel_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tensor_model_parallel_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deepspeed_config:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_backend:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'nccl'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_type:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'scigpt'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vocab_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">34177</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">learnable_cutoff:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">768</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intermediate_size:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">4096</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_hidden_layers:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_attention_heads:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_key_value_heads:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_act:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'silu'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_position_embeddings:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2048</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tokens_per_sample:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2048</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initializer_range:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.02</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rms_norm_eps:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad_token_id:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">32000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bos_token_id:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eos_token_id:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretraining_tp:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tie_word_embeddings:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rope_theta:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">10000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rope_scaling:</span> <span class="pre">Optional[Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str]]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dict_path:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_data_path:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valid_data_path:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrained_ckpt_path:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ft:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">infer:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">LlamaConfig</span></code>, <a class="reference internal" href="sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.dataclasses.DistributedTrainConfig" title="sfm.pipeline.accelerator.dataclasses.DistributedTrainConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">DistributedTrainConfig</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.bos_token_id">
+<span class="sig-name descname"><span class="pre">bos_token_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.bos_token_id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.dict_path">
+<span class="sig-name descname"><span class="pre">dict_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.dict_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.eos_token_id">
+<span class="sig-name descname"><span class="pre">eos_token_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.eos_token_id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.ft">
+<span class="sig-name descname"><span class="pre">ft</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.ft" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.hidden_act">
+<span class="sig-name descname"><span class="pre">hidden_act</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'silu'</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.hidden_act" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.hidden_size">
+<span class="sig-name descname"><span class="pre">hidden_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">768</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.hidden_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.infer">
+<span class="sig-name descname"><span class="pre">infer</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.infer" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.initializer_range">
+<span class="sig-name descname"><span class="pre">initializer_range</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.02</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.initializer_range" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.intermediate_size">
+<span class="sig-name descname"><span class="pre">intermediate_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4096</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.intermediate_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.learnable_cutoff">
+<span class="sig-name descname"><span class="pre">learnable_cutoff</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.learnable_cutoff" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.load_ckpt">
+<span class="sig-name descname"><span class="pre">load_ckpt</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.load_ckpt" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.max_position_embeddings">
+<span class="sig-name descname"><span class="pre">max_position_embeddings</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2048</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.max_position_embeddings" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.model_type">
+<span class="sig-name descname"><span class="pre">model_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'scigpt'</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.model_type" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.num_attention_heads">
+<span class="sig-name descname"><span class="pre">num_attention_heads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">32</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.num_attention_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.num_hidden_layers">
+<span class="sig-name descname"><span class="pre">num_hidden_layers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">32</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.num_hidden_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.num_key_value_heads">
+<span class="sig-name descname"><span class="pre">num_key_value_heads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">32</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.num_key_value_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.pad_token_id">
+<span class="sig-name descname"><span class="pre">pad_token_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">32000</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.pad_token_id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.pretrained_ckpt_path">
+<span class="sig-name descname"><span class="pre">pretrained_ckpt_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.pretrained_ckpt_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.pretraining_tp">
+<span class="sig-name descname"><span class="pre">pretraining_tp</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.pretraining_tp" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.rms_norm_eps">
+<span class="sig-name descname"><span class="pre">rms_norm_eps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1e-06</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.rms_norm_eps" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.rope_scaling">
+<span class="sig-name descname"><span class="pre">rope_scaling</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.rope_scaling" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.rope_theta">
+<span class="sig-name descname"><span class="pre">rope_theta</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">10000.0</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.rope_theta" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.tie_word_embeddings">
+<span class="sig-name descname"><span class="pre">tie_word_embeddings</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.tie_word_embeddings" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.tokens_per_sample">
+<span class="sig-name descname"><span class="pre">tokens_per_sample</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2048</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.tokens_per_sample" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.train_data_path">
+<span class="sig-name descname"><span class="pre">train_data_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.train_data_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.use_cache">
+<span class="sig-name descname"><span class="pre">use_cache</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.use_cache" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.valid_data_path">
+<span class="sig-name descname"><span class="pre">valid_data_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.valid_data_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.ScigptConfig.vocab_size">
+<span class="sig-name descname"><span class="pre">vocab_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">34177</span></em><a class="headerlink" href="#sfm.models.scigpt.config.ScigptConfig.vocab_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.scigpt_350m_config">
+<span class="sig-prename descclassname"><span class="pre">sfm.models.scigpt.config.</span></span><span class="sig-name descname"><span class="pre">scigpt_350m_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.scigpt.config.ScigptConfig" title="sfm.models.scigpt.config.ScigptConfig"><span class="pre">ScigptConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.scigpt.config.scigpt_350m_config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.scigpt_7b_config">
+<span class="sig-prename descclassname"><span class="pre">sfm.models.scigpt.config.</span></span><span class="sig-name descname"><span class="pre">scigpt_7b_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.scigpt.config.ScigptConfig" title="sfm.models.scigpt.config.ScigptConfig"><span class="pre">ScigptConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.scigpt.config.scigpt_7b_config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.scigpt_shallow_config">
+<span class="sig-prename descclassname"><span class="pre">sfm.models.scigpt.config.</span></span><span class="sig-name descname"><span class="pre">scigpt_shallow_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.scigpt.config.ScigptConfig" title="sfm.models.scigpt.config.ScigptConfig"><span class="pre">ScigptConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.scigpt.config.scigpt_shallow_config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.models.scigpt.config.scigpt_tiny_config">
+<span class="sig-prename descclassname"><span class="pre">sfm.models.scigpt.config.</span></span><span class="sig-name descname"><span class="pre">scigpt_tiny_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.scigpt.config.ScigptConfig" title="sfm.models.scigpt.config.ScigptConfig"><span class="pre">ScigptConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.scigpt.config.scigpt_tiny_config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-sfm.models.scigpt.modules">
+<span id="sfm-models-scigpt-modules-module"></span><h2>sfm.models.scigpt.modules module<a class="headerlink" href="#module-sfm.models.scigpt.modules" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.scigpt.modules.SciGPTEmbeddingsPP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.scigpt.modules.</span></span><span class="sig-name descname"><span class="pre">SciGPTEmbeddingsPP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.scigpt.config.ScigptConfig" title="sfm.models.scigpt.config.ScigptConfig"><span class="pre">ScigptConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">learnable_cutoff</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.scigpt.modules.SciGPTEmbeddingsPP" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="sfm.models.llama2.html#sfm.models.llama2.llama_modules.LlamaEmbeddingsBase" title="sfm.models.llama2.llama_modules.LlamaEmbeddingsBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">LlamaEmbeddingsBase</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.scigpt.modules.SciGPTEmbeddingsPP.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_ids</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">llm_mask</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.scigpt.modules.SciGPTEmbeddingsPP.forward" title="Link to this definition"></a></dt>
+<dd><p>Defines the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.modules.SciGPTEmbeddingsPP.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.scigpt.modules.SciGPTEmbeddingsPP.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sfm.models.scigpt.scigpt">
+<span id="sfm-models-scigpt-scigpt-module"></span><h2>sfm.models.scigpt.scigpt module<a class="headerlink" href="#module-sfm.models.scigpt.scigpt" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.models.scigpt.scigpt.ScigptModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.models.scigpt.scigpt.</span></span><span class="sig-name descname"><span class="pre">ScigptModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.models.scigpt.config.ScigptConfig" title="sfm.models.scigpt.config.ScigptConfig"><span class="pre">ScigptConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.scigpt.scigpt.ScigptModel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.pipeline_module.SFMPipelineModelMixin" title="sfm.pipeline.accelerator.pipeline_module.SFMPipelineModelMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">SFMPipelineModelMixin</span></code></a></p>
+<p>Class for training a Masked Language Model. It also supports an
+additional sentence level prediction if the sent-loss argument is set.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.scigpt.scigpt.ScigptModel.compute_loss">
+<span class="sig-name descname"><span class="pre">compute_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_data</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.dataclasses.ModelOutput" title="sfm.pipeline.accelerator.dataclasses.ModelOutput"><span class="pre">ModelOutput</span></a></span></span><a class="headerlink" href="#sfm.models.scigpt.scigpt.ScigptModel.compute_loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.scigpt.scigpt.ScigptModel.config_optimizer">
+<span class="sig-name descname"><span class="pre">config_optimizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Optimizer</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">LRScheduler</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.models.scigpt.scigpt.ScigptModel.config_optimizer" title="Link to this definition"></a></dt>
+<dd><p>Return the optimizer and learning rate scheduler for this model.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Tuple[Optimizer, LRScheduler]:</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.models.scigpt.scigpt.ScigptModel.to_layers">
+<span class="sig-name descname"><span class="pre">to_layers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.models.scigpt.scigpt.ScigptModel.to_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.models.scigpt.scigpt.ScigptModel.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.models.scigpt.scigpt.ScigptModel.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-sfm.models.scigpt">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-sfm.models.scigpt" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sfm.models.pfm.modules.html" class="btn btn-neutral float-left" title="sfm.models.pfm.modules package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sfm.models.tamgent.html" class="btn btn-neutral float-right" title="sfm.models.tamgent package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, MSR A4S team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User-friendly Interface &mdash; A4SFramework ai4science documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=c1325062"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Large Distributed Training" href="distributed.html" />
+    <link rel="prev" title="Overview" href="readme.html" />
+</head>
+
+<body class="wy-body-for-nav">
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
+
+
+
+          <a href="index.html" class="icon icon-home">
+            A4SFramework
+          </a>
+              <div class="version">
+                0.0.5
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="readme.html">Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">User-friendly Interface</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-sfm.utils.cli_utils">Cli decorator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.utils.cli_utils.cli"><code class="docutils literal notranslate"><span class="pre">cli()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#unified-trainer">Unified Trainer</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer"><code class="docutils literal notranslate"><span class="pre">Trainer</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.build_accelerator"><code class="docutils literal notranslate"><span class="pre">Trainer.build_accelerator()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.build_log_output"><code class="docutils literal notranslate"><span class="pre">Trainer.build_log_output()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.finetune_from_checkpoint"><code class="docutils literal notranslate"><span class="pre">Trainer.finetune_from_checkpoint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.resume"><code class="docutils literal notranslate"><span class="pre">Trainer.resume()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.save_checkpoint"><code class="docutils literal notranslate"><span class="pre">Trainer.save_checkpoint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.should_do_batch_validate"><code class="docutils literal notranslate"><span class="pre">Trainer.should_do_batch_validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.should_do_epoch_validate"><code class="docutils literal notranslate"><span class="pre">Trainer.should_do_epoch_validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.should_log"><code class="docutils literal notranslate"><span class="pre">Trainer.should_log()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.should_save_batch_checkpoint"><code class="docutils literal notranslate"><span class="pre">Trainer.should_save_batch_checkpoint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.should_save_epoch_checkpoint"><code class="docutils literal notranslate"><span class="pre">Trainer.should_save_epoch_checkpoint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.train"><code class="docutils literal notranslate"><span class="pre">Trainer.train()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.train_data_loader"><code class="docutils literal notranslate"><span class="pre">Trainer.train_data_loader</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.valid_data_loader"><code class="docutils literal notranslate"><span class="pre">Trainer.valid_data_loader</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.trainer.Trainer.validate"><code class="docutils literal notranslate"><span class="pre">Trainer.validate()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#training-strategy">Training Strategy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy"><code class="docutils literal notranslate"><span class="pre">TrainStrategy</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.DDP"><code class="docutils literal notranslate"><span class="pre">TrainStrategy.DDP</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.Pipeline"><code class="docutils literal notranslate"><span class="pre">TrainStrategy.Pipeline</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.Single"><code class="docutils literal notranslate"><span class="pre">TrainStrategy.Single</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.ThreeD"><code class="docutils literal notranslate"><span class="pre">TrainStrategy.ThreeD</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.Zero1"><code class="docutils literal notranslate"><span class="pre">TrainStrategy.Zero1</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.Zero2"><code class="docutils literal notranslate"><span class="pre">TrainStrategy.Zero2</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.Zero3"><code class="docutils literal notranslate"><span class="pre">TrainStrategy.Zero3</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#required-module">Required Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sfm.pipeline.accelerator.model.Model"><code class="docutils literal notranslate"><span class="pre">Model</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.model.Model.after_batch"><code class="docutils literal notranslate"><span class="pre">Model.after_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.model.Model.after_training"><code class="docutils literal notranslate"><span class="pre">Model.after_training()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.model.Model.before_batch"><code class="docutils literal notranslate"><span class="pre">Model.before_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.model.Model.before_training"><code class="docutils literal notranslate"><span class="pre">Model.before_training()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.model.Model.compute_loss"><code class="docutils literal notranslate"><span class="pre">Model.compute_loss()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.model.Model.config_optimizer"><code class="docutils literal notranslate"><span class="pre">Model.config_optimizer()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sfm.pipeline.accelerator.model.Model.training"><code class="docutils literal notranslate"><span class="pre">Model.training</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="distributed.html">Large Distributed Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modelzoo.html">Model Zoo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datapipeline.html">Data Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="trainargs.html">Training Args</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/modules.html">sfm</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">A4SFramework</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">User-friendly Interface</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/userfriendly.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+
+  <section id="user-friendly-interface">
+<span id="userfriendly"></span><h1>User-friendly Interface<a class="headerlink" href="#user-friendly-interface" title="Link to this heading"></a></h1>
+<section id="module-sfm.utils.cli_utils">
+<span id="cli-decorator"></span><h2>Cli decorator<a class="headerlink" href="#module-sfm.utils.cli_utils" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="sfm.utils.cli_utils.cli">
+<span class="sig-prename descclassname"><span class="pre">sfm.utils.cli_utils.</span></span><span class="sig-name descname"><span class="pre">cli</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">cfg_classes_and_funcs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.utils.cli_utils.cli" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<p>The decorator <a class="reference internal" href="#sfm.utils.cli_utils.cli" title="sfm.utils.cli_utils.cli"><code class="xref py py-func docutils literal notranslate"><span class="pre">sfm.utils.cli_utils.cli()</span></code></a> is used to read args for the task. It is used as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@cli</span><span class="p">(</span><span class="n">config1</span><span class="p">,</span> <span class="n">config2</span><span class="p">,</span> <span class="n">config3</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+   <span class="k">pass</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+   <span class="n">main</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The decorator takes a list of config objects as arguments. The config objects are used to read the args. The examples to use config objects are shown in <a class="reference internal" href="api/sfm.tasks.html#module-sfm.tasks" title="sfm.tasks"><code class="xref py py-mod docutils literal notranslate"><span class="pre">sfm.tasks</span></code></a> (e.g., <a class="reference internal" href="api/sfm.tasks.graphormer.html#module-sfm.tasks.graphormer.pretrain_graphormer" title="sfm.tasks.graphormer.pretrain_graphormer"><code class="xref py py-mod docutils literal notranslate"><span class="pre">sfm.tasks.graphormer.pretrain_graphormer</span></code></a>, <a class="reference internal" href="api/sfm.tasks.scigpt.html#module-sfm.tasks.scigpt.pretrain_scigpt" title="sfm.tasks.scigpt.pretrain_scigpt"><code class="xref py py-mod docutils literal notranslate"><span class="pre">sfm.tasks.scigpt.pretrain_scigpt</span></code></a>).</p>
+</section>
+<section id="unified-trainer">
+<h2>Unified Trainer<a class="headerlink" href="#unified-trainer" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.pipeline.accelerator.trainer.</span></span><span class="sig-name descname"><span class="pre">Trainer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="trainargs.html#sfm.pipeline.accelerator.dataclasses.TrainerConfig" title="sfm.pipeline.accelerator.dataclasses.TrainerConfig"><span class="pre">TrainerConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#sfm.pipeline.accelerator.model.Model" title="sfm.pipeline.accelerator.model.Model"><span class="pre">Model</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valid_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dataset</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dataset</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optimizer</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lr_scheduler</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">_LRScheduler</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_log_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.build_accelerator">
+<span class="sig-name descname"><span class="pre">build_accelerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_log_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="api/sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.accelerator.Accelerator" title="sfm.pipeline.accelerator.accelerator.Accelerator"><span class="pre">Accelerator</span></a></span></span><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.build_accelerator" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.build_log_output">
+<span class="sig-name descname"><span class="pre">build_log_output</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="api/sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.dataclasses.TrainLogOutput" title="sfm.pipeline.accelerator.dataclasses.TrainLogOutput"><span class="pre">TrainLogOutput</span></a></span></span><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.build_log_output" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.finetune_from_checkpoint">
+<span class="sig-name descname"><span class="pre">finetune_from_checkpoint</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.finetune_from_checkpoint" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.resume">
+<span class="sig-name descname"><span class="pre">resume</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.resume" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.save_checkpoint">
+<span class="sig-name descname"><span class="pre">save_checkpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.save_checkpoint" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.should_do_batch_validate">
+<span class="sig-name descname"><span class="pre">should_do_batch_validate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.should_do_batch_validate" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.should_do_epoch_validate">
+<span class="sig-name descname"><span class="pre">should_do_epoch_validate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.should_do_epoch_validate" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.should_log">
+<span class="sig-name descname"><span class="pre">should_log</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.should_log" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.should_save_batch_checkpoint">
+<span class="sig-name descname"><span class="pre">should_save_batch_checkpoint</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.should_save_batch_checkpoint" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.should_save_epoch_checkpoint">
+<span class="sig-name descname"><span class="pre">should_save_epoch_checkpoint</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.should_save_epoch_checkpoint" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.train">
+<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.train" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.train_data_loader">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">train_data_loader</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">DataLoader</span></em><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.train_data_loader" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.valid_data_loader">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">valid_data_loader</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">DataLoader</span></em><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.valid_data_loader" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.trainer.Trainer.validate">
+<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.pipeline.accelerator.trainer.Trainer.validate" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<p>The trainer is used to train the model. It is used as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@cli</span><span class="p">(</span><span class="n">config1</span><span class="p">,</span> <span class="n">config2</span><span class="p">,</span> <span class="n">config3</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+
+   <span class="c1"># Define the dataset</span>
+   <span class="n">train_dataset</span> <span class="o">=</span> <span class="n">your_dataset</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+   <span class="n">eval_dataset</span> <span class="o">=</span> <span class="n">your_dataset</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+   <span class="c1"># Define the model</span>
+   <span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
+   <span class="n">trainer</span> <span class="o">=</span> <span class="n">Trainer</span><span class="p">(</span>
+      <span class="n">config</span><span class="o">=</span><span class="n">args</span><span class="p">,</span>
+      <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
+      <span class="n">train_dataset</span><span class="o">=</span><span class="n">train_dataset</span><span class="p">,</span>
+      <span class="n">eval_dataset</span><span class="o">=</span><span class="n">eval_dataset</span><span class="p">,</span>
+   <span class="p">)</span>
+
+   <span class="n">trainer</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+   <span class="n">main</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The trainer takes args, model, and dataset as arguments. The model examples is defined in <a class="reference internal" href="api/sfm.models.html#module-sfm.models" title="sfm.models"><code class="xref py py-mod docutils literal notranslate"><span class="pre">sfm.models</span></code></a> (e.g., <a class="reference internal" href="modelzoo.html#module-sfm.models.graphormer.graphormer" title="sfm.models.graphormer.graphormer"><code class="xref py py-mod docutils literal notranslate"><span class="pre">sfm.models.graphormer.graphormer</span></code></a>, <a class="reference internal" href="modelzoo.html#module-sfm.models.scigpt.scigpt" title="sfm.models.scigpt.scigpt"><code class="xref py py-mod docutils literal notranslate"><span class="pre">sfm.models.scigpt.scigpt</span></code></a>). The dataset is defined in <a class="reference internal" href="api/sfm.data.html#module-sfm.data" title="sfm.data"><code class="xref py py-mod docutils literal notranslate"><span class="pre">sfm.data</span></code></a> (e.g., <a class="reference internal" href="api/sfm.data.mol_data.html#module-sfm.data.mol_data" title="sfm.data.mol_data"><code class="xref py py-mod docutils literal notranslate"><span class="pre">sfm.data.mol_data</span></code></a>, <a class="reference internal" href="api/sfm.data.sci_data.html#module-sfm.data.sci_data" title="sfm.data.sci_data"><code class="xref py py-mod docutils literal notranslate"><span class="pre">sfm.data.sci_data</span></code></a>).</p>
+</section>
+<section id="training-strategy">
+<h2>Training Strategy<a class="headerlink" href="#training-strategy" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.dataclasses.TrainStrategy">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.pipeline.accelerator.dataclasses.</span></span><span class="sig-name descname"><span class="pre">TrainStrategy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>TrainStrategy provides a convenient way to choose between different training strategies supported by the A4SFramework.</p>
+<dl>
+<dt>Args:</dt><dd><p>Single: The training is performed on a single device without any parallelism or distribution.</p>
+<p>DDP: Distributed Data Parallel (DDP) training, where the model is replicated across multiple devices and gradients are synchronized.</p>
+<p>Zero1: The first level of the ZeRO (Zero Redundancy Optimizer) parallelism strategy.</p>
+<p>Zero2: The second level of the ZeRO parallelism strategy.</p>
+<p>Zero3: The third level of the ZeRO parallelism strategy.</p>
+<p>Pipeline: Pipeline parallelism, where the model is divided into stages and processed on
+different devices in a pipeline fashion.</p>
+<p>ThreeD: 3D parallelism, which combines data, model, and pipeline parallelism for large-scale training.</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.dataclasses.TrainStrategy.DDP">
+<span class="sig-name descname"><span class="pre">DDP</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'DDP'</span></em><a class="headerlink" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.DDP" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.dataclasses.TrainStrategy.Pipeline">
+<span class="sig-name descname"><span class="pre">Pipeline</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Pipeline'</span></em><a class="headerlink" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.Pipeline" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.dataclasses.TrainStrategy.Single">
+<span class="sig-name descname"><span class="pre">Single</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Single'</span></em><a class="headerlink" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.Single" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.dataclasses.TrainStrategy.ThreeD">
+<span class="sig-name descname"><span class="pre">ThreeD</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'ThreeD'</span></em><a class="headerlink" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.ThreeD" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.dataclasses.TrainStrategy.Zero1">
+<span class="sig-name descname"><span class="pre">Zero1</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Zero1'</span></em><a class="headerlink" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.Zero1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.dataclasses.TrainStrategy.Zero2">
+<span class="sig-name descname"><span class="pre">Zero2</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Zero2'</span></em><a class="headerlink" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.Zero2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.dataclasses.TrainStrategy.Zero3">
+<span class="sig-name descname"><span class="pre">Zero3</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Zero3'</span></em><a class="headerlink" href="#sfm.pipeline.accelerator.dataclasses.TrainStrategy.Zero3" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<p>The training strategy is used to define the training strategy. The trainer supports 7 modes: Single GPU, DDP, Zero1, Zero2, Zero3, Pipeline parallelism, 3D parallelism. The training strategy can be used by the following code:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>torchrun<span class="w"> </span>--nproc_per_node<span class="o">=</span><span class="m">8</span><span class="w"> </span>--use_env<span class="w"> </span>main.py<span class="w"> </span>--strategy<span class="w"> </span>Zero1
+</pre></div>
+</div>
+</section>
+<section id="required-module">
+<h2>Required Module<a class="headerlink" href="#required-module" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.model.Model">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sfm.pipeline.accelerator.model.</span></span><span class="sig-name descname"><span class="pre">Model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sfm.pipeline.accelerator.model.Model" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.model.Model.after_batch">
+<span class="sig-name descname"><span class="pre">after_batch</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.pipeline.accelerator.model.Model.after_batch" title="Link to this definition"></a></dt>
+<dd><p>This method is called after each batch so you can do some postprocessing.
+For example, set some layers to train mode to enable dropout.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.model.Model.after_training">
+<span class="sig-name descname"><span class="pre">after_training</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.pipeline.accelerator.model.Model.after_training" title="Link to this definition"></a></dt>
+<dd><p>This method is called after training so you can do some finalization.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.model.Model.before_batch">
+<span class="sig-name descname"><span class="pre">before_batch</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.pipeline.accelerator.model.Model.before_batch" title="Link to this definition"></a></dt>
+<dd><p>This method is called before each batch so you can do some preprocessing.
+For example, set some layers to eval mode to disable dropout.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.model.Model.before_training">
+<span class="sig-name descname"><span class="pre">before_training</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sfm.pipeline.accelerator.model.Model.before_training" title="Link to this definition"></a></dt>
+<dd><p>This method is called before training so you can do some initialization.
+For example, freeze some layers or set some layers to eval mode.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.model.Model.compute_loss">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="api/sfm.pipeline.accelerator.html#sfm.pipeline.accelerator.dataclasses.ModelOutput" title="sfm.pipeline.accelerator.dataclasses.ModelOutput"><span class="pre">ModelOutput</span></a></span></span><a class="headerlink" href="#sfm.pipeline.accelerator.model.Model.compute_loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.model.Model.config_optimizer">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">config_optimizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Module</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Optimizer</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">LRScheduler</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#sfm.pipeline.accelerator.model.Model.config_optimizer" title="Link to this definition"></a></dt>
+<dd><p>Return the optimizer and learning rate scheduler for this model.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Tuple[Optimizer, LRScheduler]:</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sfm.pipeline.accelerator.model.Model.training">
+<span class="sig-name descname"><span class="pre">training</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#sfm.pipeline.accelerator.model.Model.training" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<p>The required module is used to define the model. It is used as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sfm.pipeline.accelerator.model</span> <span class="kn">import</span> <span class="n">Model</span>
+<span class="k">class</span> <span class="nc">YourModel</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+
+   <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+
+      <span class="c1"># Define the model</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">your_model</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+   <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">):</span>
+      <span class="c1"># Define the forward function</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+   <span class="k">def</span> <span class="nf">compute_loss</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred</span><span class="p">,</span> <span class="n">batch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ModelOutput</span><span class="p">:</span>
+      <span class="c1"># Define the loss function</span>
+      <span class="k">pass</span>
+
+   <span class="k">def</span> <span class="nf">config_optimizer</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">]</span>
+   <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Optimizer</span><span class="p">,</span> <span class="n">LRScheduler</span><span class="p">]:</span>
+      <span class="c1"># Define the optimizer and lr_scheduler. If not defined, the default optimizer and lr_scheduler will be used.</span>
+      <span class="k">pass</span>
+</pre></div>
+</div>
+<p>The model takes args as arguments. The args is defined in <a class="reference internal" href="api/sfm.models.html#module-sfm.models" title="sfm.models"><code class="xref py py-mod docutils literal notranslate"><span class="pre">sfm.models</span></code></a> (e.g., <a class="reference internal" href="modelzoo.html#module-sfm.models.scigpt.scigpt" title="sfm.models.scigpt.scigpt"><code class="xref py py-mod docutils literal notranslate"><span class="pre">sfm.models.scigpt.scigpt</span></code></a>).</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="readme.html" class="btn btn-neutral float-left" title="Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="distributed.html" class="btn btn-neutral float-right" title="Large Distributed Training" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, MSR A4S team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+</body>
+</html>

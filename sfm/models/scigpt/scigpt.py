@@ -2,7 +2,8 @@
 import os
 from typing import Optional, Tuple
 
-from torch.optim import Optimizer
+# from sfm.utils.optim.optimizer import myAdam
+from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 from sfm.criterions.autoregressive import AutoregressiveCriterion
@@ -12,8 +13,7 @@ from sfm.models.scigpt.modules import SciGPTEmbeddingsPP
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
-from sfm.utils.optim.optimizer import myAdam
-from sfm.utils.optim.set_lr import groupWarmupDecayLR
+from sfm.utils.optim.set_lr import DECAY_COSINE_RATE, groupWarmupDecayLR
 
 
 class ScigptModel(SFMPipelineModelMixin):
@@ -90,11 +90,19 @@ class ScigptModel(SFMPipelineModelMixin):
     def config_optimizer(
         self, model
     ) -> Tuple[Optional[Optimizer], Optional[LRScheduler]]:
-        optimizer, _ = myAdam(
-            model,
+        # optimizer, _ = myAdam(
+        #     model,
+        #     lr=self.config.max_lr,
+        #     betas=(self.config.beta1, self.config.beta2),
+        #     weight_decay=self.config.weight_decay,
+        #     eps=1e-8,
+        # )
+
+        optimizer = AdamW(
+            model.parameters(),
             lr=self.config.max_lr,
-            betas=[self.config.beta1, self.config.beta2],
-            weight_decay=self.config.weight_decay,  # bugbug, weight_decay is not used in the optimizer
+            betas=(self.config.beta1, self.config.beta2),
+            weight_decay=self.config.weight_decay,
             eps=1e-8,
         )
 
@@ -103,5 +111,6 @@ class ScigptModel(SFMPipelineModelMixin):
             total_num_steps=self.config.total_num_steps,
             warmup_max_lr=self.config.max_lr,
             warmup_num_steps=self.config.warmup_num_steps,
+            decay_type=DECAY_COSINE_RATE,
         )
         return (optimizer, lr_scheduler)
