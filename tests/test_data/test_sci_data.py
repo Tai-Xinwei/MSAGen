@@ -13,7 +13,7 @@ class MockSPM(Mock):
         return 1000
 
 
-def get_spm_processor(self):
+def get_spm_processor(self, from_slow: bool = False):
     return MockSPM()
 
 
