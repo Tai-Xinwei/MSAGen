@@ -103,6 +103,8 @@ class DecDeepFuseConfig(DistributedTrainConfig):
 
     pretraining_tp: int = 0
 
+    attention_bias: bool = False
+
     new_token_count: int = 0
 
     @property

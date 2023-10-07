@@ -368,9 +368,8 @@ class Trainer(object):
             trainable_num,
         )
 
-        for epoch in range(self.args.total_num_epochs):
-            self.state.epoch = epoch
-            self.accelerator.before_epoch(epoch)
+        while self.state.epoch < self.args.total_num_epochs:
+            self.accelerator.before_epoch(self.state.epoch)
 
             logger.info("Start Training for epoch: {}", self.state.epoch)
 
@@ -378,7 +377,9 @@ class Trainer(object):
             interval_loss_accumulator = LogAccumulator(
                 self.accelerator.world_size, self.accelerator._allreducelog
             )
-            for i, grouped_batch_data in enumerate(self.train_data_loader):
+
+            # TODO: the data loader state is not save/loaded. Need to fix this.
+            for grouped_batch_data in self.train_data_loader:
                 model_output = self.accelerator.train_step(grouped_batch_data)
                 loss_accumulator.add(model_output.loss, model_output.num_examples)
                 interval_loss_accumulator.add(
@@ -388,7 +389,7 @@ class Trainer(object):
                 )
 
                 # Log and save checkpoint
-                self.state.batch = i
+                self.state.batch += 1
                 self.state.global_step += 1
 
                 if self.should_do_batch_validate():
@@ -404,7 +405,9 @@ class Trainer(object):
                     metric_logger.log(log_output, "train_inner")
 
                 if self.should_save_batch_checkpoint():
-                    checkpoint_name = f"checkpoint_E{epoch}_B{i}.pt"
+                    checkpoint_name = (
+                        f"checkpoint_E{self.state.epoch}_B{self.state.batch}.pt"
+                    )
                     self.save_checkpoint(checkpoint_name)
 
             log_output = self.build_log_output(loss_accumulator.averge_loss)
@@ -415,8 +418,11 @@ class Trainer(object):
 
             self.accelerator.barrier()
             if self.should_save_epoch_checkpoint():
-                checkpoint_name = f"checkpoint_E{epoch}.pt"
+                checkpoint_name = f"checkpoint_E{self.state.epoch}.pt"
                 self.save_checkpoint(checkpoint_name)
+
+            self.state.epoch += 1
+            self.state.batch = 0
 
         self.model.after_training()
 
@@ -433,7 +439,6 @@ class Trainer(object):
             self.state.global_step,
         )
 
-        # TODO: add other metrics
         loss_accumulator = LossAccumulator()
         interval_loss_accumulator = LogAccumulator(
             self.accelerator.world_size, self.accelerator._allreducelog
