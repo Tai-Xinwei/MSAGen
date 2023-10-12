@@ -444,7 +444,7 @@ class SupervisedProcessedData(Dataset):
 
         self.multi_hop_max_dist = 5
         self.spatial_pos_max = 1024
-        self.max_node = 256
+        self.max_node = 512
         max_mol_per_sample = 8
 
         with open(mol2idx_dict_path, "rb") as in_file:
@@ -810,7 +810,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
                 self.dataset_count[dataset_name] = {}
                 self.dataset_filtered[dataset_name] = {}
                 for dataset_split in dataset_splits:
-                    logging.warning(
+                    logger.warning(
                         f"Loading dataset {dataset_name} split {dataset_split}"
                     )
                     read_env = lmdb.open(
@@ -828,6 +828,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
                             or len(val[3]) > threshold_maxmol
                         ):
                             self.dataset_filtered[dataset_name][dataset_split] += 1
+                            # print(f"{self._calc_input_len(*val)}, {val[3]}")
                             continue
                         self.index_to_key_map.append(
                             (dataset_name, dataset_split, key.decode())
@@ -845,7 +846,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
                 self.dataset_count[dataset_name] = {}
                 self.dataset_filtered[dataset_name] = {}
                 for dataset_split in dataset_splits:
-                    logging.warning(
+                    logger.warning(
                         f"Loading dataset {dataset_name} split {dataset_split}"
                     )
                     read_env = lmdb.open(
@@ -871,7 +872,10 @@ class SupervisedProcessedDataWithSmiles(Dataset):
                     read_env.close()
                 if self.dataset_ratios is not None:
                     self.weight_dict[(start_index, self.len)] = self.dataset_ratios[i]
+
         logger.info(f"{self.len} sentences loaded.")
+        assert self.len > 0, "No data loaded."
+
         for dataset_name in self.dataset_count:
             for dataset_split in self.dataset_count[dataset_name]:
                 logger.info(
@@ -1016,6 +1020,7 @@ def preprocess_item(item):
     item.spatial_pos = spatial_pos
     item.in_degree = adj.long().sum(dim=1).view(-1)
     item.edge_input = torch.from_numpy(edge_input).long()
+
     if item.pos is None:
         item.pos = torch.zeros([N, 3], dtype=torch.float)
         item.mask3d = torch.tensor([1.0]).bool()
@@ -1223,10 +1228,13 @@ def smiles2graph_removeh(smiles_string, pos=None):
 
 
 def batch_collater_for_graphormer(smiless: List[str], poses: List[Any]):
-    graphs = [
-        preprocess_item(Data(**smiles2graph_removeh(smiles, pos)))
-        for smiles, pos in zip(smiless, poses)
-    ]
+    if type(smiless[0]) == Data:
+        graphs = [preprocess_item(smiles) for smiles, pos in zip(smiless, poses)]
+    else:
+        graphs = [
+            preprocess_item(Data(**smiles2graph_removeh(smiles, pos)))
+            for smiles, pos in zip(smiless, poses)
+        ]
     return collator(graphs)
 
 
@@ -1271,6 +1279,9 @@ class DataCollatorForSupervisedDataset(object):
             elif len(smis) > 0 and type(smis[0]) == list:
                 smiles.extend(smis[0])
                 pos.extend(smis[1])
+            elif len(smis) > 0 and type(smis[0]) == Data:
+                smiles.extend(smis)
+                pos.extend([None for _ in range(len(smis))])
 
         batched_molecules = batch_collater_for_graphormer(smiles, pos)
         batched_molecules["out_degree"] = batched_molecules["in_degree"]

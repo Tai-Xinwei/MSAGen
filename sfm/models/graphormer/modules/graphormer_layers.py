@@ -283,7 +283,7 @@ class Graph3DBias(nn.Module):
 
         delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
         dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
-        delta_pos /= dist.unsqueeze(-1) + 1e-5
+        delta_pos = delta_pos / (dist.unsqueeze(-1) + 1e-5)
 
         if not self.args.ft:
             node_mask_i = node_mask.unsqueeze(-2).repeat(1, 1, n_node, 1)
