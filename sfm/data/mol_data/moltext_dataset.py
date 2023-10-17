@@ -760,6 +760,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         pool_mode: Optional[str] = "full",
         embedding_length: int = 20,
         num_token_id: int = 32003,
+        use_pp: bool = True,
     ) -> None:
         super().__init__()
         self.data_path = data_path
@@ -797,7 +798,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         self.dataset_count = {}
         self.dataset_filtered = {}
         self.data_collater = DataCollatorForSupervisedDataset(
-            pad_token_id=pad_token_id, use_pp=True, add_mfm=True
+            pad_token_id=pad_token_id, use_pp=use_pp, add_mfm=True
         )
 
         if not self.in_memory:
@@ -1167,6 +1168,7 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
         pos=pos,
         mask3d=mask3d,
         node_type_edge=node_type_edge,
+        attn_edge_type=None,
     )
 
 
