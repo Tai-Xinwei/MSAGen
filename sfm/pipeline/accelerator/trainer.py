@@ -368,7 +368,10 @@ class Trainer(object):
             trainable_num,
         )
 
-        while self.state.epoch < self.args.total_num_epochs:
+        while (
+            self.state.epoch < self.args.total_num_epochs
+            and self.state.global_step < self.args.total_num_steps
+        ):
             self.accelerator.before_epoch(self.state.epoch)
 
             logger.info("Start Training for epoch: {}", self.state.epoch)
