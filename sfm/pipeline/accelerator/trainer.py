@@ -187,6 +187,7 @@ class Trainer(object):
         self.state = TrainerState(args=args)
 
         self.save_dir = Path(self.args.save_dir)
+        self.save_dir.mkdir(parents=True, exist_ok=True)
 
         if self.args.finetune_from_checkpoint_dir is not None:
             self.finetune_from_checkpoint_dir = Path(
