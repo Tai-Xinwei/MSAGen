@@ -569,6 +569,9 @@ class DeepSpeedAccelerator(Accelerator):
         return unfreeze_param
 
     def set_up(self):
+        self.rank = int(os.environ["RANK"])
+        self.local_rank = int(os.environ["LOCAL_RANK"])
+
         deepspeed.init_distributed(dist_backend=self.args.dist_backend)
         self.set_ds_config()
 
