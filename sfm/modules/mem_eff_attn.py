@@ -8,7 +8,6 @@ import math
 from typing import Optional, Tuple
 
 import torch
-import xformers.ops as xops
 from torch import Tensor, nn
 
 from .FairseqDropout import FairseqDropout
@@ -196,59 +195,28 @@ class MemEffAttn(nn.Module):
         if key_padding_mask is not None and attn_bias is not None:
             assert key_padding_mask.size(0) == bsz
             assert key_padding_mask.size(1) == src_len
-            # expand_src_len = smallest number larger than src_len and divisible by 8
-            expand_src_len = (src_len + 7) // 8 * 8
+
             attn_mask = (
                 key_padding_mask.unsqueeze(1)
                 .unsqueeze(2)
                 .repeat(1, self.num_heads, tgt_len, 1)
                 .bool()
             )
-            # pad last dimension of attn_bias from src_len to expand_src_len
-            if expand_src_len > src_len:
-                attn_mask_pad = torch.ones(
-                    (bsz, self.num_heads, tgt_len, expand_src_len - src_len),
-                    device=key_padding_mask.device,
-                    dtype=key_padding_mask.dtype,
-                ).bool()
-                attn_mask = torch.cat([attn_mask, attn_mask_pad], dim=-1)
-                attn_bias_pad = torch.zeros(
-                    (bsz, self.num_heads, tgt_len, expand_src_len - src_len),
-                    device=attn_bias.device,
-                    dtype=attn_bias.dtype,
-                )
-                attn_bias = torch.cat([attn_bias, attn_bias_pad], dim=-1)
-                k_pad = torch.zeros(
-                    (bsz, expand_src_len - src_len, self.num_heads, self.head_dim),
-                    device=attn_bias.device,
-                    dtype=attn_bias.dtype,
-                )
-                v_pad = torch.zeros(
-                    (bsz, expand_src_len - src_len, self.num_heads, self.head_dim),
-                    device=attn_bias.device,
-                    dtype=attn_bias.dtype,
-                )
-                k = torch.cat([k, k_pad], dim=1)
-                v = torch.cat([v, v_pad], dim=1)
 
             attn_bias = attn_bias.masked_fill_(attn_mask, float("-inf"))
 
-        # q = q.permute(0, 2, 1, 3)
-        # k = k.permute(0, 2, 1, 3)
-        # v = v.permute(0, 2, 1, 3)
-        # with torch.backends.cuda.sdp_kernel(
-        #     enable_math=True, enable_mem_efficient=True
-        # ):
-        #     attn = torch.nn.functional.scaled_dot_product_attention(
-        #         q, k, v, attn_mask=attn_bias, dropout_p=self.dropout
-        #     )
-
-        attn = xops.memory_efficient_attention(
-            q, k, v, p=self.dropout, attn_bias=attn_bias
-        )
+        q = q.permute(0, 2, 1, 3)
+        k = k.permute(0, 2, 1, 3)
+        v = v.permute(0, 2, 1, 3)
+        with torch.backends.cuda.sdp_kernel(
+            enable_math=True, enable_mem_efficient=True, enable_flash=False
+        ):
+            attn = torch.nn.functional.scaled_dot_product_attention(
+                q, k, v, attn_mask=attn_bias, dropout_p=self.dropout
+            )
 
         attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
-        attn = self.layer_norm(attn)
+        # attn = self.layer_norm(attn)
         attn = self.out_proj(attn)
 
         attn_weights: Optional[Tensor] = None

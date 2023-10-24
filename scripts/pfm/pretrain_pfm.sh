@@ -24,22 +24,22 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${sandwich_ln}" ] && sandwich_ln=true
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
-[ -z "${noise_mode}" ] && noise_mode=mae
+[ -z "${noise_mode}" ] && noise_mode=diff
 [ -z "${mask_ratio}" ] && mask_ratio=0.3
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=4e-4
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
-[ -z "${train_batch_size}" ] && train_batch_size=16
+[ -z "${train_batch_size}" ] && train_batch_size=32
 [ -z "${max_tokens}" ] && max_tokens=2048
-[ -z "${val_batch_size}" ] && val_batch_size=16
+[ -z "${val_batch_size}" ] && val_batch_size=32
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 
-[ -z "${mode_prob}" ] && mode_prob='0.4,0.3,0.3' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 [ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
@@ -155,6 +155,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --data_path $data_path \
           --save_dir $save_dir \
           --seed 666666 \
+          --ifresume \
           --fp16 --add_3d \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \

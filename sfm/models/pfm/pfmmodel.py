@@ -41,13 +41,14 @@ class PFMModel(Model):
         self.loss = loss_fn(args)
 
         self.net = PFM(args, pfm_config)
+
         self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
 
     def load_pretrained_weights(self, args, checkpoint_path):
         """
         Load pretrained weights from a given state_dict.
         """
-        if args.ifresume or args.ft or args.infer:
+        if args.ft or args.infer:
             checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
             if "model" in checkpoints_state:
                 checkpoints_state = checkpoints_state["model"]

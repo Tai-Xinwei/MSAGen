@@ -278,7 +278,7 @@ class GraphormerSentenceEncoder(nn.Module):
         attn_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # compute padding mask. This is needed for multi-head attention
-        pos = None
+        pos = batched_data["pos"]
         if not self.args.ft:
             ori_pos = batched_data["pos"]
             node_mask = batched_data["node_mask"]

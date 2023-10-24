@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import copy
+import os
 import random
 import time
 from pathlib import Path
@@ -187,6 +188,7 @@ class Trainer(object):
         self.state = TrainerState(args=args)
 
         self.save_dir = Path(self.args.save_dir)
+        self.save_dir.mkdir(parents=True, exist_ok=True)
 
         if self.args.finetune_from_checkpoint_dir is not None:
             self.finetune_from_checkpoint_dir = Path(
@@ -196,9 +198,11 @@ class Trainer(object):
             self.finetune_from_checkpoint_dir = None
 
         self.world_size = self.accelerator.world_size
+        self.start_iteration = 0
 
     def save_checkpoint(self, name: str):
         self.accelerator.save_checkpoint(name)
+        self._save_rng_and_iter_state(self.save_dir)
 
     def _load_checkpoint(self, path: Path, model_states_only: bool = False):
         checkpoint_list_path = path / "checkpoint_list.txt"
@@ -241,6 +245,7 @@ class Trainer(object):
     def resume(self):
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self._load_checkpoint(self.save_dir)
+        self.start_iteration = self._load_rng_and_iter_state(self.save_dir)
 
     def finetune_from_checkpoint(self):
         if self.finetune_from_checkpoint_dir is not None:
@@ -336,6 +341,9 @@ class Trainer(object):
 
     @property
     def train_data_loader(self) -> DataLoader:
+        """
+        Return the training data loader.
+        """
         return GroupedBatchIter(
             self.accelerator.train_data_loader,
             self.args.gradient_accumulation_steps,
@@ -347,6 +355,9 @@ class Trainer(object):
         return self.accelerator.valid_data_loader
 
     def train(self):
+        """
+        Train the model on the training data loader.
+        """
         logger.info("Start training")
         logger.info(self.model)
 
@@ -368,7 +379,10 @@ class Trainer(object):
             trainable_num,
         )
 
-        while self.state.epoch < self.args.total_num_epochs:
+        while (
+            self.state.epoch < self.args.total_num_epochs
+            and self.state.global_step < self.args.total_num_steps
+        ):
             self.accelerator.before_epoch(self.state.epoch)
 
             logger.info("Start Training for epoch: {}", self.state.epoch)
@@ -378,8 +392,11 @@ class Trainer(object):
                 self.accelerator.world_size, self.accelerator._allreducelog
             )
 
-            # TODO: the data loader state is not save/loaded. Need to fix this.
-            for grouped_batch_data in self.train_data_loader:
+            # skip first batches
+            data_iterator = self.train_data_loader
+            data_iterator = self.skip_first_batches(data_iterator, self.start_iteration)
+
+            for grouped_batch_data in data_iterator:
                 model_output = self.accelerator.train_step(grouped_batch_data)
                 loss_accumulator.add(model_output.loss, model_output.num_examples)
                 interval_loss_accumulator.add(
@@ -429,6 +446,9 @@ class Trainer(object):
         logger.info("Finished Training")
 
     def validate(self):
+        """
+        Validate the model on the validation data loader.
+        """
         if self.valid_data_loader is None:
             logger.warning("No validation data, skip validation")
             return
@@ -472,3 +492,93 @@ class Trainer(object):
         )
 
         metric_logger.log(valid_log, "valid")
+
+    def _save_rng_and_iter_state(self, checkpoint):
+        """
+        Save the RNG and iteration states to the checkpoint to resume training from break point.
+        Args:
+            checkpoint (str): the path to the checkpoint
+        """
+        if checkpoint is None:
+            return
+
+        rng_state = {
+            "python": random.getstate(),
+            "numpy": np.random.get_state(),
+            "cpu": torch.random.get_rng_state(),
+            "cuda": torch.cuda.random.get_rng_state_all()
+            if torch.cuda.is_available()
+            else None,
+            "iteration": self.state.batch,
+        }
+
+        if self.accelerator.world_size > 1:
+            process_index = self.args.local_rank
+            rng_file = os.path.join(checkpoint, f"rng_state_{process_index}.pth")
+        else:
+            rng_file = os.path.join(checkpoint, "rng_state.pth")
+
+        torch.save(rng_state, rng_file)
+
+    def _load_rng_and_iter_state(self, checkpoint):
+        """
+        Load the RNG and iteration states from the checkpoint to resume training from break point.
+        Args:
+            checkpoint (str): the path to the checkpoint
+        """
+        if checkpoint is None:
+            return
+
+        if self.accelerator.world_size > 1:
+            process_index = self.args.local_rank
+            rng_file = os.path.join(checkpoint, f"rng_state_{process_index}.pth")
+            if not os.path.isfile(rng_file):
+                logger.warning(
+                    f"Didn't find an RNG file for process {process_index}, if you are resuming a training that "
+                    "wasn't launched in a distributed fashion, reproducibility is not guaranteed."
+                )
+                return
+        else:
+            rng_file = os.path.join(checkpoint, "rng_state.pth")
+            if not os.path.isfile(rng_file):
+                logger.warning(
+                    "Didn't find an RNG file, if you are resuming a training that was launched in a distributed "
+                    "fashion, reproducibility is not guaranteed."
+                )
+                return
+
+        checkpoint_rng_state = torch.load(rng_file)
+        random.setstate(checkpoint_rng_state["python"])
+        np.random.set_state(checkpoint_rng_state["numpy"])
+        torch.random.set_rng_state(checkpoint_rng_state["cpu"])
+        if torch.cuda.is_available():
+            if self.accelerator.world_size > 1:
+                torch.cuda.random.set_rng_state_all(checkpoint_rng_state["cuda"])
+            else:
+                try:
+                    torch.cuda.random.set_rng_state(checkpoint_rng_state["cuda"])
+                except Exception as e:
+                    logger.warning(
+                        f"Didn't manage to set back the RNG states of the GPU because of the following error:\n {e}"
+                        "\nThis won't yield the same results as if the training had not been interrupted."
+                    )
+
+        start_iteration = checkpoint_rng_state["iteration"]
+        return start_iteration
+
+    def skip_first_batches(self, data_iterator, start_iteration=None):
+        """
+        Skip the first start_iteration batches in the training data loader to resume training from break point.
+        Args:
+            start_iteration (int): the number of batches to skip
+        """
+        if start_iteration is None:
+            return data_iterator
+
+        logger.info(f"Skipping the first {start_iteration} batches")
+        for i, _ in enumerate(data_iterator):
+            if i == start_iteration:
+                break
+
+        self.start_iteration = 0
+        return data_iterator

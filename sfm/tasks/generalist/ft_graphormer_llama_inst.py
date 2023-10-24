@@ -69,6 +69,10 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         pool_mode=args.pool_mode,
         embedding_length=args.embedding_length,
         num_token_id=tokenizer.encode("<num>", add_special_tokens=False)[0],
+        use_pp=(
+            args.strategy == TrainStrategy.Pipeline
+            or args.strategy == TrainStrategy.ThreeD
+        ),
     )
 
     return dict(

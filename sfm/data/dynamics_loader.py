@@ -49,6 +49,15 @@ class DynamicDistributedSampler(Sampler):
             required_batch_size_multiple=1,
         )
 
+        length = len(self.batches)
+
+        if self.drop_last and length % self.num_replicas != 0:  # type: ignore[arg-type]
+            self.num_samples = math.ceil(
+                (length - self.num_replicas) / self.num_replicas  # type: ignore[arg-type]
+            )
+        else:
+            self.num_samples = math.ceil(length / self.num_replicas)  # type: ignore[arg-type]
+
     def __set_dist_indices(self, length):
         if self.drop_last and length % self.num_replicas != 0:  # type: ignore[arg-type]
             self.num_samples = math.ceil(
@@ -102,11 +111,12 @@ class DynamicDistributedSampler(Sampler):
     def __iter__(self):
         local_batch_id = self.__set_dist_indices(len(self.batches))
         for batch_indices in local_batch_id:
-            # logger.success(f"local rank: {self.rank}, local_indices: {len(self.batches[batch_indices])}")
-            # deepspeed.comm.barrier()
             yield self.batches[batch_indices]
 
         self.set_epoch()
+
+    def __len__(self):
+        return self.num_samples
 
 
 class DynamicBatchSampler(Sampler):

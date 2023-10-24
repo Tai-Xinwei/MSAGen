@@ -15,7 +15,11 @@ from transformers.models.llama import LlamaForCausalLM, LlamaModel
 from transformers.models.llama.configuration_llama import LlamaConfig
 
 from megatron.core import parallel_state
-from sfm.criterions.copilotloss import CopilotCriterionsNumMP, CopilotCriterionsNumPP
+from sfm.criterions.copilotloss import (
+    CopilotCriterionsNum,
+    CopilotCriterionsNumMP,
+    CopilotCriterionsNumPP,
+)
 from sfm.data.mol_data.moltext_dataset import batch_collater_for_graphormer
 from sfm.logging.loggers import logger
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
@@ -24,7 +28,7 @@ from sfm.models.graphormer.modules.graphormer_sentence_encoder_mp import (
     GraphormerEncoderMP,
 )
 from sfm.models.llama2.llama2mp_config import MPLlamaConfig
-from sfm.models.llama2.llama_modules import LlamaEmbeddingsPP, LlamaModelPP
+from sfm.models.llama2.llama_modules import LlamaEmbeddingsPP, LlamaModelPP, NumMLP
 from sfm.models.llama2.llama_modules_3dmp import LlamaEmbeddingsMP, LlamaModelMP
 from sfm.pipeline.accelerator.dataclasses import ModelOutput, TrainStrategy
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
@@ -87,6 +91,12 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             self.graphormer_encoder = GraphormerSentenceEncoder(graphormer_config)
             self.decoder = LlamaForCausalLM(llama_config)
             self.adaptor = HybridEmbeddings(adaptor_config)
+            self.num_head = NumMLP(
+                llama_config.hidden_size, 4 * llama_config.hidden_size, 1
+            )
+            self.loss = CopilotCriterionsNum(
+                self.llama_config, self.llama_config.vocab_size
+            )
         elif args.strategy == TrainStrategy.Pipeline:
             self.pipe_layers.extend(
                 [
@@ -349,7 +359,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
         segment_labels=None,
     ) -> torch.Tensor:
         # generate mol_emb
-        mol_emb, _, _, _, mol_padding_mask = self.graphormer_encoder(
+        mol_emb, _, _, _, _, mol_padding_mask = self.graphormer_encoder(
             batched_data,
             segment_labels=segment_labels,
             perturb=perturb,
@@ -365,18 +375,23 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             mol_emb,
             mol_padding_mask,
             text_embeds,
-            batched_data["llm_mask"],
+            batched_data.get("llm_mask", batched_data["attention_mask"]),
             batched_data["input_ids"],
         )
 
         # decode
-        logits = self.decoder(
+        outputs = self.decoder(
             inputs_embeds=inputs_embeds,
-            attention_mask=batched_data["llm_mask"],
+            attention_mask=batched_data.get("llm_mask", batched_data["attention_mask"]),
             position_ids=position_ids,
-        )[0]
+            output_hidden_states=True,
+            return_dict=True,
+        )
 
-        return logits
+        logits = outputs["logits"]
+        num_logits = self.num_head(outputs["hidden_states"][-1])
+
+        return logits, num_logits
 
     def init_adaptor_config(self, args, llama_config):
         config = AdaptorConfig(
