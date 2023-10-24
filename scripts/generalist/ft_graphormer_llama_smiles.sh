@@ -26,12 +26,8 @@
 
 # [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot'
 [ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
-[ -z "${dataset_names}" ] && dataset_names='pdbbind'
-[ -z "${dataset_splits}" ] && dataset_splits='train'
-# [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
-# [ -z "${dataset_splits}" ] && dataset_splits='clean'
-# [ -z "${dataset_names}" ] && dataset_names='moleculenet'
-# [ -z "${dataset_splits}" ] && dataset_splits='dev'
+[ -z "${dataset_names}" ] && dataset_names='chebi'
+[ -z "${dataset_splits}" ] && dataset_splits='all'
 [ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
@@ -118,7 +114,7 @@ echo "pool_mode: ${pool_mode}"
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin a88403970290781c26d2d5a6c07fe56df2116fc4
+wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -170,10 +166,10 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --deepspeed_config ./config_file/ds_config_pp.json \
           --pp_partition_layer_name "LlamaDecoderLayerPP" \
           --add_3d \
-          --unfreeze_param_list "adaptor" \
+          --load_ckpt \
+          --unfreeze_param_list "adaptor,token_embed,mol_rep_layernorm" \
           --save_batch_interval $save_batch_interval
 
-          # --load_ckpt \
 
 sleep inf
 sleep inf
