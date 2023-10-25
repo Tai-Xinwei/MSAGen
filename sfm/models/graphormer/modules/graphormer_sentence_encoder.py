@@ -11,6 +11,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from sfm.logging import logger
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.modules.FairseqDropout import FairseqDropout
 from sfm.modules.get_activation_fn import get_activation_fn
@@ -313,7 +314,6 @@ class GraphormerSentenceEncoder(nn.Module):
             x[:, 1:, :] = x[:, 1:, :] + perturb
 
         # x: B x T x C
-
         attn_bias = self.graph_attn_bias(batched_data, mask_2d=mask_2d)
 
         # @ Roger added: 3D attn bias
@@ -372,6 +372,7 @@ class GraphormerSentenceEncoder(nn.Module):
             .view(n_graph, len(self.layers) + 1, -1, n_node + 1, n_node + 1)
             .contiguous()
         )
+
         for nl, layer in enumerate(self.layers):
             x, _ = layer(
                 x,
@@ -379,6 +380,7 @@ class GraphormerSentenceEncoder(nn.Module):
                 self_attn_mask=attn_mask,
                 self_attn_bias=attn_bias[:, nl, :, :, :],
             )
+
             if not last_state_only:
                 inner_states.append(x)
 

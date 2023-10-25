@@ -12,8 +12,8 @@
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=128
 
 [ -z "${dropout}" ] && dropout=0.0
-[ -z "${act_dropout}" ] && act_dropout=0.1
-[ -z "${attn_dropout}" ] && attn_dropout=0.1
+[ -z "${act_dropout}" ] && act_dropout=0.0
+[ -z "${attn_dropout}" ] && attn_dropout=0.0
 [ -z "${weight_decay}" ] && weight_decay=0.0
 [ -z "${sandwich_ln}" ] && sandwich_ln=true
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
@@ -26,8 +26,15 @@
 
 # [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot'
 [ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
-[ -z "${dataset_names}" ] && dataset_names='chebi'
-[ -z "${dataset_splits}" ] && dataset_splits='all'
+# [ -z "${dataset_names}" ] && dataset_names='chebi,mol-instruction-mol-desc'
+# [ -z "${dataset_splits}" ] && dataset_splits='all,clean'
+# [ -z "${dataset_ratios}" ] && dataset_ratios='1.0,1.0'
+# [ -z "${dataset_names}" ] && dataset_names='pdbbind'
+# [ -z "${dataset_splits}" ] && dataset_splits='train'
+[ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
+[ -z "${dataset_splits}" ] && dataset_splits='clean'
+# [ -z "${dataset_names}" ] && dataset_names='chebi'
+# [ -z "${dataset_splits}" ] && dataset_splits='all'
 [ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
@@ -38,9 +45,10 @@
 [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/llama2'
 [ -z "${smiles_dict_path}" ] && smiles_dict_path="/home/peiran/FMproj/chemical-copilot/mol2idx_dict.jsonl"
 # [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/checkpoint7_new.pt"
-[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/MetaLLM-converted/7B-pp"
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
+[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
+# [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/mnt/ddpm100M/tp"
 [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
 [ -z "${mol_size_path}" ] && mol_size_path="/home/peiran/FMproj/chemical-copilot/mol_size_dict.pkl"
 [ -z "${save_batch_interval}"] && save_batch_interval=500
@@ -145,7 +153,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --data_path $data_path \
           --pipeline_model_parallel_size $pipeline_model_parallel_size \
           --tensor_model_parallel_size $tensor_model_parallel_size \
-          --seed 666667 \
+          --seed 12345 \
           --ft \
           --d_tilde $d_tilde \
           --num_pred_attn_layer $num_pred_attn_layer \
@@ -165,10 +173,16 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --model_max_length $model_max_length \
           --deepspeed_config ./config_file/ds_config_pp.json \
           --pp_partition_layer_name "LlamaDecoderLayerPP" \
+<<<<<<< HEAD
           --add_3d \
           --load_ckpt \
           --unfreeze_param_list "adaptor,token_embed,mol_rep_layernorm" \
           --save_batch_interval $save_batch_interval
+=======
+          --unfreeze_param_list "mol_adaptor,mol_rep_layernorm,word_embeddings" \
+          --save_batch_interval $save_batch_interval --load_ckpt --add_3d
+
+>>>>>>> ebca380d33e253f4963b94372bff757b27ead91f
 
 
 sleep inf

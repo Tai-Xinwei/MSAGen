@@ -6,17 +6,12 @@ import torch
 import torch.nn as nn
 from transformers.activations import ACT2FN
 from transformers.configuration_utils import PretrainedConfig
+from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
 from sfm.logging import logger
-from sfm.models.generalist.modules.hybrid_emb import HybridEmbeddings
+from sfm.models.generalist.modules.hybrid_emb import HybridEmbeddings, MLPAdapter
 from sfm.models.llama2.llama_modules_3dmp import ParallelLlamaMLPAdapter
 from sfm.modules.sfmmodule import SFMModule
-
-try:
-    from apex.normalization import MixedFusedRMSNorm as LlamaRMSNorm
-except:
-    logger.error("failed to import apex import hybrid_emb_3dmp.py")
-    from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
 
 class HybridEmbeddingsMP(HybridEmbeddings, SFMModule):
@@ -87,6 +82,6 @@ class HybridEmbeddingsMP(HybridEmbeddings, SFMModule):
         )
 
         # convert size to [seq_length, batch_size, hidden_size] for decoder layer
-        hidden_states = inputs_embeds.to(mol_emb.dtype).transpose(0, 1)
+        hidden_states = inputs_embeds.to(mol_emb.dtype)  # .transpose(0, 1)
 
         return (hidden_states, llm_mask, position_ids)

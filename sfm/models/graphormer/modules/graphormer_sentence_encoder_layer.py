@@ -159,10 +159,11 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         LayerNorm is applied either before or after the self-attention/ffn
         modules similar to the original Transformer implementation.
         """
-        # x: T x B x C
 
+        # x: T x B x C
         residual = x
         x = self.self_attn_layer_norm(x)
+
         x, attn = self.self_attn(
             query=x,
             key=x,
@@ -179,6 +180,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         x = self.final_layer_norm(x)
         x = self.activation_fn(self.fc1(x))
         x = self.activation_dropout_module(x)
+
         x = self.final_layer_norm_2(x)
         x = self.fc2(x)
         x = self.dropout_module(x)
@@ -256,10 +258,7 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
             x, self_attn_padding_mask, self_attn_bias, delta_pos, pos = input_tuple
         else:
             x, self_attn_padding_mask, self_attn_bias, input_ids, llm_mask = input_tuple
-        # value_tensor, self_attn_padding_mask, shape_tensor = input_tuple
-        # x, self_attn_bias, delta_pos = self.tensors_decode(value_tensor, shape_tensor)
-        # x = x.to(torch.float16)
-        # print("layer", self.nl)
+
         assert type(x) == torch.Tensor
         assert type(self_attn_bias) == torch.Tensor
         assert type(self_attn_padding_mask) == torch.Tensor
@@ -268,6 +267,7 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
         self_attn_mask = None
         attn_bias_temp = self_attn_bias[:, self.nl, :, :, :]
         # x: T x B x C
+
         residual = x
         x = self.self_attn_layer_norm(x)
         x, attn = self.self_attn(
@@ -290,6 +290,7 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
         x = self.fc2(x)
         x = self.dropout_module(x)
         x = residual + x
+
         if not self.args.infer:
             return (
                 x.contiguous(),
@@ -306,5 +307,3 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
                 input_ids.contiguous(),
                 llm_mask.contiguous(),
             )
-        # value_tensor, shape_tensor = self.tensors_encode(x, self_attn_bias, delta_pos)
-        # return (value_tensor, self_attn_padding_mask, shape_tensor)

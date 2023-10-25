@@ -12,7 +12,7 @@ import torch
 import torch.nn.functional as F
 from deepspeed.accelerator import get_accelerator
 from deepspeed.moe.layer import MoE
-
+import torch.nn as nn
 from megatron import core, get_args, get_num_microbatches, get_retro_args, get_timers
 from megatron.core import parallel_state, tensor_parallel
 from megatron.core.enums import ModelType
@@ -20,7 +20,9 @@ from megatron.model import LayerNorm
 from megatron.model.enums import AttnMaskType, AttnType, LayerType
 from megatron.model.fused_bias_gelu import bias_gelu_impl
 from megatron.model.fused_softmax import FusedScaleMaskSoftmax
-from transformers.models.llama.modeling_llama import apply_rotary_pos_emb
+# from transformers.models.llama.modeling_llama import apply_rotary_pos_emb
+from megatron.model.rotary_pos_embedding import apply_rotary_pos_emb
+
 from megatron.model.utils import attention_mask_func, erf_gelu, openai_gelu
 from sfm.logging import logger
 
@@ -278,7 +280,7 @@ class CoreAttention(MegatronModule):
         # Dropout. Note that for a single iteration, this layer will generate
         # different outputs on different number of parallel partitions but
         # on average it should not be partition dependent.
-        self.attention_dropout = torch.nn.Dropout(config.attention_dropout)
+        # self.attention_dropout = torch.nn.Dropout(config.attention_dropout)
 
     def forward(self, query_layer, key_layer, value_layer, attention_mask):
         # ===================================
@@ -328,11 +330,11 @@ class CoreAttention(MegatronModule):
 
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
-        if not self.sequence_parallel:
-            with tensor_parallel.get_cuda_rng_tracker().fork():
-                attention_probs = self.attention_dropout(attention_probs)
-        else:
-            attention_probs = self.attention_dropout(attention_probs)
+        # if not self.sequence_parallel:
+        #     with tensor_parallel.get_cuda_rng_tracker().fork():
+        #         attention_probs = self.attention_dropout(attention_probs)
+        # else:
+        #     attention_probs = self.attention_dropout(attention_probs)
 
         # =========================
         # Context layer. [sq, b, hp]
@@ -709,6 +711,7 @@ class ParallelAttention(MegatronModule):
         encoder_output=None,
         inference_params=None,
         rotary_pos_emb=None,
+        rotary_pos_emb_func=None,
         position_ids=None,
     ):
         # # hidden_states: [sq, b, h]
@@ -812,17 +815,20 @@ class ParallelAttention(MegatronModule):
                 self.hidden_size_per_attention_head,
             )
             query_layer = query_layer.view(*new_tensor_shape)
-
+        # print(f"layer number is 0, query_states 0: {query_layer.transpose(0, 1)}")
         # ==================================
         # Adjust key and value for inference
         # ==================================
 
         # duplicate the pos_emb for self attention
-        if rotary_pos_emb is not None:
+        if rotary_pos_emb_func is not None:
+            rotary_pos_emb = rotary_pos_emb_func(value_layer.transpose(0, 1))
             if isinstance(rotary_pos_emb, tuple):
                 rotary_pos_emb = rotary_pos_emb
             else:
                 rotary_pos_emb = (rotary_pos_emb,) * 2
+        else:
+            rotary_pos_emb = None
 
         if inference_params:
             batch_start = inference_params.batch_size_offset
@@ -869,12 +875,18 @@ class ParallelAttention(MegatronModule):
 
         # apply relative positional encoding (rotary embedding)
         if rotary_pos_emb is not None:
-            cos, sin = rotary_pos_emb
-            query_layer, key_layer = apply_rotary_pos_emb(
-                # [sq, b, np, hn] -> [b, np, sq, hn], and then [b, np, sq, hn] -> [sq, b, np, hn]
-                query_layer.permute(1, 2, 0, 3), key_layer.permute(1, 2, 0, 3), cos, sin, position_ids)
-            query_layer = query_layer.permute(2, 0, 1, 3)
-            key_layer = key_layer.permute(2, 0, 1, 3)
+            # cos, sin = rotary_pos_emb
+            # query_layer, key_layer = apply_rotary_pos_emb(
+            #     # [sq, b, np, hn] -> [b, np, sq, hn], and then [b, np, sq, hn] -> [sq, b, np, hn]
+            #     query_layer.permute(1, 2, 0, 3), key_layer.permute(1, 2, 0, 3), cos, sin, position_ids)
+            # # print(f"layer number is 0, query_states 1: {query_layer}")
+
+            # query_layer = query_layer.permute(2, 0, 1, 3)
+            # key_layer = key_layer.permute(2, 0, 1, 3)
+
+            q_pos_emb, k_pos_emb = rotary_pos_emb
+            query_layer = apply_rotary_pos_emb(query_layer, q_pos_emb)
+            key_layer = apply_rotary_pos_emb(key_layer, k_pos_emb)
             # TODO, can apply positional embedding to value_layer so it has
             # absolute positional embedding.
             # otherwise, only relative positional embedding takes effect
@@ -886,9 +898,23 @@ class ParallelAttention(MegatronModule):
                     query_layer, key_layer, value_layer, attention_mask
                 )
             else:
-                context_layer = self.core_attention(
-                    query_layer, key_layer, value_layer, attention_mask
-                )
+                # context_layer = self.core_attention(
+                #     query_layer, key_layer, value_layer, attention_mask
+                # )
+
+                # if flash attention is not avaliable, use memory efficient attention
+                query_layer = query_layer.permute(1, 2, 0, 3)
+                key_layer = key_layer.permute(1, 2, 0, 3)
+                value_layer = value_layer.permute(1, 2, 0, 3)
+                bs, nh, Slen, Hidden = query_layer.shape
+
+                with torch.backends.cuda.sdp_kernel(
+                    enable_math=True, enable_mem_efficient=True, enable_flash=False
+                ):
+                    context_layer = torch.nn.functional.scaled_dot_product_attention(
+                        query_layer, key_layer, value_layer, attn_mask=attention_mask
+                    )
+                context_layer = context_layer.permute(2, 0, 1, 3).contiguous().view(Slen, bs, nh * Hidden)
         else:
             q, k, v = [
                 rearrange(x, "s b ... -> b s ...").contiguous()
@@ -902,6 +928,7 @@ class ParallelAttention(MegatronModule):
             context_layer = rearrange(
                 context_layer, "b s h d -> s b (h d)"
             ).contiguous()
+        # print(f"layer number is 0, attn_output 1: {context_layer.transpose(0, 1)}")
 
         # =================
         # Output. [sq, b, h]

@@ -11,9 +11,11 @@ except:
 
 from sfm.logging import logger
 from sfm.modules.FairseqDropout import FairseqDropout
+from sfm.modules.layer_norm import Fp32LayerNorm, LayerNorm
 
-from .graphormer_layers import GraphAttnBias, GraphNodeFeature
+from .graphormer_layers import GraphAttnBias
 from .graphormer_layers_mp import Graph3DBiasMP, GraphAttnBiasMP, GraphNodeFeatureMP
+from .graphormer_layers_pp import GraphAttnBiasPipe, GraphNodeFeaturePipe
 
 
 class GraphormerEmbeddingMP(SFMModule):
@@ -56,7 +58,7 @@ class GraphormerEmbeddingMP(SFMModule):
         )
 
         if graphormer_config.encoder_normalize_before:
-            self.emb_layer_norm = LayerNormTP(self.embedding_dim)
+            self.emb_layer_norm = LayerNorm(self.embedding_dim)
         else:
             self.emb_layer_norm = None
 
@@ -72,8 +74,23 @@ class GraphormerEmbeddingMP(SFMModule):
             no_2d=graphormer_config.no_2d,
         )
 
-        self.graph_attn_bias = GraphAttnBiasMP(
-            mp_config,
+        # self.graph_attn_bias = GraphAttnBiasMP(
+        #     mp_config,
+        #     args,
+        #     num_heads=graphormer_config.num_attention_heads
+        #     * (graphormer_config.num_encoder_layers + 1),
+        #     num_atoms=graphormer_config.num_atoms,
+        #     num_edges=graphormer_config.num_edges,
+        #     num_spatial=graphormer_config.num_spatial,
+        #     num_edge_dis=graphormer_config.num_edge_dis,
+        #     edge_type=graphormer_config.edge_type,
+        #     multi_hop_max_dist=graphormer_config.multi_hop_max_dist,
+        #     hidden_dim=graphormer_config.num_attention_heads,
+        #     n_layers=graphormer_config.num_encoder_layers,
+        #     no_2d=graphormer_config.no_2d,
+        # )
+
+        self.graph_attn_bias = GraphAttnBias(
             args,
             num_heads=graphormer_config.num_attention_heads
             * (graphormer_config.num_encoder_layers + 1),
@@ -86,7 +103,10 @@ class GraphormerEmbeddingMP(SFMModule):
             hidden_dim=graphormer_config.num_attention_heads,
             n_layers=graphormer_config.num_encoder_layers,
             no_2d=graphormer_config.no_2d,
+            # add_3d=add_3d,
+            # args=args,
         )
+        logger.info(f"graphormer_config.edge_type, {graphormer_config.edge_type}")
 
         assert graphormer_config.add_3d is False, "3D bias is not supported in MP mode"
         self.graph_3d_bias = (
@@ -150,18 +170,27 @@ class GraphormerEmbeddingMP(SFMModule):
 
         # x: B x T x C
         # calculate the 2D bias
-        input_tuple2 = (
-            attn_bias,
-            spatial_pos,
-            x_0,
-            edge_input,
-            None,
-            None,
-            None,
-        )
+        # input_tuple2 = (
+        #     attn_bias,
+        #     spatial_pos,
+        #     x_0,
+        #     edge_input,
+        #     None,
+        #     None,
+        #     None,
+        #     None,
+        # )
+
+        batched_data = {}
+        batched_data["attn_bias"] = attn_bias
+        batched_data["spatial_pos"] = spatial_pos
+        batched_data["x"] = x_0
+        batched_data["attn_edge_type"] = None
+        batched_data["edge_input"] = edge_input
+        batched_data["node_mask"] = None
 
         attn_bias = self.graph_attn_bias(
-            input_tuple2
+            batched_data
         )  # B x (nhead x (nlayer+1)) x T x T
 
         # tp 3d bias is not implemented, it's not needed in the generalist task
@@ -200,32 +229,31 @@ class GraphormerEmbeddingMP(SFMModule):
             attn_bias.contiguous()
             .view(n_graph, self.args.encoder_layers + 1, -1, n_node + 1, n_node + 1)
             .contiguous()
-        ).to(
-            x.dtype
-        )  # B x (nlayer+1) x nhead_pre_tprank x T x T
+        )  # .to(x.dtype)  # B x (nlayer+1) x nhead_pre_tprank x T x T
 
         assert (
             self.args.encoder_attention_heads % self.config.tensor_model_parallel_size
             == 0
         ), f"Force TP size be divisible by nhead to avoid low efficiency, but got {self.args.encoder_attention_heads} and {self.config.tensor_model_parallel_size}"
+
         nhead_per_TP_rank = (
             self.args.encoder_attention_heads // self.config.tensor_model_parallel_size
         )
 
-        assert list(attn_bias.size()) == [
-            Bs,
-            self.graphormer_config.num_encoder_layers + 1,
-            nhead_per_TP_rank,
-            Seq_len,
-            Seq_len,
-        ], f"attn_bias size is {attn_bias.size()}, but expected to be [{Bs}, {self.graphormer_config.num_encoder_layers+1}, {nhead_per_TP_rank}, {Seq_len}, {Seq_len}]"
+        # assert list(attn_bias.size()) == [
+        #     Bs,
+        #     self.graphormer_config.num_encoder_layers + 1,
+        #     nhead_per_TP_rank,
+        #     Seq_len,
+        #     Seq_len,
+        # ], f"attn_bias size is {attn_bias.size()}, but expected to be [{Bs}, {self.graphormer_config.num_encoder_layers+1}, {nhead_per_TP_rank}, {Seq_len}, {Seq_len}]"
 
-        return x, padding_mask, attn_bias, input_ids, llm_mask
+        # return x, padding_mask, attn_bias, input_ids, llm_mask
 
         # patition the attn_bias to each TP rank
-        # tp_rank = parallel_state.get_tensor_model_parallel_rank()
-        # attn_bias_tp = attn_bias[
-        #     :, :, tp_rank * nhead_per_TP_rank : (tp_rank + 1) * nhead_per_TP_rank, :, :
-        # ]
-        #
-        # return x, padding_mask, attn_bias_tp, input_ids, llm_mask
+        tp_rank = parallel_state.get_tensor_model_parallel_rank()
+        attn_bias_tp = attn_bias[
+            :, :, tp_rank * nhead_per_TP_rank : (tp_rank + 1) * nhead_per_TP_rank, :, :
+        ]
+
+        return x, padding_mask, attn_bias_tp, input_ids, llm_mask

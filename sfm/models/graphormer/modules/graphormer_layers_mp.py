@@ -10,7 +10,7 @@ from torch_cluster import radius_graph
 from torch_geometric.nn import MessagePassing
 from torch_scatter import scatter
 
-from megatron.core import tensor_parallel
+from megatron.core import parallel_state, tensor_parallel
 from sfm.logging import logger
 from sfm.modules.FairseqDropout import FairseqDropout
 from sfm.modules.get_activation_fn import get_activation_fn
@@ -49,7 +49,7 @@ class GraphNodeFeatureMP(SFMModule):
         self.no_2d = no_2d
         self.args = args
 
-        # self.atom_encoder = nn.Embedding(num_atoms + 1, hidden_dim, padding_idx=0)
+        self.atom_encoder = nn.Embedding(num_atoms + 1, hidden_dim, padding_idx=0)
         self.in_degree_encoder = nn.Embedding(num_in_degree, hidden_dim, padding_idx=0)
         self.out_degree_encoder = nn.Embedding(
             num_out_degree, hidden_dim, padding_idx=0
@@ -58,16 +58,16 @@ class GraphNodeFeatureMP(SFMModule):
         self.graph_token = nn.Embedding(1, hidden_dim)
         self.atom_mask_embedding = nn.Embedding(9, hidden_dim, padding_idx=None)
 
-        padded_num_atoms = (
-            num_atoms // mp_config.tensor_model_parallel_size + 1
-        ) * mp_config.tensor_model_parallel_size
+        # padded_num_atoms = (
+        #     num_atoms // mp_config.tensor_model_parallel_size + 1
+        # ) * mp_config.tensor_model_parallel_size
 
-        self.atom_encoder = tensor_parallel.VocabParallelEmbedding(
-            padded_num_atoms,
-            hidden_dim,
-            config=mp_config,
-            init_method=mp_config.init_method,
-        )
+        # self.atom_encoder = tensor_parallel.VocabParallelEmbedding(
+        #     padded_num_atoms,
+        #     hidden_dim,
+        #     config=mp_config,
+        #     init_method=mp_config.init_method,
+        # )
 
         # No need to split, TP will cause unnecessary communication
         # padded_num_in_degree = (
@@ -158,68 +158,63 @@ class GraphAttnBiasMP(SFMModule):
         no_2d=False,
     ):
         super(GraphAttnBiasMP, self).__init__()
-        self.num_heads_per_tprank = num_heads // mp_config.tensor_model_parallel_size
+        self.num_heads_per_tprank = num_heads  # // mp_config.tensor_model_parallel_size
         self.multi_hop_max_dist = multi_hop_max_dist
         self.no_2d = no_2d
         self.args = args
         self.param_type = mp_config.params_dtype
-        # self.edge_encoder = nn.Embedding(num_edges + 1, hidden_dim, padding_idx=0)
+        self.edge_encoder = nn.Embedding(num_edges + 1, hidden_dim, padding_idx=0)
 
         # size of num_heads = num_heads * (nlayer + 1)
         self.edge_type = edge_type
         self.edge_hidden_dim = hidden_dim
-        # if self.edge_type == "multi_hop":
-        #     self.edge_dis_encoder = nn.Embedding(
-        #         num_edge_dis * hidden_dim * num_heads, 1
-        #     )
-        # self.spatial_pos_encoder = nn.Embedding(
-        #     num_spatial + 10, num_heads, padding_idx=0
-        # )
-
-        # self.graph_token_virtual_distance = nn.Embedding(1, num_heads)
-
-        # self.edge_encoder = tensor_parallel.VocabParallelEmbedding(
-        #     num_edges + 1, hidden_dim, config=config, init_method=config.init_method
-        # )
-        # self.edge_type = edge_type
-        # self.edge_hidden_dim = hidden_dim
-
-        padded_num_edges = (
-            num_edges // mp_config.tensor_model_parallel_size + 1
-        ) * mp_config.tensor_model_parallel_size
-
-        self.edge_encoder = tensor_parallel.VocabParallelEmbedding(
-            padded_num_edges,
-            hidden_dim,
-            config=mp_config,
-            init_method=mp_config.init_method,
-        )
 
         if self.edge_type == "multi_hop":
-            self.edge_dis_encoder = tensor_parallel.VocabParallelEmbedding(
-                num_edge_dis * hidden_dim * num_heads,
-                1,
-                config=mp_config,
-                init_method=mp_config.init_method,
+            self.edge_dis_encoder = nn.Embedding(
+                num_edge_dis * hidden_dim * num_heads, 1
             )
-
-        self.spatial_pos_encoder = tensor_parallel.RowParallelLinear(
-            num_heads,
-            num_spatial + 10,
-            config=mp_config,
-            init_method=mp_config.output_layer_init_method,
-            bias=False,
-            input_is_parallel=True,
+        self.spatial_pos_encoder = nn.Embedding(
+            num_spatial + 10, num_heads, padding_idx=0
         )
 
-        self.graph_token_virtual_distance = tensor_parallel.RowParallelLinear(
-            num_heads,
-            1,
-            config=mp_config,
-            init_method=mp_config.output_layer_init_method,
-            bias=False,
-            input_is_parallel=True,
-        )
+        self.graph_token_virtual_distance = nn.Embedding(1, num_heads)
+
+        # padded_num_edges = (
+        #     num_edges // mp_config.tensor_model_parallel_size + 1
+        # ) * mp_config.tensor_model_parallel_size
+
+        # self.edge_encoder = tensor_parallel.VocabParallelEmbedding(
+        #     padded_num_edges,
+        #     hidden_dim,
+        #     config=mp_config,
+        #     init_method=mp_config.init_method,
+        # )
+
+        # if self.edge_type == "multi_hop":
+        #     self.edge_dis_encoder = tensor_parallel.VocabParallelEmbedding(
+        #         num_edge_dis * hidden_dim * num_heads,
+        #         1,
+        #         config=mp_config,
+        #         init_method=mp_config.init_method,
+        #     )
+
+        # self.spatial_pos_encoder = tensor_parallel.RowParallelLinear(
+        #     num_heads,
+        #     num_spatial + 10,
+        #     config=mp_config,
+        #     init_method=mp_config.output_layer_init_method,
+        #     bias=False,
+        #     input_is_parallel=True,
+        # )
+
+        # self.graph_token_virtual_distance = tensor_parallel.RowParallelLinear(
+        #     num_heads,
+        #     1,
+        #     config=mp_config,
+        #     init_method=mp_config.output_layer_init_method,
+        #     bias=False,
+        #     input_is_parallel=True,
+        # )
 
     def forward(self, input_tuple: tuple):
         (
@@ -285,27 +280,28 @@ class GraphAttnBiasMP(SFMModule):
                 if self.multi_hop_max_dist > 0:
                     spatial_pos_ = spatial_pos_.clamp(0, self.multi_hop_max_dist)
                     edge_input = edge_input[:, :, :, : self.multi_hop_max_dist, :]
+
                 # [n_graph, n_node, n_node, max_dist, n_head]
                 edge_input = self.edge_encoder(edge_input).mean(-2)
                 max_dist = edge_input.size(-2)
                 edge_input_flat = edge_input.permute(3, 0, 1, 2, 4).reshape(
                     max_dist, n_node * n_node * n_graph, self.edge_hidden_dim
                 )
+
                 edge_input_flat = torch.bmm(
                     edge_input_flat,
                     self.edge_dis_encoder.weight.reshape(
                         -1, self.edge_hidden_dim, self.num_heads_per_tprank
                     )[:max_dist, :, :],
                 )
+
                 edge_input = edge_input_flat.reshape(
                     max_dist, n_graph, n_node, n_node, self.num_heads_per_tprank
                 ).permute(1, 2, 3, 0, 4)
+
                 edge_input = (
                     edge_input.sum(-2) / (spatial_pos_.float().unsqueeze(-1))
                 ).permute(0, 3, 1, 2)
-                # edge_input = (
-                #     edge_input.sum(-2) / (spatial_pos_.to(self.param_type).unsqueeze(-1))
-                # ).permute(0, 3, 1, 2)
             else:
                 # [n_graph, n_node, n_node, n_head] -> [n_graph, n_head, n_node, n_node]
                 edge_input = (
@@ -370,7 +366,7 @@ class Graph3DBiasMP(SFMModule):
 
         delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
         dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
-        delta_pos /= dist.unsqueeze(-1) + 1e-5
+        delta_pos = delta_pos / (dist.unsqueeze(-1) + 1e-5)
 
         if not self.args.ft and node_mask is not None:
             node_mask_i = node_mask.unsqueeze(-2).repeat(1, 1, n_node, 1)

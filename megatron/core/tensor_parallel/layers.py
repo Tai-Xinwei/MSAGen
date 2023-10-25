@@ -327,7 +327,7 @@ class LinearWithGradAccumulationAndAsyncCommunication(torch.autograd.Function):
             grad_output = grad_output.view(
                 grad_output.shape[0] * grad_output.shape[1], grad_output.shape[2]
             )
-            total_input = total_input.view(
+            total_input = total_input.reshape(
                 total_input.shape[0] * total_input.shape[1], total_input.shape[2]
             )
         else:

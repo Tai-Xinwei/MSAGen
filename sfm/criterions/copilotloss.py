@@ -200,12 +200,13 @@ class CopilotCriterionsNumMP(CopilotCriterions):
         self.l_num = nn.L1Loss(reduction="sum")
         self.global_step = 0
         self.wandb_log = True
+        self.l1 = nn.CrossEntropyLoss(reduction=reduction)
 
     def forward(self, output, label):
         labels, loss_mask = label[0].to(torch.int64), label[1]
         num_labels = label[2]
 
-        loss_mask = loss_mask[..., 1:].contiguous()
+        loss_mask = loss_mask[..., 1:].contiguous().transpose(0, 1)
 
         logits = output[0]
         num_logits = output[1].transpose(0, 1).contiguous()
@@ -217,19 +218,20 @@ class CopilotCriterionsNumMP(CopilotCriterions):
         shift_logits = shift_logits.transpose(0, 1).contiguous()
         shift_labels = shift_labels.transpose(0, 1).contiguous()
         shift_labels = shift_labels.to(shift_logits.device)
+        loss = tensor_parallel.vocab_parallel_cross_entropy(shift_logits, shift_labels)
 
-        loss = (
-            tensor_parallel.vocab_parallel_cross_entropy(shift_logits, shift_labels)
-            .transpose(0, 1)
-            .contiguous()
-            .view(-1)
-        )
+        instruct_mask = shift_labels != -100
+
+        loss_mask = instruct_mask & loss_mask
+        # logger.info(f"{loss_mask}")
         loss_mask = loss_mask.view(-1)
 
+        loss = loss.contiguous().view(-1)
         if loss_mask.sum() == 0:
             loss = torch.tensor(0.0).to(loss.device)
         else:
-            loss = torch.sum(loss * loss_mask) / loss_mask.sum()
+            loss = loss.masked_fill_(~loss_mask, 0.0)
+            loss = torch.sum(loss) / (loss_mask).sum()
 
         num_idx = (num_labels != -100).view(-1)
         num_labels = num_labels.view(-1).masked_fill(~num_idx, 0.0)

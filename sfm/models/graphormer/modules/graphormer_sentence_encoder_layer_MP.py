@@ -4,17 +4,21 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Callable, Optional
+from typing import Any, Callable, Mapping, Optional
 
 import torch
+import torch.distributed as dist
 import torch.nn as nn
 
 from megatron.core import parallel_state, tensor_parallel
 from megatron.model.transformer import ParallelAttention
+from sfm.logging import logger
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.modules.droppath import DropPath
 from sfm.modules.FairseqDropout import FairseqDropout
 from sfm.modules.get_activation_fn import get_activation_fn
+from sfm.modules.layer_norm import Fp32LayerNorm, LayerNorm
+from sfm.modules.multihead_attention import MultiheadAttention
 from sfm.modules.parallelattentionbias import TPMultiheadAttention
 from sfm.modules.quant_noise import quant_noise
 from sfm.modules.sfmmodule import SFMModule
@@ -69,7 +73,7 @@ class GraphormerSentenceEncoderLayerMP(SFMModule):
             d_tilde=args.d_tilde,
         )
 
-        self.self_attn_layer_norm = LayerNormTP(self.embedding_dim)
+        self.self_attn_layer_norm = LayerNorm(self.embedding_dim)
 
         self.fc1 = self.build_fc1_TP(
             self.embedding_dim,
@@ -82,11 +86,49 @@ class GraphormerSentenceEncoderLayerMP(SFMModule):
         )
 
         # layer norm associated with the position wise feed-forward NN
-        self.final_layer_norm = LayerNormTP(self.embedding_dim)
+        self.final_layer_norm = LayerNorm(self.embedding_dim)
 
         # self.final_sandwich_layer_norm = LayerNorm(self.embedding_dim, export=export) if self.sandwich_ln else None
-        self.final_layer_norm_2 = LayerNormTP(
-            self.ffn_embedding_dim // mp_config.tensor_model_parallel_size
+        self.final_layer_norm_2 = LayerNorm(self.ffn_embedding_dim)
+
+    def auto_partition_load_state_dict(
+        self,
+        state_dict: Mapping[str, Any],
+        tp_model_size: int,
+        tp_rank: int,
+        strict: bool = True,
+    ):
+        # update key mapping
+        keys = list(state_dict.keys())
+        new_state_dict = {}
+        for key in keys:
+            param = state_dict[key]
+            if key == "self_attn.out_proj.weight":
+                new_state_dict["self_attn.dense.weight"] = param
+            elif key == "self_attn.out_proj.bias":
+                new_state_dict["self_attn.dense.bias"] = param
+            elif key == "self_attn.q_proj.weight":
+                new_state_dict["self_attn.query.weight"] = param
+            elif key == "self_attn.q_proj.bias":
+                new_state_dict["self_attn.query.bias"] = param
+            elif key == "self_attn.k_proj.weight":
+                new_state_dict["self_attn.key.weight"] = param
+            elif key == "self_attn.k_proj.bias":
+                new_state_dict["self_attn.key.bias"] = param
+            elif key == "self_attn.v_proj.weight":
+                new_state_dict["self_attn.value.weight"] = param
+            elif key == "self_attn.v_proj.bias":
+                new_state_dict["self_attn.value.bias"] = param
+            else:
+                new_state_dict[key] = param
+
+        del state_dict
+
+        return super().auto_partition_load_state_dict(
+            state_dict=new_state_dict,
+            tp_model_size=tp_model_size,
+            tp_rank=tp_rank,
+            strict=strict,
         )
 
     def reset_parameters(self):
@@ -120,7 +162,7 @@ class GraphormerSentenceEncoderLayerMP(SFMModule):
             config=self.mp_config,
             init_method=self.mp_config.output_layer_init_method,
             bias=True,
-            input_is_parallel=True,
+            input_is_parallel=False,
         )
 
     def build_self_attention_TP(
@@ -151,36 +193,28 @@ class GraphormerSentenceEncoderLayerMP(SFMModule):
         """
 
         x, self_attn_padding_mask, self_attn_bias, input_ids, llm_mask = input_tuple
-        # value_tensor, self_attn_padding_mask, shape_tensor = input_tuple
-        # x, self_attn_bias, delta_pos = self.tensors_decode(value_tensor, shape_tensor)
-        # x = x.to(torch.float16)
-        # print("layer", self.nl)
+
         assert type(x) == torch.Tensor
         assert type(self_attn_bias) == torch.Tensor
         assert type(self_attn_padding_mask) == torch.Tensor
-        # assert type(delta_pos) == torch.Tensor
 
-        seq_len, _, _ = x.shape
         attn_bias_temp = self_attn_bias[:, self.nl, :, :, :]
+        self_attn_padding_mask_temp = self_attn_padding_mask
+
         assert (
             self.num_attention_heads % self.mp_config.tensor_model_parallel_size == 0
         ), f"num_attention_heads {self.num_attention_heads} must be divisible by tensor_model_parallel_size {self.mp_config.tensor_model_parallel_size}"
-        # num_head_pre_tprank = (
-        #     self.num_attention_heads // self.mp_config.tensor_model_parallel_size
-        # )
-        self_attn_padding_mask_temp = (
-            self_attn_padding_mask.unsqueeze(1).unsqueeze(-1).repeat(1, 1, 1, seq_len)
-        )
+
         # x: T x B x C
         residual = x
         x = self.self_attn_layer_norm(x)
+
         x, _ = self.self_attn(
-            hidden_states=x,
+            query=x,
             key=x,
             value=x,
             attn_bias=attn_bias_temp,
-            attention_mask=self_attn_padding_mask_temp,
-            # attention_mask=self_attn_mask,
+            key_padding_mask=self_attn_padding_mask_temp,
         )
         x = self.dropout_module(x)
         x = residual + x
@@ -190,7 +224,25 @@ class GraphormerSentenceEncoderLayerMP(SFMModule):
         x, _ = self.fc1(x)
         x = self.activation_fn(x)
         x = self.activation_dropout_module(x)
-        x = self.final_layer_norm_2(x)
+
+        # # merge first for layer_norm, extra communication due to this layer_norm in graphormer attention
+        tp_world_size = parallel_state.get_tensor_model_parallel_world_size()
+        if tp_world_size > 1:
+            tp_rank = parallel_state.get_tensor_model_parallel_rank()
+            tp_group = parallel_state.get_tensor_model_parallel_group()
+            tgt_len, bsz, embed_dim = x.shape
+            merged_x = torch.zeros(
+                (tgt_len, bsz, embed_dim * tp_world_size),
+                device=x.device,
+                dtype=x.dtype,
+            )
+            merged_x[:, :, embed_dim * tp_rank : embed_dim * (tp_rank + 1)] = x
+
+            dist.all_reduce(merged_x, group=tp_group, op=dist.ReduceOp.SUM)
+        else:
+            merged_x = x
+
+        x = self.final_layer_norm_2(merged_x)
         x, _ = self.fc2(x)
         x = self.dropout_module(x)
         x = residual + x
@@ -199,8 +251,8 @@ class GraphormerSentenceEncoderLayerMP(SFMModule):
             return (
                 x.contiguous(),
                 self_attn_padding_mask.contiguous(),
-                input_ids.contiguous(),
                 llm_mask.contiguous(),
+                input_ids.contiguous(),
             )
         else:
             return (

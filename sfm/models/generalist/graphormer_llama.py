@@ -150,6 +150,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             )
         else:
             layer_id = 0
+
             self.pipe_layers.extend(
                 GraphormerEncoderMP.to_layers(
                     args,
@@ -186,13 +187,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                         adaptor_config,
                         mp_config,
                         new_num_tokens=vocab_size,
-                        load_ckpt=args.load_ckpt,
-                        pretrained_ckpt_path=os.path.join(
-                            args.llm_model_name_or_path,
-                            ckp_list[layer_id]
-                            if len(ckp_list) > 0
-                            else "model.hybrid_emb.pt",
-                        ),
+                        load_ckpt=False,
                         tp_model_size=args.tensor_model_parallel_size,
                         tp_rank=parallel_state.get_tensor_model_parallel_rank(),
                     )

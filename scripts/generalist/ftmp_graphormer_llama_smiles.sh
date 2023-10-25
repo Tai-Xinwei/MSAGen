@@ -31,19 +31,31 @@ fi
 [ -z "${seed}" ] && seed=12345
 
 # generalist dataset settings
-[ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
-[ -z "${dataset_names}" ] && dataset_names='chebi'
-[ -z "${dataset_splits}" ] && dataset_splits='all'
-[ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
+# [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
+# [ -z "${data_path}" ] && data_path='/home/peiran/mnt/mntsfm2/data/chemical-copilot-special-token/'
+[ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
+# [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
+# [ -z "${dataset_splits}" ] && dataset_splits='clean'
+[ -z "${dataset_names}" ] && dataset_names='chebi,mol-instruction-mol-desc'
+[ -z "${dataset_splits}" ] && dataset_splits='all,clean'
+[ -z "${dataset_ratios}" ] && dataset_ratios='1.0,1.0'
+# [ -z "${dataset_names}" ] && dataset_names='chebi'
+# [ -z "${dataset_splits}" ] && dataset_splits='all'
+# [ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
+
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
 [ -z "${model_max_length}" ] && model_max_length=512
 
 # checkpoint and log settings
-[ -z "${save_dir}" ] && save_dir='/mnt/shiyu/checkpoints/llama2-local-debug'
-[ -z "${save_batch_interval}" ] && save_batch_interval=500
-[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
+# [ -z "${save_dir}" ] && save_dir='/mnt/shiyu/checkpoints/llama2-local-debug'
+[ -z "${save_dir}" ] && save_dir='/home/peiran/mnt/mntsfm2/output'
+[ -z "${save_batch_interval}" ] && save_batch_interval=5000
+# [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/"
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
+# [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
+[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/tp"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
 [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir=""
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id=""
 [ -z "${wandb_key}" ] && wandb_key=5d03b7a46d10f86ff45c4aedc570660a523edc0b
@@ -54,8 +66,8 @@ if [[ $finetune_from_checkpoint_dir != "" ]]; then
 fi
 
 # training parallelism
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=2
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=2
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=4
 [ -z "${strategy}" ] && strategy=ThreeD
 # determine zero strategy in DeepSpeed
 if [[ "${strategy}" == "Zero1" || "${strategy}" == "Pipeline" || "${strategy}" == "ThreeD" ]]; then
@@ -66,12 +78,13 @@ elif [[ ${strategy} == "Zero3" ]]; then
   zero_strategy=3
 fi
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="manual"
-[ -z "${pp_part_list}" ] && pp_part_list="[0, 40, 61]"
-[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="adaptor"
+[ -z "${pp_part_list}" ] && pp_part_list="[0, 61]"
+# [ -z "${pp_part_list}" ] && pp_part_list="[0, 10, 19, 28, 37]"
+[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="mol_adaptor,mol_rep_layernorm,word_embeddings"
 
 # training parameters for generalist
-[ -z "${micro_batch_size}" ] && micro_batch_size=1
-[ -z "${global_batch_size}" ] && global_batch_size=64
+[ -z "${micro_batch_size}" ] && micro_batch_size=2
+[ -z "${global_batch_size}" ] && global_batch_size=8
 [ -z "${max_position_embeddings}" ] && max_position_embeddings=2048
 [ -z "${llm_hidden_size}" ] && llm_hidden_size=4096
 
@@ -80,13 +93,13 @@ if [[ "${strategy}" == "ThreeD" ]]; then
   MEGATRON_ARGS="--micro-batch-size $micro_batch_size --global-batch-size $global_batch_size \
     --num-layers $layers --hidden-size $llm_hidden_size --seq-length $max_position_embeddings \
     --max-position-embeddings $max_position_embeddings --num-attention-heads $num_head \
-    --seq-length $max_position_embeddings --disable-bias-linear --no-position-embedding"
+    --seq-length $max_position_embeddings --disable-bias-linear --no-position-embedding --no-query-key-layer-scaling"
 else
   MEGATRON_ARGS=""
 fi
 
 # default env variables for distributed training
-[ -z "${MASTER_PORT}" ] && MASTER_PORT=12345
+[ -z "${MASTER_PORT}" ] && MASTER_PORT=12346
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=0

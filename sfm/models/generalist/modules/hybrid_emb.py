@@ -354,12 +354,6 @@ class HybridEmbeddings(nn.Module):
                 )
                 self.embedding_length = config.embedding_length
 
-        # self.dummy = nn.Linear(1, 1)
-
-        # self.mol_adapter = MLPAdapter(hidden_size=config.mfm_hidden_size, intermediate_size=config.mfm_hidden_size,
-        #   output_size=config.hidden_size, hidden_act=config.hidden_act)
-        # self.mol_adapter = nn.Linear(config.mfm_hidden_size, config.hidden_size)
-
     def _forward_embedding(
         self, mol_rep, mol_padding_mask, token_embed, input_ids: torch.LongTensor = None
     ):
@@ -379,7 +373,6 @@ class HybridEmbeddings(nn.Module):
 
         mol_padding_mask = mol_padding_mask.long().unsqueeze(-1)
         mol_rep = self.mol_rep_layernorm(mol_rep)
-        # logger.info(f"after layer norm mol_rep, {mol_rep}")
 
         if self.mode == "mean":
             pooled_rep = self.mol_adaptor(mol_rep) * (
@@ -402,7 +395,10 @@ class HybridEmbeddings(nn.Module):
             )  # B, T, H
             token_embed = torch.where(mol_idx_mask, pooled_rep, token_embed)
         elif self.mode == "full":
+            # torch.save({"mol_rep": mol_rep}, "/home/peiran/mnt/mntsfm2/output/mol_rep_ln_pp.pt")
             mol_rep = self.mol_adaptor(mol_rep)  # [:, 1:, :]  # B, nnode, H
+            # torch.save({"mol_rep": mol_rep}, "/home/peiran/mnt/mntsfm2/output/mol_rep_ada_pp.pt")
+
             # # Out-of-place operation fix the bug with Tensor Parallelism
             # Create a new tensor with the same shape and device as token_embed
             new_token_embed = token_embed.clone()
