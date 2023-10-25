@@ -90,6 +90,9 @@ class PretrainedLayerSpec(LayerSpec):
         elif type(checkpoints_state) == dict and "model" in checkpoints_state:
             checkpoints_state = checkpoints_state["model"]
 
+        if self.new_num_tokens is not None:
+            checkpoints_state = self.resize_token_embeddings(checkpoints_state)
+
         IncompatibleKeys = layer.auto_partition_load_state_dict(
             state_dict=checkpoints_state,
             tp_model_size=self.tp_model_size,
@@ -134,7 +137,7 @@ class PretrainedLayerSpec(LayerSpec):
             old_head_size = checkpoints_state["lm_head.weight"].size(0)
             if old_head_size == self.new_num_tokens:
                 return checkpoints_state
-            elif old_head_size <= self.new_num_tokens:
+            elif old_head_size < self.new_num_tokens:
                 old_head_weight = checkpoints_state["lm_head.weight"]
                 new_head = torch.nn.Linear(
                     old_head_weight.size(1),
@@ -151,6 +154,7 @@ class PretrainedLayerSpec(LayerSpec):
                     new_head.weight
                 )
                 new_head.weight.data = torch.normal(mean=mean, std=std)
+                # new_head.weight.data.zero_()
 
                 new_head.weight.data[
                     : old_head_weight.size(0), :
@@ -167,7 +171,7 @@ class PretrainedLayerSpec(LayerSpec):
             old_embed_size = checkpoints_state["embed_tokens.weight"].size(0)
             if old_embed_size == self.new_num_tokens:
                 return checkpoints_state
-            elif old_embed_size <= self.new_num_tokens:
+            elif old_embed_size < self.new_num_tokens:
                 old_embed_weight = checkpoints_state["embed_tokens.weight"]
                 new_embed = torch.nn.Embedding(
                     self.new_num_tokens,
@@ -182,8 +186,8 @@ class PretrainedLayerSpec(LayerSpec):
                 std = old_embed_weight.std(dim=0, keepdim=True).expand_as(
                     new_embed.weight
                 )
-
                 new_embed.weight.data = torch.normal(mean=mean, std=std)
+                # new_embed.weight.data.zero_()
 
                 new_embed.weight.data[
                     : old_embed_weight.size(0), :

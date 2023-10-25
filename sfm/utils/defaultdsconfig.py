@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 DEFAULT_DS_CONFIG = {
-    "train_batch_size": 2,
+    "train_batch_size": 1,
     "gradient_accumulation_steps": 1,
     "zero_allow_untested_optimizer": True,
     "optimizer": {

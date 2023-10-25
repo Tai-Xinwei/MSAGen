@@ -138,7 +138,7 @@ class LogAccumulator(object):
         self.extra_log["SamplePerSec"] = self.num_examples / (
             time.time() - self.start_time
         )
-        self.extra_log_num["SamplePerSec"] = 1.0 / self.world_size
+        self.extra_log_num["SamplePerSec"] = 1.0
         if self.world_size == 1 or self.allreduce_fn is None:
             return {k: v / self.extra_log_num[k] for k, v in self.extra_log.items()}
         else:

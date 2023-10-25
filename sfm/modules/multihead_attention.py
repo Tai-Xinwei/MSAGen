@@ -161,6 +161,7 @@ class MultiheadAttention(nn.Module):
         q = self.q_proj(query)
         k = self.k_proj(query)
         v = self.v_proj(query)
+
         q *= self.scaling
 
         q = (
@@ -197,13 +198,6 @@ class MultiheadAttention(nn.Module):
             assert key_padding_mask.size(0) == bsz
             assert key_padding_mask.size(1) == src_len
 
-        # q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
-        # k = k.view(bsz, self.num_heads, src_len, self.head_dim)
-        # v = v.view(bsz, self.num_heads, src_len, self.head_dim)
-        # attn_mask = key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool)
-        # with torch.backends.cuda.sdp_kernel(enable_math=True, enable_mem_efficient=True):
-        #     attn = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=0.1)
-
         attn_weights = torch.bmm(q, k.transpose(1, 2))
         attn_weights = self.apply_sparse_mask(attn_weights, tgt_len, src_len, bsz)
 
@@ -234,15 +228,19 @@ class MultiheadAttention(nn.Module):
         #     attn_weights, dim=-1, onnx_trace=self.onnx_trace
         # )
         attn_weights_float = nn.functional.softmax(attn_weights, dim=-1)
+
         attn_weights = attn_weights_float.type_as(attn_weights)
         attn_probs = self.dropout_module(attn_weights)
 
         assert v is not None
         attn = torch.bmm(attn_probs, v)
+
         assert list(attn.size()) == [bsz * self.num_heads, tgt_len, self.head_dim]
 
         attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
+
         attn = self.layer_norm(attn)
+
         attn = self.out_proj(attn)
 
         attn_weights: Optional[Tensor] = None

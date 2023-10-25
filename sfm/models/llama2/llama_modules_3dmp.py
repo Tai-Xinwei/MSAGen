@@ -20,6 +20,8 @@ from transformers.models.llama.modeling_llama import (
     LlamaMLP,
     LlamaRMSNorm,
     LlamaRotaryEmbedding,
+    apply_rotary_pos_emb,
+    repeat_kv,
 )
 
 from megatron.core import parallel_state, tensor_parallel
@@ -32,6 +34,7 @@ from megatron.model.transformer import (
     ParallelTransformerLayer,
 )
 from sfm.logging import logger
+from sfm.models.llama2.llama_modules import LlamaDecoderLayerPP, LlamaHead, LlamaNorm
 from sfm.modules.sfmmodule import SFMModule
 from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec
 
@@ -39,6 +42,90 @@ try:
     from apex.normalization import MixedFusedRMSNorm
 except:
     raise ImportError("Please install apex from install/install_megatron.sh")
+
+
+def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
+    """
+    Precompute the frequency tensor for complex exponentials (cis) with given dimensions.
+
+    This function calculates a frequency tensor with complex exponentials using the given dimension 'dim'
+    and the end index 'end'. The 'theta' parameter scales the frequencies.
+    The returned tensor contains complex values in complex64 data type.
+
+    Args:
+        dim (int): Dimension of the frequency tensor.
+        end (int): End index for precomputing frequencies.
+        theta (float, optional): Scaling factor for frequency computation. Defaults to 10000.0.
+
+    Returns:
+        torch.Tensor: Precomputed frequency tensor with complex exponentials.
+
+
+
+
+    """
+    freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
+    t = torch.arange(end, device=freqs.device)  # type: ignore
+    freqs = torch.outer(t, freqs).float()  # type: ignore
+    freqs_cis = torch.polar(torch.ones_like(freqs), freqs)  # complex64
+    return freqs_cis
+
+
+def reshape_for_broadcast(freqs_cis: torch.Tensor, x: torch.Tensor):
+    """
+    Reshape frequency tensor for broadcasting it with another tensor.
+
+    This function reshapes the frequency tensor to have the same shape as the target tensor 'x'
+    for the purpose of broadcasting the frequency tensor during element-wise operations.
+
+    Args:
+        freqs_cis (torch.Tensor): Frequency tensor to be reshaped.
+        x (torch.Tensor): Target tensor for broadcasting compatibility.
+
+    Returns:
+        torch.Tensor: Reshaped frequency tensor.
+
+    Raises:
+        AssertionError: If the frequency tensor doesn't match the expected shape.
+        AssertionError: If the target tensor 'x' doesn't have the expected number of dimensions.
+    """
+    ndim = x.ndim
+    assert 0 <= 1 < ndim
+    assert freqs_cis.shape == (x.shape[1], x.shape[-1])
+    shape = [d if i == 1 or i == ndim - 1 else 1 for i, d in enumerate(x.shape)]
+    return freqs_cis.view(*shape)
+
+
+def apply_rotary_emb(
+    xq: torch.Tensor,
+    xk: torch.Tensor,
+    freqs_cis: torch.Tensor,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Apply rotary embeddings to input tensors using the given frequency tensor.
+
+    This function applies rotary embeddings to the given query 'xq' and key 'xk' tensors using the provided
+    frequency tensor 'freqs_cis'. The input tensors are reshaped as complex numbers, and the frequency tensor
+    is reshaped for broadcasting compatibility. The resulting tensors contain rotary embeddings and are
+    returned as real tensors.
+
+    Args:
+        xq (torch.Tensor): Query tensor to apply rotary embeddings.
+        xk (torch.Tensor): Key tensor to apply rotary embeddings.
+        freqs_cis (torch.Tensor): Precomputed frequency tensor for complex exponentials.
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: Tuple of modified query tensor and key tensor with rotary embeddings.
+
+
+
+    """
+    xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
+    xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
+    freqs_cis = reshape_for_broadcast(freqs_cis, xq_)
+    xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(3)
+    xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(3)
+    return xq_out.type_as(xq), xk_out.type_as(xk)
 
 
 class ParallelLlamaMLPAdapter(SFMModule):
@@ -67,7 +154,7 @@ class ParallelLlamaMLPAdapter(SFMModule):
             enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
         )
 
-        self.down_proj = self.dense_4h_to_h = tensor_parallel.RowParallelLinear(
+        self.down_proj = tensor_parallel.RowParallelLinear(
             intermediate_size,
             output_size,
             config=config,
@@ -92,13 +179,35 @@ class ParallelLlamaMLPAdapter(SFMModule):
 
         self.act_fn = ACT2FN[hidden_act]
         self.drop = nn.Dropout(dropout)
+        self.hidden_size = hidden_size
+        self.intermediate_size = intermediate_size
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        """
+        reset the parameters of the weight
+        """
+        nn.init.uniform_(
+            self.gate_proj.weight,
+            -1.0 / math.sqrt(self.hidden_size),
+            1.0 / math.sqrt(self.hidden_size),
+        )
+        nn.init.uniform_(
+            self.down_proj.weight,
+            -1.0 / math.sqrt(self.intermediate_size),
+            1.0 / math.sqrt(self.intermediate_size),
+        )
+        nn.init.uniform_(
+            self.up_proj.weight,
+            -1.0 / math.sqrt(self.hidden_size),
+            1.0 / math.sqrt(self.hidden_size),
+        )
 
     def forward(self, x):
         gated_x, _ = self.gate_proj(x)
         up_x, _ = self.up_proj(x)
 
         intermidiate_x = self.act_fn(gated_x) * up_x
-
         x, _ = self.down_proj(intermidiate_x)
 
         return x
@@ -164,6 +273,136 @@ class ParallelLlamaMLP(SFMModule):
         return x
 
 
+class ParallelLlamaAttention(SFMModule):
+    def __init__(
+        self,
+        config,
+        layer_number,
+        attention_type=AttnType.self_attn,
+        attn_mask_type=AttnMaskType.padding,
+    ):
+        super(ParallelLlamaAttention, self).__init__(config=config)
+        self.hidden_size = config.hidden_size
+        rotary_dim = (
+            config.hidden_size // config.num_attention_heads
+            if config.kv_channels is None
+            else config.kv_channels
+        )
+
+        self.num_key_value_heads = config.num_key_value_heads
+        self.num_attention_heads = config.num_attention_heads
+        self.seq_length = config.seq_length
+        self.num_key_value_groups = (
+            config.num_attention_heads // self.num_key_value_heads
+        )
+        self.head_dim = self.hidden_size // config.num_attention_heads
+        self.num_attention_heads_per_tp = (
+            self.num_attention_heads // config.tensor_model_parallel_size
+        )
+        self.num_key_value_heads_per_tp = (
+            self.num_key_value_heads // config.tensor_model_parallel_size
+        )
+
+        self.q_proj = tensor_parallel.ColumnParallelLinear(
+            config.hidden_size,
+            config.num_attention_heads * self.head_dim,
+            config=config,
+            init_method=config.init_method,
+            bias=False,
+            gather_output=False,
+        )
+        self.k_proj = tensor_parallel.ColumnParallelLinear(
+            config.hidden_size,
+            config.num_key_value_heads * self.head_dim,
+            config=config,
+            init_method=config.init_method,
+            bias=False,
+            gather_output=False,
+        )
+        self.v_proj = tensor_parallel.ColumnParallelLinear(
+            config.hidden_size,
+            config.num_key_value_heads * self.head_dim,
+            config=config,
+            init_method=config.init_method,
+            bias=False,
+            gather_output=False,
+        )
+
+        self.o_proj = tensor_parallel.RowParallelLinear(
+            config.num_attention_heads * self.head_dim,
+            config.hidden_size,
+            config=config,
+            init_method=config.output_layer_init_method,
+            bias=False,
+            input_is_parallel=True,
+            skip_bias_add=True,
+        )
+
+        self.rotary_emb = LlamaRotaryEmbedding(
+            rotary_dim, config.max_position_embeddings
+        )
+
+        # self.freqs_cis = precompute_freqs_cis(
+        #     # Note that self.params.max_seq_len is multiplied by 2 because the token limit for the Llama 2 generation of models is 4096.
+        #     # Adding this multiplier instead of using 4096 directly allows for dynamism of token lengths while training or fine-tuning.
+        #     config.hidden_size // config.num_attention_heads,
+        #     config.max_position_embeddings * 2,
+        # ).cuda()
+
+    def forward(
+        self,
+        hidden_states,
+        attention_mask,
+        rotary_pos_emb_func=None,
+        rotary_pos_emb=None,
+        position_ids=None,
+    ):
+        # hidden_states: (seq_len, batch_size, hidden_size)
+        xq = self.q_proj(hidden_states)[0]
+        xk = self.k_proj(hidden_states)[0]
+        xv = self.v_proj(hidden_states)[0]
+
+        bsz, seqlen, _ = xq.shape
+        # seqlen, bsz, _ = xq.shape
+        # xq = xq.transpose(0, 1)
+        # xk = xk.transpose(0, 1)
+        # xv = xv.transpose(0, 1)
+
+        xq = xq.view(bsz, seqlen, self.num_attention_heads_per_tp, self.head_dim)
+        xk = xk.view(bsz, seqlen, self.num_key_value_heads_per_tp, self.head_dim)
+        xv = xv.view(bsz, seqlen, self.num_key_value_heads_per_tp, self.head_dim)
+
+        xq = xq.transpose(1, 2)
+        xk = xk.transpose(1, 2)
+        xv = xv.transpose(1, 2)
+
+        kv_seq_len = xk.shape[-2]
+        cos, sin = self.rotary_emb(xv, seq_len=kv_seq_len)
+        xq, xk = apply_rotary_pos_emb(xq, xk, cos, sin, position_ids)
+
+        # repeat k/v heads if n_kv_heads < n_heads
+        xk = repeat_kv(
+            xk, self.num_key_value_groups
+        )  # (bs, seqlen, n_local_heads, head_dim)
+        xv = repeat_kv(
+            xv, self.num_key_value_groups
+        )  # (bs, seqlen, n_local_heads, head_dim)
+
+        bs, nh, Slen, Hidden = xq.shape
+
+        with torch.backends.cuda.sdp_kernel(
+            enable_math=True, enable_mem_efficient=True, enable_flash=False
+        ):
+            context_layer = F.scaled_dot_product_attention(
+                xq, xk, xv, attn_mask=attention_mask
+            )
+        context_layer = (
+            context_layer.transpose(1, 2).contiguous().reshape(bs, Slen, nh * Hidden)
+        )
+
+        return self.o_proj(context_layer)
+
+
 class LlamaDecoderLayerMP(SFMModule):
     def __init__(
         self,
@@ -176,22 +415,23 @@ class LlamaDecoderLayerMP(SFMModule):
     ):
         super(LlamaDecoderLayerMP, self).__init__()
         self.config = config
-        self.input_layernorm = MixedFusedRMSNorm(
-            config.hidden_size, config.rms_norm_eps
+        self.head_dim = config.hidden_size // config.num_attention_heads
+
+        self.input_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.post_attention_layernorm = LlamaRMSNorm(
+            config.hidden_size, eps=config.rms_norm_eps
         )
-        self.self_attn = ParallelAttention(
+
+        self.self_attn = ParallelLlamaAttention(
             config,
             layer_number=1,
             attention_type=AttnType.self_attn,
             attn_mask_type=self_attn_mask_type,
         )
 
-        self.post_attention_layernorm = MixedFusedRMSNorm(
-            config.hidden_size, config.rms_norm_eps
-        )
         self.mlp = ParallelLlamaMLP(config)
 
-        self.dummy = torch.nn.Parameter(torch.zeros(1))
+        self.dummy = torch.nn.Linear(1, 1)
         self.no_layer = no_layer
 
         self.seq_length = config.seq_length
@@ -207,9 +447,8 @@ class LlamaDecoderLayerMP(SFMModule):
         # partial rotary embeddings, which is better than full rotary
         # Wang and Komatsuzaki et al
         # https://github.com/kingoflolz/mesh-transformer-jax/
-        self.rotary_pos_emb = LlamaRotaryEmbedding(
-            rotary_dim, config.max_position_embeddings
-        )
+
+        # self.rotary_pos_emb = RotaryEmbedding(rotary_dim)
 
     def auto_partition_load_state_dict(
         self,
@@ -223,21 +462,30 @@ class LlamaDecoderLayerMP(SFMModule):
         new_state_dict = {}
         for key in keys:
             param = state_dict[key]
-            if key == "self_attn.o_proj.weight":
-                new_state_dict["self_attn.dense.weight"] = param
-            elif key == "self_attn.q_proj.weight":
-                q_proj_weight = param
-            elif key == "self_attn.k_proj.weight":
-                k_proj_weight = param
-            elif key == "self_attn.v_proj.weight":
-                v_proj_weight = param
-            elif key == "self_attn.rotary_emb.inv_freq":
-                self.rotary_pos_emb.inv_freq[:] = param[:]
-            else:
-                new_state_dict[key] = param
-        new_state_dict["self_attn.query_key_value.weight"] = torch.cat(
-            [q_proj_weight, k_proj_weight, v_proj_weight], dim=0
-        )
+            # if key == "self_attn.rotary_emb.inv_freq":
+            #     self.self_attn.rotary_emb.inv_freq[:] = param[:]
+            # elif key == "self_attn.o_proj.weight":
+            #     new_state_dict["self_attn.dense.weight"] = param
+            # elif key == "self_attn.q_proj.weight":
+            #     q_proj_weight = param
+            # elif key == "self_attn.k_proj.weight":
+            #     k_proj_weight = param
+            # elif key == "self_attn.v_proj.weight":
+            #     v_proj_weight = param
+            # else:
+            new_state_dict[key] = param
+
+        # new_state_dict["self_attn.query_key_value.weight"] = (
+        #     torch.cat([q_proj_weight, k_proj_weight, v_proj_weight], dim=0)
+        #     .reshape(
+        #         3,
+        #         self.config.num_attention_heads,
+        #         self.config.hidden_size // self.config.num_attention_heads,
+        #         self.config.hidden_size,
+        #     )
+        #     .transpose(0, 1)
+        #     .reshape(3 * self.config.hidden_size, self.config.hidden_size)
+        # )
 
         del state_dict
 
@@ -272,30 +520,40 @@ class LlamaDecoderLayerMP(SFMModule):
             past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
         """
         hidden_states, attention_mask_bool, position_ids = input_tuple
-        # size of hidden_states: (seq_len, batch_size, hidden_size)
-
-        # # convert mask from bool to int
-        # attention_mask = attention_mask_bool.to(torch.int)
 
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
 
-        seq_len = min(hidden_states.shape[0], self.seq_length)
-        hidden_states, _ = self.self_attn(
-            hidden_states=hidden_states,
-            attention_mask=attention_mask_bool,
-            rotary_pos_emb=self.rotary_pos_emb(hidden_states.transpose(0, 1), seq_len),
-            position_ids=position_ids,
+        attention_mask = torch.zeros_like(
+            attention_mask_bool, dtype=hidden_states.dtype, device=hidden_states.device
         )
+        attention_mask.masked_fill_(
+            ~attention_mask_bool, torch.finfo(hidden_states.dtype).min
+        )
+
+        hidden_states = self.self_attn(
+            hidden_states=hidden_states,
+            attention_mask=attention_mask,
+            # rotary_pos_emb_func=lambda x: self.rotary_pos_emb(x, self.seq_length),
+            # rotary_pos_emb=rotary_pos_emb,
+            position_ids=position_ids,
+        )[0]
         hidden_states = residual + hidden_states
+        # torch.save({f"hidden_states": hidden_states}, f"/home/peiran/mnt/mntsfm2/output/hidden_states_mid_mp_0.pt")
 
         # Fully Connected
         residual = hidden_states
         hidden_states = self.post_attention_layernorm(hidden_states)
+        # torch.save({f"hidden_states_postln{self.no_layer}": hidden_states}, f"/home/peiran/mnt/mntsfm2/output/hidden_states_postln_mp_{self.no_layer}.pt")
         hidden_states = self.mlp(hidden_states)
         hidden_states = residual + hidden_states
 
-        outputs = (hidden_states, attention_mask_bool, position_ids)
+        # torch.save({f"hidden_states{self.no_layer}": hidden_states}, f"/home/peiran/mnt/mntsfm2/output/hidden_states_mp_{self.no_layer}.pt")
+        outputs = (
+            hidden_states.contiguous(),
+            attention_mask_bool.contiguous(),
+            position_ids.contiguous(),
+        )
         return outputs
 
 
@@ -303,12 +561,15 @@ class FusedLlamaNorm(SFMModule):
     def __init__(self, config: LlamaConfig):
         super().__init__()
         self.config = config
-        self.norm = MixedFusedRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        # self.norm = MixedFusedRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
     def forward(self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]):
         hidden_states, _, _ = input_tuple
 
         hidden_states = self.norm(hidden_states)
+        # logger.info(f"hidden_states -1: {hidden_states}")
+        # torch.save({"hidden_states-1": hidden_states}, "/home/peiran/mnt/mntsfm2/output/hidden_states_mp.pt")
 
         return (hidden_states,)
 
@@ -352,13 +613,14 @@ class LlamaEmbeddingsMP(Embedding, SFMModule):
             param = state_dict[key]
             if key == "embed_tokens.weight":
                 if param.size()[0] < self.config.vocab_size:
-                    mean_embedding = torch.mean(param, dim=0)
+                    mean_embedding = torch.mean(param, dim=0, keepdim=True).expand(
+                        [self.config.vocab_size - param.size()[0], param.size()[1]]
+                    )
+                    std_embedding = torch.std(param, dim=0, keepdim=True).expand(
+                        [self.config.vocab_size - param.size()[0], param.size()[1]]
+                    )
                     param = torch.cat(
-                        [param]
-                        + [
-                            mean_embedding.unsqueeze(0)
-                            for _ in range(self.config.vocab_size - param.size()[0])
-                        ],
+                        [param, torch.normal(mean=mean_embedding, std=std_embedding)],
                         dim=0,
                     )
                 new_state_dict["word_embeddings.weight"] = param
@@ -382,7 +644,7 @@ class LlamaEmbeddingsMP(Embedding, SFMModule):
     def forward(
         self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
     ):
-        mol_emb, mol_padding_mask, input_ids, llm_mask = input_tuple
+        mol_emb, mol_padding_mask, llm_mask, input_ids = input_tuple
 
         # Get text embeddings from language model
         ## set position_ids, it's not used.
@@ -392,6 +654,7 @@ class LlamaEmbeddingsMP(Embedding, SFMModule):
         # export demension of text embeddings [seq_len, batch_size, hidden_size]
         # Get text embeddings from language model
         mol_idx_mask = input_ids < 0  # B, T
+
         text_embeds = super().forward(
             input_ids.masked_fill(mol_idx_mask, 0), position_ids
         )
@@ -456,7 +719,9 @@ class LlamaHeadMP(SFMModule):
             config=config,
             init_method=config.init_method,
         )
+
         self.lm_head.weight.register_hook(self.freeze_parital_weight_hook)
+
         self.learnable_cutoff = learnable_cutoff
         self.num_head = NumMLPMP(config, config.hidden_size, 4 * config.hidden_size, 1)
 
@@ -477,13 +742,14 @@ class LlamaHeadMP(SFMModule):
             param = state_dict[key]
             if key == "lm_head.weight":
                 if param.size()[0] < self.config.vocab_size:
-                    mean_embedding = torch.mean(param, dim=0)
+                    mean_embedding = torch.mean(param, dim=0, keepdim=True).expand(
+                        [self.config.vocab_size - param.size()[0], param.size()[1]]
+                    )
+                    std_embedding = torch.std(param, dim=0, keepdim=True).expand(
+                        [self.config.vocab_size - param.size()[0], param.size()[1]]
+                    )
                     param = torch.cat(
-                        [param]
-                        + [
-                            mean_embedding.unsqueeze(0)
-                            for _ in range(self.config.vocab_size - param.size()[0])
-                        ],
+                        [param, torch.normal(mean=mean_embedding, std=std_embedding)],
                         dim=0,
                     )
                 new_state_dict[key] = param
@@ -513,8 +779,7 @@ class LlamaHeadMP(SFMModule):
         else:
             hidden_states = inputs
 
-        # export demension of lm_logits [batch_size, seq_len, hidden_size]
-        lm_logits = self.lm_head(hidden_states)[0].transpose(0, 1)
+        lm_logits = self.lm_head(hidden_states)[0]  # .transpose(0, 1)
 
         num_logits = self.num_head(hidden_states)
 
@@ -548,9 +813,9 @@ class LlamaModelMP(LlamaPreTrainedModel):
                     lora_mode="freeze",
                     tp_model_size=args.tensor_model_parallel_size,
                     tp_rank=parallel_state.get_tensor_model_parallel_rank(),
+                    self_attn_mask_type=AttnMaskType.causal,
                 )
             )
-            layer_id += 1
         cls.pipe_layer.append(
             PretrainedLayerSpec(
                 FusedLlamaNorm,

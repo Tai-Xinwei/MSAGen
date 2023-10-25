@@ -36,15 +36,15 @@ special_tokens_dict["additional_special_tokens"] = ["<mol>", "</mol>", "<num>", 
 tokenizer.add_special_tokens(special_tokens_dict)
 
 Prompt_list = [
-    "Here is the conformation of a pocket and ligand <<|mol0|>>, its affinity is <<|num0|>>.",
-    "The conformation of pocket and ligand <<|mol0|>> has an affinity of <<|num0|>>.",
-    "For the pocket and ligand conformation <<|mol0|>>, the affinity is <<|num0|>>.",
-    "In the conformation of pocket and ligand <<|mol0|>>, the affinity measures <<|num0|>>.",
-    "The pocket and ligand conformation <<|mol0|>> features an affinity of <<|num0|>>.",
-    "The affinity of the pocket and ligand conformation, <<|mol0|>>, is <<|num0|>>.",
-    "The <<|mol0|>> conformation of pocket and ligand has an affinity of <<|num0|>>.",
-    "The conformation for pocket and ligand <<|mol0|>> possesses an affinity of <<|num0|>>.",
-    "The pocket and ligand conformation, represented by <<|mol0|>>, displays an affinity of <<|num0|>>.",
+    "Here is the conformation of a pocket and ligand <<|mol0|>>, its free energy is <<|num0|>>.",
+    "The conformation of pocket and ligand <<|mol0|>> has an free energy of <<|num0|>>.",
+    "For the pocket and ligand conformation <<|mol0|>>, the free energy is <<|num0|>>.",
+    "In the conformation of pocket and ligand <<|mol0|>>, the free energy measures <<|num0|>>.",
+    "The pocket and ligand conformation <<|mol0|>> features an free energy of <<|num0|>>.",
+    "The free energy of the pocket and ligand conformation, <<|mol0|>>, is <<|num0|>>.",
+    "The <<|mol0|>> conformation of pocket and ligand has an free energy of <<|num0|>>.",
+    "The conformation for pocket and ligand <<|mol0|>> possesses an free energy of <<|num0|>>.",
+    "The pocket and ligand conformation, represented by <<|mol0|>>, displays an free energy of <<|num0|>>.",
 ]
 
 
@@ -117,15 +117,12 @@ def getfreeenergy():
         header = next(csv_reader)
         print("Header:", header)
         for row in csv_reader:
-            print(row); exit()
-
-            id2energy[row[9]] = float(row[10])
+            id2energy[row[9]] = float(row[11])
 
     return id2energy
 
 if __name__ == "__main__":
     id2energy = getfreeenergy()
-    print(id2energy)
-    # smile2pos = read3dconf("/mnt/data/pdbbind/pdbbind_lmdb_remove_512/train", id2energy)
+    read3dconf("/mnt/data/pdbbind/pdbbind_lmdb_remove_512/train", id2energy)
     # smile2pos = {}
     # add3d2prompt("/mnt/chemical-copilot-special-token/mol-instruction-mol-desc/all", smile2pos)

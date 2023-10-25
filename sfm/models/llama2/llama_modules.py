@@ -432,8 +432,8 @@ class LlamaHead(nn.Module):
 
     def forward(self, input_tuple: Tuple[torch.Tensor]):
         hidden_states = input_tuple[0]
-
         lm_logits = self.lm_head(hidden_states)
+
         num_logits = self.num_head(hidden_states)
 
         return (lm_logits, num_logits)

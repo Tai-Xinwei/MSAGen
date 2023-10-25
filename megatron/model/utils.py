@@ -37,6 +37,7 @@ def gather_and_init(param, init_method):
 
 def attention_mask_func(attention_scores, attention_mask):
     args = get_args()
+    attention_score_mask = torch.zeros_like(attention_scores)
     if args.curriculum_learning_legacy or args.data_efficiency_curriculum_learning:
         attention_mask_ = attention_mask
         actual_seqlen = attention_scores.size()[2]
@@ -45,10 +46,10 @@ def attention_mask_func(attention_scores, attention_mask):
             attention_mask_ = attention_mask_[
                 :, :, :actual_seqlen, :actual_seqlen
             ].contiguous()
-        attention_scores.masked_fill_(attention_mask_, -10000.0)
+        attention_score_mask.masked_fill_(attention_mask_, torch.finfo(attention_scores.dtype).min)
     else:
-        attention_scores.masked_fill_(attention_mask, -10000.0)
-    return attention_scores
+        attention_score_mask.masked_fill_(attention_mask, torch.finfo(attention_scores.dtype).min)
+    return attention_scores + attention_score_mask
 
 
 def get_linear_layer(rows, columns, init_method, gather_params_on_init=False):

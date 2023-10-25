@@ -1,6 +1,6 @@
 {
-  "train_batch_size": 64,
-  "train_micro_batch_size_per_gpu": 1,
+  "train_batch_size": 8,
+  "train_micro_batch_size_per_gpu": 2,
   "optimizer": {
     "type": "Adam",
     "params": {
@@ -17,9 +17,9 @@
     "type": "WarmupDecayLR",
     "params": {
       "warmup_type": "linear",
-      "total_num_steps": 1000000,
+      "total_num_steps": 10000,
       "warmup_max_lr": 0.00002,
-      "warmup_num_steps": 60000
+      "warmup_num_steps": 600
     }
   },
   "fp16": {
@@ -46,9 +46,8 @@
     "top_modules": 3,
     "detailed": true
   },
-  "csv_monitor": {
+  "wandb": {
     "enabled": true,
-    "output_path": "output/ds_logs/",
-    "job_name": "PCQv2_lMFM"
+    "project": "chemical-generalist"
   }
 }

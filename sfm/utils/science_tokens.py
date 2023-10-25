@@ -6,7 +6,7 @@ import os
 SCIENCE_TAG_TOKENS = [
     "<mol>",
     "</mol>",
-    "<num>",
+    "<num>",  # 32003
     "</num>",
     "<material>",
     "</material>",
