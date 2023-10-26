@@ -173,16 +173,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --model_max_length $model_max_length \
           --deepspeed_config ./config_file/ds_config_pp.json \
           --pp_partition_layer_name "LlamaDecoderLayerPP" \
-<<<<<<< HEAD
-          --add_3d \
-          --load_ckpt \
-          --unfreeze_param_list "adaptor,token_embed,mol_rep_layernorm" \
-          --save_batch_interval $save_batch_interval
-=======
           --unfreeze_param_list "mol_adaptor,mol_rep_layernorm,word_embeddings" \
           --save_batch_interval $save_batch_interval --load_ckpt --add_3d
 
->>>>>>> ebca380d33e253f4963b94372bff757b27ead91f
 
 
 sleep inf

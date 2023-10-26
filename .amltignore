@@ -153,3 +153,5 @@ dmypy.json
 
 #no need test for running in cluster
 /tests/
+
+docs/

@@ -96,7 +96,7 @@ class ProteinMAE3dCriterions(nn.Module):
     def __init__(self, args, reduction="mean") -> None:
         super().__init__()
         self.loss_type = nn.CrossEntropyLoss(reduction=reduction, ignore_index=0)
-        self.loss_pos = nn.L1Loss(reduction=reduction)
+        self.loss_pos = nn.MSELoss(reduction=reduction)
         self.args = args
 
     def forward(self, batch_data, logits, node_output, mask_pos, mask_aa):

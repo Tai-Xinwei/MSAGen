@@ -31,7 +31,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 [ -z "${train_batch_size}" ] && train_batch_size=32
-[ -z "${max_tokens}" ] && max_tokens=2048
+[ -z "${max_tokens}" ] && max_tokens=3072
 [ -z "${val_batch_size}" ] && val_batch_size=32
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
@@ -39,7 +39,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 
-[ -z "${mode_prob}" ] && mode_prob='1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.5,0.5,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 [ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
@@ -155,7 +155,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --data_path $data_path \
           --save_dir $save_dir \
           --seed 666666 \
-          --ifresume \
           --fp16 --add_3d \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
@@ -170,8 +169,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --dynamic_loader --max_tokens $max_tokens \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
-          --save_batch_interval $save_batch_interval --log_interval $log_interval
-          # --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+          --save_batch_interval $save_batch_interval --log_interval $log_interval \
+          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
 
 sleep inf
