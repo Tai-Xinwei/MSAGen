@@ -70,6 +70,20 @@ def convert_to_single_emb_last(x, offset: int = 512):
     return x
 
 
+@torch.jit.script
+def convert_to_single_emb_light(x, num_feature_values: List[int]):
+    num_feature_values = torch.tensor(
+        num_feature_values, dtype=torch.long, device=x.device
+    )
+    offsets = torch.cumsum(num_feature_values, dim=-1)
+    offsets = torch.cat(
+        [torch.tensor([0], dtype=offsets.dtype, device=offsets.device), offsets], dim=-1
+    )[:-1]
+    assert len(x.size()) > 1
+    x = x + offsets + 1  # 0 is for padding
+    return x
+
+
 def preprocess(input_ids, label, llm_mask, data, idx, mask_ratio=0.0):
     # graph = smiles2graph(smile)
     # data = Data()
@@ -1083,6 +1097,7 @@ def pad_spatial_pos_unsqueeze(x, padlen):
 
 def pad_3d_unsqueeze(x, padlen1, padlen2, padlen3):
     x = x + 1
+    assert torch.all(x[x > 0] >= 3)
     xlen1, xlen2, xlen3, xlen4 = x.size()
     if xlen1 < padlen1 or xlen2 < padlen2 or xlen3 < padlen3:
         new_x = x.new_zeros([padlen1, padlen2, padlen3, xlen4], dtype=x.dtype)

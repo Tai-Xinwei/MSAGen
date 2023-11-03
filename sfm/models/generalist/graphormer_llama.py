@@ -8,6 +8,7 @@ import os
 from typing import Dict, List, Optional
 
 import torch
+from peft import LoraConfig, get_peft_model
 from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
@@ -35,22 +36,48 @@ from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
 from sfm.utils.move_to_device import move_to_device
 
+from .graphormer_llama_fused import (
+    GraphormerEncoderPPFused,
+    HybridEmbeddingsPPFused,
+    LlamaEmbeddingsPPFused,
+    LlamaForCausalLMFusedGraphormer,
+    LlamaModelPPFused,
+)
 from .modules.graphormer_encoder import GraphormerSentenceEncoderPP
 from .modules.hybrid_emb import AdaptorConfig, HybridEmbeddings, HybridEmbeddingsPP
 from .modules.hybrid_emb_3dmp import HybridEmbeddingsMP
 
 
-class LlamaModelTextMolMasked(LlamaModel):
-    # Copied from transformers.models.bart.modeling_bart.BartDecoder._prepare_decoder_attention_mask
-    pass  # TODO: implement this
+class LlamaModelLora(LlamaModel):
+    def __init__(self, config: LlamaConfig):
+        super().__init__(config)
+
+        LORA_R = 8
+        LORA_ALPHA = 16
+        LORA_DROPOUT = 0.1
+        TARGET_MODULES = [
+            "q_proj",
+            "k_proj",
+            "v_proj",
+        ]
+
+        lora_config = LoraConfig(
+            r=LORA_R,
+            lora_alpha=LORA_ALPHA,
+            target_modules=TARGET_MODULES,
+            lora_dropout=LORA_DROPOUT,
+            bias="none",
+        )
+
+        self.layers = nn.ModuleList(
+            [get_peft_model(layer, lora_config) for layer in self.layers]
+        )
 
 
-class LlamaForCausalLMTextMolMasked(LlamaForCausalLM):
-    _tied_weights_keys = ["lm_head.weight"]
-
+class LlamaForCausalLMLora(LlamaForCausalLM):
     def __init__(self, config):
         super().__init__(config)
-        self.model = LlamaModelTextMolMasked(config)
+        self.model = LlamaModelLora(config)
 
 
 class GraphormerLlamaModel(SFMPipelineModelMixin):
@@ -89,7 +116,17 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             and args.strategy != TrainStrategy.Pipeline
         ):
             self.graphormer_encoder = GraphormerSentenceEncoder(graphormer_config)
-            self.decoder = LlamaForCausalLM(llama_config)
+            if self.args.fused_graphormer_llama:
+                self.decoder = LlamaForCausalLMFusedGraphormer(
+                    llama_config,
+                    self.args.llm_lora,
+                    self.args.add_mol_attn_bias_in_llama,
+                    self.args.mol_attn_bias_in_llama_layerwise,
+                )
+            elif self.args.llm_lora:
+                self.decoder = LlamaForCausalLMLora(llama_config)
+            else:
+                self.decoder = LlamaForCausalLM(llama_config)
             self.adaptor = HybridEmbeddings(adaptor_config)
             self.num_head = NumMLP(
                 llama_config.hidden_size, 4 * llama_config.hidden_size, 1
@@ -101,11 +138,17 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             self.pipe_layers.extend(
                 [
                     PretrainedLayerSpec(
-                        GraphormerSentenceEncoderPP,
+                        GraphormerSentenceEncoderPP
+                        if not args.fused_graphormer_llama
+                        else GraphormerEncoderPPFused,
+                        self.llama_config,
                         graphormer_config,
                         load_ckpt=args.load_ckpt,
                         pretrained_ckpt_path=args.loadmfmcheck_path,
                         lora_mode="freeze",
+                        add_mol_attn_bias_in_llama=args.add_mol_attn_bias_in_llama,
+                        mol_attn_bias_in_llama_layerwise=args.mol_attn_bias_in_llama_layerwise,
+                        path_edge_cutoff=args.path_edge_cutoff,
                     )
                 ]
             )
@@ -113,7 +156,9 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             self.pipe_layers.extend(
                 [
                     PretrainedLayerSpec(
-                        LlamaEmbeddingsPP,
+                        LlamaEmbeddingsPP
+                        if not args.fused_graphormer_llama
+                        else LlamaEmbeddingsPPFused,
                         llama_config,
                         new_num_tokens=vocab_size,
                         load_ckpt=args.load_ckpt,
@@ -121,6 +166,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                             args.llm_model_name_or_path, "model.hybrid_emb.pt"
                         ),
                         lora_mode="full",
+                        add_mol_attn_bias_in_llama=args.add_mol_attn_bias_in_llama,
                     )
                 ]
             )
@@ -128,16 +174,26 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             self.pipe_layers.extend(
                 [
                     PretrainedLayerSpec(
-                        HybridEmbeddingsPP,
+                        HybridEmbeddingsPP
+                        if not args.fused_graphormer_llama
+                        else HybridEmbeddingsPPFused,
                         adaptor_config,
                         new_num_tokens=vocab_size,
                         load_ckpt=args.load_ckpt,
+                        add_mol_attn_bias_in_llama=args.add_mol_attn_bias_in_llama,
+                        mol_attn_bias_in_llama_layerwise=args.mol_attn_bias_in_llama_layerwise,
+                        num_llama_hidden_layers=llama_config.num_hidden_layers,
+                        num_llama_attention_heads=llama_config.num_attention_heads,
                     )
                 ]
             )
 
             self.pipe_layers.extend(
-                LlamaModelPP.to_layers(
+                (
+                    LlamaModelPP
+                    if not args.fused_graphormer_llama
+                    else LlamaModelPPFused
+                ).to_layers(
                     args,
                     llama_config,
                     load_ckpt=args.load_ckpt,
@@ -246,7 +302,14 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
 
         if batched_data is not None:
             # generate mol emb
-            mol_emb, _, _, _, _, mol_padding_mask = self.graphormer_encoder(
+            (
+                mol_emb,
+                graphormer_attn_bias,
+                _,
+                _,
+                _,
+                mol_padding_mask,
+            ) = self.graphormer_encoder(
                 batched_data,
             )
 
@@ -259,12 +322,22 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                 input_ids,
             )
 
-            outputs = self.decoder.generate(
-                input_ids=input_ids,
-                inputs_embeds=inputs_embeds,
-                attention_mask=attention_mask,
-                **generate_kwargs,
-            )
+            if self.args.fused_graphormer_llama:
+                outputs = self.decoder.generate(
+                    input_ids=input_ids,
+                    inputs_embeds=inputs_embeds,
+                    attention_mask=attention_mask,
+                    graphormer_attn_bias=graphormer_attn_bias,
+                    **generate_kwargs,
+                )
+            else:
+                outputs = self.decoder.generate(
+                    input_ids=input_ids,
+                    inputs_embeds=inputs_embeds,
+                    attention_mask=attention_mask,
+                    **generate_kwargs,
+                )
+
         else:
             # text only generation
             outputs = self.decoder.generate(
@@ -309,7 +382,14 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
 
         if batched_data is not None:
             # generate mol emb
-            mol_emb, _, _, _, _, mol_padding_mask = self.graphormer_encoder(
+            (
+                mol_emb,
+                graphormer_attn_bias,
+                _,
+                _,
+                _,
+                mol_padding_mask,
+            ) = self.graphormer_encoder(
                 batched_data,
             )
 
@@ -322,11 +402,20 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                 input_ids,
             )
 
-            outputs = self.decoder.generate(
-                inputs_embeds=inputs_embeds,
-                attention_mask=attention_mask,
-                **generate_kwargs,
-            )
+            if self.args.fused_graphormer_llama:
+                outputs = self.decoder.generate(
+                    inputs_embeds=inputs_embeds,
+                    attention_mask=attention_mask,
+                    graphormer_attn_bias=graphormer_attn_bias,
+                    **generate_kwargs,
+                )
+            else:
+                outputs = self.decoder.generate(
+                    inputs_embeds=inputs_embeds,
+                    attention_mask=attention_mask,
+                    **generate_kwargs,
+                )
+
         else:
             # text only generation
             outputs = self.decoder.generate(
@@ -354,7 +443,14 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
         segment_labels=None,
     ) -> torch.Tensor:
         # generate mol_emb
-        mol_emb, _, _, _, _, mol_padding_mask = self.graphormer_encoder(
+        (
+            mol_emb,
+            graphormer_attn_bias,
+            _,
+            _,
+            _,
+            mol_padding_mask,
+        ) = self.graphormer_encoder(
             batched_data,
             segment_labels=segment_labels,
             perturb=perturb,
@@ -375,13 +471,27 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
         )
 
         # decode
-        outputs = self.decoder(
-            inputs_embeds=inputs_embeds,
-            attention_mask=batched_data.get("llm_mask", batched_data["attention_mask"]),
-            position_ids=position_ids,
-            output_hidden_states=True,
-            return_dict=True,
-        )
+        if self.args.fused_graphormer_llama:
+            outputs = self.decoder(
+                inputs_embeds=inputs_embeds,
+                attention_mask=batched_data.get(
+                    "llm_mask", batched_data["attention_mask"]
+                ),
+                position_ids=position_ids,
+                output_hidden_states=True,
+                return_dict=True,
+                graphormer_attn_bias=graphormer_attn_bias,
+            )
+        else:
+            outputs = self.decoder(
+                inputs_embeds=inputs_embeds,
+                attention_mask=batched_data.get(
+                    "llm_mask", batched_data["attention_mask"]
+                ),
+                position_ids=position_ids,
+                output_hidden_states=True,
+                return_dict=True,
+            )
 
         logits = outputs["logits"]
         num_logits = self.num_head(outputs["hidden_states"][-1])

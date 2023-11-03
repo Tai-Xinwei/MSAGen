@@ -166,13 +166,15 @@ class LlamaMemEffAttention(LlamaAttention):
 
 
 class LlamaDecoderLayerPP(LlamaDecoderLayer):
-    def __init__(self, config: LlamaConfig, l: int, enable_mem_efficient: bool = True):
+    def __init__(
+        self, config: LlamaConfig, layer_index: int, enable_mem_efficient: bool = True
+    ):
         super().__init__(config)
         if enable_mem_efficient:
             self.self_attn = LlamaMemEffAttention(config)
 
         self.config = config
-        self.l = l
+        self.layer_index = layer_index
         self.dummy = nn.Linear(1, 1)
 
     def forward(
@@ -391,7 +393,7 @@ class NumMLP(nn.Module):
 
 
 class LlamaHead(nn.Module):
-    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 0):
+    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
         super().__init__()
         self.config = config
 
