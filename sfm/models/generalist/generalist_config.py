@@ -19,4 +19,10 @@ class GeneralistConfig:
     mol_size_path: str = ""
 
     mfm_lora: bool = False
+    llm_lora: bool = False
     btn_adaptor: bool = False
+
+    fused_graphormer_llama: bool = False
+    add_mol_attn_bias_in_llama: bool = False
+    mol_attn_bias_in_llama_layerwise: bool = False
+    path_edge_cutoff: int = 0

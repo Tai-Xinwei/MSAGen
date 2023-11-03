@@ -707,7 +707,7 @@ class NumMLPMP(nn.Module):
 
 
 class LlamaHeadMP(SFMModule):
-    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 0):
+    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
         super().__init__()
         self.config = config
 
