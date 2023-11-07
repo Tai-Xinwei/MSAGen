@@ -87,6 +87,7 @@ def read3dconf(path, id2energy, add_mol_token=True):
 
             prommp_text = Prompt_list[i%len(Prompt_list)]
             text = f"{prommp_text}{tokenizer.eos_token}"
+            text = text.replace("<<|mol0|>>", f"{ori_data.pdbid}")
             if add_mol_token:
                 text = re.sub("<<\|mol[0-9]+\|>>", "<mol> <unk> </mol>", text)
             else:

@@ -34,8 +34,8 @@ jobs:
   process_count_per_node: 1
   command:
   - mkdir /blob/pfmexp/output
-  - mkdir /blob/pfmexp/output/pfmmae_dyn
-  - mkdir /blob/pfmexp/output/pfmmae_dyn/checkpoints
+  - mkdir /blob/pfmexp/output/pfmmae_dyn_mode_prob55
+  - mkdir /blob/pfmexp/output/pfmmae_dyn_mode_prob55/checkpoints
   - mkdir ./output
   - export path=run.sh
   - export layers=12
@@ -56,7 +56,7 @@ jobs:
   - export noise_mode=mae
   - export noise_scale=0.2
   - export mask_ratio=0.5
-  - export mode_prob=1.0,0.0,0.0
+  - export mode_prob=0.5,0.5,0.0
   - export d_tilde=1.0
   - export max_lr=4e-4
   - export strategy=Zero1
@@ -65,14 +65,14 @@ jobs:
   - export warmup_num_steps=1000
   - export train_batch_size=128
   - export val_batch_size=128
-  - export max_tokens=4096
+  - export max_tokens=3072
   - export max_length=1024
   - export gradient_accumulation_steps=4
   - export log_interval=100
-  - export loadcheck_path=/blob/pfmexp/output/pfmmae_dyn/checkpoints
+  - export loadcheck_path=/blob/pfmexp/output/pfmmae_dyn_mode_prob55/checkpoints
   - mkdir /tmp/data/pm6-86m-3d-filter
   - export data_path=/blob/data/afdb/48organism.lmdb/
-  - export save_dir=/blob/pfmexp/output/pfmmae_dyn/checkpoints
+  - export save_dir=/blob/pfmexp/output/pfmmae_dyn_mode_prob55/checkpoints
   - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
   - bash ./install/install.sh && bash ./install/install_pfm.sh && bash ./install/install_megatron.sh
   - bash ./scripts/pfm/pretrain_pfm.sh

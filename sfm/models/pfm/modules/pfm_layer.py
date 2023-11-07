@@ -124,11 +124,7 @@ class Edge3DEmbedding(nn.Module):
         self.embed_dim = embed_dim
 
         self.gbf = GaussianLayer(self.num_kernel, num_edges)
-
-        # if self.num_kernel != self.embed_dim:
         self.edge_proj = nn.Linear(self.num_kernel, self.embed_dim)
-        # else:
-        # self.edge_proj = None
 
     def forward(self, pos, node_type_edge, padding_mask, mask_aa):
         n_graph, n_node, _ = pos.shape

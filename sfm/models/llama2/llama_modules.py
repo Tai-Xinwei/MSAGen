@@ -349,7 +349,12 @@ class LlamaEmbeddingsBase(nn.Module):
 
 
 class LlamaEmbeddingsPP(LlamaEmbeddingsBase):
-    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
+    def __init__(
+        self,
+        config: LlamaConfig,
+        learnable_cutoff: int = 32001,
+        add_mol_attn_bias_in_llama=False,
+    ):
         super().__init__(config, learnable_cutoff=learnable_cutoff)
 
     def forward(

@@ -32,7 +32,7 @@ pip install wandb
 pip install loguru
 
 # For generalist
-pip install transformers
+pip install transformers==4.34.0
 pip install peft
 pip install sentencepiece
 # conda install -c conda-forge openbabel

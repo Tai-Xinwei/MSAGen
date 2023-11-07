@@ -31,9 +31,9 @@ fi
 [ -z "${seed}" ] && seed=12345
 
 # generalist dataset settings
-[ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
+# [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
 # [ -z "${data_path}" ] && data_path='/home/peiran/mnt/mntsfm2/data/chemical-copilot-special-token/'
-# [ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
+[ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
 # [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
 # [ -z "${dataset_splits}" ] && dataset_splits='clean'
 [ -z "${dataset_names}" ] && dataset_names='chebi'
@@ -51,11 +51,11 @@ fi
 [ -z "${save_dir}" ] && save_dir='/mnt/shiyu/checkpoints/llama2-local-debug'
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/mnt/mntsfm2/output'
 [ -z "${save_batch_interval}" ] && save_batch_interval=5000
-[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/checkpoint7_new.pt"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
-# [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
+# [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/checkpoint7_new.pt"
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
+[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
 # [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/tp"
-# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
 [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir=""
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id=""
 [ -z "${wandb_key}" ] && wandb_key=5d03b7a46d10f86ff45c4aedc570660a523edc0b
@@ -77,7 +77,7 @@ elif [[ ${strategy} == "Zero2" ]]; then
 elif [[ ${strategy} == "Zero3" ]]; then
   zero_strategy=3
 fi
-[ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerPPFused"
+[ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayer"
 [ -z "${pp_part_list}" ] && pp_part_list="[0, 61]"
 # [ -z "${pp_part_list}" ] && pp_part_list="[0, 10, 19, 28, 37]"
 [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="mol_adaptor,mol_rep_layernorm,word_embeddings"
@@ -283,5 +283,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --fp16 \
           --load_ckpt \
           --deepspeed_config=$DS_CONFIG \
-          ${MEGATRON_ARGS} \
-          --fused_graphormer_llama
+          ${MEGATRON_ARGS}
+          # --fused_graphormer_llama
