@@ -135,58 +135,91 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                 self.llama_config, self.llama_config.vocab_size
             )
         elif args.strategy == TrainStrategy.Pipeline:
-            self.pipe_layers.extend(
-                [
-                    PretrainedLayerSpec(
-                        GraphormerSentenceEncoderPP
-                        if not args.fused_graphormer_llama
-                        else GraphormerEncoderPPFused,
-                        self.llama_config,
-                        graphormer_config,
-                        load_ckpt=args.load_ckpt,
-                        pretrained_ckpt_path=args.loadmfmcheck_path,
-                        lora_mode="freeze",
-                        add_mol_attn_bias_in_llama=args.add_mol_attn_bias_in_llama,
-                        mol_attn_bias_in_llama_layerwise=args.mol_attn_bias_in_llama_layerwise,
-                        path_edge_cutoff=args.path_edge_cutoff,
-                    )
-                ]
-            )
+            if not args.fused_graphormer_llama:
+                self.pipe_layers.extend(
+                    [
+                        PretrainedLayerSpec(
+                            GraphormerSentenceEncoderPP,
+                            graphormer_config,
+                            load_ckpt=args.load_ckpt,
+                            pretrained_ckpt_path=args.loadmfmcheck_path,
+                            lora_mode="freeze",
+                        )
+                    ]
+                )
 
-            self.pipe_layers.extend(
-                [
-                    PretrainedLayerSpec(
-                        LlamaEmbeddingsPP
-                        if not args.fused_graphormer_llama
-                        else LlamaEmbeddingsPPFused,
-                        llama_config,
-                        new_num_tokens=vocab_size,
-                        load_ckpt=args.load_ckpt,
-                        pretrained_ckpt_path=os.path.join(
-                            args.llm_model_name_or_path, "model.hybrid_emb.pt"
-                        ),
-                        lora_mode="full",
-                        add_mol_attn_bias_in_llama=args.add_mol_attn_bias_in_llama,
-                    )
-                ]
-            )
+                self.pipe_layers.extend(
+                    [
+                        PretrainedLayerSpec(
+                            LlamaEmbeddingsPP,
+                            llama_config,
+                            new_num_tokens=vocab_size,
+                            load_ckpt=args.load_ckpt,
+                            pretrained_ckpt_path=os.path.join(
+                                args.llm_model_name_or_path, "model.hybrid_emb.pt"
+                            ),
+                            lora_mode="full",
+                        )
+                    ]
+                )
 
-            self.pipe_layers.extend(
-                [
-                    PretrainedLayerSpec(
-                        HybridEmbeddingsPP
-                        if not args.fused_graphormer_llama
-                        else HybridEmbeddingsPPFused,
-                        adaptor_config,
-                        new_num_tokens=vocab_size,
-                        load_ckpt=args.load_ckpt,
-                        add_mol_attn_bias_in_llama=args.add_mol_attn_bias_in_llama,
-                        mol_attn_bias_in_llama_layerwise=args.mol_attn_bias_in_llama_layerwise,
-                        num_llama_hidden_layers=llama_config.num_hidden_layers,
-                        num_llama_attention_heads=llama_config.num_attention_heads,
-                    )
-                ]
-            )
+                self.pipe_layers.extend(
+                    [
+                        PretrainedLayerSpec(
+                            HybridEmbeddingsPP,
+                            adaptor_config,
+                            new_num_tokens=vocab_size,
+                            load_ckpt=args.load_ckpt,
+                        )
+                    ]
+                )
+            else:
+                self.pipe_layers.extend(
+                    [
+                        PretrainedLayerSpec(
+                            GraphormerEncoderPPFused,
+                            self.llama_config,
+                            graphormer_config,
+                            load_ckpt=args.load_ckpt,
+                            pretrained_ckpt_path=args.loadmfmcheck_path,
+                            lora_mode="freeze",
+                            add_mol_attn_bias_in_llama=args.add_mol_attn_bias_in_llama,
+                            mol_attn_bias_in_llama_layerwise=args.mol_attn_bias_in_llama_layerwise,
+                            path_edge_cutoff=args.path_edge_cutoff,
+                        )
+                    ]
+                )
+
+                self.pipe_layers.extend(
+                    [
+                        PretrainedLayerSpec(
+                            LlamaEmbeddingsPPFused,
+                            llama_config,
+                            new_num_tokens=vocab_size,
+                            load_ckpt=args.load_ckpt,
+                            pretrained_ckpt_path=os.path.join(
+                                args.llm_model_name_or_path, "model.hybrid_emb.pt"
+                            ),
+                            lora_mode="full",
+                            add_mol_attn_bias_in_llama=args.add_mol_attn_bias_in_llama,
+                        )
+                    ]
+                )
+
+                self.pipe_layers.extend(
+                    [
+                        PretrainedLayerSpec(
+                            HybridEmbeddingsPPFused,
+                            adaptor_config,
+                            new_num_tokens=vocab_size,
+                            load_ckpt=args.load_ckpt,
+                            add_mol_attn_bias_in_llama=args.add_mol_attn_bias_in_llama,
+                            mol_attn_bias_in_llama_layerwise=args.mol_attn_bias_in_llama_layerwise,
+                            num_llama_hidden_layers=llama_config.num_hidden_layers,
+                            num_llama_attention_heads=llama_config.num_attention_heads,
+                        )
+                    ]
+                )
 
             self.pipe_layers.extend(
                 (
