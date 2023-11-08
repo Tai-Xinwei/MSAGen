@@ -76,7 +76,7 @@ jobs:
   # training parallelism
   - export pipeline_model_parallel_size=4
   - export tensor_model_parallel_size=16
-  - export strategy=Pipeline
+  - export strategy=ThreeD
   - export pp_partition_layer_name="manual"
   - export pp_part_list="[0, 43, 70, 99, 127]"
   - export unfreeze_param_list="adapter,lm_head,num_head,mol_rep_layernorm,embed_tokens"

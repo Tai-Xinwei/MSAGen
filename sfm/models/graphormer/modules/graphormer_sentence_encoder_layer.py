@@ -110,8 +110,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         self.args = args
         self.self_attn_mask = self_attn_mask
 
-        # self.dummy = nn.Parameter(torch.zeros(1, dtype=torch.float32), requires_grad=True)
-        # self.dummy = nn.Linear(1, 1, bias=False)
+        self.dummy = nn.Linear(1, 1)
 
         self.reset_parameters()
 
