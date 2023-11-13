@@ -147,11 +147,16 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-#pycharm
+# pycharm
 .idea
 
 
-#no need test for running in cluster
+# no need test for running in cluster
 /tests/
 
+# docs
 docs/
+
+# storage or dataset
+/blob/
+/mp_data

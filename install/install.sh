@@ -39,3 +39,6 @@ pip install sentencepiece
 
 # For tamgent
 pip install sacremoses
+
+# For 3D AR
+pip install mendeleev

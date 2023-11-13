@@ -242,7 +242,7 @@ class SingleNodeAccelerator(Accelerator):
         model_states_only: bool = False,
     ) -> TrainerState:
         checkpoint_path = ckpt_dir / str(ckpt_id)
-        checkpoint = torch.load(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
         self.model.load_state_dict(checkpoint["model"])
         if not model_states_only:
             self.optimizer.load_state_dict(checkpoint["optimizer"])

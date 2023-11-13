@@ -313,6 +313,21 @@ class Trainer(object):
             extra_output=extra_output,
         )
 
+    def should_stop(self) -> bool:
+        if (
+            self.args.total_num_epochs is not None
+            and self.args.total_num_epochs > 0
+            and self.state.epoch >= self.args.total_num_epochs
+        ):
+            return True
+        if (
+            self.args.total_num_steps is not None
+            and self.args.total_num_steps > 0
+            and self.state.global_step >= self.args.total_num_steps
+        ):
+            return True
+        return False
+
     def should_save_batch_checkpoint(self) -> bool:
         return (
             self.args.save_batch_interval > 0
