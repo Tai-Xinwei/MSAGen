@@ -3,6 +3,7 @@ import copy
 import os
 import random
 import time
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Optional, Union
 
@@ -200,8 +201,11 @@ class Trainer(object):
         self.world_size = self.accelerator.world_size
         self.start_iteration = 0
 
-    def save_checkpoint(self, name: str):
-        self.accelerator.save_checkpoint(name)
+    def save_checkpoint(self, name: str, state: Union[TrainerState, dict]):
+        if isinstance(state, TrainerState):
+            self.accelerator.save_checkpoint(name, asdict(state))
+        else:
+            self.accelerator.save_checkpoint(name, state)
         self._save_rng_and_iter_state(self.save_dir)
 
     def _load_checkpoint(self, path: Path, model_states_only: bool = False):
@@ -425,7 +429,7 @@ class Trainer(object):
                     checkpoint_name = (
                         f"checkpoint_E{self.state.epoch}_B{self.state.batch}.pt"
                     )
-                    self.save_checkpoint(checkpoint_name)
+                    self.save_checkpoint(checkpoint_name, self.state)
 
             log_output = self.build_log_output(loss_accumulator.averge_loss)
             metric_logger.log(log_output, "train")
@@ -436,7 +440,7 @@ class Trainer(object):
             self.accelerator.barrier()
             if self.should_save_epoch_checkpoint():
                 checkpoint_name = f"checkpoint_E{self.state.epoch}.pt"
-                self.save_checkpoint(checkpoint_name)
+                self.save_checkpoint(checkpoint_name, self.state)
 
             self.state.epoch += 1
             self.state.batch = 0
