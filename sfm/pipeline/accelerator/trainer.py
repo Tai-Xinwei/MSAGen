@@ -139,7 +139,7 @@ class LogAccumulator(object):
         self.extra_log["SamplePerSec"] = self.num_examples / (
             time.time() - self.start_time
         )
-        self.extra_log_num["SamplePerSec"] = 1.0
+        self.extra_log_num["SamplePerSec"] = 1.0 / self.world_size
         if self.world_size == 1 or self.allreduce_fn is None:
             return {k: v / self.extra_log_num[k] for k, v in self.extra_log.items()}
         else:
@@ -312,6 +312,21 @@ class Trainer(object):
             global_step=self.state.global_step,
             extra_output=extra_output,
         )
+
+    def should_stop(self) -> bool:
+        if (
+            self.args.total_num_epochs is not None
+            and self.args.total_num_epochs > 0
+            and self.state.epoch >= self.args.total_num_epochs
+        ):
+            return True
+        if (
+            self.args.total_num_steps is not None
+            and self.args.total_num_steps > 0
+            and self.state.global_step >= self.args.total_num_steps
+        ):
+            return True
+        return False
 
     def should_save_batch_checkpoint(self) -> bool:
         return (

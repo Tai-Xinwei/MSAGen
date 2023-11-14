@@ -242,7 +242,7 @@ class SingleNodeAccelerator(Accelerator):
         model_states_only: bool = False,
     ) -> TrainerState:
         checkpoint_path = ckpt_dir / str(ckpt_id)
-        checkpoint = torch.load(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
         self.model.load_state_dict(checkpoint["model"])
         if not model_states_only:
             self.optimizer.load_state_dict(checkpoint["optimizer"])
@@ -334,7 +334,11 @@ class DdpAccelerator(SingleNodeAccelerator):
 
                 if torch.isnan(loss).item() or torch.isinf(loss).item():
                     logger.info("loss is nan or inf. skip this batch")
-                    continue
+                    # continue
+                    success_batch_count += 1
+                    mask = torch.isnan(loss) | torch.isinf(loss)
+                    loss[mask] = 0.0
+                    self.scaler.backward(loss)
                 else:
                     success_batch_count += 1
                     self.scaler.backward(loss)
@@ -369,25 +373,39 @@ class DdpAccelerator(SingleNodeAccelerator):
                 batch_sampler=self.train_sampler,
             )
         else:
+            train_batch_size_per_gpu = self.args.train_batch_size // (
+                self.world_size * self.args.gradient_accumulation_steps
+            )
+            assert (
+                train_batch_size_per_gpu > 0
+            ), "train_batch_size_per_gpu should be greater than 0"
+
             self.train_sampler = DistributedSampler(
                 train_data, num_replicas=self.world_size, rank=self.rank
             )
             self.train_data_loader = DataLoader(
                 train_data,
                 sampler=self.train_sampler,
-                batch_size=self.args.train_batch_size,
+                batch_size=train_batch_size_per_gpu,
                 collate_fn=train_data.collate,
                 drop_last=True,
             )
 
         if val_data:
+            valid_batch_size_per_gpu = self.args.val_batch_size // (
+                self.world_size * self.args.gradient_accumulation_steps
+            )
+            assert (
+                valid_batch_size_per_gpu > 0
+            ), "train_batch_size_per_gpu should be greater than 0"
+
             validsampler = torch.utils.data.distributed.DistributedSampler(
                 val_data, num_replicas=self.world_size, shuffle=False
             )
             self.valid_data_loader = DataLoader(
                 val_data,
                 sampler=validsampler,
-                batch_size=self.args.val_batch_size,
+                batch_size=valid_batch_size_per_gpu,
                 collate_fn=val_data.collate,
                 drop_last=False,
             )
@@ -915,14 +933,14 @@ class DeepSpeedAccelerator(Accelerator):
             if not isinstance(v, torch.Tensor):
                 v = torch.tensor(v)
             v = v.cuda()
-            deepspeed.comm.all_reduce(v)
+            deepspeed.comm.all_reduce(v, op=torch.distributed.ReduceOp.SUM)
             log_dict[k] = v.item()
 
         for k, v in log_num_dict.items():
             if not isinstance(v, torch.Tensor):
                 v = torch.tensor(v)
             v = v.cuda()
-            deepspeed.comm.all_reduce(v)
+            deepspeed.comm.all_reduce(v, op=torch.distributed.ReduceOp.SUM)
             log_num_dict[k] = v.item()
 
         return {k: v / log_num_dict[k] for k, v in log_dict.items()}

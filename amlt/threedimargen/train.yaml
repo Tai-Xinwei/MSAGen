@@ -1,0 +1,59 @@
+description: train 3d ar generator
+
+env_defaults:
+  NODES: 1
+  GPUS: 16
+  WANDB_API_KEY:  "604802c05447cb0421d710ee349b71f8bf38f89c"
+  NAME: 3dargen_v0.4_mp_nomad_dedup_scal10_ddp_layer24_head16_epoch100_warmup8000_lr1e-4_bs128
+
+target:
+    service: amlk8s
+    name: itphyperdgx2cl1
+    vc: hai1
+
+environment:
+  image: pj/mfmds:20230207_b
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+storage:
+  blob:
+    storage_account_name: hai1data # Storage account
+    container_name: renqian # Container name
+    mount_dir: /hai1
+
+code:
+  local_dir: ~/SFM_framework
+
+jobs:
+- name: ${NAME}
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: ${NODES}G${GPUS}
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=${NAME}
+  - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
+  - bash ./install/install.sh
+  - pip install -e .
+  - wandb login --relogin $${WANDB_API_KEY}
+  - torchrun --nnodes ${NODES} --nproc_per_node ${GPUS} sfm/tasks/threedimargen/train_threedimargen.py
+    --train_data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_dedup_train.jsonl
+    --valid_data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_dedup_valid.jsonl
+    --save_dir /hai1/SFM/threedimargen/outputs/${NAME}
+    --fp16
+    --total_num_epochs 100
+    --warmup_num_steps 8000
+    --max_lr 1e-4
+    --max_sites 100
+    --train_batch_size 4
+    --val_batch_size 8
+    --gradient_accumulation_steps 2
+    --log_interval 100
+    --strategy DDP
+    --scale_digit 10
+  submit_args:
+    container_args:
+      shm_size: 1024g
