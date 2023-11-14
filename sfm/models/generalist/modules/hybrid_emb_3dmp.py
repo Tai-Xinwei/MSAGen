@@ -42,6 +42,8 @@ class HybridEmbeddingsMP(HybridEmbeddings, SFMModule):
 
     def forward(self, input_tuple: Tuple):
         mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids = input_tuple
+        # torch.save({"mol_emb": mol_emb}, "/home/peiran/FMproj/output/mol_emb_mp.pt")
+        # print("saved"); exit()
 
         if input_ids is not None:
             batch_size, seq_length = input_ids.shape

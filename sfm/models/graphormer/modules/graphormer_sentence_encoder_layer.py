@@ -29,9 +29,9 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         embedding_dim: int = 768,
         ffn_embedding_dim: int = 3072,
         num_attention_heads: int = 8,
-        dropout: float = 0.1,
-        attention_dropout: float = 0.1,
-        activation_dropout: float = 0.1,
+        dropout: float = 0.0,
+        attention_dropout: float = 0.0,
+        activation_dropout: float = 0.0,
         activation_fn: str = "relu",
         export: bool = False,
         q_noise: float = 0.0,
@@ -172,6 +172,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             need_weights=False,
             attn_mask=self_attn_mask,
         )
+
         x = self.dropout_module(x)
         x = residual + x
 
@@ -194,6 +195,26 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
     models.
     """
 
+    def __init__(
+        self,
+        graphormer_config,
+        args,
+        nl=0,
+    ) -> None:
+        super().__init__(
+            graphormer_config.embedding_dim,
+            graphormer_config.ffn_embedding_dim,
+            graphormer_config.num_attention_heads,
+            graphormer_config.dropout,
+            graphormer_config.attn_dropout,
+            graphormer_config.act_dropout,
+            activation_fn=graphormer_config.activation_fn,
+            sandwich_ln=graphormer_config.sandwich_ln,
+            args=args,
+            nl=nl,
+        )
+        self.graphormer_config = graphormer_config
+
     @classmethod
     def config(cls):
         return GraphormerConfig(
@@ -203,60 +224,12 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
             hidden_act="relu",
         )
 
-    def tensors_encode(self, x, self_attn_bias, delta_pos):
-        shape_tensor = torch.cat(
-            [
-                torch.tensor(x.shape),
-                torch.tensor(self_attn_bias.shape),
-                torch.tensor(delta_pos.shape),
-            ],
-            dim=-1,
-        )
-        output = torch.cat(
-            [
-                x.contiguous().view(-1),
-                self_attn_bias.contiguous().view(-1),
-                delta_pos.contiguous().view(-1),
-            ],
-            dim=-1,
-        )
-
-        return output, shape_tensor.to(x.device)
-
-    def tensors_decode(self, output, shape_tensor):
-        x_len = shape_tensor[0] * shape_tensor[1] * shape_tensor[2]
-        self_attn_bias_len = (
-            shape_tensor[3]
-            * shape_tensor[4]
-            * shape_tensor[5]
-            * shape_tensor[6]
-            * shape_tensor[7]
-        )
-        (shape_tensor[8] * shape_tensor[9] * shape_tensor[10] * shape_tensor[11])
-
-        x = output[:x_len].view(shape_tensor[0], shape_tensor[1], shape_tensor[2])
-        self_attn_bias = output[x_len : x_len + self_attn_bias_len].view(
-            shape_tensor[3],
-            shape_tensor[4],
-            shape_tensor[5],
-            shape_tensor[6],
-            shape_tensor[7],
-        )
-        delta_pos = output[x_len + self_attn_bias_len :].view(
-            shape_tensor[8], shape_tensor[9], shape_tensor[10], shape_tensor[11]
-        )
-
-        return x, self_attn_bias, delta_pos
-
     def forward(self, input_tuple: tuple):
         """
         LayerNorm is applied either before or after the self-attention/ffn
         modules similar to the original Transformer implementation.
         """
-        if not self.args.infer:
-            x, self_attn_padding_mask, self_attn_bias, delta_pos, pos = input_tuple
-        else:
-            x, self_attn_padding_mask, self_attn_bias, input_ids, llm_mask = input_tuple
+        x, self_attn_padding_mask, self_attn_bias, input_ids, llm_mask = input_tuple
 
         assert type(x) == torch.Tensor
         assert type(self_attn_bias) == torch.Tensor
@@ -290,13 +263,12 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
         x = self.dropout_module(x)
         x = residual + x
 
-        if not self.args.infer:
+        if self.nl == self.graphormer_config.encoder_layers - 1:
             return (
                 x.contiguous(),
                 self_attn_padding_mask.contiguous(),
-                self_attn_bias.contiguous(),
-                delta_pos.contiguous(),
-                pos.contiguous(),
+                llm_mask.contiguous(),
+                input_ids.contiguous(),
             )
         else:
             return (

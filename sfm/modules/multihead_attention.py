@@ -46,7 +46,6 @@ class MultiheadAttention(nn.Module):
         self.dropout_module = FairseqDropout(
             dropout, module_name=self.__class__.__name__
         )
-
         self.head_dim = embed_dim // num_heads
         assert (
             self.head_dim * num_heads == self.embed_dim
@@ -227,9 +226,11 @@ class MultiheadAttention(nn.Module):
         # attn_weights_float = utils.softmax(
         #     attn_weights, dim=-1, onnx_trace=self.onnx_trace
         # )
+
         attn_weights_float = nn.functional.softmax(attn_weights, dim=-1)
 
         attn_weights = attn_weights_float.type_as(attn_weights)
+
         attn_probs = self.dropout_module(attn_weights)
 
         assert v is not None

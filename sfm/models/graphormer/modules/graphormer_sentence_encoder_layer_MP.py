@@ -52,8 +52,8 @@ class GraphormerSentenceEncoderLayerMP(SFMModule):
         self.embedding_dim = graphormer_config.embedding_dim
         self.ffn_embedding_dim = graphormer_config.ffn_embedding_dim
         self.num_attention_heads = graphormer_config.num_attention_heads
-        self.attention_dropout = graphormer_config.attention_dropout
-        self.activation_dropout = graphormer_config.activation_dropout
+        self.attention_dropout = graphormer_config.attn_dropout
+        self.activation_dropout = graphormer_config.act_dropout
         self.activation_fn = graphormer_config.activation_fn
         self.sandwich_ln = graphormer_config.sandwich_ln
 
@@ -62,7 +62,7 @@ class GraphormerSentenceEncoderLayerMP(SFMModule):
         )
 
         self.activation_dropout_module = FairseqDropout(
-            graphormer_config.activation_dropout, module_name=self.__class__.__name__
+            graphormer_config.act_dropout, module_name=self.__class__.__name__
         )
 
         self.activation_fn = get_activation_fn(graphormer_config.activation_fn)
@@ -187,6 +187,15 @@ class GraphormerSentenceEncoderLayerMP(SFMModule):
             num_key_value_heads=None,
             d_tilde=d_tilde,
         )
+        # return MultiheadAttention(
+        #     embed_dim,
+        #     num_attention_heads,
+        #     dropout=dropout,
+        #     self_attention=True,
+        #     # q_noise=q_noise,
+        #     # qn_block_size=qn_block_size,
+        #     d_tilde=d_tilde,
+        # )
 
     def forward(self, input_tuple: tuple):
         """
@@ -210,6 +219,7 @@ class GraphormerSentenceEncoderLayerMP(SFMModule):
         # x: T x B x C
         residual = x
         x = self.self_attn_layer_norm(x)
+        # torch.save({"x_0_1": x}, "/home/peiran/FMproj/output/x_0_1_mp.pt")
 
         x, _ = self.self_attn(
             query=x,
@@ -220,6 +230,7 @@ class GraphormerSentenceEncoderLayerMP(SFMModule):
         )
         x = self.dropout_module(x)
         x = residual + x
+        # torch.save({"x_0_2": x}, "/home/peiran/FMproj/output/x_0_2_mp.pt")
 
         residual = x
         x = self.final_layer_norm(x)
@@ -243,11 +254,14 @@ class GraphormerSentenceEncoderLayerMP(SFMModule):
             dist.all_reduce(merged_x, group=tp_group, op=dist.ReduceOp.SUM)
         else:
             merged_x = x
+        # torch.save({"x_0_3": x}, "/home/peiran/FMproj/output/x_0_3_mp.pt")
 
         x = self.final_layer_norm_2(merged_x)
         x, _ = self.fc2(x)
         x = self.dropout_module(x)
         x = residual + x
+        # torch.save({"x_0_4": x}, "/home/peiran/FMproj/output/x_0_4_mp.pt")
+        # print("saved"); exit()
 
         if self.nl == self.graphormer_config.encoder_layers - 1:
             return (

@@ -35,7 +35,7 @@ class PretrainedLayerSpec(LayerSpec):
             if self.lora_mode == "lora":
                 layer = self.create_peft_model(layer, lora=True)
             # elif self.lora_mode == "freeze":
-            #     layer = self.create_peft_model(layer, lora=False)
+            # layer = self.create_peft_model(layer, lora=False)
 
         return layer
 
@@ -147,14 +147,14 @@ class PretrainedLayerSpec(LayerSpec):
                     device=old_head_weight.device,
                 )
 
-                mean = old_head_weight.mean(dim=0, keepdim=True).expand_as(
-                    new_head.weight
-                )
-                std = old_head_weight.std(dim=0, keepdim=True).expand_as(
-                    new_head.weight
-                )
-                new_head.weight.data = torch.normal(mean=mean, std=std)
-                # new_head.weight.data.zero_()
+                # mean = old_head_weight.mean(dim=0, keepdim=True).expand_as(
+                #     new_head.weight
+                # )
+                # std = old_head_weight.std(dim=0, keepdim=True).expand_as(
+                #     new_head.weight
+                # )
+                # new_head.weight.data = torch.normal(mean=mean, std=std)
+                # # new_head.weight.data.zero_()
 
                 new_head.weight.data[
                     : old_head_weight.size(0), :
@@ -180,13 +180,13 @@ class PretrainedLayerSpec(LayerSpec):
                     device=old_embed_weight.device,
                 )
 
-                mean = old_embed_weight.mean(dim=0, keepdim=True).expand_as(
-                    new_embed.weight
-                )
-                std = old_embed_weight.std(dim=0, keepdim=True).expand_as(
-                    new_embed.weight
-                )
-                new_embed.weight.data = torch.normal(mean=mean, std=std)
+                # mean = old_embed_weight.mean(dim=0, keepdim=True).expand_as(
+                #     new_embed.weight
+                # )
+                # std = old_embed_weight.std(dim=0, keepdim=True).expand_as(
+                #     new_embed.weight
+                # )
+                # new_embed.weight.data = torch.normal(mean=mean, std=std)
                 # new_embed.weight.data.zero_()
 
                 new_embed.weight.data[

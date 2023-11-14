@@ -1024,13 +1024,13 @@ def _add_regularization_args(parser):
     group.add_argument(
         "--attention-dropout",
         type=float,
-        default=0.1,
+        default=0.0,
         help="Post attention dropout probability.",
     )
     group.add_argument(
         "--hidden-dropout",
         type=float,
-        default=0.1,
+        default=0.0,
         help="Dropout probability for hidden state transformer.",
     )
     group.add_argument(

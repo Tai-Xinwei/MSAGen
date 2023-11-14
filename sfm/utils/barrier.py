@@ -7,6 +7,7 @@ import sys
 
 
 def check(num_workers, rank):
+    print(f"Sync, rank: {rank} is waiting")
     abs_path = os.path.abspath(os.path.dirname(__file__))
     while True:
         all_ready = True

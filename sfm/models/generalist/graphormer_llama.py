@@ -28,6 +28,9 @@ from sfm.models.graphormer.modules import GraphormerSentenceEncoder
 from sfm.models.graphormer.modules.graphormer_sentence_encoder_mp import (
     GraphormerEncoderMP,
 )
+from sfm.models.graphormer.modules.graphormer_sentence_encoder_pp import (
+    GraphormerEncoderPP,
+)
 from sfm.models.llama2.llama2mp_config import MPLlamaConfig
 from sfm.models.llama2.llama_modules import LlamaEmbeddingsPP, LlamaModelPP, NumMLP
 from sfm.models.llama2.llama_modules_3dmp import LlamaEmbeddingsMP, LlamaModelMP
@@ -137,17 +140,13 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
         elif args.strategy == TrainStrategy.Pipeline:
             if not args.fused_graphormer_llama:
                 self.pipe_layers.extend(
-                    [
-                        PretrainedLayerSpec(
-                            GraphormerSentenceEncoderPP,
-                            graphormer_config,
-                            load_ckpt=args.load_ckpt,
-                            pretrained_ckpt_path=args.loadmfmcheck_path,
-                            lora_mode="freeze",
-                        )
-                    ]
+                    GraphormerEncoderPP.to_layers(
+                        args,
+                        graphormer_config,
+                        load_ckpt=args.load_ckpt,
+                        ckp_list=ckp_list,
+                    )
                 )
-
                 self.pipe_layers.extend(
                     [
                         PretrainedLayerSpec(

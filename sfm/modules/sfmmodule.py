@@ -71,7 +71,7 @@ class SFMModule(MegatronModule):
                     partitioned_size = param.shape[0]
                     start_idx = tp_rank * partitioned_size
                     end_idx = (tp_rank + 1) * partitioned_size
-                    if end_idx < ckp_tensor.shape[0]:
+                    if end_idx <= ckp_tensor.shape[0]:
                         self._load(
                             param, ckp_tensor[start_idx:end_idx], name, error_msgs
                         )
@@ -93,7 +93,7 @@ class SFMModule(MegatronModule):
                     partitioned_size = param.shape[1]
                     start_idx = tp_rank * partitioned_size
                     end_idx = (tp_rank + 1) * partitioned_size
-                    if end_idx < ckp_tensor.shape[1]:
+                    if end_idx <= ckp_tensor.shape[1]:
                         self._load(
                             param, ckp_tensor[:, start_idx:end_idx], name, error_msgs
                         )
