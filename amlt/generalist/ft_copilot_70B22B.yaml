@@ -1,0 +1,97 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+# train a chemical generalist
+
+description: chemical-copilot
+
+target:
+    service: amlk8s
+    name: itphyperdgx2cl1
+    vc: hai1
+
+
+environment:
+  image: pj/mfmds:20230207_b
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+storage:
+  blob:
+    storage_account_name: hai1data # Storage account
+    container_name: mfm # Container name
+    mount_dir: /blob
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: ft_22BMFM_70Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi+chemcop-adaptor+graphormer-special-tokens-2e-5-pp16-nonprem
+  sku: 16xG16
+  mpi: true
+  process_count_per_node: 1
+  command:
+  # molecule model parameters
+  - export layers=42
+  - export num_pred_attn_layer=4
+  - export hidden_size=6144
+  - export ffn_size=24576
+  - export num_head=32
+  - export num_3d_bias_kernel=128
+
+  # molecule model training parameters
+  - export dropout=0.0
+  - export act_dropout=0.1
+  - export attn_dropout=0.1
+  - export weight_decay=0.0
+  - export sandwich_ln="true"
+  - export droppath_prob=0.0
+
+  # general training parameters
+  - export d_tilde=16.0
+  - export max_lr=2e-4
+  - export total_num_steps=200000
+  - export warmup_num_steps=12000
+  - export seed=12345
+
+  # generalist dataset settings
+  - export data_path=/blob/data/chemical-copilot-special-token/
+  - export dataset_names=mol-instruction-mol-desc,functional-group,chebi,func-group-list-and-desc
+  - export dataset_splits=clean,all,all,all
+  - export dataset_ratios=3.0,1.0,3.0,1.0
+  - export pool_mode="full"
+  - export embedding_length=20
+  - export model_max_length=512
+
+  # checkpoint and log settings
+  - export save_dir=/blob/checkpoints/ft_22BMFM_70Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi+chemcop-adaptor+graphormer-special-tokens-2e-4-pp16-nonprem
+  - export save_batch_interval=500
+  - export loadmfmcheck_path=/blob/ds_dataset/output/pretrain56w/pm6oc_512_pm6_oc2_acc2_4UnifiedH_22B_L46_4e4/global_step560000/
+  - export llm_model_name_or_path=/blob/ds_dataset/llama2/llama-2-70b
+  # - export finetune_from_checkpoint_dir=/blob/ds_dataset/output/ft_22BMFM_70Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi-adaptor-special-tokens-2e-4-pp16-prem/
+  # - export finetune_from_checkpoint_id=global_step1499
+  - export wandb_key=5d03b7a46d10f86ff45c4aedc570660a523edc0b
+  - export wandb_project_name=chemical-generalist
+
+  # training parallelism
+  - export pipeline_model_parallel_size=4
+  - export tensor_model_parallel_size=16
+  - export strategy=ThreeD
+  - export pp_partition_layer_name="manual"
+  - export pp_part_list="[0, 43, 70, 99, 127]"
+  - export unfreeze_param_list="adapter,lm_head,num_head,mol_rep_layernorm,embed_tokens"
+
+  # training parameters for generalist
+  - export micro_batch_size=1
+  - export global_batch_size=64
+  - export max_position_embeddings=2048
+  - export llm_hidden_size=4096 # this is only for ThreeD parallelism strategy, used by megatron
+
+  # setup environment
+  - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
+  - bash ./install/install.sh && bash ./install/install_megatron.sh
+  - bash ./scripts/generalist/ftmp_graphormer_llama_smiles.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g
+  preemptible: false

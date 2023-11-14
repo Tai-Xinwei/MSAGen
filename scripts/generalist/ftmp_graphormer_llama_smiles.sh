@@ -3,10 +3,10 @@
 # Licensed under the MIT License.
 
 # molecule model parameters
-[ -z "${layers}" ] && layers=24
+[ -z "${layers}" ] && layers=42
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
-[ -z "${hidden_size}" ] && hidden_size=768
-[ -z "${ffn_size}" ] && ffn_size=768
+[ -z "${hidden_size}" ] && hidden_size=6144
+[ -z "${ffn_size}" ] && ffn_size=24576
 [ -z "${num_head}" ] && num_head=32
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=128
 
@@ -33,7 +33,9 @@ fi
 # generalist dataset settings
 # [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
 # [ -z "${data_path}" ] && data_path='/home/peiran/mnt/mntsfm2/data/chemical-copilot-special-token/'
-[ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
+# [ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
+[ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token'
+
 # [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
 # [ -z "${dataset_splits}" ] && dataset_splits='clean'
 [ -z "${dataset_names}" ] && dataset_names='chebi'
@@ -53,9 +55,11 @@ fi
 [ -z "${save_batch_interval}" ] && save_batch_interval=5000
 # [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/checkpoint7_new.pt"
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
-[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
+# [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
+[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/peiran/pretrain56w/global_step560000"
 # [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/tp"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-70b"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/peiran/llama-2-70b"
 [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir=""
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id=""
 [ -z "${wandb_key}" ] && wandb_key=5d03b7a46d10f86ff45c4aedc570660a523edc0b
@@ -67,8 +71,8 @@ fi
 
 # training parallelism
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
-[ -z "${strategy}" ] && strategy=Pipeline
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=2
+[ -z "${strategy}" ] && strategy=ThreeD
 # determine zero strategy in DeepSpeed
 if [[ "${strategy}" == "Zero1" || "${strategy}" == "Pipeline" || "${strategy}" == "ThreeD" ]]; then
   zero_strategy=1
@@ -77,14 +81,15 @@ elif [[ ${strategy} == "Zero2" ]]; then
 elif [[ ${strategy} == "Zero3" ]]; then
   zero_strategy=3
 fi
-[ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayer"
-[ -z "${pp_part_list}" ] && pp_part_list="[0, 61]"
-# [ -z "${pp_part_list}" ] && pp_part_list="[0, 10, 19, 28, 37]"
+# [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayer"
+# [ -z "${pp_part_list}" ] && pp_part_list="[0, 61]"
+[ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="manual"
+[ -z "${pp_part_list}" ] && pp_part_list="[0, 43, 70, 99, 127]"
 [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="mol_adaptor,mol_rep_layernorm,word_embeddings"
 
 # training parameters for generalist
-[ -z "${micro_batch_size}" ] && micro_batch_size=2
-[ -z "${global_batch_size}" ] && global_batch_size=8
+[ -z "${micro_batch_size}" ] && micro_batch_size=1
+[ -z "${global_batch_size}" ] && global_batch_size=1
 [ -z "${max_position_embeddings}" ] && max_position_embeddings=2048
 [ -z "${llm_hidden_size}" ] && llm_hidden_size=4096
 
@@ -276,8 +281,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --pipeline-model-parallel-size $pipeline_model_parallel_size \
           --tensor-model-parallel-size $tensor_model_parallel_size \
           --strategy $strategy \
-          --pp_partition_layer_name $pp_partition_layer_name \
           --pp_part_list "${pp_part_list}" \
+          --pp_partition_layer_name $pp_partition_layer_name \
           --unfreeze_param_list $unfreeze_param_list \
           --ft \
           --fp16 \

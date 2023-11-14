@@ -5,15 +5,16 @@
 # LICENSE file in the root directory of this source tree.
 
 import os
-from typing import Optional
+from typing import Optional, Tuple
 
 import torch
-from torch.optim import Optimizer
+from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 from sfm.logging import logger
 from sfm.pipeline.accelerator.dataclasses import ModelOutput, TrainStrategy
 from sfm.pipeline.accelerator.trainer import Model
+from sfm.utils.optim.set_lr import DECAY_COSINE_RATE, groupWarmupDecayLR
 
 from .modules.threedimargen_modules import ThreeDimARGen, ThreeDimARGenModelPP
 from .threedimargen_config import ThreeDimARGenConfig
@@ -121,5 +122,7 @@ class ThreeDimARGenModel(Model):
     def to_layers(self):
         return self.pipe_layers
 
-    def config_optimizer(self) -> tuple[Optional[Optimizer], Optional[LRScheduler]]:
+    def config_optimizer(
+        self, model: Optional[torch.nn.Module] = None
+    ) -> Tuple[Optional[Optimizer], Optional[LRScheduler]]:
         return (None, None)

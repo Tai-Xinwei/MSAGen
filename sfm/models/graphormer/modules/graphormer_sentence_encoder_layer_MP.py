@@ -91,6 +91,8 @@ class GraphormerSentenceEncoderLayerMP(SFMModule):
         # self.final_sandwich_layer_norm = LayerNorm(self.embedding_dim, export=export) if self.sandwich_ln else None
         self.final_layer_norm_2 = LayerNorm(self.ffn_embedding_dim)
 
+        self.dummy = nn.Linear(1, 1)
+
     def auto_partition_load_state_dict(
         self,
         state_dict: Mapping[str, Any],

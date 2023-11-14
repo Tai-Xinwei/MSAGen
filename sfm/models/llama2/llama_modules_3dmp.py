@@ -563,6 +563,7 @@ class FusedLlamaNorm(SFMModule):
         self.config = config
         # self.norm = MixedFusedRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.dummy = nn.Linear(1, 1)
 
     def forward(self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]):
         hidden_states, _, _ = input_tuple

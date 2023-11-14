@@ -56,17 +56,9 @@ def main(args) -> None:
     )
 
     if args.total_num_epochs is not None and args.total_num_epochs > 0:
-        if args.strategy == TrainStrategy.Single or args.strategy == TrainStrategy.DDP:
-            world_size = (
-                int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
-            )
-            total_batch_size = (
-                args.train_batch_size * args.gradient_accumulation_steps * world_size
-            )
-        else:
-            total_batch_size = args.train_batch_size
         args.total_num_steps = (
-            math.ceil((len(train_data) // total_batch_size)) * args.total_num_epochs
+            math.ceil((len(train_data) // args.train_batch_size))
+            * args.total_num_epochs
         )
 
     lr_scheduler = groupWarmupDecayLR(
