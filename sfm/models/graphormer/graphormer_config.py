@@ -15,8 +15,8 @@ class GraphormerConfig:
     max_length: int = 1024
 
     droppath_prob: float = 0.0
-    act_dropout: float = 0.1
-    attn_dropout: float = 0.1
+    act_dropout: float = 0.0
+    attn_dropout: float = 0.0
     dropout: float = 0.0
     sandwich_ln: bool = True
     noise_scale: float = 0.2
@@ -91,8 +91,8 @@ class GraphormerConfig:
 
 
 def base_architecture(args):
-    args.dropout = getattr(args, "dropout", 0.1)
-    args.attention_dropout = getattr(args, "attention_dropout", 0.1)
+    args.dropout = getattr(args, "dropout", 0.0)
+    args.attention_dropout = getattr(args, "attention_dropout", 0.0)
     args.act_dropout = getattr(args, "act_dropout", 0.0)
 
     args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 4096)
@@ -155,8 +155,8 @@ def graphormer_base_architecture(args):
     args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 768)
     args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 768)
     args.dropout = getattr(args, "dropout", 0.0)
-    args.attention_dropout = getattr(args, "attention_dropout", 0.1)
-    args.act_dropout = getattr(args, "act_dropout", 0.1)
+    args.attention_dropout = getattr(args, "attention_dropout", 0.0)
+    args.act_dropout = getattr(args, "act_dropout", 0.0)
     args.activation_fn = getattr(args, "activation_fn", "gelu")
     args.encoder_normalize_before = getattr(args, "encoder_normalize_before", True)
     args.apply_graphormer_init = getattr(args, "apply_graphormer_init", True)

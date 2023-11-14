@@ -811,7 +811,7 @@ class LlamaModelMP(LlamaPreTrainedModel):
                     pretrained_ckpt_path=os.path.join(
                         args.llm_model_name_or_path, f"model.layers.{i}.pt"
                     ),
-                    lora_mode="freeze",
+                    lora_mode="full",
                     tp_model_size=args.tensor_model_parallel_size,
                     tp_rank=parallel_state.get_tensor_model_parallel_rank(),
                     self_attn_mask_type=AttnMaskType.causal,
@@ -825,7 +825,7 @@ class LlamaModelMP(LlamaPreTrainedModel):
                 pretrained_ckpt_path=os.path.join(
                     args.llm_model_name_or_path, "model.norm.pt"
                 ),
-                lora_mode="freeze",
+                lora_mode="full",
                 tp_model_size=args.tensor_model_parallel_size,
                 tp_rank=parallel_state.get_tensor_model_parallel_rank(),
             )
@@ -840,7 +840,7 @@ class LlamaModelMP(LlamaPreTrainedModel):
                 pretrained_ckpt_path=os.path.join(
                     args.llm_model_name_or_path, "model.lm_head.pt"
                 ),
-                lora_mode="freeze",
+                lora_mode="full",
                 tp_model_size=args.tensor_model_parallel_size,
                 tp_rank=parallel_state.get_tensor_model_parallel_rank(),
             )

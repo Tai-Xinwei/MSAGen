@@ -4,14 +4,13 @@ import os
 import torch
 import torch.nn as nn
 
-from megatron.core import parallel_state
 from sfm.utils.pretrained_layer_spec import PretrainedLayerSpec
 
-from .graphormer_embedding import GraphormerEmbeddingMP
-from .graphormer_sentence_encoder_layer_MP import GraphormerSentenceEncoderLayerMP
+from .graphormer_embedding import GraphormerEmbeddingPP
+from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer_PP
 
 
-class GraphormerEncoderMP(nn.Module):
+class GraphormerEncoderPP(nn.Module):
     def __init__(self):
         super().__init__()
         self.dummy = nn.Parameter(
@@ -25,7 +24,6 @@ class GraphormerEncoderMP(nn.Module):
         cls,
         args,
         graphormer_config,
-        mp_config,
         layer_id=0,
         load_ckpt=False,
         ckp_list=[],
@@ -33,10 +31,9 @@ class GraphormerEncoderMP(nn.Module):
         cls.pipe_layer = []
         cls.pipe_layer.append(
             PretrainedLayerSpec(
-                GraphormerEmbeddingMP,
+                GraphormerEmbeddingPP,
                 graphormer_config,
                 args,
-                mp_config,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
                     args.loadmfmcheck_path,
@@ -45,17 +42,14 @@ class GraphormerEncoderMP(nn.Module):
                     else "layer_{}-model_states.pt".format(str(layer_id).zfill(2)),
                 ),
                 lora_mode="freeze",
-                tp_model_size=args.tensor_model_parallel_size,
-                tp_rank=parallel_state.get_tensor_model_parallel_rank(),
             )
         )
         layer_id += 1
         for i in range(graphormer_config.encoder_layers):
             cls.pipe_layer.append(
                 PretrainedLayerSpec(
-                    GraphormerSentenceEncoderLayerMP,
+                    GraphormerSentenceEncoderLayer_PP,
                     graphormer_config,
-                    mp_config,
                     args,
                     i,
                     load_ckpt=load_ckpt,
@@ -66,8 +60,6 @@ class GraphormerEncoderMP(nn.Module):
                         else "layer_{}-model_states.pt".format(str(layer_id).zfill(2)),
                     ),
                     lora_mode="freeze",
-                    tp_model_size=args.tensor_model_parallel_size,
-                    tp_rank=parallel_state.get_tensor_model_parallel_rank(),
                 )
             )
             layer_id += 1

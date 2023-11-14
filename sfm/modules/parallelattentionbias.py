@@ -120,6 +120,7 @@ class TPMultiheadAttention(MegatronModule):
         self.num_attention_heads_per_partition = core.utils.divide(
             num_heads, world_size
         )
+        self.num_attention_heads_per_partition = num_heads
 
         # Per GQA head and per partition values
         if self.use_gqa:
@@ -140,7 +141,7 @@ class TPMultiheadAttention(MegatronModule):
             config=mp_config,
             init_method=mp_config.init_method,
             bias=query_bias,
-            gather_output=False,
+            gather_output=True,
         )
 
         self.key = tensor_parallel.ColumnParallelLinear(
@@ -149,7 +150,7 @@ class TPMultiheadAttention(MegatronModule):
             config=mp_config,
             init_method=mp_config.init_method,
             bias=key_bias,
-            gather_output=False,
+            gather_output=True,
         )
 
         self.value = tensor_parallel.ColumnParallelLinear(
@@ -158,7 +159,7 @@ class TPMultiheadAttention(MegatronModule):
             config=mp_config,
             init_method=mp_config.init_method,
             bias=value_bias,
-            gather_output=False,
+            gather_output=True,
         )
 
         self.dense = tensor_parallel.RowParallelLinear(
@@ -170,6 +171,11 @@ class TPMultiheadAttention(MegatronModule):
             input_is_parallel=False,
             skip_bias_add=False,
         )
+
+        # self.query = nn.Linear(embed_dim, projection_size, bias=query_bias)
+        # self.key = nn.Linear(embed_dim, kv_projection_size, bias=False)
+        # self.value = nn.Linear(embed_dim, kv_projection_size, bias=value_bias)
+        # self.dense = nn.Linear(projection_size, embed_dim, bias=output_bias)
 
         self.dropout_module = FairseqDropout(
             dropout, module_name=self.__class__.__name__
@@ -210,6 +216,7 @@ class TPMultiheadAttention(MegatronModule):
         value_layer, _ = self.value(value)
 
         query_layer *= self.scaling
+        # torch.save({"query_layer": query_layer}, "/home/peiran/FMproj/output/q0_mp.pt")
 
         tgt_len, bsz, embed_dim = query_layer.size()
         src_len, _, _ = key_layer.size()
@@ -237,7 +244,7 @@ class TPMultiheadAttention(MegatronModule):
             assert key_padding_mask.size(1) == src_len
 
         if not self.use_flash_attn:
-            attn_weights = torch.matmul(query_layer, key_layer.transpose(1, 2))
+            attn_weights = torch.bmm(query_layer, key_layer.transpose(1, 2))
 
             assert list(attn_weights.size()) == [
                 bsz * self.num_attention_heads_per_partition,
@@ -249,6 +256,7 @@ class TPMultiheadAttention(MegatronModule):
                 attn_weights += attn_bias.contiguous().view(
                     bsz * self.num_attention_heads_per_partition, tgt_len, src_len
                 )
+            # torch.save({"attn_weights": attn_weights}, "/home/peiran/FMproj/output/attn_weights0_mp.pt")
 
             if key_padding_mask is not None:
                 # don't attend to padding symbols
@@ -266,9 +274,14 @@ class TPMultiheadAttention(MegatronModule):
             attn_weights_float = nn.functional.softmax(attn_weights, dim=-1)
 
             attn_weights = attn_weights_float.type_as(attn_weights)
-            attn_probs = self.dropout_module(attn_weights)
+            # torch.save({"attn_weights": attn_weights}, "/home/peiran/FMproj/output/attn_weights1_mp.pt")
 
-            attn = torch.matmul(attn_probs, value_layer)
+            attn_probs = self.dropout_module(attn_weights)
+            # torch.save({"attn_weights": attn_probs}, "/home/peiran/FMproj/output/attn_weights2_mp.pt")
+
+            attn = torch.bmm(attn_probs, value_layer)
+            # torch.save({"value_layer": value_layer}, "/home/peiran/FMproj/output/value_layer_mp.pt")
+            # torch.save({"attn": attn}, "/home/peiran/FMproj/output/attn0_mp.pt")
 
             assert list(attn.size()) == [
                 bsz * self.num_attention_heads_per_partition,
@@ -297,25 +310,27 @@ class TPMultiheadAttention(MegatronModule):
         # Output. [sq, b, h]
         # =================
 
-        # merge first for layer_norm, extra communication due to this layer_norm in graphormer attention
-        tp_rank = parallel_state.get_tensor_model_parallel_rank()
-        tp_group = parallel_state.get_tensor_model_parallel_group()
-        tp_world_size = parallel_state.get_tensor_model_parallel_world_size()
+        # # # # # merge first for layer_norm, extra communication due to this layer_norm in graphormer attention
+        # tp_rank = parallel_state.get_tensor_model_parallel_rank()
+        # tp_group = parallel_state.get_tensor_model_parallel_group()
+        # tp_world_size = parallel_state.get_tensor_model_parallel_world_size()
 
-        merged_context_layer = torch.zeros(
-            (tgt_len, bsz, embed_dim * tp_world_size),
-            device=context_layer.device,
-            dtype=context_layer.dtype,
-        )
+        # merged_context_layer = torch.zeros(
+        #     (tgt_len, bsz, embed_dim * tp_world_size),
+        #     device=context_layer.device,
+        #     dtype=context_layer.dtype,
+        # )
 
-        merged_context_layer[
-            :, :, embed_dim * tp_rank : embed_dim * (tp_rank + 1)
-        ] = context_layer
+        # merged_context_layer[
+        #     :, :, embed_dim * tp_rank : embed_dim * (tp_rank + 1)
+        # ] = context_layer
 
-        dist.all_reduce(merged_context_layer, group=tp_group, op=dist.ReduceOp.SUM)
+        # dist.all_reduce(merged_context_layer, group=tp_group, op=dist.ReduceOp.SUM)
 
-        # merged_context_layer = context_layer
+        merged_context_layer = context_layer
         context_layer = self.layer_norm(merged_context_layer)
+        # torch.save({"context_layer": context_layer}, "/home/peiran/FMproj/output/context_layer1_mp.pt")
+
         output, _ = self.dense(context_layer)
 
         return output, None

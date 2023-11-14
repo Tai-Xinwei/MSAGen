@@ -112,8 +112,8 @@ class TransformerConfig(ModelParallelConfig):
 
     ffn_hidden_size: int = None
     kv_channels: int = None
-    hidden_dropout: float = 0.1
-    attention_dropout: float = 0.1
+    hidden_dropout: float = 0.0
+    attention_dropout: float = 0.0
     fp32_residual_connection: bool = False
     # @jcasper should we keep this option?
     apply_residual_connection_post_layernorm: bool = False
