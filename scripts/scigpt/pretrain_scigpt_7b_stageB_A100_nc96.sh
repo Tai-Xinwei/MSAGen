@@ -3,29 +3,37 @@
 # Licensed under the MIT License.
 ulimit -c unlimited
 
+# see https://github.com/msr-ai4science/feynman/blob/main/docs/nc96trial_cluster.md
+export DATASET_MOUNT_BLOCK_BASED_CACHE_ENABLED=False
+export DATASET_MOUNT_BLOCK_FILE_CACHE_ENABLED=False
+export DATASET_MOUNT_FILE_CACHE_PRUNE_TARGET=0.7
+export DATASET_MOUNT_CACHE_SIZE=200GB
+export NCCL_NSOCKS_PERTHREAD=4
+export NCCL_SOCKET_NTHREADS=2
+
 echo 'Solving MKL done!'
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${model_type}" ] && model_type="scigpt_tiny"
 [ -z "${weight_decay}" ] && weight_decay=0.1 # same as LLAMA2
-# TODO: we need grad clip
-[ -z "${max_lr}" ] && max_lr=1.5e-4  # half of LLAMA2
+[ -z "${max_lr}" ] && max_lr=6e-5  # LLAMA2 use 3e-4, let's use smaller lr
 [ -z "${beta1}" ] && beta1=0.9 # same as LLAMA2
 [ -z "${beta2}" ] && beta2=0.95 # same as LLAMA2
-[ -z "${total_num_steps}" ] && total_num_steps=700000 # same as LLAMA2
+[ -z "${total_num_steps}" ] && total_num_steps=32000 # 5 Epochs
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=2000 # same as LLAMA2
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
+[ -z "${max_position_embeddings}" ] && max_position_embeddings=2048
 # LLAMA use 4M tokens per batch, we have context length 2048, so we use 4M/2k = 2k sents per batch
 [ -z "${train_batch_size}" ] && train_batch_size=2048
-[ -z "${val_batch_size}" ] && val_batch_size=2048
+[ -z "${val_batch_size}" ] && val_batch_size=4
 
-# When use 128GPU and pipeline stage 16, the acc steps is 2k/ (128/16) = 256
+# When use 128GPU and pipeline stage 16, the acc steps is 2k/ (8/4) = 1024
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=256
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=2000 # about 1 day
+[ -z "${save_batch_interval}" ] && save_batch_interval=100
 [ -z "${log_interval}" ] && log_interval=20
-[ -z "${epochs}" ] && epochs=10
+[ -z "${epochs}" ] && epochs=5
 
 [ -z "${strategy}" ] && strategy=Pipeline
 
@@ -34,9 +42,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${valid_data_path}" ] && valid_data_path='/hai1/shufxi/data/scigpt/v1/valid.npy'
 [ -z "${loadcheck_path}" ] && loadcheck_path='/hai1/ds_dataset/llama2/llama-2-7b'
 [ -z "${save_dir}" ] && save_dir='/mnt/output/'
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=16
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerPP"
-
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -83,6 +90,7 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 
 wandb login --relogin "$WANDB_API_KEY"
 
+
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
   DISTRIBUTED_ARGS=""
@@ -107,10 +115,11 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/scigpt/pretrain_scigpt.py \
       --dict_path "$dict_path" \
       --train_data_path "$train_data_path" \
       --valid_data_path "$valid_data_path" \
+      --max_position_embeddings "$max_position_embeddings" \
       --weight_decay "$weight_decay" \
       --save_dir "$save_dir" \
       --seed 666666 \
-      --fp16 \
+      --bf16 \
       --grad_scaler_init "$grad_scaler_init" \
       --max_lr "$max_lr" \
       --beta1 "$beta1" --beta2 "$beta2" \

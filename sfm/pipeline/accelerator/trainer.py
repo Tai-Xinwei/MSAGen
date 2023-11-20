@@ -504,8 +504,14 @@ class Trainer(object):
         total_loss, num_examples = self.accelerator.sync_valid_loss(
             loss_accumulator.sum, loss_accumulator.num_examples
         )
+
+        if num_examples > 0:
+            valid_loss = total_loss / num_examples
+        else:
+            valid_loss = 0
+
         valid_log = ValidLogOutput(
-            valid_loss=total_loss / num_examples,
+            valid_loss=valid_loss,
             num_examples=num_examples,
             extra_output=interval_loss_accumulator.averge_log,
         )

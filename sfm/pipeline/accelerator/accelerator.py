@@ -510,6 +510,8 @@ class DeepSpeedAccelerator(Accelerator):
                 math.log2(self.args.grad_scaler_init)
             )
 
+            self.args.deepspeed_config["bf16"]["enabled"] = self.args.bf16
+
             if (
                 self.args.strategy == TrainStrategy.Zero1
                 or self.args.strategy == TrainStrategy.Pipeline
@@ -525,6 +527,13 @@ class DeepSpeedAccelerator(Accelerator):
                 )
 
             self.args.deepspeed_config["optimizer"]["params"]["lr"] = self.args.max_lr
+            self.args.deepspeed_config["optimizer"]["params"]["betas"] = [
+                self.args.beta1,
+                self.args.beta2,
+            ]
+            self.args.deepspeed_config["optimizer"]["params"][
+                "weight_decay"
+            ] = self.args.weight_decay
             self.args.deepspeed_config["optimizer"]["params"]["betas"] = [
                 self.args.beta1,
                 self.args.beta2,
@@ -559,7 +568,17 @@ class DeepSpeedAccelerator(Accelerator):
             logger.info(
                 "unfreeze_param_list is empty, unfreeze all parameters with gradient"
             )
-            return [param for param in self.model.parameters() if param.requires_grad]
+            if (
+                self.args.strategy == TrainStrategy.Pipeline
+                or self.args.strategy == TrainStrategy.ThreeD
+            ):
+                return [
+                    param for param in self.ppmodel.parameters() if param.requires_grad
+                ]
+            else:
+                return [
+                    param for param in self.model.parameters() if param.requires_grad
+                ]
 
         unfreeze_param = []
         unfreeze_param_name_list = list(
@@ -640,6 +659,7 @@ class DeepSpeedAccelerator(Accelerator):
             if self.lr_scheduler is not None:
                 # When using custom scheduler, we need to set the scheduler type to None
                 # Otherwise, deepspeed will use that scheduler instead of the custom one
+                logger.info("lr scheduler is set, remove the ds default scheduler")
                 self.args.deepspeed_config["scheduler"]["type"] = None
 
             model_parameters = (
@@ -662,6 +682,10 @@ class DeepSpeedAccelerator(Accelerator):
                 optimizer=self.optimizer,
                 lr_scheduler=self.lr_scheduler,
             )
+
+            logger.info(f"using optimizer: {self.optimizer}")
+            logger.info(f"using lr_scheduler: {self.lr_scheduler}")
+
             self.args.gradient_accumulation_steps = (
                 self.model_engine.gradient_accumulation_steps()
             )

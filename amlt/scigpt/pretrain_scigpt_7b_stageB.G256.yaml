@@ -1,0 +1,50 @@
+description: train_sci_gpt_7b
+
+env_defaults:
+  NODES: 16
+  GPUS: 16
+  WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+
+
+target:
+    service: amlk8s
+    name: itphyperdgx2cl1
+    vc: hai1
+
+
+environment:
+  image: shufxi/mfmds:20230807
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+
+storage:
+  blob:
+    storage_account_name: hai1data # Storage account
+    container_name: mfm # Container name
+    mount_dir: /hai1
+
+code:
+  local_dir: .
+
+jobs:
+- name: train_sci_gpt_7b_stageB
+  sku: ${NODES}xG${GPUS}
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - mkdir -p /hai1/shufxi/scigpt/7b/stageB
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=scigpt
+  - export model_type=scigpt_7b
+  - export save_dir=/hai1/shufxi/scigpt/7b/stageB
+  - export loadcheck_path=/hai1/shufxi/scigpt/7b/stageA_2k/global_step7999
+  - export save_batch_interval=200
+  - export gradient_accumulation_steps=64
+  - bash ./install/install.sh
+  - pip install -e .
+  - bash scripts/scigpt/pretrain_scigpt_7b_stageB.sh
+
+  submit_args:
+    container_args:
+      shm_size: 1024g

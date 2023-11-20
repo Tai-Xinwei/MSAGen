@@ -80,6 +80,11 @@ class TestSFMDecTokenizer(unittest.TestCase):
             ],
         )
 
+    def test_tok_prompt(self):
+        self.check_tokenizer("AA <mol>", ["AA", "<mol>"])
+
+        self.check_tokenizer("AA <mol> BB", ["AA", "<mol>", "BB"])
+
 
 if __name__ == "__main__":
     unittest.main()

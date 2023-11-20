@@ -222,7 +222,7 @@ class SFMPipeEngine(DeepSpeedEngine):
         self.first_gradient_send = True
 
         # stores the loss for the current micro batch being processed
-        self.loss = torch.tensor(0.0).to(self.device)
+        self.loss = torch.tensor(0.0, dtype=torch.float32).to(self.device)
 
         # stores the loss for the entire batch
         self.total_loss = None
@@ -852,13 +852,13 @@ class SFMPipeEngine(DeepSpeedEngine):
                 # self.loss = self.module.loss_fn(outputs, labels)
                 output = self.module.loss_fn(outputs, labels)
                 if isinstance(output, ModelOutput):
-                    self.loss = output.loss
+                    self.loss = output.loss.to(torch.float32)
                     self.loss_log = output.log_output
                 elif isinstance(output, torch.Tensor):
-                    self.loss = output
+                    self.loss = output.to(torch.float32)
                     self.loss_log = {}
                 elif isinstance(output, tuple):
-                    self.loss = output[0]
+                    self.loss = output[0].to(torch.float32)
                     self.loss_log = output[1]
                 else:
                     raise ValueError(f"Unexpected loss type {type(output)}")
@@ -866,7 +866,7 @@ class SFMPipeEngine(DeepSpeedEngine):
             else:
                 # Some models just return loss from forward()
                 labels = self.pipe_buffers["labels"][buffer_id]
-                self.loss = outputs
+                self.loss = outputs.to(torch.float32)
                 self.labels = labels
 
             if self.eval_return_logits:
