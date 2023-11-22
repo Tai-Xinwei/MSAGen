@@ -91,6 +91,7 @@ def collator(
     multi_hop_max_dist=20,
     spatial_pos_max=20,
     infer=False,
+    use_pbc=False,
 ):
     # return 0
     items = [
@@ -180,6 +181,7 @@ def collator_3d(
     multi_hop_max_dist=20,
     spatial_pos_max=20,
     infer=False,
+    use_pbc=False,
 ):
     items = [
         item
@@ -200,6 +202,13 @@ def collator_3d(
             item.y,
             item.pos,
             item.node_mask,
+            (item.pbc if hasattr(item, "pbc") else torch.tensor([False, False, False]))
+            if use_pbc
+            else None,
+            (item.cell if hasattr(item, "cell") else torch.zeros([3, 3]))
+            if use_pbc
+            else None,
+            (int(item.num_atoms) if hasattr(item, "num_atoms") else item.x.size()[0]),
         )
         for item in items
     ]
@@ -216,6 +225,9 @@ def collator_3d(
         ys,
         poses,
         node_masks,
+        pbcs,
+        cells,
+        natoms,
     ) = zip(*items)
 
     for idx, _ in enumerate(attn_biases):
@@ -241,6 +253,9 @@ def collator_3d(
 
     pos = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in poses])
     node_mask = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in node_masks])
+    pbc = torch.cat([i.unsqueeze(0) for i in pbcs], dim=0) if use_pbc else None
+    cell = torch.cat([i.unsqueeze(0) for i in cells], dim=0) if use_pbc else None
+    natoms = torch.tensor(natoms) if use_pbc else None
 
     # @ Roger added
     node_type_edges = []
@@ -271,6 +286,9 @@ def collator_3d(
         pos=pos,
         node_type_edge=node_type_edge,
         node_mask=node_mask,
+        pbc=pbc,
+        cell=cell,
+        natoms=natoms,
     )
 
 
@@ -281,6 +299,7 @@ def collator_3d_pp(
     multi_hop_max_dist=20,
     spatial_pos_max=20,
     infer=False,
+    use_pbc=False,
 ):
     items = [
         item
@@ -301,7 +320,14 @@ def collator_3d_pp(
             item.edge_input[:, :, :multi_hop_max_dist, :],
             item.y,
             item.pos,
-            item.node_mask
+            item.node_mask,
+            (item.pbc if hasattr(item, "pbc") else torch.tensor([False, False, False]))
+            if use_pbc
+            else None,
+            (item.cell if hasattr(item, "cell") else torch.zeros([3, 3]))
+            if use_pbc
+            else None,
+            (int(item.num_atoms) if hasattr(item, "num_atoms") else item.x.size()[0])
             # spd_count, full_path_information
             # item.spatial_pos_count, item.node_input[:, :, :multi_hop_max_dist+1, :]
         )
@@ -319,6 +345,9 @@ def collator_3d_pp(
         ys,
         poses,
         node_masks,
+        pbcs,
+        cells,
+        natoms,
     ) = zip(*items)
     # else:
     #     items = [(item.idx, item.attn_bias, item.attn_edge_type, item.spatial_pos, item.in_degree,
@@ -361,6 +390,9 @@ def collator_3d_pp(
         pos = None
 
     node_mask = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in node_masks])
+    pbc = torch.cat([i.unsqueeze(0) for i in pbcs], dim=0) if use_pbc else None
+    cell = torch.cat([i.unsqueeze(0) for i in cells], dim=0) if use_pbc else None
+    natoms = torch.tensor(natoms) if use_pbc else None
     # @ Roger added
 
     node_type_edges = []
@@ -402,6 +434,10 @@ def collator_3d_pp(
             # spatial_pos_count=spatial_pos_count,
             # node_input=node_input,
         ]
+        if use_pbc:
+            intput.append(pbc)
+            intput.append(cell)
+            intput.append(natoms)
         label = [
             x,
             pos,
@@ -426,6 +462,10 @@ def collator_3d_pp(
             # spatial_pos_count=spatial_pos_count,
             # node_input=node_input,
         ]
+        if use_pbc:
+            intput.append(pbc)
+            intput.append(cell)
+            intput.append(natoms)
         label = [
             torch.LongTensor(idxs),
             x,
@@ -438,7 +478,9 @@ def collator_3d_pp(
     return (intput, label)
 
 
-def collator_ft(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
+def collator_ft(
+    items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20, use_pbc=False
+):
     original_len = len(items)
     items = [item for item in items if item is not None and item.x.size(0) <= max_node]
     filtered_len = len(items)
@@ -510,6 +552,13 @@ def collator_ft(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
             item.x,
             item.edge_input[:, :, :multi_hop_max_dist, :],
             item.y,
+            (item.pbc if hasattr(item, "pbc") else torch.tensor([False, False, False]))
+            if use_pbc
+            else None,
+            (item.cell if hasattr(item, "cell") else torch.zeros([3, 3]))
+            if use_pbc
+            else None,
+            (int(item.num_atoms) if hasattr(item, "num_atoms") else item.x.size()[0]),
         )
         for item in items
     ]
@@ -523,6 +572,9 @@ def collator_ft(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
         xs,
         edge_inputs,
         ys,
+        pbcs,
+        cells,
+        natoms,
     ) = zip(*items)
 
     for idx, _ in enumerate(attn_biases):
@@ -543,6 +595,9 @@ def collator_ft(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
         [pad_spatial_pos_unsqueeze(i, max_node_num) for i in spatial_poses]
     )
     in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num) for i in in_degrees])
+    pbc = torch.cat([i.unsqueeze(0) for i in pbcs], dim=0) if use_pbc else None
+    cell = torch.cat([i.unsqueeze(0) for i in cells], dim=0) if use_pbc else None
+    natoms = torch.tensor(natoms) if use_pbc else None
 
     return dict(
         idx=torch.LongTensor(idxs),
@@ -559,6 +614,9 @@ def collator_ft(items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20):
         cofeat=cofeat,
         num_node=num_node,
         node_type_edge=node_type_edge,
+        pbc=pbc,
+        cell=cell,
+        natoms=natoms,
     )
 
 

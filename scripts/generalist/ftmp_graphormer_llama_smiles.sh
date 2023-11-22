@@ -31,15 +31,15 @@ fi
 [ -z "${seed}" ] && seed=12345
 
 # generalist dataset settings
-# [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
+[ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
 # [ -z "${data_path}" ] && data_path='/home/peiran/mnt/mntsfm2/data/chemical-copilot-special-token/'
-[ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
+# [ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
 # [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token'
 
 # [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
 # [ -z "${dataset_splits}" ] && dataset_splits='clean'
-[ -z "${dataset_names}" ] && dataset_names='chebi'
-[ -z "${dataset_splits}" ] && dataset_splits='all'
+[ -z "${dataset_names}" ] && dataset_names='oc20-is2re'
+[ -z "${dataset_splits}" ] && dataset_splits='100k'
 [ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
 # [ -z "${dataset_names}" ] && dataset_names='chebi'
 # [ -z "${dataset_splits}" ] && dataset_splits='all'
@@ -50,15 +50,15 @@ fi
 [ -z "${model_max_length}" ] && model_max_length=512
 
 # checkpoint and log settings
-# [ -z "${save_dir}" ] && save_dir='/mnt/shiyu/checkpoints/llama2-local-debug'
-[ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output'
+[ -z "${save_dir}" ] && save_dir='/mnt/shiyu/checkpoints/llama2-local-debug'
+# [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output'
 [ -z "${save_batch_interval}" ] && save_batch_interval=5000
-# [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/checkpoint7_new.pt"
-# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
+[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/checkpoint7_new.pt"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
 # [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
 # [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/peiran/pretrain56w/global_step560000"
-[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/tp"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
+# [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/tp"
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/peiran/llama-2-70b"
 [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir=""
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id=""
@@ -89,7 +89,7 @@ fi
 
 # training parameters for generalist
 [ -z "${micro_batch_size}" ] && micro_batch_size=1
-[ -z "${global_batch_size}" ] && global_batch_size=1
+[ -z "${global_batch_size}" ] && global_batch_size=16
 [ -z "${max_position_embeddings}" ] && max_position_embeddings=2048
 [ -z "${llm_hidden_size}" ] && llm_hidden_size=4096
 
@@ -290,6 +290,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --load_ckpt \
           --deepspeed_config=$DS_CONFIG \
           ${MEGATRON_ARGS}
+          # --use_pbc \
+          # --add_3d \
           # --fused_graphormer_llama
 
 

@@ -4,7 +4,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Callable, Optional
+from typing import Callable, Dict, Optional
 
 import torch
 import torch.nn as nn
@@ -153,6 +153,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         self_attn_bias: Optional[torch.Tensor] = None,
         self_attn_mask: Optional[torch.Tensor] = None,
         self_attn_padding_mask: Optional[torch.Tensor] = None,
+        pbc_expand_batched: Optional[Dict[str, torch.Tensor]] = None,
     ):
         """
         LayerNorm is applied either before or after the self-attention/ffn
@@ -171,6 +172,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             key_padding_mask=self_attn_padding_mask,
             need_weights=False,
             attn_mask=self_attn_mask,
+            pbc_expand_batched=pbc_expand_batched,
         )
 
         x = self.dropout_module(x)
@@ -229,7 +231,24 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
         LayerNorm is applied either before or after the self-attention/ffn
         modules similar to the original Transformer implementation.
         """
-        x, self_attn_padding_mask, self_attn_bias, input_ids, llm_mask = input_tuple
+
+        if self.graphormer_config.use_pbc:
+            (
+                x,
+                self_attn_padding_mask,
+                self_attn_bias,
+                input_ids,
+                llm_mask,
+                outcell_index,
+                expand_mask,
+            ) = input_tuple
+            pbc_expand_batched = {
+                "outcell_index": outcell_index,
+                "expand_mask": expand_mask,
+            }
+        else:
+            x, self_attn_padding_mask, self_attn_bias, input_ids, llm_mask = input_tuple
+            pbc_expand_batched = None
 
         assert type(x) == torch.Tensor
         assert type(self_attn_bias) == torch.Tensor
@@ -250,6 +269,7 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
             key_padding_mask=self_attn_padding_mask,
             need_weights=False,
             attn_mask=self_attn_mask,
+            pbc_expand_batched=pbc_expand_batched,
         )
         x = self.dropout_module(x)
         x = residual + x
@@ -264,17 +284,24 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
         x = residual + x
 
         if self.nl == self.graphormer_config.encoder_layers - 1:
-            return (
+            return_tuple = (
                 x.contiguous(),
                 self_attn_padding_mask.contiguous(),
                 llm_mask.contiguous(),
                 input_ids.contiguous(),
             )
         else:
-            return (
+            return_tuple = (
                 x.contiguous(),
                 self_attn_padding_mask.contiguous(),
                 self_attn_bias.contiguous(),
                 input_ids.contiguous(),
                 llm_mask.contiguous(),
             )
+            if self.graphormer_config.use_pbc:
+                return_tuple += (
+                    pbc_expand_batched["outcell_index"],
+                    pbc_expand_batched["expand_mask"],
+                )
+
+        return return_tuple

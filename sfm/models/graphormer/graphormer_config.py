@@ -13,6 +13,8 @@ class GraphormerConfig:
     num_pred_attn_layer: int = 4
     num_3d_bias_kernel: int = 128
     max_length: int = 1024
+    pbc_expanded_token_cutoff: int = 512
+    pbc_expanded_num_cell_per_direction: int = 10
 
     droppath_prob: float = 0.0
     act_dropout: float = 0.0
@@ -22,6 +24,7 @@ class GraphormerConfig:
     noise_scale: float = 0.2
     mask_ratio: float = 0.5
     d_tilde: float = 1.0
+    pbc_cutoff: float = 40.0
 
     data_path: str = ""
     dataset_names: str = ""
@@ -31,6 +34,7 @@ class GraphormerConfig:
     no_2d: bool = False
     ft: bool = False
     infer: bool = False
+    use_pbc: bool = False
 
     # TM and ddpm params
     transformer_m_pretrain: bool = True

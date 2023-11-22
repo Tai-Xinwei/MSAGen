@@ -61,9 +61,6 @@ def main(args):
         ft=True,
     )
 
-    args.ft = True
-    args.add_3d = False
-
     model = GraphormerModel(args, loss_fn=L1Criterions)
 
     optimizer, _ = myAdam(

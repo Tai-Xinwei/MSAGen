@@ -27,6 +27,7 @@ from .graphormer_layers import (
     NodeTaskHead,
 )
 from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
+from .pbc import CellExpander
 
 
 def init_bert_params(module):
@@ -112,6 +113,12 @@ class GraphormerSentenceEncoder(nn.Module):
         self.use_position_embeddings = graphormer_config.use_position_embeddings
         self.apply_bert_init = graphormer_config.apply_bert_init
         self.learned_pos_embedding = graphormer_config.learned_pos_embedding
+        self.use_pbc = graphormer_config.use_pbc
+        self.pbc_expanded_token_cutoff = graphormer_config.pbc_expanded_token_cutoff
+        self.pbc_cutoff = graphormer_config.pbc_cutoff
+        self.pbc_expanded_num_cell_per_direction = (
+            graphormer_config.pbc_expanded_num_cell_per_direction
+        )
 
         if init_bias:
             self.graph_node_feature = GraphNodeFeature(
@@ -177,6 +184,13 @@ class GraphormerSentenceEncoder(nn.Module):
             self.emb_layer_norm = LayerNorm(self.embedding_dim, export=export)
         else:
             self.emb_layer_norm = None
+
+        if self.use_pbc:
+            self.cell_expander = CellExpander(
+                self.pbc_cutoff,
+                self.pbc_expanded_token_cutoff,
+                self.pbc_expanded_num_cell_per_direction,
+            )
 
         if self.layerdrop > 0.0:
             self.layers = LayerDropModuleList(p=self.layerdrop)
@@ -291,6 +305,22 @@ class GraphormerSentenceEncoder(nn.Module):
             pos = ori_pos + noise
 
         data_x = batched_data["x"]
+
+        if self.use_pbc:
+            pbc_expand_batched = {}
+            expand_pos, _, outcell_index, expand_mask = self.cell_expander.expand(
+                pos,
+                batched_data["pbc"],
+                data_x[:, :, 0],
+                batched_data["cell"],
+                batched_data["natoms"],
+            )
+            pbc_expand_batched["expand_pos"] = expand_pos
+            pbc_expand_batched["outcell_index"] = outcell_index
+            pbc_expand_batched["expand_mask"] = expand_mask
+        else:
+            pbc_expand_batched = None
+
         n_graph, n_node = data_x.size()[:2]
         padding_mask = (data_x[:, :, 0]).eq(0)  # B x T x 1
         padding_mask_cls = torch.zeros(
@@ -320,7 +350,7 @@ class GraphormerSentenceEncoder(nn.Module):
         delta_pos = None
         if self.graph_3d_bias is not None and not (batched_data["pos"] == 0).all():
             attn_bias_3d, merged_edge_features, delta_pos = self.graph_3d_bias(
-                batched_data, pos
+                batched_data, pos, pbc_expand_batched=pbc_expand_batched
             )
             if mask_3d is not None:
                 merged_edge_features, delta_pos = (
@@ -343,9 +373,19 @@ class GraphormerSentenceEncoder(nn.Module):
                 merged_edge_features = merged_edge_features.masked_fill_(
                     mask3d_filter[:, None, None], 0.0
                 )
+            if pbc_expand_batched is not None:
+                num_heads, max_len = attn_bias_3d.size()[1], attn_bias_3d.size()[2] + 1
+                extended_bias = torch.gather(
+                    attn_bias[:, :, :, 1:],
+                    dim=3,
+                    index=outcell_index.unsqueeze(1)
+                    .unsqueeze(2)
+                    .repeat(1, num_heads, max_len, 1),
+                )
+                attn_bias = torch.cat([attn_bias, extended_bias], dim=3)
 
             attn_bias[:, :, 1:, 1:] = attn_bias[:, :, 1:, 1:] + attn_bias_3d
-            x[:, 1:, :] = x[:, 1:, :] + merged_edge_features * 0.01
+            x[:, 1:, :] = x[:, 1:, :] + merged_edge_features
 
         if self.embed_scale is not None:
             x = x * self.embed_scale
@@ -367,9 +407,10 @@ class GraphormerSentenceEncoder(nn.Module):
         if not last_state_only:
             inner_states.append(x)
 
+        n_expanded_node = attn_bias.size()[-1] - 1
         attn_bias = (
             attn_bias.contiguous()
-            .view(n_graph, len(self.layers) + 1, -1, n_node + 1, n_node + 1)
+            .view(n_graph, len(self.layers) + 1, -1, n_node + 1, n_expanded_node + 1)
             .contiguous()
         )
 
@@ -379,12 +420,21 @@ class GraphormerSentenceEncoder(nn.Module):
                 self_attn_padding_mask=padding_mask,
                 self_attn_mask=attn_mask,
                 self_attn_bias=attn_bias[:, nl, :, :, :],
+                pbc_expand_batched=pbc_expand_batched,
             )
 
             if not last_state_only:
                 inner_states.append(x)
 
-        return x, attn_bias, delta_pos, pos, inner_states, padding_mask
+        return (
+            x,
+            attn_bias,
+            delta_pos,
+            pos,
+            inner_states,
+            padding_mask,
+            pbc_expand_batched,
+        )
 
 
 class NodeDecoder(nn.Module):
@@ -401,13 +451,13 @@ class NodeDecoder(nn.Module):
         self.args = args
         self.last_state_only = last_state_only
 
-    def forward(self, x, attn_bias, delta_pos, inner_states):
+    def forward(self, x, attn_bias, delta_pos, inner_states, pbc_expand_batched=None):
         sentence_rep = x[0, :, :]
 
         node_output = None
         if delta_pos is not None and not self.args.ft:
             node_output = self.node_proc(
-                x[1:, :, :], attn_bias[:, -1, :, 1:, 1:], delta_pos
+                x[1:, :, :], attn_bias[:, -1, :, 1:, 1:], delta_pos, pbc_expand_batched
             )
 
         if self.last_state_only:

@@ -25,9 +25,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=2e-5
-[ -z "${total_num_steps}" ] && total_num_steps=10000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=1
+[ -z "${max_lr}" ] && max_lr=2e-4
+[ -z "${total_num_steps}" ] && total_num_steps=100000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=6000
 [ -z "${train_batch_size}" ] && train_batch_size=16
 [ -z "${val_batch_size}" ] && val_batch_size=16
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
@@ -46,11 +46,12 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
-[ -z "${MASTER_PORT}" ] && MASTER_PORT=62346
+[ -z "${MASTER_PORT}" ] && MASTER_PORT=62347
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 # [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=-1
 
+fold_id=$1
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -123,9 +124,10 @@ else
   fi
 fi
 
+
 torchrun $DISTRIBUTED_ARGS sfm/tasks/graphormer/ft_matbench.py \
           --matbench_task_name "matbench_dielectric" \
-          --matbench_task_fold_id 0 \
+          --matbench_task_fold_id $fold_id \
           --num_classes 1 \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
@@ -138,8 +140,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/graphormer/ft_matbench.py \
           --dataset_names $dataset_names \
           --data_path $data_path \
           --save_dir $save_dir \
-          --seed 666667 \
-          --add_3d --ft --fp16 --ifresume \
+          --seed 12345 \
+          --add_3d --ft --fp16 \
           --d_tilde $d_tilde \
           --num_pred_attn_layer $num_pred_attn_layer \
           --max_lr $max_lr \
@@ -150,4 +152,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/graphormer/ft_matbench.py \
           --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
-          --log_interval $log_interval
+          --log_interval $log_interval \
+          --use_pbc \
+          --ifresume

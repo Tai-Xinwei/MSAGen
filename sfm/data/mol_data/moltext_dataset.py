@@ -775,6 +775,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         embedding_length: int = 20,
         num_token_id: int = 32003,
         use_pp: bool = True,
+        use_pbc: bool = False,
     ) -> None:
         super().__init__()
         self.data_path = data_path
@@ -812,7 +813,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         self.dataset_count = {}
         self.dataset_filtered = {}
         self.data_collater = DataCollatorForSupervisedDataset(
-            pad_token_id=pad_token_id, use_pp=use_pp, add_mfm=True
+            pad_token_id=pad_token_id, use_pp=use_pp, add_mfm=True, use_pbc=use_pbc
         )
 
         if not self.in_memory:
@@ -1006,7 +1007,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         return self.collater(samples)
 
 
-def preprocess_item(item):
+def preprocess_item(item, use_pbc=False):
     edge_attr, edge_index, x = item.edge_attr, item.edge_index, item.x
     N = x.size(0)
     x = convert_to_single_emb(x)
@@ -1042,6 +1043,12 @@ def preprocess_item(item):
     else:
         item.mask3d = torch.tensor([0.0]).bool()
         item.pos = item.pos - torch.mean(item.pos, dim=0, keepdim=True)
+
+    if use_pbc and (not hasattr(item, "pbc") or item.pbc is None):
+        item.pbc = torch.zeros([3], dtype=torch.bool)
+
+    if use_pbc and (not hasattr(item, "cell") or item.cell is None):
+        item.cell = torch.zeros([3, 3], dtype=torch.float)
 
     return item
 
@@ -1115,7 +1122,7 @@ def pad_pos_unsqueeze(x, padlen):
     return x.unsqueeze(0)
 
 
-def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
+def collator(items, multi_hop_max_dist=20, spatial_pos_max=20, use_pbc=False):
     items = [
         (
             item.attn_bias,
@@ -1125,6 +1132,8 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
             item.edge_input[:, :, :multi_hop_max_dist, :],
             item.pos,
             item.mask3d,
+            item.pbc if use_pbc else None,
+            item.cell if use_pbc else None,
         )
         for item in items
     ]
@@ -1136,6 +1145,8 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
         edge_inputs,
         poses,
         mask3ds,
+        pbcs,
+        cells,
     ) = zip(*items)
 
     for idx, _ in enumerate(attn_biases):
@@ -1158,6 +1169,8 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
 
     mask3d = torch.cat([i for i in mask3ds])
     pos = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in poses])
+    pbc = torch.cat([i.unsqueeze(0) for i in pbcs], dim=0) if use_pbc else None
+    cell = torch.cat([i.unsqueeze(0) for i in cells], dim=0) if use_pbc else None
 
     node_type_edges = []
     for idx in range(len(items)):
@@ -1184,6 +1197,8 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
         mask3d=mask3d,
         node_type_edge=node_type_edge,
         attn_edge_type=None,
+        pbc=pbc,
+        cell=cell,
     )
 
 
@@ -1244,15 +1259,22 @@ def smiles2graph_removeh(smiles_string, pos=None):
     return graph
 
 
-def batch_collater_for_graphormer(smiless: List[str], poses: List[Any]):
+def batch_collater_for_graphormer(smiless: List[str], poses: List[Any], use_pbc: bool):
     if type(smiless[0]) == Data:
-        graphs = [preprocess_item(smiles) for smiles, pos in zip(smiless, poses)]
-    else:
         graphs = [
-            preprocess_item(Data(**smiles2graph_removeh(smiles, pos)))
+            preprocess_item(smiles, use_pbc=use_pbc)
             for smiles, pos in zip(smiless, poses)
         ]
-    return collator(graphs)
+    else:
+        graphs = [
+            preprocess_item(Data(**smiles2graph_removeh(smiles, pos)), use_pbc=use_pbc)
+            for smiles, pos in zip(smiless, poses)
+        ]
+
+        # for graph in graphs:
+        #     graph.pbc = torch.zeros([3], dtype=torch.bool)
+        #     graph.cell = torch.zeros([3, 3], dtype=torch.float)
+    return collator(graphs, use_pbc=use_pbc)
 
 
 @dataclass
@@ -1262,6 +1284,7 @@ class DataCollatorForSupervisedDataset(object):
     pad_token_id: int
     use_pp: bool
     add_mfm: bool
+    use_pbc: bool
 
     def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
         input_ids, labels, smiless, num_labels = tuple(
@@ -1300,25 +1323,30 @@ class DataCollatorForSupervisedDataset(object):
                 smiles.extend(smis)
                 pos.extend([None for _ in range(len(smis))])
 
-        batched_molecules = batch_collater_for_graphormer(smiles, pos)
+        batched_molecules = batch_collater_for_graphormer(smiles, pos, self.use_pbc)
         batched_molecules["out_degree"] = batched_molecules["in_degree"]
         if self.use_pp:
+            return_input = [
+                input_ids,
+                input_ids.ne(self.pad_token_id),
+                labels,
+                batched_molecules["x"],
+                batched_molecules["in_degree"],
+                batched_molecules["out_degree"],
+                batched_molecules["attn_bias"],
+                batched_molecules["spatial_pos"],
+                batched_molecules["edge_input"],
+                batched_molecules["num_atoms"],
+                batched_molecules["pos"],
+                batched_molecules["mask3d"],
+                batched_molecules["node_type_edge"],
+            ]
+            if self.use_pbc:
+                return_input.extend(
+                    [batched_molecules["pbc"], batched_molecules["cell"]]
+                )
             return (
-                [
-                    input_ids,
-                    input_ids.ne(self.pad_token_id),
-                    labels,
-                    batched_molecules["x"],
-                    batched_molecules["in_degree"],
-                    batched_molecules["out_degree"],
-                    batched_molecules["attn_bias"],
-                    batched_molecules["spatial_pos"],
-                    batched_molecules["edge_input"],
-                    batched_molecules["num_atoms"],
-                    batched_molecules["pos"],
-                    batched_molecules["mask3d"],
-                    batched_molecules["node_type_edge"],
-                ],
+                return_input,
                 (
                     labels,
                     input_ids.ne(self.pad_token_id),

@@ -73,6 +73,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
             args.strategy == TrainStrategy.Pipeline
             or args.strategy == TrainStrategy.ThreeD
         ),
+        use_pbc=args.use_pbc,
     )
 
     return dict(
