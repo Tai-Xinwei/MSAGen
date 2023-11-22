@@ -535,6 +535,7 @@ class Trainer(object):
             if torch.cuda.is_available()
             else None,
             "iteration": self.state.batch,
+            "epoch": self.state.epoch,
         }
 
         if self.accelerator.world_size > 1:
@@ -588,7 +589,11 @@ class Trainer(object):
                         "\nThis won't yield the same results as if the training had not been interrupted."
                     )
 
+        if "epoch" in checkpoint_rng_state:
+            self.state.epoch = checkpoint_rng_state["epoch"]
+
         start_iteration = checkpoint_rng_state["iteration"]
+
         return start_iteration
 
     def skip_first_batches(self, data_iterator, start_iteration=None):
@@ -597,7 +602,7 @@ class Trainer(object):
         Args:
             start_iteration (int): the number of batches to skip
         """
-        if start_iteration is None:
+        if start_iteration is None or start_iteration == 0:
             return data_iterator
 
         logger.info(f"Skipping the first {start_iteration} batches")
