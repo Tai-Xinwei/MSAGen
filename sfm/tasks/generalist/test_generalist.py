@@ -1,13 +1,20 @@
 # -*- coding: utf-8 -*-
 import json
 import os
+import re
 import shutil
+import subprocess
 from dataclasses import dataclass
+from enum import Enum
+from typing import Optional
 
 import numpy as np
 import torch
+import torch.distributed as dist
 import transformers
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+from rdkit import Chem
+from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
 
 from sfm.data.mol_data.moltext_dataset import smiles2graph_removeh
@@ -15,9 +22,150 @@ from sfm.logging.loggers import logger as sfm_logger
 from sfm.models.generalist import GraphormerLlamaModel
 from sfm.models.generalist.generalist_config import GeneralistConfig
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
-from sfm.pipeline.accelerator.dataclasses import DistributedConfig
+from sfm.pipeline.accelerator.dataclasses import DistributedConfig, TrainerConfig
 from sfm.utils.cli_utils import cli
 from sfm.utils.science_tokens import SCIENCE_TAG_TOKENS
+
+
+class EvalMethod(Enum):
+    AROMATIC = "AROMATIC"
+    NITRO = "NITRO"
+    FUNCG = "FUNCG"
+    NONE = "NONE"
+
+    def __str__(self):
+        return self.value
+
+
+def test_nitro(smiles, response):
+    label = int(smiles.find("n") != -1 or smiles.find("N") != -1)
+    if (
+        response.find("molecule contains no") != -1
+        or response.find("molecule has no") != -1
+        or response.find("molecule does not") != -1
+        or (
+            response.find("nitro") != -1
+            and (response.find(" no ") != -1 or response.find(" not ") != -1)
+        )
+        or response.find("false") != -1
+        or response.find("False") != -1
+        or response.find("No") != -1
+    ):
+        score = -1
+    elif (
+        response.find("molecule contains") != -1
+        or response.find("molecule has") != -1
+        or response.find("molecule does contain") != -1
+        or response.find("is a nitrogen") != -1
+        or response.find("is a nitrile") != -1
+        or response.find("Yes") != -1
+        or response.find("yes") != -1
+        or response.find("organonitrogen") != -1
+        or response.find("is a nitroso") != -1
+        or (
+            response.find("nitr") != -1
+            and response.find(" no ") == -1
+            and response.find(" not ") == -1
+        )
+        or response.find("true") != -1
+        or response.find("True") != -1
+        or response.find(" N-") != -1
+    ):
+        score = 1
+    else:
+        score = 0
+    return label, score
+
+
+def test_aromatic(smiles, response):
+    mol = Chem.MolFromSmiles(smiles)
+    is_aromatic = False
+    for atom in mol.GetAtoms():
+        if atom.GetIsAromatic():
+            is_aromatic = True
+    label = int(is_aromatic)
+    if (
+        (response.find(" not ") != -1 or response.find(" no ") != -1)
+        and response.find("aroma") != -1
+    ) or response.find("No") != -1:
+        score = -1
+    elif (
+        response.find("aroma") != -1
+        or response.find("Yes") != -1
+        or response.find("yes") != -1
+        or response.find("YES") != -1
+    ):
+        score = 1
+    else:
+        score = 0
+    return label, score
+
+
+def test_funcg(smiles, response, local_rank):
+    try:
+        os.system(f"obabel -:'{smiles}' -omol > tmp{local_rank}.mol")
+        func_groups = subprocess.check_output(["./checkmol", f"tmp{local_rank}.mol"])
+        func_groups_str = func_groups.decode().strip()
+        os.system(f"rm tmp{local_rank}.mol")
+        func_groups = list(filter(lambda x: x != "", func_groups_str.split("\n")))
+    except Exception as e:
+        sfm_logger.info(f"{e}")
+        func_groups = []
+
+    response = response.lower()
+
+    recall = 0.0
+    for func_group in func_groups:
+        if response.find(func_group) != -1:
+            recall += 1
+    if len(func_groups) > 0:
+        recall /= len(func_groups)
+
+    func_groups_in_response = re.split(",|and ", response)
+    precision = 0.0
+    for func_group in func_groups_in_response:
+        for label_func_group in func_groups:
+            if func_group.find(label_func_group) != -1:
+                precision += 1
+                break
+    if len(func_groups_in_response) > 0:
+        precision /= len(func_groups_in_response)
+
+    return precision, recall, func_groups
+
+
+def get_test_question(eval_method: EvalMethod):
+    if eval_method == EvalMethod.AROMATIC:
+        question = "Does the molecule contain aromatic rings?"
+    elif eval_method == EvalMethod.NITRO:
+        question = "Does the molecule contain nitrogen atoms?"
+    elif eval_method == EvalMethod.FUNCG:
+        question = "In the given input molecular structure, determine and list the functional groups, presenting them in a natural sentence."
+    else:
+        raise ValueError(f"No question for EvalMethod {eval_method}.")
+
+    return question
+
+
+def gather_labels_and_scores(labels, scores, world_size, local_rank, num_total_smiless):
+    if world_size > 1:
+        labels_tensor = torch.tensor(labels, device=f"cuda:{local_rank}")
+        scores_tensor = torch.tensor(scores, device=f"cuda:{local_rank}")
+        labels_tensor_list = [
+            torch.zeros_like(labels_tensor) for _ in range(world_size)
+        ]
+        scores_tensor_list = [
+            torch.zeros_like(scores_tensor) for _ in range(world_size)
+        ]
+        dist.all_gather(labels_tensor_list, labels_tensor)
+        dist.all_gather(scores_tensor_list, scores_tensor)
+        all_labels = torch.cat(labels_tensor_list, dim=-1).cpu()
+        all_scores = torch.cat(scores_tensor_list, dim=-1).cpu()
+        return [float(x) for x in all_labels][:num_total_smiless], [
+            float(x) for x in all_scores
+        ][:num_total_smiless]
+    else:
+        return labels, scores
 
 
 @dataclass
@@ -29,12 +177,12 @@ class TestGeneralistConfig:
     remote_checkpoint_storage_account: str
     remote_checkpoint_storage_container: str
     local_checkpoint_path: str
-    question_list_fname: str
     smiles_list_fname: str
     infer_batch_size: int
     output_fname: str
-    # seed: int
-    # load_ckpt: bool
+    num_eval_repeats: int
+    question_list_fname: Optional[str] = None
+    eval_method: EvalMethod = EvalMethod.NONE
 
 
 def create_device_map(num_gpus, num_llama_layers):
@@ -56,6 +204,7 @@ def create_device_map(num_gpus, num_llama_layers):
 
 
 def download_model(
+    local_rank,
     model_path,
     global_step,
     local_path,
@@ -67,10 +216,8 @@ def download_model(
     model_name = model_path.split("remote:")[-1]
     convert_offset = 0
     if model_name.find("7B") != -1 or model_name.find("7b") != -1:
-        if model_name.find("llama2") != -1:
-            num_layers = 37
-        else:
-            num_layers = 36
+        # support only llama2, drop llama
+        num_layers = 37
         model_size = "7B"
     elif model_name.find("65B") != -1 or model_name.find("65b") != -1:
         num_layers = 84
@@ -81,32 +228,31 @@ def download_model(
     else:
         raise ValueError(f"Unknown model size in {model_name}")
 
-    if model_name.find("llama2") != -1:
-        convert_offset = 2
-    else:
-        convert_offset = 3
+    # support only llama2, drop llama
+    convert_offset = 2
 
     if is_remote:
         sfm_logger.info("Downloading model...")
         sas_url = "https://{remote_checkpoint_storage_account}.blob.core.windows.net/{remote_checkpoint_storage_container}/{path}{remote_checkpoint_query_string}"
         dest_path = f"{local_path}/{model_name}/global_step{global_step}/"
-        os.system(f"mkdir -p {dest_path}")
-        for i in tqdm(range(num_layers)):
-            if not os.path.exists(f"{dest_path}/layer_{i:02d}-model_states.pt"):
-                os.system(
-                    (f"azcopy copy '{sas_url}' {dest_path}/").format_map(
-                        {
-                            "path": f"{model_name.strip('/')}/global_step{global_step}/layer_{i:02d}-model_states.pt",
-                            "remote_checkpoint_storage_account": remote_checkpoint_storage_account.strip(
-                                "/"
-                            ),
-                            "remote_checkpoint_storage_container": remote_checkpoint_storage_container.strip(
-                                "/"
-                            ),
-                            "remote_checkpoint_query_string": remote_checkpoint_query_string,
-                        }
+        if local_rank == 0:
+            os.system(f"mkdir -p {dest_path}")
+            for i in tqdm(range(num_layers)):
+                if not os.path.exists(f"{dest_path}/layer_{i:02d}-model_states.pt"):
+                    os.system(
+                        (f"azcopy copy '{sas_url}' {dest_path}/").format_map(
+                            {
+                                "path": f"{model_name.strip('/')}/global_step{global_step}/layer_{i:02d}-model_states.pt",
+                                "remote_checkpoint_storage_account": remote_checkpoint_storage_account.strip(
+                                    "/"
+                                ),
+                                "remote_checkpoint_storage_container": remote_checkpoint_storage_container.strip(
+                                    "/"
+                                ),
+                                "remote_checkpoint_query_string": remote_checkpoint_query_string,
+                            }
+                        )
                     )
-                )
     else:
         dest_path = f"{model_path}/global_step{global_step}"
     return dest_path, num_layers, model_size, convert_offset
@@ -208,14 +354,36 @@ def batch_mol(molecules, num_batches):
     batch_start = batch_size * np.arange(num_batches)
     batch_end = batch_start + batch_size
     batch_end[batch_end > num_molecules] = num_molecules
-    return [molecules[batch_start[i] : batch_end[i]] for i in range(num_batches)]
+    batched_molecules = [
+        molecules[batch_start[i] : batch_end[i]] for i in range(num_batches)
+    ]
+    for _ in range(len(batched_molecules), batch_size):
+        batched_molecules.append(molecules[0])
+    return batched_molecules
 
 
-@cli(GraphormerConfig, GeneralistConfig, TestGeneralistConfig, DistributedConfig)
+@cli(
+    GraphormerConfig,
+    GeneralistConfig,
+    TestGeneralistConfig,
+    DistributedConfig,
+    TrainerConfig,
+)
 def main(args) -> None:
     tokenizer = get_tokenizer(args.llm_model_name_or_path)
 
+    world_size = int(os.environ.get("WORLD_SIZE", 1))
+
+    if world_size > 1:
+        dist.init_process_group(
+            backend="nccl", rank=int(os.environ["LOCAL_RANK"]), world_size=world_size
+        )
+        args.local_rank = int(os.environ["LOCAL_RANK"])
+    else:
+        args.local_rank = 0
+
     local_model_path, num_layers, model_size, convert_offset = download_model(
+        args.local_rank,
         args.test_checkpoint_path,
         args.test_global_step,
         args.local_checkpoint_path,
@@ -236,13 +404,17 @@ def main(args) -> None:
             args.num_gpus, model.llama_config.num_hidden_layers
         )
 
-    convert(
-        local_model_path,
-        local_model_path,
-        num_layers,
-        args.llm_model_name_or_path,
-        convert_offset,
-    )
+    if args.local_rank == 0:
+        convert(
+            local_model_path,
+            local_model_path,
+            num_layers,
+            args.llm_model_name_or_path,
+            convert_offset,
+        )
+
+    if world_size > 1:
+        dist.barrier()
 
     sfm_logger.info("Loading model...")
     model = load_checkpoint_and_dispatch(
@@ -252,20 +424,45 @@ def main(args) -> None:
         no_split_module_classes=["LlamaDecoderLayer", "GraphormerSentenceEncoder"],
     )
 
-    with open(args.question_list_fname, "r") as in_file:
-        questions = [question.strip() for question in list(in_file.readlines())]
+    assert (
+        args.question_list_fname is not None or args.eval_method != EvalMethod.NONE
+    ), "Either a question list file or a evaluation method must be provided for evaluation."
+    if args.eval_method != EvalMethod.NONE:
+        questions = [
+            get_test_question(args.eval_method) for _ in range(args.num_eval_repeats)
+        ]
+    else:
+        with open(args.question_list_fname, "r") as in_file:
+            questions = [question.strip() for question in list(in_file.readlines())]
 
     with open(args.smiles_list_fname, "r") as in_file:
         smiless = [smi.strip() for smi in list(in_file.readlines())]
 
+    num_total_smiless = len(smiless)
+
     if model_size == "7B":
-        smiless = batch_mol(smiless, int(os.environ["WORLD_SIZE"]))[args.local_rank]
+        smiless = batch_mol(smiless, world_size)[args.local_rank]
 
     local_rank = args.local_rank if args.local_rank >= 0 else 0
     sfm_logger.info("Start testing...")
+
+    if args.eval_method != EvalMethod.NONE:
+        if args.eval_method != EvalMethod.FUNCG:
+            scores = []
+            labels = []
+        else:
+            precisions = []
+            recalls = []
+
     with open(f"{args.output_fname}.{local_rank}", "w") as out_file:
-        for smi in tqdm(smiless):
+        for i, smi in enumerate(tqdm(smiless)):
             num_atoms = smiles2graph_removeh(smi)["x"].size()[0]
+            if args.eval_method != EvalMethod.NONE:
+                if args.eval_method != EvalMethod.FUNCG:
+                    score_sum = 0.0
+                else:
+                    precision_sum = 0.0
+                    recall_sum = 0.0
             for question in questions:
                 prompt = (
                     "Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n"
@@ -292,14 +489,89 @@ def main(args) -> None:
                 seq = res.sequences[0]
                 seq[seq < 0] = 0
                 response = tokenizer.decode(seq, skip_special_tokens=False)
+                json_obj = {"smiles": smi, "prompt": prompt, "response": response}
+
+                if args.eval_method != EvalMethod.NONE:
+                    if args.eval_method == EvalMethod.NITRO:
+                        label, score = test_nitro(smi, response)
+                        json_obj["label"] = label
+                        json_obj["score"] = score
+                        score_sum += score
+                    elif args.eval_method == EvalMethod.AROMATIC:
+                        label, score = test_aromatic(smi, response)
+                        json_obj["label"] = label
+                        json_obj["score"] = score
+                        score_sum += score
+                    elif args.eval_method == EvalMethod.FUNCG:
+                        precision, recall, func_groups = test_funcg(
+                            smi, response, args.local_rank
+                        )
+                        json_obj["precision"] = precision
+                        json_obj["recall"] = recall
+                        json_obj["func_groups"] = func_groups
+                        precision_sum += precision
+                        recall_sum += recall
+
                 out_file.write(
                     json.dumps(
-                        {"smiles": smi, "prompt": prompt, "response": response},
+                        json_obj,
                         indent=6,
                     )
                     + "\n"
                 )
                 out_file.flush()
+            if args.eval_method != EvalMethod.NONE:
+                if args.eval_method != EvalMethod.FUNCG:
+                    labels.append(label)
+                    scores.append(score_sum)
+                else:
+                    precisions.append(precision_sum / args.num_eval_repeats)
+                    recalls.append(recall_sum / args.num_eval_repeats)
+            if args.eval_method != EvalMethod.NONE:
+                if args.eval_method != EvalMethod.FUNCG:
+                    all_labels, all_scores = gather_labels_and_scores(
+                        labels, scores, world_size, args.local_rank, num_total_smiless
+                    )
+                    try:
+                        auc = roc_auc_score(all_labels, all_scores)
+                    except Exception as e:
+                        sfm_logger.info(f"{e}")
+                        auc = np.nan
+                    sfm_logger.info(
+                        f"Evaluation in progress {i + 1}/{len(smiless)}, method: {args.eval_method}, auc score: {auc}"
+                    )
+                else:
+                    all_precisions, all_recalls = gather_labels_and_scores(
+                        precisions,
+                        recalls,
+                        world_size,
+                        args.local_rank,
+                        num_total_smiless,
+                    )
+                    sfm_logger.info(
+                        f"Evaluation in progress {i + 1}/{len(smiless)}, method: {args.eval_method}, precision: {np.mean(all_precisions)}, recall: {np.mean(all_recalls)}"
+                    )
+
+    if args.eval_method != EvalMethod.NONE:
+        if args.eval_method != EvalMethod.FUNCG:
+            all_labels, all_scores = gather_labels_and_scores(
+                labels, scores, world_size, args.local_rank, num_total_smiless
+            )
+            try:
+                auc = roc_auc_score(all_labels, all_scores)
+            except Exception as e:
+                sfm_logger.info(f"{e}")
+                auc = np.nan
+            sfm_logger.info(
+                f"Evaluation finished, method: {args.eval_method}, auc score: {auc}"
+            )
+        else:
+            all_precisions, all_recalls = gather_labels_and_scores(
+                precisions, recalls, world_size, args.local_rank, num_total_smiless
+            )
+            sfm_logger.info(
+                f"Evaluation finished, method: {args.eval_method}, precision: {np.mean(all_precisions)}, recall: {np.mean(all_recalls)}"
+            )
 
 
 if __name__ == "__main__":

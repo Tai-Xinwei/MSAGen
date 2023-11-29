@@ -26,8 +26,10 @@ code:
   local_dir: ../../
 
 jobs:
-- name: ft_100MMFM_70Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi+chemcop-adaptor+graphormer-special-tokens-2e-5-pp16-nonprem
-  sku: 2xG16
+- name: ft_100MMFM_7Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi+pubchem-adaptor-2e-4-pp16-layerwise-graph-attn-bias
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  sku: 4xG16
   mpi: true
   process_count_per_node: 1
   command:
@@ -47,29 +49,38 @@ jobs:
   - export sandwich_ln="true"
   - export droppath_prob=0.0
 
+  # generalist model parameters
+  - export fused_graphormer_llama=true
+  - export add_mol_attn_bias_in_llama=true
+  - export mol_attn_bias_in_llama_layerwise=false
+  - export path_edge_cutoff=5
+
   # general training parameters
   - export d_tilde=1.0
   - export max_lr=2e-4
   - export total_num_steps=200000
   - export warmup_num_steps=12000
-  - export seed=12345
+  - export seed=12347
 
   # generalist dataset settings
-  - export data_path=/blob/data/chemical-copilot-special-token/
-  - export dataset_names=mol-instruction-mol-desc,functional-group,chebi,func-group-list-and-desc
-  - export dataset_splits=clean,all,all,all
-  - export dataset_ratios=3.0,1.0,3.0,1.0
+  - export data_path=/tmp/data/chemical-copilot-special-token
+  - wget https://azcopyvnext.azureedge.net/releases/release-10.20.1-20230809/azcopy_linux_amd64_10.20.1.tar.gz
+  - tar -zxvf azcopy_linux_amd64_10.20.1.tar.gz
+  - ./azcopy_linux_amd64_10.20.1/azcopy copy "https://hai1data.blob.core.windows.net/mfm/data/chemical-copilot-special-token<SAS>" "/tmp/data/" --recursive
+  - export dataset_names=mol-instruction-mol-desc,functional-group,chebi,func-group-list-and-desc,pubchem-properties-with-name
+  - export dataset_splits=clean,all,all,all,small
+  - export dataset_ratios=3.0,1.0,3.0,1.0,1.0
   - export pool_mode="full"
   - export embedding_length=20
-  - export model_max_length=512
+  - export model_max_length=1024
 
   # checkpoint and log settings
-  - export save_dir=/blob/checkpoints/ft_100MMFM_70Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi+chemcop-adaptor+graphormer-special-tokens-2e-4-pp16-nonprem
+  - export save_dir=/blob/generalist-checkpoints/ft_100MMFM_7Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi+pubchem-adaptor-special-tokens-2e-4-pp16-layerwise-graph-attn-bias-continued
   - export save_batch_interval=500
   - export loadmfmcheck_path=/blob/ds_dataset/ddpm100M/checkpoint7_new.pt
-  - export llm_model_name_or_path=/blob/ds_dataset/llama2/llama-2-70b/
-  - export finetune_from_checkpoint_dir=/blob/ds_dataset/output/ft_100MMFM_70Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi-adaptor-special-tokens-2e-4-pp16-prem/
-  - export finetune_from_checkpoint_id=global_step1499
+  - export llm_model_name_or_path=/blob/ds_dataset/llama2/llama-2-7b/
+  - export finetune_from_checkpoint_dir="/blob/generalist-checkpoints/ft_100MMFM_7Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi+pubchem-adaptor-special-tokens-2e-4-pp16-layerwise-graph-attn-bias"
+  - export finetune_from_checkpoint_id="global_step13999"
   - export wandb_key=974f8bd90204c0396737c20ec04a3b4ca924ea9a
   - export wandb_project_name=chemical-copilot
 
@@ -79,12 +90,12 @@ jobs:
   - export strategy=Pipeline
   - export pp_partition_layer_name="LlamaDecoderLayerPP"
   - export pp_part_list="[]"
-  - export unfreeze_param_list="adapter,lm_head,num_head,mol_rep_layernorm,embed_tokens"
+  - export unfreeze_param_list="mol_adaptor,lm_head,num_head,mol_rep_layernorm,embed_tokens,llama_node_distance_embed,llama_edge_embed,llama_edge_feature_weights"
 
   # training parameters for generalist
   - export micro_batch_size=1
   - export global_batch_size=64
-  - export max_position_embeddings=2048
+  - export max_position_embeddings=1024
   - export llm_hidden_size=4096 # this is only for ThreeD parallelism strategy, used by megatron
 
   # setup environment

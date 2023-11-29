@@ -11,6 +11,7 @@ import deepspeed
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
 
 from sfm.logging import logger, metric_logger
 from sfm.pipeline.accelerator.accelerator import (
@@ -606,7 +607,9 @@ class Trainer(object):
             return data_iterator
 
         logger.info(f"Skipping the first {start_iteration} batches")
-        for i, _ in enumerate(data_iterator):
+        for i, _ in tqdm(
+            enumerate(data_iterator), desc=f"Skipping first {start_iteration} batches"
+        ):
             if i == start_iteration:
                 break
 

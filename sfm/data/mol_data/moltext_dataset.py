@@ -1261,10 +1261,7 @@ def smiles2graph_removeh(smiles_string, pos=None):
 
 def batch_collater_for_graphormer(smiless: List[str], poses: List[Any], use_pbc: bool):
     if type(smiless[0]) == Data:
-        graphs = [
-            preprocess_item(smiles, use_pbc=use_pbc)
-            for smiles, pos in zip(smiless, poses)
-        ]
+        graphs = [preprocess_item(smiles, use_pbc=use_pbc) for smiles in smiless]
     else:
         graphs = [
             preprocess_item(Data(**smiles2graph_removeh(smiles, pos)), use_pbc=use_pbc)

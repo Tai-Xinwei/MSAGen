@@ -118,7 +118,17 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             args.strategy != TrainStrategy.ThreeD
             and args.strategy != TrainStrategy.Pipeline
         ):
-            self.graphormer_encoder = GraphormerSentenceEncoder(graphormer_config)
+            if self.args.fused_graphormer_llama:
+                self.graphormer_encoder = GraphormerEncoderPPFused(
+                    self.llama_config,
+                    graphormer_config,
+                    add_mol_attn_bias_in_llama=args.add_mol_attn_bias_in_llama,
+                    mol_attn_bias_in_llama_layerwise=args.mol_attn_bias_in_llama_layerwise,
+                    path_edge_cutoff=args.path_edge_cutoff,
+                    pp_mode=False,
+                )
+            else:
+                self.graphormer_encoder = GraphormerSentenceEncoder(graphormer_config)
             if self.args.fused_graphormer_llama:
                 self.decoder = LlamaForCausalLMFusedGraphormer(
                     llama_config,
@@ -131,7 +141,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             else:
                 self.decoder = LlamaForCausalLM(llama_config)
             self.adaptor = HybridEmbeddings(adaptor_config)
-            self.num_head = NumMLP(
+            self.decoder.num_head = NumMLP(
                 llama_config.hidden_size, 4 * llama_config.hidden_size, 1
             )
             self.loss = CopilotCriterionsNum(
@@ -304,6 +314,8 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
         input_ids: Optional[torch.LongTensor] = None,
         smiles: List[str] = None,
         attention_mask: Optional[torch.LongTensor] = None,
+        poses: Optional[List[torch.Tensor]] = None,
+        use_pbc: bool = False,
         **generate_kwargs,
     ) -> torch.LongTensor:
         """
@@ -321,7 +333,11 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             captions (list): A list of strings of length batch_size * num_captions.
         """
 
-        batched_data = batch_collater_for_graphormer(smiles)
+        if poses is None:
+            poses = [None for _ in smiles]
+        batched_data = batch_collater_for_graphormer(
+            smiles, poses=poses, use_pbc=use_pbc
+        )
         if input_ids is not None:
             batched_data = move_to_device(batched_data, device=input_ids.device)
         batched_data["out_degree"] = batched_data["in_degree"]
@@ -341,6 +357,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                 _,
                 _,
                 mol_padding_mask,
+                _,
             ) = self.graphormer_encoder(
                 batched_data,
             )
@@ -421,6 +438,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
                 _,
                 _,
                 mol_padding_mask,
+                _,
             ) = self.graphormer_encoder(
                 batched_data,
             )
@@ -482,6 +500,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             _,
             _,
             mol_padding_mask,
+            _,
         ) = self.graphormer_encoder(
             batched_data,
             segment_labels=segment_labels,

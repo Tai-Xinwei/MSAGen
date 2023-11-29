@@ -23,6 +23,24 @@ else
   sandwich_ln=""
 fi
 
+# generalist model parameters
+if [[ "${fused_graphormer_llama}" == "true" ]]; then
+  fused_graphormer_llama="--fused_graphormer_llama"
+else
+  fused_graphormer_llama=""
+fi
+if [[ "${add_mol_attn_bias_in_llama}" == "true" ]]; then
+  add_mol_attn_bias_in_llama="--add_mol_attn_bias_in_llama"
+else
+  add_mol_attn_bias_in_llama=""
+fi
+if [[ "${mol_attn_bias_in_llama_layerwise}" == "true" ]]; then
+  mol_attn_bias_in_llama_layerwise="--mol_attn_bias_in_llama_layerwise"
+else
+  mol_attn_bias_in_llama_layerwise=""
+fi
+[ -z "${path_edge_cutoff}" ] && path_edge_cutoff=20
+
 # general training parameters
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=2e-5
@@ -34,8 +52,6 @@ fi
 [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
 # [ -z "${data_path}" ] && data_path='/home/peiran/mnt/mntsfm2/data/chemical-copilot-special-token/'
 # [ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
-# [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token'
-
 # [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
 # [ -z "${dataset_splits}" ] && dataset_splits='clean'
 [ -z "${dataset_names}" ] && dataset_names='oc20-is2re'
@@ -172,6 +188,7 @@ echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 echo "strategy: ${strategy}"
 echo "pp_partition_layer_name: ${pp_partition_layer_name}"
 echo "pp_part_list: ${pp_part_list}"
+echo "unfreeze_param_list: ${unfreeze_param_list}"
 
 echo "===================================== training parameters for generalist ====================================="
 echo "micro_batch_size: ${micro_batch_size}"
@@ -293,8 +310,3 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           # --use_pbc \
           # --add_3d \
           # --fused_graphormer_llama
-
-
-sleep inf
-sleep inf
-sleep inf

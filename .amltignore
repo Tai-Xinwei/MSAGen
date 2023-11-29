@@ -155,8 +155,16 @@ dmypy.json
 /tests/
 
 # docs
-docs/
+docs
 
 # storage or dataset
 /blob/
 /mp_data
+docs/
+dataset/
+*.log*
+logs/
+chemcop-inst-len.csv
+sfm/tasks/generalist/outputs/
+sfm/tasks/generalist/results/
+*.ipynb

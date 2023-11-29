@@ -691,7 +691,9 @@ class HybridEmbeddingsPP(HybridEmbeddings):
             dtype=torch.long,
             device=device,
         )
-        position_ids = position_ids.unsqueeze(0).view(-1, seq_length)
+        position_ids = (
+            position_ids.unsqueeze(0).view(-1, seq_length).repeat([batch_size, 1])
+        )
 
         # Merge text and mol embeddings
         inputs_embeds = self._forward_embedding(
