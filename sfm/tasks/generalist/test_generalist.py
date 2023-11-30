@@ -121,17 +121,29 @@ def test_funcg(smiles, response, local_rank):
     if len(func_groups) > 0:
         recall /= len(func_groups)
 
-    func_groups_in_response = re.split(",|and ", response)
+    func_groups_in_response = list(
+        set(
+            list(
+                filter(
+                    lambda x: x != "" and (not x.endswith(" of")),
+                    re.split(",| a | and a | and ", response),
+                )
+            )[1:]
+        )
+    )
     precision = 0.0
     for func_group in func_groups_in_response:
         for label_func_group in func_groups:
-            if func_group.find(label_func_group) != -1:
+            if (
+                func_group.find(label_func_group) != -1
+                or label_func_group.find(func_group) != -1
+            ):
                 precision += 1
                 break
     if len(func_groups_in_response) > 0:
         precision /= len(func_groups_in_response)
 
-    return precision, recall, func_groups
+    return precision, recall, func_groups, func_groups_in_response
 
 
 def get_test_question(eval_method: EvalMethod):
@@ -357,8 +369,9 @@ def batch_mol(molecules, num_batches):
     batched_molecules = [
         molecules[batch_start[i] : batch_end[i]] for i in range(num_batches)
     ]
-    for _ in range(len(batched_molecules), batch_size):
-        batched_molecules.append(molecules[0])
+    for i in range(len(batched_molecules)):
+        for _ in range(len(batched_molecules[i]), batch_size):
+            batched_molecules[i].append(molecules[0])
     return batched_molecules
 
 
@@ -466,7 +479,7 @@ def main(args) -> None:
             for question in questions:
                 prompt = (
                     "Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n"
-                    f"### Instruction:\n{question}\n\n### Input:\n{''.join(['<unk>' for _ in range(num_atoms)])}\n\n### Response:\n"
+                    f"### Instruction:\n{question}\n\n### Input: <mol> \n{''.join(['<unk>' for _ in range(num_atoms)])} </mol>\n\n### Response:\n"
                 )
                 input_ids = tokenizer(
                     prompt,
@@ -488,7 +501,11 @@ def main(args) -> None:
                 )
                 seq = res.sequences[0]
                 seq[seq < 0] = 0
-                response = tokenizer.decode(seq, skip_special_tokens=False)
+                response = (
+                    tokenizer.decode(seq, skip_special_tokens=False)
+                    .split("### Response:\n")[-1]
+                    .strip()
+                )
                 json_obj = {"smiles": smi, "prompt": prompt, "response": response}
 
                 if args.eval_method != EvalMethod.NONE:
@@ -503,12 +520,16 @@ def main(args) -> None:
                         json_obj["score"] = score
                         score_sum += score
                     elif args.eval_method == EvalMethod.FUNCG:
-                        precision, recall, func_groups = test_funcg(
-                            smi, response, args.local_rank
-                        )
+                        (
+                            precision,
+                            recall,
+                            func_groups,
+                            func_groups_in_response,
+                        ) = test_funcg(smi, response, args.local_rank)
                         json_obj["precision"] = precision
                         json_obj["recall"] = recall
                         json_obj["func_groups"] = func_groups
+                        json_obj["func_groups_in_response"] = func_groups_in_response
                         precision_sum += precision
                         recall_sum += recall
 
