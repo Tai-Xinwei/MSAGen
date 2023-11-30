@@ -54,9 +54,11 @@ fi
 # [ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
 # [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
 # [ -z "${dataset_splits}" ] && dataset_splits='clean'
-[ -z "${dataset_names}" ] && dataset_names='oc20-is2re'
-[ -z "${dataset_splits}" ] && dataset_splits='100k'
-[ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
+[ -z "${dataset_names}" ] && dataset_names='chebi,chemcop-instruction,mol-instruction-mol-desc'
+[ -z "${dataset_splits}" ] && dataset_splits='all,all,clean'
+[ -z "${dataset_ratios}" ] && dataset_ratios='3.0,1.0,1.0'
+[ -z "${num_data_loading_workers}" ] && num_data_loading_workers=16
+[ -z "${skip_num_datasets}" ] && skip_num_datasets="chemcop-instruction"
 # [ -z "${dataset_names}" ] && dataset_names='chebi'
 # [ -z "${dataset_splits}" ] && dataset_splits='all'
 # [ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
@@ -306,7 +308,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --fp16 \
           --load_ckpt \
           --deepspeed_config=$DS_CONFIG \
-          ${MEGATRON_ARGS}
+          ${MEGATRON_ARGS} \
+          --num_data_loading_workers ${num_data_loading_workers} \
+          --skip_num_datasets "${skip_num_datasets}"
           # --use_pbc \
           # --add_3d \
           # --fused_graphormer_llama
