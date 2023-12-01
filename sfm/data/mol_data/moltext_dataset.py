@@ -6,12 +6,14 @@ import torch
 logging.getLogger().setLevel(logging.ERROR)
 
 import copy
+import gc
 import json
 import os
 import pickle as pkl
 from argparse import Namespace
 from dataclasses import dataclass, field
 from multiprocessing import Pool
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 import lmdb
@@ -28,12 +30,6 @@ from sfm.logging.loggers import logger
 from sfm.utils.jload import jload
 
 from . import algos
-from .collator import (
-    collator_copilot,
-    collator_copilot_multi_mol,
-    collator_copilot_multi_mol_PP,
-)
-from .wrapper import smiles2graph
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "[PAD]"
@@ -144,619 +140,66 @@ def preprocess(input_ids, label, llm_mask, data, idx, mask_ratio=0.0):
     return data
 
 
-# TODO (Roger)
-def _tokenize_fn_moleculenet(
-    strings: Sequence[str],
-    tokenizer: transformers.PreTrainedTokenizer,
-    smiles: Sequence[str],
-    smiles_dict: Dict,
-    nnodes: Sequence[int],
-    pool_mode: str = "cls",
-    embedding_length: int = 1,
-) -> Dict:
-    """Tokenize a list of strings."""
-
-    tokenized_list = []
-    for idx, text in enumerate(strings):
-        text = " ".join(text)
-        split_text = text.split("<<|mol0|>>")
-        split_tokenized_list = [
-            tokenizer(
-                tt,
-                return_tensors="pt",
-                padding="longest",
-                max_length=tokenizer.model_max_length,
-                truncation=True,
-            )
-            for tt in split_text
-        ]
-        smiles_idx = -smiles_dict.get(smiles[idx], 1) - 1
-        # graph = smiles2graph(smiles[idx])
-        # nnode = int(graph['num_nodes'])
-        if pool_mode == "full":
-            to_replace_list = (
-                [32001] + [smiles_idx for i in range(embedding_length)] + [32002]
-            )
-            to_replace_list = torch.tensor(to_replace_list).to(torch.long)
-            input_id = torch.cat(
-                [
-                    split_tokenized_list[0].input_ids[0],
-                    to_replace_list,
-                    split_tokenized_list[-1].input_ids[0],
-                ]
-            )
-        elif pool_mode == "qformer" or pool_mode == "multimol":
-            to_replace_list = (
-                [32001] + [smiles_idx for i in range(embedding_length)] + [32002]
-            )
-            to_replace_list = torch.tensor(to_replace_list).to(torch.long)
-            input_id = torch.cat(
-                [
-                    split_tokenized_list[0].input_ids[0],
-                    to_replace_list,
-                    split_tokenized_list[-1].input_ids[0],
-                ]
-            )
-        else:
-            to_replace_id = torch.tensor([smiles_idx]).to(torch.long)
-            input_id = torch.cat(
-                [
-                    split_tokenized_list[0].input_ids[0],
-                    to_replace_id,
-                    split_tokenized_list[-1].input_ids[0],
-                ]
-            )
-
-        tokenized_list.append(input_id)
-
-    input_ids = labels = tokenized_list
-    input_ids_lens = labels_lens = [
-        tokenized.ne(tokenizer.pad_token_id).sum().item()
-        for tokenized in tokenized_list
-    ]
-    return dict(
-        input_ids=input_ids,
-        labels=labels,
-        input_ids_lens=input_ids_lens,
-        labels_lens=labels_lens,
-    )
-
-
-def preprocess_mask(
-    tokenizer: transformers.PreTrainedTokenizer,
-    input_ids: torch.Tensor,
-    labels: torch.Tensor,
+def _calc_input_len_static(
+    model_max_length,
+    molecule_max_size,
+    input_ids,
+    source_len,
+    smiless,
+    mol_sizes,
+    nums=None,
 ):
-    input_ids = torch.nn.utils.rnn.pad_sequence(
-        input_ids, batch_first=True, padding_value=tokenizer.pad_token_id
-    )
-    labels = torch.nn.utils.rnn.pad_sequence(
-        labels, batch_first=True, padding_value=IGNORE_INDEX
-    )
-    return (input_ids, labels, input_ids.ne(tokenizer.pad_token_id))
+    try:
+        mol_sizes = torch.tensor(mol_sizes)
+        if torch.any(torch.isnan(mol_sizes)) or torch.any(
+            mol_sizes > molecule_max_size
+        ):
+            return model_max_length + 1
+        mol_idxs = -input_ids[input_ids < 0] - 1
+        return int(len(input_ids) + torch.sum(mol_sizes[mol_idxs]) - len(mol_idxs))
+    except Exception as e:
+        print(f"Failed to convert smiles to graph: {e} {input_ids} {smiless}")
+        return model_max_length + 1
 
 
-# TODO (Roger)
-def preprocess_moleculenet(
-    sources: Sequence[str],
-    targets: Sequence[str],
-    smiles: Sequence[str],
-    smiles_dict: Dict,
-    tokenizer: transformers.PreTrainedTokenizer,
-    nnodes: Sequence[int],
-    pool_mode: str = "cls",
-    embedding_length=1,
-) -> Dict:
-    """Preprocess the data by tokenizing."""
-    examples = [s + [t] for s, t in zip(sources, targets)]
-    examples_tokenized, sources_tokenized = [
-        _tokenize_fn_moleculenet(
-            strings,
-            tokenizer,
-            smiles,
-            smiles_dict,
-            nnodes,
-            pool_mode=pool_mode,
-            embedding_length=embedding_length,
-        )
-        for strings in (examples, sources)
-    ]
-    input_ids = examples_tokenized["input_ids"]
-    # labels = examples_tokenized["labels"]
-    labels = copy.deepcopy(input_ids)
+def _load(
+    data_path,
+    model_max_length,
+    molecule_max_size,
+    process_index,
+    num_processes,
+    dataset_name,
+    dataset_split,
+    threshold_maxmol,
+):
+    read_env = lmdb.open(f"{data_path}/{dataset_name}/{dataset_split}/", readonly=True)
+    read_txn = read_env.begin(write=False)
+    dataset_count = 0
+    dataset_filtered = 0
+    index_to_key_map = []
 
-    for label, source_len in zip(labels, sources_tokenized["input_ids_lens"]):
-        label[:source_len] = IGNORE_INDEX
-    return dict(input_ids=input_ids, labels=labels)
-
-
-# TODO (Roger)
-class SupervisedMoleculeNetDataset(Dataset):
-    """Dataset for supervised fine-tuning."""
-
-    def __init__(
-        self,
-        data_path: str,
-        dataset_names: str,
-        smiles_dict_path: str,
-        tokenizer: transformers.PreTrainedTokenizer,
-        mode="train",
-        pool_mode="cls",
-        embedding_length=1,
+    for i, (key, val) in tqdm(
+        enumerate(read_txn.cursor()),
+        desc=f"Process {process_index}. Loading for {dataset_name} {dataset_split}",
+        miniters=10000,
     ):
-        # data_path: ./data/
-        # dataset_name: hiv
-        # smiles_dict_path: ./data/mol2idx_dict.jsonl
-
-        super(SupervisedMoleculeNetDataset, self).__init__()
-        dataset_names = dataset_names.split(",")
-        list_data_dict = []
-        for dataset_name in dataset_names:
-            assert dataset_name in ["hiv", "clintox", "sider", "tox21", "bbbp", "bace"]
-            logging.warning(f"Loading data {dataset_name} ...")
-            dir_name = os.path.join(data_path, dataset_name)
-            for fname in os.listdir(dir_name):
-                # if fname.endswith("-train.jsonl"):
-                #     with open(os.path.join(os.path.join(data_path, dataset_name), fname), 'r') as f:
-                #         content = f.readlines()
-                #         list_data_dict.extend([json.loads(item) for item in content])
-
-                if mode == "train" and fname.endswith("-train.jsonl"):
-                    with open(
-                        os.path.join(os.path.join(data_path, dataset_name), fname), "r"
-                    ) as f:
-                        content = f.readlines()
-                        list_data_dict.extend([json.loads(item) for item in content])
-                elif mode == "valid" and fname.endswith("-dev.jsonl"):
-                    with open(
-                        os.path.join(os.path.join(data_path, dataset_name), fname), "r"
-                    ) as f:
-                        content = f.readlines()
-                        list_data_dict.extend([json.loads(item) for item in content])
-                elif mode == "test" and fname.endswith("-test.jsonl"):
-                    with open(
-                        os.path.join(os.path.join(data_path, dataset_name), fname), "r"
-                    ) as f:
-                        content = f.readlines()
-                        list_data_dict.extend([json.loads(item) for item in content])
-                # else:
-                # raise NotImplementedError
-
-        # format: {'text': 'xxx', 'entities': {'<<|mol0|>>': {'smiles': 'xxx'}}}
-        smiles_dict = jload(smiles_dict_path)
-
-        # TODO: formating & preprocessing
-        logging.warning("Formatting inputs...")
-        # prompt_input, prompt_no_input = PROMPT_DICT["prompt_input"], PROMPT_DICT["prompt_no_input"]
-        # sources = [
-        #     prompt_input.format_map(example) if example.get("input", "") != "" else prompt_no_input.format_map(example)
-        #     for example in list_data_dict
-        # ]
-
-        sources = []
-        targets = []
-        entity_replace_smiles = []
-        for example in list_data_dict:
-            cur_text = example.get("text", "")
-            cur_source = cur_text.split()[:-2]
-            cur_target = f"{' '.join(cur_text.split()[-2:])}{tokenizer.eos_token}"
-            cur_smiles = (
-                example.get("entities", "").get("<<|mol0|>>", "").get("smiles", "")
-            )
-
-            sources.append(cur_source)
-            targets.append(cur_target)
-            entity_replace_smiles.append(cur_smiles)
-
-        self.smiles = entity_replace_smiles
-        self.data = []
-        nnodes = []
-        with Pool(processes=120) as pool:
-            iter = pool.imap(smiles2graph, entity_replace_smiles)
-
-            for i, graph in enumerate(iter):
-                data = Data()
-                data.__num_nodes__ = int(graph["num_nodes"])
-                data.edge_index = torch.from_numpy(graph["edge_index"]).to(torch.int64)
-                data.edge_attr = torch.from_numpy(graph["edge_feat"]).to(torch.int64)
-                data.x = torch.from_numpy(graph["node_feat"]).to(torch.int64)
-
-                self.data.append(data)
-                nnodes.append(data.__num_nodes__)
-
-        logging.warning("Tokenizing inputs... This may take some time...")
-        data_dict = preprocess_moleculenet(
-            sources,
-            targets,
-            entity_replace_smiles,
-            smiles_dict,
-            tokenizer,
-            nnodes,
-            pool_mode=pool_mode,
-            embedding_length=embedding_length,
-        )
-
-        input_ids = data_dict["input_ids"]
-        labels = data_dict["labels"]
-        self.input_ids, self.labels, self.llm_mask = preprocess_mask(
-            tokenizer, input_ids, labels
-        )
-
-        self.multi_hop_max_dist = 5
-        self.spatial_pos_max = 1024
-
-    def __len__(self):
-        return len(self.input_ids)
-
-    def __getitem__(self, i) -> Dict[str, torch.Tensor]:
-        item = preprocess(
-            self.input_ids[i], self.labels[i], self.llm_mask[i], self.data[i], i
-        )
-        return item
-
-    def collater(self, samples):
-        return collator_copilot(
-            samples,
-            max_node=1024,
-            multi_hop_max_dist=self.multi_hop_max_dist,
-            spatial_pos_max=self.spatial_pos_max,
-        )
-
-
-class SupervisedProcessedData(Dataset):
-    def __init__(
-        self,
-        args: Namespace,
-        data_path: str,
-        mol_size_path: str,
-        mol2idx_dict_path: str,
-        dataset_names: str,
-        dataset_splits: str,
-        in_memory: bool,
-        pad_token_id: int,
-        pool_mode: str,
-        embedding_length: int = 1,
-        dataset_ratios: str = None,
-    ) -> None:
-        super().__init__()
-        self.data_path = data_path
-        self.dataset_names = dataset_names.split(",")
-        self.dataset_ratios = (
-            None
-            if dataset_ratios is None
-            else [float(ratio) for ratio in dataset_ratios.split(",")]
-        )
-        self.dataset_splits = [
-            dataset_split.split("+") for dataset_split in dataset_splits.split(",")
-        ]
-        assert len(self.dataset_splits) == len(
-            self.dataset_names
-        ), "Lengths of dataset_splits and dataset_names do not match."
-        assert self.dataset_ratios is None or len(self.dataset_ratios) == len(
-            self.dataset_names
-        ), "Lengths of dataset_ratios and dataset_names do not match."
-        self.in_memory = in_memory
-        self.pad_token_id = pad_token_id
-        self.pool_mode = pool_mode
-        self.embedding_length = embedding_length
-        self.args = args
-
-        self.len = 0
-        self.index_to_key_map = []
-        self.in_memory_data = {}
-        self.read_txns = {}
-        self.read_envs = {}
-        self.weight_dict = {}
-        self.len_read_txns = {}
-        self.len_read_envs = {}
-        self.dataset_count = {}
-        self.dataset_filtered = {}
-        self.molidx_to_smiles = {}
-        self.mol_data = []
-        self.mol_data_offset = []
-        smile_list = []
-
-        self.multi_hop_max_dist = 5
-        self.spatial_pos_max = 1024
-        self.max_node = 512
-        max_mol_per_sample = 8
-
-        with open(mol2idx_dict_path, "rb") as in_file:
-            mol2idx_dict = jload(mol2idx_dict_path)
-            for smiles in mol2idx_dict:
-                self.molidx_to_smiles[int(mol2idx_dict[smiles])] = smiles
-                smile_list.append(smiles)
-
-        smile2data = {}
-        with Pool(processes=120) as pool:
-            iter = pool.imap(smiles2graph, smile_list)
-
-            for i, graph in enumerate(iter):
-                try:
-                    data = Data()
-                    data.__num_nodes__ = int(graph["num_nodes"])
-                    data.edge_index = torch.from_numpy(graph["edge_index"]).to(
-                        torch.int64
-                    )
-                    data.edge_attr = torch.from_numpy(graph["edge_feat"]).to(
-                        torch.int64
-                    )
-                    data.x = torch.from_numpy(graph["node_feat"]).to(torch.int64)
-
-                    smile2data[graph["smile"]] = data
-                except:
-                    continue
-                # self.data.append(data)
-                # nnodes.append(data.__num_nodes__)
-
-        with open(mol_size_path, "rb") as in_file:
-            self.mol_size_dict = pkl.load(in_file)
-
-        num_mols = 0
-        max_mol = 0
-        max_node = 0
-        if not self.in_memory:
-            for i, (dataset_name, dataset_splits) in enumerate(
-                zip(self.dataset_names, self.dataset_splits)
+        if i % num_processes == process_index:
+            val = pkl.loads(val)
+            if (
+                _calc_input_len_static(model_max_length, molecule_max_size, *val)
+                > model_max_length
+                or len(val[3]) > threshold_maxmol
             ):
-                self.read_txns[dataset_name] = {}
-                self.read_envs[dataset_name] = {}
-                self.len_read_envs[dataset_name] = {}
-                self.len_read_txns[dataset_name] = {}
-                start_index = self.len
-                self.dataset_count[dataset_name] = {}
-                self.dataset_filtered[dataset_name] = {}
-                for dataset_split in dataset_splits:
-                    logging.warning(
-                        f"Loading dataset {dataset_name} split {dataset_split}"
-                    )
-                    read_env = lmdb.open(
-                        f"{self.data_path}/{dataset_name}/{dataset_split}/"
-                    )
-                    read_txn = read_env.begin(write=False)
-                    self.read_txns[dataset_name][dataset_split] = read_txn
-                    self.read_envs[dataset_name][dataset_split] = read_env
-                    len_read_env = lmdb.open(
-                        f"{self.data_path}/{dataset_name}/{dataset_split}-len/"
-                    )
-                    len_read_txn = len_read_env.begin(write=False)
-                    self.len_read_envs[dataset_name][dataset_split] = len_read_env
-                    self.len_read_txns[dataset_name][dataset_split] = len_read_txn
-                    self.dataset_count[dataset_name][dataset_split] = 0
-                    self.dataset_filtered[dataset_name][dataset_split] = 0
-                    for key, val in read_txn.cursor():
-                        val = pkl.loads(val)[0]
-                        length_and_mol_idxs = pkl.loads(len_read_txn.get(key))
-                        mol_idxs = length_and_mol_idxs[1]
-                        to_skip = (
-                            len(mol_idxs) == 0 or len(mol_idxs) > max_mol_per_sample
-                        )
-                        max_mol = max(max_mol, len(mol_idxs))
-                        for mol_idx in mol_idxs:
-                            mol_idx = int(mol_idx)
-                            if mol_idx not in self.mol_size_dict:
-                                to_skip = True
-                                break
-                        if to_skip:
-                            continue
-                        for mol_idx in mol_idxs:
-                            mol_idx = int(mol_idx)
-                            smiles = self.molidx_to_smiles[mol_idx]
-                            # mol_data = self._process_smiles(smiles)
-                            mol_data = smile2data[smiles]
-                            max_node = max(max_node, mol_data.__num_nodes__)
-
-                            if mol_data.__num_nodes__ > self.max_node:
-                                to_skip = True
-                                break
-                            self.mol_data.append(mol_data)
-                        if to_skip:
-                            continue
-                        self.mol_data_offset.append(num_mols)
-                        num_mols += len(mol_idxs)
-                        assert len(mol_idxs) == len(
-                            val[val < 0]
-                        ), f"{mol_idxs} vs. {val}"
-                        self.index_to_key_map.append(
-                            (dataset_name, dataset_split, key.decode())
-                        )
-                        self.dataset_count[dataset_name][dataset_split] += 1
-                        self.len += 1
-                if self.dataset_ratios is not None:
-                    self.weight_dict[(start_index, self.len)] = self.dataset_ratios[i]
-            self.mol_data_offset.append(num_mols)
-        else:
-            for i, (dataset_name, dataset_splits) in enumerate(
-                zip(self.dataset_names, self.dataset_splits)
-            ):
-                self.in_memory_data[dataset_name] = {}
-                start_index = self.len
-                self.dataset_count[dataset_name] = {}
-                self.dataset_filtered[dataset_name] = {}
-                for dataset_split in dataset_splits:
-                    logging.warning(
-                        f"Loading dataset {dataset_name} split {dataset_split}"
-                    )
-                    read_env = lmdb.open(
-                        f"{self.data_path}/{dataset_name}/{dataset_split}/"
-                    )
-                    read_txn = read_env.begin(write=False)
-                    len_read_env = lmdb.open(
-                        f"{self.data_path}/{dataset_name}/{dataset_split}-len/"
-                    )
-                    len_read_txn = len_read_env.begin(write=False)
-                    self.in_memory_data[dataset_name][dataset_split] = {}
-                    self.dataset_count[dataset_name][dataset_split] = 0
-                    self.dataset_filtered[dataset_name][dataset_split] = 0
-                    for key, val in read_txn.cursor():
-                        val = pkl.loads(val)
-                        length_and_mol_idxs = pkl.loads(len_read_txn.get(key))
-                        mol_idxs = length_and_mol_idxs[1]
-                        to_skip = (
-                            len(mol_idxs) == 0 or len(mol_idxs) > max_mol_per_sample
-                        )
-                        max_mol = max(max_mol, len(mol_idxs))
-                        for mol_idx in mol_idxs:
-                            mol_idx = int(mol_idx)
-                            if mol_idx not in self.mol_size_dict:
-                                to_skip = True
-                                break
-                        if to_skip:
-                            continue
-                        for mol_idx in mol_idxs:
-                            mol_idx = int(mol_idx)
-                            smiles = self.molidx_to_smiles[mol_idx]
-                            # mol_data = self._process_smiles(smiles)
-                            mol_data = smile2data[smiles]
-                            max_node = max(max_node, mol_data.__num_nodes__)
-
-                            if mol_data.__num_nodes__ > self.max_node:
-                                to_skip = True
-                                break
-                            self.mol_data.append(mol_data)
-                        if to_skip:
-                            continue
-                        self.mol_data_offset.append(num_mols)
-                        num_mols += len(mol_idxs)
-                        key = key.decode()
-                        self.index_to_key_map.append((dataset_name, dataset_split, key))
-                        self.dataset_count[dataset_name][dataset_split] += 1
-                        self.in_memory_data[dataset_name][dataset_split][key] = val
-                        self.len += 1
-                    read_env.close()
-                if self.dataset_ratios is not None:
-                    self.weight_dict[(start_index, self.len)] = self.dataset_ratios[i]
-            self.mol_data_offset.append(num_mols)
-
-        logger.info(f"{self.len} sentences loaded.")
-        for dataset_name in self.dataset_count:
-            for dataset_split in self.dataset_count[dataset_name]:
-                logger.info(
-                    f"Dataset {dataset_name} split {dataset_split}: {self.dataset_count[dataset_name][dataset_split]} loaded, {self.dataset_filtered[dataset_name][dataset_split]} filtered."
-                )
-
-        print(f"Max mol: {max_mol}, max node: {max_node}")
-        if len(self.weight_dict) == 0:
-            self.weight_dict = None
-
-        if self.weight_dict is not None:
-            equal_ratio = True
-            for begin, end in self.weight_dict:
-                if int(self.weight_dict[(begin, end)]) != 1:
-                    equal_ratio = False
-            if equal_ratio:
-                self.weight_dict = None
-
-    def _process_smiles(self, smiles):
-        mol_data = smiles2graph(smiles)
-        data = Data()
-        data.__num_nodes__ = int(mol_data["num_nodes"])
-        data.edge_index = torch.from_numpy(mol_data["edge_index"]).to(torch.int64)
-        data.edge_attr = torch.from_numpy(mol_data["edge_feat"]).to(torch.int64)
-        data.x = torch.from_numpy(mol_data["node_feat"]).to(torch.int64)
-        return data
-
-    def __del__(self):
-        if not self.in_memory:
-            for dataset_name in self.read_envs:
-                for dataset_split in self.read_envs[dataset_name]:
-                    self.read_envs[dataset_name][dataset_split].close()
-
-    def __len__(self):
-        return self.len
-
-    def __getitem__(self, index) -> Dict[str, torch.Tensor]:
-        dataset_name, dataset_split, key = self.index_to_key_map[index]
-        if not self.in_memory:
-            input_ids, input_ids_len = pkl.loads(
-                self.read_txns[dataset_name][dataset_split].get(key.encode())
-            )
-        else:
-            input_ids, input_ids_len = self.in_memory_data[dataset_name][dataset_split][
-                key
-            ]
-        if isinstance(input_ids, list):
-            input_ids = torch.tensor(input_ids, dtype=torch.int64)
-        input_ids = input_ids.to(dtype=torch.int64)
-        input_ids_len = int(input_ids_len)
-
-        mol_idx_pos = torch.nonzero(input_ids < 0).squeeze()
-        if len(mol_idx_pos.size()) == 0:
-            mol_idx_pos = mol_idx_pos.unsqueeze(-1)
-        mol_idxs = input_ids[mol_idx_pos]
-
-        mol_idx_pos = torch.cat(
-            [torch.tensor([-1]), mol_idx_pos, torch.tensor([len(input_ids)])]
-        )
-
-        assert self.mol_data_offset[index + 1] - self.mol_data_offset[index] == len(
-            mol_idxs
-        ), f"{input_ids} vs. {key} vs. {self.mol_data_offset[index + 1] - self.mol_data_offset[index]} vs. {len(mol_idxs)}, {mol_idxs}"
-
-        if (
-            self.pool_mode == "full"
-            or self.pool_mode == "qformer"
-            or self.pool_mode == "multimol"
-        ):
-            input_ids_expanded = []
-            for i in range(len(mol_idx_pos) - 1):
-                cur_pos = mol_idx_pos[i]
-                if cur_pos >= 0 and cur_pos < len(input_ids):
-                    mol_idx = int(input_ids[cur_pos])
-                    assert mol_idx < 0
-                    mol_size = self.mol_size_dict[-mol_idx - 1] - 1
-                    if self.pool_mode == "full":
-                        input_ids_expanded.append(
-                            torch.tensor([mol_idx for _ in range(mol_size)])
-                        )
-                    elif self.pool_mode == "qformer" or self.pool_mode == "multimol":
-                        input_ids_expanded.append(torch.tensor([32001]))
-                        input_ids_expanded.append(
-                            torch.tensor(
-                                [mol_idx for _ in range(self.embedding_length)]
-                            )
-                        )
-                        input_ids_expanded.append(torch.tensor([32002]))
-                input_ids_expanded.append(input_ids[cur_pos + 1 : mol_idx_pos[i + 1]])
-
-            input_ids = torch.cat(input_ids_expanded)
-        else:
-            raise Exception(
-                f"Unknown pool mode {self.pool_mode}, should be full, qformer or multimol"
-            )
-
-        processed_mol_data = []
-        for j, mol_data_idx in enumerate(
-            range(self.mol_data_offset[index], self.mol_data_offset[index + 1])
-        ):
-            mol_data = self.mol_data[mol_data_idx].clone()
-            processed_mol_data.append(preprocess(None, None, None, mol_data, i, 0.0))
-
-        labels = input_ids.clone()
-        labels[:input_ids_len] = IGNORE_INDEX
-        labels[labels < 0] = IGNORE_INDEX
-        return dict(
-            input_ids=input_ids,
-            labels=labels,
-            llm_mask=input_ids.ne(self.pad_token_id),
-            processed_mol_data=processed_mol_data,
-        )
-
-    def collater(self, samples):
-        if self.args.pipeline_parallelism == 0:
-            return collator_copilot_multi_mol(
-                samples,
-                max_node=1024,
-                multi_hop_max_dist=self.multi_hop_max_dist,
-                spatial_pos_max=self.spatial_pos_max,
-            )
-        else:
-            return collator_copilot_multi_mol_PP(
-                samples,
-                max_node=1024,
-                multi_hop_max_dist=self.multi_hop_max_dist,
-                spatial_pos_max=self.spatial_pos_max,
-            )
+                dataset_filtered += 1
+                continue
+            index_to_key_map.append((dataset_name, dataset_split, key.decode()))
+            dataset_count += 1
+        val = None
+        if (i + 1) % 100000 == 0:
+            gc.collect()
+    gc.collect()
+    read_env.close()
+    return dataset_count, dataset_filtered, index_to_key_map
 
 
 class SupervisedProcessedDataWithSmiles(Dataset):
@@ -775,6 +218,11 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         embedding_length: int = 20,
         num_token_id: int = 32003,
         use_pp: bool = True,
+        use_pbc: bool = False,
+        local_rank: int = 0,
+        num_data_loading_workers: int = 16,
+        skip_num_datasets: str = "",
+        temp_dir: str = "./generalist-data-temp",
     ) -> None:
         super().__init__()
         self.data_path = data_path
@@ -800,6 +248,13 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         self.pool_mode = pool_mode
         self.embedding_length = embedding_length
         self.num_token_id = num_token_id
+        self.local_rank = local_rank
+        self.skip_num_datasets = set(
+            list(filter(lambda x: x != "", skip_num_datasets.split(",")))
+        )
+        self.num_data_loading_workers = num_data_loading_workers
+        self.temp_dir = Path(temp_dir)
+        self.temp_dir.mkdir(exist_ok=True)
 
         threshold_maxmol = 8
 
@@ -812,7 +267,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         self.dataset_count = {}
         self.dataset_filtered = {}
         self.data_collater = DataCollatorForSupervisedDataset(
-            pad_token_id=pad_token_id, use_pp=use_pp, add_mfm=True
+            pad_token_id=pad_token_id, use_pp=use_pp, add_mfm=True, use_pbc=use_pbc
         )
 
         if not self.in_memory:
@@ -834,24 +289,37 @@ class SupervisedProcessedDataWithSmiles(Dataset):
                     read_txn = read_env.begin(write=False)
                     self.read_txns[dataset_name][dataset_split] = read_txn
                     self.read_envs[dataset_name][dataset_split] = read_env
-                    self.dataset_count[dataset_name][dataset_split] = 0
-                    self.dataset_filtered[dataset_name][dataset_split] = 0
-                    for key, val in tqdm(read_txn.cursor()):
-                        val = pkl.loads(val)
-                        if (
-                            self._calc_input_len(*val) > self.model_max_length
-                            or len(val[3]) > threshold_maxmol
-                        ):
-                            self.dataset_filtered[dataset_name][dataset_split] += 1
-                            # print(f"{self._calc_input_len(*val)}, {val[3]}")
-                            continue
-                        self.index_to_key_map.append(
-                            (dataset_name, dataset_split, key.decode())
+                    if self.local_rank <= 0:
+                        self._load_multiprocessing(
+                            dataset_name,
+                            dataset_split,
+                            threshold_maxmol,
+                            self.num_data_loading_workers,
                         )
-                        self.dataset_count[dataset_name][dataset_split] += 1
-                        self.len += 1
                 if self.dataset_ratios is not None:
                     self.weight_dict[(start_index, self.len)] = self.dataset_ratios[i]
+            # clear from previous runs
+            if os.path.exists(f"{self.temp_dir / 'data_meta.pkl'}"):
+                os.system(f"rm {self.temp_dir / 'data_meta.pkl'}")
+            if os.path.exists(f"{self.temp_dir / 'DATA_READY'}"):
+                os.system(f"rm {self.temp_dir / 'DATA_READY'}")
+            if self.local_rank <= 0:
+                with open(f"{self.temp_dir / 'data_meta.pkl'}", "wb") as out_file:
+                    pkl.dump(self.dataset_count, out_file)
+                    pkl.dump(self.dataset_filtered, out_file)
+                    pkl.dump(self.index_to_key_map, out_file)
+                    pkl.dump(self.len, out_file)
+                    pkl.dump(self.weight_dict, out_file)
+                os.system(f"touch {self.temp_dir / 'DATA_READY'}")
+            else:
+                while not os.path.exists(f"{self.temp_dir / 'DATA_READY'}"):
+                    pass
+                with open(f"{self.temp_dir / 'data_meta.pkl'}", "rb") as in_file:
+                    self.dataset_count = pkl.load(in_file)
+                    self.dataset_filtered = pkl.load(in_file)
+                    self.index_to_key_map = pkl.load(in_file)
+                    self.len = pkl.load(in_file)
+                    self.weight_dict = pkl.load(in_file)
         else:
             for i, (dataset_name, dataset_splits) in enumerate(
                 zip(self.dataset_names, self.dataset_splits)
@@ -908,6 +376,36 @@ class SupervisedProcessedDataWithSmiles(Dataset):
             if equal_ratio:
                 self.weight_dict = None
 
+    def _load_multiprocessing(
+        self, dataset_name, dataset_split, threshold_maxmol, num_processes
+    ):
+        logger.warning(f"Loading dataset {dataset_name} split {dataset_split}")
+        with Pool(num_processes) as pool:
+            results = pool.starmap(
+                _load,
+                zip(
+                    [self.data_path] * num_processes,
+                    [self.model_max_length] * num_processes,
+                    [self.molecule_max_size] * num_processes,
+                    range(num_processes),
+                    [num_processes] * num_processes,
+                    [dataset_name] * num_processes,
+                    [dataset_split] * num_processes,
+                    [threshold_maxmol] * num_processes,
+                ),
+            )
+            total_dataset_count = 0
+            total_dataset_filtered = 0
+            total_index_to_key_map = []
+            for dataset_count, dataset_filtered, index_to_key_map in results:
+                total_dataset_count += dataset_count
+                total_dataset_filtered += dataset_filtered
+                total_index_to_key_map.extend(index_to_key_map)
+            self.len += total_dataset_count
+            self.dataset_count[dataset_name][dataset_split] = total_dataset_count
+            self.dataset_filtered[dataset_name][dataset_split] = total_dataset_filtered
+            self.index_to_key_map.extend(total_index_to_key_map)
+
     def _calc_input_len(self, input_ids, source_len, smiless, mol_sizes, nums=None):
         try:
             mol_sizes = torch.tensor(mol_sizes)
@@ -946,6 +444,9 @@ class SupervisedProcessedDataWithSmiles(Dataset):
             input_ids, input_ids_len, smiless, mol_sizes = data
         elif len(data) == 5:
             input_ids, input_ids_len, smiless, mol_sizes, nums = data
+
+        if dataset_name in self.skip_num_datasets:
+            nums = None
 
         if isinstance(input_ids, list):
             input_ids = torch.tensor(input_ids, dtype=torch.int64)
@@ -1006,7 +507,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         return self.collater(samples)
 
 
-def preprocess_item(item):
+def preprocess_item(item, use_pbc=False):
     edge_attr, edge_index, x = item.edge_attr, item.edge_index, item.x
     N = x.size(0)
     x = convert_to_single_emb(x)
@@ -1042,6 +543,12 @@ def preprocess_item(item):
     else:
         item.mask3d = torch.tensor([0.0]).bool()
         item.pos = item.pos - torch.mean(item.pos, dim=0, keepdim=True)
+
+    if use_pbc and (not hasattr(item, "pbc") or item.pbc is None):
+        item.pbc = torch.zeros([3], dtype=torch.bool)
+
+    if use_pbc and (not hasattr(item, "cell") or item.cell is None):
+        item.cell = torch.zeros([3, 3], dtype=torch.float)
 
     return item
 
@@ -1115,7 +622,7 @@ def pad_pos_unsqueeze(x, padlen):
     return x.unsqueeze(0)
 
 
-def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
+def collator(items, multi_hop_max_dist=20, spatial_pos_max=20, use_pbc=False):
     items = [
         (
             item.attn_bias,
@@ -1125,6 +632,8 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
             item.edge_input[:, :, :multi_hop_max_dist, :],
             item.pos,
             item.mask3d,
+            item.pbc if use_pbc else None,
+            item.cell if use_pbc else None,
         )
         for item in items
     ]
@@ -1136,6 +645,8 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
         edge_inputs,
         poses,
         mask3ds,
+        pbcs,
+        cells,
     ) = zip(*items)
 
     for idx, _ in enumerate(attn_biases):
@@ -1158,6 +669,8 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
 
     mask3d = torch.cat([i for i in mask3ds])
     pos = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in poses])
+    pbc = torch.cat([i.unsqueeze(0) for i in pbcs], dim=0) if use_pbc else None
+    cell = torch.cat([i.unsqueeze(0) for i in cells], dim=0) if use_pbc else None
 
     node_type_edges = []
     for idx in range(len(items)):
@@ -1184,6 +697,8 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20):
         mask3d=mask3d,
         node_type_edge=node_type_edge,
         attn_edge_type=None,
+        pbc=pbc,
+        cell=cell,
     )
 
 
@@ -1244,15 +759,19 @@ def smiles2graph_removeh(smiles_string, pos=None):
     return graph
 
 
-def batch_collater_for_graphormer(smiless: List[str], poses: List[Any]):
+def batch_collater_for_graphormer(smiless: List[str], poses: List[Any], use_pbc: bool):
     if type(smiless[0]) == Data:
-        graphs = [preprocess_item(smiles) for smiles, pos in zip(smiless, poses)]
+        graphs = [preprocess_item(smiles, use_pbc=use_pbc) for smiles in smiless]
     else:
         graphs = [
-            preprocess_item(Data(**smiles2graph_removeh(smiles, pos)))
+            preprocess_item(Data(**smiles2graph_removeh(smiles, pos)), use_pbc=use_pbc)
             for smiles, pos in zip(smiless, poses)
         ]
-    return collator(graphs)
+
+        # for graph in graphs:
+        #     graph.pbc = torch.zeros([3], dtype=torch.bool)
+        #     graph.cell = torch.zeros([3, 3], dtype=torch.float)
+    return collator(graphs, use_pbc=use_pbc)
 
 
 @dataclass
@@ -1262,6 +781,7 @@ class DataCollatorForSupervisedDataset(object):
     pad_token_id: int
     use_pp: bool
     add_mfm: bool
+    use_pbc: bool
 
     def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
         input_ids, labels, smiless, num_labels = tuple(
@@ -1300,25 +820,30 @@ class DataCollatorForSupervisedDataset(object):
                 smiles.extend(smis)
                 pos.extend([None for _ in range(len(smis))])
 
-        batched_molecules = batch_collater_for_graphormer(smiles, pos)
+        batched_molecules = batch_collater_for_graphormer(smiles, pos, self.use_pbc)
         batched_molecules["out_degree"] = batched_molecules["in_degree"]
         if self.use_pp:
+            return_input = [
+                input_ids,
+                input_ids.ne(self.pad_token_id),
+                labels,
+                batched_molecules["x"],
+                batched_molecules["in_degree"],
+                batched_molecules["out_degree"],
+                batched_molecules["attn_bias"],
+                batched_molecules["spatial_pos"],
+                batched_molecules["edge_input"],
+                batched_molecules["num_atoms"],
+                batched_molecules["pos"],
+                batched_molecules["mask3d"],
+                batched_molecules["node_type_edge"],
+            ]
+            if self.use_pbc:
+                return_input.extend(
+                    [batched_molecules["pbc"], batched_molecules["cell"]]
+                )
             return (
-                [
-                    input_ids,
-                    input_ids.ne(self.pad_token_id),
-                    labels,
-                    batched_molecules["x"],
-                    batched_molecules["in_degree"],
-                    batched_molecules["out_degree"],
-                    batched_molecules["attn_bias"],
-                    batched_molecules["spatial_pos"],
-                    batched_molecules["edge_input"],
-                    batched_molecules["num_atoms"],
-                    batched_molecules["pos"],
-                    batched_molecules["mask3d"],
-                    batched_molecules["node_type_edge"],
-                ],
+                return_input,
                 (
                     labels,
                     input_ids.ne(self.pad_token_id),

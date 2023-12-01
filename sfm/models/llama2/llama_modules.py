@@ -25,7 +25,7 @@ from transformers.models.llama.modeling_llama import (
 )
 
 from sfm.logging import logger
-from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec
+from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec, dist_utils
 from sfm.utils.pipelinemode import pipemode
 
 
@@ -51,8 +51,16 @@ class LlamaMLPAdapter(nn.Module):
         )
 
 
-class LlamaMemEffAttention(LlamaAttention):
-    # Use this class to replace LlamaAttention for memory efficient attention in V100, A100 should use flash attention instead
+class LlamaEfficientAttention(LlamaAttention):
+    def __init__(self, config: LlamaConfig):
+        super().__init__(config)
+        if dist_utils.support_flash_attntion():
+            logger.info("using flash attention for training")
+            self.use_flash = True
+        else:
+            logger.info("Only use memory efficient attention for training")
+            self.use_flash = False
+
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -63,6 +71,10 @@ class LlamaMemEffAttention(LlamaAttention):
         use_cache: bool = False,
         padding_mask: Optional[torch.LongTensor] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
+        if not self.training:
+            # only use memory efficient attention during eval because flash attention don't support padding mask
+            self.use_flash = False
+
         bsz, q_len, _ = hidden_states.size()
 
         if self.config.pretraining_tp > 1:
@@ -126,12 +138,24 @@ class LlamaMemEffAttention(LlamaAttention):
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        with torch.backends.cuda.sdp_kernel(
-            enable_math=True, enable_mem_efficient=True, enable_flash=False
-        ):
-            attn_output = F.scaled_dot_product_attention(
-                query_states, key_states, value_states, attn_mask=attention_mask
-            )
+        if self.use_flash:
+            with torch.backends.cuda.sdp_kernel(
+                enable_math=False,
+                enable_mem_efficient=False,
+                enable_flash=True,
+            ):
+                attn_output = F.scaled_dot_product_attention(
+                    query_states, key_states, value_states, is_causal=True
+                )
+        else:
+            with torch.backends.cuda.sdp_kernel(
+                enable_math=True,
+                enable_mem_efficient=True,
+                enable_flash=False,
+            ):
+                attn_output = F.scaled_dot_product_attention(
+                    query_states, key_states, value_states, attn_mask=attention_mask
+                )
 
         if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
             raise ValueError(
@@ -171,7 +195,7 @@ class LlamaDecoderLayerPP(LlamaDecoderLayer):
     ):
         super().__init__(config)
         if enable_mem_efficient:
-            self.self_attn = LlamaMemEffAttention(config)
+            self.self_attn = LlamaEfficientAttention(config)
 
         self.config = config
         self.layer_index = layer_index

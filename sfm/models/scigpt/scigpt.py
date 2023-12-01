@@ -2,26 +2,23 @@
 import os
 from typing import Optional, Tuple
 
-# from sfm.utils.optim.optimizer import myAdam
+import torch
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 from sfm.criterions.autoregressive import AutoregressiveCriterion
+from sfm.logging import logger
 from sfm.models.llama2.llama_modules import LlamaDecoderLayerPP, LlamaHead, LlamaNorm
 from sfm.models.scigpt.config import ScigptConfig
 from sfm.models.scigpt.modules import SciGPTEmbeddingsPP
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
+from sfm.utils.optim.optimizer import myAdam
 from sfm.utils.optim.set_lr import DECAY_COSINE_RATE, groupWarmupDecayLR
 
 
 class ScigptModel(SFMPipelineModelMixin):
-    """
-    Class for training a Masked Language Model. It also supports an
-    additional sentence level prediction if the sent-loss argument is set.
-    """
-
     def __init__(self, config: ScigptConfig):
         super().__init__()
         self.config = config
@@ -31,45 +28,63 @@ class ScigptModel(SFMPipelineModelMixin):
         layers = []
         ckpt_folder = self.config.pretrained_ckpt_path
 
+        pretrained_ckpt_path = os.path.join(ckpt_folder, "model.wte.pt")
+        if not os.path.exists(pretrained_ckpt_path):
+            pretrained_ckpt_path = os.path.join(ckpt_folder, "layer_00-model_states.pt")
+
         layers.append(
             PretrainedLayerSpec(
                 SciGPTEmbeddingsPP,
                 self.config,
                 new_num_tokens=self.config.vocab_size,
                 learnable_cutoff=self.config.learnable_cutoff,
-                pretrained_ckpt_path=os.path.join(ckpt_folder, "model.hybrid_emb.pt"),
+                pretrained_ckpt_path=pretrained_ckpt_path,
                 load_ckpt=self.config.load_ckpt,
             )
         )
 
         for i in range(self.config.num_hidden_layers):
+            pretrained_ckpt_path = os.path.join(ckpt_folder, f"model.layers.{i}.pt")
+
+            if not os.path.exists(pretrained_ckpt_path):
+                pretrained_ckpt_path = os.path.join(
+                    ckpt_folder, f"layer_{i+1:02d}-model_states.pt"
+                )
+
             layers.append(
                 PretrainedLayerSpec(
                     LlamaDecoderLayerPP,
                     self.config,
                     i,
-                    pretrained_ckpt_path=os.path.join(
-                        ckpt_folder, f"model.layers.{i}.pt"
-                    ),
+                    pretrained_ckpt_path=pretrained_ckpt_path,
                     load_ckpt=self.config.load_ckpt,
                 )
             )
+
+        pretrained_ckpt_path = os.path.join(ckpt_folder, "model.norm.pt")
+        if not os.path.exists(pretrained_ckpt_path):
+            pretrained_ckpt_path = os.path.join(ckpt_folder, "layer_33-model_states.pt")
 
         layers.append(
             PretrainedLayerSpec(
                 LlamaNorm,
                 self.config,
-                pretrained_ckpt_path=os.path.join(ckpt_folder, "model.norm.pt"),
+                pretrained_ckpt_path=pretrained_ckpt_path,
                 load_ckpt=self.config.load_ckpt,
             )
         )
+
+        pretrained_ckpt_path = os.path.join(ckpt_folder, "model.lm_head.pt")
+        if not os.path.exists(pretrained_ckpt_path):
+            pretrained_ckpt_path = os.path.join(ckpt_folder, "layer_34-model_states.pt")
+
         layers.append(
             PretrainedLayerSpec(
                 LlamaHead,
                 self.config,
                 new_num_tokens=self.config.vocab_size,
                 learnable_cutoff=self.config.learnable_cutoff,
-                pretrained_ckpt_path=os.path.join(ckpt_folder, "model.lm_head.pt"),
+                pretrained_ckpt_path=pretrained_ckpt_path,
                 load_ckpt=self.config.load_ckpt,
             )
         )
@@ -78,9 +93,11 @@ class ScigptModel(SFMPipelineModelMixin):
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
         logits = model_output[0]
+
         bs = logits.shape[0]
         output = self.loss(logits, batch_data)
         loss = output[0]
+
         if len(output) > 1:
             log_loss = output[1]
         else:
@@ -88,8 +105,21 @@ class ScigptModel(SFMPipelineModelMixin):
         return ModelOutput(loss=loss, log_output=log_loss, num_examples=bs)
 
     def config_optimizer(
-        self, model
+        self, model=None
     ) -> Tuple[Optional[Optimizer], Optional[LRScheduler]]:
+        if model is None:
+            model = self
+
+        # return (None, None)
+
+        # unfreeze_list = []
+
+        # if self.config.tune_new_emb:
+        #     unfreeze_list = [
+        #         "lm_head.weight",
+        #         "embed_tokens.weight"
+        #     ]
+
         # optimizer, _ = myAdam(
         #     model,
         #     lr=self.config.max_lr,

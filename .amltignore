@@ -87,6 +87,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/result/
 source/
 
 # PyBuilder
@@ -154,8 +155,16 @@ dmypy.json
 /tests/
 
 # docs
-docs/
+docs
 
 # storage or dataset
 /blob/
 /mp_data
+docs/
+dataset/
+*.log*
+logs/
+chemcop-inst-len.csv
+sfm/tasks/generalist/outputs/
+sfm/tasks/generalist/results/
+*.ipynb

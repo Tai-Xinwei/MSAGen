@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import math
-from typing import Callable, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -250,7 +250,7 @@ class Graph3DBias(nn.Module):
         rpe_heads = (
             self.num_heads * self.n_layers if self.no_share_rpe else self.num_heads
         )
-        self.gbf = GaussianLayer(self.num_kernel, num_edges)
+        self.gbf = GaussianLayer(self.num_kernel, max(num_edges, 128**2))
         self.gbf_proj = NonLinear(self.num_kernel, rpe_heads)
 
         if self.num_kernel != self.embed_dim:
@@ -265,24 +265,46 @@ class Graph3DBias(nn.Module):
         #     0.5, module_name=self.__class__.__name__
         # )
 
-    def forward(self, batched_data, pos):
+    def forward(self, batched_data, pos, pbc_expand_batched=None):
         x, node_type_edge = (
             batched_data["x"],
             batched_data["node_type_edge"],
         )  # pos shape: [n_graphs, n_nodes, 3]
 
+        padding_mask = x.eq(0).all(dim=-1)
+        n_node = pos.size()[1]
+
+        if pbc_expand_batched is not None:
+            expand_pos = pbc_expand_batched["expand_pos"]
+            expand_mask = pbc_expand_batched["expand_mask"]
+
+            expand_pos = expand_pos.masked_fill(
+                expand_mask.unsqueeze(-1).to(torch.bool), 0.0
+            )
+            expand_pos = torch.cat([pos, expand_pos], dim=1)
+
+            expand_n_node = expand_pos.size()[1]
+
+            delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(
+                1
+            )  # B x T x (expand T) x 3
+            dist = delta_pos.norm(dim=-1).view(-1, n_node, expand_n_node)
+            full_mask = torch.cat([padding_mask, expand_mask], dim=-1)
+            dist = dist.masked_fill(full_mask.unsqueeze(1).to(torch.bool), 1.0)
+            dist = dist.masked_fill(padding_mask.unsqueeze(-1).to(torch.bool), 1.0)
+        else:
+            delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
+            dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
+
         if not self.args.ft:
             node_mask = batched_data["node_mask"]
         # pos.requires_grad_(True)
 
-        padding_mask = x.eq(0).all(dim=-1)
         n_graph, n_node, _ = pos.shape
 
         # @ Roger added:
         # pos = pos.masked_fill(node_mask.bool(), 0.0)
 
-        delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
-        dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
         delta_pos = delta_pos / (dist.unsqueeze(-1) + 1e-5)
 
         if not self.args.ft:
@@ -293,9 +315,30 @@ class Graph3DBias(nn.Module):
                 node_type_edge
             )
 
+        atomic_numbers = x[:, :, 0]
+        if node_type_edge is None:
+            node_type_edge = atomic_numbers.unsqueeze(
+                -1
+            ) * 128 + atomic_numbers.unsqueeze(1)
+
+            if pbc_expand_batched is not None:
+                outcell_index = pbc_expand_batched["outcell_index"]
+                node_type_edge = torch.cat(
+                    [
+                        node_type_edge,
+                        torch.gather(
+                            node_type_edge,
+                            dim=-1,
+                            index=outcell_index.unsqueeze(1).repeat(1, n_node, 1),
+                        ),
+                    ],
+                    dim=-1,
+                )
+            node_type_edge = node_type_edge.unsqueeze(-1)
+
         edge_feature = self.gbf(
             dist,
-            torch.zeros_like(dist).long()
+            torch.zeros_like(dist).long().unsqueeze(-1)
             if node_type_edge is None
             else node_type_edge.long(),
         )
@@ -303,13 +346,29 @@ class Graph3DBias(nn.Module):
         graph_attn_bias = gbf_result
 
         graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous()
-        graph_attn_bias.masked_fill_(
-            padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
-        )
 
-        edge_feature = edge_feature.masked_fill(
-            padding_mask.unsqueeze(1).unsqueeze(-1).to(torch.bool), 0.0
-        )
+        if pbc_expand_batched is None:
+            graph_attn_bias.masked_fill_(
+                padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
+            )
+
+            edge_feature = edge_feature.masked_fill(
+                padding_mask.unsqueeze(1).unsqueeze(-1).to(torch.bool), 0.0
+            )
+        else:
+            graph_attn_bias.masked_fill_(
+                full_mask.unsqueeze(1).unsqueeze(2).to(torch.bool), float("-inf")
+            )
+            graph_attn_bias.masked_fill_(
+                padding_mask.unsqueeze(1).unsqueeze(-1).to(torch.bool), float("-inf")
+            )
+
+            edge_feature = edge_feature.masked_fill(
+                full_mask.unsqueeze(1).unsqueeze(-1).to(torch.bool), 0.0
+            )
+            edge_feature = edge_feature.masked_fill(
+                padding_mask.unsqueeze(-1).unsqueeze(-1).to(torch.bool), 0.0
+            )
 
         sum_edge_features = edge_feature.sum(dim=-2)
         merge_edge_features = self.edge_proj(sum_edge_features)
@@ -400,7 +459,13 @@ class NodeTaskHead(nn.Module):
         query: Tensor,
         attn_bias: Tensor,
         delta_pos: Tensor,
+        pbc_expand_batched: Optional[Dict[str, Tensor]] = None,
     ) -> Tensor:
+        if pbc_expand_batched is not None:
+            outcell_index = pbc_expand_batched["outcell_index"]
+        else:
+            outcell_index = None
+
         query = query.contiguous().transpose(0, 1)
         bsz, n_node, _ = query.size()
         q = (
@@ -409,19 +474,27 @@ class NodeTaskHead(nn.Module):
         )
         k = self.k_proj(query).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
         v = self.v_proj(query).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
-        attn = q @ k.transpose(-1, -2)  # [bsz, head, n, n]
+
+        if outcell_index is not None:
+            k = torch.cat([k, torch.gather(k, dim=-2, index=outcell_index)], dim=-2)
+            v = torch.cat([v, torch.gather(v, dim=-2, index=outcell_index)], dim=-2)
+            expanded_n_node = k.size()[-2]
+        else:
+            expanded_n_node = n_node
+
+        attn = q @ k.transpose(-1, -2)  # [bsz, head, n, expanded n]
         attn_probs_float = nn.functional.softmax(
-            attn.view(-1, n_node, n_node)
-            + attn_bias.contiguous().view(-1, n_node, n_node),
+            attn.view(-1, n_node, expanded_n_node)
+            + attn_bias.contiguous().view(-1, n_node, expanded_n_node),
             dim=-1,
         )
         attn_probs = attn_probs_float.type_as(attn)
         attn_probs = self.dropout_module(attn_probs).view(
-            bsz, self.num_heads, n_node, n_node
+            bsz, self.num_heads, n_node, expanded_n_node
         )
         rot_attn_probs = attn_probs.unsqueeze(-1) * delta_pos.unsqueeze(1).type_as(
             attn_probs
-        )  # [bsz, head, n, n, 3]
+        )  # [bsz, head, n, expanded n, 3]
         rot_attn_probs = rot_attn_probs.permute(0, 1, 4, 2, 3)
         x = rot_attn_probs @ v.unsqueeze(2)  # [bsz, head , 3, n, d]
         x = x.permute(0, 3, 2, 1, 4).contiguous().view(bsz, n_node, 3, -1)

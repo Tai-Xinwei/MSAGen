@@ -23,6 +23,24 @@ else
   sandwich_ln=""
 fi
 
+# generalist model parameters
+if [[ "${fused_graphormer_llama}" == "true" ]]; then
+  fused_graphormer_llama="--fused_graphormer_llama"
+else
+  fused_graphormer_llama=""
+fi
+if [[ "${add_mol_attn_bias_in_llama}" == "true" ]]; then
+  add_mol_attn_bias_in_llama="--add_mol_attn_bias_in_llama"
+else
+  add_mol_attn_bias_in_llama=""
+fi
+if [[ "${mol_attn_bias_in_llama_layerwise}" == "true" ]]; then
+  mol_attn_bias_in_llama_layerwise="--mol_attn_bias_in_llama_layerwise"
+else
+  mol_attn_bias_in_llama_layerwise=""
+fi
+[ -z "${path_edge_cutoff}" ] && path_edge_cutoff=20
+
 # general training parameters
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=2e-5
@@ -31,16 +49,16 @@ fi
 [ -z "${seed}" ] && seed=12345
 
 # generalist dataset settings
-# [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
+[ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
 # [ -z "${data_path}" ] && data_path='/home/peiran/mnt/mntsfm2/data/chemical-copilot-special-token/'
-[ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
-# [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token'
-
+# [ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
 # [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
 # [ -z "${dataset_splits}" ] && dataset_splits='clean'
-[ -z "${dataset_names}" ] && dataset_names='chebi'
-[ -z "${dataset_splits}" ] && dataset_splits='all'
-[ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
+[ -z "${dataset_names}" ] && dataset_names='chebi,chemcop-instruction,mol-instruction-mol-desc'
+[ -z "${dataset_splits}" ] && dataset_splits='all,all,clean'
+[ -z "${dataset_ratios}" ] && dataset_ratios='3.0,1.0,1.0'
+[ -z "${num_data_loading_workers}" ] && num_data_loading_workers=16
+[ -z "${skip_num_datasets}" ] && skip_num_datasets="chemcop-instruction"
 # [ -z "${dataset_names}" ] && dataset_names='chebi'
 # [ -z "${dataset_splits}" ] && dataset_splits='all'
 # [ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
@@ -50,15 +68,15 @@ fi
 [ -z "${model_max_length}" ] && model_max_length=512
 
 # checkpoint and log settings
-# [ -z "${save_dir}" ] && save_dir='/mnt/shiyu/checkpoints/llama2-local-debug'
-[ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output'
+[ -z "${save_dir}" ] && save_dir='/mnt/shiyu/checkpoints/llama2-local-debug'
+# [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output'
 [ -z "${save_batch_interval}" ] && save_batch_interval=5000
-# [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/checkpoint7_new.pt"
-# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
+[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/shiyu/models/graphormer_ckpts/checkpoint7_new.pt"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/shiyu/models/converted/llama-2-7b"
 # [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/checkpoint7_new.pt"
 # [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/mnt/peiran/pretrain56w/global_step560000"
-[ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/tp"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
+# [ -z "${loadmfmcheck_path}" ] && loadmfmcheck_path="/home/peiran/FMproj/DiffTM100M/tp"
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/peiran/FMproj/llama2/llama-2-7b"
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/mnt/peiran/llama-2-70b"
 [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir=""
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id=""
@@ -89,7 +107,7 @@ fi
 
 # training parameters for generalist
 [ -z "${micro_batch_size}" ] && micro_batch_size=1
-[ -z "${global_batch_size}" ] && global_batch_size=1
+[ -z "${global_batch_size}" ] && global_batch_size=16
 [ -z "${max_position_embeddings}" ] && max_position_embeddings=2048
 [ -z "${llm_hidden_size}" ] && llm_hidden_size=4096
 
@@ -172,6 +190,7 @@ echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 echo "strategy: ${strategy}"
 echo "pp_partition_layer_name: ${pp_partition_layer_name}"
 echo "pp_part_list: ${pp_part_list}"
+echo "unfreeze_param_list: ${unfreeze_param_list}"
 
 echo "===================================== training parameters for generalist ====================================="
 echo "micro_batch_size: ${micro_batch_size}"
@@ -289,10 +308,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --fp16 \
           --load_ckpt \
           --deepspeed_config=$DS_CONFIG \
-          ${MEGATRON_ARGS}
+          ${MEGATRON_ARGS} \
+          --num_data_loading_workers ${num_data_loading_workers} \
+          --skip_num_datasets "${skip_num_datasets}"
+          # --use_pbc \
+          # --add_3d \
           # --fused_graphormer_llama
-
-
-sleep inf
-sleep inf
-sleep inf

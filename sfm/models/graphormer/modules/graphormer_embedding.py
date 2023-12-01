@@ -10,12 +10,17 @@ except:
     raise ImportError("Please install apex from install/install_megatron.sh")
 
 from sfm.logging import logger
+from sfm.models.graphormer.modules.pbc import CellExpander
 from sfm.modules.FairseqDropout import FairseqDropout
 from sfm.modules.layer_norm import Fp32LayerNorm, LayerNorm
 
 from .graphormer_layers import Graph3DBias, GraphAttnBias, GraphNodeFeature
 from .graphormer_layers_mp import Graph3DBiasMP, GraphAttnBiasMP, GraphNodeFeatureMP
-from .graphormer_layers_pp import GraphAttnBiasPipe, GraphNodeFeaturePipe
+from .graphormer_layers_pp import (
+    Graph3DBiasPipe,
+    GraphAttnBiasPipe,
+    GraphNodeFeaturePipe,
+)
 
 
 class GraphormerEmbeddingMP(SFMModule):
@@ -336,9 +341,8 @@ class GraphormerEmbeddingPP(torch.nn.Module):
         )
         logger.info(f"graphormer_config.edge_type, {graphormer_config.edge_type}")
 
-        assert graphormer_config.add_3d is False, "3D bias is not supported in MP mode"
         self.graph_3d_bias = (
-            Graph3DBias(
+            Graph3DBiasPipe(
                 args,
                 num_heads=graphormer_config.num_attention_heads
                 * (graphormer_config.num_encoder_layers + 1),
@@ -348,28 +352,55 @@ class GraphormerEmbeddingPP(torch.nn.Module):
                 num_kernel=graphormer_config.num_3d_bias_kernel,
                 no_share_rpe=False,
             )
-            if graphormer_config.add_3d
+            if graphormer_config.add_3d or graphormer_config.use_pbc
             else None
         )
 
         self.dummy = torch.nn.Linear(1, 1)
 
+        if graphormer_config.use_pbc:
+            self.cell_expander = CellExpander(
+                graphormer_config.pbc_cutoff,
+                graphormer_config.pbc_expanded_token_cutoff,
+                graphormer_config.pbc_expanded_num_cell_per_direction,
+            )
+
     def forward(self, input_batchdata: tuple):
-        (
-            input_ids,
-            llm_mask,
-            _,
-            x_0,
-            in_degree,
-            out_degree,
-            attn_bias,
-            spatial_pos,
-            edge_input,
-            num_atoms,
-            pos,
-            mask3d_filter,
-            node_type_edge,
-        ) = input_batchdata
+        if self.graphormer_config.use_pbc:
+            (
+                input_ids,
+                llm_mask,
+                _,
+                x_0,
+                in_degree,
+                out_degree,
+                attn_bias,
+                spatial_pos,
+                edge_input,
+                num_atoms,
+                pos,
+                mask3d_filter,
+                node_type_edge,
+                pbc,
+                cell,
+            ) = input_batchdata
+        else:
+            (
+                input_ids,
+                llm_mask,
+                _,
+                x_0,
+                in_degree,
+                out_degree,
+                attn_bias,
+                spatial_pos,
+                edge_input,
+                num_atoms,
+                pos,
+                mask3d_filter,
+                node_type_edge,
+            ) = input_batchdata
+            pbc, cell = None, None
 
         # assert type(idx) == torch.Tensor
         assert type(attn_bias) == torch.Tensor
@@ -402,6 +433,18 @@ class GraphormerEmbeddingPP(torch.nn.Module):
         batched_data["node_mask"] = None
         batched_data["in_degree"] = in_degree
         batched_data["out_degree"] = out_degree
+        batched_data["pbc"] = pbc
+        batched_data["cell"] = cell
+
+        if self.graphormer_config.use_pbc:
+            (
+                expand_pos,
+                _,
+                outcell_index,
+                expand_mask,
+            ) = self.cell_expander.expand(pos, pbc, x_0[:, :, 0], cell, num_atoms)
+        else:
+            expand_pos, outcell_index, expand_mask = None, None, None
 
         x = self.graph_node_feature(batched_data)
 
@@ -411,7 +454,15 @@ class GraphormerEmbeddingPP(torch.nn.Module):
 
         # tp 3d bias is not implemented, it's not needed in the generalist task
         if self.graph_3d_bias is not None:
-            input_tuple3 = (pos, x_0, node_type_edge, None)
+            input_tuple3 = [
+                pos,
+                x_0,
+                node_type_edge,
+                None,
+                expand_pos,
+                expand_mask,
+                outcell_index,
+            ]
             attn_bias_3d, merged_edge_features, delta_pos = self.graph_3d_bias(
                 input_tuple3
             )
@@ -421,6 +472,18 @@ class GraphormerEmbeddingPP(torch.nn.Module):
             merged_edge_features = merged_edge_features.masked_fill_(
                 mask3d_filter[:, None, None], 0.0
             )
+
+            if self.graphormer_config.use_pbc:
+                num_heads, max_len = attn_bias_3d.size()[1], attn_bias_3d.size()[2] + 1
+                extended_bias = torch.gather(
+                    attn_bias[:, :, :, 1:],
+                    dim=3,
+                    index=outcell_index.unsqueeze(1)
+                    .unsqueeze(2)
+                    .repeat(1, num_heads, max_len, 1),
+                )
+                attn_bias = torch.cat([attn_bias, extended_bias], dim=3)
+
             attn_bias[:, :, 1:, 1:] = attn_bias[:, :, 1:, 1:] + attn_bias_3d
             x[:, 1:, :] = x[:, 1:, :] + merged_edge_features * 0.01
 
@@ -441,10 +504,28 @@ class GraphormerEmbeddingPP(torch.nn.Module):
         if not last_state_only:
             self.inner_states = x[None, ...]
 
+        expanded_n_node = attn_bias.size()[-1] - 1
         attn_bias = (
             attn_bias.contiguous()
-            .view(n_graph, self.args.encoder_layers + 1, -1, n_node + 1, n_node + 1)
+            .view(
+                n_graph,
+                self.args.encoder_layers + 1,
+                -1,
+                n_node + 1,
+                expanded_n_node + 1,
+            )
             .contiguous()
         )  # .to(x.dtype)  # B x (nlayer+1) x nhead_pre_tprank x T x T
 
-        return x, padding_mask, attn_bias, input_ids, llm_mask
+        if self.graphormer_config.use_pbc:
+            return (
+                x,
+                padding_mask,
+                attn_bias,
+                input_ids,
+                llm_mask,
+                outcell_index,
+                expand_mask,
+            )
+        else:
+            return x, padding_mask, attn_bias, input_ids, llm_mask

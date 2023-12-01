@@ -28,7 +28,8 @@ DEFAULT_DS_CONFIG = {
         "contiguous_gradients": True,
         "reduce_scatter": False,
     },
-    "fp16": {"enabled": True, "auto_cast": False, "min_loss_scale": 0.0001},
+    "fp16": {"enabled": True, "auto_cast": False},
+    "bf16": {"enabled": False},
     "gradient_clipping": 1.0,
     "steps_per_print": 100,
     "wandb": {

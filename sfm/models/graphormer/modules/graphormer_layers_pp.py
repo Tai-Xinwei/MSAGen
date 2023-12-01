@@ -248,7 +248,15 @@ class Graph3DBiasPipe(Graph3DBias):
     #     # )
 
     def forward(self, input_tuple: tuple):
-        pos, x, node_type_edge, node_mask = input_tuple
+        (
+            pos,
+            x,
+            node_type_edge,
+            node_mask,
+            expand_pos,
+            expand_mask,
+            outcell_index,
+        ) = input_tuple
 
         padding_mask = x.eq(0).all(dim=-1)
         n_graph, n_node, _ = pos.shape
@@ -256,8 +264,24 @@ class Graph3DBiasPipe(Graph3DBias):
         # @ Roger added:
         # pos = pos.masked_fill(node_mask.bool(), 0.0)
 
-        delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
-        dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
+        if expand_pos is not None:
+            expand_pos = expand_pos.masked_fill(
+                expand_mask.unsqueeze(-1).to(torch.bool), 0.0
+            )
+            expand_pos = torch.cat([pos, expand_pos], dim=1)
+            expand_n_node = expand_pos.size()[1]
+
+            delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(
+                1
+            )  # B x T x (expand T) x 3
+            dist = delta_pos.norm(dim=-1).view(-1, n_node, expand_n_node)
+            full_mask = torch.cat([padding_mask, expand_mask], dim=-1)
+            dist = dist.masked_fill(full_mask.unsqueeze(1).to(torch.bool), 1.0)
+            dist = dist.masked_fill(padding_mask.unsqueeze(-1).to(torch.bool), 1.0)
+        else:
+            delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
+            dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
+
         delta_pos = delta_pos / (dist.unsqueeze(-1) + 1e-5)
 
         if not self.args.ft and not self.args.infer:
@@ -268,9 +292,25 @@ class Graph3DBiasPipe(Graph3DBias):
                 node_type_edge
             )
 
+        if expand_pos is not None:
+            if node_type_edge is not None:
+                node_type_edge = torch.cat(
+                    [
+                        node_type_edge,
+                        torch.gather(
+                            node_type_edge,
+                            dim=-2,
+                            index=outcell_index.unsqueeze(1)
+                            .unsqueeze(-1)
+                            .repeat(1, n_node, 1, 2),
+                        ),
+                    ],
+                    dim=-2,
+                )
+
         edge_feature = self.gbf(
             dist,
-            torch.zeros_like(dist).long()
+            torch.zeros_like(dist).long().unsqueeze(-1)
             if node_type_edge is None
             else node_type_edge.long(),
         )
@@ -278,13 +318,29 @@ class Graph3DBiasPipe(Graph3DBias):
         graph_attn_bias = gbf_result
 
         graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous()
-        graph_attn_bias.masked_fill_(
-            padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
-        )
 
-        edge_feature = edge_feature.masked_fill(
-            padding_mask.unsqueeze(1).unsqueeze(-1).to(torch.bool), 0.0
-        )
+        if expand_pos is None:
+            graph_attn_bias.masked_fill_(
+                padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
+            )
+
+            edge_feature = edge_feature.masked_fill(
+                padding_mask.unsqueeze(1).unsqueeze(-1).to(torch.bool), 0.0
+            )
+        else:
+            graph_attn_bias.masked_fill_(
+                full_mask.unsqueeze(1).unsqueeze(2).to(torch.bool), float("-inf")
+            )
+            graph_attn_bias.masked_fill_(
+                padding_mask.unsqueeze(1).unsqueeze(-1).to(torch.bool), float("-inf")
+            )
+
+            edge_feature = edge_feature.masked_fill(
+                full_mask.unsqueeze(1).unsqueeze(-1).to(torch.bool), 0.0
+            )
+            edge_feature = edge_feature.masked_fill(
+                padding_mask.unsqueeze(-1).unsqueeze(-1).to(torch.bool), 0.0
+            )
 
         sum_edge_features = edge_feature.sum(dim=-2)
         merge_edge_features = self.edge_proj(sum_edge_features)

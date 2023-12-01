@@ -225,6 +225,7 @@ class BatchedDataDataset(torch.utils.data.Dataset):
             multi_hop_max_dist=self.multi_hop_max_dist,
             spatial_pos_max=self.spatial_pos_max,
             infer=self.args.infer,
+            use_pbc=self.args.use_pbc,
         )
 
     def collaterft(self, samples):
@@ -233,6 +234,7 @@ class BatchedDataDataset(torch.utils.data.Dataset):
             max_node=1024,
             multi_hop_max_dist=self.multi_hop_max_dist,
             spatial_pos_max=self.spatial_pos_max,
+            use_pbc=self.args.use_pbc,
         )
 
 

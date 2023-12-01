@@ -26,3 +26,6 @@ class GeneralistConfig:
     add_mol_attn_bias_in_llama: bool = False
     mol_attn_bias_in_llama_layerwise: bool = False
     path_edge_cutoff: int = 0
+
+    skip_num_datasets: str = ""
+    num_data_loading_workers: int = 16

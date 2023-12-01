@@ -34,7 +34,7 @@ class SFMDecTokenizer(LlamaTokenizer):
         else:
             tokens = list(text)
 
-        ret = [f"<{tag}>"]
+        ret = []
         for t in tokens:
             if t == "":
                 continue
@@ -44,8 +44,6 @@ class SFMDecTokenizer(LlamaTokenizer):
                 ret.append(t)
             else:
                 ret.append(f"<{prefix}>{t}")
-
-        ret = ret + [f"</{tag}>"]
         return ret
 
     def _tokenize(self, text, **kwargs):
@@ -72,6 +70,7 @@ class SFMDecTokenizer(LlamaTokenizer):
                 else:
                     raise ValueError(f"Unknown tag: {tag}")
 
+                result.extend([t for t in tokens if t] + [f"</{tag}>"])
                 cur_tag = None
             else:
                 tag = match_str[1:-1]
@@ -82,7 +81,8 @@ class SFMDecTokenizer(LlamaTokenizer):
                 span = text[last_idx:start].strip()
                 tokens = super()._tokenize(span, **kwargs)
 
-            result.extend([t for t in tokens if t])
+                result.extend([t for t in tokens if t] + [f"<{tag}>"])
+
             last_idx = end
 
         if last_idx < len(text):

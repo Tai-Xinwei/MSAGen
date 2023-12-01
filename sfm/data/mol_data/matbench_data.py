@@ -48,8 +48,11 @@ class MatbenchDataset:
             for atom in mat_data.as_dict()["sites"]:
                 pos_list.append(atom["xyz"])
             pbc_list = list(mat_data.as_dict()["lattice"]["pbc"])
+            cell = torch.as_tensor(mat_data.as_dict()["lattice"]["matrix"])
             num_atoms = len(mat_data.as_dict()["sites"])
 
+            data.num_atoms = num_atoms
+            data.cell = cell
             data.x = torch.as_tensor(x_list).unsqueeze(-1)
             data.pos = torch.as_tensor(pos_list)
             data.pbc = torch.as_tensor(pbc_list)

@@ -2,8 +2,11 @@
 
 from sfm.data.sci_data.dataset import ProcessedSciDataset
 from sfm.data.sci_data.SFMDecTokenizer import SFMDecTokenizer
+from sfm.logging import logger
 from sfm.models.scigpt.config import (
     ScigptConfig,
+    scigpt_7b_1k_config,
+    scigpt_7b_512_config,
     scigpt_7b_config,
     scigpt_350m_config,
     scigpt_shallow_config,
@@ -20,6 +23,8 @@ config_registry = {
     "scigpt_350m": scigpt_350m_config,
     "scigpt": scigpt_shallow_config,
     "scigpt_7b": scigpt_7b_config,
+    "scigpt_7b_1k": scigpt_7b_1k_config,
+    "scigpt_7b_512": scigpt_7b_512_config,
 }
 
 
@@ -39,6 +44,8 @@ def main(args) -> None:
 
     config = arg_utils.from_args(args, ScigptConfig)
     config = config_registry.get(config.model_type, scigpt_tiny_config)(config)
+
+    logger.info(f"config: {config}")
 
     model = ScigptModel(config)
 

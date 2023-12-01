@@ -73,6 +73,10 @@ def make_supervised_data_module(args, mode="train") -> Dict:
             args.strategy == TrainStrategy.Pipeline
             or args.strategy == TrainStrategy.ThreeD
         ),
+        use_pbc=args.use_pbc,
+        local_rank=args.local_rank,
+        num_data_loading_workers=args.num_data_loading_workers,
+        skip_num_datasets=args.skip_num_datasets,
     )
 
     return dict(

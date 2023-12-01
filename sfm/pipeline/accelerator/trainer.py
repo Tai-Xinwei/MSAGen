@@ -11,6 +11,7 @@ import deepspeed
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
 
 from sfm.logging import logger, metric_logger
 from sfm.pipeline.accelerator.accelerator import (
@@ -504,8 +505,14 @@ class Trainer(object):
         total_loss, num_examples = self.accelerator.sync_valid_loss(
             loss_accumulator.sum, loss_accumulator.num_examples
         )
+
+        if num_examples > 0:
+            valid_loss = total_loss / num_examples
+        else:
+            valid_loss = 0
+
         valid_log = ValidLogOutput(
-            valid_loss=total_loss / num_examples,
+            valid_loss=valid_loss,
             num_examples=num_examples,
             extra_output=interval_loss_accumulator.averge_log,
         )
@@ -529,6 +536,7 @@ class Trainer(object):
             if torch.cuda.is_available()
             else None,
             "iteration": self.state.batch,
+            "epoch": self.state.epoch,
         }
 
         if self.accelerator.world_size > 1:
@@ -582,7 +590,11 @@ class Trainer(object):
                         "\nThis won't yield the same results as if the training had not been interrupted."
                     )
 
+        if "epoch" in checkpoint_rng_state:
+            self.state.epoch = checkpoint_rng_state["epoch"]
+
         start_iteration = checkpoint_rng_state["iteration"]
+
         return start_iteration
 
     def skip_first_batches(self, data_iterator, start_iteration=None):
@@ -591,11 +603,13 @@ class Trainer(object):
         Args:
             start_iteration (int): the number of batches to skip
         """
-        if start_iteration is None:
+        if start_iteration is None or start_iteration == 0:
             return data_iterator
 
         logger.info(f"Skipping the first {start_iteration} batches")
-        for i, _ in enumerate(data_iterator):
+        for i, _ in tqdm(
+            enumerate(data_iterator), desc=f"Skipping first {start_iteration} batches"
+        ):
             if i == start_iteration:
                 break
 

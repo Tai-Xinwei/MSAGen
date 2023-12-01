@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch import Tensor, nn
@@ -124,6 +124,7 @@ class MultiheadAttention(nn.Module):
         attn_mask: Optional[Tensor] = None,
         before_softmax: bool = False,
         need_head_weights: bool = False,
+        pbc_expand_batched: Optional[Dict[str, torch.Tensor]] = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """Input shape: Time x Batch x Channel
 
@@ -163,6 +164,25 @@ class MultiheadAttention(nn.Module):
 
         q *= self.scaling
 
+        if pbc_expand_batched is not None:
+            outcell_index = pbc_expand_batched["outcell_index"]
+            expand_mask = pbc_expand_batched["expand_mask"]
+        else:
+            outcell_index = None
+            expand_mask = None
+
+        if outcell_index is not None:
+            outcell_index = (
+                outcell_index.transpose(1, 0).unsqueeze(-1).expand(-1, -1, embed_dim)
+            )
+            expand_k = torch.gather(k, dim=0, index=outcell_index + 1)
+            expand_v = torch.gather(v, dim=0, index=outcell_index + 1)
+
+            k = torch.cat([k, expand_k], dim=0)
+            v = torch.cat([v, expand_v], dim=0)
+
+            src_len = k.size()[0]
+
         q = (
             q.contiguous()
             .view(tgt_len, bsz * self.num_heads, self.head_dim)
@@ -194,6 +214,9 @@ class MultiheadAttention(nn.Module):
             q, k = self.rot_emb(q, k)
 
         if key_padding_mask is not None:
+            if outcell_index is not None:
+                assert expand_mask is not None
+                key_padding_mask = torch.cat([key_padding_mask, expand_mask], dim=1)
             assert key_padding_mask.size(0) == bsz
             assert key_padding_mask.size(1) == src_len
 

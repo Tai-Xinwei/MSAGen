@@ -31,6 +31,7 @@ class ScigptConfig(LlamaConfig, DistributedTrainConfig):
     tie_word_embeddings: bool = False
     rope_theta: float = 10000.0
     rope_scaling: Optional[Dict[str, str]] = None
+    attention_bias: bool = False
 
     dict_path: str = ""
     train_data_path: str = ""
@@ -49,7 +50,6 @@ def scigpt_tiny_config(config: ScigptConfig):
     config.num_hidden_layers = 2
     config.num_attention_heads = 16
     config.num_key_value_heads = 16
-    config.max_position_embeddings = 2048
     return config
 
 
@@ -60,7 +60,6 @@ def scigpt_shallow_config(config: ScigptConfig):
     config.num_hidden_layers = 2
     config.num_attention_heads = 32
     config.num_key_value_heads = 32
-    config.max_position_embeddings = 2048
     return config
 
 
@@ -70,7 +69,6 @@ def scigpt_350m_config(config: ScigptConfig):
     config.num_hidden_layers = 24
     config.num_attention_heads = 16
     config.num_key_value_heads = 16
-    config.max_position_embeddings = 2048
     return config
 
 
@@ -80,5 +78,22 @@ def scigpt_7b_config(config: ScigptConfig):
     config.num_hidden_layers = 32
     config.num_attention_heads = 32
     config.num_key_value_heads = 32
-    config.max_position_embeddings = 2048
+    return config
+
+
+def scigpt_7b_1k_config(config: ScigptConfig):
+    config.hidden_size = 4096
+    config.intermediate_size = 11008
+    config.num_hidden_layers = 32
+    config.num_attention_heads = 32
+    config.num_key_value_heads = 32
+    return config
+
+
+def scigpt_7b_512_config(config: ScigptConfig):
+    config.hidden_size = 4096
+    config.intermediate_size = 11008
+    config.num_hidden_layers = 32
+    config.num_attention_heads = 32
+    config.num_key_value_heads = 32
     return config

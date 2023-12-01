@@ -28,19 +28,20 @@ code:
   local_dir: .
 
 jobs:
-- name: train_sci_gpt_7b
+- name: train_sci_gpt_7b_stageC
   sku: ${NODES}xG${GPUS}
   mpi: true
   process_count_per_node: 1
   command:
-  - mkdir -p /blob/shufxi/scigpt/7b/checkpoints
+  - mkdir -p /hai1/shufxi/scigpt/7b/stageC
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - export WANDB_PROJECT=scigpt
   - export model_type=scigpt_7b
-  - export save_dir=/blob/shufxi/scigpt/7b
+  - export save_dir=/hai1/shufxi/scigpt/7b/stageC
+  - export loadcheck_path=/hai1/shufxi/scigpt/7b/stageB/global_step199
   - bash ./install/install.sh
   - pip install -e .
-  - bash scripts/scigpt/pretrain_scigpt_7b.sh
+  - bash scripts/scigpt/pretrain_scigpt_7b_stageC.sh
 
   submit_args:
     container_args:

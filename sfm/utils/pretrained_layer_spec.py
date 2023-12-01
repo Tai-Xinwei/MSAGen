@@ -159,6 +159,7 @@ class PretrainedLayerSpec(LayerSpec):
                 new_head.weight.data[
                     : old_head_weight.size(0), :
                 ] = old_head_weight.data
+
                 checkpoints_state["lm_head.weight"] = new_head.weight
 
                 return checkpoints_state
@@ -192,6 +193,7 @@ class PretrainedLayerSpec(LayerSpec):
                 new_embed.weight.data[
                     : old_embed_weight.size(0), :
                 ] = old_embed_weight.data
+
                 checkpoints_state["embed_tokens.weight"] = new_embed.weight
 
                 return checkpoints_state
