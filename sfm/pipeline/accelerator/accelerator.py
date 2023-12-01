@@ -142,20 +142,34 @@ class SingleNodeAccelerator(Accelerator):
     def build_data_loader(
         self, train_data: FoundationModelDataset, valid_data: FoundationModelDataset
     ):
+        train_batch_size_per_gpu = self.args.train_batch_size // (
+            self.world_size * self.args.gradient_accumulation_steps
+        )
+        assert (
+            train_batch_size_per_gpu > 0
+        ), "train_batch_size_per_gpu should be greater than 0"
+
         self.train_sampler = RandomSampler(train_data)
         self.train_data_loader = DataLoader(
             train_data,
             sampler=self.train_sampler,
-            batch_size=self.args.train_batch_size,
+            batch_size=train_batch_size_per_gpu,
             collate_fn=train_data.collate,
             drop_last=True,
         )
 
         if valid_data:
+            valid_batch_size_per_gpu = self.args.val_batch_size // (
+                self.world_size * self.args.gradient_accumulation_steps
+            )
+            assert (
+                valid_batch_size_per_gpu > 0
+            ), "train_batch_size_per_gpu should be greater than 0"
+
             self.valid_data_loader = DataLoader(
                 valid_data,
                 sampler=None,
-                batch_size=self.args.val_batch_size,
+                batch_size=valid_batch_size_per_gpu,
                 collate_fn=valid_data.collate,
                 drop_last=False,
             )
