@@ -52,9 +52,11 @@ class LlamaMLPAdapter(nn.Module):
 
 
 class LlamaEfficientAttention(LlamaAttention):
-    def __init__(self, config: LlamaConfig):
+    def __init__(self, config: LlamaConfig, use_flash: Optional[bool] = None):
         super().__init__(config)
-        if dist_utils.support_flash_attntion():
+        if use_flash is not None:
+            self.use_flash = use_flash
+        elif dist_utils.support_flash_attntion():
             logger.info("using flash attention for training")
             self.use_flash = True
         else:
@@ -191,11 +193,15 @@ class LlamaEfficientAttention(LlamaAttention):
 
 class LlamaDecoderLayerPP(LlamaDecoderLayer):
     def __init__(
-        self, config: LlamaConfig, layer_index: int, enable_mem_efficient: bool = True
+        self,
+        config: LlamaConfig,
+        layer_index: int,
+        enable_mem_efficient: bool = True,
+        use_flash_attention: Optional[bool] = None,
     ):
         super().__init__(config)
         if enable_mem_efficient:
-            self.self_attn = LlamaEfficientAttention(config)
+            self.self_attn = LlamaEfficientAttention(config, use_flash_attention)
 
         self.config = config
         self.layer_index = layer_index

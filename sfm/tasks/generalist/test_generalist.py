@@ -173,9 +173,10 @@ def gather_labels_and_scores(labels, scores, world_size, local_rank, num_total_s
         dist.all_gather(scores_tensor_list, scores_tensor)
         all_labels = torch.cat(labels_tensor_list, dim=-1).cpu()
         all_scores = torch.cat(scores_tensor_list, dim=-1).cpu()
-        return [float(x) for x in all_labels][:num_total_smiless], [
-            float(x) for x in all_scores
-        ][:num_total_smiless]
+        return (
+            [float(x) for x in all_labels][:num_total_smiless],
+            [float(x) for x in all_scores][:num_total_smiless],
+        )
     else:
         return labels, scores
 
@@ -356,8 +357,8 @@ def get_tokenizer(llm_model_name_or_path):
         special_tokens_dict["unk_token"] = DEFAULT_UNK_TOKEN
 
     special_tokens_dict["additional_special_tokens"] = SCIENCE_TAG_TOKENS
-    tokenizer.add_special_tokens(special_tokens_dict)
-    return tokenizer
+    new_num_tokens = tokenizer.add_special_tokens(special_tokens_dict)
+    return tokenizer, tokenizer.vocab_size + new_num_tokens
 
 
 def batch_mol(molecules, num_batches):
@@ -383,7 +384,7 @@ def batch_mol(molecules, num_batches):
     TrainerConfig,
 )
 def main(args) -> None:
-    tokenizer = get_tokenizer(args.llm_model_name_or_path)
+    tokenizer, vocab_size = get_tokenizer(args.llm_model_name_or_path)
 
     world_size = int(os.environ.get("WORLD_SIZE", 1))
 
@@ -407,12 +408,12 @@ def main(args) -> None:
 
     if model_size == "7B":
         with torch.no_grad():
-            model = GraphormerLlamaModel(args, tokenizer.vocab_size)
+            model = GraphormerLlamaModel(args, vocab_size)
             model = model.to(device=f"cuda:{args.local_rank}")
         device_map = {"": f"cuda:{args.local_rank}"}
     else:
         with init_empty_weights():
-            model = GraphormerLlamaModel(args, tokenizer.vocab_size)
+            model = GraphormerLlamaModel(args, vocab_size)
         device_map = create_device_map(
             args.num_gpus, model.llama_config.num_hidden_layers
         )
@@ -435,6 +436,7 @@ def main(args) -> None:
         local_model_path,
         device_map=device_map,
         no_split_module_classes=["LlamaDecoderLayer", "GraphormerSentenceEncoder"],
+        dtype=torch.float16,
     )
 
     assert (
@@ -479,7 +481,7 @@ def main(args) -> None:
             for question in questions:
                 prompt = (
                     "Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n"
-                    f"### Instruction:\n{question}\n\n### Input: <mol> \n{''.join(['<unk>' for _ in range(num_atoms)])} </mol>\n\n### Response:\n"
+                    f"### Instruction:\n{question}\n\n### Input:\n<mol> {''.join(['<unk>' for _ in range(num_atoms)])} </mol>\n\n### Response:\n"
                 )
                 input_ids = tokenizer(
                     prompt,

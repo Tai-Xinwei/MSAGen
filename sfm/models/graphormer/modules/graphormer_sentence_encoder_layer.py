@@ -42,6 +42,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         nl: int = 0,
         self_attn_mask: Optional[torch.Tensor] = None,
         args=None,
+        pp_mode: bool = True,  # used in pipeline mode or not
     ) -> None:
         super().__init__()
 
@@ -110,7 +111,8 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         self.args = args
         self.self_attn_mask = self_attn_mask
 
-        self.dummy = nn.Linear(1, 1)
+        if pp_mode:  # create dummy parameter only when used in pipeline mode
+            self.dummy = nn.Linear(1, 1)
 
         self.reset_parameters()
 
@@ -214,6 +216,7 @@ class GraphormerSentenceEncoderLayer_PP(GraphormerSentenceEncoderLayer):
             sandwich_ln=graphormer_config.sandwich_ln,
             args=args,
             nl=nl,
+            pp_mode=True,
         )
         self.graphormer_config = graphormer_config
 

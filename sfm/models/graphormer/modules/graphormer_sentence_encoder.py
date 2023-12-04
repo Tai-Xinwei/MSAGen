@@ -280,6 +280,7 @@ class GraphormerSentenceEncoder(nn.Module):
             droppath_prob=droppath_prob,
             nl=nl,
             args=args,
+            pp_mode=False,
         )
 
     def forward(
