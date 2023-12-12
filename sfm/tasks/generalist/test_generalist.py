@@ -31,7 +31,16 @@ class EvalMethod(Enum):
     AROMATIC = "AROMATIC"
     NITRO = "NITRO"
     FUNCG = "FUNCG"
+    TDC = "TDC"
     NONE = "NONE"
+
+    def __str__(self):
+        return self.value
+
+
+class ScoringMethod(Enum):
+    SCORE = "SCORE"
+    RESPONSE = "RESPONSE"
 
     def __str__(self):
         return self.value
@@ -196,24 +205,72 @@ class TestGeneralistConfig:
     num_eval_repeats: int
     question_list_fname: Optional[str] = None
     eval_method: EvalMethod = EvalMethod.NONE
+    scoring_method: ScoringMethod = ScoringMethod.RESPONSE
+    num_gpus_for_graphormer: int = -1
+    test_task: str = ""
+    test_data_path: str = ""
+    test_split: str = ""
+    question_suffix: str = ""
 
 
-def create_device_map(num_gpus, num_llama_layers):
-    device_map = {
-        "graphormer_encoder": 0,
-        "decoder.model.embed_tokens": 0,
-        "adaptor": 0,
-    }
-    num_llama_layers_per_gpu = (num_llama_layers + num_gpus - 1) // num_gpus
-    for i in range(num_gpus):
-        start_layer = i * num_llama_layers_per_gpu
-        end_layer = min(start_layer + num_llama_layers_per_gpu, num_llama_layers)
-        for j in range(start_layer, end_layer):
-            device_map[f"decoder.model.layers.{j}"] = i
-    device_map["decoder.model.norm"] = num_gpus - 1
-    device_map["decoder.lm_head"] = 0
-    device_map["decoder.num_head"] = 0
-    return device_map
+def create_device_map(
+    num_gpus, num_llama_layers, num_graphormer_layers=-1, num_gpus_for_graphormer=-1
+):
+    if num_gpus_for_graphormer == -1:
+        device_map = {
+            "graphormer_encoder": 0,
+            "decoder.model.embed_tokens": 0,
+            "adaptor": 0,
+        }
+        num_llama_layers_per_gpu = (num_llama_layers + num_gpus - 1) // num_gpus
+        for i in range(num_gpus):
+            start_layer = i * num_llama_layers_per_gpu
+            end_layer = min(start_layer + num_llama_layers_per_gpu, num_llama_layers)
+            for j in range(start_layer, end_layer):
+                device_map[f"decoder.model.layers.{j}"] = i
+        device_map["decoder.model.norm"] = num_gpus - 1
+        device_map["decoder.lm_head"] = 0
+        device_map["decoder.num_head"] = 0
+        return device_map
+    else:
+        device_map = {
+            "graphormer_encoder.graph_node_feature": 0,
+            "graphormer_encoder.graph_attn_bias": 0,
+            "graphormer_encoder.graph_3d_bias": 0,
+            "graphormer_encoder.emb_layer_norm": 0,
+        }
+
+        num_graphormer_layers_per_gpu = (
+            num_graphormer_layers + num_gpus_for_graphormer - 1
+        ) // num_gpus_for_graphormer
+        for i in range(num_gpus_for_graphormer):
+            start_layer = i * num_graphormer_layers_per_gpu
+            end_layer = min(
+                start_layer + num_graphormer_layers_per_gpu, num_graphormer_layers
+            )
+            for j in range(start_layer, end_layer):
+                device_map[f"graphormer_encoder.layers.{j}"] = i
+        device_map.update(
+            {
+                "decoder.model.embed_tokens": num_gpus_for_graphormer - 1,
+                "adaptor": num_gpus_for_graphormer - 1,
+            }
+        )
+        num_gpus_for_llama = num_gpus - num_gpus_for_graphormer
+        num_llama_layers_per_gpu = (
+            num_llama_layers + num_gpus_for_llama - 1
+        ) // num_gpus_for_llama
+        for i in range(num_gpus_for_graphormer, num_gpus):
+            start_layer = (i - num_gpus_for_graphormer) * num_llama_layers_per_gpu
+            end_layer = min(start_layer + num_llama_layers_per_gpu, num_llama_layers)
+            for j in range(start_layer, end_layer):
+                device_map[f"decoder.model.layers.{j}"] = i
+        device_map["decoder.model.norm"] = num_gpus - 1
+        device_map["decoder.lm_head"] = 0
+        device_map["decoder.num_head"] = 0
+        with open("device_map.json", "w") as out_file:
+            json.dump(device_map, out_file, indent=4)
+        return device_map
 
 
 def download_model(
@@ -228,21 +285,28 @@ def download_model(
     is_remote = model_path.find("remote:") != -1
     model_name = model_path.split("remote:")[-1]
     convert_offset = 0
-    if model_name.find("7B") != -1 or model_name.find("7b") != -1:
+    if model_name.find("22B") != -1:
+        # 22B MFM
+        assert model_name.find("70B") != -1 or model_name.find("70b") != -1
+        num_layers = 127
+        model_size = "70B"
+        convert_offset = 45
+    elif model_name.find("7B") != -1 or model_name.find("7b") != -1:
         # support only llama2, drop llama
         num_layers = 37
         model_size = "7B"
+        # support only llama2, drop llama
+        convert_offset = 2
     elif model_name.find("65B") != -1 or model_name.find("65b") != -1:
         num_layers = 84
         model_size = "65B"
+        convert_offset = 2
     elif model_name.find("70B") != -1 or model_name.find("70b") != -1:
         num_layers = 85
         model_size = "70B"
+        convert_offset = 2
     else:
         raise ValueError(f"Unknown model size in {model_name}")
-
-    # support only llama2, drop llama
-    convert_offset = 2
 
     if is_remote:
         sfm_logger.info("Downloading model...")
@@ -296,7 +360,8 @@ def convert(in_dir, out_dir, num_layers, llm_model_name_or_path, convert_offset)
             if key.find("dummy") != -1:
                 continue
             weight = model_states[key]
-            if convert_offset == 2:  # llama2
+            if convert_offset == 2:
+                # 100M MFM
                 if i == 0:
                     # molecular model
                     new_key = "graphormer_encoder." + key
@@ -312,15 +377,24 @@ def convert(in_dir, out_dir, num_layers, llm_model_name_or_path, convert_offset)
                     new_key = "decoder.model." + key
                 else:
                     new_key = "decoder." + key
-            else:  # llama
+            else:
                 if i == 0:
-                    new_key = "model.molecule_embedding." + key
-                elif i < num_layers - 3:
-                    new_key = f"model.layers.{i - 1}." + key
-                elif i == num_layers - 3:
-                    new_key = "model.norm." + key
+                    # molecular model
+                    new_key = "graphormer_encoder." + key
+                elif i < convert_offset - 2:
+                    new_key = f"graphormer_encoder.layers.{i - 1}." + key
+                elif i == convert_offset - 2:
+                    # embed tokens
+                    new_key = "decoder.model." + key
+                elif i == convert_offset - 1:
+                    # hybrid embedding
+                    new_key = "adaptor." + key
+                elif i < num_layers - 2:
+                    new_key = f"decoder.model.layers.{i - convert_offset}." + key
+                elif i == num_layers - 2:
+                    new_key = "decoder.model." + key
                 else:
-                    new_key = "llama_lm_head_and_loss." + key
+                    new_key = "decoder." + key
 
             index_map["weight_map"][new_key] = f"layer_{i:02d}-model_states.bin"
             total_size += weight.nelement() * weight.element_size()
@@ -376,6 +450,59 @@ def batch_mol(molecules, num_batches):
     return batched_molecules
 
 
+def get_tdc_task_info(test_data_path, test_task, test_split, question_suffix):
+    with open(
+        "/home/shiyu/git/SFM_framework/sfm/tasks/generalist/templates.json", "r"
+    ) as in_file:
+        tdc_templates = json.load(in_file)
+    task_info = {}
+    test_task_splits = test_task.split("/")
+    task_template = tdc_templates
+    for test_task_split in test_task_splits:
+        task_template = task_template[test_task_split]
+    data_path = f"{test_data_path}/tdc/{test_task}/{test_split}.json"
+    task_info = {"questions": set(), "labels": [], "smiles": []}
+    with open(data_path, "r") as in_file:
+        for line in in_file:
+            json_obj = json.loads(line.strip())
+            response = json_obj["text"].split("### Response:\n")[-1]
+            task_info["smiles"].append(json_obj["entities"]["<<|mol0|>>"]["smiles"])
+            if response in task_template["pos_response"]:
+                task_info["labels"].append(1)
+            elif response in task_template["neg_response"]:
+                task_info["labels"].append(0)
+            else:
+                raise ValueError(f"Unknown response {response}")
+        for question in task_template["instruction"]:
+            task_info["questions"].add((question + " " + question_suffix).strip())
+        task_info["smiles_to_label"] = dict(
+            zip(task_info["smiles"], task_info["labels"])
+        )
+    return task_info
+
+
+def get_smiles_and_labels_from(test_task, test_data_path, test_split, question_suffix):
+    task = test_task.split(":")[-1]
+    if test_task.startswith("tdc:"):
+        return get_tdc_task_info(test_data_path, task, test_split, question_suffix)
+    else:
+        raise ValueError(f"Unknown test_task {test_task}")
+
+
+def evaluate_score_from_response(response):
+    if (
+        response.find("not") != -1
+        or response.find(" no ") != -1
+        or response.find("unlikely") != -1
+        or response.find("No,") != -1
+        or response.find("No.") != -1
+        or response.find(" low ") != -1
+    ):
+        return 0
+    else:
+        return 1
+
+
 @cli(
     GraphormerConfig,
     GeneralistConfig,
@@ -415,7 +542,10 @@ def main(args) -> None:
         with init_empty_weights():
             model = GraphormerLlamaModel(args, vocab_size)
         device_map = create_device_map(
-            args.num_gpus, model.llama_config.num_hidden_layers
+            args.num_gpus,
+            model.llama_config.num_hidden_layers,
+            args.encoder_layers,
+            args.num_gpus_for_graphormer,
         )
 
     if args.local_rank == 0:
@@ -439,19 +569,31 @@ def main(args) -> None:
         dtype=torch.float16,
     )
 
+    if args.eval_method == EvalMethod.TDC:
+        task_info = get_smiles_and_labels_from(
+            args.test_task, args.test_data_path, args.test_split, args.question_suffix
+        )
+
     assert (
         args.question_list_fname is not None or args.eval_method != EvalMethod.NONE
     ), "Either a question list file or a evaluation method must be provided for evaluation."
     if args.eval_method != EvalMethod.NONE:
-        questions = [
-            get_test_question(args.eval_method) for _ in range(args.num_eval_repeats)
-        ]
+        if args.eval_method == EvalMethod.TDC:
+            questions = list(task_info["questions"]) * args.num_eval_repeats
+        else:
+            questions = [
+                get_test_question(args.eval_method)
+                for _ in range(args.num_eval_repeats)
+            ]
     else:
         with open(args.question_list_fname, "r") as in_file:
             questions = [question.strip() for question in list(in_file.readlines())]
 
-    with open(args.smiles_list_fname, "r") as in_file:
-        smiless = [smi.strip() for smi in list(in_file.readlines())]
+    if args.eval_method == EvalMethod.TDC:
+        smiless = task_info["smiles"]
+    else:
+        with open(args.smiles_list_fname, "r") as in_file:
+            smiless = [smi.strip() for smi in list(in_file.readlines())]
 
     num_total_smiless = len(smiless)
 
@@ -463,18 +605,26 @@ def main(args) -> None:
 
     if args.eval_method != EvalMethod.NONE:
         if args.eval_method != EvalMethod.FUNCG:
-            scores = []
-            labels = []
+            question_to_scores = {}
+            question_to_labels = {}
+            for question in questions:
+                question_to_scores[question] = []
+                question_to_labels[question] = []
         else:
             precisions = []
             recalls = []
+
+    yes_token_id = tokenizer.encode("Yes", add_special_tokens=False)[0]
+    no_token_id = tokenizer.encode("No", add_special_tokens=False)[0]
 
     with open(f"{args.output_fname}.{local_rank}", "w") as out_file:
         for i, smi in enumerate(tqdm(smiless)):
             num_atoms = smiles2graph_removeh(smi)["x"].size()[0]
             if args.eval_method != EvalMethod.NONE:
                 if args.eval_method != EvalMethod.FUNCG:
-                    score_sum = 0.0
+                    question_to_score_sum = {}
+                    for question in questions:
+                        question_to_score_sum[question] = 0.0
                 else:
                     precision_sum = 0.0
                     recall_sum = 0.0
@@ -510,17 +660,31 @@ def main(args) -> None:
                 )
                 json_obj = {"smiles": smi, "prompt": prompt, "response": response}
 
+                if args.scoring_method == ScoringMethod.SCORE:
+                    yes_no_score = float(
+                        res.scores[0][0][yes_token_id] - res.scores[0][0][no_token_id]
+                    )
+                    json_obj["yes_token_id"] = yes_token_id
+                    json_obj["no_token_id"] = no_token_id
+                    json_obj["yes_no_score"] = yes_no_score
+
                 if args.eval_method != EvalMethod.NONE:
                     if args.eval_method == EvalMethod.NITRO:
                         label, score = test_nitro(smi, response)
                         json_obj["label"] = label
                         json_obj["score"] = score
-                        score_sum += score
+                        if args.scoring_method == ScoringMethod.SCORE:
+                            question_to_score_sum[question] += yes_no_score
+                        else:
+                            question_to_score_sum[question] += score
                     elif args.eval_method == EvalMethod.AROMATIC:
                         label, score = test_aromatic(smi, response)
                         json_obj["label"] = label
                         json_obj["score"] = score
-                        score_sum += score
+                        if args.scoring_method == ScoringMethod.SCORE:
+                            question_to_score_sum[question] += yes_no_score
+                        else:
+                            question_to_score_sum[question] += score
                     elif args.eval_method == EvalMethod.FUNCG:
                         (
                             precision,
@@ -534,6 +698,15 @@ def main(args) -> None:
                         json_obj["func_groups_in_response"] = func_groups_in_response
                         precision_sum += precision
                         recall_sum += recall
+                    elif args.eval_method == EvalMethod.TDC:
+                        score = evaluate_score_from_response(response)
+                        label = task_info["smiles_to_label"][smi]
+                        json_obj["label"] = label
+                        json_obj["score"] = score
+                        if args.scoring_method == ScoringMethod.SCORE:
+                            question_to_score_sum[question] += yes_no_score
+                        else:
+                            question_to_score_sum[question] += score
 
                 out_file.write(
                     json.dumps(
@@ -543,25 +716,50 @@ def main(args) -> None:
                     + "\n"
                 )
                 out_file.flush()
+                if (
+                    args.eval_method != EvalMethod.NONE
+                    and args.eval_method != EvalMethod.FUNCG
+                ):
+                    question_to_labels[question].append(label)
+                    question_to_scores[question].append(question_to_score_sum[question])
+            if args.eval_method == EvalMethod.FUNCG:
+                precisions.append(precision_sum / args.num_eval_repeats)
+                recalls.append(recall_sum / args.num_eval_repeats)
             if args.eval_method != EvalMethod.NONE:
                 if args.eval_method != EvalMethod.FUNCG:
-                    labels.append(label)
-                    scores.append(score_sum)
-                else:
-                    precisions.append(precision_sum / args.num_eval_repeats)
-                    recalls.append(recall_sum / args.num_eval_repeats)
-            if args.eval_method != EvalMethod.NONE:
-                if args.eval_method != EvalMethod.FUNCG:
-                    all_labels, all_scores = gather_labels_and_scores(
-                        labels, scores, world_size, args.local_rank, num_total_smiless
+                    auc_sum = 0.0
+                    all_scores_sum = None
+                    for question in question_to_labels:
+                        all_labels, all_scores = gather_labels_and_scores(
+                            question_to_labels[question],
+                            question_to_scores[question],
+                            world_size,
+                            args.local_rank,
+                            num_total_smiless,
+                        )
+                        try:
+                            auc = roc_auc_score(all_labels, all_scores)
+                        except Exception as e:
+                            sfm_logger.info(f"{e}")
+                            auc = np.nan
+                        if all_scores_sum is None:
+                            all_scores_sum = np.array(all_scores)
+                        else:
+                            all_scores_sum += np.array(all_scores)
+                        auc_sum += auc
+                        sfm_logger.info(
+                            f"Evaluation in progress {i + 1}/{len(smiless)}, method: {args.eval_method}, question: {question}, auc score: {auc}"
+                        )
+                    sfm_logger.info(
+                        f"Evaluation finished, method: {args.eval_method}, mean question auc score: {auc_sum / len(question_to_labels)}"
                     )
                     try:
-                        auc = roc_auc_score(all_labels, all_scores)
+                        auc = roc_auc_score(all_labels, all_scores_sum)
                     except Exception as e:
                         sfm_logger.info(f"{e}")
                         auc = np.nan
                     sfm_logger.info(
-                        f"Evaluation in progress {i + 1}/{len(smiless)}, method: {args.eval_method}, auc score: {auc}"
+                        f"Evaluation finished, method: {args.eval_method}, all questions auc score: {auc}"
                     )
                 else:
                     all_precisions, all_recalls = gather_labels_and_scores(
@@ -575,26 +773,53 @@ def main(args) -> None:
                         f"Evaluation in progress {i + 1}/{len(smiless)}, method: {args.eval_method}, precision: {np.mean(all_precisions)}, recall: {np.mean(all_recalls)}"
                     )
 
-    if args.eval_method != EvalMethod.NONE:
-        if args.eval_method != EvalMethod.FUNCG:
-            all_labels, all_scores = gather_labels_and_scores(
-                labels, scores, world_size, args.local_rank, num_total_smiless
-            )
-            try:
-                auc = roc_auc_score(all_labels, all_scores)
-            except Exception as e:
-                sfm_logger.info(f"{e}")
-                auc = np.nan
-            sfm_logger.info(
-                f"Evaluation finished, method: {args.eval_method}, auc score: {auc}"
-            )
-        else:
-            all_precisions, all_recalls = gather_labels_and_scores(
-                precisions, recalls, world_size, args.local_rank, num_total_smiless
-            )
-            sfm_logger.info(
-                f"Evaluation finished, method: {args.eval_method}, precision: {np.mean(all_precisions)}, recall: {np.mean(all_recalls)}"
-            )
+    if args.eval_method != EvalMethod.NONE and args.eval_method != EvalMethod.FUNCG:
+        auc_sum = 0.0
+        all_scores_sum = None
+
+    for question in question_to_labels:
+        if args.eval_method != EvalMethod.NONE:
+            if args.eval_method != EvalMethod.FUNCG:
+                all_labels, all_scores = gather_labels_and_scores(
+                    question_to_labels[question],
+                    question_to_scores[question],
+                    world_size,
+                    args.local_rank,
+                    num_total_smiless,
+                )
+                try:
+                    auc = roc_auc_score(all_labels, all_scores)
+                except Exception as e:
+                    sfm_logger.info(f"{e}")
+                    auc = np.nan
+                if all_scores_sum is None:
+                    all_scores_sum = np.array(all_scores)
+                else:
+                    all_scores_sum += np.array(all_scores)
+                auc_sum += auc
+                sfm_logger.info(
+                    f"Evaluation finished, method: {args.eval_method}, question: {question}, auc score: {auc}"
+                )
+            else:
+                all_precisions, all_recalls = gather_labels_and_scores(
+                    precisions, recalls, world_size, args.local_rank, num_total_smiless
+                )
+                sfm_logger.info(
+                    f"Evaluation finished, method: {args.eval_method}, precision: {np.mean(all_precisions)}, recall: {np.mean(all_recalls)}"
+                )
+
+    if args.eval_method != EvalMethod.NONE and args.eval_method != EvalMethod.FUNCG:
+        try:
+            auc = roc_auc_score(all_labels, all_scores_sum)
+        except Exception as e:
+            sfm_logger.info(f"{e}")
+            auc = np.nan
+        sfm_logger.info(
+            f"Evaluation finished, method: {args.eval_method}, mean question auc score: {auc_sum / len(question_to_labels)}"
+        )
+        sfm_logger.info(
+            f"Evaluation finished, method: {args.eval_method}, all questions auc score: {auc}"
+        )
 
 
 if __name__ == "__main__":
