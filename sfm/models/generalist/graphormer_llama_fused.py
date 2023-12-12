@@ -408,7 +408,7 @@ class LlamaModelFusedGraphormer(LlamaModel):
         inputs_embeds,
         past_key_values_length,
     ):
-        if generalist_attention_bias.dtype == inputs_embeds.dtype:
+        if torch.is_floating_point(generalist_attention_bias):
             return _prepare_decoder_attention_mask_from_generalist_attention_bias(
                 generalist_attention_bias,
                 input_shape,
@@ -418,7 +418,7 @@ class LlamaModelFusedGraphormer(LlamaModel):
                 self.mol_attn_bias_in_llama_layerwise,
             )
         else:
-            super()._prepare_decoder_attention_mask(
+            return super()._prepare_decoder_attention_mask(
                 generalist_attention_bias,
                 input_shape,
                 inputs_embeds,
@@ -979,7 +979,9 @@ class LlamaDecoderLayerPPFused(LlamaDecoderLayerPP):
         add_mol_attn_bias_in_llama: bool = False,
         mol_attn_bias_in_llama_layerwise: bool = False,
     ):
-        super().__init__(config, layer_index, enable_mem_efficient)
+        super().__init__(
+            config, layer_index, enable_mem_efficient, use_flash_attention=False
+        )  # no flash attention since we need non-trivial attention bias
         self.add_mol_attn_bias_in_llama = add_mol_attn_bias_in_llama
         self.mol_attn_bias_in_llama_layerwise = mol_attn_bias_in_llama_layerwise
 
