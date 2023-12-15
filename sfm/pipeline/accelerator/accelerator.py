@@ -938,6 +938,7 @@ class DeepSpeedAccelerator(Accelerator):
             load_lr_scheduler_states=(not model_states_only),
             load_module_only=model_states_only,
             tag=ckpt_id,
+            load_module_strict=False,
         )
 
         if not model_states_only:

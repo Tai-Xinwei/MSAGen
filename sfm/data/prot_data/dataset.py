@@ -83,9 +83,9 @@ class ProteinLMDBDataset(FoundationModelDataset):
         args.ang_noise = getattr(args, "ang_noise", True)
 
         args.coord_noise_mean = getattr(args, "coord_noise_mean", 0.0)
-        args.coord_noise_stdev = getattr(args, "coord_noise_stdev", 1.0)
+        args.coord_noise_stdev = getattr(args, "coord_noise_stdev", 0.1)
         args.angle_noise_mean = getattr(args, "angle_noise_mean", 0.0)
-        args.angle_noise_stdev = getattr(args, "angle_noise_stdev", 1.0)
+        args.angle_noise_stdev = getattr(args, "angle_noise_stdev", 0.003)
 
         return args
 
@@ -154,7 +154,7 @@ class ProteinLMDBDataset(FoundationModelDataset):
         - mask the sequence in different ways
         """
         seed = int(hash((self.seed, index)) % 1e6)
-        item["aa"]
+        # item["aa"]
         # {"id": index, 'aa': aa, 'pos': pos, 'ang': ang, 'conf': conf_score, "name": name}
         assert (
             "mask_idx" not in item
@@ -187,6 +187,14 @@ class ProteinLMDBDataset(FoundationModelDataset):
         )
         item["pos_noise"] = pos_noise
         item["ang_noise"] = ang_noise
+
+        item["ang"] = item["ang"] / 180.0 * 3.1415926
+
+        # item["pos"] = item["pos"] + pos_noise
+        item["ang"] = item["ang"] + ang_noise
+
+        # set first position to zero
+        item["pos"] = (item["pos"] - item["pos"][0]) / 10.0
 
         return item
 

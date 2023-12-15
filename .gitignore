@@ -20,6 +20,10 @@ output/
 *.py[cod]
 *$py.class
 *.DS_Store
+
+# middle data
+*.npy
+
 # C extensions
 *.so
 *.c

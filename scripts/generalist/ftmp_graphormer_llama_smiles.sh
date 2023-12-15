@@ -51,17 +51,20 @@ fi
 # generalist dataset settings
 [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
 # [ -z "${data_path}" ] && data_path='/home/peiran/mnt/mntsfm2/data/chemical-copilot-special-token/'
-# [ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
-# [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
-# [ -z "${dataset_splits}" ] && dataset_splits='clean'
-[ -z "${dataset_names}" ] && dataset_names='chebi,chemcop-instruction,mol-instruction-mol-desc'
-[ -z "${dataset_splits}" ] && dataset_splits='all,all,clean'
-[ -z "${dataset_ratios}" ] && dataset_ratios='3.0,1.0,1.0'
-[ -z "${num_data_loading_workers}" ] && num_data_loading_workers=16
-[ -z "${skip_num_datasets}" ] && skip_num_datasets="chemcop-instruction"
+[ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
+# [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token'
+
+[ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
+[ -z "${dataset_splits}" ] && dataset_splits='clean'
+# [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc,chebi,functional-group,func-group-list-and-desc,chemcop-instruction,tdc/LD50_Zhu,tdc/kcnq2_potassium_channel_butkiewicz,tdc/Skin_Reaction,tdc/HIV,tdc/CYP3A4_Veith,tdc/CYP1A2_Veith,tdc/hERG_Karim,tdc/PAMPA_NCATS,tdc/hERG,tdc/CYP2C9_Substrate_CarbonMangels,tdc/HydrationFreeEnergy_FreeSolv,tdc/m1_muscarinic_receptor_agonists_butkiewicz,tdc/Bioavailability_Ma,tdc/m1_muscarinic_receptor_antagonists_butkiewicz,tdc/DILI,tdc/potassium_ion_channel_kir2.1_butkiewicz,tdc/CYP2C9_Veith,tdc/SARSCoV2_3CLPro_Diamond,tdc/Clearance_Hepatocyte_AZ,tdc/choline_transporter_butkiewicz,tdc/Half_Life_Obach,tdc/Lipophilicity_AstraZeneca,tdc/cav3_t-type_calcium_channels_butkiewicz,tdc/SARSCoV2_Vitro_Touret,tdc/Caco2_Wang,tdc/VDss_Lombardo,tdc/PPBR_AZ,tdc/Solubility_AqSolDB,tdc/tyrosyl-dna_phosphodiesterase_butkiewicz,tdc/Carcinogens_Lagunin,tdc/Pgp_Broccatelli,tdc/CYP2C19_Veith,tdc/CYP3A4_Substrate_CarbonMangels,tdc/CYP2D6_Substrate_CarbonMangels,tdc/serine_threonine_kinase_33_butkiewicz,tdc/orexin1_receptor_butkiewicz,tdc/AMES,tdc/CYP2D6_Veith,tdc/Tox21/NR-AR,tdc/Tox21/NR-PPAR-gamma,tdc/Tox21/NR-AR-LBD,tdc/Tox21/NR-Aromatase,tdc/Tox21/SR-MMP,tdc/Tox21/NR-AhR,tdc/Tox21/SR-HSE,tdc/Tox21/NR-ER,tdc/Tox21/SR-ARE,tdc/Tox21/NR-ER-LBD,tdc/Tox21/SR-p53,tdc/Tox21/SR-ATAD5,tdc/herg_central/hERG_inhib,tdc/herg_central/hERG_at_1uM,tdc/herg_central/hERG_at_10uM,tdc/USPTO_Yields,tdc/Buchwald-Hartwig'
+# [ -z "${dataset_splits}" ] && dataset_splits='clean,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all,all'
+# [ -z "${dataset_ratios}" ] && dataset_ratios='5.0,5.0,5.0,5.0,1.0,16.93,0.41,309.60,3.04,10.14,9.52,9.30,61.46,191.20,187.27,194.55,2.02,195.31,2.02,263.85,0.41,10.34,142.05,103.09,0.41,187.97,29.76,1.24,84.25,137.36,110.62,44.82,12.52,0.37,446.43,102.77,10.34,186.92,187.97,0.39,0.57,17.18,9.52,17.21,19.38,18.50,21.47,21.51,19.09,19.33,20.19,21.43,17.97,18.45,17.67,0.41,0.41,0.41,0.15,31.61'
 # [ -z "${dataset_names}" ] && dataset_names='chebi'
 # [ -z "${dataset_splits}" ] && dataset_splits='all'
 # [ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
+# [ -z "${dataset_names}" ] && dataset_names='chemcop-instruction'
+# [ -z "${dataset_splits}" ] && dataset_splits='all'
+[ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
 
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
@@ -88,9 +91,9 @@ if [[ $finetune_from_checkpoint_dir != "" ]]; then
 fi
 
 # training parallelism
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
-[ -z "${strategy}" ] && strategy=Pipeline
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=4
+[ -z "${strategy}" ] && strategy=ThreeD
 # determine zero strategy in DeepSpeed
 if [[ "${strategy}" == "Zero1" || "${strategy}" == "Pipeline" || "${strategy}" == "ThreeD" ]]; then
   zero_strategy=1
@@ -256,7 +259,7 @@ cat <<EOT > $DS_CONFIG
     }
   },
   "wandb": {
-    "enabled": false,
+    "enabled": true,
     "project": "$wandb_project_name"
   }
 }
@@ -304,9 +307,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --pp_part_list "${pp_part_list}" \
           --pp_partition_layer_name $pp_partition_layer_name \
           --unfreeze_param_list $unfreeze_param_list \
-          --ft \
+          --ft --load_ckpt \
           --fp16 \
-          --load_ckpt \
           --deepspeed_config=$DS_CONFIG \
           ${MEGATRON_ARGS} \
           --num_data_loading_workers ${num_data_loading_workers} \

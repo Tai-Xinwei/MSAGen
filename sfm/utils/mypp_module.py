@@ -730,7 +730,7 @@ class PipelineModule(nn.Module):
                 mp_world_size, mp_rank, module_key=None, is_pipe_parallel=True
             )
 
-            layer.load_state_dict(checkpoint)
+            layer.load_state_dict(checkpoint, strict=strict)
 
             # if self._grid.data_parallel_id == 0:
             #     logger.info(

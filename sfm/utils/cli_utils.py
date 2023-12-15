@@ -39,6 +39,7 @@ def cli(*cfg_classes_and_funcs):
 
                 if not wandb_api_key:
                     logger.warning("Wandb not configured, logging to console only")
+                # elif args.strategy == "DDP" or args.strategy == "Single":
                 else:
                     args.wandb = True
                     wandb_project = os.getenv("WANDB_PROJECT")
@@ -49,6 +50,10 @@ def cli(*cfg_classes_and_funcs):
                     args.wandb_team = getattr(args, "wandb_team", wandb_team)
                     args.wandb_group = getattr(args, "wandb_group", wandb_group)
                     args.wandb_project = getattr(args, "wandb_project", wandb_project)
+
+                    wandb_project = wandb_project or args.wandb_project
+                    wandb_team = wandb_team or args.wandb_team
+                    wandb_group = wandb_group or args.wandb_group
 
                     wandb.init(
                         project=wandb_project,

@@ -6,11 +6,20 @@
 
 description: pfmtest
 
-target:
-    service: amlk8s
-    name: itphyperdgx2cl1
-    vc: hai1
+# target:
+#     service: amlk8s
+#     name: itphyperdgx2cl2
+#     vc: hcrr08
 
+# target:
+#     service: amlk8s
+#     name: itphyperdgx2cl1
+#     vc: hai1
+
+target:
+    service: aml
+    name: gcrarca100cl1
+    # vc: gcrarca100cl1
 
 environment:
   image: pj/mfmds:20230207_b
@@ -29,13 +38,17 @@ code:
 
 jobs:
 - name: pfmtest
-  sku: G16
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  sku: G8
   mpi: true
   process_count_per_node: 1
   command:
   - mkdir /blob/pfmexp/output
-  - mkdir /blob/pfmexp/output/pfmmae_dyn_mode_prob55
-  - mkdir /blob/pfmexp/output/pfmmae_dyn_mode_prob55/checkpoints
+  # - mkdir /blob/pfmexp/output/pfmdiff200M_prob433_diff2_angl1
+  # - mkdir /blob/pfmexp/output/pfmdiff200M_prob262_diff2_angl1
+  - mkdir /blob/pfmexp/output/pfmdiff100M_prob262_embv2_m5_ddpmnoise_v1_pi_10
+  - mkdir /blob/pfmexp/output/pfmdiff100M_prob262_embv2_m5_ddpmnoise_v1_pi_10/checkpoints
   - mkdir ./output
   - export path=run.sh
   - export layers=12
@@ -43,7 +56,7 @@ jobs:
   - export hidden_size=512
   - export ffn_size=2048
   - export num_head=32
-  - export num_3d_bias_kernel=16
+  - export num_3d_bias_kernel=8
   - export atom_loss_coeff=1.0
   - export pos_loss_coeff=1.0
   - export sandwich_ln="true"
@@ -53,29 +66,29 @@ jobs:
   - export weight_decay=0.0
   - export droppath_prob=0.0
   - export max_num_aa=1024
-  - export noise_mode=mae
+  - export noise_mode=diff
   - export noise_scale=0.2
   - export mask_ratio=0.5
-  - export mode_prob=0.5,0.5,0.0
+  - export mode_prob=0.2,0.6,0.2
   - export d_tilde=1.0
   - export max_lr=4e-4
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
-  - export total_num_steps=1000000
-  - export warmup_num_steps=1000
-  - export train_batch_size=128
-  - export val_batch_size=128
-  - export max_tokens=3072
+  - export total_num_steps=400000
+  - export warmup_num_steps=2000
+  - export train_batch_size=1024
+  - export val_batch_size=256
+  - export max_tokens=4000
   - export max_length=1024
-  - export gradient_accumulation_steps=4
+  - export gradient_accumulation_steps=8
   - export log_interval=100
-  - export loadcheck_path=/blob/pfmexp/output/pfmmae_dyn_mode_prob55/checkpoints
+  - export loadcheck_path=/blob/pfmexp/output/pfmdiff100M_prob262_embv2_m5_ddpmnoise_v1_pi_10/checkpoints
   - mkdir /tmp/data/pm6-86m-3d-filter
   - export data_path=/blob/data/afdb/48organism.lmdb/
-  - export save_dir=/blob/pfmexp/output/pfmmae_dyn_mode_prob55/checkpoints
+  - export save_dir=/blob/pfmexp/output/pfmdiff100M_prob262_embv2_m5_ddpmnoise_v1_pi_10/checkpoints
   - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
-  - bash ./install/install.sh && bash ./install/install_pfm.sh && bash ./install/install_megatron.sh
-  - bash ./scripts/pfm/pretrain_pfm.sh
+  - bash ./install/install.sh
+  - bash ./scripts/tox/pretrain_tox.sh
   submit_args:
     container_args:
       shm_size: 1024g
