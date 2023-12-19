@@ -16,7 +16,7 @@ from .quant_noise import quant_noise
 from .rotary_embedding import RotaryEmbedding
 
 
-class MultiheadAttention(nn.Module):
+class DeformableMultiheadAttention(nn.Module):
     """Multi-headed attention.
 
     See "Attention Is All You Need" for more details.
@@ -81,8 +81,6 @@ class MultiheadAttention(nn.Module):
             nn.Linear(embed_dim, embed_dim, bias=o_bias), q_noise, qn_block_size
         )
 
-        self.layer_norm = LayerNorm(embed_dim)
-
         self.reset_parameters(d_tilde)
 
         self.onnx_trace = False
@@ -115,7 +113,6 @@ class MultiheadAttention(nn.Module):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         if self.out_proj.bias is not None:
             nn.init.constant_(self.out_proj.bias, 0.0)
-        self.layer_norm.reset_parameters()
 
     def forward(
         self,
@@ -225,7 +222,6 @@ class MultiheadAttention(nn.Module):
             assert key_padding_mask.size(1) == src_len
 
         attn_weights = torch.bmm(q, k.transpose(1, 2))
-        attn_weights = self.apply_sparse_mask(attn_weights, tgt_len, src_len, bsz)
 
         assert list(attn_weights.size()) == [bsz * self.num_heads, tgt_len, src_len]
 
@@ -250,9 +246,7 @@ class MultiheadAttention(nn.Module):
         if before_softmax:
             return attn_weights, v
 
-        # attn_weights_float = utils.softmax(
-        #     attn_weights, dim=-1, onnx_trace=self.onnx_trace
-        # )
+        attn_weights = self.apply_sparse_mask(attn_weights, topk=20)
 
         attn_weights_float = nn.functional.softmax(attn_weights, dim=-1)
 
@@ -267,8 +261,6 @@ class MultiheadAttention(nn.Module):
 
         attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
 
-        attn = self.layer_norm(attn)
-
         attn = self.out_proj(attn)
 
         attn_weights: Optional[Tensor] = None
@@ -282,36 +274,11 @@ class MultiheadAttention(nn.Module):
 
         return attn, attn_weights
 
-    def apply_sparse_mask(self, attn_weights, tgt_len: int, src_len: int, bsz: int):
+    def apply_sparse_mask(self, attn_weights, topk: int = 10):
+        # get top 10, all other set as -inf
+        topk = min(topk, attn_weights.size(-1))
+        topk_value, _ = torch.topk(attn_weights, topk, dim=-1)
+        topk_value = topk_value[:, :, -1].unsqueeze(-1)
+        mask = attn_weights < topk_value
+        attn_weights = attn_weights.masked_fill(mask, float("-inf"))
         return attn_weights
-
-    # def upgrade_state_dict_named(self, state_dict, name):
-    #     prefix = name + "." if name != "" else ""
-    #     items_to_add = {}
-    #     keys_to_remove = []
-    #     for k in state_dict.keys():
-    #         if k.endswith(prefix + "in_proj_weight"):
-    #             # in_proj_weight used to be q + k + v with same dimensions
-    #             dim = int(state_dict[k].shape[0] / 3)
-    #             items_to_add[prefix + "q_proj.weight"] = state_dict[k][:dim]
-    #             items_to_add[prefix + "k_proj.weight"] = state_dict[k][dim : 2 * dim]
-    #             items_to_add[prefix + "v_proj.weight"] = state_dict[k][2 * dim :]
-
-    #             keys_to_remove.append(k)
-
-    #             k_bias = prefix + "in_proj_bias"
-    #             if k_bias in state_dict.keys():
-    #                 dim = int(state_dict[k].shape[0] / 3)
-    #                 items_to_add[prefix + "q_proj.bias"] = state_dict[k_bias][:dim]
-    #                 items_to_add[prefix + "k_proj.bias"] = state_dict[k_bias][
-    #                     dim : 2 * dim
-    #                 ]
-    #                 items_to_add[prefix + "v_proj.bias"] = state_dict[k_bias][2 * dim :]
-
-    #                 keys_to_remove.append(prefix + "in_proj_bias")
-
-    #     for k in keys_to_remove:
-    #         del state_dict[k]
-
-    #     for key, value in items_to_add.items():
-    #         state_dict[key] = value

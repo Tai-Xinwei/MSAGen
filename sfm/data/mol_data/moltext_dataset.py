@@ -256,7 +256,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         self.temp_dir = Path(temp_dir)
         self.temp_dir.mkdir(exist_ok=True)
 
-        threshold_maxmol = 8
+        threshold_maxmol = 2
 
         self.len = 0
         self.index_to_key_map = []
@@ -446,7 +446,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
             input_ids, input_ids_len, smiless, mol_sizes, nums = data
 
         if dataset_name in self.skip_num_datasets:
-            nums = None
+            pass
 
         if isinstance(input_ids, list):
             input_ids = torch.tensor(input_ids, dtype=torch.int64)
@@ -491,10 +491,14 @@ class SupervisedProcessedDataWithSmiles(Dataset):
 
         num_labels = torch.zeros_like(input_ids, dtype=torch.float)
         num_labels[:] = IGNORE_INDEX
-        label_poss = labels == self.num_token_id
-        if nums is not None:
-            num_labels[label_poss] = torch.tensor(nums, dtype=torch.float)
-        # labels = torch.stack([labels, num_labels], dim=-1)
+
+        # if nums is not None and len(nums) > 0:
+        #     nums = torch.tensor(nums, dtype=torch.float)
+
+        #     if torch.sum(label_poss) == nums.shape[0]:
+        #         num_labels[label_poss] = nums
+
+        # # labels = torch.stack([labels, num_labels], dim=-1)
 
         return dict(
             input_ids=input_ids, labels=labels, smiless=smiless, num_labels=num_labels

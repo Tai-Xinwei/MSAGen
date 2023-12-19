@@ -413,7 +413,7 @@ class Trainer(object):
             )
 
             # skip first batches
-            data_iterator = self.train_data_loader
+            data_iterator = iter(self.train_data_loader)
             data_iterator = self.skip_first_batches(data_iterator, self.start_iteration)
 
             for grouped_batch_data in data_iterator:
@@ -610,7 +610,7 @@ class Trainer(object):
         for i, _ in tqdm(
             enumerate(data_iterator), desc=f"Skipping first {start_iteration} batches"
         ):
-            if i == start_iteration:
+            if i == start_iteration - 1:
                 break
 
         self.start_iteration = 0
