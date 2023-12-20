@@ -1,0 +1,3 @@
+include sfm/data/mol_data/algos.pyx
+include sfm/data/data_utils_fast.pyx
+include requirements/requirements.txt
