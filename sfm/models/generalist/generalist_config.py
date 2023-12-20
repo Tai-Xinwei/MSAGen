@@ -29,3 +29,6 @@ class GeneralistConfig:
 
     skip_num_datasets: str = ""
     num_data_loading_workers: int = 16
+    use_global_padding: bool = False
+    max_num_mol_per_sample: int = 8
+    molecule_max_size: int = 128

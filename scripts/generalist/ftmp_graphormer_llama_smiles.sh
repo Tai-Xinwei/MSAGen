@@ -51,7 +51,7 @@ fi
 # generalist dataset settings
 [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
 # [ -z "${data_path}" ] && data_path='/home/peiran/mnt/mntsfm2/data/chemical-copilot-special-token/'
-[ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
+# [ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
 # [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token'
 
 [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
@@ -312,7 +312,11 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --deepspeed_config=$DS_CONFIG \
           ${MEGATRON_ARGS} \
           --num_data_loading_workers ${num_data_loading_workers} \
-          --skip_num_datasets "${skip_num_datasets}"
+          --skip_num_datasets "${skip_num_datasets}" \
+          --use_global_padding \
+          --multi_hop_max_dist 7 \
+          --max_num_mol_per_sample  3 \
+          --molecule_max_size 128
+          # --fused_graphormer_llama \
           # --use_pbc \
           # --add_3d \
-          # --fused_graphormer_llama
