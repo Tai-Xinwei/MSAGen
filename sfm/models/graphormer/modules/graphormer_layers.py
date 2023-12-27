@@ -250,7 +250,7 @@ class Graph3DBias(nn.Module):
         rpe_heads = (
             self.num_heads * self.n_layers if self.no_share_rpe else self.num_heads
         )
-        self.gbf = GaussianLayer(self.num_kernel, max(num_edges, 128**2))
+        self.gbf = GaussianLayer(self.num_kernel, num_edges)
         self.gbf_proj = NonLinear(self.num_kernel, rpe_heads)
 
         if self.num_kernel != self.embed_dim:

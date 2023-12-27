@@ -505,14 +505,14 @@ class SupervisedProcessedDataWithSmiles(Dataset):
 
         num_labels = torch.zeros_like(input_ids, dtype=torch.float)
         num_labels[:] = IGNORE_INDEX
+        label_poss = labels == self.num_token_id
+        if nums is not None:
+            num_labels[label_poss] = torch.tensor(nums, dtype=torch.float)
 
-        # if nums is not None and len(nums) > 0:
-        #     nums = torch.tensor(nums, dtype=torch.float)
-
-        #     if torch.sum(label_poss) == nums.shape[0]:
-        #         num_labels[label_poss] = nums
-
-        # # labels = torch.stack([labels, num_labels], dim=-1)
+        if nums is not None and len(nums) > 0:
+            nums = torch.tensor(nums, dtype=torch.float)
+            if torch.sum(label_poss) == nums.shape[0]:
+                num_labels[label_poss] = nums
 
         return dict(
             input_ids=input_ids, labels=labels, smiless=smiless, num_labels=num_labels
@@ -542,9 +542,17 @@ def preprocess_item(item, use_pbc=False):
         convert_to_single_emb(edge_attr) + 1
     )
 
-    shortest_path_result, path = algos.floyd_warshall(adj.numpy())
-    max_dist = np.amax(shortest_path_result)
-    edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+    if edge_index.size()[1] == 0:  # no edge
+        shortest_path_result = (
+            torch.full(adj.size(), 511, dtype=torch.long, device=x.device).cpu().numpy()
+        )
+        edge_input = (
+            torch.zeros([N, N, 0, 3], dtype=torch.long, device=x.device).cpu().numpy()
+        )
+    else:
+        shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+        max_dist = np.amax(shortest_path_result)
+        edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
     spatial_pos = torch.from_numpy((shortest_path_result)).long()
     attn_bias = torch.zeros([N + 1, N + 1], dtype=torch.float)  # with graph token
 
