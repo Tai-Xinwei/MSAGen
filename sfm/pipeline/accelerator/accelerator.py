@@ -120,6 +120,7 @@ class SingleNodeAccelerator(Accelerator):
         self.world_size = 1
 
         if not torch.cuda.is_available():
+            logger.warning("cuda is not available. use cpu instead")
             self.device = "cpu"
         self.scaler = FP16Scaler(
             init_scale=self.args.grad_scaler_init, enabled=self.args.fp16

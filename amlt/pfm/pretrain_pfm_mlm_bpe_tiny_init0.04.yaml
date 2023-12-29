@@ -1,0 +1,58 @@
+
+description: train pfm mlm bpe tiny
+
+env_defaults:
+  NODES: 2
+  GPUS: 8
+  WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+
+
+target:
+  service: aml
+  name: gcrarca100cl1
+
+
+# environment:
+#   image: shufxi/mfmds:20230807
+#   registry: itpeus4cr.azurecr.io
+#   username: itpeus4cr
+
+environment:
+  image: pj/mfmds:20230207_b
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+storage:
+  hai1:
+    storage_account_name: hai1data # Storage account
+    container_name: mfm # Container name
+    mount_dir: /hai1
+  blob:
+    storage_account_name: msralaphilly2
+    container_name: ml-la
+    mount_dir: /blob
+
+code:
+  local_dir: .
+
+jobs:
+- name: train_pfm_mlm_bpe_tiny_mask0.15_init0.04
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  sku: ${NODES}xG${GPUS}
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - mkdir -p /blob/shufxi/pfm/bpe/tiny/mask0.15_init0.04
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=pfm
+  - export mask_prob=0.15
+  - export initializer_range=0.04
+  - export save_dir=/blob/shufxi/pfm/bpe/tiny/mask0.15_init0.04
+  - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 -y && conda activate sfm
+  - bash ./install/install.sh
+  - pip install -e .
+  - bash scripts/pfm/pretrain_pfm_mlm_bpe.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g
