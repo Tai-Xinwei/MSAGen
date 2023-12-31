@@ -51,7 +51,7 @@ fi
 # generalist dataset settings
 [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token/'
 # [ -z "${data_path}" ] && data_path='/home/peiran/mnt/mntsfm2/data/chemical-copilot-special-token/'
-[ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
+# [ -z "${data_path}" ] && data_path='/mnt/chemical-copilot-special-token'
 # [ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/chemical-copilot-special-token'
 
 [ -z "${dataset_names}" ] && dataset_names='mol-instruction-mol-desc'
@@ -65,6 +65,7 @@ fi
 # [ -z "${dataset_names}" ] && dataset_names='chemcop-instruction'
 # [ -z "${dataset_splits}" ] && dataset_splits='all'
 [ -z "${dataset_ratios}" ] && dataset_ratios='1.0'
+[ -z "${num_data_loading_workers}" ] && num_data_loading_workers=16
 
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
@@ -91,9 +92,9 @@ if [[ $finetune_from_checkpoint_dir != "" ]]; then
 fi
 
 # training parallelism
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=4
-[ -z "${strategy}" ] && strategy=ThreeD
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
+[ -z "${strategy}" ] && strategy=Pipeline
 # determine zero strategy in DeepSpeed
 if [[ "${strategy}" == "Zero1" || "${strategy}" == "Pipeline" || "${strategy}" == "ThreeD" ]]; then
   zero_strategy=1
@@ -106,7 +107,16 @@ fi
 [ -z "${pp_part_list}" ] && pp_part_list="[0, 61]"
 # [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="manual"
 # [ -z "${pp_part_list}" ] && pp_part_list="[0, 43, 70, 99, 127]"
-[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="mol_adaptor,mol_rep_layernorm,word_embeddings"
+[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="graph,emb_layer,0.layers,embed_tokens,mol_rep_layernorm,mol_adaptor,num_head,lm_head"
+if [[ "${use_pbc}" == "true" ]]; then
+  use_pbc="--use_pbc"
+fi
+if [[ "${add_3d}" == "true" ]]; then
+  add_3d="--add_3d"
+fi
+[ -z "${pbc_cutoff}" ] && pbc_cutoff=6.0
+[ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=2
+[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=128
 
 # training parameters for generalist
 [ -z "${micro_batch_size}" ] && micro_batch_size=1
@@ -312,7 +322,16 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/generalist/ft_graphormer_llama_inst.py \
           --deepspeed_config=$DS_CONFIG \
           ${MEGATRON_ARGS} \
           --num_data_loading_workers ${num_data_loading_workers} \
-          --skip_num_datasets "${skip_num_datasets}"
+          --skip_num_datasets "${skip_num_datasets}" \
+          --pbc_cutoff ${pbc_cutoff} \
+          --pbc_expanded_num_cell_per_direction ${pbc_expanded_num_cell_per_direction} \
+          --pbc_expanded_token_cutoff ${pbc_expanded_token_cutoff} \
+          ${use_pbc} \
+          ${add_3d}
+          # --use_global_padding \
+          # --multi_hop_max_dist 7 \
+          # --max_num_mol_per_sample  3 \
+          # --molecule_max_size 128
+          # --fused_graphormer_llama \
           # --use_pbc \
           # --add_3d \
-          # --fused_graphormer_llama

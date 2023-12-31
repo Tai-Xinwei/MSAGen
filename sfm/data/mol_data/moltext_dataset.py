@@ -223,6 +223,9 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         num_data_loading_workers: int = 16,
         skip_num_datasets: str = "",
         temp_dir: str = "./generalist-data-temp",
+        max_num_mol_per_sample: int = 8,
+        use_global_padding: bool = False,
+        multi_hop_max_dist: int = 20,
     ) -> None:
         super().__init__()
         self.data_path = data_path
@@ -256,7 +259,10 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         self.temp_dir = Path(temp_dir)
         self.temp_dir.mkdir(exist_ok=True)
 
-        threshold_maxmol = 2
+        self.use_global_padding = use_global_padding
+        self.multi_hop_max_dist = multi_hop_max_dist
+
+        self.max_num_mol_per_sample = max_num_mol_per_sample
 
         self.len = 0
         self.index_to_key_map = []
@@ -267,7 +273,15 @@ class SupervisedProcessedDataWithSmiles(Dataset):
         self.dataset_count = {}
         self.dataset_filtered = {}
         self.data_collater = DataCollatorForSupervisedDataset(
-            pad_token_id=pad_token_id, use_pp=use_pp, add_mfm=True, use_pbc=use_pbc
+            pad_token_id=pad_token_id,
+            use_pp=use_pp,
+            add_mfm=True,
+            use_pbc=use_pbc,
+            use_global_padding=self.use_global_padding,
+            model_max_length=self.model_max_length,
+            molecule_max_size=self.molecule_max_size,
+            max_num_mol_per_sample=self.max_num_mol_per_sample,
+            multi_hop_max_dist=self.multi_hop_max_dist,
         )
 
         if not self.in_memory:
@@ -293,7 +307,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
                         self._load_multiprocessing(
                             dataset_name,
                             dataset_split,
-                            threshold_maxmol,
+                            self.max_num_mol_per_sample,
                             self.num_data_loading_workers,
                         )
                 if self.dataset_ratios is not None:
@@ -343,7 +357,7 @@ class SupervisedProcessedDataWithSmiles(Dataset):
                         val = pkl.loads(val)
                         if (
                             self._calc_input_len(*val) > self.model_max_length
-                            or len(val[3]) > threshold_maxmol
+                            or len(val[3]) > max_num_mol_per_sample
                         ):
                             self.dataset_filtered[dataset_name][dataset_split] += 1
                             continue
@@ -491,14 +505,14 @@ class SupervisedProcessedDataWithSmiles(Dataset):
 
         num_labels = torch.zeros_like(input_ids, dtype=torch.float)
         num_labels[:] = IGNORE_INDEX
+        label_poss = labels == self.num_token_id
+        if nums is not None:
+            num_labels[label_poss] = torch.tensor(nums, dtype=torch.float)
 
-        # if nums is not None and len(nums) > 0:
-        #     nums = torch.tensor(nums, dtype=torch.float)
-
-        #     if torch.sum(label_poss) == nums.shape[0]:
-        #         num_labels[label_poss] = nums
-
-        # # labels = torch.stack([labels, num_labels], dim=-1)
+        if nums is not None and len(nums) > 0:
+            nums = torch.tensor(nums, dtype=torch.float)
+            if torch.sum(label_poss) == nums.shape[0]:
+                num_labels[label_poss] = nums
 
         return dict(
             input_ids=input_ids, labels=labels, smiless=smiless, num_labels=num_labels
@@ -528,9 +542,17 @@ def preprocess_item(item, use_pbc=False):
         convert_to_single_emb(edge_attr) + 1
     )
 
-    shortest_path_result, path = algos.floyd_warshall(adj.numpy())
-    max_dist = np.amax(shortest_path_result)
-    edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+    if edge_index.size()[1] == 0:  # no edge
+        shortest_path_result = (
+            torch.full(adj.size(), 511, dtype=torch.long, device=x.device).cpu().numpy()
+        )
+        edge_input = (
+            torch.zeros([N, N, 0, 3], dtype=torch.long, device=x.device).cpu().numpy()
+        )
+    else:
+        shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+        max_dist = np.amax(shortest_path_result)
+        edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
     spatial_pos = torch.from_numpy((shortest_path_result)).long()
     attn_bias = torch.zeros([N + 1, N + 1], dtype=torch.float)  # with graph token
 
@@ -626,7 +648,9 @@ def pad_pos_unsqueeze(x, padlen):
     return x.unsqueeze(0)
 
 
-def collator(items, multi_hop_max_dist=20, spatial_pos_max=20, use_pbc=False):
+def collator(
+    items, multi_hop_max_dist=20, spatial_pos_max=20, max_node_num=None, use_pbc=False
+):
     items = [
         (
             item.attn_bias,
@@ -656,7 +680,8 @@ def collator(items, multi_hop_max_dist=20, spatial_pos_max=20, use_pbc=False):
     for idx, _ in enumerate(attn_biases):
         attn_biases[idx][1:, 1:][spatial_poses[idx] >= spatial_pos_max] = float("-inf")
 
-    max_node_num = max(i.size(0) for i in xs)
+    if max_node_num is None:
+        max_node_num = max(i.size(0) for i in xs)
     num_atoms = torch.tensor([int(i.size(0)) for i in xs]).long()
     max_dist = max(i.size(-2) for i in edge_inputs)
     x = torch.cat([pad_2d_unsqueeze(i, max_node_num) for i in xs])
@@ -763,7 +788,13 @@ def smiles2graph_removeh(smiles_string, pos=None):
     return graph
 
 
-def batch_collater_for_graphormer(smiless: List[str], poses: List[Any], use_pbc: bool):
+def batch_collater_for_graphormer(
+    smiless: List[str],
+    poses: List[Any],
+    use_pbc: bool = False,
+    max_node_num: Optional[int] = None,
+    multi_hop_max_dist: Optional[int] = 20,
+):
     if type(smiless[0]) == Data:
         graphs = [preprocess_item(smiles, use_pbc=use_pbc) for smiles in smiless]
     else:
@@ -772,10 +803,12 @@ def batch_collater_for_graphormer(smiless: List[str], poses: List[Any], use_pbc:
             for smiles, pos in zip(smiless, poses)
         ]
 
-        # for graph in graphs:
-        #     graph.pbc = torch.zeros([3], dtype=torch.bool)
-        #     graph.cell = torch.zeros([3, 3], dtype=torch.float)
-    return collator(graphs, use_pbc=use_pbc)
+    return collator(
+        graphs,
+        use_pbc=use_pbc,
+        max_node_num=max_node_num,
+        multi_hop_max_dist=multi_hop_max_dist,
+    )
 
 
 @dataclass
@@ -786,6 +819,11 @@ class DataCollatorForSupervisedDataset(object):
     use_pp: bool
     add_mfm: bool
     use_pbc: bool
+    use_global_padding: bool
+    model_max_length: int
+    molecule_max_size: int
+    max_num_mol_per_sample: int
+    multi_hop_max_dist: int
 
     def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
         input_ids, labels, smiless, num_labels = tuple(
@@ -801,6 +839,45 @@ class DataCollatorForSupervisedDataset(object):
         num_labels = torch.nn.utils.rnn.pad_sequence(
             num_labels, batch_first=True, padding_value=IGNORE_INDEX
         )
+
+        if self.use_global_padding:
+            batch_size, max_seq_len = input_ids.size()
+            input_ids = torch.cat(
+                [
+                    input_ids,
+                    torch.full(
+                        [batch_size, self.model_max_length - max_seq_len],
+                        self.pad_token_id,
+                        device=input_ids.device,
+                        dtype=input_ids.dtype,
+                    ),
+                ],
+                dim=-1,
+            )
+            labels = torch.cat(
+                [
+                    labels,
+                    torch.full(
+                        [batch_size, self.model_max_length - max_seq_len],
+                        IGNORE_INDEX,
+                        device=labels.device,
+                        dtype=labels.dtype,
+                    ),
+                ],
+                dim=-1,
+            )
+            num_labels = torch.cat(
+                [
+                    num_labels,
+                    torch.full(
+                        [batch_size, self.model_max_length - max_seq_len],
+                        IGNORE_INDEX,
+                        device=num_labels.device,
+                        dtype=num_labels.dtype,
+                    ),
+                ],
+                dim=-1,
+            )
 
         batched_molecules = {
             "x": None,
@@ -824,8 +901,54 @@ class DataCollatorForSupervisedDataset(object):
                 smiles.extend(smis)
                 pos.extend([None for _ in range(len(smis))])
 
-        batched_molecules = batch_collater_for_graphormer(smiles, pos, self.use_pbc)
+        if self.use_global_padding:
+            smiles_for_padding = smiles[0]
+            pos_for_padding = pos[0]
+            num_mols = len(smiles)
+            for i in range(num_mols, self.max_num_mol_per_sample * batch_size):
+                smiles.append(smiles_for_padding)
+                pos.append(pos_for_padding)
+            batched_molecules = batch_collater_for_graphormer(
+                smiles,
+                pos,
+                self.use_pbc,
+                self.molecule_max_size,
+                self.multi_hop_max_dist,
+            )
+        else:
+            batched_molecules = batch_collater_for_graphormer(smiles, pos, self.use_pbc)
         batched_molecules["out_degree"] = batched_molecules["in_degree"]
+
+        # pad edge_input
+        if self.use_global_padding:
+            edge_input = batched_molecules["edge_input"]
+            if edge_input.size()[3] < self.multi_hop_max_dist:
+                (
+                    batch_size,
+                    max_num_atom,
+                    _,
+                    max_dist,
+                    num_edge_features,
+                ) = edge_input.size()
+                edge_input = torch.cat(
+                    [
+                        edge_input,
+                        torch.zeros(
+                            [
+                                batch_size,
+                                max_num_atom,
+                                max_num_atom,
+                                self.multi_hop_max_dist - max_dist,
+                                num_edge_features,
+                            ],
+                            device=edge_input.device,
+                            dtype=edge_input.dtype,
+                        ),
+                    ],
+                    dim=3,
+                )
+                batched_molecules["edge_input"] = edge_input
+
         if self.use_pp:
             return_input = [
                 input_ids,

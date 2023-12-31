@@ -15,6 +15,7 @@ class GraphormerConfig:
     max_length: int = 1024
     pbc_expanded_token_cutoff: int = 512
     pbc_expanded_num_cell_per_direction: int = 10
+    multi_hop_max_dist: int = 20
 
     droppath_prob: float = 0.0
     act_dropout: float = 0.0

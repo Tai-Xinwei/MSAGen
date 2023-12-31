@@ -63,7 +63,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         in_memory=False,
         model_max_length=args.model_max_length,
         mol_embed_type="atoms",
-        molecule_max_size=512,
+        molecule_max_size=args.molecule_max_size,
         pad_token_id=tokenizer.pad_token_id,
         dataset_ratios=args.dataset_ratios,
         pool_mode=args.pool_mode,
@@ -77,6 +77,9 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         local_rank=args.local_rank,
         num_data_loading_workers=args.num_data_loading_workers,
         skip_num_datasets=args.skip_num_datasets,
+        use_global_padding=args.use_global_padding,
+        max_num_mol_per_sample=args.max_num_mol_per_sample,
+        multi_hop_max_dist=args.multi_hop_max_dist,
     )
 
     return dict(
