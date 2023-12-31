@@ -25,7 +25,7 @@ def BERT_sequence_masking(
     args: dict,
     seed: int,
     mask_idx: int,
-    standard_toks: List[int],
+    standard_toks_idx: List[int],
 ):
     mask_prob = args.mask_prob
     leave_unmasked_prob = args.leave_unmasked_prob
@@ -69,6 +69,8 @@ def BERT_sequence_masking(
         logging.error(f"Assigning mask indexes {mask_idc} to mask {mask} failed!")
         raise
 
+    total_mask = deepcopy(mask)
+
     # BERT like masking: random token replacement and unmasking
     # decide unmasking and random replacement
     rand_or_unmask_prob = random_token_prob + leave_unmasked_prob
@@ -97,11 +99,11 @@ def BERT_sequence_masking(
         num_rand = rand_mask.sum()
         if num_rand > 0:
             new_seq[rand_mask] = rng.choice(
-                len(standard_toks),
+                np.array(standard_toks_idx),
                 num_rand,
                 # p=self.weights, assume equal weights
             )
-    return new_seq, mask, rand_mask
+    return new_seq, total_mask, rand_mask
 
 
 def transformerM_masking(

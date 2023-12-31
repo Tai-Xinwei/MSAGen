@@ -33,10 +33,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_lr}" ] && max_lr=2e-4
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
-[ -z "${train_batch_size}" ] && train_batch_size=32
+[ -z "${train_batch_size}" ] && train_batch_size=1
 [ -z "${max_tokens}" ] && max_tokens=3000
 [ -z "${val_batch_size}" ] && val_batch_size=16
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=100
@@ -46,6 +46,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
+# [ -z "${data_path}" ] && data_path='/mnt/protein/uniref50_train.lmdb'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
@@ -55,7 +56,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=PFM
+[ -z "${wandb_group}" ] && wandb_group=TOX
 [ -z "${wandb_team}" ] && wandb_team=icuppjin
 [ -z "${wandb_project}" ] && wandb_project=DiffMFM
 
@@ -121,7 +122,7 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export OMP_NUM_THREADS=1
 
 wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
-export WANDB_API_KEY=5d03b7a46d10f86ff45c4aedc570660a523edc0b
+# export WANDB_API_KEY=5d03b7a46d10f86ff45c4aedc570660a523edc0b
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then

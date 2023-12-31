@@ -6,7 +6,7 @@ from sfm.models.graphormer.graphormer_config import GraphormerConfig
 
 @dataclass
 class TOXConfig(GraphormerConfig):
-    model_type: str = "pfm"
+    model_type: str = "tox"
     seq_masking_method: str = "transformerM"
     add_rope: bool = True
     num_residues: int = 32

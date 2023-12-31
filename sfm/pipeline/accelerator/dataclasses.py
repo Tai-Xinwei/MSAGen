@@ -232,6 +232,7 @@ class TrainerState:
     global_step: int = 0
     epoch: int = 0
     batch: int = 0
+    sample: int = 0
 
 
 @dataclass
@@ -270,6 +271,7 @@ class TrainLogOutput:
     epoch: int
     batch: int
     global_step: int
+    total_samples: int
     extra_output: Dict
 
     def __str__(self) -> str:

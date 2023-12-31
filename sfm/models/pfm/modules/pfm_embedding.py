@@ -5,7 +5,7 @@ import torch.nn as nn
 from sfm.logging import logger
 from sfm.modules.FairseqDropout import FairseqDropout
 
-from .pfm_layer import Edge3DEmbedding, ResidueFeature
+from .pfm_layer import Edge3DEmbedding, ResidueFeatureV0
 
 
 class PFMEmbedding(nn.Module):
@@ -15,23 +15,23 @@ class PFMEmbedding(nn.Module):
     ):
         super().__init__()
         self.pfm_config = pfm_config
-        self.residue_feature = ResidueFeature(
+        self.residue_feature = ResidueFeatureV0(
             num_residues=pfm_config.num_residues,
             hidden_dim=pfm_config.embedding_dim,
             max_len=1024,
-            prop_feat=True,
-            angle_feat=True,
+            prop_feat=False,
+            angle_feat=False,
         )
 
-        self.edge_3d_emb = (
-            Edge3DEmbedding(
-                num_edges=pfm_config.num_edges,
-                embed_dim=pfm_config.embedding_dim,
-                num_kernel=pfm_config.num_3d_bias_kernel,
-            )
-            if pfm_config.add_3d
-            else None
-        )
+        # self.edge_3d_emb = (
+        #     Edge3DEmbedding(
+        #         num_edges=pfm_config.num_edges,
+        #         embed_dim=pfm_config.embedding_dim,
+        #         num_kernel=pfm_config.num_3d_bias_kernel,
+        #     )
+        #     if pfm_config.add_3d
+        #     else None
+        # )
 
         # TODO: 2D attention bias needs carefully designed, features such as MSA should be included
         # 2D attention bias is impletemented in pfmencoderlayers to avoid redundent communication
@@ -54,19 +54,19 @@ class PFMEmbedding(nn.Module):
         )
         edge_feature = None
         delta_pos = None
-        if mask_pos is not None and self.pfm_config.add_3d:
-            node_type_edge = batched_data["node_type_edge"]
-            edge_feature, merged_edge_features, delta_pos = self.edge_3d_emb(
-                pos, node_type_edge, padding_mask, mask_aa
-            )
+        # if mask_pos is not None and self.pfm_config.add_3d:
+        #     node_type_edge = batched_data["node_type_edge"]
+        #     edge_feature, merged_edge_features, delta_pos = self.edge_3d_emb(
+        #         pos, node_type_edge, padding_mask, mask_aa
+        #     )
 
-            if self.pfm_config.noise_mode == "mae":
-                merged_edge_features = merged_edge_features.masked_fill(mask_pos, 0.0)
-                delta_pos = delta_pos.masked_fill(mask_pos.unsqueeze(-1), 0.0)
+        #     if self.pfm_config.noise_mode == "mae":
+        #         merged_edge_features = merged_edge_features.masked_fill(mask_pos, 0.0)
+        #         delta_pos = delta_pos.masked_fill(mask_pos.unsqueeze(-1), 0.0)
 
-            x = x + merged_edge_features * 0.01
+        #     x = x + merged_edge_features * 0.01
 
-            # TEST: set 3d edge_feature to zero
-            # edge_feature = torch.zeros_like(edge_feature)
+        #     # TEST: set 3d edge_feature to zero
+        #     # edge_feature = torch.zeros_like(edge_feature)
 
         return x, edge_feature, delta_pos

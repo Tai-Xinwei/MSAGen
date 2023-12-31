@@ -7,7 +7,7 @@ echo 'Solving MKL done!'
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=4
+[ -z "${layers}" ] && layers=12
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${hidden_size}" ] && hidden_size=256
 [ -z "${ffn_size}" ] && ffn_size=1024
@@ -25,24 +25,26 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
-[ -z "${mask_ratio}" ] && mask_ratio=0.3
+[ -z "${mask_ratio}" ] && mask_ratio=0.15
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=4e-4
+[ -z "${max_lr}" ] && max_lr=1e-4
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
-[ -z "${train_batch_size}" ] && train_batch_size=32
-[ -z "${max_tokens}" ] && max_tokens=3072
-[ -z "${val_batch_size}" ] && val_batch_size=32
+[ -z "${train_batch_size}" ] && train_batch_size=16
+[ -z "${max_tokens}" ] && max_tokens=1600
+[ -z "${val_batch_size}" ] && val_batch_size=64
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 
-[ -z "${mode_prob}" ] && mode_prob='0.5,0.5,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-[ -z "${strategy}" ] && strategy=Zero1
+[ -z "${mode_prob}" ] && mode_prob='1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${strategy}" ] && strategy=DDP
 
-[ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
+# [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
+[ -z "${train_data_path}" ] && train_data_path='/mnt/protein/uniref50_pack1024_train.lmdb'
+[ -z "${valid_data_path}" ] && valid_data_path='/mnt/protein/uniref50_valid.lmdb'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
@@ -52,19 +54,16 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=PFM
+[ -z "${wandb_group}" ] && wandb_group=tinyBFM
 [ -z "${wandb_team}" ] && wandb_team=icuppjin
-[ -z "${wandb_project}" ] && wandb_project=DiffMFM
+[ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
 
-0
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
 [ -z "${MASTER_PORT}" ] && MASTER_PORT=62346
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 # [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=-1
-
-
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -120,7 +119,7 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export OMP_NUM_THREADS=1
 
 wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
-
+export WANDB_API_KEY=5d03b7a46d10f86ff45c4aedc570660a523edc0b
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -140,7 +139,6 @@ fi
 
 # echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-
 torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
@@ -152,10 +150,11 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
           --sandwich_ln \
           --dataset_names $dataset_name \
-          --data_path $data_path \
+          --valid_data_path $valid_data_path \
+          --train_data_path $train_data_path \
           --save_dir $save_dir \
           --seed 666666 \
-          --fp16 --add_3d \
+          --fp16 \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
@@ -165,14 +164,12 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --mode_prob $mode_prob --noise_mode $noise_mode\
           --total_num_steps $total_num_steps \
           --warmup_num_steps $warmup_num_steps \
-          --train_batch_size $train_batch_size --val_batch_size $val_batch_size --max_length $max_length \
-          --dynamic_loader --max_tokens $max_tokens \
+          --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
+          --max_tokens $max_tokens --max_length $max_length \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
-
-sleep inf
-sleep inf
-sleep inf
+          # --dynamic_loader \
+          # --stack_seq \

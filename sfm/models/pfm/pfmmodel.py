@@ -91,11 +91,13 @@ class PFMModel(Model):
         return self.net(batched_data, **kwargs)
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
+        seq_aa = batch_data["x"]
         logits = model_output[0]
         node_output = model_output[1]
         mask_pos = model_output[2]
         mask_aa = model_output[3]
-        bs = logits.shape[0]
+
+        bs = seq_aa.shape[0]
         output = self.loss(batch_data, logits, node_output, mask_pos, mask_aa)
         loss = output[0]
         if len(output) > 1:
@@ -129,6 +131,7 @@ class PFM(nn.Module):
         self.sentence_out_dim = args.sentence_class_num
         self.lm_output_learned_bias = None
         self.proj_out = None
+        self.args = args
 
         # Remove head is set to true during fine-tuning
         self.load_softmax = not args.ft  # getattr(args, "remove_head", False)
@@ -136,39 +139,40 @@ class PFM(nn.Module):
         # self.decoder = NodeDecoder(
         #     args.encoder_embed_dim, args.encoder_attention_heads, args=args
         # )
-        self.decoder = UnifiedDecoder(
-            args,
-            num_pred_attn_layer=args.num_pred_attn_layer,
-            embedding_dim=args.encoder_embed_dim,
-            num_attention_heads=args.encoder_attention_heads,
-            ffn_embedding_dim=args.encoder_ffn_embed_dim,
-            dropout=args.dropout,
-            attention_dropout=args.attention_dropout,
-            activation_dropout=args.act_dropout,
-            num_3d_bias_kernel=args.num_3d_bias_kernel,
-            num_edges=args.num_edges,
-            num_atoms=args.num_atoms,
-        )
-
-        self.masked_lm_pooler = nn.Linear(
-            args.encoder_embed_dim, args.encoder_embed_dim
-        )
-        self.pooler_activation = get_activation_fn(args.pooler_activation_fn)
-
-        self.lm_head_transform_weight = nn.Linear(
-            args.encoder_embed_dim, args.encoder_embed_dim
-        )
-        self.activation_fn = get_activation_fn(args.activation_fn)
-        self.layer_norm = LayerNorm(args.encoder_embed_dim)
+        # self.decoder = UnifiedDecoder(
+        #     args,
+        #     num_pred_attn_layer=args.num_pred_attn_layer,
+        #     embedding_dim=args.encoder_embed_dim,
+        #     num_attention_heads=args.encoder_attention_heads,
+        #     ffn_embedding_dim=args.encoder_ffn_embed_dim,
+        #     dropout=args.dropout,
+        #     attention_dropout=args.attention_dropout,
+        #     activation_dropout=args.act_dropout,
+        #     num_3d_bias_kernel=args.num_3d_bias_kernel,
+        #     num_edges=args.num_edges,
+        #     num_atoms=args.num_atoms,
+        # )
 
         self.lm_output_learned_bias = None
 
+        self.fc_pmlm_q = nn.Linear(
+            args.encoder_embed_dim, args.encoder_embed_dim, bias=False
+        )
+        self.fc_pmlm_k = nn.Linear(
+            args.encoder_embed_dim, args.encoder_embed_dim, bias=False
+        )
+
         if self.load_softmax:
-            self.lm_output_learned_bias = nn.Parameter(torch.zeros(1))
+            # self.lm_output_learned_bias = nn.Parameter(torch.zeros(1))
 
             if not self.share_input_output_embed:
+                # self.embed_out = nn.Linear(
+                #     args.encoder_embed_dim, args.num_residues, bias=False
+                # )
                 self.embed_out = nn.Linear(
-                    args.encoder_embed_dim, args.num_residues, bias=False
+                    args.encoder_embed_dim,
+                    args.num_residues * args.num_residues,
+                    bias=False,
                 )
 
             if args.sent_loss:
@@ -213,11 +217,6 @@ class PFM(nn.Module):
                   is the prediction logit for NSP task and is only computed if
                   this is specified in the input arguments.
         """
-        # transfer batch from tuple to dict
-        # idxs, attn_bias, attn_edge_type, spatial_pos, in_degree, in_degree, x, edge_input, y, pos, node_type_edge, node_mask = batched_data
-
-        # batched_data = {"x": x, "pos": pos, "node_type_edge": node_type_edge, "node_mask": node_mask, "attn_bias": attn_bias, "spatial_pos": spatial_pos, "edge_input": edge_input, "attn_edge_type": attn_edge_type}
-
         (
             x,
             _,
@@ -238,21 +237,45 @@ class PFM(nn.Module):
         #     x, attn_bias, delta_pos, inner_states
         # )
 
-        node_output = self.decoder(
-            batched_data, x, pos, padding_mask, mask_pos=mask_pos
-        )
+        # node_output = self.decoder(
+        #     batched_data, x, pos, padding_mask, mask_pos=mask_pos
+        # )
 
-        x = inner_states[-1].transpose(0, 1)
+        diag_mask = None
+        x = x.transpose(0, 1)  # [B, L, H]
 
-        # FIXME: not compatible with batched_data
+        # q = self.fc_pmlm_q(x)
+        # k = self.fc_pmlm_k(x)
+        # x = torch.einsum("zic,zjc->zijc", q, k)  # [B, L, L, H]
 
-        # project masked tokens only
-        if masked_tokens is not None:
-            x = x[masked_tokens, :]
+        # # memory efficient implementation
+        # # mask_aa is a boolean mask of shape [B, L, 1]
 
-        x = self.layer_norm(self.activation_fn(self.lm_head_transform_weight(x)))
+        B, _, H = x.shape
+        masked_indices = torch.where(mask_aa.squeeze(-1).bool())
+        x = x[masked_indices[0], masked_indices[1]]  # [num_masked, H]
 
-        # pooled_output = self.pooler_activation(self.masked_lm_pooler(sentence_rep))
+        # Compute q and k only for the selected positions
+        q_masked = self.fc_pmlm_q(x)  # [num_masked, H]
+        k_masked = self.fc_pmlm_k(x)  # [num_masked, H]
+
+        masked_per_batch = mask_aa.squeeze(-1).sum(dim=1)
+
+        q_split = torch.split(q_masked, masked_per_batch.tolist())
+        k_split = torch.split(k_masked, masked_per_batch.tolist())
+
+        result_list = []
+        mask_list = []
+        for i in range(B):
+            x_i = torch.einsum(
+                "ih,jh->ijh", q_split[i], k_split[i]
+            )  # [mask_i_len, mask_i_len, H]
+            result_list.append(x_i.view(-1, H))
+            diag_mask = torch.eye(x_i.size(0), dtype=torch.bool, device=x_i.device)
+            mask_list.append(diag_mask.view(-1).bool())
+
+        x = torch.cat(result_list, dim=0)
+        diag_mask = torch.cat(mask_list, dim=0)
 
         # project back to size of vocabulary
         if self.share_input_output_embed and hasattr(
@@ -260,7 +283,7 @@ class PFM(nn.Module):
         ):
             x = F.linear(x, self.sentence_encoder.embed_tokens.weight)
         elif self.embed_out is not None:
-            x = self.embed_out(x)
+            x = self.embed_out(x)  # [B, L, L, vocab^2]
 
         if self.lm_output_learned_bias is not None and self.load_softmax:
             x = x + self.lm_output_learned_bias
@@ -269,71 +292,7 @@ class PFM(nn.Module):
         if self.proj_out is not None:
             x = self.proj_out(x)
 
-        # if self.sentence_projection_layer:
-        #     self.sentence_projection_layer(pooled_output)
-
-        return (x, node_output, mask_pos, mask_aa)
-        # return x, node_output, {
-        #     "inner_states": inner_states,
-        #     "pooled_output": pooled_output,
-        #     "sentence_logits": sentence_logits,
-        # }
-
-    def upgrade_state_dict_named(self, state_dict, name):
-        tmp_dict = {}
-        if not self.load_softmax:
-            for k in list(state_dict.keys()):
-                if (
-                    "embed_out.weight" in k
-                    or "sentence_projection_layer.weight" in k
-                    or "lm_output_learned_bias" in k
-                    or "regression_lm_head_list" in k
-                    or "regression_ln_list" in k
-                    or "regression_embed_out_list" in k
-                    or "classification_lm_head_list" in k
-                    or "classification_ln_list" in k
-                    or "classification_embed_out_list" in k
-                ):
-                    print("Removing", k, "(because load_softmax is False)")
-                    tmp_dict[k] = state_dict[k]
-                    del state_dict[k]
-            proj_weight = torch.rand(self.proj_out.weight.shape)
-            proj_bias = torch.rand(self.proj_out.bias.shape)
-
-            # lm_head_transform_weight_weight = torch.rand(self.lm_head_transform_weight.weight.shape)
-            # lm_head_transform_weight_bias = torch.rand(self.lm_head_transform_weight.bias.shape)
-            lm_head_transform_weight_weight = tmp_dict.get(
-                "encoder.regression_lm_head_list.0.weight", None
-            )
-            lm_head_transform_weight_bias = tmp_dict.get(
-                "encoder.regression_lm_head_list.0.bias", None
-            )
-            ln_weight = tmp_dict.get("encoder.regression_ln_list.0.weight", None)
-            ln_bias = tmp_dict.get("encoder.regression_ln_list.0.bias", None)
-
-            self.init_state_dict_weight(proj_weight, proj_bias)
-            # self.init_state_dict_weight(lm_head_transform_weight_weight, lm_head_transform_weight_bias)
-
-            state_dict["encoder.proj_out.weight"] = state_dict.get(
-                "encoder.proj_out.weight", proj_weight
-            )
-            state_dict["encoder.proj_out.bias"] = state_dict.get(
-                "encoder.proj_out.bias", proj_bias
-            )
-            state_dict["encoder.lm_head_transform_weight.weight"] = state_dict.get(
-                "encoder.lm_head_transform_weight.weight",
-                lm_head_transform_weight_weight,
-            )
-            state_dict["encoder.lm_head_transform_weight.bias"] = state_dict.get(
-                "encoder.lm_head_transform_weight.bias", lm_head_transform_weight_bias
-            )
-            state_dict["encoder.layer_norm.weight"] = state_dict.get(
-                "encoder.layer_norm.weight", ln_weight
-            )
-            state_dict["encoder.layer_norm.bias"] = state_dict.get(
-                "encoder.layer_norm.bias", ln_bias
-            )
-        return state_dict
+        return (x, None, diag_mask, mask_aa)
 
     def init_state_dict_weight(self, weight, bias):
         torch.nn.init.kaiming_uniform_(weight, a=math.sqrt(5))

@@ -19,4 +19,5 @@ sentencepiece
 sacremoses
 mendeleev
 biopython
+dm-tree
 torch @ https://download.pytorch.org/whl/cu118/torch-2.1.0%2Bcu118-cp39-cp39-linux_x86_64.whl#sha256=8ecf52ba49cfd3b7303d4e57e7b5c2106b77dbc9bdeaf880870162138bc70e18

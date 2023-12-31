@@ -13,7 +13,12 @@ import torch
 from deepspeed.runtime.dataloader import DeepSpeedDataLoader
 from deepspeed.runtime.pipe.topology import PipeModelDataParallelTopology
 from torch.nn.parallel import DistributedDataParallel
-from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
+from torch.utils.data import (
+    DataLoader,
+    DistributedSampler,
+    IterableDataset,
+    RandomSampler,
+)
 
 from sfm.data.data_utils import batch_by_size
 from sfm.data.dataset import Batch, Data, FoundationModelDataset
@@ -185,6 +190,7 @@ class SingleNodeAccelerator(Accelerator):
 
         self.optimizer.zero_grad()
         success_batch_count = 0
+        sample_count = 0
         for batch_data in grouped_batch_data:
             self.model.before_batch()
             batch_data = move_to_device(batch_data, self.device)
@@ -199,7 +205,8 @@ class SingleNodeAccelerator(Accelerator):
             else:
                 success_batch_count += 1
                 self.scaler.backward(loss)
-
+            if model_output.num_examples is not None:
+                sample_count += model_output.num_examples
             self.model.after_batch()
 
         if success_batch_count > 0:
@@ -207,6 +214,7 @@ class SingleNodeAccelerator(Accelerator):
 
         self.lr_scheduler.step()
 
+        model_output.num_examples = sample_count
         return model_output
 
     def valid_step(self, batch_data: Batch) -> ValidLogOutput:
@@ -331,6 +339,7 @@ class DdpAccelerator(SingleNodeAccelerator):
         self.optimizer.zero_grad()
 
         success_batch_count = 0
+        sample_count = 0
         for idx, batch_data in enumerate(grouped_batch_data):
             self.model.before_batch()
             batch_data = move_to_device(batch_data, self.device)
@@ -358,13 +367,14 @@ class DdpAccelerator(SingleNodeAccelerator):
                     success_batch_count += 1
                     self.scaler.backward(loss)
 
+            sample_count += model_output.num_examples
             self.model.after_batch()
 
         if success_batch_count > 0:
             self.scaler.step(self.model, self.optimizer, self.args.gradient_clipping)
 
         self.lr_scheduler.step()
-
+        model_output.num_examples = sample_count
         return model_output
 
     def build_data_loader(
@@ -395,16 +405,25 @@ class DdpAccelerator(SingleNodeAccelerator):
                 train_batch_size_per_gpu > 0
             ), "train_batch_size_per_gpu should be greater than 0"
 
-            self.train_sampler = DistributedSampler(
-                train_data, num_replicas=self.world_size, rank=self.rank
-            )
-            self.train_data_loader = DataLoader(
-                train_data,
-                sampler=self.train_sampler,
-                batch_size=train_batch_size_per_gpu,
-                collate_fn=train_data.collate,
-                drop_last=True,
-            )
+            if not isinstance(train_data, IterableDataset):
+                self.train_sampler = DistributedSampler(
+                    train_data, num_replicas=self.world_size, rank=self.rank
+                )
+                self.train_data_loader = DataLoader(
+                    train_data,
+                    sampler=self.train_sampler,
+                    batch_size=train_batch_size_per_gpu,
+                    collate_fn=train_data.collate,
+                    drop_last=True,
+                )
+            else:
+                self.train_sampler = None
+                self.train_data_loader = DataLoader(
+                    train_data,
+                    batch_size=train_batch_size_per_gpu,
+                    collate_fn=train_data.collate,
+                    drop_last=True,
+                )
 
         if val_data:
             valid_batch_size_per_gpu = self.args.val_batch_size // (
@@ -428,7 +447,8 @@ class DdpAccelerator(SingleNodeAccelerator):
             self.valid_data_loader = None
 
     def before_epoch(self, epoch: int):
-        self.train_sampler.set_epoch(epoch)
+        if self.train_sampler is not None:
+            self.train_sampler.set_epoch(epoch)
 
     def save_checkpoint(self, ckpt_id: str, extra_state: Optional[dict] = None):
         if self.rank == 0:
@@ -865,6 +885,7 @@ class DeepSpeedAccelerator(Accelerator):
                 log_output={"loss": loss},
             )
         else:
+            sample_count = 0
             for idx, batch_data in enumerate(grouped_batch_data):
                 self.model_engine.tput_timer.start()
                 batch_data = move_to_device(
@@ -875,11 +896,13 @@ class DeepSpeedAccelerator(Accelerator):
 
                 model_output = self.model.compute_loss(pred, batch_data)
                 loss = model_output.loss
+                sample_count += model_output.num_examples
 
                 self.model.after_batch()
 
                 self.model_engine.backward(loss)
                 self.model_engine.step()
+            model_output.num_examples = sample_count
 
         torch.cuda.empty_cache()
         return model_output

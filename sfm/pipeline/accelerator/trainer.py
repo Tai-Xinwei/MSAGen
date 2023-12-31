@@ -83,6 +83,7 @@ class LogAccumulator(object):
         self.start_time = time.time()
         self.allreduce_fn = allreduce_fn
         self.world_size = world_size
+        self.extra_log["total_acc_sample"] = 0
 
     def add(self, loss, num_examples, extra_log=None):
         if loss is None:
@@ -106,13 +107,17 @@ class LogAccumulator(object):
         if extra_log is not None:
             for k, v in extra_log.items():
                 if k not in self.extra_log and isinstance(v, (torch.Tensor, float)):
-                    if isinstance(v, torch.Tensor):
+                    if k == "total_acc_sample":
+                        continue
+                    elif isinstance(v, torch.Tensor):
                         self.extra_log[k] = v.item() * num_examples
                     else:
                         self.extra_log[k] = v * num_examples
                     self.extra_log_num[k] = 1 * num_examples
                 elif k in self.extra_log and isinstance(v, (torch.Tensor, float)):
-                    if isinstance(v, torch.Tensor):
+                    if k == "total_acc_sample":
+                        continue
+                    elif isinstance(v, torch.Tensor):
                         self.extra_log[k] += v.item() * num_examples
                     else:
                         self.extra_log[k] += v * num_examples
@@ -123,6 +128,8 @@ class LogAccumulator(object):
         self.num_examples = 0
         self.start_time = time.time()
         for k, v in self.extra_log.items():
+            if k == "total_acc_sample":
+                continue
             self.extra_log[k] = 0.0
             self.extra_log_num[k] = 0
 
@@ -141,6 +148,11 @@ class LogAccumulator(object):
             time.time() - self.start_time
         )
         self.extra_log_num["SamplePerSec"] = 1.0 / self.world_size
+
+        self.extra_log["total_acc_sample"] /= self.world_size
+        self.extra_log["total_acc_sample"] += self.num_examples
+        self.extra_log_num["total_acc_sample"] = 1.0 / self.world_size
+
         if self.world_size == 1 or self.allreduce_fn is None:
             return {k: v / self.extra_log_num[k] for k, v in self.extra_log.items()}
         else:
@@ -310,6 +322,7 @@ class Trainer(object):
             lr=lr,
             epoch=self.state.epoch,
             batch=self.state.batch,
+            total_samples=self.state.sample,
             global_step=self.state.global_step,
             extra_output=extra_output,
         )
@@ -415,37 +428,41 @@ class Trainer(object):
             # skip first batches
             data_iterator = iter(self.train_data_loader)
             data_iterator = self.skip_first_batches(data_iterator, self.start_iteration)
-
-            for grouped_batch_data in data_iterator:
-                model_output = self.accelerator.train_step(grouped_batch_data)
-                loss_accumulator.add(model_output.loss, model_output.num_examples)
-                interval_loss_accumulator.add(
-                    model_output.loss,
-                    model_output.num_examples,
-                    model_output.log_output,
-                )
-
-                # Log and save checkpoint
-                self.state.batch += 1
-                self.state.global_step += 1
-
-                if self.should_do_batch_validate():
-                    self.validate()
-
-                if self.should_log():
-                    log_output = self.build_log_output(
-                        # model_output.loss, model_output.log_output
-                        interval_loss_accumulator.averge_loss,
-                        interval_loss_accumulator.averge_log,
+            try:
+                for grouped_batch_data in data_iterator:
+                    model_output = self.accelerator.train_step(grouped_batch_data)
+                    loss_accumulator.add(model_output.loss, model_output.num_examples)
+                    interval_loss_accumulator.add(
+                        model_output.loss,
+                        model_output.num_examples,
+                        model_output.log_output,
                     )
-                    interval_loss_accumulator.reset()
-                    metric_logger.log(log_output, "train_inner")
 
-                if self.should_save_batch_checkpoint():
-                    checkpoint_name = (
-                        f"checkpoint_E{self.state.epoch}_B{self.state.batch}.pt"
-                    )
-                    self.save_checkpoint(checkpoint_name, self.state)
+                    # Log and save checkpoint
+                    self.state.batch += 1
+                    self.state.global_step += 1
+                    self.state.sample += model_output.num_examples
+
+                    if self.should_do_batch_validate():
+                        self.validate()
+
+                    if self.should_log():
+                        log_output = self.build_log_output(
+                            # model_output.loss, model_output.log_output
+                            interval_loss_accumulator.averge_loss,
+                            interval_loss_accumulator.averge_log,
+                        )
+                        interval_loss_accumulator.reset()
+                        metric_logger.log(log_output, "train_inner")
+
+                    if self.should_save_batch_checkpoint():
+                        checkpoint_name = (
+                            f"checkpoint_E{self.state.epoch}_B{self.state.batch}.pt"
+                        )
+                        self.save_checkpoint(checkpoint_name, self.state)
+            except StopIteration:
+                logger.info("StopIteration")
+                pass
 
             log_output = self.build_log_output(loss_accumulator.averge_loss)
             metric_logger.log(log_output, "train")
@@ -540,7 +557,7 @@ class Trainer(object):
         }
 
         if self.accelerator.world_size > 1:
-            process_index = self.args.local_rank
+            process_index = self.args.rank
             rng_file = os.path.join(checkpoint, f"rng_state_{process_index}.pth")
         else:
             rng_file = os.path.join(checkpoint, "rng_state.pth")
@@ -557,7 +574,7 @@ class Trainer(object):
             return
 
         if self.accelerator.world_size > 1:
-            process_index = self.args.local_rank
+            process_index = self.args.rank
             rng_file = os.path.join(checkpoint, f"rng_state_{process_index}.pth")
             if not os.path.isfile(rng_file):
                 logger.warning(
