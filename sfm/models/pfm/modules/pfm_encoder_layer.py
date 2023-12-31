@@ -12,6 +12,7 @@ from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.layer_norm import LayerNorm
 from sfm.modules.mem_eff_attn import MemEffAttn
 from sfm.modules.multihead_attention import MultiheadAttention
+from sfm.modules.multihead_attention_flash import FlashAttn
 from sfm.modules.quant_noise import quant_noise
 
 from .pfm_layer import Graph2DBias, Graph3DBias
@@ -95,7 +96,7 @@ class PFMEncoderLayer(nn.Module):
         self.sandwich_ln = sandwich_ln
         self.top_layer_norm = LayerNorm(self.embedding_dim, export=export)
         self.mid_layer_norm = LayerNorm(self.embedding_dim, export=export)
-        self.final_layer_norm = LayerNorm(ffn_embedding_dim, export=export)
+        # self.final_layer_norm = LayerNorm(ffn_embedding_dim, export=export)
 
         self.nl = nl
         self.args = args
@@ -104,15 +105,15 @@ class PFMEncoderLayer(nn.Module):
         # TODO: 2D attention bias needs carefully designed, features such as MSA should be included
         # self.graph_attn_bias = graph2dBias()
 
-        # TODO: reuse the 3D attention bias from Graphormer, modification may needed
-        self.graph_3d_bias = (
-            Graph3DBias(
-                num_heads=pfm_config.num_attention_heads,
-                num_kernel=pfm_config.num_3d_bias_kernel,
-            )
-            if pfm_config.add_3d
-            else None
-        )
+        # # TODO: reuse the 3D attention bias from Graphormer, modification may needed
+        # self.graph_3d_bias = (
+        #     Graph3DBias(
+        #         num_heads=pfm_config.num_attention_heads,
+        #         num_kernel=pfm_config.num_3d_bias_kernel,
+        #     )
+        #     if pfm_config.add_3d
+        #     else None
+        # )
 
         # dummy param for lora, do not remove
         self.dummy = nn.Linear(1, 1, bias=False)
@@ -124,7 +125,6 @@ class PFMEncoderLayer(nn.Module):
         self.fc2.reset_parameters()
         self.top_layer_norm.reset_parameters()
         self.mid_layer_norm.reset_parameters()
-        self.final_layer_norm.reset_parameters()
 
     def build_fc1(self, input_dim, output_dim, q_noise, qn_block_size):
         return quant_noise(nn.Linear(input_dim, output_dim), q_noise, qn_block_size)
@@ -144,6 +144,7 @@ class PFMEncoderLayer(nn.Module):
     ):
         # TODO: needs to be replaced by flash-att
         # return MemEffAttn(
+        # return FlashAttn(
         return MultiheadAttention(
             embed_dim,
             num_attention_heads,
@@ -153,6 +154,7 @@ class PFMEncoderLayer(nn.Module):
             qn_block_size=qn_block_size,
             d_tilde=d_tilde,
             add_rope=add_rope,
+            layer_norm=False,
         )
 
     def forward(
@@ -169,17 +171,17 @@ class PFMEncoderLayer(nn.Module):
         """
         # x: T x B x C
         self_3d_attn_bias = None
-        if self.pfm_config.add_3d:
-            # [bs, nHead, nnode, nnode]
-            self_3d_attn_bias = self.graph_3d_bias(self_attn_padding_mask, edge_feature)
-            # mae task need to mask the 3d attn bias
-            if mask_pos is not None and self.pfm_config.noise_mode == "mae":
-                self_3d_attn_bias = self_3d_attn_bias.masked_fill_(
-                    (
-                        (self_3d_attn_bias != float("-inf")) * mask_pos[:, None, :, :]
-                    ).bool(),
-                    0.0,
-                )
+        # if self.pfm_config.add_3d:
+        #     # [bs, nHead, nnode, nnode]
+        #     self_3d_attn_bias = self.graph_3d_bias(self_attn_padding_mask, edge_feature)
+        #     # mae task need to mask the 3d attn bias
+        #     if mask_pos is not None and self.pfm_config.noise_mode == "mae":
+        #         self_3d_attn_bias = self_3d_attn_bias.masked_fill_(
+        #             (
+        #                 (self_3d_attn_bias != float("-inf")) * mask_pos[:, None, :, :]
+        #             ).bool(),
+        #             0.0,
+        #         )
 
         residual = x
         x = self.top_layer_norm(x)
@@ -199,7 +201,6 @@ class PFMEncoderLayer(nn.Module):
         x = self.mid_layer_norm(x)
         x = self.activation_fn(self.fc1(x))
         x = self.activation_dropout_module(x)
-        x = self.final_layer_norm(x)
         x = self.fc2(x)
         x = self.dropout_module(x)
         x = residual + x

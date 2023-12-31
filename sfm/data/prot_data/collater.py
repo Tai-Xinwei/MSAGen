@@ -216,3 +216,245 @@ def collate_fn(samples: List[dict], vocab: Alphabet):
     batch["node_type_edge"] = node_type_edge
     # print("node_type_edge", node_type_edge.shape); exit()
     return batch
+
+
+def collate_ur50_fn(samples: List[dict], vocab: Alphabet):
+    """
+    Overload BaseWrapperDataset.collater
+    May be future changes need config
+
+    By default, the collater pads and batch all torch.Tensors (np.array will be converted) in the sample dicts
+    """
+    # max_tokens = Nres+2 (<cls> and <eos>)
+    max_tokens = max(len(s["aa"]) for s in samples)
+
+    int(vocab.prepend_bos)
+    batch = dict()
+
+    # batch["id"] = torch.tensor([s["id"] for s in samples], dtype=torch.long)
+    batch["naa"] = torch.tensor([len(s["aa"]) for s in samples], dtype=torch.long)
+
+    # (Nres+2,) -> (B, Nres+2)
+    batch["x"] = torch.cat(
+        [
+            pad_1d_unsqueeze(
+                torch.from_numpy(s["aa"]), max_tokens, 0, vocab.padding_idx
+            )
+            for s in samples
+        ]
+    )
+
+    batch["x_new"] = torch.cat(
+        [
+            pad_1d_unsqueeze(
+                torch.from_numpy(s["new_seq"]), max_tokens, 0, vocab.padding_idx
+            )
+            for s in samples
+        ]
+    )
+
+    # logger.debug("naa: {}".format(batch["x"].shape))
+    for prop_idx, prop_name in enumerate(
+        ["chem_polar", "net_charge", "hydropathy", "mol_mass"]
+    ):
+        batch[prop_name] = torch.cat(
+            [
+                pad_1d_unsqueeze(
+                    torch.from_numpy(s[prop_name]),
+                    max_tokens,
+                    0,
+                    vocab.unk_prop_feat[prop_idx],
+                )
+                for s in samples
+            ]
+        )
+    batch["hydropathy"] = batch["hydropathy"].unsqueeze(-1)
+    batch["mol_mass"] = batch["mol_mass"].unsqueeze(-1)
+
+    batch["masked_aa"] = torch.cat(
+        [
+            pad_1d_unsqueeze(
+                torch.from_numpy(s["masked_aa"]), max_tokens, 0, vocab.padding_idx
+            )
+            for s in samples
+        ]
+    ).unsqueeze(-1)
+
+    batch["mask_pos"] = torch.cat(
+        [
+            pad_1d_unsqueeze(
+                torch.from_numpy(s["mask_pos"]), max_tokens, 0, vocab.padding_idx
+            )
+            for s in samples
+        ]
+    ).unsqueeze(-1)
+
+    return batch
+
+
+def collate_downstream_fn(samples: List[dict], vocab: Alphabet):
+    """
+    Overload BaseWrapperDataset.collater
+    May be future changes need config
+
+    By default, the collater pads and batch all torch.Tensors (np.array will be converted) in the sample dicts
+    """
+    # max_tokens = Nres+2 (<cls> and <eos>)
+    max_tokens = max(len(s["aa"]) for s in samples)
+
+    int(vocab.prepend_bos)
+    batch = dict()
+
+    batch["id"] = torch.tensor([s["id"] for s in samples], dtype=torch.long)
+    batch["naa"] = torch.tensor([len(s["aa"]) for s in samples], dtype=torch.long)
+
+    # (Nres+2,) -> (B, Nres+2)
+    batch["x"] = torch.cat(
+        [
+            pad_1d_unsqueeze(
+                torch.from_numpy(s["aa"]), max_tokens, 0, vocab.padding_idx
+            )
+            for s in samples
+        ]
+    )
+    # logger.debug("naa: {}".format(batch["x"].shape))
+    for prop_idx, prop_name in enumerate(
+        ["chem_polar", "net_charge", "hydropathy", "mol_mass"]
+    ):
+        batch[prop_name] = torch.cat(
+            [
+                pad_1d_unsqueeze(
+                    torch.from_numpy(s[prop_name]),
+                    max_tokens,
+                    0,
+                    vocab.unk_prop_feat[prop_idx],
+                )
+                for s in samples
+            ]
+        )
+    batch["hydropathy"] = batch["hydropathy"].unsqueeze(-1)
+    batch["mol_mass"] = batch["mol_mass"].unsqueeze(-1)
+    batch["target"] = torch.cat([torch.from_numpy(s["target"]) for s in samples])
+    batch["target_offset"] = torch.tensor(
+        [len(s["target"]) for s in samples], dtype=torch.long
+    )
+
+    return batch
+
+
+def collate_multiseq_downstream_fn(samples: List[dict], vocab: Alphabet):
+    """
+    Overload BaseWrapperDataset.collater
+    May be future changes need config
+
+    By default, the collater pads and batch all torch.Tensors (np.array will be converted) in the sample dicts
+    """
+    # max_tokens = Nres+2 (<cls> and <eos>)
+    batch = dict()
+    batch["id"] = torch.tensor([s["id"] for s in samples], dtype=torch.long)
+    batch["target"] = torch.cat([torch.from_numpy(s["target"]) for s in samples])
+    batch["target_offset"] = torch.tensor(
+        [len(s["target"]) for s in samples], dtype=torch.long
+    )
+
+    idx = 0
+    while True:
+        if f"aa_{idx}" not in samples[0]:
+            break
+
+        max_tokens = max(len(s[f"aa_{idx}"]) for s in samples)
+        batch[f"naa_{idx}"] = torch.tensor(
+            [len(s[f"aa_{idx}"]) for s in samples], dtype=torch.long
+        )
+
+        # (Nres+2,) -> (B, Nres+2)
+        batch[f"x_{idx}"] = torch.cat(
+            [
+                pad_1d_unsqueeze(
+                    torch.from_numpy(s[f"aa_{idx}"]), max_tokens, 0, vocab.padding_idx
+                )
+                for s in samples
+            ]
+        )
+        # logger.debug("naa: {}".format(batch["x"].shape))
+        for prop_idx, prop_name in enumerate(
+            [
+                f"chem_polar_{idx}",
+                f"net_charge_{idx}",
+                f"hydropathy_{idx}",
+                f"mol_mass_{idx}",
+            ]
+        ):
+            batch[prop_name] = torch.cat(
+                [
+                    pad_1d_unsqueeze(
+                        torch.from_numpy(s[prop_name]),
+                        max_tokens,
+                        0,
+                        vocab.unk_prop_feat[prop_idx],
+                    )
+                    for s in samples
+                ]
+            )
+        batch[f"hydropathy_{idx}"] = batch[f"hydropathy_{idx}"].unsqueeze(-1)
+        batch[f"mol_mass_{idx}"] = batch[f"mol_mass_{idx}"].unsqueeze(-1)
+        idx += 1
+    return batch
+
+
+def collate_secondary_structure_fn(samples: List[dict], vocab: Alphabet):
+    """
+    Overload BaseWrapperDataset.collater
+    May be future changes need config
+
+    By default, the collater pads and batch all torch.Tensors (np.array will be converted) in the sample dicts
+    """
+    # max_tokens = Nres+2 (<cls> and <eos>)
+    max_tokens = max(len(s["aa"]) for s in samples)
+
+    int(vocab.prepend_bos)
+    batch = dict()
+
+    batch["id"] = torch.tensor([s["id"] for s in samples], dtype=torch.long)
+    batch["naa"] = torch.tensor([len(s["aa"]) for s in samples], dtype=torch.long)
+
+    # (Nres+2,) -> (B, Nres+2)
+    batch["x"] = torch.cat(
+        [
+            pad_1d_unsqueeze(
+                torch.from_numpy(s["aa"]), max_tokens, 0, vocab.padding_idx
+            )
+            for s in samples
+        ]
+    )
+    # logger.debug("naa: {}".format(batch["x"].shape))
+    for prop_idx, prop_name in enumerate(
+        ["chem_polar", "net_charge", "hydropathy", "mol_mass"]
+    ):
+        batch[prop_name] = torch.cat(
+            [
+                pad_1d_unsqueeze(
+                    torch.from_numpy(s[prop_name]),
+                    max_tokens,
+                    0,
+                    vocab.unk_prop_feat[prop_idx],
+                )
+                for s in samples
+            ]
+        )
+    batch["hydropathy"] = batch["hydropathy"].unsqueeze(-1)
+    batch["mol_mass"] = batch["mol_mass"].unsqueeze(-1)
+    batch["target"] = torch.cat(
+        [
+            pad_1d_unsqueeze(torch.from_numpy(s["target"]), max_tokens, 0, 0)
+            for s in samples
+        ]
+    )
+    batch["target_mask"] = torch.cat(
+        [
+            pad_1d_unsqueeze(torch.from_numpy(s["target_mask"]), max_tokens, 0, 0)
+            for s in samples
+        ]
+    )
+    # batch["target_offset"] = torch.tensor([len(s['target']) for s in samples], dtype=torch.long)
+    return batch

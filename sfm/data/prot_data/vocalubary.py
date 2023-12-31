@@ -113,6 +113,8 @@ class Alphabet(object):
         self.all_special_tokens = ["<eos>", "<unk>", "<pad>", "<cls>", "<mask>"]
         self.unique_no_split_tokens = self.all_toks
 
+        self.standard_toks_idx = [self.tok_to_idx[tok] for tok in self.standard_toks]
+
         self.unk_prop_feat = PROP_FEAT["Unknown"]
         self.idx_prop_feat = dict(
             (self.tok_to_idx[k], PROP_FEAT[k])

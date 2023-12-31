@@ -39,6 +39,7 @@ class MultiheadAttention(nn.Module):
         v_bias=True,
         o_bias=True,
         add_rope=False,
+        layer_norm=True,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -81,7 +82,10 @@ class MultiheadAttention(nn.Module):
             nn.Linear(embed_dim, embed_dim, bias=o_bias), q_noise, qn_block_size
         )
 
-        self.layer_norm = LayerNorm(embed_dim)
+        if layer_norm:
+            self.layer_norm = LayerNorm(embed_dim)
+        else:
+            self.layer_norm = None
 
         self.reset_parameters(d_tilde)
 
@@ -115,7 +119,8 @@ class MultiheadAttention(nn.Module):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         if self.out_proj.bias is not None:
             nn.init.constant_(self.out_proj.bias, 0.0)
-        self.layer_norm.reset_parameters()
+        if self.layer_norm is not None:
+            self.layer_norm.reset_parameters()
 
     def forward(
         self,
@@ -267,7 +272,8 @@ class MultiheadAttention(nn.Module):
 
         attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
 
-        attn = self.layer_norm(attn)
+        if self.layer_norm is not None:
+            attn = self.layer_norm(attn)
 
         attn = self.out_proj(attn)
 

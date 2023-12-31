@@ -10,7 +10,11 @@ try:
     logger.info("apex is installed, using FusedAdam with fp16 optimizer states")
 except:
     logger.info("apex is not installed, using pytorch AdamW with fp32 optimizer states")
-    from sfm.utils.optim.adam import AdamW as Adam  # isort:skip
+    from sfm.utils.optim.mem_eff_adam import (
+        MemoryEfficientFP16Adam as Adam,  # isort:skip
+    )
+
+from sfm.utils.optim.adam import AdamW
 
 
 def split_param_and_layer_name(name_list: List[str]) -> Tuple[List[str], List[int]]:
@@ -89,6 +93,31 @@ def process_param(
 def myAdam(
     net,
     impl=Adam,
+    freeze_list: List = [],
+    unfreeze_list: List = [],
+    mfm_lora=False,
+    **kwargs,
+):
+    assert (
+        len(freeze_list) == 0 or len(unfreeze_list) == 0
+    ), "freeze_list and unfreeze_list cannot be set at the same time"
+
+    new_param_groups = []
+    param_groups = process_param(
+        net,
+        freeze_list=freeze_list,
+        unfreeze_list=unfreeze_list,
+        mfm_lora=mfm_lora,
+        **kwargs,
+    )
+    for param_group in param_groups:
+        new_param_groups.extend([param_group])
+    return impl(new_param_groups, **kwargs), param_groups
+
+
+def myAdamW(
+    net,
+    impl=AdamW,
     freeze_list: List = [],
     unfreeze_list: List = [],
     mfm_lora=False,

@@ -5,45 +5,53 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
-from sfm.criterions.mae3d import ProteinMAE3dCriterions
-from sfm.data.prot_data.dataset import BatchedDataDataset, ProteinLMDBDataset
+from sfm.criterions.mae3d import ProteinMAE3dCriterions, ProteinMLM, ProteinPMLM
+from sfm.data.prot_data.dataset import (
+    BatchedDataDataset,
+    PackedUR50LMDBDataset,
+    ProteinLMDBDataset,
+    StackedSequenceDataset,
+    StackedSequenceIterableDataset,
+    UR50LMDBDataset,
+)
 from sfm.logging import logger
 from sfm.models.pfm.pfm_config import PFMConfig
+from sfm.models.pfm.pfm_optimizer import DECAY_COSINE_RATE, groupWarmupDecayLR, myAdam
 from sfm.models.pfm.pfmmodel import PFMModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils.cli_utils import cli
-from sfm.utils.optim.optimizer import myAdam
-from sfm.utils.optim.set_lr import groupWarmupDecayLR
 
 
 @cli(DistributedTrainConfig, PFMConfig)
 def main(args) -> None:
-    assert (
-        args.data_path is not None and len(args.data_path) > 0
-    ), f"lmdb_path is {args.data_path} it should not be None or empty"
+    trainset = PackedUR50LMDBDataset(args, args.train_data_path)
+    valset = UR50LMDBDataset(args, args.valid_data_path)
 
-    dataset = ProteinLMDBDataset(args)
+    if args.stack_seq:
+        train_data = StackedSequenceIterableDataset(
+            trainset,
+            args=args,
+        )
+    else:
+        train_data = BatchedDataDataset(
+            trainset,
+            args=args,
+            vocab=trainset.vocab,
+        )
 
-    trainset, valset = dataset.split_dataset(sort=False)
-
-    train_data = BatchedDataDataset(
-        trainset,
-        args=args,
-        vocab=dataset.vocab,
-    )
     val_data = BatchedDataDataset(
         valset,
         args=args,
-        vocab=dataset.vocab,
+        vocab=trainset.vocab,
     )
 
-    model = PFMModel(args, loss_fn=ProteinMAE3dCriterions)
+    model = PFMModel(args, loss_fn=ProteinPMLM)
 
     optimizer, _ = myAdam(
         model,
         lr=args.max_lr,
-        betas=[0.9, 0.999],
+        betas=[0.9, 0.98],
         weight_decay=args.weight_decay,
         eps=1e-8,
     )
@@ -53,6 +61,8 @@ def main(args) -> None:
         total_num_steps=args.total_num_steps,
         warmup_max_lr=args.max_lr,
         warmup_num_steps=args.warmup_num_steps,
+        d_tilde=8,
+        decay_type=DECAY_COSINE_RATE,
     )
 
     logger.info(

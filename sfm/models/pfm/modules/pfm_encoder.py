@@ -253,6 +253,21 @@ class PFMEncoder(nn.Module):
 
         return mask_aa, mask_pos, padding_mask, eos_mask
 
+    def _set_bert_mask_strategy(self, mask_aa, mask_pos, residue_seq, x_0):
+        n_graph, n_node = residue_seq.size()[:2]
+
+        cls_mask = (x_0[:, :]).eq(0)
+        padding_mask = (x_0[:, :]).eq(1)  # B x T x 1
+        eos_mask = (x_0[:, :]).eq(2)
+
+        mask_aa = mask_aa.masked_fill(cls_mask.bool().unsqueeze(-1), False)
+        mask_aa = mask_aa.masked_fill(padding_mask.bool().unsqueeze(-1), False)
+        mask_aa = mask_aa.masked_fill(eos_mask.bool().unsqueeze(-1), False)
+
+        residue_seq = torch.where(cls_mask | eos_mask, x_0, residue_seq)
+
+        return mask_aa, cls_mask, padding_mask, eos_mask, residue_seq
+
     def build_transformer_sentence_encoder_layer(
         self,
         embedding_dim,
@@ -301,18 +316,39 @@ class PFMEncoder(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # compute padding mask. This is needed for multi-head attention
 
-        residue_seq = batched_data["x"]
-        mask_aa = batched_data["masked_aa"]
-        mask_pos = batched_data["mask_pos"]
-        ori_pos = batched_data["pos"]
+        with torch.no_grad():
+            if "x_new" in batched_data.keys():
+                residue_seq = batched_data["x_new"].clone()
+            else:
+                residue_seq = batched_data["x"].clone()
+            x_0 = batched_data["x"].clone()
+            mask_aa = batched_data["masked_aa"]
+            mask_pos = batched_data["mask_pos"]
+
+        # ori_pos = batched_data["pos"]
 
         n_graph, n_node = residue_seq.size()[:2]
 
-        mask_aa, mask_pos, padding_mask, _ = self._set_mask(
-            mask_aa, mask_pos, residue_seq
-        )
+        # mask_aa, mask_pos, padding_mask, _ = self._set_mask(
+        #     mask_aa, mask_pos, residue_seq
+        # )
 
-        pos, time = self._set_noise(ori_pos, mask_pos)
+        # # pos, time = self._set_noise(ori_pos, mask_pos)
+        pos, time = None, None
+        # 1 is pad token, 2 is eos token
+
+        (
+            mask_aa,
+            cls_mask,
+            padding_mask,
+            eos_mask,
+            residue_seq,
+        ) = self._set_bert_mask_strategy(mask_aa, mask_pos, residue_seq, x_0)
+
+        mask_seq = residue_seq[mask_aa.squeeze(-1)]
+        assert (
+            torch.sum((mask_seq == 0) | (mask_seq == 2)) == 0
+        ), "residue_seq =- 0 | 2 should not be masked"
 
         x, edge_feature, delta_pos = self.pfm_emb(
             batched_data,

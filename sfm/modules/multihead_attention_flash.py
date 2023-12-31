@@ -8,8 +8,14 @@ import math
 from typing import Optional, Tuple
 
 import torch
-import torch.nn.functional as F
 from torch import Tensor, nn
+
+from sfm.logging import logger
+
+try:
+    from flash_attn import flash_attn_func, flash_attn_qkvpacked_func
+except:
+    logger.info("flash_attn not installed, use default attn")
 
 from .FairseqDropout import FairseqDropout
 from .layer_norm import Fp32LayerNorm, LayerNorm
@@ -17,7 +23,7 @@ from .quant_noise import quant_noise
 from .rotary_embedding import RotaryEmbedding
 
 
-class MultiheadAttentionFlash(nn.Module):
+class FlashAttn(nn.Module):
     """Multi-headed attention.
 
     See "Attention Is All You Need" for more details.
@@ -35,11 +41,8 @@ class MultiheadAttentionFlash(nn.Module):
         q_noise=0.0,
         qn_block_size=8,
         d_tilde=1,
-        k_bias=False,
-        q_bias=True,
-        v_bias=True,
-        o_bias=True,
         add_rope=False,
+        layer_norm=False,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -48,9 +51,8 @@ class MultiheadAttentionFlash(nn.Module):
         self.qkv_same_dim = self.kdim == embed_dim and self.vdim == embed_dim
 
         self.num_heads = num_heads
-        self.dropout_module = FairseqDropout(
-            dropout, module_name=self.__class__.__name__
-        )
+        self.dropout = dropout
+
         self.head_dim = embed_dim // num_heads
         assert (
             self.head_dim * num_heads == self.embed_dim
@@ -69,17 +71,17 @@ class MultiheadAttentionFlash(nn.Module):
 
         # @ shengjie added: no key bias for stability
         self.k_proj = quant_noise(
-            nn.Linear(self.kdim, embed_dim, bias=k_bias), q_noise, qn_block_size
+            nn.Linear(self.kdim, embed_dim, bias=False), q_noise, qn_block_size
         )
         self.v_proj = quant_noise(
-            nn.Linear(self.vdim, embed_dim, bias=q_bias), q_noise, qn_block_size
+            nn.Linear(self.vdim, embed_dim, bias=bias), q_noise, qn_block_size
         )
         self.q_proj = quant_noise(
-            nn.Linear(embed_dim, embed_dim, bias=v_bias), q_noise, qn_block_size
+            nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
         )
 
         self.out_proj = quant_noise(
-            nn.Linear(embed_dim, embed_dim, bias=o_bias), q_noise, qn_block_size
+            nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
         )
 
         self.layer_norm = LayerNorm(embed_dim)
@@ -165,29 +167,29 @@ class MultiheadAttentionFlash(nn.Module):
         q = self.q_proj(query)
         k = self.k_proj(query)
         v = self.v_proj(query)
-
         q *= self.scaling
 
         q = (
             q.contiguous()
             .view(tgt_len, bsz, self.num_heads, self.head_dim)
-            .permute(1, 2, 0, 3)
+            .transpose(0, 1)
         )
+
         if k is not None:
             k = (
                 k.contiguous()
-                .view(-1, bsz, self.num_heads, self.head_dim)
-                .permute(1, 2, 0, 3)
+                .view(src_len, bsz, self.num_heads, self.head_dim)
+                .transpose(0, 1)
             )
         if v is not None:
             v = (
                 v.contiguous()
-                .view(-1, bsz, self.num_heads, self.head_dim)
-                .permute(1, 2, 0, 3)
+                .view(src_len, bsz, self.num_heads, self.head_dim)
+                .transpose(0, 1)
             )
 
         assert k is not None
-        assert k.size(2) == src_len
+        assert k.size(1) == src_len
 
         # This is part of a workaround to get around fork/join parallelism
         # not supporting Optional types.
@@ -199,52 +201,46 @@ class MultiheadAttentionFlash(nn.Module):
             q, k = self.rot_emb(q, k)
 
         if key_padding_mask is not None:
-            assert key_padding_mask.size(0) == bsz
-            assert key_padding_mask.size(1) == src_len
-            key_padding_mask = (
-                ~key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool)
-            )
+            if key_padding_mask.bool().any():
+                attn_mask = torch.zeros(
+                    (bsz, self.num_heads, tgt_len, src_len),
+                    device=q.device,
+                    dtype=q.dtype,
+                )
+                attn_mask = attn_mask.masked_fill(
+                    key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
+                    float("-inf"),
+                )
+            else:
+                attn_mask = None
 
-        with torch.backends.cuda.sdp_kernel(
-            enable_math=True, enable_mem_efficient=True, enable_flash=False
-        ):
-            attn = F.scaled_dot_product_attention(q, k, v, attn_mask=key_padding_mask)
+        if attn_bias is not None:
+            raise NotImplementedError("mem efficient attn not support attn_bias")
 
-        attn = attn.permute(2, 0, 1, 3).view(tgt_len, bsz, -1)
+        if attn_mask is None:
+            attn = flash_attn_func(
+                q, k, v, dropout_p=self.dropout
+            )  # [B, tgt_len, nhead, ndim]
+        else:
+            q = q.permute(0, 2, 1, 3)
+            k = k.permute(0, 2, 1, 3)
+            v = v.permute(0, 2, 1, 3)
+            with torch.backends.cuda.sdp_kernel(
+                enable_math=True, enable_mem_efficient=True, enable_flash=False
+            ):
+                attn = torch.nn.functional.scaled_dot_product_attention(
+                    q,
+                    k,
+                    v,
+                    dropout_p=self.dropout,
+                    attn_mask=attn_mask,
+                )
+
+        attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
         attn = self.out_proj(attn)
+        attn_weights: Optional[Tensor] = None
 
-        return attn, None
+        return attn, attn_weights
 
     def apply_sparse_mask(self, attn_weights, tgt_len: int, src_len: int, bsz: int):
         return attn_weights
-
-    # def upgrade_state_dict_named(self, state_dict, name):
-    #     prefix = name + "." if name != "" else ""
-    #     items_to_add = {}
-    #     keys_to_remove = []
-    #     for k in state_dict.keys():
-    #         if k.endswith(prefix + "in_proj_weight"):
-    #             # in_proj_weight used to be q + k + v with same dimensions
-    #             dim = int(state_dict[k].shape[0] / 3)
-    #             items_to_add[prefix + "q_proj.weight"] = state_dict[k][:dim]
-    #             items_to_add[prefix + "k_proj.weight"] = state_dict[k][dim : 2 * dim]
-    #             items_to_add[prefix + "v_proj.weight"] = state_dict[k][2 * dim :]
-
-    #             keys_to_remove.append(k)
-
-    #             k_bias = prefix + "in_proj_bias"
-    #             if k_bias in state_dict.keys():
-    #                 dim = int(state_dict[k].shape[0] / 3)
-    #                 items_to_add[prefix + "q_proj.bias"] = state_dict[k_bias][:dim]
-    #                 items_to_add[prefix + "k_proj.bias"] = state_dict[k_bias][
-    #                     dim : 2 * dim
-    #                 ]
-    #                 items_to_add[prefix + "v_proj.bias"] = state_dict[k_bias][2 * dim :]
-
-    #                 keys_to_remove.append(prefix + "in_proj_bias")
-
-    #     for k in keys_to_remove:
-    #         del state_dict[k]
-
-    #     for key, value in items_to_add.items():
-    #         state_dict[key] = value
