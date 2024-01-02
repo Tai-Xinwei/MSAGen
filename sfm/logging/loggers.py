@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import copy
 import os
 import sys
 from dataclasses import dataclass, fields, is_dataclass
@@ -64,7 +65,12 @@ class MetricLogger(object):
             if isinstance(log_data[k], torch.Tensor):
                 log_data[k] = log_data[k].detach().item()
 
-        logger.info(" | ".join([f"{k}={v:.4g}" for k, v in log_data.items()]))
+        log_str = ""
+        for k, v in log_data.items():
+            if v is not None:
+                log_str += f" | {k}={v:.4g} "
+
+        logger.info(log_str)
         if wandb.run is not None:
             # Add prefix
             if prefix:

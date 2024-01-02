@@ -84,7 +84,14 @@ class SingleSequenceModel(Model):
         logits = model_output
         bs = seq_aa.shape[0]
         loss = lossfn(logits.to(torch.float32), target)
-        return ModelOutput(loss=loss, num_examples=bs)
+        return ModelOutput(
+            loss=loss, num_examples=bs, logits=logits.detach(), label=target.detach()
+        )
+
+    def calculate_metric(self, label, logits) -> None:
+        if label is None or logits is None:
+            return
+        raise NotImplementedError
 
     def config_optimizer(self):
         # Why can I just pass, like the way in PFMModel?

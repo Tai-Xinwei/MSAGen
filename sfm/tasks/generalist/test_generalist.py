@@ -451,9 +451,7 @@ def batch_mol(molecules, num_batches):
 
 
 def get_tdc_task_info(test_data_path, test_task, test_split, question_suffix):
-    with open(
-        "/home/shiyu/git/SFM_framework/sfm/tasks/generalist/templates.json", "r"
-    ) as in_file:
+    with open(f"{test_data_path}/templates.json", "r") as in_file:
         tdc_templates = json.load(in_file)
     task_info = {}
     test_task_splits = test_task.split("/")

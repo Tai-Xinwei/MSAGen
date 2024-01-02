@@ -238,6 +238,8 @@ class SingleNodeAccelerator(Accelerator):
             valid_loss=model_output.loss.item(),
             epoch=epoch,
             num_examples=num_examples,
+            logits=model_output.logits,
+            label=model_output.label,
             extra_output=model_output.log_output,
         )
 
@@ -466,6 +468,35 @@ class DdpAccelerator(SingleNodeAccelerator):
         num_examples = num_examples.item()
 
         return total_loss, num_examples
+
+    def sync_valid_metric(self, label_list, logits_list):
+        label = torch.Tensor(label_list).cuda(self.device)
+        logits = torch.Tensor(logits_list).cuda(self.device)
+
+        num_samples = torch.zeros(self.world_size, device=self.device)
+        num_samples[self.rank] = label.shape[0]
+        torch.distributed.all_reduce(num_samples)
+        total_samples = torch.sum(num_samples).item()
+        for i in range(self.world_size):
+            num_samples[i] = torch.sum(num_samples[:i]).item()
+
+        total_label = torch.zeros((total_samples, label.shape[1:]), device=self.device)
+        total_logits = torch.zeros(
+            (total_samples, logits.shape[1:]), device=self.device
+        )
+        total_label[
+            num_samples[self.rank] : num_samples[self.rank] + label.shape[0]
+        ] = label
+        total_logits[
+            num_samples[self.rank] : num_samples[self.rank] + label.shape[0]
+        ] = logits
+        torch.distributed.all_reduce(total_label)
+        torch.distributed.all_reduce(total_logits)
+
+        return total_label, total_logits
+
+    def calculate_metric(self, label, logits):
+        raise self.model.calculate_metric(label, logits)
 
     @staticmethod
     def _allreducelog(log_dict: dict = {}, log_num_dict: dict = {}):
@@ -995,6 +1026,36 @@ class DeepSpeedAccelerator(Accelerator):
 
         return total_loss, num_examples
 
+    def sync_valid_metric(self, label_list, logits_list):
+        label = torch.Tensor(label_list).cuda(self.device)
+        logits = torch.Tensor(logits_list).cuda(self.device)
+
+        num_samples = torch.zeros(self.world_size, device=self.device)
+        num_samples[self.rank] = label.shape[0]
+        deepspeed.comm.all_reduce(num_samples)
+        total_samples = torch.sum(num_samples).item()
+        for i in range(self.world_size):
+            num_samples[i] = torch.sum(num_samples[:i]).item()
+
+        total_label = torch.zeros((total_samples, label.shape[1:]), device=self.device)
+        total_logits = torch.zeros(
+            (total_samples, logits.shape[1:]), device=self.device
+        )
+        total_label[
+            num_samples[self.rank] : num_samples[self.rank] + label.shape[0]
+        ] = label
+        total_logits[
+            num_samples[self.rank] : num_samples[self.rank] + label.shape[0]
+        ] = logits
+
+        deepspeed.comm.all_reduce(total_label)
+        deepspeed.comm.all_reduce(total_logits)
+
+        return total_label, total_logits
+
+    def calculate_metric(self, label, logits):
+        raise self.model.calculate_metric(label, logits)
+
     @staticmethod
     def _allreducelog(log_dict: dict = {}, log_num_dict: dict = {}):
         for k, v in log_dict.items():
@@ -1012,3 +1073,28 @@ class DeepSpeedAccelerator(Accelerator):
             log_num_dict[k] = v.item()
 
         return {k: v / log_num_dict[k] for k, v in log_dict.items()}
+
+    def skip_first_batches(self, start_iteration):
+        if (
+            self.args.strategy == TrainStrategy.Zero1
+            or self.args.strategy == TrainStrategy.Pipeline
+        ):
+            num_stages = self.args.deepspeed_config.get(
+                "num_pp_stages", self.args.pipeline_model_parallel_size
+            )
+            stage_id = self.model_engine.stage_id
+            if (
+                hasattr(self.train_data, "weight_dict")
+                and self.train_data.weight_dict is not None
+            ):
+                if stage_id == 0 or stage_id == num_stages - 1:
+                    self.train_data_loader.data_sampler.set_skip_samples(
+                        start_iteration
+                        * self.args.deepspeed_config["train_batch_size"]
+                        // self.model_engine.dp_world_size
+                    )
+                return True
+            else:
+                return False
+        else:
+            return False

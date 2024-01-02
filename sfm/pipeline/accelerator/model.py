@@ -56,3 +56,10 @@ class Model(nn.Module, ABC):
         """
 
         pass
+
+    def calculate_metric(self):
+        """
+        This method is called after each epoch to calculate the metric.
+        """
+
+        pass

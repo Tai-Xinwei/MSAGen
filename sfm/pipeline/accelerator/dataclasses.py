@@ -178,6 +178,9 @@ class TrainerConfig:
     early_stopping_metric: str = "valid_loss"
     early_stopping_mode: str = "min"
 
+    # validate
+    calculate_metrics: bool = False
+
     def __str__(self):
         return (
             "Config[\n"
@@ -246,6 +249,8 @@ class ModelOutput:
     loss: torch.Tensor
     num_examples: Optional[int] = None
     log_output: Optional[Dict] = None
+    logits: Optional[torch.Tensor] = None
+    label: Optional[torch.Tensor] = None
 
 
 def format_extra_output(raw_extra_output):
@@ -294,6 +299,8 @@ class ValidLogOutput:
     epoch: int
     num_examples: Optional[int] = None
     extra_output: Optional[Dict] = None
+    logits: Optional[torch.Tensor] = None
+    label: Optional[torch.Tensor] = None
 
     def __str__(self):
         extra_output = format_extra_output(self.extra_output)
