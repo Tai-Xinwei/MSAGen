@@ -238,6 +238,8 @@ class SingleNodeAccelerator(Accelerator):
             valid_loss=model_output.loss.item(),
             epoch=epoch,
             num_examples=num_examples,
+            logits=model_output.logits,
+            label=model_output.label,
             extra_output=model_output.log_output,
         )
 
@@ -466,6 +468,35 @@ class DdpAccelerator(SingleNodeAccelerator):
         num_examples = num_examples.item()
 
         return total_loss, num_examples
+
+    def sync_valid_metric(self, label_list, logits_list):
+        label = torch.Tensor(label_list).cuda(self.device)
+        logits = torch.Tensor(logits_list).cuda(self.device)
+
+        num_samples = torch.zeros(self.world_size, device=self.device)
+        num_samples[self.rank] = label.shape[0]
+        torch.distributed.all_reduce(num_samples)
+        total_samples = torch.sum(num_samples).item()
+        for i in range(self.world_size):
+            num_samples[i] = torch.sum(num_samples[:i]).item()
+
+        total_label = torch.zeros((total_samples, label.shape[1:]), device=self.device)
+        total_logits = torch.zeros(
+            (total_samples, logits.shape[1:]), device=self.device
+        )
+        total_label[
+            num_samples[self.rank] : num_samples[self.rank] + label.shape[0]
+        ] = label
+        total_logits[
+            num_samples[self.rank] : num_samples[self.rank] + label.shape[0]
+        ] = logits
+        torch.distributed.all_reduce(total_label)
+        torch.distributed.all_reduce(total_logits)
+
+        return total_label, total_logits
+
+    def calculate_metric(self, label, logits):
+        raise self.model.calculate_metric(label, logits)
 
     @staticmethod
     def _allreducelog(log_dict: dict = {}, log_num_dict: dict = {}):
@@ -994,6 +1025,36 @@ class DeepSpeedAccelerator(Accelerator):
             )
 
         return total_loss, num_examples
+
+    def sync_valid_metric(self, label_list, logits_list):
+        label = torch.Tensor(label_list).cuda(self.device)
+        logits = torch.Tensor(logits_list).cuda(self.device)
+
+        num_samples = torch.zeros(self.world_size, device=self.device)
+        num_samples[self.rank] = label.shape[0]
+        deepspeed.comm.all_reduce(num_samples)
+        total_samples = torch.sum(num_samples).item()
+        for i in range(self.world_size):
+            num_samples[i] = torch.sum(num_samples[:i]).item()
+
+        total_label = torch.zeros((total_samples, label.shape[1:]), device=self.device)
+        total_logits = torch.zeros(
+            (total_samples, logits.shape[1:]), device=self.device
+        )
+        total_label[
+            num_samples[self.rank] : num_samples[self.rank] + label.shape[0]
+        ] = label
+        total_logits[
+            num_samples[self.rank] : num_samples[self.rank] + label.shape[0]
+        ] = logits
+
+        deepspeed.comm.all_reduce(total_label)
+        deepspeed.comm.all_reduce(total_logits)
+
+        return total_label, total_logits
+
+    def calculate_metric(self, label, logits):
+        raise self.model.calculate_metric(label, logits)
 
     @staticmethod
     def _allreducelog(log_dict: dict = {}, log_num_dict: dict = {}):

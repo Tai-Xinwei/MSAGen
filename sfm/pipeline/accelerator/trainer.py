@@ -74,6 +74,27 @@ class LossAccumulator(object):
         return self.sum / self.num_examples
 
 
+class MetricAccumulator(object):
+    def __init__(self, world_size=1):
+        self.sum = 0
+        self.num_examples = 0
+        self.start_time = time.time()
+        self.world_size = world_size
+        self.label_list = []
+        self.logits_list = []
+
+    def add(self, logits, label):
+        if logits is None or label is None:
+            return
+
+        self.label_list.append(label)
+        self.logits_list.append(logits)
+
+    def reset(self):
+        self.label_list = []
+        self.logits_list = []
+
+
 class LogAccumulator(object):
     def __init__(self, world_size=1, allreduce_fn=None):
         self.sum = 0
@@ -580,6 +601,11 @@ class Trainer(object):
             self.accelerator.world_size, self.accelerator._allreducelog
         )
 
+        if self.args.calculate_metrics:
+            metric_accumulator = MetricAccumulator(
+                self.accelerator.world_size,
+            )
+
         for idx, batch_data in enumerate(self.valid_data_loader):
             output = self.accelerator.valid_step(batch_data, epoch=self.state.epoch)
             loss_accumulator.add(output.valid_loss, output.num_examples)
@@ -588,6 +614,12 @@ class Trainer(object):
                 output.num_examples,
                 output.extra_output,
             )
+
+            if self.args.calculate_metrics:
+                metric_accumulator.add(
+                    output.logits,
+                    output.label,
+                )
 
             if (idx + 1) % self.args.val_batch_log_interval == 0:
                 logger.info(
@@ -601,6 +633,13 @@ class Trainer(object):
         total_loss, num_examples = self.accelerator.sync_valid_loss(
             loss_accumulator.sum, loss_accumulator.num_examples
         )
+
+        if self.args.calculate_metrics:
+            label, logits = self.accelerator.sync_valid_metric(
+                metric_accumulator.label_list, metric_accumulator.logits_list
+            )
+            metric_accumulator.reset()
+            self.accelerator.calculate_metric(label, logits)
 
         if num_examples > 0:
             valid_loss = total_loss / num_examples
