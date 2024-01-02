@@ -7,7 +7,6 @@ echo 'Solving MKL done!'
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${model_type}" ] && model_type='pfm_mlm_tiny'
 [ -z "${beta1}" ] && beta1=0.9
 [ -z "${beta2}" ] && beta2=0.98
 [ -z "${weight_decay}" ] && weight_decay=0
@@ -28,6 +27,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${save_dir}" ] && save_dir='/mnt/output/'
 [ -z "${mask_prob}" ] && mask_prob=0.15
 [ -z "${initializer_range}" ] && initializer_range=0.02
+[ -z "${grad_scaler_init}" ] && grad_scaler_init=1
 
 [ -z "${wandb_group}" ] && wandb_group=scigpt
 [ -z "${wandb_team}" ] && wandb_team=icuppjin
@@ -79,7 +79,6 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm_mlm_bpe.py \
-        --model_type $model_type \
         --train_data_path $train_data_path \
         --valid_data_path $valid_data_path \
         --weight_decay $weight_decay \
@@ -99,7 +98,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm_mlm_bpe.py \
         --total_num_epochs $epochs \
         --save_batch_interval $save_batch_interval \
         --log_interval $log_interval \
-        --strategy $strategy
+        --strategy $strategy \
+        --grad_scaler_init $grad_scaler_init \
+        --use_rd --rd_scale 1.0
 
 
 sleep inf

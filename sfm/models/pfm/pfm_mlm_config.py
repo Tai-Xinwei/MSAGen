@@ -19,6 +19,8 @@ class PfmMlmConfig(LlamaConfig, DistributedTrainConfig):
     eos_token_id: int = 2
     pad_token_id: int = 3
     max_position_embeddings: int = 1024
+    use_aa_loss: bool = False
+    compile_model: bool = True
 
     rope_theta: float = 10000.0
     rope_scaling: Optional[Dict[str, str]] = None
@@ -28,8 +30,12 @@ class PfmMlmConfig(LlamaConfig, DistributedTrainConfig):
     initializer_range: float = 0.02
     pretraining_tp: int = 1
 
+    use_rd: bool = False
+    rd_scale: float = 1.0
+
     train_data_path: str = ""
     valid_data_path: str = ""
+    bpe2aa_path: str = ""
 
 
 def pfm_mlm_tiny_config(config: PfmMlmConfig):
@@ -38,4 +44,13 @@ def pfm_mlm_tiny_config(config: PfmMlmConfig):
     config.num_hidden_layers = 12
     config.num_attention_heads = 12
     config.num_key_value_heads = 12
+    return config
+
+
+def pfm_mlm_tiny_h24_config(config: PfmMlmConfig):
+    config.hidden_size = 768
+    config.intermediate_size = 2048
+    config.num_hidden_layers = 12
+    config.num_attention_heads = 24
+    config.num_key_value_heads = 24
     return config

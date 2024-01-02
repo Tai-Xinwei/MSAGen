@@ -2,16 +2,23 @@
 
 # -*- coding: utf-8 -*-
 
+import torch
+
 from sfm.data.prot_data.processed_mlm_dataset import ProcessedMlmDataset
 from sfm.logging import logger
-from sfm.models.pfm.pfm_mlm_config import PfmMlmConfig, pfm_mlm_tiny_config
-from sfm.models.pfm.pfm_mlm_model import PfmMlmModel
+from sfm.models.pfm.pfm_mlm_config import (
+    PfmMlmConfig,
+    pfm_mlm_tiny_config,
+    pfm_mlm_tiny_h24_config,
+)
+from sfm.models.pfm.pfm_mlm_model import PfmMlmModel, PfmMlmModelRd
 from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils import arg_utils
 from sfm.utils.cli_utils import cli
 
 config_registry = {
     "pfm_mlm_tiny": pfm_mlm_tiny_config,
+    "pfm_mlm_tiny_h24": pfm_mlm_tiny_h24_config,
 }
 
 
@@ -30,7 +37,10 @@ def main(args) -> None:
 
     logger.info(f"config: {config}")
 
-    model = PfmMlmModel(config)
+    if config.use_rd:
+        model = PfmMlmModelRd(config)
+    else:
+        model = PfmMlmModel(config)
 
     train_dataset = ProcessedMlmDataset(
         path=config.train_data_path,
@@ -57,6 +67,9 @@ def main(args) -> None:
 
     print(train_dataset)
     print(valid_dataset)
+
+    if config.compile_model:
+        model = torch.compile(model)
 
     trainer = Trainer(
         config,
