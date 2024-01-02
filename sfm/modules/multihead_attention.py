@@ -15,6 +15,8 @@ from .layer_norm import Fp32LayerNorm, LayerNorm
 from .quant_noise import quant_noise
 from .rotary_embedding import RotaryEmbedding
 
+# from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding, apply_rotary_pos_emb
+
 
 class MultiheadAttention(nn.Module):
     """Multi-headed attention.
@@ -67,7 +69,6 @@ class MultiheadAttention(nn.Module):
             "Self-attention requires query, key and " "value to be of the same size"
         )
 
-        # @ shengjie added: no key bias for stability
         self.k_proj = quant_noise(
             nn.Linear(self.kdim, embed_dim, bias=k_bias), q_noise, qn_block_size
         )
@@ -134,6 +135,7 @@ class MultiheadAttention(nn.Module):
         before_softmax: bool = False,
         need_head_weights: bool = False,
         pbc_expand_batched: Optional[Dict[str, torch.Tensor]] = None,
+        position_ids: Optional[torch.Tensor] = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """Input shape: Time x Batch x Channel
 
@@ -255,10 +257,6 @@ class MultiheadAttention(nn.Module):
         if before_softmax:
             return attn_weights, v
 
-        # attn_weights_float = utils.softmax(
-        #     attn_weights, dim=-1, onnx_trace=self.onnx_trace
-        # )
-
         attn_weights_float = nn.functional.softmax(attn_weights, dim=-1)
 
         attn_weights = attn_weights_float.type_as(attn_weights)
@@ -290,34 +288,3 @@ class MultiheadAttention(nn.Module):
 
     def apply_sparse_mask(self, attn_weights, tgt_len: int, src_len: int, bsz: int):
         return attn_weights
-
-    # def upgrade_state_dict_named(self, state_dict, name):
-    #     prefix = name + "." if name != "" else ""
-    #     items_to_add = {}
-    #     keys_to_remove = []
-    #     for k in state_dict.keys():
-    #         if k.endswith(prefix + "in_proj_weight"):
-    #             # in_proj_weight used to be q + k + v with same dimensions
-    #             dim = int(state_dict[k].shape[0] / 3)
-    #             items_to_add[prefix + "q_proj.weight"] = state_dict[k][:dim]
-    #             items_to_add[prefix + "k_proj.weight"] = state_dict[k][dim : 2 * dim]
-    #             items_to_add[prefix + "v_proj.weight"] = state_dict[k][2 * dim :]
-
-    #             keys_to_remove.append(k)
-
-    #             k_bias = prefix + "in_proj_bias"
-    #             if k_bias in state_dict.keys():
-    #                 dim = int(state_dict[k].shape[0] / 3)
-    #                 items_to_add[prefix + "q_proj.bias"] = state_dict[k_bias][:dim]
-    #                 items_to_add[prefix + "k_proj.bias"] = state_dict[k_bias][
-    #                     dim : 2 * dim
-    #                 ]
-    #                 items_to_add[prefix + "v_proj.bias"] = state_dict[k_bias][2 * dim :]
-
-    #                 keys_to_remove.append(prefix + "in_proj_bias")
-
-    #     for k in keys_to_remove:
-    #         del state_dict[k]
-
-    #     for key, value in items_to_add.items():
-    #         state_dict[key] = value

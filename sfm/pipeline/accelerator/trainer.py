@@ -159,6 +159,43 @@ class LogAccumulator(object):
             return self._allreducelog(self.extra_log, self.extra_log_num)
 
 
+class EarlyStopping:
+    def __init__(self, patience=10, metric="valid_loss", mode="min"):
+        self.patience = patience
+        self.mode = mode
+        if mode not in ["min", "max"]:
+            raise ValueError("Mode for EarlyStopping should be min or max")
+        self.metric = metric
+        self.counter = 0
+        self.should_stop = False
+        if self.mode == "min":
+            self.best = np.inf
+        else:
+            self.best = -np.inf
+        self.best_at = 0
+        self.history = []
+
+    def __call__(self, value):
+        if len(self.history) == 0:
+            self.best = value
+            self.best_at = 0
+            self.history.append(value)
+            return self.should_stop
+
+        if (self.mode == "min" and value < self.best) or (
+            self.mode == "max" and value > self.best
+        ):
+            self.best = value
+            self.best_at = len(self.history)
+            self.counter = 0
+        else:
+            self.counter += 1
+        self.history.append(value)
+        if self.counter >= self.patience:
+            self.should_stop = True
+        return self.should_stop
+
+
 class Trainer(object):
     def __init__(
         self,
@@ -180,6 +217,11 @@ class Trainer(object):
         self.train_data = train_data
         self.valid_data = valid_data
         self.test_data = test_data
+        self.early_stopping = EarlyStopping(
+            patience=args.early_stopping_patience,
+            metric=args.early_stopping_metric,
+            mode=args.early_stopping_mode,
+        )
 
         if optimizer is not None and args.strategy in [
             TrainStrategy.Pipeline,
@@ -468,12 +510,49 @@ class Trainer(object):
             metric_logger.log(log_output, "train")
 
             if self.should_do_epoch_validate():
-                self.validate()
+                valid_log = self.validate()
+            else:
+                valid_log = None
 
             self.accelerator.barrier()
             if self.should_save_epoch_checkpoint():
                 checkpoint_name = f"checkpoint_E{self.state.epoch}.pt"
                 self.save_checkpoint(checkpoint_name, self.state)
+
+            # if use early stopping
+            if self.args.early_stopping:
+                if valid_log is None:
+                    logger.warning(
+                        "No validation log is available, early stopping is set but not not used in this epoch."
+                    )
+                else:
+                    value = getattr(valid_log, self.early_stopping.metric)
+                    if self.early_stopping(value):
+                        logger.info(f"Early stopping at epoch {self.state.epoch}")
+                        logger.info(
+                            f"Best {self.early_stopping.metric} is {self.early_stopping.best} at epoch {self.early_stopping.best_at}, "
+                            f"which does not improve over past {self.early_stopping.patience} epochs."
+                        )
+                        import shutil
+
+                        # copy the best checkpoint to checkpoint_best.pt, note that the epoch starts from 0
+                        best_ckpt_path = (
+                            Path(self.args.save_dir)
+                            / f"checkpoint_E{self.early_stopping.best_at}.pt"
+                        )
+                        shutil.copy(
+                            best_ckpt_path,
+                            Path(self.args.save_dir) / "checkpoint_best.pt",
+                        )
+                        # break the while loop
+                        logger.info(
+                            f"Early stopping at epoch {self.state.epoch}, exiting training loop."
+                        )
+                        break
+                    else:
+                        logger.info(
+                            f"Metric {self.early_stopping.metric} does not improve over past {self.early_stopping.counter} epochs."
+                        )
 
             self.state.epoch += 1
             self.state.batch = 0
@@ -502,7 +581,7 @@ class Trainer(object):
         )
 
         for idx, batch_data in enumerate(self.valid_data_loader):
-            output = self.accelerator.valid_step(batch_data)
+            output = self.accelerator.valid_step(batch_data, epoch=self.state.epoch)
             loss_accumulator.add(output.valid_loss, output.num_examples)
             interval_loss_accumulator.add(
                 output.valid_loss,
@@ -531,10 +610,12 @@ class Trainer(object):
         valid_log = ValidLogOutput(
             valid_loss=valid_loss,
             num_examples=num_examples,
+            epoch=self.state.epoch,
             extra_output=interval_loss_accumulator.averge_log,
         )
 
         metric_logger.log(valid_log, "valid")
+        return valid_log
 
     def _save_rng_and_iter_state(self, checkpoint):
         """

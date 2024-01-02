@@ -172,6 +172,12 @@ class TrainerConfig:
     beta2: float = 0.999
     eps: float = 1e-8
 
+    # early stopping
+    early_stopping: bool = False
+    early_stopping_patience: int = 10
+    early_stopping_metric: str = "valid_loss"
+    early_stopping_mode: str = "min"
+
     def __str__(self):
         return (
             "Config[\n"
@@ -285,6 +291,7 @@ class TrainLogOutput:
 @dataclass
 class ValidLogOutput:
     valid_loss: float
+    epoch: int
     num_examples: Optional[int] = None
     extra_output: Optional[Dict] = None
 

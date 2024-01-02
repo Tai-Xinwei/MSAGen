@@ -55,7 +55,7 @@ class PFMModel(Model):
             elif "module" in checkpoints_state:
                 checkpoints_state = checkpoints_state["module"]
 
-            IncompatibleKeys = self.net.load_state_dict(checkpoints_state, strict=False)
+            IncompatibleKeys = self.load_state_dict(checkpoints_state, strict=False)
             IncompatibleKeys = IncompatibleKeys._asdict()
 
             missing_keys = []
@@ -90,15 +90,21 @@ class PFMModel(Model):
     def forward(self, batched_data, **kwargs):
         return self.net(batched_data, **kwargs)
 
+    def ft_forward(self, batched_data, **kwargs):
+        return self.net.ft_forward(batched_data, **kwargs)
+
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
         seq_aa = batch_data["x"]
         logits = model_output[0]
         node_output = model_output[1]
         mask_pos = model_output[2]
         mask_aa = model_output[3]
+        pair_mask_aa = model_output[4]
 
         bs = seq_aa.shape[0]
-        output = self.loss(batch_data, logits, node_output, mask_pos, mask_aa)
+        output = self.loss(
+            batch_data, logits, node_output, mask_pos, mask_aa, pair_mask_aa
+        )
         loss = output[0]
         if len(output) > 1:
             log_loss = output[1]
@@ -155,6 +161,7 @@ class PFM(nn.Module):
 
         self.lm_output_learned_bias = None
 
+        self.layer_norm = nn.LayerNorm(args.encoder_embed_dim)
         self.fc_pmlm_q = nn.Linear(
             args.encoder_embed_dim, args.encoder_embed_dim, bias=False
         )
@@ -180,12 +187,7 @@ class PFM(nn.Module):
                     args.encoder_embed_dim, self.sentence_out_dim, bias=False
                 )
         else:
-            if isinstance(args.num_residues, int):
-                self.proj_out = nn.Linear(
-                    args.encoder_embed_dim, args.num_residues, bias=True
-                )
-            else:
-                raise NotImplementedError
+            logger.info("finetune mode do not use embed_out")
 
     def forward(
         self,
@@ -231,18 +233,10 @@ class PFM(nn.Module):
             segment_labels=segment_labels,
             perturb=perturb,
         )
-        # logger.info("encoder x: {}".format(x))
-
-        # inner_states, node_output, sentence_rep = self.decoder(
-        #     x, attn_bias, delta_pos, inner_states
-        # )
-
-        # node_output = self.decoder(
-        #     batched_data, x, pos, padding_mask, mask_pos=mask_pos
-        # )
 
         diag_mask = None
         x = x.transpose(0, 1)  # [B, L, H]
+        x = self.layer_norm(x)
 
         # q = self.fc_pmlm_q(x)
         # k = self.fc_pmlm_k(x)
@@ -251,7 +245,7 @@ class PFM(nn.Module):
         # # memory efficient implementation
         # # mask_aa is a boolean mask of shape [B, L, 1]
 
-        B, _, H = x.shape
+        B, L, H = x.shape
         masked_indices = torch.where(mask_aa.squeeze(-1).bool())
         x = x[masked_indices[0], masked_indices[1]]  # [num_masked, H]
 
@@ -259,14 +253,30 @@ class PFM(nn.Module):
         q_masked = self.fc_pmlm_q(x)  # [num_masked, H]
         k_masked = self.fc_pmlm_k(x)  # [num_masked, H]
 
-        masked_per_batch = mask_aa.squeeze(-1).sum(dim=1)
+        # masked_per_batch = mask_aa.squeeze(-1).sum(dim=1)
+        masked_per_batch = []
+        residue_seq = batched_data["x"]
+        pair_mask_aa = torch.zeros(
+            (B, L, L, 1), device=residue_seq.device, dtype=torch.int8
+        )
+        for i in range(B):
+            mask_sep_idx = (residue_seq[i] == 2).nonzero(as_tuple=True)[0]
+            pre_j = 0
+            for j in mask_sep_idx:
+                masked_per_batch.append(mask_aa[i, pre_j:j].sum().item())
+                pair_mask_aa[i, pre_j:j, pre_j:j:, :] = 1
+                pre_j = j
 
-        q_split = torch.split(q_masked, masked_per_batch.tolist())
-        k_split = torch.split(k_masked, masked_per_batch.tolist())
+            if pre_j < L - 1:
+                masked_per_batch.append(mask_aa[i, pre_j:].sum().item())
+                pair_mask_aa[i, pre_j:, pre_j:, :] = 1
+
+        q_split = torch.split(q_masked, masked_per_batch)
+        k_split = torch.split(k_masked, masked_per_batch)
 
         result_list = []
         mask_list = []
-        for i in range(B):
+        for i in range(len(masked_per_batch)):
             x_i = torch.einsum(
                 "ih,jh->ijh", q_split[i], k_split[i]
             )  # [mask_i_len, mask_i_len, H]
@@ -288,11 +298,34 @@ class PFM(nn.Module):
         if self.lm_output_learned_bias is not None and self.load_softmax:
             x = x + self.lm_output_learned_bias
 
-        # finetuning
-        if self.proj_out is not None:
-            x = self.proj_out(x)
+        return (x, None, diag_mask, mask_aa, pair_mask_aa)
 
-        return (x, None, diag_mask, mask_aa)
+    def ft_forward(
+        self,
+        batched_data,
+        perturb=None,
+        segment_labels=None,
+        masked_tokens=None,
+        **unused,
+    ):
+        (
+            x,
+            _,
+            _,
+            pos,
+            inner_states,
+            padding_mask,
+            mask_pos,
+            mask_aa,
+        ) = self.sentence_encoder.finetune(
+            batched_data,
+            segment_labels=segment_labels,
+            perturb=perturb,
+        )
+
+        x = x.transpose(0, 1)
+
+        return x
 
     def init_state_dict_weight(self, weight, bias):
         torch.nn.init.kaiming_uniform_(weight, a=math.sqrt(5))

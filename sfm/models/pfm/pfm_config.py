@@ -8,6 +8,10 @@ from sfm.models.graphormer.graphormer_config import GraphormerConfig
 class PFMConfig(GraphormerConfig):
     model_type = "pfm"
 
+    task_name: str = ""
+    data_basepath: str = ""
+    output_dim: int = 1024
+
     add_rope: bool = True
     stack_seq: bool = False
     num_residues: int = 32

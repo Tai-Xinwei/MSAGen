@@ -9,7 +9,7 @@ import numpy as np
 from Bio.PDB import MMCIFParser, PDBParser, Chain, PDBIO
 from Bio.PDB import PDBParser
 
-import residue_constants
+import tools.protein_data_process.residue_constants as residue_constants
 from pathlib import Path
 import gzip
 from urllib.request import urlretrieve
