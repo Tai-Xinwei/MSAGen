@@ -39,7 +39,8 @@ def process_param(
         if (
             name.find("fc_pmlm_q") != -1
             or name.find("fc_pmlm_k") != -1
-            or name.find("embed_out")
+            or name.find("embed_out") != -1
+            or name.find("head") != -1
         ):
             param_groups[1]["params"].append(param)
         else:

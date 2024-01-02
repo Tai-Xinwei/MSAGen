@@ -35,7 +35,7 @@ class LMDBDataset(FoundationModelDataset):
         self.args = self.set_default_args(args)
         assert (
             self.args.data_path and Path(self.args.data_path).is_dir()
-        ), f"Processed file not found: {self.lmdb_path}"
+        ), f"Processed file not found: {self.args.data_path}"
         self.lmdb_path = Path(self.args.data_path)
         self.vocab = Alphabet()
 

@@ -76,7 +76,7 @@ class PFMEncoderLayer(nn.Module):
             q_noise=q_noise,
             qn_block_size=qn_block_size,
             d_tilde=args.d_tilde,
-            add_rope=pfm_config.add_rope,
+            add_rope=True,
         )
 
         self.fc1 = self.build_fc1(
@@ -164,6 +164,7 @@ class PFMEncoderLayer(nn.Module):
         self_attn_mask: Optional[torch.Tensor] = None,
         self_attn_padding_mask: Optional[torch.Tensor] = None,
         mask_pos: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.Tensor] = None,
     ):
         """
         LayerNorm is applied either before or after the self-attention/ffn
@@ -193,6 +194,7 @@ class PFMEncoderLayer(nn.Module):
             key_padding_mask=self_attn_padding_mask,
             need_weights=False,
             attn_mask=self_attn_mask,
+            # position_ids=position_ids,
         )
         x = self.dropout_module(x)
         x = residual + x

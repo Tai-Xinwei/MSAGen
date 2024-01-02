@@ -140,32 +140,30 @@ class ProteinPMLM(nn.Module):
         self.args = args
         self.num_aa_type = args.num_residues
 
-    def forward(self, batch_data, logits, node_output, diag_mask, mask_aa):
+    def forward(
+        self, batch_data, logits, node_output, diag_mask, mask_aa, pair_mask_aa_0
+    ):
         with torch.no_grad():
             aa_seq = batch_data["x"]
+
             paired_seq = aa_seq.unsqueeze(-1) * self.num_aa_type + aa_seq.unsqueeze(-2)
 
             # pair_mask_aa = mask_aa.unsqueeze(1).bool() & mask_aa.unsqueeze(2).bool()
             pair_mask_aa = mask_aa.unsqueeze(1).bool() & mask_aa.unsqueeze(2).bool()
+            pair_mask_aa = pair_mask_aa & pair_mask_aa_0.bool()
             aa_seq = aa_seq[mask_aa.squeeze(-1).bool()]
 
             # logits [mask_L, vocab^2]
-
             paired_seq = paired_seq[pair_mask_aa.squeeze(-1).bool()]
 
-        diag_logits = logits[diag_mask]
+            diag_logits = logits[diag_mask]
 
         type_loss = self.loss_pairtype(
             logits.view(-1, logits.size(-1)).to(torch.float32),
             paired_seq.view(-1),
         )
 
-        # diag_loss = self.loss_pairtype(
-        #                 diag_logits.view(-1, diag_logits.size(-1)).to(torch.float32),
-        #                 aa_seq.view(-1),
-        #             )
-
-        loss = type_loss  # + diag_loss
+        loss = type_loss
 
         with torch.no_grad():
             # compute type accuracy

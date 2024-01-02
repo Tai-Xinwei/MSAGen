@@ -36,18 +36,19 @@ code:
   local_dir: .
 
 jobs:
-- name: train_pfm_mlm_bpe_tiny_mask0.15
+- name: train_pfm_mlm_bpe_tiny_mask0.15_h24
   tags:
   - 'ProjectID: PRJ-0209-A40'
   sku: ${NODES}xG${GPUS}
   mpi: true
   process_count_per_node: 1
   command:
-  - mkdir -p /blob/shufxi/pfm/bpe/tiny/mask0.15
+  - mkdir -p /blob/shufxi/pfm/bpe/tiny/mask0.15_h24
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - export WANDB_PROJECT=pfm
   - export mask_prob=0.15
-  - export save_dir=/blob/shufxi/pfm/bpe/tiny/mask0.15
+  - export model_type=pfm_mlm_tiny_h24
+  - export save_dir=/blob/shufxi/pfm/bpe/tiny/mask0.15_h24
   - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 -y && conda activate sfm
   - bash ./install/install.sh
   - pip install -e .

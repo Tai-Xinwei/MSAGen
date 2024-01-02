@@ -9,9 +9,9 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${layers}" ] && layers=12
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
-[ -z "${hidden_size}" ] && hidden_size=256
-[ -z "${ffn_size}" ] && ffn_size=1024
-[ -z "${num_head}" ] && num_head=32
+[ -z "${hidden_size}" ] && hidden_size=1024
+[ -z "${ffn_size}" ] && ffn_size=2048
+[ -z "${num_head}" ] && num_head=16
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=4
@@ -27,40 +27,47 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_mode}" ] && noise_mode=diff
 [ -z "${mask_ratio}" ] && mask_ratio=0.15
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=4e-5
+[ -z "${max_lr}" ] && max_lr=1e-4 #
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
-[ -z "${train_batch_size}" ] && train_batch_size=128
-[ -z "${max_tokens}" ] && max_tokens=1600
+[ -z "${train_batch_size}" ] && train_batch_size=64
+[ -z "${max_tokens}" ] && max_tokens=2048
 [ -z "${val_batch_size}" ] && val_batch_size=64
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=100
-[ -z "${epochs}" ] && epochs=1000
+[ -z "${epochs}" ] && epochs=100
 
 [ -z "${mode_prob}" ] && mode_prob='1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 [ -z "${strategy}" ] && strategy=DDP
 
 # [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
-[ -z "${train_data_path}" ] && train_data_path='/mnt/protein/uniref50_pack1024_train.lmdb'
-[ -z "${valid_data_path}" ] && valid_data_path='/mnt/protein/uniref50_valid.lmdb'
-# [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
-[ -z "${loadcheck_path}" ] && loadcheck_path="."
-[ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
+[ -z "${train_data_path}" ] && train_data_path='None'
+[ -z "${valid_data_path}" ] && valid_data_path='None'
+[ -z "${data_basepath}" ] && data_basepath="/mnta/yaosen/data/bfm_benchmark"
+[ -z "${task_name}" ] && task_name="beta_lactamase"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/home/yaosen/bfm_ckpts/checkpoint_E13.pt"
+[ -z "${save_dir}" ] && save_dir='/mnta/yaosen/beta_lactamase'
+[ -z "${early_stopping}" ] && early_stopping=true
+[ -z "${early_stopping_patience}" ] && early_stopping_patience=5
+[ -z "${early_stopping_metric}" ] && early_stopping_metric='valid_loss'
+[ -z "${early_stopping_mode}" ] && early_stopping_mode='min'
+[ -z "${head_dropout}" ] && head_dropout=0.1
+
 # [ -z "${dataset_name}" ] && dataset_name="PCQM4M-LSC-V2-3D"
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=tinyBFM
+[ -z "${wandb_group}" ] && wandb_group=tinyBFM-finetune
 [ -z "${wandb_team}" ] && wandb_team=icuppjin
 [ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
-[ -z "${MASTER_PORT}" ] && MASTER_PORT=62346
+[ -z "${MASTER_PORT}" ] && MASTER_PORT=62347
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 # [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=-1
@@ -137,9 +144,22 @@ else
   fi
 fi
 
+# if early_stop is false, then early_stop_args is empty
+if [[ "${early_stopping}" == "false" ]]
+then
+  early_stop_args=""
+else
+  early_stop_args="--early_stopping --early_stopping_patience $early_stopping_patience \
+                   --early_stopping_metric $early_stopping_metric \
+                   --early_stopping_mode $early_stopping_mode"
+fi
+
 # echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm.py \
+          --task_name $task_name \
+          --data_basepath $data_basepath \
+          --loadcheck_path $loadcheck_path \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
           --encoder_ffn_embed_dim $ffn_size \
@@ -169,7 +189,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
-          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
-
-          # --dynamic_loader \
-          # --stack_seq \
+          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
+          --head_dropout $head_dropout $early_stop_args

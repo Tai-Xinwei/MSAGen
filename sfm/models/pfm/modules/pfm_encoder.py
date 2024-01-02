@@ -387,6 +387,7 @@ class PFMEncoder(nn.Module):
                 self_attn_padding_mask=padding_mask,
                 self_attn_mask=attn_mask,
                 mask_pos=mask_pos,
+                position_ids=None,
             )
             if not last_state_only:
                 inner_states.append(x)
@@ -407,6 +408,101 @@ class PFMEncoder(nn.Module):
             padding_mask,
             mask_pos,
             mask_aa,
+        )
+
+    def finetune(
+        self,
+        batched_data,
+        perturb=None,
+        segment_labels: torch.Tensor = None,
+        last_state_only: bool = False,
+        positions: Optional[torch.Tensor] = None,
+        token_embeddings: Optional[torch.Tensor] = None,
+        attn_mask: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        # compute padding mask. This is needed for multi-head attention
+
+        with torch.no_grad():
+            if "x_new" in batched_data.keys():
+                residue_seq = batched_data["x_new"].clone()
+            else:
+                residue_seq = batched_data["x"].clone()
+            x_0 = batched_data["x"].clone()
+
+        # ori_pos = batched_data["pos"]
+
+        n_graph, n_node = residue_seq.size()[:2]
+
+        # mask_aa, mask_pos, padding_mask, _ = self._set_mask(
+        #     mask_aa, mask_pos, residue_seq
+        # )
+
+        # # pos, time = self._set_noise(ori_pos, mask_pos)
+        pos, time = None, None
+        # 1 is pad token, 2 is eos token
+
+        (x_0[:, :]).eq(0)
+        padding_mask = (x_0[:, :]).eq(1)  # B x T x 1
+        (x_0[:, :]).eq(2)
+
+        x, edge_feature, delta_pos = self.pfm_emb(
+            batched_data,
+            padding_mask,
+            pos=pos,
+            mask_aa=None,
+            mask_pos=None,
+            time=time,
+        )
+
+        if perturb is not None:
+            x[:, :, :] = x[:, :, :] + perturb
+
+        if self.embed_scale is not None:
+            x = x * self.embed_scale
+
+        if self.quant_noise is not None:
+            x = self.quant_noise(x)
+
+        if self.emb_layer_norm is not None:
+            x = self.emb_layer_norm(x)
+
+        x = self.dropout_module(x)
+
+        # B x T x C -> T x B x C
+        x = x.transpose(0, 1)
+
+        inner_states = []
+        if not last_state_only:
+            inner_states.append(x)
+
+        for _, layer in enumerate(self.layers):
+            x, attn_bias = layer(
+                x,
+                edge_feature=edge_feature,
+                self_attn_padding_mask=padding_mask,
+                self_attn_mask=attn_mask,
+                mask_pos=None,
+                position_ids=None,
+            )
+            if not last_state_only:
+                inner_states.append(x)
+
+        if attn_bias is not None:
+            attn_bias = (
+                attn_bias.contiguous()
+                .view(n_graph, self.num_attention_heads, n_node, n_node)
+                .contiguous()
+            )
+
+        return (
+            x,
+            attn_bias,
+            delta_pos,
+            pos,
+            inner_states,
+            padding_mask,
+            None,
+            None,
         )
 
 

@@ -217,7 +217,7 @@ class SingleNodeAccelerator(Accelerator):
         model_output.num_examples = sample_count
         return model_output
 
-    def valid_step(self, batch_data: Batch) -> ValidLogOutput:
+    def valid_step(self, batch_data: Batch, epoch: int = 0) -> ValidLogOutput:
         self.model.eval()
         self.model.to(self.device)
 
@@ -236,6 +236,7 @@ class SingleNodeAccelerator(Accelerator):
 
         return ValidLogOutput(
             valid_loss=model_output.loss.item(),
+            epoch=epoch,
             num_examples=num_examples,
             extra_output=model_output.log_output,
         )
@@ -907,7 +908,9 @@ class DeepSpeedAccelerator(Accelerator):
         torch.cuda.empty_cache()
         return model_output
 
-    def valid_step(self, batch_data: Union[Data, List]) -> ValidLogOutput:
+    def valid_step(
+        self, batch_data: Union[Data, List], epoch: int = 0
+    ) -> ValidLogOutput:
         self.model_engine.module.eval()
         if (
             self.args.strategy == TrainStrategy.Pipeline
@@ -922,6 +925,7 @@ class DeepSpeedAccelerator(Accelerator):
             }
             return ValidLogOutput(
                 valid_loss=pred,
+                epoch=epoch,
                 num_examples=self.args.deepspeed_config["train_batch_size"]
                 / self.model_engine.dp_world_size,
                 extra_output=extra_output,
@@ -937,6 +941,7 @@ class DeepSpeedAccelerator(Accelerator):
             torch.cuda.empty_cache()
             return ValidLogOutput(
                 valid_loss=model_output.loss.detach().item(),
+                epoch=epoch,
                 num_examples=model_output.num_examples,
                 extra_output=model_output.log_output,
             )
