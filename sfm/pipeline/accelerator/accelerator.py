@@ -1012,3 +1012,28 @@ class DeepSpeedAccelerator(Accelerator):
             log_num_dict[k] = v.item()
 
         return {k: v / log_num_dict[k] for k, v in log_dict.items()}
+
+    def skip_first_batches(self, start_iteration):
+        if (
+            self.args.strategy == TrainStrategy.Zero1
+            or self.args.strategy == TrainStrategy.Pipeline
+        ):
+            num_stages = self.args.deepspeed_config.get(
+                "num_pp_stages", self.args.pipeline_model_parallel_size
+            )
+            stage_id = self.model_engine.stage_id
+            if (
+                hasattr(self.train_data, "weight_dict")
+                and self.train_data.weight_dict is not None
+            ):
+                if stage_id == 0 or stage_id == num_stages - 1:
+                    self.train_data_loader.data_sampler.set_skip_samples(
+                        start_iteration
+                        * self.args.deepspeed_config["train_batch_size"]
+                        // self.model_engine.dp_world_size
+                    )
+                return True
+            else:
+                return False
+        else:
+            return False

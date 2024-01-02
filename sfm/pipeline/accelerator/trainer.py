@@ -701,15 +701,26 @@ class Trainer(object):
         Args:
             start_iteration (int): the number of batches to skip
         """
+
         if start_iteration is None or start_iteration == 0:
             return data_iterator
 
-        logger.info(f"Skipping the first {start_iteration} batches")
-        for i, _ in tqdm(
-            enumerate(data_iterator), desc=f"Skipping first {start_iteration} batches"
-        ):
-            if i == start_iteration - 1:
-                break
+        if isinstance(self.accelerator, DeepSpeedAccelerator):
+            skip_first_batches_in_accelerator = self.accelerator.skip_first_batches(
+                start_iteration
+            )
+            if skip_first_batches_in_accelerator:
+                self.start_iteration = 0
+                return iter(self.train_data_loader)
 
-        self.start_iteration = 0
-        return data_iterator
+        if not skip_first_batches_in_accelerator:
+            logger.info(f"Skipping the first {start_iteration} batches")
+            for i, _ in tqdm(
+                enumerate(data_iterator),
+                desc=f"Skipping first {start_iteration} batches",
+            ):
+                if i == start_iteration - 1:
+                    break
+
+            self.start_iteration = 0
+            return data_iterator
