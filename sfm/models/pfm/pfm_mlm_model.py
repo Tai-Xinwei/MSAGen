@@ -3,6 +3,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 import torch
+from altair import Dict
 from torch import nn
 from torch.nn import functional as F
 from torch.nn.modules import Module
@@ -10,6 +11,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 from sfm.data.prot_data.processed_mlm_dataset import Batch
+from sfm.logging import logger
 from sfm.models.llama2.llama_modules import LlamaDecoderLayer, LlamaHead, LlamaNorm
 from sfm.models.pfm.pfm_mlm_config import PfmMlmConfig
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
@@ -331,3 +333,67 @@ class PfmMlmModelRd(PfmMlmModel):
             return lm_logits, aa_len_pred, aa_type_pred
         else:
             return lm_logits, None, None
+
+
+class PfmMlmBpeModel(Model):
+    def __init__(self, config: PfmMlmConfig):
+        super().__init__()
+
+        if config.use_rd:
+            self.model = PfmMlmModelRd(config)
+        else:
+            self.model = PfmMlmModel(config)
+
+    def forward(self, batch: Dict[str]):
+        data = Batch(
+            x=batch["x"],
+            y=batch["y"],
+            # This is to select the output tokens, only logits with True will in output
+            mask=batch["mask"],
+            # This is to ignore the padding tokens, i.e., (x != self.pad_idx)
+            pad_mask=batch["pad_mask"],
+        )
+
+        return self.model(data)[0]
+
+    def load_pretrained_weights(self, args, checkpoint_path):
+        """
+        Load pretrained weights from a given state_dict.
+        """
+        if args.ft or args.infer:
+            checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
+            if "model" in checkpoints_state:
+                checkpoints_state = checkpoints_state["model"]
+            elif "module" in checkpoints_state:
+                checkpoints_state = checkpoints_state["module"]
+
+            IncompatibleKeys = self.model.load_state_dict(
+                checkpoints_state, strict=False
+            )
+            IncompatibleKeys = IncompatibleKeys._asdict()
+
+            missing_keys = []
+            for keys in IncompatibleKeys["missing_keys"]:
+                if keys.find("dummy") == -1:
+                    missing_keys.append(keys)
+
+            unexpected_keys = []
+            for keys in IncompatibleKeys["unexpected_keys"]:
+                if keys.find("dummy") == -1:
+                    unexpected_keys.append(keys)
+
+            if len(missing_keys) > 0:
+                logger.info(
+                    "Missing keys in {}: {}".format(
+                        checkpoint_path,
+                        missing_keys,
+                    )
+                )
+
+            if len(unexpected_keys) > 0:
+                logger.info(
+                    "Unexpected keys {}: {}".format(
+                        checkpoint_path,
+                        unexpected_keys,
+                    )
+                )

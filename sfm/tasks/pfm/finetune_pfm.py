@@ -16,6 +16,8 @@ from sfm.criterions.mae3d import ProteinPMLM
 from sfm.data.prot_data.dataset import BatchedDataDataset, DownstreamLMDBDataset
 from sfm.logging import logger, metric_logger
 from sfm.models.pfm.pfm_config import PFMConfig
+from sfm.models.pfm.pfm_mlm_config import PFMMLMConfig
+from sfm.models.pfm.pfm_mlm_model import PfmMlmBpeModel
 from sfm.models.pfm.pfm_optimizer import DECAY_COSINE_RATE, groupWarmupDecayLR, myAdam
 from sfm.models.pfm.pfmmodel import PFMModel
 from sfm.pipeline.accelerator.dataclasses import (
@@ -33,6 +35,7 @@ class DownstreamConfig:
     task_name: str
     data_basepath: str
     head_dropout: float = 0.1
+    base_model: str = "pfm"
 
 
 class SingleSequenceModel(Model):
@@ -151,10 +154,17 @@ def load_batched_dataset(args):
     return train_data, val_data, testset_dict
 
 
+def build_base_model(args):
+    if args.base_model == "pfm":
+        return PFMModel(args, loss_fn=ProteinPMLM)
+    elif args.base_model == "pfm_bpe":
+        return PfmMlmBpeModel(args, loss_fn=ProteinPMLM)
+
+
 def init_model(args):
     # seems model loading require this parameter
     args.ft = True
-    basemodel = PFMModel(args, loss_fn=ProteinPMLM)
+    basemodel = build_base_model(args)
 
     if DownstreamLMDBDataset.TASKINFO[args.task_name]["type"] == "regression":
         model = SingleSequenceModel(args, basemodel, n_classes=1)
@@ -173,7 +183,7 @@ def init_model(args):
     return model
 
 
-@cli(DistributedTrainConfig, PFMConfig, DownstreamConfig)
+@cli(DistributedTrainConfig, PFMConfig, PFMMLMConfig, DownstreamConfig)
 def finetune(args) -> None:
     train_data, val_data, testset_dict = load_batched_dataset(args)
 
