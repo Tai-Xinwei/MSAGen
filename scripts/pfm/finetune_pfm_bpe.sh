@@ -48,7 +48,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${valid_data_path}" ] && valid_data_path='None'
 [ -z "${data_basepath}" ] && data_basepath="/mnta/yaosen/data/bfm_benchmark"
 [ -z "${task_name}" ] && task_name="subcellular_localization"
-[ -z "${loadcheck_path}" ] && loadcheck_path="/home/yaosen/bfm_ckpts/checkpoint_E13.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/home/yaosen/bpe_ckpts/checkpoint_E19.pt"
 [ -z "${save_dir}" ] && save_dir="/mnta/yaosen/$task_name"
 [ -z "${early_stopping}" ] && early_stopping=true
 [ -z "${early_stopping_patience}" ] && early_stopping_patience=5
@@ -61,7 +61,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=tinyBFM-finetune
+[ -z "${wandb_group}" ] && wandb_group=tinyBFM-bpe-finetune
 [ -z "${wandb_team}" ] && wandb_team=icuppjin
 [ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
 
@@ -71,6 +71,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 # [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=-1
+
+
+[ -z "${mask_prob}" ] && mask_prob=0.15
+[ -z "${initializer_range}" ] && initializer_range=0.02
+
+
+
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -156,38 +163,68 @@ fi
 
 # echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
+# torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm.py \
+#           --task_name $task_name \
+#           --data_basepath $data_basepath \
+#           --loadcheck_path $loadcheck_path \
+#           --encoder_attention_heads $num_head \
+#           --encoder_layers $layers \
+#           --encoder_ffn_embed_dim $ffn_size \
+#           --encoder_embed_dim $hidden_size \
+#           --droppath_prob $droppath_prob \
+#           --attn_dropout $attn_dropout \
+#           --num_3d_bias_kernel $num_3d_bias_kernel \
+#           --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
+#           --sandwich_ln \
+#           --dataset_names $dataset_name \
+#           --valid_data_path $valid_data_path \
+#           --train_data_path $train_data_path \
+#           --save_dir $save_dir \
+#           --seed $seed \
+#           --fp16 \
+#           --mask_ratio $mask_ratio \
+#           --noise_scale $noise_scale \
+#           --num_pred_attn_layer $num_pred_attn_layer \
+#           --d_tilde $d_tilde \
+#           --strategy $strategy \
+#           --max_lr $max_lr \
+#           --mode_prob $mode_prob --noise_mode $noise_mode\
+#           --total_num_steps $total_num_steps \
+#           --warmup_num_steps $warmup_num_steps \
+#           --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
+#           --max_tokens $max_tokens --max_length $max_length \
+#           --gradient_accumulation_steps $gradient_accumulation_steps \
+#           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
+#           --save_batch_interval $save_batch_interval --log_interval $log_interval \
+#           --head_dropout $head_dropout $early_stop_args \
+#           # --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
+
+
+
 torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm.py \
-          --task_name $task_name \
-          --data_basepath $data_basepath \
-          --loadcheck_path $loadcheck_path \
-          --encoder_attention_heads $num_head \
-          --encoder_layers $layers \
-          --encoder_ffn_embed_dim $ffn_size \
-          --encoder_embed_dim $hidden_size \
-          --droppath_prob $droppath_prob \
-          --attn_dropout $attn_dropout \
-          --num_3d_bias_kernel $num_3d_bias_kernel \
-          --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
-          --sandwich_ln \
-          --dataset_names $dataset_name \
-          --valid_data_path $valid_data_path \
-          --train_data_path $train_data_path \
-          --save_dir $save_dir \
-          --seed $seed \
-          --fp16 \
-          --mask_ratio $mask_ratio \
-          --noise_scale $noise_scale \
-          --num_pred_attn_layer $num_pred_attn_layer \
-          --d_tilde $d_tilde \
-          --strategy $strategy \
-          --max_lr $max_lr \
-          --mode_prob $mode_prob --noise_mode $noise_mode\
-          --total_num_steps $total_num_steps \
-          --warmup_num_steps $warmup_num_steps \
-          --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
-          --max_tokens $max_tokens --max_length $max_length \
-          --gradient_accumulation_steps $gradient_accumulation_steps \
-          --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
-          --save_batch_interval $save_batch_interval --log_interval $log_interval \
-          --head_dropout $head_dropout $early_stop_args \
-          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+        --base_model 'pfm_bpe' \
+        --task_name $task_name \
+        --data_basepath $data_basepath \
+        --train_data_path $train_data_path \
+        --valid_data_path $valid_data_path \
+        --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
+        --save_dir $save_dir \
+        --seed $seed \
+        --fp16 \
+        --strategy $strategy \
+        --max_lr $max_lr \
+        --mask_prob $mask_prob \
+        --initializer_range $initializer_range \
+        --total_num_steps $total_num_steps \
+        --warmup_num_steps $warmup_num_steps \
+        --train_batch_size $train_batch_size \
+        --val_batch_size $val_batch_size \
+        --gradient_accumulation_steps $gradient_accumulation_steps \
+        --save_epoch_interval $save_epoch_interval \
+        --total_num_epochs $epochs \
+        --save_batch_interval $save_batch_interval \
+        --log_interval $log_interval \
+        --use_rd --rd_scale 1.0 \
+        --use_aa_loss --bpe2aa_path /home/yaosen/ur50bpe.bpe2aa.npz \
+        --head_dropout $head_dropout $early_stop_args \
+        # --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \

@@ -3,7 +3,6 @@ from typing import Optional, Tuple
 
 import numpy as np
 import torch
-from altair import Dict
 from torch import nn
 from torch.nn import functional as F
 from torch.nn.modules import Module
@@ -335,16 +334,32 @@ class PfmMlmModelRd(PfmMlmModel):
             return lm_logits, None, None
 
 
+from sfm.models.pfm.pfm_mlm_config import (
+    PfmMlmConfig,
+    pfm_mlm_tiny_config,
+    pfm_mlm_tiny_h24_config,
+)
+from sfm.utils import arg_utils
+from sfm.utils.cli_utils import cli
+
+config_registry = {
+    "pfm_mlm_tiny": pfm_mlm_tiny_config,
+    "pfm_mlm_tiny_h24": pfm_mlm_tiny_h24_config,
+}
+
+
 class PfmMlmBpeModel(Model):
-    def __init__(self, config: PfmMlmConfig):
+    def __init__(self, args):
         super().__init__()
+        config = arg_utils.from_args(args, PfmMlmConfig)
+        config = config_registry.get(config.model_type, pfm_mlm_tiny_config)(config)
 
         if config.use_rd:
             self.model = PfmMlmModelRd(config)
         else:
             self.model = PfmMlmModel(config)
 
-    def forward(self, batch: Dict[str]):
+    def forward(self, batch):
         data = Batch(
             x=batch["x"],
             y=batch["y"],
@@ -355,6 +370,24 @@ class PfmMlmBpeModel(Model):
         )
 
         return self.model(data)[0]
+
+    def ft_forward(self, batch):
+        data = Batch(
+            x=batch["x"],
+            y=batch["y"],
+            # This is to select the output tokens, only logits with True will in output
+            mask=batch["mask"],
+            # This is to ignore the padding tokens, i.e., (x != self.pad_idx)
+            pad_mask=batch["pad_mask"],
+        )
+
+        return self.model(data)[0]
+
+    def compute_loss(self, model_output, batch_data) -> ModelOutput:
+        pass
+
+    def config_optimizer(self):
+        pass
 
     def load_pretrained_weights(self, args, checkpoint_path):
         """

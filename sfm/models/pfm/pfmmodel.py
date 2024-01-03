@@ -29,7 +29,15 @@ class PFMModel(Model):
     additional sentence level prediction if the sent-loss argument is set.
     """
 
-    def __init__(self, args, loss_fn=None, data_mean=0.0, data_std=1.0, not_init=False):
+    def __init__(
+        self,
+        args,
+        loss_fn=None,
+        data_mean=0.0,
+        data_std=1.0,
+        not_init=False,
+        load_ckpt=False,
+    ):
         super().__init__()
         if not_init:
             return
@@ -42,7 +50,8 @@ class PFMModel(Model):
 
         self.net = PFM(args, pfm_config)
 
-        self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
+        if load_ckpt:
+            self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
 
     def load_pretrained_weights(self, args, checkpoint_path):
         """
@@ -83,6 +92,8 @@ class PFMModel(Model):
                         unexpected_keys,
                     )
                 )
+
+            logger.info(f"checkpoint: {checkpoint_path} is loaded")
 
     def max_positions(self):
         return self.net.max_positions
