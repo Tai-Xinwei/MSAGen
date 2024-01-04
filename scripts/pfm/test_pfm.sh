@@ -15,7 +15,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=4
-[ -z "${max_length}" ] && max_length=2048
+[ -z "${max_length}" ] && max_length=1024
 
 [ -z "${dropout}" ] && dropout=0.0
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -27,7 +27,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_mode}" ] && noise_mode=diff
 [ -z "${mask_ratio}" ] && mask_ratio=0.15
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=2e-5
+[ -z "${max_lr}" ] && max_lr=1e-4
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 [ -z "${train_batch_size}" ] && train_batch_size=64
@@ -37,7 +37,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=100
-[ -z "${epochs}" ] && epochs=100
+[ -z "${epochs}" ] && epochs=3
+[ -z "${seed}" ] && seed=42
 
 
 [ -z "${mode_prob}" ] && mode_prob='1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
@@ -47,13 +48,16 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
 [ -z "${train_data_path}" ] && train_data_path='None'
 [ -z "${valid_data_path}" ] && valid_data_path='None'
-# [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
 [ -z "${data_basepath}" ] && data_basepath="/mnta/yaosen/data/bfm_benchmark"
-[ -z "${loadcheck_path}" ] && loadcheck_path="/mnta/yaosen/debug/checkpoint_E92.pt"
-# [ -z "${data_basepath}" ] && data_basepath="/home/peiran/FMproj/bfm_benchmark"
-# [ -z "${loadcheck_path}" ] && loadcheck_path="/home/peiran/FMproj/output/bfm100m_ddp4e5d8_ln_pairv3_bert2_32A100_adam2/checkpoints/checkpoint_E3.pt"
-[ -z "${save_dir}" ] && save_dir='/mnta/yaosen/debug'
-# [ -z "${dataset_name}" ] && dataset_name="PCQM4M-LSC-V2-3D"
+[ -z "${task_name}" ] && task_name="EnzymeCommission"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/mnta/yaosen/EnzymeCommission/checkpoint_E1.pt"
+[ -z "${save_dir}" ] && save_dir="/mnta/yaosen/$task_name"
+[ -z "${early_stopping}" ] && early_stopping=true
+[ -z "${early_stopping_patience}" ] && early_stopping_patience=5
+[ -z "${early_stopping_metric}" ] && early_stopping_metric='valid_loss'
+[ -z "${early_stopping_mode}" ] && early_stopping_mode='min'
+[ -z "${head_dropout}" ] && head_dropout=0.1
+
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
@@ -139,7 +143,7 @@ fi
 # echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/test_pfm.py \
-          --task_name beta_lactamase \
+          --task_name $task_name \
           --data_basepath $data_basepath \
           --loadcheck_path $loadcheck_path \
           --encoder_attention_heads $num_head \
@@ -155,7 +159,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/test_pfm.py \
           --valid_data_path $valid_data_path \
           --train_data_path $train_data_path \
           --save_dir $save_dir \
-          --seed 666666 \
+          --seed $seed \
           --fp16 --ft \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
@@ -170,5 +174,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/test_pfm.py \
           --max_tokens $max_tokens --max_length $max_length \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
-          --save_batch_interval $save_batch_interval --log_interval $log_interval
-          # --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+          --save_batch_interval $save_batch_interval --log_interval $log_interval \
+          --head_dropout $head_dropout $early_stop_args \
+          # --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \

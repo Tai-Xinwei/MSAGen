@@ -10,6 +10,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 from sfm.data.prot_data.processed_mlm_dataset import Batch
+from sfm.logging import logger
 from sfm.models.llama2.llama_modules import LlamaDecoderLayer, LlamaHead, LlamaNorm
 from sfm.models.pfm.pfm_mlm_config import PfmMlmConfig
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
@@ -124,6 +125,9 @@ class PfmMlmModel(Model):
                 attention_mask=attention_mask,
                 position_ids=position_ids,
             )[0]
+
+        if self.config.ft:
+            return hidden_states
 
         hidden_states = hidden_states[batch.mask]
 
@@ -323,6 +327,9 @@ class PfmMlmModelRd(PfmMlmModel):
         res = self.final_norm((res, None, None))[0]
         hidden_states = hidden_states + res
 
+        if self.config.ft:
+            return hidden_states
+
         hidden_states = hidden_states[batch.mask]
         lm_logits = self.lm_head((hidden_states,))[0]
 
@@ -331,3 +338,103 @@ class PfmMlmModelRd(PfmMlmModel):
             return lm_logits, aa_len_pred, aa_type_pred
         else:
             return lm_logits, None, None
+
+
+from sfm.models.pfm.pfm_mlm_config import (
+    PfmMlmConfig,
+    pfm_mlm_tiny_config,
+    pfm_mlm_tiny_h24_config,
+)
+from sfm.utils import arg_utils
+from sfm.utils.cli_utils import cli
+
+config_registry = {
+    "pfm_mlm_tiny": pfm_mlm_tiny_config,
+    "pfm_mlm_tiny_h24": pfm_mlm_tiny_h24_config,
+}
+
+
+class PfmMlmBpeModel(nn.Module):
+    def __init__(self, args, load_ckpt: bool = True):
+        super().__init__()
+        config = arg_utils.from_args(args, PfmMlmConfig)
+        config = config_registry.get(config.model_type, pfm_mlm_tiny_config)(config)
+
+        if config.use_rd:
+            self.model = PfmMlmModelRd(config)
+        else:
+            self.model = PfmMlmModel(config)
+
+        if load_ckpt:
+            self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
+
+    def forward(self, batch):
+        data = Batch(
+            x=batch["x"],
+            y=batch["y"],
+            # This is to select the output tokens, only logits with True will in output
+            mask=batch["mask"],
+            # This is to ignore the padding tokens, i.e., (x != self.pad_idx)
+            pad_mask=batch["pad_mask"],
+        )
+
+        return self.model(data)[0]
+
+    def ft_forward(self, batch):
+        data = Batch(
+            x=batch["x"],
+            y=None,
+            mask=None,
+            # This is to ignore the padding tokens, i.e., (x != self.pad_idx)
+            pad_mask=batch["pad_mask"],
+        )
+
+        self.model.config.ft = True
+        return self.model(data)
+
+    def load_pretrained_weights(self, args, checkpoint_path):
+        """
+        Load pretrained weights from a given state_dict.
+        """
+        if args.ft or args.infer:
+            checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
+            if "model" in checkpoints_state:
+                checkpoints_state = checkpoints_state["model"]
+            elif "module" in checkpoints_state:
+                checkpoints_state = checkpoints_state["module"]
+
+            # remove '_orig_mod.' prefix from key
+            checkpoints_state = {
+                k.replace("_orig_mod.", ""): v for k, v in checkpoints_state.items()
+            }
+
+            IncompatibleKeys = self.model.load_state_dict(
+                checkpoints_state, strict=False
+            )
+            IncompatibleKeys = IncompatibleKeys._asdict()
+
+            missing_keys = []
+            for keys in IncompatibleKeys["missing_keys"]:
+                if keys.find("dummy") == -1:
+                    missing_keys.append(keys)
+
+            unexpected_keys = []
+            for keys in IncompatibleKeys["unexpected_keys"]:
+                if keys.find("dummy") == -1:
+                    unexpected_keys.append(keys)
+
+            if len(missing_keys) > 0:
+                logger.info(
+                    "Missing keys in {}: {}".format(
+                        checkpoint_path,
+                        missing_keys,
+                    )
+                )
+
+            if len(unexpected_keys) > 0:
+                logger.info(
+                    "Unexpected keys {}: {}".format(
+                        checkpoint_path,
+                        unexpected_keys,
+                    )
+                )

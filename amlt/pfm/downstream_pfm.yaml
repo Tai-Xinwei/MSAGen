@@ -1,0 +1,105 @@
+description: bfm-finetune
+
+# target:
+#     service: amlk8s
+#     name: itphyperdgx2cl1
+#     vc: hai1
+
+target:
+    service: amlk8s
+    name: itplabrr1cl1
+    vc: mprr3
+
+environment:
+    image: pj/mfmds:20230207_b
+    registry: itpeus4cr.azurecr.io
+    username: itpeus4cr
+
+storage:
+    blob:
+        storage_account_name: hai1data # Storage account
+        container_name: pfm # Container name
+        mount_dir: /blob
+
+code:
+    local_dir: ../SFM_framework
+
+
+search:
+    job_template:
+        name: "finetune-{task_name:s}_{lr:s}_{seed:s}_{run:s}"
+        tags:
+        - 'ProjectID: PRJ-0209-A40'
+        sku: G8
+        mpi: true
+        process_count_per_node: 1
+        command:
+        - export seed={seed}
+        - export layers=12
+        - export num_pred_attn_layer=2
+        - export hidden_size=1024
+        - export ffn_size=2048
+        - export num_head=16
+        - export atom_loss_coeff=1.0
+        - export pos_loss_coeff=1.0
+        - export sandwich_ln="true"
+        - export dropout=0.1
+        - export attn_dropout=0.1
+        - export act_dropout=0.1
+        - export weight_decay=0.0
+        - export droppath_prob=0.0
+        - export max_num_aa=1024
+        - export noise_mode=diff
+        - export noise_scale=0.2
+        - export mask_ratio=0.2
+        - export mode_prob=1.0,0.0,0.0
+        - export d_tilde=1.0
+        - export max_lr={lr}
+        - export strategy=DDP
+        - export pipeline_model_parallel_size=0
+        # - export total_num_steps=1000000 useless, manually set in script
+        # - export warmup_num_steps=1000 useless, manually set in script
+        - export train_batch_size=128
+        - export val_batch_size=128
+        - export max_tokens=6400
+        - export max_length=2048
+        - export gradient_accumulation_steps=1
+        - export log_interval=10
+        - export epochs=200
+        - export wandb_group=tinyBFM-finetune
+        - export wandb_team=icuppjin
+        - export wandb_project=ds_mfmpre
+        - export WANDB_RUN_NAME="finetune-{task_name}_{lr}_{run}"
+        - export train_data_path="None"
+        - export valid_data_path="None"
+        - export data_basepath="/blob/data/bfm_benchmark"
+        - export task_name={task_name}
+        - export loadcheck_path=/blob/pfmexp/output/bfm100m_ddp8e5d16_ln_pairv3_bert2_32A100_adam2/checkpoints/checkpoint_E19.pt
+        - export save_dir=/blob/pfmexp/output/finetune/finetune-{task_name}_{lr}_{run}
+        - export early_stopping=true
+        - export early_stopping_patience=25
+        - export early_stopping_metric='valid_loss'
+        - export early_stopping_mode='min'
+        - export head_dropout=0.1
+        - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
+        - bash ./install/install.sh && bash ./install/install_megatron.sh
+        - bash ./scripts/pfm/finetune_pfm.sh
+        submit_args:
+            container_args:
+                shm_size: 1024g
+    type: grid
+    max_trials: 999
+    parallel_trials: 5
+    params:
+        - name: seed
+          spec: discrete
+          values: ["13", "21", "42",]
+        - name: task_name
+          spec: discrete
+          values: ['beta_lactamase', 'fluorescence', 'solubility', 'stability', 'subcellular_localization', 'subcellular_localization_2', 'remote_homology_fold', 'EnzymeCommission', 'GeneOntology_mf', 'GeneOntology_bp', 'GeneOntology_cc', 'human_ppi', 'yeast_ppi', 'ppi_affinity']
+        - name: lr
+          spec: discrete
+          values: ["1e-4", ]
+        - name: run
+          spec: discrete
+          values: ["0103-afternoon-run", ]

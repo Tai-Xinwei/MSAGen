@@ -138,7 +138,7 @@ class DownstreamLMDBDataset(LMDBDataset):
             "type": "binary",
             "splits": ["train", "valid", "test"],
             "mean_std": [None, None],
-            "classes": None,
+            "classes": [0, 1],
         },  # 0-1
         "stability": {
             "type": "regression",

@@ -426,6 +426,7 @@ class DdpAccelerator(SingleNodeAccelerator):
                     batch_size=train_batch_size_per_gpu,
                     collate_fn=train_data.collate,
                     drop_last=True,
+                    num_workers=os.cpu_count(),
                 )
 
         if val_data:
