@@ -24,7 +24,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${sandwich_ln}" ] && sandwich_ln=true
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
-[ -z "${noise_mode}" ] && noise_mode=diff
+[ -z "${noise_mode}" ] && noise_mode='diff'
 [ -z "${mask_ratio}" ] && mask_ratio=0.15
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=1e-4
@@ -33,17 +33,17 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${max_tokens}" ] && max_tokens=2048
 [ -z "${val_batch_size}" ] && val_batch_size=64
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=1
 [ -z "${epochs}" ] && epochs=3
 [ -z "${seed}" ] && seed=42
+[ -z "${spm_model_path}" ] && spm_model_path='/blob/shufxi/data/biofm/ur50bpe/ur50bpe.model'
 
 [ -z "${mode_prob}" ] && mode_prob='1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 [ -z "${strategy}" ] && strategy=DDP
 
-# [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
 [ -z "${train_data_path}" ] && train_data_path='None'
 [ -z "${valid_data_path}" ] && valid_data_path='None'
 [ -z "${data_basepath}" ] && data_basepath="/mnta/yaosen/data/bfm_benchmark"
@@ -114,8 +114,6 @@ echo "atom_loss_coeff: ${atom_loss_coeff}"
 echo "pos_loss_coeff: ${pos_loss_coeff}"
 echo "no_2d: ${no_2d}"
 echo "add_3d: ${add_3d}"
-echo "data_path: ${data_path}"
-echo "output_path: ${output_path}"
 echo "dataset_name: ${dataset_name}"
 echo "noise_scale: ${noise_scale}"
 echo "mask_ratio: ${mask_ratio}"
@@ -132,8 +130,6 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
-export WANDB_API_KEY=5d03b7a46d10f86ff45c4aedc570660a523edc0b
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -161,46 +157,6 @@ else
                    --early_stopping_mode $early_stopping_mode"
 fi
 
-# echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
-
-# torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm.py \
-#           --task_name $task_name \
-#           --data_basepath $data_basepath \
-#           --loadcheck_path $loadcheck_path \
-#           --encoder_attention_heads $num_head \
-#           --encoder_layers $layers \
-#           --encoder_ffn_embed_dim $ffn_size \
-#           --encoder_embed_dim $hidden_size \
-#           --droppath_prob $droppath_prob \
-#           --attn_dropout $attn_dropout \
-#           --num_3d_bias_kernel $num_3d_bias_kernel \
-#           --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
-#           --sandwich_ln \
-#           --dataset_names $dataset_name \
-#           --valid_data_path $valid_data_path \
-#           --train_data_path $train_data_path \
-#           --save_dir $save_dir \
-#           --seed $seed \
-#           --fp16 \
-#           --mask_ratio $mask_ratio \
-#           --noise_scale $noise_scale \
-#           --num_pred_attn_layer $num_pred_attn_layer \
-#           --d_tilde $d_tilde \
-#           --strategy $strategy \
-#           --max_lr $max_lr \
-#           --mode_prob $mode_prob --noise_mode $noise_mode\
-#           --total_num_steps $total_num_steps \
-#           --warmup_num_steps $warmup_num_steps \
-#           --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
-#           --max_tokens $max_tokens --max_length $max_length \
-#           --gradient_accumulation_steps $gradient_accumulation_steps \
-#           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
-#           --save_batch_interval $save_batch_interval --log_interval $log_interval \
-#           --head_dropout $head_dropout $early_stop_args \
-#           # --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
-
-
-
 torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm.py \
         --base_model 'pfm_bpe' \
         --task_name $task_name \
@@ -225,6 +181,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm.py \
         --save_batch_interval $save_batch_interval \
         --log_interval $log_interval \
         --use_rd --rd_scale 1.0 \
-        --use_aa_loss --bpe2aa_path /home/yaosen/ur50bpe.bpe2aa.npz \
         --head_dropout $head_dropout $early_stop_args \
-        # --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
+        --spm_model_path $spm_model_path \
+        --loadcheck_path $loadcheck_path \
+        --d_tilde $d_tilde \
+        --max_tokens $max_tokens --max_length $max_length

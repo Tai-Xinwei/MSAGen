@@ -4,35 +4,25 @@ import sys
 
 import torch
 
+from sfm.logging import logger
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
-import numpy as np
 import sentencepiece as spm
-from scipy import stats
 
 from sfm.criterions.mae3d import ProteinPMLM
 from sfm.data.prot_data.dataset import BatchedDataDataset, DownstreamLMDBDataset
-from sfm.logging import logger, metric_logger
 from sfm.models.pfm.pfm_config import PFMConfig
-from sfm.models.pfm.pfm_mlm_config import (
-    PfmMlmConfig,
-    pfm_mlm_tiny_config,
-    pfm_mlm_tiny_h24_config,
-)
+from sfm.models.pfm.pfm_mlm_config import PfmMlmConfig
 from sfm.models.pfm.pfm_mlm_model import PfmMlmBpeModel
 from sfm.models.pfm.pfm_optimizer import DECAY_COSINE_RATE, groupWarmupDecayLR, myAdam
 from sfm.models.pfm.pfmmodel import PFMModel
-from sfm.pipeline.accelerator.dataclasses import (
-    DistributedTrainConfig,
-    ModelOutput,
-    ValidLogOutput,
-)
+from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig, ModelOutput
 from sfm.pipeline.accelerator.trainer import Model, Trainer
 from sfm.utils.cli_utils import cli
-from sfm.utils.move_to_device import move_to_device
 
 # for custimize training steps, cosine lr decay
 TRAINLENTH = 0
@@ -44,6 +34,7 @@ class DownstreamConfig:
     data_basepath: str
     head_dropout: float = 0.1
     base_model: str = "pfm"
+    spm_model_path: str = ""
 
 
 class SingleSequenceModel(Model):
@@ -75,6 +66,7 @@ class SingleSequenceModel(Model):
             xs = []
             for i in range(self.n_sequence):
                 batch_data["x"] = batch_data[f"x_{i}"]
+                batch_data["pad_mask"] = batch_data[f"pad_mask_{i}"]
                 x = self.model.ft_forward(batch_data)
                 x = x[:, 0, :].squeeze(1)
                 xs.append(x)
@@ -172,6 +164,9 @@ class BPEPatchDataset(torch.utils.data.Dataset):
         # self.collate_fn = dataset.collate
         self.sequence_length = args.max_length
 
+        self.spm = spm.SentencePieceProcessor(model_file=args.spm_model_path)
+        self.multi_seq_tasks = ["yeast_ppi", "human_ppi", "ppi_affinity"]
+
     def reverse2str(self, tokens):
         vocab = self.vocab
         aaseq = []
@@ -188,37 +183,62 @@ class BPEPatchDataset(torch.utils.data.Dataset):
         return "".join(aaseq)
 
     def patch(self, aastr):
-        # TODO: should return an object that PfmMlmBpeModel accepts
-        pass
+        tokens = self.spm.encode(aastr, out_type=int)
+        return [self.args.bos_token_id] + tokens + [self.args.eos_token_id]
 
     def __getitem__(self, index):
         item = self.dataset[int(index)]
-        target, target_offset = item["target"], item["target_offset"]
+        target = item["target"]
 
-        if self.args.task_name in ["yeast_ppi", "human_ppi", "ppi_affinity"]:
-            aaseq = [self.reverse2str(item[f"x_{i}"]) for i in range(2)]
+        if self.args.task_name in self.multi_seq_tasks:
+            aaseq = [self.reverse2str(item[f"aa_{i}"]) for i in range(2)]
             item0, item1 = self.patch(aaseq[0]), self.patch(aaseq[1])
             return {
                 "x_0": item0,
                 "x_1": item1,
                 "target": target,
-                "target_offset": target_offset,
             }
         else:
-            aaseq = self.reverse2str(item["x"])
+            aaseq = self.reverse2str(item["aa"])
             item = self.patch(aaseq)
-            return {"x": item, "target": target, "target_offset": target_offset}
+            return {"x": item, "target": target}
 
     def __len__(self):
         return len(self.dataset)
 
     def collate(self, samples):
-        # TODO: Data + target + target_offset
-        pass
+        def make_x_batch(x_list):
+            max_len = max([len(x) for x in x_list])
+            for i in range(len(x_list)):
+                x_list[i] = x_list[i] + [self.args.pad_token_id] * (
+                    max_len - len(x_list[i])
+                )
+            return torch.tensor(x_list, dtype=torch.long)
+
+        batch = {}
+        if self.args.task_name in self.multi_seq_tasks:
+            batch["x_0"] = make_x_batch([s["x_0"] for s in samples])
+            batch["x_1"] = make_x_batch([s["x_1"] for s in samples])
+        else:
+            batch["x"] = make_x_batch([s["x"] for s in samples])
+
+        batch["target"] = torch.cat([torch.from_numpy(s["target"]) for s in samples])
+        batch["target_offset"] = torch.tensor(
+            [len(s["target"]) for s in samples], dtype=torch.long
+        )
+
+        if "x" in batch:
+            batch["pad_mask"] = batch["x"] != self.args.pad_token_id
+        else:
+            batch["pad_mask_0"] = batch["x_0"] != self.args.pad_token_id
+            batch["pad_mask_1"] = batch["x_1"] != self.args.pad_token_id
+        return batch
 
     def num_tokens(self, index: int) -> int:
-        # TODO: return the length (?) of the sequence
-        pass
+        if self.args.task_name in self.multi_seq_tasks:
+            item = self.dataset[index]
+            return len(item["x_0"]) + len(item["x_1"]) + 4
+        return len(self.spm.encode(self.dataset[index]["x"], out_type=int)) + 2
 
 
 def load_batched_dataset(args):
@@ -278,17 +298,17 @@ def load_batched_dataset(args):
     return train_data, val_data, testset_dict
 
 
-def build_base_model(args):
+def build_base_model(args, load_ckpt=True):
     if args.base_model == "pfm":
-        return PFMModel(args, loss_fn=ProteinPMLM)
+        return PFMModel(args, loss_fn=ProteinPMLM, load_ckpt=load_ckpt)
     elif args.base_model == "pfm_bpe":
-        return PfmMlmBpeModel(args)
+        return PfmMlmBpeModel(args, load_ckpt=load_ckpt)
 
 
-def init_model(args):
+def init_model(args, load_ckpt=True):
     # seems model loading require this parameter
     args.ft = True
-    basemodel = build_base_model(args)
+    basemodel = build_base_model(args, load_ckpt=load_ckpt)
 
     if DownstreamLMDBDataset.TASKINFO[args.task_name]["type"] == "regression":
         model = SingleSequenceModel(args, basemodel, n_classes=1)

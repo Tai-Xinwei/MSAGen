@@ -126,6 +126,9 @@ class PfmMlmModel(Model):
                 position_ids=position_ids,
             )[0]
 
+        if self.config.ft:
+            return hidden_states
+
         hidden_states = hidden_states[batch.mask]
 
         lm_logits = self.lm_head((hidden_states,))[0]
@@ -324,6 +327,9 @@ class PfmMlmModelRd(PfmMlmModel):
         res = self.final_norm((res, None, None))[0]
         hidden_states = hidden_states + res
 
+        if self.config.ft:
+            return hidden_states
+
         hidden_states = hidden_states[batch.mask]
         lm_logits = self.lm_head((hidden_states,))[0]
 
@@ -348,8 +354,8 @@ config_registry = {
 }
 
 
-class PfmMlmBpeModel(Model):
-    def __init__(self, args):
+class PfmMlmBpeModel(nn.Module):
+    def __init__(self, args, load_ckpt: bool = True):
         super().__init__()
         config = arg_utils.from_args(args, PfmMlmConfig)
         config = config_registry.get(config.model_type, pfm_mlm_tiny_config)(config)
@@ -358,6 +364,9 @@ class PfmMlmBpeModel(Model):
             self.model = PfmMlmModelRd(config)
         else:
             self.model = PfmMlmModel(config)
+
+        if load_ckpt:
+            self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
 
     def forward(self, batch):
         data = Batch(
@@ -374,20 +383,14 @@ class PfmMlmBpeModel(Model):
     def ft_forward(self, batch):
         data = Batch(
             x=batch["x"],
-            y=batch["y"],
-            # This is to select the output tokens, only logits with True will in output
-            mask=batch["mask"],
+            y=None,
+            mask=None,
             # This is to ignore the padding tokens, i.e., (x != self.pad_idx)
             pad_mask=batch["pad_mask"],
         )
 
-        return self.model(data)[0]
-
-    def compute_loss(self, model_output, batch_data) -> ModelOutput:
-        pass
-
-    def config_optimizer(self):
-        pass
+        self.model.config.ft = True
+        return self.model(data)
 
     def load_pretrained_weights(self, args, checkpoint_path):
         """
@@ -399,6 +402,11 @@ class PfmMlmBpeModel(Model):
                 checkpoints_state = checkpoints_state["model"]
             elif "module" in checkpoints_state:
                 checkpoints_state = checkpoints_state["module"]
+
+            # remove '_orig_mod.' prefix from key
+            checkpoints_state = {
+                k.replace("_orig_mod.", ""): v for k, v in checkpoints_state.items()
+            }
 
             IncompatibleKeys = self.model.load_state_dict(
                 checkpoints_state, strict=False

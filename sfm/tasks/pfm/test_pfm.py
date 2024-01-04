@@ -16,6 +16,8 @@ from sfm.criterions.mae3d import ProteinPMLM
 from sfm.data.prot_data.dataset import BatchedDataDataset, DownstreamLMDBDataset
 from sfm.logging import logger, metric_logger
 from sfm.models.pfm.pfm_config import PFMConfig
+from sfm.models.pfm.pfm_mlm_config import PfmMlmConfig
+from sfm.models.pfm.pfm_mlm_model import PfmMlmBpeModel
 from sfm.models.pfm.pfm_optimizer import DECAY_COSINE_RATE, groupWarmupDecayLR, myAdam
 from sfm.models.pfm.pfmmodel import PFMModel
 from sfm.pipeline.accelerator.dataclasses import (
@@ -95,6 +97,17 @@ def accuracy(pred, target):
         target (Tensor): target of shape :math:`(N,)`
     """
     return (pred.argmax(dim=-1) == target).float().mean()
+
+
+def binary_accuracy(pred, target):
+    """
+    Binary classification accuracy.
+
+    Parameters:
+        pred (Tensor): prediction of shape :math:`(N,)`
+        target (Tensor): target of shape :math:`(N,)`
+    """
+    return ((pred > 0) == target).float().mean()
 
 
 def pearsonr(pred, target):
@@ -220,7 +233,7 @@ def test(args, trainer):
     elif DownstreamLMDBDataset.TASKINFO[args.task_name]["type"] == "binary":
         pred = torch.cat(pred, axis=0)
         true = torch.cat(true, axis=0)
-        test_fns = [accuracy]
+        test_fns = [binary_accuracy]
     elif DownstreamLMDBDataset.TASKINFO[args.task_name]["type"] == "classification":
         pred = torch.cat(pred, axis=0)
         true = torch.cat(true, axis=0)
@@ -241,7 +254,7 @@ def test(args, trainer):
     metric_logger.log(results, "test")
 
 
-@cli(DistributedTrainConfig, PFMConfig, DownstreamConfig)
+@cli(DistributedTrainConfig, PFMConfig, PfmMlmConfig, DownstreamConfig)
 def test_checkpoint(args) -> None:
     train_data, val_data, testset_dict = load_batched_dataset(args)
 

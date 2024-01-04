@@ -37,6 +37,8 @@ class PfmMlmConfig(LlamaConfig, DistributedTrainConfig):
     valid_data_path: str = ""
     bpe2aa_path: str = ""
 
+    ft: bool = False
+
 
 def pfm_mlm_tiny_config(config: PfmMlmConfig):
     config.hidden_size = 768
