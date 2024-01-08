@@ -37,6 +37,7 @@ class PFMModel(Model):
         data_std=1.0,
         not_init=False,
         load_ckpt=False,
+        mlm_only=False,
     ):
         super().__init__()
         if not_init:
@@ -48,7 +49,7 @@ class PFMModel(Model):
 
         self.loss = loss_fn(args)
 
-        self.net = PFM(args, pfm_config)
+        self.net = PFM(args, pfm_config, mlm_only=mlm_only)
 
         if load_ckpt:
             self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
@@ -106,16 +107,20 @@ class PFMModel(Model):
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
         seq_aa = batch_data["x"]
+        bs = seq_aa.shape[0]
+
         logits = model_output[0]
         node_output = model_output[1]
         mask_pos = model_output[2]
         mask_aa = model_output[3]
-        pair_mask_aa = model_output[4]
+        if len(model_output) > 4:
+            pair_mask_aa = model_output[4]
+            output = self.loss(
+                batch_data, logits, node_output, mask_pos, mask_aa, pair_mask_aa
+            )
+        else:
+            output = self.loss(batch_data, logits, node_output, mask_pos, mask_aa)
 
-        bs = seq_aa.shape[0]
-        output = self.loss(
-            batch_data, logits, node_output, mask_pos, mask_aa, pair_mask_aa
-        )
         loss = output[0]
         if len(output) > 1:
             log_loss = output[1]
@@ -136,7 +141,7 @@ class PFM(nn.Module):
     Encoder for Masked Language Modelling.
     """
 
-    def __init__(self, args, pfm_config):
+    def __init__(self, args, pfm_config, mlm_only=False):
         super().__init__()
         self.max_positions = args.max_positions
 
@@ -149,26 +154,11 @@ class PFM(nn.Module):
         self.lm_output_learned_bias = None
         self.proj_out = None
         self.args = args
+        self.mlm_only = mlm_only
 
         # Remove head is set to true during fine-tuning
         self.load_softmax = not args.ft  # getattr(args, "remove_head", False)
         print("if finetune:", args.ft)
-        # self.decoder = NodeDecoder(
-        #     args.encoder_embed_dim, args.encoder_attention_heads, args=args
-        # )
-        # self.decoder = UnifiedDecoder(
-        #     args,
-        #     num_pred_attn_layer=args.num_pred_attn_layer,
-        #     embedding_dim=args.encoder_embed_dim,
-        #     num_attention_heads=args.encoder_attention_heads,
-        #     ffn_embedding_dim=args.encoder_ffn_embed_dim,
-        #     dropout=args.dropout,
-        #     attention_dropout=args.attention_dropout,
-        #     activation_dropout=args.act_dropout,
-        #     num_3d_bias_kernel=args.num_3d_bias_kernel,
-        #     num_edges=args.num_edges,
-        #     num_atoms=args.num_atoms,
-        # )
 
         self.lm_output_learned_bias = None
 
@@ -181,12 +171,12 @@ class PFM(nn.Module):
         )
 
         if self.load_softmax:
-            # self.lm_output_learned_bias = nn.Parameter(torch.zeros(1))
+            if mlm_only:
+                self.embed_out = nn.Linear(
+                    args.encoder_embed_dim, args.num_residues, bias=False
+                )
 
             if not self.share_input_output_embed:
-                # self.embed_out = nn.Linear(
-                #     args.encoder_embed_dim, args.num_residues, bias=False
-                # )
                 self.embed_out = nn.Linear(
                     args.encoder_embed_dim,
                     args.num_residues * args.num_residues,
@@ -249,54 +239,55 @@ class PFM(nn.Module):
         x = x.transpose(0, 1)  # [B, L, H]
         x = self.layer_norm(x)
 
-        # q = self.fc_pmlm_q(x)
-        # k = self.fc_pmlm_k(x)
-        # x = torch.einsum("zic,zjc->zijc", q, k)  # [B, L, L, H]
+        if not self.mlm_only:
+            # q = self.fc_pmlm_q(x)
+            # k = self.fc_pmlm_k(x)
+            # x = torch.einsum("zic,zjc->zijc", q, k)  # [B, L, L, H]
 
-        # # memory efficient implementation
-        # # mask_aa is a boolean mask of shape [B, L, 1]
+            # # memory efficient implementation
+            # # mask_aa is a boolean mask of shape [B, L, 1]
 
-        B, L, H = x.shape
-        masked_indices = torch.where(mask_aa.squeeze(-1).bool())
-        x = x[masked_indices[0], masked_indices[1]]  # [num_masked, H]
+            B, L, H = x.shape
+            masked_indices = torch.where(mask_aa.squeeze(-1).bool())
+            x = x[masked_indices[0], masked_indices[1]]  # [num_masked, H]
 
-        # Compute q and k only for the selected positions
-        q_masked = self.fc_pmlm_q(x)  # [num_masked, H]
-        k_masked = self.fc_pmlm_k(x)  # [num_masked, H]
+            # Compute q and k only for the selected positions
+            q_masked = self.fc_pmlm_q(x)  # [num_masked, H]
+            k_masked = self.fc_pmlm_k(x)  # [num_masked, H]
 
-        # masked_per_batch = mask_aa.squeeze(-1).sum(dim=1)
-        masked_per_batch = []
-        residue_seq = batched_data["x"]
-        pair_mask_aa = torch.zeros(
-            (B, L, L, 1), device=residue_seq.device, dtype=torch.int8
-        )
-        for i in range(B):
-            mask_sep_idx = (residue_seq[i] == 2).nonzero(as_tuple=True)[0]
-            pre_j = 0
-            for j in mask_sep_idx:
-                masked_per_batch.append(mask_aa[i, pre_j:j].sum().item())
-                pair_mask_aa[i, pre_j:j, pre_j:j:, :] = 1
-                pre_j = j
+            # masked_per_batch = mask_aa.squeeze(-1).sum(dim=1)
+            masked_per_batch = []
+            residue_seq = batched_data["x"]
+            pair_mask_aa = torch.zeros(
+                (B, L, L, 1), device=residue_seq.device, dtype=torch.int8
+            )
+            for i in range(B):
+                mask_sep_idx = (residue_seq[i] == 2).nonzero(as_tuple=True)[0]
+                pre_j = 0
+                for j in mask_sep_idx:
+                    masked_per_batch.append(mask_aa[i, pre_j:j].sum().item())
+                    pair_mask_aa[i, pre_j:j, pre_j:j:, :] = 1
+                    pre_j = j
 
-            if pre_j < L - 1:
-                masked_per_batch.append(mask_aa[i, pre_j:].sum().item())
-                pair_mask_aa[i, pre_j:, pre_j:, :] = 1
+                if pre_j < L - 1:
+                    masked_per_batch.append(mask_aa[i, pre_j:].sum().item())
+                    pair_mask_aa[i, pre_j:, pre_j:, :] = 1
 
-        q_split = torch.split(q_masked, masked_per_batch)
-        k_split = torch.split(k_masked, masked_per_batch)
+            q_split = torch.split(q_masked, masked_per_batch)
+            k_split = torch.split(k_masked, masked_per_batch)
 
-        result_list = []
-        mask_list = []
-        for i in range(len(masked_per_batch)):
-            x_i = torch.einsum(
-                "ih,jh->ijh", q_split[i], k_split[i]
-            )  # [mask_i_len, mask_i_len, H]
-            result_list.append(x_i.view(-1, H))
-            diag_mask = torch.eye(x_i.size(0), dtype=torch.bool, device=x_i.device)
-            mask_list.append(diag_mask.view(-1).bool())
+            result_list = []
+            mask_list = []
+            for i in range(len(masked_per_batch)):
+                x_i = torch.einsum(
+                    "ih,jh->ijh", q_split[i], k_split[i]
+                )  # [mask_i_len, mask_i_len, H]
+                result_list.append(x_i.view(-1, H))
+                diag_mask = torch.eye(x_i.size(0), dtype=torch.bool, device=x_i.device)
+                mask_list.append(diag_mask.view(-1).bool())
 
-        x = torch.cat(result_list, dim=0)
-        diag_mask = torch.cat(mask_list, dim=0)
+            x = torch.cat(result_list, dim=0)
+            diag_mask = torch.cat(mask_list, dim=0)
 
         # project back to size of vocabulary
         if self.share_input_output_embed and hasattr(
@@ -309,7 +300,10 @@ class PFM(nn.Module):
         if self.lm_output_learned_bias is not None and self.load_softmax:
             x = x + self.lm_output_learned_bias
 
-        return (x, None, diag_mask, mask_aa, pair_mask_aa)
+        if self.mlm_only:
+            return (x, None, diag_mask, mask_aa)
+        else:
+            return (x, None, diag_mask, mask_aa, pair_mask_aa)
 
     def ft_forward(
         self,

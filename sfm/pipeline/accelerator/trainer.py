@@ -751,6 +751,8 @@ class Trainer(object):
             if skip_first_batches_in_accelerator:
                 self.start_iteration = 0
                 return iter(self.train_data_loader)
+        else:
+            skip_first_batches_in_accelerator = False
 
         if not skip_first_batches_in_accelerator:
             logger.info(f"Skipping the first {start_iteration} batches")
