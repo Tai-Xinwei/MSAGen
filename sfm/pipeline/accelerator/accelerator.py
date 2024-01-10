@@ -471,33 +471,31 @@ class DdpAccelerator(SingleNodeAccelerator):
         return total_loss, num_examples
 
     def sync_valid_metric(self, label_list, logits_list):
-        label = torch.Tensor(label_list).cuda(self.device)
-        logits = torch.Tensor(logits_list).cuda(self.device)
-
-        num_samples = torch.zeros(self.world_size, device=self.device)
-        num_samples[self.rank] = label.shape[0]
-        torch.distributed.all_reduce(num_samples)
-        total_samples = torch.sum(num_samples).item()
-        for i in range(self.world_size):
-            num_samples[i] = torch.sum(num_samples[:i]).item()
-
-        total_label = torch.zeros((total_samples, label.shape[1:]), device=self.device)
-        total_logits = torch.zeros(
-            (total_samples, logits.shape[1:]), device=self.device
+        label = torch.cat(label_list, dim=0).cuda(self.device)
+        logits = torch.cat(logits_list, dim=0).cuda(self.device)
+        num_samples = torch.zeros(
+            self.world_size + 1, device=self.device, dtype=torch.long
         )
-        total_label[
-            num_samples[self.rank] : num_samples[self.rank] + label.shape[0]
-        ] = label
-        total_logits[
-            num_samples[self.rank] : num_samples[self.rank] + label.shape[0]
-        ] = logits
+        num_samples[self.rank + 1] = label.shape[0]
+        torch.distributed.all_reduce(num_samples)
+        total_samples = int(torch.sum(num_samples).item())
+        for i in range(1, self.world_size + 1):
+            num_samples[i] += num_samples[i - 1]
+        total_label = torch.zeros(
+            total_samples, *label.shape[1:], device=self.device, dtype=label.dtype
+        )
+        total_logits = torch.zeros(
+            total_samples, *logits.shape[1:], device=self.device, dtype=logits.dtype
+        )
+
+        total_label[num_samples[self.rank] : num_samples[self.rank + 1]] = label
+        total_logits[num_samples[self.rank] : num_samples[self.rank + 1]] = logits
         torch.distributed.all_reduce(total_label)
         torch.distributed.all_reduce(total_logits)
-
         return total_label, total_logits
 
     def calculate_metric(self, label, logits):
-        raise self.model.calculate_metric(label, logits)
+        return self.model.calculate_metric(label, logits)
 
     @staticmethod
     def _allreducelog(log_dict: dict = {}, log_num_dict: dict = {}):
@@ -1028,34 +1026,31 @@ class DeepSpeedAccelerator(Accelerator):
         return total_loss, num_examples
 
     def sync_valid_metric(self, label_list, logits_list):
-        label = torch.Tensor(label_list).cuda(self.device)
-        logits = torch.Tensor(logits_list).cuda(self.device)
-
-        num_samples = torch.zeros(self.world_size, device=self.device)
-        num_samples[self.rank] = label.shape[0]
-        deepspeed.comm.all_reduce(num_samples)
-        total_samples = torch.sum(num_samples).item()
-        for i in range(self.world_size):
-            num_samples[i] = torch.sum(num_samples[:i]).item()
-
-        total_label = torch.zeros((total_samples, label.shape[1:]), device=self.device)
-        total_logits = torch.zeros(
-            (total_samples, logits.shape[1:]), device=self.device
+        label = torch.cat(label_list, dim=0).cuda(self.device)
+        logits = torch.cat(logits_list, dim=0).cuda(self.device)
+        num_samples = torch.zeros(
+            self.world_size + 1, device=self.device, dtype=torch.long
         )
-        total_label[
-            num_samples[self.rank] : num_samples[self.rank] + label.shape[0]
-        ] = label
-        total_logits[
-            num_samples[self.rank] : num_samples[self.rank] + label.shape[0]
-        ] = logits
+        num_samples[self.rank + 1] = label.shape[0]
+        torch.distributed.all_reduce(num_samples)
+        total_samples = int(torch.sum(num_samples).item())
+        for i in range(1, self.world_size + 1):
+            num_samples[i] += num_samples[i - 1]
+        total_label = torch.zeros(
+            total_samples, *label.shape[1:], device=self.device, dtype=label.dtype
+        )
+        total_logits = torch.zeros(
+            total_samples, *logits.shape[1:], device=self.device, dtype=logits.dtype
+        )
 
-        deepspeed.comm.all_reduce(total_label)
-        deepspeed.comm.all_reduce(total_logits)
-
+        total_label[num_samples[self.rank] : num_samples[self.rank + 1]] = label
+        total_logits[num_samples[self.rank] : num_samples[self.rank + 1]] = logits
+        torch.distributed.all_reduce(total_label)
+        torch.distributed.all_reduce(total_logits)
         return total_label, total_logits
 
     def calculate_metric(self, label, logits):
-        raise self.model.calculate_metric(label, logits)
+        return self.model.calculate_metric(label, logits)
 
     @staticmethod
     def _allreducelog(log_dict: dict = {}, log_num_dict: dict = {}):
