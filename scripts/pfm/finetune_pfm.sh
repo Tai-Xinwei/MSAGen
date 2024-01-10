@@ -48,13 +48,14 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${valid_data_path}" ] && valid_data_path='None'
 [ -z "${data_basepath}" ] && data_basepath="/mnta/yaosen/data/bfm_benchmark"
 [ -z "${task_name}" ] && task_name="subcellular_localization"
-[ -z "${loadcheck_path}" ] && loadcheck_path="/home/yaosen/bfm_ckpts/checkpoint_E13.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/home/yaosen/bfm_ckpts/checkpoint_E19.pt"
 [ -z "${save_dir}" ] && save_dir="/mnta/yaosen/$task_name"
 [ -z "${early_stopping}" ] && early_stopping=true
 [ -z "${early_stopping_patience}" ] && early_stopping_patience=5
-[ -z "${early_stopping_metric}" ] && early_stopping_metric='valid_loss'
+[ -z "${early_stopping_metric}" ] && early_stopping_metric='f1_max'
 [ -z "${early_stopping_mode}" ] && early_stopping_mode='min'
 [ -z "${head_dropout}" ] && head_dropout=0.1
+[ -z "${label_normalize}" ] && label_normalize=false
 
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
@@ -154,9 +155,16 @@ else
                    --early_stopping_mode $early_stopping_mode"
 fi
 
+if [[ "${label_normalize}" == "false" ]]
+then
+  label_normalize_args=""
+else
+  label_normalize_args="--label_normalize"
+fi
+
 # echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm_v2.py \
           --task_name $task_name \
           --data_basepath $data_basepath \
           --loadcheck_path $loadcheck_path \
@@ -189,5 +197,78 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm.py \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
-          --head_dropout $head_dropout $early_stop_args \
+          --head_dropout $head_dropout $early_stop_args $label_normalize_args \
+          --calculate_metrics \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+
+
+python sfm/tasks/pfm/test_pfm_v2.py \
+          --task_name $task_name \
+          --data_basepath $data_basepath \
+          --loadcheck_path "${save_dir}/checkpoint_best.pt" \
+          --encoder_attention_heads $num_head \
+          --encoder_layers $layers \
+          --encoder_ffn_embed_dim $ffn_size \
+          --encoder_embed_dim $hidden_size \
+          --droppath_prob $droppath_prob \
+          --attn_dropout $attn_dropout \
+          --num_3d_bias_kernel $num_3d_bias_kernel \
+          --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
+          --sandwich_ln \
+          --dataset_names $dataset_name \
+          --valid_data_path $valid_data_path \
+          --train_data_path $train_data_path \
+          --save_dir $save_dir \
+          --seed $seed \
+          --fp16 --ft \
+          --mask_ratio $mask_ratio \
+          --noise_scale $noise_scale \
+          --num_pred_attn_layer $num_pred_attn_layer \
+          --d_tilde $d_tilde \
+          --strategy $strategy \
+          --max_lr $max_lr \
+          --mode_prob $mode_prob --noise_mode $noise_mode\
+          --total_num_steps $total_num_steps \
+          --warmup_num_steps $warmup_num_steps \
+          --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
+          --max_tokens $max_tokens --max_length $max_length \
+          --gradient_accumulation_steps $gradient_accumulation_steps \
+          --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
+          --save_batch_interval $save_batch_interval --log_interval $log_interval \
+          --head_dropout $head_dropout $early_stop_args $label_normalize_args --which_set "valid"
+
+
+python sfm/tasks/pfm/test_pfm_v2.py \
+          --task_name $task_name \
+          --data_basepath $data_basepath \
+          --loadcheck_path "${save_dir}/checkpoint_best.pt" \
+          --encoder_attention_heads $num_head \
+          --encoder_layers $layers \
+          --encoder_ffn_embed_dim $ffn_size \
+          --encoder_embed_dim $hidden_size \
+          --droppath_prob $droppath_prob \
+          --attn_dropout $attn_dropout \
+          --num_3d_bias_kernel $num_3d_bias_kernel \
+          --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
+          --sandwich_ln \
+          --dataset_names $dataset_name \
+          --valid_data_path $valid_data_path \
+          --train_data_path $train_data_path \
+          --save_dir $save_dir \
+          --seed $seed \
+          --fp16 --ft \
+          --mask_ratio $mask_ratio \
+          --noise_scale $noise_scale \
+          --num_pred_attn_layer $num_pred_attn_layer \
+          --d_tilde $d_tilde \
+          --strategy $strategy \
+          --max_lr $max_lr \
+          --mode_prob $mode_prob --noise_mode $noise_mode\
+          --total_num_steps $total_num_steps \
+          --warmup_num_steps $warmup_num_steps \
+          --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
+          --max_tokens $max_tokens --max_length $max_length \
+          --gradient_accumulation_steps $gradient_accumulation_steps \
+          --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
+          --save_batch_interval $save_batch_interval --log_interval $log_interval \
+          --head_dropout $head_dropout $early_stop_args $label_normalize_args --which_set "test"

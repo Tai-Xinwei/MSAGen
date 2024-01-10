@@ -547,33 +547,33 @@ class Trainer(object):
                         "No validation log is available, early stopping is set but not not used in this epoch."
                     )
                 else:
-                    value = getattr(valid_log, self.early_stopping.metric)
+                    value = getattr(valid_log, self.early_stopping.metric, None)
+                    if value is None:
+                        value = getattr(
+                            valid_log.extra_output, self.early_stopping.metric, None
+                        )
+                    logger.info(
+                        f"Best {self.early_stopping.metric} is {self.early_stopping.best} at epoch {self.early_stopping.best_at}, "
+                        f"which does not improve over past {self.early_stopping.counter} epochs."
+                    )
+                    import shutil
+
+                    # copy the best checkpoint to checkpoint_best.pt, note that the epoch starts from 0
+                    best_ckpt_path = (
+                        Path(self.args.save_dir)
+                        / f"checkpoint_E{self.early_stopping.best_at}.pt"
+                    )
+                    shutil.copy(
+                        best_ckpt_path,
+                        Path(self.args.save_dir) / "checkpoint_best.pt",
+                    )
                     if self.early_stopping(value):
                         logger.info(f"Early stopping at epoch {self.state.epoch}")
-                        logger.info(
-                            f"Best {self.early_stopping.metric} is {self.early_stopping.best} at epoch {self.early_stopping.best_at}, "
-                            f"which does not improve over past {self.early_stopping.patience} epochs."
-                        )
-                        import shutil
-
-                        # copy the best checkpoint to checkpoint_best.pt, note that the epoch starts from 0
-                        best_ckpt_path = (
-                            Path(self.args.save_dir)
-                            / f"checkpoint_E{self.early_stopping.best_at}.pt"
-                        )
-                        shutil.copy(
-                            best_ckpt_path,
-                            Path(self.args.save_dir) / "checkpoint_best.pt",
-                        )
                         # break the while loop
                         logger.info(
                             f"Early stopping at epoch {self.state.epoch}, exiting training loop."
                         )
                         break
-                    else:
-                        logger.info(
-                            f"Metric {self.early_stopping.metric} does not improve over past {self.early_stopping.counter} epochs."
-                        )
 
             self.state.epoch += 1
             self.state.batch = 0
@@ -639,7 +639,9 @@ class Trainer(object):
                 metric_accumulator.label_list, metric_accumulator.logits_list
             )
             metric_accumulator.reset()
-            self.accelerator.calculate_metric(label, logits)
+            metric_results = self.accelerator.calculate_metric(label, logits)
+        else:
+            metric_results = dict()
 
         if num_examples > 0:
             valid_loss = total_loss / num_examples
@@ -650,7 +652,7 @@ class Trainer(object):
             valid_loss=valid_loss,
             num_examples=num_examples,
             epoch=self.state.epoch,
-            extra_output=interval_loss_accumulator.averge_log,
+            extra_output={**interval_loss_accumulator.averge_log, **metric_results},
         )
 
         metric_logger.log(valid_log, "valid")

@@ -32,13 +32,15 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 [ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${max_tokens}" ] && max_tokens=2048
-[ -z "${val_batch_size}" ] && val_batch_size=64
+[ -z "${val_batch_size}" ] && val_batch_size=67
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=3
 [ -z "${seed}" ] && seed=42
+[ -z "${checkpoint_dir}" ] && checkpoint_dir=""
+[ -z "${which_set}" ] && which_set="valid"
 
 
 [ -z "${mode_prob}" ] && mode_prob='1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
@@ -57,92 +59,31 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${early_stopping_metric}" ] && early_stopping_metric='valid_loss'
 [ -z "${early_stopping_mode}" ] && early_stopping_mode='min'
 [ -z "${head_dropout}" ] && head_dropout=0.1
+[ -z "${label_normalize}" ] && label_normalize=false
 
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=tinyBFM-finetune
-[ -z "${wandb_team}" ] && wandb_team=icuppjin
-[ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
-
-[ -z "${launcher}" ] && launcher='openmpi'
-[ -z "${hostfile}" ] && hostfile='/job/hostfile'
-[ -z "${MASTER_PORT}" ] && MASTER_PORT=62347
-[ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
-[ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
-# [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=-1
-
-wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
-export WANDB_API_KEY=5d03b7a46d10f86ff45c4aedc570660a523edc0b
-
-echo -e "\n\n"
-echo "==================================MP==========================================="
-[ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
-echo "n_gpu: ${n_gpu}"
-echo "MASTER_ADDR: ${MASTER_ADDR}"
-echo "MASTER_PORT: ${MASTER_PORT}"
-echo "NCCL_SOCKET_IFNAME: ${NCCL_SOCKET_IFNAME}"
-echo "LOCAL_RANK : ${LOCAL_RANK}"
-echo "OMPI_COMM_WORLD_RANK: ${OMPI_COMM_WORLD_RANK}"
-echo "OMPI_COMM_WORLD_SIZE: ${OMPI_COMM_WORLD_SIZE}"
-echo "OMPI_COMM_WORLD_LOCAL_RANK: ${OMPI_COMM_WORLD_LOCAL_RANK}"
-
-# echo "AZUREML_EXPERIMENT_ID: ${AZUREML_EXPERIMENT_ID}"
-
-echo -e "\n\n"
-echo "=====================================ARGS======================================"
-echo "n_layers: ${layers}"
-echo "num_pred_attn_layer: ${num_pred_attn_layer}"
-echo "hidden_size: ${hidden_size}"
-echo "ffn_size: ${ffn_size}"
-echo "num_head: ${num_head}"
-echo "d_tilde: ${d_tilde}"
-echo "sandwich_ln: ${sandwich_ln}"
-echo "max_lr: ${max_lr}"
-echo "total_num_steps: ${total_num_steps}"
-echo "warmup_num_steps: ${warmup_num_steps}"
-echo "dropout: ${dropout}"
-echo "attn_dropout: ${attn_dropout}"
-echo "act_dropout: ${act_dropout}"
-echo "weight_decay: ${weight_decay}"
-echo "droppath_prob: ${droppath_prob}"
-echo "atom_loss_coeff: ${atom_loss_coeff}"
-echo "pos_loss_coeff: ${pos_loss_coeff}"
-echo "no_2d: ${no_2d}"
-echo "add_3d: ${add_3d}"
-echo "data_path: ${data_path}"
-echo "output_path: ${output_path}"
-echo "dataset_name: ${dataset_name}"
-echo "noise_scale: ${noise_scale}"
-echo "mask_ratio: ${mask_ratio}"
-echo "mode_prob: ${mode_prob}"
-echo "noise_mode: ${noise_mode}"
-echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
-
-export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
-export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
-
-if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
+if [[ "${early_stopping}" == "false" ]]
 then
-  DISTRIBUTED_ARGS=""
+  early_stop_args=""
 else
-  if (( $OMPI_COMM_WORLD_SIZE == 1))
-  then
-    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
-                      --master_port $MASTER_PORT"
-  else
-    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
-                      --nnodes $OMPI_COMM_WORLD_SIZE \
-                      --node_rank $OMPI_COMM_WORLD_RANK \
-                      --master_addr $MASTER_ADDR"
-  fi
+  early_stop_args="--early_stopping --early_stopping_patience $early_stopping_patience \
+                   --early_stopping_metric $early_stopping_metric \
+                   --early_stopping_mode $early_stopping_mode"
 fi
 
-# echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
+if [[ "${label_normalize}" == "false" ]]
+then
+  label_normalize_args=""
+else
+  label_normalize_args="--label_normalize"
+fi
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/test_pfm.py \
+
+python sfm/tasks/pfm/test_pfm_v2.py \
           --task_name $task_name \
           --data_basepath $data_basepath \
           --loadcheck_path $loadcheck_path \
@@ -175,5 +116,4 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/test_pfm.py \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
-          --head_dropout $head_dropout $early_stop_args \
-          # --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
+          --head_dropout $head_dropout $early_stop_args $label_normalize_args --checkpoint_dir $checkpoint_dir --which_set $which_set

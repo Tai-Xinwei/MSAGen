@@ -106,7 +106,7 @@ class LMDBDataset(FoundationModelDataset):
             indices, ignored = _filter_by_size_dynamic(indices, self.size, max_sizes)
 
         logger.warning(
-            f"Removed {len(ignored)} examples from the dataset because they were too long."
+            f"Removed {len(ignored)} examples from the dataset because they are longer than {max_sizes}."
         )
         self.sizes = [self.sizes[idx] for idx in indices]
         self.keys = [self.keys[idx] for idx in indices]
@@ -249,7 +249,6 @@ class DownstreamLMDBDataset(LMDBDataset):
         ), f"split must be one of {self.TASKINFO[self.task_name]['splits']} for task {self.task_name}, but got {self.split}"
 
     def set_default_args(self, args):
-        logger.info(f"Set default args in {self.__class__.__name__}")
         args.data_basepath = getattr(args, "data_basepath", None)
         args.task_name = getattr(args, "task_name", None)
         args.label_field = getattr(args, "label_field", "target")
@@ -305,15 +304,7 @@ class DownstreamLMDBDataset(LMDBDataset):
 
         # make the label's type right
         if self.TASKINFO[self.task_name]["type"] == "regression":
-            mean, std = self.TASKINFO[self.task_name]["mean_std"]
-            if self.normalize_label:
-                item[self.label_field] = (
-                    np.array(item[self.label_field], dtype=np.float32) - mean
-                ) / std
-            else:
-                item[self.label_field] = np.array(
-                    item[self.label_field], dtype=np.float32
-                )
+            item[self.label_field] = np.array(item[self.label_field], dtype=np.float32)
         elif self.TASKINFO[self.task_name]["type"] in {
             "classification",
             "binary",
@@ -381,7 +372,6 @@ class DownstreamLMDBDataset(LMDBDataset):
                 / args.task_name
                 / f"{args.task_name}_{split}.lmdb"
             )
-            logger.info(f"Load {args.task_name} {split} dataset from {args.data_path}")
             dset_dict[split] = cls(args, direct=False)
         return dset_dict
 
@@ -405,7 +395,6 @@ class ProteinLMDBDataset(LMDBDataset):
         self.ang_noise = self.args.ang_noise
 
     def set_default_args(self, args):
-        logger.info(f"Set default args in {self.__class__.__name__}")
         args.data_path = getattr(args, "data_path", None)
         args.seed = getattr(args, "seed", "2023")
         args.max_length = getattr(args, "max_length", 1024)
