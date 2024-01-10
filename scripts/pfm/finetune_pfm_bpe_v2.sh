@@ -53,18 +53,15 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${save_dir}" ] && save_dir="/mnta/yaosen/$task_name"
 [ -z "${early_stopping}" ] && early_stopping=true
 [ -z "${early_stopping_patience}" ] && early_stopping_patience=5
-[ -z "${early_stopping_metric}" ] && early_stopping_metric='valid_loss'
-[ -z "${early_stopping_mode}" ] && early_stopping_mode='min'
+[ -z "${early_stopping_metric}" ] && early_stopping_metric='f1_max'
+[ -z "${early_stopping_mode}" ] && early_stopping_mode='max'
 [ -z "${head_dropout}" ] && head_dropout=0.1
+[ -z "${label_normalize}" ] && label_normalize=false
 
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
-
-[ -z "${wandb_group}" ] && wandb_group=tinyBFM-bpe-finetune
-[ -z "${wandb_team}" ] && wandb_team=icuppjin
-[ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -158,7 +155,14 @@ else
                    --early_stopping_mode $early_stopping_mode"
 fi
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm.py \
+if [[ "${label_normalize}" == "false" ]]
+then
+  label_normalize_args=""
+else
+  label_normalize_args="--label_normalize"
+fi
+
+torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm_bpe_v2.py \
         --base_model 'pfm_bpe' \
         --model_type $model_type \
         --task_name $task_name \
@@ -183,8 +187,49 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm.py \
         --save_batch_interval $save_batch_interval \
         --log_interval $log_interval \
         --use_rd --rd_scale 1.0 \
-        --head_dropout $head_dropout $early_stop_args \
+        --head_dropout $head_dropout $early_stop_args $label_normalize_args \
         --spm_model_path $spm_model_path \
         --loadcheck_path $loadcheck_path \
         --d_tilde $d_tilde \
-        --max_tokens $max_tokens --max_length $max_length
+        --max_tokens $max_tokens --max_length $max_length \
+        --calculate_metrics
+
+python sfm/tasks/pfm/test_pfm_bpe_v2.py \
+      --base_model pfm_bpe \
+      --model_type $model_type \
+      --task_name $task_name \
+      --data_basepath /pfm/data/bfm_benchmark \
+      --loadcheck_path "${save_dir}/checkpoint_best.pt" \
+      --fp16 \
+      --ft \
+      --strategy Single \
+      --train_batch_size 32 \
+      --val_batch_size 32 \
+      --max_tokens 2048 \
+      --max_length 2048 \
+      --use_rd \
+      --rd_scale 1.0 \
+      --head_dropout 0.1 \
+      --log_interval 10 \
+      --spm_model_path /blob/shufxi/data/biofm/ur50bpe/ur50bpe.model \
+      --which_set "valid"
+
+python sfm/tasks/pfm/test_pfm_bpe_v2.py \
+      --base_model pfm_bpe \
+      --model_type $model_type \
+      --task_name $task_name \
+      --data_basepath /pfm/data/bfm_benchmark \
+      --loadcheck_path "${save_dir}/checkpoint_best.pt" \
+      --fp16 \
+      --ft \
+      --strategy Single \
+      --train_batch_size 32 \
+      --val_batch_size 32 \
+      --max_tokens 2048 \
+      --max_length 2048 \
+      --use_rd \
+      --rd_scale 1.0 \
+      --head_dropout 0.1 \
+      --log_interval 10 \
+      --spm_model_path /blob/shufxi/data/biofm/ur50bpe/ur50bpe.model \
+      --which_set "test"

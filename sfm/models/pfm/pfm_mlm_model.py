@@ -342,15 +342,16 @@ class PfmMlmModelRd(PfmMlmModel):
 
 from sfm.models.pfm.pfm_mlm_config import (
     PfmMlmConfig,
+    pfm_mlm_base_config,
     pfm_mlm_tiny_config,
     pfm_mlm_tiny_h24_config,
 )
 from sfm.utils import arg_utils
-from sfm.utils.cli_utils import cli
 
 config_registry = {
     "pfm_mlm_tiny": pfm_mlm_tiny_config,
     "pfm_mlm_tiny_h24": pfm_mlm_tiny_h24_config,
+    "pfm_mlm_base": pfm_mlm_base_config,
 }
 
 
@@ -364,6 +365,7 @@ class PfmMlmBpeModel(nn.Module):
             self.model = PfmMlmModelRd(config)
         else:
             self.model = PfmMlmModel(config)
+        self.config = config
 
         if load_ckpt:
             self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)

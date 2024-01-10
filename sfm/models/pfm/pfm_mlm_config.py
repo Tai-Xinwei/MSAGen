@@ -40,12 +40,23 @@ class PfmMlmConfig(LlamaConfig, DistributedTrainConfig):
     ft: bool = False
 
 
+# 100M
 def pfm_mlm_tiny_config(config: PfmMlmConfig):
     config.hidden_size = 768
     config.intermediate_size = 2048
     config.num_hidden_layers = 12
     config.num_attention_heads = 12
     config.num_key_value_heads = 12
+    return config
+
+
+# 650M
+def pfm_mlm_base_config(config: PfmMlmConfig):
+    config.hidden_size = 1280
+    config.intermediate_size = 3072
+    config.num_hidden_layers = 33
+    config.num_attention_heads = 20
+    config.num_key_value_heads = 20
     return config
 
 
