@@ -561,10 +561,23 @@ class Trainer(object):
                     should_stop = self.early_stopping(value)
                     # just updated or the first epoch, update the best checkpoint
                     if self.early_stopping.counter == 0:
-                        best_ckpt_path = (
-                            Path(self.args.save_dir)
-                            / f"checkpoint_E{self.early_stopping.best_at}.pt"
-                        )
+                        if self.args.strategy in [
+                            TrainStrategy.DDP,
+                            TrainStrategy.Single,
+                        ]:
+                            best_ckpt_path = (
+                                Path(self.args.save_dir)
+                                / f"checkpoint_E{self.early_stopping.best_at}.pt"
+                            )
+                        elif self.args.strategy in [
+                            TrainStrategy.Zero1,
+                            TrainStrategy.Zero2,
+                            TrainStrategy.Zero3,
+                        ]:
+                            best_ckpt_path = (
+                                Path(self.args.save_dir)
+                                / f"global_step{self.state.global_step}/mp_rank_00_model_states.pt"
+                            )
                         shutil.copy(
                             best_ckpt_path,
                             Path(self.args.save_dir) / "checkpoint_best.pt",
@@ -612,7 +625,8 @@ class Trainer(object):
             )
 
         for idx, batch_data in enumerate(self.valid_data_loader):
-            output = self.accelerator.valid_step(batch_data, epoch=self.state.epoch)
+            with torch.no_grad():
+                output = self.accelerator.valid_step(batch_data, epoch=self.state.epoch)
             loss_accumulator.add(output.valid_loss, output.num_examples)
             interval_loss_accumulator.add(
                 output.valid_loss,
@@ -659,7 +673,6 @@ class Trainer(object):
             epoch=self.state.epoch,
             extra_output={**interval_loss_accumulator.averge_log, **metric_results},
         )
-
         metric_logger.log(valid_log, "valid")
         return valid_log
 

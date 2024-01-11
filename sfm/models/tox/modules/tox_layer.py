@@ -386,9 +386,9 @@ class Mix3DEmbeddingV2(nn.Module):
         self.embed_dim = embed_dim
 
         # inter_dim = embed_dim // 2
-        self.trans_pos = TransNet(3, embed_dim)
-        self.trans_feat = TransNet(embed_dim, embed_dim)
-        self.pos_emb = NonLinear(3, embed_dim // 2)
+        # self.trans_pos = TransNet(3, embed_dim)
+        # self.trans_feat = TransNet(embed_dim, embed_dim)
+        # self.pos_emb = NonLinear(3, embed_dim // 2)
         self.angle_emb = NonLinear(3, embed_dim)
 
         self.time_embedding = TimeStepEncoder(
@@ -402,7 +402,6 @@ class Mix3DEmbeddingV2(nn.Module):
         self,
         pos,
         angle,
-        node_type_edge,
         padding_mask,
         mask_aa,
         mask_pos,
@@ -410,19 +409,10 @@ class Mix3DEmbeddingV2(nn.Module):
         time_pos,
         time_angle,
     ):
-        angle = angle.to(self.trans_pos.layer1.weight.dtype)
-        pos = pos.to(self.trans_pos.layer1.weight.dtype)
+        angle = angle.to(self.angle_emb.layer1.weight.dtype)
 
-        # T_mat = self.trans_pos(pos)
-        # pos = pos + torch.bmm(pos, T_mat)
-
-        # pos_feat = self.pos_emb(pos)
-        # sin_ang = torch.sin(angle)
-        # cos_ang = torch.cos(angle)
-        # angle = torch.cat([sin_ang, cos_ang], dim=-1)
         angle_feat = self.angle_emb(angle)
 
-        # node6dfeature = torch.cat([pos_feat, angle_feat], dim=-1)
         node6dfeature = angle_feat
 
         if time_pos is not None and mask_pos is not None:
@@ -434,21 +424,9 @@ class Mix3DEmbeddingV2(nn.Module):
             )
             node6dfeature = node6dfeature + time_embedding_pos
 
-        # if time_angle is not None and mask_angle is not None:
-        #     time_embedding_ang = self.time_embedding(time_angle).unsqueeze(1)
-        #     t0 = torch.zeros_like(time_pos).to(time_pos)
-        #     t0_emb = self.time_embedding(t0).unsqueeze(1)
-        #     time_embedding_ang = torch.where(
-        #         mask_angle.bool(), time_embedding_ang, t0_emb
-        #     )
-        #     angle_feat = angle_feat + time_embedding_ang
-
         node6dfeature = node6dfeature.masked_fill(
             padding_mask.unsqueeze(-1).to(torch.bool), 0.0
         )
-
-        # T_mat = self.trans_feat(node6dfeature)
-        # node6dfeature = node6dfeature + torch.bmm(node6dfeature, T_mat)
 
         return node6dfeature, None, None
 

@@ -8,11 +8,15 @@ from sfm.models.graphormer.graphormer_config import GraphormerConfig
 class TOXConfig(GraphormerConfig):
     model_type: str = "tox"
     seq_masking_method: str = "transformerM"
+
     add_rope: bool = True
     num_residues: int = 32
     max_num_aa: int = 1024
     task: str = "mae"
     sample_mode: bool = False
+
+    train_data_path: str = ""
+    valid_data_path: str = ""
 
     def __init__(
         self,
