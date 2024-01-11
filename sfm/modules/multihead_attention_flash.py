@@ -14,6 +14,8 @@ from sfm.logging import logger
 
 try:
     from flash_attn import flash_attn_func, flash_attn_qkvpacked_func
+
+    # from .FlashAtt import flash_attn_func
 except:
     logger.info("flash_attn not installed, use default attn")
 
@@ -226,7 +228,7 @@ class FlashAttn(nn.Module):
             k = k.permute(0, 2, 1, 3)
             v = v.permute(0, 2, 1, 3)
             with torch.backends.cuda.sdp_kernel(
-                enable_math=True, enable_mem_efficient=True, enable_flash=False
+                enable_math=True, enable_mem_efficient=True, enable_flash=True
             ):
                 attn = torch.nn.functional.scaled_dot_product_attention(
                     q,
@@ -235,6 +237,13 @@ class FlashAttn(nn.Module):
                     dropout_p=self.dropout,
                     attn_mask=attn_mask,
                 )
+
+        # bias = attn_mask
+        # causal = False
+        # softmax_scale = None
+        # attn = flash_attn_func(
+        #     q, k, v, bias, causal, softmax_scale
+        # )  # [B, tgt_len, nhead, ndim]
 
         attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
         attn = self.out_proj(attn)

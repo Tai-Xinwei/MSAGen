@@ -41,6 +41,7 @@ def process_param(
             or name.find("fc_pmlm_k") != -1
             or name.find("embed_out") != -1
             or name.find("head") != -1
+            # or name.find("mlm_out") != -1
         ):
             param_groups[1]["params"].append(param)
         else:

@@ -19,7 +19,7 @@ from sfm.modules.quant_noise import quant_noise
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
-from .modules.pfm_encoder import NodeDecoder, PFMEncoder
+from .modules.pfm_encoder import PFMEncoder
 from .modules.UnifiedDecoder import UnifiedDecoder
 
 
@@ -110,17 +110,22 @@ class PFMModel(Model):
         bs = seq_aa.shape[0]
 
         logits = model_output[0]
-        node_output = model_output[1]
+        mlm_logits = model_output[1]
         mask_pos = model_output[2]
         mask_aa = model_output[3]
         if len(model_output) > 4:
             pair_mask_aa = model_output[4]
             output = self.loss(
-                batch_data, logits, node_output, mask_pos, mask_aa, pair_mask_aa
+                batch_data, logits, mlm_logits, mask_pos, mask_aa, pair_mask_aa
             )
         else:
-            output = self.loss(batch_data, logits, node_output, mask_pos, mask_aa)
+            pair_mask_aa = None
+            output = self.loss(batch_data, logits, mlm_logits, mask_pos, mask_aa)
 
+        bs = seq_aa.shape[0]
+        output = self.loss(
+            batch_data, logits, mlm_logits, mask_pos, mask_aa, pair_mask_aa
+        )
         loss = output[0]
         if len(output) > 1:
             log_loss = output[1]
@@ -133,7 +138,7 @@ class PFMModel(Model):
         Returns:
             tuple[Optimizer, LRScheduler]:
         """
-        pass
+        return (None, None)
 
 
 class PFM(nn.Module):
@@ -170,16 +175,25 @@ class PFM(nn.Module):
             args.encoder_embed_dim, args.encoder_embed_dim, bias=False
         )
 
+        self.bpe_head = None
         if self.load_softmax:
+            # self.bpe_head = nn.Linear(args.encoder_embed_dim, 16384, bias=False)
+
             if mlm_only:
                 self.embed_out = nn.Linear(
-                    args.encoder_embed_dim, args.num_residues, bias=False
+                    args.encoder_embed_dim,
+                    args.num_residues,
+                    bias=False,
                 )
-
-            if not self.share_input_output_embed:
+            elif not self.share_input_output_embed:
                 self.embed_out = nn.Linear(
                     args.encoder_embed_dim,
                     args.num_residues * args.num_residues,
+                    bias=False,
+                )
+                self.mlm_out = nn.Linear(
+                    args.encoder_embed_dim,
+                    args.num_residues,
                     bias=False,
                 )
 
@@ -239,6 +253,11 @@ class PFM(nn.Module):
         x = x.transpose(0, 1)  # [B, L, H]
         x = self.layer_norm(x)
 
+        # if self.bpe_head is not None:
+        #     mlm_logits = self.bpe_head(x)  # [B, L, 16384]
+        # else:
+        mlm_logits = self.mlm_out(x)  # [B, L, vocab]
+
         if not self.mlm_only:
             # q = self.fc_pmlm_q(x)
             # k = self.fc_pmlm_k(x)
@@ -246,35 +265,60 @@ class PFM(nn.Module):
 
             # # memory efficient implementation
             # # mask_aa is a boolean mask of shape [B, L, 1]
-
             B, L, H = x.shape
-            masked_indices = torch.where(mask_aa.squeeze(-1).bool())
-            x = x[masked_indices[0], masked_indices[1]]  # [num_masked, H]
+            # masked_indices = torch.where(mask_aa.squeeze(-1).bool())
+            # x = x[masked_indices[0], masked_indices[1]]  # [num_masked, H]
 
             # Compute q and k only for the selected positions
-            q_masked = self.fc_pmlm_q(x)  # [num_masked, H]
-            k_masked = self.fc_pmlm_k(x)  # [num_masked, H]
+            # q_masked = self.fc_pmlm_q(x)  # [num_masked, H]
+            # k_masked = self.fc_pmlm_k(x)  # [num_masked, H]
 
             # masked_per_batch = mask_aa.squeeze(-1).sum(dim=1)
             masked_per_batch = []
+            q_split = []
+            k_split = []
+
             residue_seq = batched_data["x"]
             pair_mask_aa = torch.zeros(
                 (B, L, L, 1), device=residue_seq.device, dtype=torch.int8
             )
             for i in range(B):
-                mask_sep_idx = (residue_seq[i] == 2).nonzero(as_tuple=True)[0]
-                pre_j = 0
-                for j in mask_sep_idx:
-                    masked_per_batch.append(mask_aa[i, pre_j:j].sum().item())
-                    pair_mask_aa[i, pre_j:j, pre_j:j:, :] = 1
-                    pre_j = j
+                mask_start_idx = (residue_seq[i] == 0).nonzero(as_tuple=True)[0]
+                mask_end_idx = (residue_seq[i] == 2).nonzero(as_tuple=True)[0]
 
-                if pre_j < L - 1:
-                    masked_per_batch.append(mask_aa[i, pre_j:].sum().item())
-                    pair_mask_aa[i, pre_j:, pre_j:, :] = 1
+                for j in range(len(mask_end_idx)):
+                    s_idx = mask_start_idx[j]
+                    e_idx = mask_end_idx[j]
+                    mask_comma_idx = (residue_seq[i][s_idx:e_idx] == 29).nonzero(
+                        as_tuple=True
+                    )[0]
+                    if len(mask_comma_idx) >= 1:
+                        c_idx = mask_comma_idx[0]
+                        masked_per_batch.append(mask_aa[i, s_idx:c_idx].sum().item())
+                        pair_mask_aa[i, s_idx:c_idx, s_idx:c_idx:, :] = 1
+                        masked_indices = torch.where(mask_aa[i, s_idx:c_idx, 0].bool())
+                    elif len(mask_comma_idx) == 0:
+                        masked_per_batch.append(mask_aa[i, s_idx:e_idx].sum().item())
+                        pair_mask_aa[i, s_idx:e_idx, s_idx:e_idx:, :] = 1
+                        masked_indices = torch.where(mask_aa[i, s_idx:e_idx, 0].bool())
+                    else:
+                        # show all point
+                        torch.set_printoptions(profile="full")
+                        print(residue_seq[i])
+                        raise ValueError(
+                            f"comma index error, number of comma is {len(mask_comma_idx)}, check the data"
+                        )
 
-            q_split = torch.split(q_masked, masked_per_batch)
-            k_split = torch.split(k_masked, masked_per_batch)
+                    masked_x = x[i, masked_indices[0], :]
+                    q_split.append(self.fc_pmlm_q(masked_x))
+                    k_split.append(self.fc_pmlm_k(masked_x))
+
+                # if pre_j < L - 1:
+                #     masked_per_batch.append(mask_aa[i, pre_j:].sum().item())
+                #     pair_mask_aa[i, pre_j:, pre_j:, :] = 1
+
+            # q_split = torch.split(q_masked, masked_per_batch)
+            # k_split = torch.split(k_masked, masked_per_batch)
 
             result_list = []
             mask_list = []
@@ -301,9 +345,9 @@ class PFM(nn.Module):
             x = x + self.lm_output_learned_bias
 
         if self.mlm_only:
-            return (x, None, diag_mask, mask_aa)
+            return (x, mlm_logits, diag_mask, mask_aa)
         else:
-            return (x, None, diag_mask, mask_aa, pair_mask_aa)
+            return (x, mlm_logits, diag_mask, mask_aa, pair_mask_aa)
 
     def ft_forward(
         self,

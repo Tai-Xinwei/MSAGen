@@ -17,11 +17,11 @@ vocab = {'<cls>': 0, '<pad>': 1, '<eos>': 2, '<unk>': 3, 'L': 4, 'A': 5, 'G': 6,
 
 
 def main():
-    write_file = '/home/peiran/protein/uniref50_pad1024_train.lmdb'
+    write_file = '/home/peiran/protein/uniref50_pack1024_valid.lmdb'
     write_env = lmdb.open(write_file, map_size=1024 ** 4)
     write_txn = write_env.begin(write=True)
 
-    lmdb_path = '/mnt/protein/uniref50_train.lmdb'
+    lmdb_path = '/mnt/protein/uniref50_valid.lmdb'
 
     env = lmdb.open(
         str(lmdb_path), subdir=True, readonly=True, lock=False, readahead=False
@@ -47,28 +47,28 @@ def main():
         data = list(bstr2obj(value))
 
         tokens = [0] + [vocab[tok] for tok in data] + [2]
-        if len(tokens) > 1024:
+        if len(tokens) > sequence_length:
             continue
 
         # pack 1024
-        # buffer.extend(tokens)
-        # buffer_len += len(tokens)
-        # if buffer_len >= sequence_length:
+        buffer.extend(tokens)
+        buffer_len += len(tokens)
+        if buffer_len >= sequence_length:
 
-        #     if buffer_len == sequence_length:
-        #         write_txn.put(f"{idx}".encode(), pkl.dumps(buffer))
-        #         buffer_len = 0
-        #         buffer = []
-        #         names.append(idx)
-        #         sizes.append(sequence_length)
-        #         idx += 1
-        #     else:
-        #         write_txn.put(f"{idx}".encode(), pkl.dumps(buffer[:sequence_length]))
-        #         names.append(idx)
-        #         sizes.append(sequence_length)
-        #         idx += 1
-        #         buffer_len = len(tokens)
-        #         buffer = tokens
+            if buffer_len == sequence_length:
+                write_txn.put(f"{idx}".encode(), pkl.dumps(buffer))
+                buffer_len = 0
+                buffer = []
+                names.append(idx)
+                sizes.append(sequence_length)
+                idx += 1
+            else:
+                write_txn.put(f"{idx}".encode(), pkl.dumps(buffer[:sequence_length]))
+                names.append(idx)
+                sizes.append(sequence_length)
+                idx += 1
+                buffer_len = len(tokens)
+                buffer = tokens
 
         # pack and pad 1024
         # if buffer_len + len(tokens) > sequence_length:
@@ -91,14 +91,14 @@ def main():
         #     buffer.extend(tokens)
         #     buffer_len += len(tokens)
 
-        # pad 1024
-        buffer = buffer + [1] * (sequence_length - buffer_len)
-        write_txn.put(f"{idx}".encode(), pkl.dumps(buffer))
-        buffer = []
-        buffer_len = 0
-        names.append(idx)
-        sizes.append(sequence_length)
-        idx += 1
+        # # pad 1024
+        # buffer = buffer + [1] * (sequence_length - buffer_len)
+        # write_txn.put(f"{idx}".encode(), pkl.dumps(buffer))
+        # buffer = []
+        # buffer_len = 0
+        # names.append(idx)
+        # sizes.append(sequence_length)
+        # idx += 1
 
 
     metadata['prot_accessions'] = names

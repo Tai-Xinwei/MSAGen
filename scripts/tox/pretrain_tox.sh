@@ -33,9 +33,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_lr}" ] && max_lr=2e-4
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
-[ -z "${train_batch_size}" ] && train_batch_size=1
+[ -z "${train_batch_size}" ] && train_batch_size=32
 [ -z "${max_tokens}" ] && max_tokens=3000
-[ -z "${val_batch_size}" ] && val_batch_size=16
+[ -z "${val_batch_size}" ] && val_batch_size=32
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
@@ -43,9 +43,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${epochs}" ] && epochs=1000
 
 [ -z "${mode_prob}" ] && mode_prob='0.2,0.6,0.2' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-[ -z "${strategy}" ] && strategy=Zero1
+[ -z "${strategy}" ] && strategy=DDP
 
-[ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
+[ -z "${data_path}" ] && data_path='/mnt/protein/48organism1m.lmdb/'
 # [ -z "${data_path}" ] && data_path='/mnt/protein/uniref50_train.lmdb'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
@@ -122,7 +122,7 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export OMP_NUM_THREADS=1
 
 wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
-# export WANDB_API_KEY=5d03b7a46d10f86ff45c4aedc570660a523edc0b
+export WANDB_API_KEY=5d03b7a46d10f86ff45c4aedc570660a523edc0b
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then

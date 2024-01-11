@@ -8,6 +8,7 @@ from sfm.data.prot_data.processed_mlm_dataset import ProcessedMlmDataset
 from sfm.logging import logger
 from sfm.models.pfm.pfm_mlm_config import (
     PfmMlmConfig,
+    pfm_mlm_base_config,
     pfm_mlm_tiny_config,
     pfm_mlm_tiny_h24_config,
 )
@@ -19,6 +20,7 @@ from sfm.utils.cli_utils import cli
 config_registry = {
     "pfm_mlm_tiny": pfm_mlm_tiny_config,
     "pfm_mlm_tiny_h24": pfm_mlm_tiny_h24_config,
+    "pfm_mlm_base": pfm_mlm_base_config,
 }
 
 

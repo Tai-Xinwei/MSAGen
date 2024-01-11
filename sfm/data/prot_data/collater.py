@@ -87,23 +87,23 @@ def collate_fn(samples: List[dict], vocab: Alphabet):
             for s in samples
         ]
     )
-    # logger.debug("naa: {}".format(batch["x"].shape))
-    for prop_idx, prop_name in enumerate(
-        ["chem_polar", "net_charge", "hydropathy", "mol_mass"]
-    ):
-        batch[prop_name] = torch.cat(
-            [
-                pad_1d_unsqueeze(
-                    torch.from_numpy(s[prop_name]),
-                    max_tokens,
-                    0,
-                    vocab.unk_prop_feat[prop_idx],
-                )
-                for s in samples
-            ]
-        )
-    batch["hydropathy"] = batch["hydropathy"].unsqueeze(-1)
-    batch["mol_mass"] = batch["mol_mass"].unsqueeze(-1)
+    # # logger.debug("naa: {}".format(batch["x"].shape))
+    # for prop_idx, prop_name in enumerate(
+    #     ["chem_polar", "net_charge", "hydropathy", "mol_mass"]
+    # ):
+    #     batch[prop_name] = torch.cat(
+    #         [
+    #             pad_1d_unsqueeze(
+    #                 torch.from_numpy(s[prop_name]),
+    #                 max_tokens,
+    #                 0,
+    #                 vocab.unk_prop_feat[prop_idx],
+    #             )
+    #             for s in samples
+    #         ]
+    #     )
+    # batch["hydropathy"] = batch["hydropathy"].unsqueeze(-1)
+    # batch["mol_mass"] = batch["mol_mass"].unsqueeze(-1)
 
     batch["masked_aa"] = torch.cat(
         [
@@ -252,6 +252,18 @@ def collate_ur50_fn(samples: List[dict], vocab: Alphabet):
             for s in samples
         ]
     )
+
+    if "bpe" in samples[0]:
+        batch["bpe"] = torch.cat(
+            [
+                pad_1d_unsqueeze(
+                    torch.from_numpy(s["bpe"]), max_tokens, 0, vocab.padding_idx
+                )
+                for s in samples
+            ]
+        )
+    else:
+        batch["bpe"] = None
 
     # logger.debug("naa: {}".format(batch["x"].shape))
     for prop_idx, prop_name in enumerate(

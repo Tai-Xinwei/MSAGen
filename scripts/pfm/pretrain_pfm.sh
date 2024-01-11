@@ -15,7 +15,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=4
-[ -z "${max_length}" ] && max_length=1024
+[ -z "${max_length}" ] && max_length=1576
 
 [ -z "${dropout}" ] && dropout=0.0
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -25,12 +25,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
-[ -z "${mask_ratio}" ] && mask_ratio=0.15
+[ -z "${mask_prob}" ] && mask_prob=0.2
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=4e-5
+[ -z "${max_lr}" ] && max_lr=1e-5
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
-[ -z "${train_batch_size}" ] && train_batch_size=128
+[ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${max_tokens}" ] && max_tokens=1600
 [ -z "${val_batch_size}" ] && val_batch_size=64
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
@@ -43,8 +43,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${strategy}" ] && strategy=DDP
 
 # [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
-[ -z "${train_data_path}" ] && train_data_path='/mnt/protein/uniref50_pack1024_train.lmdb'
-[ -z "${valid_data_path}" ] && valid_data_path='/mnt/protein/uniref50_valid.lmdb'
+# [ -z "${train_data_path}" ] && train_data_path='/home/peiran/protein/uniref50_bpepack1024_train.lmdb'
+[ -z "${train_data_path}" ] && train_data_path='/home/peiran/protein/uniref50_msa_ppi_pack1536_train.lmdb'
+# [ -z "${train_data_path}" ] && train_data_path='/mnt/protein/uniref50_pack1024_train.lmdb'
+[ -z "${valid_data_path}" ] && valid_data_path='/home/peiran/protein/uniref50_pack1024_valid.lmdb'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
@@ -60,7 +62,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
-[ -z "${MASTER_PORT}" ] && MASTER_PORT=62346
+[ -z "${MASTER_PORT}" ] && MASTER_PORT=62366
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 # [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=-1
@@ -155,7 +157,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --save_dir $save_dir \
           --seed 666666 \
           --fp16 \
-          --mask_ratio $mask_ratio \
+          --mask_prob $mask_prob \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
           --d_tilde $d_tilde \

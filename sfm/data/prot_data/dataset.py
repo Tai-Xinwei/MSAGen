@@ -431,11 +431,11 @@ class ProteinLMDBDataset(LMDBDataset):
 
         # Create training and validation datasets
         dataset_train = self.__class__(self.args)
-        dataset_train.names = [self.keys[idx] for idx in training_indices]
+        dataset_train.keys = [self.keys[idx] for idx in training_indices]
         dataset_train.sizes = [self.sizes[idx] for idx in training_indices]
 
         dataset_val = self.__class__(self.args)
-        dataset_val.names = [self.keys[idx] for idx in validation_indices]
+        dataset_val.keys = [self.keys[idx] for idx in validation_indices]
         dataset_val.sizes = [self.sizes[idx] for idx in validation_indices]
 
         if sort:
@@ -500,7 +500,7 @@ class ProteinLMDBDataset(LMDBDataset):
 
         # TODO: considering mask the pos and ang, not used in the current version
         # set first position to zero
-        # item["pos"] = (item["pos"] - item["pos"][0]) / 10.0
+        item["pos"] = (item["pos"] - item["pos"][0]) / 10.0
 
         return item
 
@@ -579,7 +579,7 @@ class UR50LMDBDataset(FoundationModelDataset):
         args.mask_prob = getattr(args, "mask_prob", 0.15)
         args.leave_unmasked_prob = getattr(args, "leave_unmasked_prob", 0.1)
         args.random_token_prob = getattr(args, "random_token_prob", 0.1)
-        args.mask_multiple_length = getattr(args, "mask_multiple_length", 1)
+        args.mask_multiple_length = getattr(args, "mask_multiple_length", 3)
         args.mask_stdev = getattr(args, "mask_stdev", 0.0)
 
         args.noise_method = getattr(args, "noise_method", "normal")
@@ -775,6 +775,8 @@ class PackedUR50LMDBDataset(FoundationModelDataset):
         metadata = bstr2obj(self.txn.get("metadata".encode()))
         self.sizes, self.names = metadata["lengths"], metadata["prot_accessions"]
 
+        logger.info(f"Loaded {len(self.names)} proteins from {self.lmdb_path}")
+
     def __sort__(self):
         sorted_names_sizes = sorted(zip(self.names, self.sizes), key=lambda x: x[1])
         self.names = [name for name, size in sorted_names_sizes]
@@ -839,6 +841,7 @@ class PackedUR50LMDBDataset(FoundationModelDataset):
 
         # item = {"id": index, **data}
         tokens = list(data)
+
         item = {
             # "id": index,
             "aa": tokens,
@@ -884,6 +887,96 @@ class PackedUR50LMDBDataset(FoundationModelDataset):
         # new_seq, mask_type, mask_pos = masking_registry[self.seq_masking_method](
         #     item, self.args, seed, self.vocab.mask_idx, self.vocab.standard_toks
         # )
+
+        # bert like mask
+        new_seq, mask_type, rand_mask = masking_registry[self.seq_masking_method](
+            item, self.args, seed, self.vocab.mask_idx, self.vocab.standard_toks_idx
+        )
+
+        item["masked_aa"] = mask_type
+        item["mask_pos"] = mask_type
+        item["new_seq"] = new_seq
+
+        return item
+
+    def __len__(self) -> int:
+        return len(self.names)
+
+    def collate(self, samples: List[dict]) -> dict:
+        return collate_ur50_fn(samples, self.vocab)
+
+
+class PackedBPEUR50LMDBDataset(PackedUR50LMDBDataset):
+    """
+    This is a dataset for protein information, including amino acid, position, angles and confidence score.
+    All the information are raw data. Please ues other dataset to process the data, eg, tokenize, encode...
+
+    The process pipeline will be changed in the future, but the interface will not change.
+    """
+
+    def __init__(self, args: Any, data_path: str = None) -> None:
+        super().__init__(args, data_path)
+
+    def set_default_args(self, args):
+        args.data_path = getattr(args, "data_path", None)
+
+        args.seed = getattr(args, "seed", "2023")
+        args.seq_masking_method = getattr(args, "seq_masking_method", "bert")
+
+        args.mask_prob = getattr(args, "mask_prob", 0.15)
+        args.leave_unmasked_prob = getattr(args, "leave_unmasked_prob", 0.1)
+        args.random_token_prob = getattr(args, "random_token_prob", 0.1)
+        args.mask_multiple_length = getattr(args, "mask_multiple_length", 1)
+        args.mask_stdev = getattr(args, "mask_stdev", 0.0)
+
+        args.noise_method = getattr(args, "noise_method", "normal")
+        args.pos_noise = getattr(args, "pos_noise", True)
+        args.ang_noise = getattr(args, "ang_noise", True)
+
+        args.coord_noise_mean = getattr(args, "coord_noise_mean", 0.0)
+        args.coord_noise_stdev = getattr(args, "coord_noise_stdev", 0.1)
+        args.angle_noise_mean = getattr(args, "angle_noise_mean", 0.0)
+        args.angle_noise_stdev = getattr(args, "angle_noise_stdev", 0.003)
+
+        return args
+
+    def __getitem__(self, index: int) -> dict:
+        key = self.names[index]
+        value = self.txn.get(f"{key}".encode())
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        data = pkl.loads(value)
+
+        # item = {"id": index, **data}
+        tokens = data["aa_seq"]
+        bpe_token = data["bpe_seq"]
+
+        item = {
+            # "id": index,
+            "aa": tokens,
+            "bpe": bpe_token,
+        }
+
+        item["aa"] = np.array(tokens, dtype=np.int64)
+        item["bpe"] = np.array(bpe_token, dtype=np.int64)
+
+        """
+        - add residue properties
+        """
+        properties = self.vocab.feat_idx(item["aa"])
+        for prop_name in ["chem_polar", "net_charge"]:
+            item[prop_name] = np.array(properties[prop_name], dtype=np.int64)
+        for prop_name in ["hydropathy", "mol_mass"]:
+            item[prop_name] = np.array(properties[prop_name], dtype=np.float32)
+
+        """
+        - mask the sequence in different ways
+        """
+        seed = int(hash((self.seed, index)) % 1e6)
+
+        assert (
+            "mask_idx" not in item
+        ), "Item already contains mask_idx key, this is not expected!"
 
         # bert like mask
         new_seq, mask_type, rand_mask = masking_registry[self.seq_masking_method](

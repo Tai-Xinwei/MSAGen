@@ -32,7 +32,7 @@ class ResidueFeature(nn.Module):
         num_residues,
         hidden_dim,
         max_len=1024,
-        prop_feat=True,
+        prop_feat=False,
         angle_feat=False,
         t_timesteps=1010,
         time_embedding_type="positional",
@@ -89,10 +89,6 @@ class ResidueFeature(nn.Module):
             self.angle_embed = nn.Linear(3, hidden_dim, bias=False)
 
     def forward(self, batched_data, time_aa=None, mask_aa=None, mask_pos=None):
-        # x = F.one_hot(batched_data["x"], num_classes=self.num_residues)
-        # add label smooth, x is a one hot with num_classes
-        # x = x * (1 - self.label_smooth) + (1 - x) * self.label_smooth / self.num_residues
-        # x = self.token_embed(x.type_as(self.token_embed.weight))
         x = self.token_embed(batched_data["x"])
 
         mask_embedding = self.atom_mask_embedding.weight.sum(dim=0)
@@ -105,30 +101,11 @@ class ResidueFeature(nn.Module):
                 x = x + prop_net(prop_data)
 
         if self.angle_feat:
-            angle_data = batched_data["ang"].to(x.dtype) / 180.0 * 3.1415926
+            angle_data = batched_data["ang"].to(x.dtype)
             anlge_mask = angle_data == float("inf")
             x = x + self.angle_embed(angle_data.masked_fill(anlge_mask, 0.0))
 
         x[mask_aa.bool().squeeze(-1)] = mask_embedding
-
-        # if time_aa is not None:
-        #     time_embedding = (
-        #         torch.zeros_like(x).to(x) + self.time_embedding(time_aa)[:, None, :]
-        #     )
-        #     t0 = torch.zeros_like(time_aa).to(time_aa)
-        #     t0_emb = torch.zeros_like(x).to(x) + self.time_embedding(t0)[:, None, :]
-        #     time_embedding = torch.where(mask_aa.bool(), time_embedding, t0_emb)
-
-        #     noisy_x = (
-        #         self.diffnoise._noise_sample(x, time_aa)
-        #         .masked_fill(~mask_aa.bool(), 0.0)
-        #         .to(x.dtype)
-        #     )
-
-        #     x = x.masked_fill(mask_aa.bool(), 0.0).to(x.dtype)
-        #     x = x + noisy_x
-
-        #     x = x + time_embedding
 
         return x
 

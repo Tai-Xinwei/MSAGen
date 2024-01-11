@@ -79,6 +79,8 @@ class PFMEncoderLayer(nn.Module):
             add_rope=True,
         )
 
+        self.sandwich_ln = sandwich_ln
+
         self.fc1 = self.build_fc1(
             self.embedding_dim,
             ffn_embedding_dim,
@@ -93,10 +95,15 @@ class PFMEncoderLayer(nn.Module):
         )
 
         # sandwitch layernorm
-        self.sandwich_ln = sandwich_ln
         self.top_layer_norm = LayerNorm(self.embedding_dim, export=export)
         self.mid_layer_norm = LayerNorm(self.embedding_dim, export=export)
         # self.final_layer_norm = LayerNorm(ffn_embedding_dim, export=export)
+
+        # self.fc1 = nn.Linear(self.embedding_dim, ffn_embedding_dim)
+        # self.fc2 = nn.Linear(ffn_embedding_dim, self.embedding_dim)
+
+        # self.top_layer_norm = nn.LayerNorm(self.embedding_dim)
+        # self.mid_layer_norm = nn.LayerNorm(self.embedding_dim)
 
         self.nl = nl
         self.args = args

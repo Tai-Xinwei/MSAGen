@@ -1,0 +1,68 @@
+description: bfm-finetune
+
+# target:
+#     service: amlk8s
+#     name: itphyperdgx2cl1
+#     vc: hai1
+
+
+target:
+    service: amlk8s
+    name: itphyperdgx2cl1
+    vc: hai1
+
+environment:
+    image: pj/mfmds:20230207_b
+    registry: itpeus4cr.azurecr.io
+    username: itpeus4cr
+
+storage:
+    pfm:
+        storage_account_name: hai1data # Storage account
+        container_name: pfm # Container name
+        mount_dir: /pfm
+    hai1:
+        storage_account_name: hai1data # Storage account
+        container_name: mfm # Container name
+        mount_dir: /hai1
+    blob:
+        storage_account_name: msralaphilly2
+        container_name: ml-la
+        mount_dir: /blob
+
+code:
+    local_dir: .
+
+search:
+    job_template:
+        name: "finetune_pfm_bpe_base.e29-{lr:s}_{seed:s}_{run:s}"
+        tags:
+        - 'ProjectID: PRJ-0209-A40'
+        sku: G16
+        mpi: true
+        process_count_per_node: 1
+        command:
+        - export seed={seed}
+        - export max_lr={lr}
+        - export run={run}
+        - export WANDB_API_KEY='d34f864932245bbdf3a9396a1ebde883ad2068f3'
+        - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 -y && conda activate sfm
+        - bash ./install/install.sh
+        - pip install -e .
+        - bash ./scripts/pfm/finetune_pfm_bpe_alltask_base.sh
+        submit_args:
+            container_args:
+                shm_size: 1024g
+    type: grid
+    max_trials: 999
+    parallel_trials: 3
+    params:
+        - name: seed
+          spec: discrete
+          values: ["13", "21", "42"]
+        - name: lr
+          spec: discrete
+          values: ["1e-4"]
+        - name: run
+          spec: discrete
+          values: ["0109-2036"]

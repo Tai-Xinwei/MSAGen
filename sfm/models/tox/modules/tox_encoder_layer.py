@@ -13,7 +13,7 @@ from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.layer_norm import LayerNorm
 from sfm.modules.mem_eff_attn import MemEffAttn
 from sfm.modules.multihead_attention import MultiheadAttention
-from sfm.modules.multihead_attention_flash import MultiheadAttentionFlash
+from sfm.modules.multihead_attention_flash import FlashAttn
 from sfm.modules.quant_noise import quant_noise
 
 from .tox_layer import Graph2DBias, Graph3DBias

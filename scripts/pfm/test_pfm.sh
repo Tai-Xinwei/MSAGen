@@ -42,7 +42,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${checkpoint_dir}" ] && checkpoint_dir=""
 [ -z "${which_set}" ] && which_set="valid"
 
-
 [ -z "${mode_prob}" ] && mode_prob='1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # cannot use DDP, since it does not implement valid_step...
 [ -z "${strategy}" ] && strategy=Single

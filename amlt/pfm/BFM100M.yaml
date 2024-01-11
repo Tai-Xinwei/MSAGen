@@ -6,19 +6,19 @@
 
 description: pfmtest
 
-# target:
-#     service: amlk8s
-#     name: itphyperdgx2cl1
-#     vc: hai1
+target:
+    service: amlk8s
+    name: itphyperdgx2cl1
+    vc: hai1
 
 # target:
 #     service: amlk8s
 #     name: itphyperdgx2cl2
 #     vc: hcrr08
 
-target:
-    service: aml
-    name: gcrarca100cl1
+# target:
+#     service: aml
+#     name: gcrarca100cl1
 
 environment:
   image: pj/mfmds:20230207_b
@@ -38,14 +38,14 @@ jobs:
 - name: pfmtest
   tags:
   - 'ProjectID: PRJ-0209-A40'
-  sku: 4xG8
+  sku: 4xG16
   mpi: true
   process_count_per_node: 1
   command:
   - mkdir /blob/pfmexp/output
   # - mkdir /blob/pfmexp/output/pfmdiff50M_dyn_mode_prob550
-  - mkdir /blob/pfmexp/output/bfm100m_ddp8e5d16mask02_ln_pairv3_bert2_32A100_adam2
-  - mkdir /blob/pfmexp/output/bfm100m_ddp8e5d16mask02_ln_pairv3_bert2_32A100_adam2/checkpoints
+  - mkdir /blob/pfmexp/output/bfm100m_maskspan1_ddp8e5d16mask030drop1_pairv4_bert2_64V100_adam2
+  - mkdir /blob/pfmexp/output/bfm100m_maskspan1_ddp8e5d16mask030drop1_pairv4_bert2_64V100_adam2/checkpoints
   - mkdir ./outputs
   - export path=run.sh
   - export layers=12
@@ -56,35 +56,35 @@ jobs:
   - export atom_loss_coeff=1.0
   - export pos_loss_coeff=1.0
   - export sandwich_ln="true"
-  - export dropout=0.0
-  - export attn_dropout=0.0
+  - export dropout=0.1
+  - export attn_dropout=0.1
   - export act_dropout=0.0
   - export weight_decay=0.0
   - export droppath_prob=0.0
   - export max_num_aa=1024
   - export noise_mode=diff
   - export noise_scale=0.2
-  - export mask_ratio=0.2
+  - export mask_prob=0.30
   - export mode_prob=1.0,0.0,0.0
   - export d_tilde=1.0
   - export max_lr=8e-5
   - export strategy=DDP
   - export pipeline_model_parallel_size=0
-  - export total_num_steps=3000000
-  - export warmup_num_steps=10000
+  - export total_num_steps=600000
+  - export warmup_num_steps=30000
   - export train_batch_size=1024
   - export val_batch_size=512
   - export max_tokens=6400
-  - export max_length=1024
-  - export gradient_accumulation_steps=1
+  - export max_length=1536
+  - export gradient_accumulation_steps=4
   - export log_interval=100
   - export wandb_group=BFM
   - export wandb_project=ds_mfmpre
-  - export loadcheck_path=/blob/pfmexp/output/bfm100m_ddp8e5d16mask02_ln_pairv3_bert2_32A100_adam2/checkpoints
+  - export loadcheck_path=/blob/pfmexp/output/bfm100m_maskspan1_ddp8e5d16mask030drop1_pairv4_bert2_64V100_adam2/checkpoints
   - mkdir /tmp/data/pm6-86m-3d-filter
-  - export train_data_path=/blob/data/afdb/uniref50_pack1024_train.lmdb/
-  - export valid_data_path=/blob/data/afdb/uniref50_valid.lmdb/
-  - export save_dir=/blob/pfmexp/output/bfm100m_ddp8e5d16mask02_ln_pairv3_bert2_32A100_adam2/checkpoints
+  - export train_data_path=/blob/data/afdb/uniref50_msa_ppi_pack1536_train.lmdb/
+  - export valid_data_path=/blob/data/afdb/uniref50_pack1024_valid.lmdb/
+  - export save_dir=/blob/pfmexp/output/bfm100m_maskspan1_ddp8e5d16mask030drop1_pairv4_bert2_64V100_adam2/checkpoints
   - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
   - bash ./install/install.sh && bash ./install/install_megatron.sh
   - bash ./scripts/pfm/pretrain_pfm.sh

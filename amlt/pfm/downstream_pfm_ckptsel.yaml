@@ -1,0 +1,70 @@
+description: bfm-finetune
+
+# target:
+#     service: amlk8s
+#     name: itphyperdgx2cl1
+#     vc: hai1
+
+target:
+    service: amlk8s
+    name: itplabrr1cl1
+    vc: mprr3
+
+environment:
+    image: pj/mfmds:20230207_b
+    registry: itpeus4cr.azurecr.io
+    username: itpeus4cr
+
+storage:
+    pfm:
+        storage_account_name: hai1data # Storage account
+        container_name: pfm # Container name
+        mount_dir: /pfm
+    hai1:
+        storage_account_name: hai1data # Storage account
+        container_name: mfm # Container name
+        mount_dir: /hai1
+    blob:
+        storage_account_name: msralaphilly2
+        container_name: ml-la
+        mount_dir: /blob
+
+code:
+    local_dir: .
+
+search:
+    job_template:
+        name: "eval_pfm_bpe_{task}"
+        tags:
+        - 'ProjectID: PRJ-0209-A40'
+        sku: G1
+        mpi: true
+        process_count_per_node: 1
+        command:
+        - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 -y && conda activate sfm
+        - bash ./install/install.sh
+        - pip install -e .
+        - export task_name={task}
+        - export seed=13
+        - bash ./scripts/pfm/test_all_ckpt.sh
+        submit_args:
+            container_args:
+                shm_size: 1024g
+    type: grid
+    max_trials: 999
+    parallel_trials: 20
+    params:
+        - name: task
+          spec: discrete
+          values:
+            - solubility
+            - EnzymeCommission
+            - GeneOntology_mf
+            - GeneOntology_bp
+            - GeneOntology_cc
+            - subcellular_localization
+            - subcellular_localization_2
+            - remote_homology_fold
+            - human_ppi
+            - yeast_ppi
+            - ppi_affinity

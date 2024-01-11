@@ -25,7 +25,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${sandwich_ln}" ] && sandwich_ln=true
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
-[ -z "${noise_mode}" ] && noise_mode='diff'
+[ -z "${noise_mode}" ] && noise_mode=diff
 [ -z "${mask_ratio}" ] && mask_ratio=0.15
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=1e-4
@@ -34,22 +34,24 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${max_tokens}" ] && max_tokens=2048
 [ -z "${val_batch_size}" ] && val_batch_size=64
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=1
+[ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=3
 [ -z "${seed}" ] && seed=42
-[ -z "${spm_model_path}" ] && spm_model_path='/blob/shufxi/data/biofm/ur50bpe/ur50bpe.model'
+
 
 [ -z "${mode_prob}" ] && mode_prob='1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-[ -z "${strategy}" ] && strategy=DDP
+# cannot use DDP, since it does not implement valid_step...
+[ -z "${strategy}" ] && strategy=Single
 
+# [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
 [ -z "${train_data_path}" ] && train_data_path='None'
 [ -z "${valid_data_path}" ] && valid_data_path='None'
 [ -z "${data_basepath}" ] && data_basepath="/mnta/yaosen/data/bfm_benchmark"
-[ -z "${task_name}" ] && task_name="subcellular_localization"
-[ -z "${loadcheck_path}" ] && loadcheck_path="/home/yaosen/bpe_ckpts/checkpoint_E19.pt"
+[ -z "${task_name}" ] && task_name="EnzymeCommission"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/mnta/yaosen/EnzymeCommission/checkpoint_E1.pt"
 [ -z "${save_dir}" ] && save_dir="/mnta/yaosen/$task_name"
 [ -z "${early_stopping}" ] && early_stopping=true
 [ -z "${early_stopping_patience}" ] && early_stopping_patience=5
@@ -62,10 +64,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=tinyBFM-bpe-finetune
+[ -z "${wandb_group}" ] && wandb_group=tinyBFM-finetune
 [ -z "${wandb_team}" ] && wandb_team=icuppjin
 [ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
 
+[ -z "${down_stream_set}" ] && down_stream_set='test'
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
 [ -z "${MASTER_PORT}" ] && MASTER_PORT=62347
@@ -73,12 +76,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 # [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=-1
 
-
-[ -z "${mask_prob}" ] && mask_prob=0.15
-[ -z "${initializer_range}" ] && initializer_range=0.02
-
-
-
+# wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
+# export WANDB_API_KEY=5d03b7a46d10f86ff45c4aedc570660a523edc0b
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -115,6 +114,8 @@ echo "atom_loss_coeff: ${atom_loss_coeff}"
 echo "pos_loss_coeff: ${pos_loss_coeff}"
 echo "no_2d: ${no_2d}"
 echo "add_3d: ${add_3d}"
+echo "data_path: ${data_path}"
+echo "output_path: ${output_path}"
 echo "dataset_name: ${dataset_name}"
 echo "noise_scale: ${noise_scale}"
 echo "mask_ratio: ${mask_ratio}"
@@ -122,69 +123,24 @@ echo "mode_prob: ${mode_prob}"
 echo "noise_mode: ${noise_mode}"
 echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 
-# export NCCL_ASYNC_ERROR_HADNLING=1
-# export NCCL_DEBUG=INFO
-# export NCCL_IB_PCI_RELAXED_ORDERING=1
-# export NCCL_IB_DISABLE=1
-export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
-export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
-# export NCCL_SOCKET_IFNAME=eth0
-# export OMP_NUM_THREADS=1
 
 
-if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
-then
-  DISTRIBUTED_ARGS=""
-else
-  if (( $OMPI_COMM_WORLD_SIZE == 1))
-  then
-    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
-                      --master_port $MASTER_PORT"
-  else
-    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
-                      --nnodes $OMPI_COMM_WORLD_SIZE \
-                      --node_rank $OMPI_COMM_WORLD_RANK \
-                      --master_addr $MASTER_ADDR"
-  fi
-fi
-
-# if early_stop is false, then early_stop_args is empty
-if [[ "${early_stopping}" == "false" ]]
-then
-  early_stop_args=""
-else
-  early_stop_args="--early_stopping --early_stopping_patience $early_stopping_patience \
-                   --early_stopping_metric $early_stopping_metric \
-                   --early_stopping_mode $early_stopping_mode"
-fi
-
-torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm.py \
-        --base_model 'pfm_bpe' \
-        --model_type $model_type \
-        --task_name $task_name \
-        --data_basepath $data_basepath \
-        --train_data_path $train_data_path \
-        --valid_data_path $valid_data_path \
-        --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
-        --save_dir $save_dir \
-        --seed $seed \
-        --fp16 \
-        --strategy $strategy \
-        --max_lr $max_lr \
-        --mask_prob $mask_prob \
-        --initializer_range $initializer_range \
-        --total_num_steps $total_num_steps \
-        --warmup_num_steps $warmup_num_steps \
-        --train_batch_size $train_batch_size \
-        --val_batch_size $val_batch_size \
-        --gradient_accumulation_steps $gradient_accumulation_steps \
-        --save_epoch_interval $save_epoch_interval \
-        --total_num_epochs $epochs \
-        --save_batch_interval $save_batch_interval \
-        --log_interval $log_interval \
-        --use_rd --rd_scale 1.0 \
-        --head_dropout $head_dropout $early_stop_args \
-        --spm_model_path $spm_model_path \
-        --loadcheck_path $loadcheck_path \
-        --d_tilde $d_tilde \
-        --max_tokens $max_tokens --max_length $max_length
+python3 sfm/tasks/pfm/test_pfm.py \
+--base_model pfm_bpe \
+--model_type $model_type \
+--task_name $task_name \
+--data_basepath /pfm/data/bfm_benchmark \
+--loadcheck_path $loadcheck_path \
+--fp16 \
+--ft \
+--strategy Single \
+--train_batch_size 32 \
+--val_batch_size 32 \
+--max_tokens 2048 \
+--max_length 2048 \
+--use_rd \
+--rd_scale 1.0 \
+--head_dropout 0.1 \
+--log_interval 10 \
+--down_stream_set $down_stream_set \
+--spm_model_path /blob/shufxi/data/biofm/ur50bpe/ur50bpe.model
