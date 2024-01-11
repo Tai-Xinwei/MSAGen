@@ -170,7 +170,8 @@ class SingleSequenceModel(Model):
         return optimizer, lr_scheduler
 
     def calculate_metric(self, label, logits) -> dict:
-        pred, true = logits.cpu().to(torch.float32), label.cpu().to(torch.float32)
+        pred = logits.cpu().squeeze().to(torch.float32)
+        true = label.cpu().squeeze().to(torch.float32)
         if DownstreamLMDBDataset.TASKINFO[self.args.task_name]["type"] == "regression":
             mean, std = DownstreamLMDBDataset.TASKINFO[self.args.task_name]["mean_std"]
             if self.args.label_normalize:

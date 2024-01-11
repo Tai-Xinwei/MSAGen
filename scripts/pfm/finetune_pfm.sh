@@ -32,7 +32,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 [ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${max_tokens}" ] && max_tokens=2048
-[ -z "${val_batch_size}" ] && val_batch_size=64
+[ -z "${val_batch_size}" ] && val_batch_size=61
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
@@ -43,7 +43,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mode_prob}" ] && mode_prob='1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 [ -z "${strategy}" ] && strategy=DDP
 
-# [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
 [ -z "${train_data_path}" ] && train_data_path='None'
 [ -z "${valid_data_path}" ] && valid_data_path='None'
 [ -z "${data_basepath}" ] && data_basepath="/mnta/yaosen/data/bfm_benchmark"
@@ -71,7 +70,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_PORT}" ] && MASTER_PORT=62347
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
-# [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=-1
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -162,7 +160,6 @@ else
   label_normalize_args="--label_normalize"
 fi
 
-# echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm_v2.py \
           --task_name $task_name \
@@ -202,6 +199,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm_v2.py \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
 
+strategy=Single
 python sfm/tasks/pfm/test_pfm_v2.py \
           --task_name $task_name \
           --data_basepath $data_basepath \

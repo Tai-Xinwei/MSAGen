@@ -2,6 +2,7 @@
 import copy
 import os
 import random
+import shutil
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -549,31 +550,35 @@ class Trainer(object):
                 else:
                     value = getattr(valid_log, self.early_stopping.metric, None)
                     if value is None:
-                        value = getattr(
-                            valid_log.extra_output, self.early_stopping.metric, None
+                        value = valid_log.extra_output.get(
+                            self.early_stopping.metric, None
                         )
-                    logger.info(
-                        f"Best {self.early_stopping.metric} is {self.early_stopping.best} at epoch {self.early_stopping.best_at}, "
-                        f"which does not improve over past {self.early_stopping.counter} epochs."
-                    )
-                    import shutil
-
-                    # copy the best checkpoint to checkpoint_best.pt, note that the epoch starts from 0
-                    best_ckpt_path = (
-                        Path(self.args.save_dir)
-                        / f"checkpoint_E{self.early_stopping.best_at}.pt"
-                    )
-                    shutil.copy(
-                        best_ckpt_path,
-                        Path(self.args.save_dir) / "checkpoint_best.pt",
-                    )
-                    if self.early_stopping(value):
-                        logger.info(f"Early stopping at epoch {self.state.epoch}")
-                        # break the while loop
+                    if value is None:
+                        logger.warning(
+                            f"Metric {self.early_stopping.metric} is not available in the validation log, early stopping is set but not not used in this epoch."
+                        )
+                    # update early stopping and save stop flag
+                    should_stop = self.early_stopping(value)
+                    # just updated or the first epoch, update the best checkpoint
+                    if self.early_stopping.counter == 0:
+                        best_ckpt_path = (
+                            Path(self.args.save_dir)
+                            / f"checkpoint_E{self.early_stopping.best_at}.pt"
+                        )
+                        shutil.copy(
+                            best_ckpt_path,
+                            Path(self.args.save_dir) / "checkpoint_best.pt",
+                        )
+                    if should_stop:
                         logger.info(
-                            f"Early stopping at epoch {self.state.epoch}, exiting training loop."
+                            f"Early stopping at epoch {self.state.epoch}, exiting training loop, copying best model to checkpoint_best.pt."
                         )
                         break
+
+                    logger.info(
+                        f"Best {self.early_stopping.metric} is {self.early_stopping.best} at epoch {self.early_stopping.best_at}, "
+                        f"not improving over past {self.early_stopping.counter} epochs. "
+                    )
 
             self.state.epoch += 1
             self.state.batch = 0
