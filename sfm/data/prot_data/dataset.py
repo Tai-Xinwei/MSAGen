@@ -791,7 +791,7 @@ class PackedUR50LMDBDataset(FoundationModelDataset):
         args.mask_prob = getattr(args, "mask_prob", 0.15)
         args.leave_unmasked_prob = getattr(args, "leave_unmasked_prob", 0.1)
         args.random_token_prob = getattr(args, "random_token_prob", 0.1)
-        args.mask_multiple_length = getattr(args, "mask_multiple_length", 1)
+        args.mask_multiple_length = getattr(args, "mask_multiple_length", 3)
         args.mask_stdev = getattr(args, "mask_stdev", 0.0)
 
         args.noise_method = getattr(args, "noise_method", "normal")
@@ -926,7 +926,7 @@ class PackedBPEUR50LMDBDataset(PackedUR50LMDBDataset):
         args.mask_prob = getattr(args, "mask_prob", 0.15)
         args.leave_unmasked_prob = getattr(args, "leave_unmasked_prob", 0.1)
         args.random_token_prob = getattr(args, "random_token_prob", 0.1)
-        args.mask_multiple_length = getattr(args, "mask_multiple_length", 1)
+        args.mask_multiple_length = getattr(args, "mask_multiple_length", 3)
         args.mask_stdev = getattr(args, "mask_stdev", 0.0)
 
         args.noise_method = getattr(args, "noise_method", "normal")

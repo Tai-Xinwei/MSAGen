@@ -35,7 +35,15 @@ class TOXModel(Model):
     additional sentence level prediction if the sent-loss argument is set.
     """
 
-    def __init__(self, args, loss_fn=None, data_mean=0.0, data_std=1.0, not_init=False):
+    def __init__(
+        self,
+        args,
+        loss_fn=None,
+        data_mean=0.0,
+        data_std=1.0,
+        not_init=False,
+        load_ckpt=False,
+    ):
         super().__init__()
         if not_init:
             return
@@ -48,7 +56,10 @@ class TOXModel(Model):
 
         self.net = TOX(args, pfm_config)
 
-        self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
+        if load_ckpt:
+            self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
+        else:
+            logger.info("No checkpoint is loaded")
 
     def load_pretrained_weights(self, args, checkpoint_path):
         """
@@ -90,11 +101,18 @@ class TOXModel(Model):
                     )
                 )
 
+            logger.info(f"checkpoint: {checkpoint_path} is loaded")
+        else:
+            logger.info("No checkpoint is loaded")
+
     def max_positions(self):
         return self.net.max_positions
 
     def forward(self, batched_data, **kwargs):
         return self.net(batched_data, **kwargs)
+
+    def ft_forward(self, batched_data, **kwargs):
+        return self.net.ft_forward(batched_data, **kwargs)
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
         logits = model_output[0]
@@ -624,6 +642,110 @@ class TOX(nn.Module):
 
         # return (x, node_output, angle_output, mask_pos, mask_aa, ang_score, ang_score_norm)
         return (x, node_output, angle_output, mask_pos, mask_aa, angle, pos)
+
+    def ft_forward(
+        self,
+        batched_data,
+        perturb=None,
+        time_step=None,
+        mask_aa=None,
+        mask_pos=None,
+        mask_angle=None,
+        padding_mask=None,
+        mode_mask=None,
+        time_pos=None,
+        time_aa=None,
+        segment_labels=None,
+        masked_tokens=None,
+        **unused,
+    ):
+        """
+        Forward pass for Masked LM encoder. This first computes the token
+        embedding using the token embedding matrix, position embeddings (if
+        specified) and segment embeddings (if specified).
+
+        Here we assume that the sentence representation corresponds to the
+        output of the classification_token (see bert_task or cross_lingual_lm
+        task for more details).
+        Args:
+            - src_tokens: B x T matrix representing sentences
+            - segment_labels: B x T matrix representing segment label for tokens
+        Returns:
+            - a tuple of the following:
+                - logits for predictions in format B x T x C to be used in
+                  softmax afterwards
+                - a dictionary of additional data, where 'pooled_output' contains
+                  the representation for classification_token and 'inner_states'
+                  is a list of internal model states used to compute the
+                  predictions (similar in ELMO). 'sentence_logits'
+                  is the prediction logit for NSP task and is only computed if
+                  this is specified in the input arguments.
+        """
+        with torch.no_grad():
+            residue_seq = batched_data["x"]
+            B, L = residue_seq.shape
+            if "pos" in batched_data:
+                pos = batched_data["pos"]
+            else:
+                pos = None
+
+            if "ang" in batched_data:
+                angle = batched_data["ang"]
+            else:
+                angle = None
+
+        mask_pos = torch.zeros_like(residue_seq).bool().unsqueeze(-1)
+        mask_aa = torch.zeros_like(residue_seq).bool().unsqueeze(-1)
+
+        padding_mask = (residue_seq[:, :]).eq(1)  # B x T x 1
+        eos_mask = (residue_seq[:, :]).eq(2)
+
+        angle = torch.zeros((B, L, 3), device=residue_seq.device)
+        angle = torch.rand_like(angle)
+        angle = torch.remainder(angle, 2 * self.pi) - self.pi
+
+        time_pos = (
+            torch.ones(B, device=residue_seq.device, dtype=torch.long)
+            * self.args.t_timesteps
+        )
+
+        (
+            x,
+            _,
+            _,
+            pos,
+            inner_states,
+            padding_mask,
+            _,
+            mask_aa,
+            time_pos,
+            time_aa,
+        ) = self.sentence_encoder(
+            batched_data,
+            pos=pos,
+            angle=angle,
+            mask_aa=mask_aa,
+            mask_pos=mask_pos,
+            mask_angle=mask_angle,
+            time_pos=time_pos,
+            time_aa=time_aa,
+            mode_mask=mode_mask,
+            padding_mask=padding_mask,
+            segment_labels=segment_labels,
+            perturb=perturb,
+        )
+
+        padding_mask = padding_mask | eos_mask
+        padding_mask[:, 0] = True
+
+        x = inner_states[-1].transpose(0, 1)
+
+        angle_output = self.angle_decoder(x)
+        angle_output = angle_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
+
+        x = self.layer_norm(self.activation_fn(self.lm_head_transform_weight(x)))
+
+        return x
 
     def upgrade_state_dict_named(self, state_dict, name):
         tmp_dict = {}

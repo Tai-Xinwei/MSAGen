@@ -150,11 +150,9 @@ class TOXmixEmbedding(nn.Module):
         edge_feature = None
         delta_pos = None
         if mask_pos is not None and self.pfm_config.add_3d:
-            node_type_edge = batched_data["node_type_edge"]
             node3dfeature, merged_edge_features, delta_pos = self.edge_3d_emb(
                 pos,
                 angle,
-                node_type_edge,
                 padding_mask,
                 mask_aa,
                 mask_pos,

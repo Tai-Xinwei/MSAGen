@@ -471,8 +471,11 @@ class DdpAccelerator(SingleNodeAccelerator):
         return total_loss, num_examples
 
     def sync_valid_metric(self, label_list, logits_list):
-        label = torch.cat(label_list, dim=0).cuda(self.device)
-        logits = torch.cat(logits_list, dim=0).cuda(self.device)
+        if not label_list or not logits_list:
+            return None, None
+
+        label = torch.cat(label_list, dim=0).to(self.device)
+        logits = torch.cat(logits_list, dim=0).to(self.device)
         num_samples = torch.zeros(
             self.world_size + 1, device=self.device, dtype=torch.long
         )
@@ -968,11 +971,21 @@ class DeepSpeedAccelerator(Accelerator):
             pred = self.model_engine(batch_data)
             model_output = self.model.compute_loss(pred, batch_data)
 
+            if hasattr(batch_data, "batch_size"):
+                num_examples = batch_data.batch_size
+            elif hasattr(model_output, "num_examples"):
+                num_examples = model_output.num_examples
+            else:
+                logger.info("num_examples is not found. set to None")
+                num_examples = None
+
             torch.cuda.empty_cache()
             return ValidLogOutput(
-                valid_loss=model_output.loss.detach().item(),
+                valid_loss=model_output.loss.item(),
                 epoch=epoch,
-                num_examples=model_output.num_examples,
+                num_examples=num_examples,
+                logits=model_output.logits,
+                label=model_output.label,
                 extra_output=model_output.log_output,
             )
 
@@ -1026,10 +1039,13 @@ class DeepSpeedAccelerator(Accelerator):
         return total_loss, num_examples
 
     def sync_valid_metric(self, label_list, logits_list):
-        label = torch.cat(label_list, dim=0).cuda(self.device)
-        logits = torch.cat(logits_list, dim=0).cuda(self.device)
+        if not label_list or not logits_list:
+            return None, None
+
+        label = torch.cat(label_list, dim=0).cuda()
+        logits = torch.cat(logits_list, dim=0).cuda()
         num_samples = torch.zeros(
-            self.world_size + 1, device=self.device, dtype=torch.long
+            self.world_size + 1, device=label.device, dtype=torch.long
         )
         num_samples[self.rank + 1] = label.shape[0]
         torch.distributed.all_reduce(num_samples)
@@ -1037,10 +1053,10 @@ class DeepSpeedAccelerator(Accelerator):
         for i in range(1, self.world_size + 1):
             num_samples[i] += num_samples[i - 1]
         total_label = torch.zeros(
-            total_samples, *label.shape[1:], device=self.device, dtype=label.dtype
+            total_samples, *label.shape[1:], device=label.device, dtype=label.dtype
         )
         total_logits = torch.zeros(
-            total_samples, *logits.shape[1:], device=self.device, dtype=logits.dtype
+            total_samples, *logits.shape[1:], device=label.device, dtype=logits.dtype
         )
 
         total_label[num_samples[self.rank] : num_samples[self.rank + 1]] = label
