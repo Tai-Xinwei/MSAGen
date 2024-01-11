@@ -17,6 +17,7 @@ class PFMConfig(GraphormerConfig):
     num_residues: int = 32
     max_num_aa: int = 1024
     task: str = "mae"
+    mask_prob: float = 0.15
 
     train_data_path: str = ""
     valid_data_path: str = ""

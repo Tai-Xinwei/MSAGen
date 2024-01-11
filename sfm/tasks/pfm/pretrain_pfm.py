@@ -2,12 +2,20 @@
 import os
 import sys
 
+import torch
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
-from sfm.criterions.mae3d import ProteinMAE3dCriterions, ProteinMLM, ProteinPMLM
+from sfm.criterions.mae3d import (
+    ProteinMAE3dCriterions,
+    ProteinMLM,
+    ProteinPMLM,
+    ProteinPMLMMSA,
+)
 from sfm.data.prot_data.dataset import (
     BatchedDataDataset,
+    PackedBPEUR50LMDBDataset,
     PackedUR50LMDBDataset,
     ProteinLMDBDataset,
     StackedSequenceDataset,
@@ -26,7 +34,7 @@ from sfm.utils.cli_utils import cli
 @cli(DistributedTrainConfig, PFMConfig)
 def main(args) -> None:
     trainset = PackedUR50LMDBDataset(args, args.train_data_path)
-    valset = UR50LMDBDataset(args, args.valid_data_path)
+    valset = PackedUR50LMDBDataset(args, args.valid_data_path)
 
     if args.stack_seq:
         train_data = StackedSequenceIterableDataset(
@@ -46,7 +54,7 @@ def main(args) -> None:
         vocab=trainset.vocab,
     )
 
-    model = PFMModel(args, loss_fn=ProteinPMLM)
+    model = PFMModel(args, loss_fn=ProteinPMLMMSA)
 
     optimizer, _ = myAdam(
         model,
@@ -61,7 +69,7 @@ def main(args) -> None:
         total_num_steps=args.total_num_steps,
         warmup_max_lr=args.max_lr,
         warmup_num_steps=args.warmup_num_steps,
-        d_tilde=32,
+        d_tilde=2,
         decay_type=DECAY_COSINE_RATE,
     )
 
@@ -71,7 +79,7 @@ def main(args) -> None:
 
     trainer = Trainer(
         args,
-        model,
+        model,  # =torch.compile(model),
         train_data=train_data,
         valid_data=val_data,
         optimizer=optimizer,

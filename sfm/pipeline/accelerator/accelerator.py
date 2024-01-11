@@ -623,10 +623,10 @@ class DeepSpeedAccelerator(Accelerator):
             ] = self.args.gradient_clipping
             self.args.deepspeed_config["steps_per_print"] = self.args.log_interval
 
-            self.args.deepspeed_config["wandb"]["enabled"] = self.args.wandb
-            self.args.deepspeed_config["wandb"]["team"] = self.args.wandb_team
-            self.args.deepspeed_config["wandb"]["group"] = self.args.wandb_group
-            self.args.deepspeed_config["wandb"]["project"] = self.args.wandb_project
+            # self.args.deepspeed_config["wandb"]["enabled"] = self.args.wandb
+            # self.args.deepspeed_config["wandb"]["team"] = self.args.wandb_team
+            # self.args.deepspeed_config["wandb"]["group"] = self.args.wandb_group
+            # self.args.deepspeed_config["wandb"]["project"] = self.args.wandb_project
             return
 
     def get_unfreeze_param_list(self, unfreeze_param_name_list: str):

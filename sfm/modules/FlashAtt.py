@@ -1,12 +1,50 @@
 # -*- coding: utf-8 -*-
+"""
+*Experimental* implementation of FlashAttention in Triton.
+Tested with triton==2.0.0.dev20221202.
+Triton 2.0 has a new backend (MLIR) but seems like it doesn't yet work for head dimensions
+other than 64:
+https://github.com/openai/triton/blob/d376020f90002757eea3ea9475d4f7cfc2ec5ead/python/triton/ops/flash_attention.py#L207
+We'll update this implementation with the new Triton backend once this is fixed.
+
+We use the FlashAttention implementation from Phil Tillet a starting point.
+https://github.com/openai/triton/blob/master/python/tutorials/06-fused-attention.py
+
+Changes:
+- Implement both causal and non-causal attention.
+- Implement both self-attention and cross-attention.
+- Support arbitrary seqlens (not just multiples of 128), for both forward and backward.
+- Support all head dimensions up to 128 (not just 16, 32, 64, 128), for both forward and backward.
+- Support attention bias.
+- Speed up the forward pass a bit, and only store the LSE instead of m and l.
+- Make the backward for d=128 much faster by reducing register spilling.
+- Optionally parallelize the backward pass across seqlen_k, to deal with the case of
+small batch size * nheads.
+
+Caution:
+- This is an *experimental* implementation. The forward pass should be quite robust but
+I'm not 100% sure that the backward pass doesn't have race conditions (due to the Triton compiler).
+- This implementation has only been tested on A100.
+- If you plan to use headdim other than 64 and 128, you should test for race conditions
+(due to the Triton compiler), as done in tests/test_flash_attn.py
+"test_flash_attn_triton_race_condition". I've tested and fixed many race conditions
+for different head dimensions (40, 48, 64, 128, 80, 88, 96), but I'm still not 100% confident
+that there are none left for other head dimensions.
+
+Differences between this Triton version and the CUDA version:
+- Triton version doesn't support dropout.
+- Triton forward is generally faster than CUDA forward, while Triton backward is
+generally slower than CUDA backward. Overall Triton forward + backward is slightly slower
+than CUDA forward + backward.
+- Triton version doesn't support different sequence lengths in a batch (i.e., RaggedTensor/NestedTensor).
+- Triton version supports attention bias, while CUDA version doesn't.
+"""
+
 import math
-from typing import Optional, Tuple
 
 import torch
-import torch.nn as nn
-import triton  # type: ignore
-import triton.language as tl  # type: ignore
-from torch import Tensor
+import triton
+import triton.language as tl
 
 
 # Disabling autotune for now, set num_warps=4 if headdim=64 and num_warps=8 if headdim=128
@@ -139,30 +177,30 @@ def _fwd_kernel(
             EVEN_N & EVEN_M
         ):  # If we just do "if EVEN_N", there seems to be some race condition
             if EVEN_HEADDIM:
-                k = tl.load(k_ptrs + start_n * stride_kn)
+                tl.load(k_ptrs + start_n * stride_kn)
             else:
-                k = tl.load(
+                tl.load(
                     k_ptrs + start_n * stride_kn,
                     mask=offs_d[None, :] < headdim,
                     other=0.0,
                 )
         else:
             if EVEN_HEADDIM:
-                k = tl.load(
+                tl.load(
                     k_ptrs + start_n * stride_kn,
                     mask=(start_n + offs_n)[:, None] < seqlen_k,
                     other=0.0,
                 )
             else:
-                k = tl.load(
+                tl.load(
                     k_ptrs + start_n * stride_kn,
                     mask=((start_n + offs_n)[:, None] < seqlen_k)
                     & (offs_d[None, :] < headdim),
                     other=0.0,
                 )
         qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
-        qk += tl.dot(q, k, trans_b=True)
-
+        trans_qk = tl.trans(qk)
+        qk += tl.dot(q, trans_qk)  # , trans_b=True)
         # Trying to combine the two masks seem to make the result wrong
         if not EVEN_N:  # Need to mask out otherwise the softmax is wrong
             qk += tl.where((start_n + offs_n)[None, :] < seqlen_k, 0, float("-inf"))
@@ -377,7 +415,6 @@ def _bwd_kernel_one_col_block(
     DQ,
     DK,
     DV,
-    DBias,
     LSE,
     D,
     softmax_scale,
@@ -488,7 +525,8 @@ def _bwd_kernel_one_col_block(
                     other=0.0,
                 )
         # recompute p = softmax(qk, dim=-1).T
-        qk = tl.dot(q, k, trans_b=True)
+        trans_k = tl.trans(k)
+        qk = tl.dot(q, trans_k)  # , trans_b=True)
         # Trying to combine the two masks seem to make the result wrong
         if not EVEN_N:  # Need to mask out otherwise the softmax is wrong
             qk = tl.where(offs_n[None, :] < seqlen_k, qk, float("-inf"))
@@ -556,7 +594,8 @@ def _bwd_kernel_one_col_block(
         # Also wrong for headdim=64, seqlen=(1023, 1024), and ATOMIC_ADD=False
         if not (EVEN_M & EVEN_HEADDIM):
             tl.debug_barrier()
-        dp = tl.dot(do, v, trans_b=True)
+        trans_v = tl.trans(v)
+        dp = tl.dot(do, trans_v)  # , trans_b=True)
         # There's a race condition for headdim=48
         if not EVEN_HEADDIM:
             tl.debug_barrier()
@@ -697,7 +736,6 @@ def _bwd_kernel(
     DQ,
     DK,
     DV,
-    DBias,
     LSE,
     D,
     softmax_scale,
@@ -725,9 +763,6 @@ def _bwd_kernel(
     stride_dvb,
     stride_dvh,
     stride_dvn,
-    stride_dbb,
-    stride_dbh,
-    stride_dbm,
     nheads,
     seqlen_q,
     seqlen_k,
@@ -758,8 +793,6 @@ def _bwd_kernel(
     DV += off_b * stride_dvb + off_h * stride_dvh
     if BIAS_TYPE != "none":
         Bias += off_b * stride_bb + off_h * stride_bh
-        DBias += off_b * stride_dbb + off_h * stride_dbh
-
     # pointer to row-wise quantities in value-like data
     D += off_hb * seqlen_q_rounded
     LSE += off_hb * seqlen_q_rounded
@@ -776,7 +809,6 @@ def _bwd_kernel(
                 DQ,
                 DK,
                 DV,
-                DBias,
                 LSE,
                 D,
                 softmax_scale,
@@ -813,7 +845,6 @@ def _bwd_kernel(
             DQ,
             DK,
             DV,
-            DBias,
             LSE,
             D,
             softmax_scale,
@@ -840,9 +871,7 @@ def _bwd_kernel(
         )
 
 
-def _flash_attn_forward(
-    q, k, v, bias=None, causal=False, softmax_scale=None, dropout=0.0
-):
+def _flash_attn_forward(q, k, v, bias=None, causal=False, softmax_scale=None):
     # shape constraints
     batch, seqlen_q, nheads, d = q.shape
     _, seqlen_k, _, _ = k.shape
@@ -852,7 +881,7 @@ def _flash_attn_forward(
     assert q.dtype == k.dtype == v.dtype, "All tensors must have the same type"
     assert q.dtype in [torch.float16, torch.bfloat16], "Only support fp16 and bf16"
     assert q.is_cuda and k.is_cuda and v.is_cuda
-    softmax_scale = softmax_scale if softmax_scale is None else 1.0 / math.sqrt(d)
+    softmax_scale = softmax_scale or 1.0 / math.sqrt(d)
 
     has_bias = bias is not None
     bias_type = "none"
@@ -935,19 +964,7 @@ def _flash_attn_forward(
 
 
 def _flash_attn_backward(
-    do,
-    q,
-    k,
-    v,
-    o,
-    lse,
-    dq,
-    dk,
-    dv,
-    dbias=None,
-    bias=None,
-    causal=False,
-    softmax_scale=None,
+    do, q, k, v, o, lse, dq, dk, dv, bias=None, causal=False, softmax_scale=None
 ):
     # Make sure that the last dimension is contiguous
     if do.stride(-1) != 1:
@@ -1006,12 +1023,8 @@ def _flash_attn_backward(
                 " or (seqlen_q, seqlen_k)"
             )
         bias = bias.expand(batch, nheads, seqlen_q, seqlen_k)
-        dbias = dbias.expand(batch, nheads, seqlen_q, seqlen_k)
     bias_strides = (
         (bias.stride(0), bias.stride(1), bias.stride(2)) if has_bias else (0, 0, 0)
-    )
-    dbias_strides = (
-        (dbias.stride(0), dbias.stride(1), dbias.stride(2)) if has_bias else (0, 0, 0)
     )
 
     # BLOCK_M = 128
@@ -1032,7 +1045,6 @@ def _flash_attn_backward(
         dq_accum,
         dk,
         dv,
-        dbias,
         lse,
         delta,
         softmax_scale,
@@ -1058,7 +1070,6 @@ def _flash_attn_backward(
         dv.stride(0),
         dv.stride(2),
         dv.stride(1),
-        *dbias_strides,
         nheads,
         seqlen_q,
         seqlen_k,
@@ -1079,7 +1090,117 @@ def _flash_attn_backward(
     dq.copy_(dq_accum)
 
 
-class _attention(torch.autograd.Function):
+class FlashAttnQKVPackedFunc(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, qkv, bias=None, causal=False, softmax_scale=None):
+        """
+        qkv: (batch, seqlen, 3, nheads, headdim)
+        bias: optional, shape broadcastible to (batch, nheads, seqlen, seqlen).
+            For example, ALiBi mask for causal would have shape (1, nheads, 1, seqlen).
+            ALiBi mask for non-causal would have shape (1, nheads, seqlen, seqlen)
+        """
+        # Make sure that the last dimension is contiguous
+        if qkv.stride(-1) != 1:
+            qkv = qkv.contiguous()
+        o, lse, ctx.softmax_scale = _flash_attn_forward(
+            qkv[:, :, 0],
+            qkv[:, :, 1],
+            qkv[:, :, 2],
+            bias=bias,
+            causal=causal,
+            softmax_scale=softmax_scale,
+        )
+        ctx.save_for_backward(qkv, o, lse, bias)
+        ctx.causal = causal
+        return o
+
+    @staticmethod
+    def backward(ctx, do):
+        qkv, o, lse, bias = ctx.saved_tensors
+        assert not ctx.needs_input_grad[
+            1
+        ], "FlashAttention does not support bias gradient yet"
+        # Triton's autotune causes the Tensor._version to change, and so Pytorch autograd
+        # does a memcpy. To avoid this we run in inference_mode, which doesn't track the version.
+        with torch.inference_mode():
+            dqkv = torch.empty_like(qkv)
+            _flash_attn_backward(
+                do,
+                qkv[:, :, 0],
+                qkv[:, :, 1],
+                qkv[:, :, 2],
+                o,
+                lse,
+                dqkv[:, :, 0],
+                dqkv[:, :, 1],
+                dqkv[:, :, 2],
+                bias=bias,
+                causal=ctx.causal,
+                softmax_scale=ctx.softmax_scale,
+            )
+        return dqkv, None, None, None
+
+
+flash_attn_qkvpacked_func = FlashAttnQKVPackedFunc.apply
+
+
+class FlashAttnKVPackedFunc(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, q, kv, bias=None, causal=False, softmax_scale=None):
+        """
+        q: (batch, seqlen_q, nheads, headdim)
+        kv: (batch, seqlen_k, 2, nheads, headdim)
+        bias: optional, shape broadcastible to (batch, nheads, seqlen_q, seqlen_k).
+            For example, ALiBi mask for causal would have shape (1, nheads, 1, seqlen_k).
+            ALiBi mask for non-causal would have shape (1, nheads, seqlen_q, seqlen_k)
+        """
+        # Make sure that the last dimension is contiguous
+        q, kv = [x if x.stride(-1) == 1 else x.contiguous() for x in [q, kv]]
+        o, lse, ctx.softmax_scale = _flash_attn_forward(
+            q,
+            kv[:, :, 0],
+            kv[:, :, 1],
+            bias=bias,
+            causal=causal,
+            softmax_scale=softmax_scale,
+        )
+        ctx.save_for_backward(q, kv, o, lse, bias)
+        ctx.causal = causal
+        return o
+
+    @staticmethod
+    def backward(ctx, do):
+        q, kv, o, lse, bias = ctx.saved_tensors
+        if len(ctx.needs_input_grad) >= 3:
+            assert not ctx.needs_input_grad[
+                2
+            ], "FlashAttention does not support bias gradient yet"
+        # Triton's autotune causes the Tensor._version to change, and so Pytorch autograd
+        # does a memcpy. To avoid this we run in inference_mode, which doesn't track the version.
+        with torch.inference_mode():
+            dq = torch.empty_like(q)
+            dkv = torch.empty_like(kv)
+            _flash_attn_backward(
+                do,
+                q,
+                kv[:, :, 0],
+                kv[:, :, 1],
+                o,
+                lse,
+                dq,
+                dkv[:, :, 0],
+                dkv[:, :, 1],
+                bias=bias,
+                causal=ctx.causal,
+                softmax_scale=ctx.softmax_scale,
+            )
+        return dq, dkv, None, None, None
+
+
+flash_attn_kvpacked_func = FlashAttnKVPackedFunc.apply
+
+
+class FlashAttnFunc(torch.autograd.Function):
     @staticmethod
     def forward(ctx, q, k, v, bias=None, causal=False, softmax_scale=None):
         """
@@ -1101,17 +1222,15 @@ class _attention(torch.autograd.Function):
     @staticmethod
     def backward(ctx, do):
         q, k, v, o, lse, bias = ctx.saved_tensors
-        # assert not ctx.needs_input_grad[3], 'FlashAttention does not support bias gradient yet'
+        assert not ctx.needs_input_grad[
+            3
+        ], "FlashAttention does not support bias gradient yet"
         # Triton's autotune causes the Tensor._version to change, and so Pytorch autograd
         # does a memcpy. To avoid this we run in inference_mode, which doesn't track the version.
         with torch.inference_mode():
             dq = torch.empty_like(q)
             dk = torch.empty_like(k)
             dv = torch.empty_like(v)
-            if bias is not None:
-                dbias = torch.empty_like(bias)
-            else:
-                dbias = None
             _flash_attn_backward(
                 do,
                 q,
@@ -1122,7 +1241,6 @@ class _attention(torch.autograd.Function):
                 dq,
                 dk,
                 dv,
-                dbias=dbias,
                 bias=bias,
                 causal=ctx.causal,
                 softmax_scale=ctx.softmax_scale,
@@ -1130,211 +1248,4 @@ class _attention(torch.autograd.Function):
         return dq, dk, dv, None, None, None
 
 
-class FlashAtt(nn.Module):
-    def __init__(
-        self,
-        embed_dim,
-        num_heads,
-        kdim=None,
-        vdim=None,
-        dropout=0.0,
-        bias=True,
-        self_attention=False,
-        q_noise=0.0,
-        qn_block_size=8,
-        d_tilde=1,
-    ):
-        super().__init__()
-        self.embed_dim = embed_dim
-        self.kdim = kdim if kdim is not None else embed_dim
-        self.vdim = vdim if vdim is not None else embed_dim
-        self.qkv_same_dim = self.kdim == embed_dim and self.vdim == embed_dim
-
-        self.num_heads = num_heads
-        self.dropout = dropout
-
-        self.head_dim = embed_dim // num_heads
-        assert (
-            self.head_dim * num_heads == self.embed_dim
-        ), "embed_dim must be divisible by num_heads"
-        self.scaling = ((self.head_dim / d_tilde) ** 0.5) / self.head_dim
-        # another 1/sqrt(d) is scaled in the scaled_dot_product_attention
-        # self.scaling = ((1.0 / d_tilde) ** 0.5)
-
-        self.self_attention = self_attention
-
-        assert self.self_attention, "Only support self attention"
-
-        assert not self.self_attention or self.qkv_same_dim, (
-            "Self-attention requires query, key and " "value to be of the same size"
-        )
-
-        self.k_proj = nn.Linear(self.kdim, embed_dim, bias=False)
-        self.v_proj = nn.Linear(self.vdim, embed_dim, bias=bias)
-        self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
-
-        self.layer_norm = nn.LayerNorm(embed_dim)
-
-        self.reset_parameters()
-
-        self.onnx_trace = False
-
-    def prepare_for_onnx_export_(self):
-        raise NotImplementedError
-
-    def reset_parameters(self, d_tilde=1):
-        if self.qkv_same_dim:
-            # Empirically observed the convergence to be much better with
-            # the scaled initialization
-            nn.init.xavier_uniform_(
-                self.k_proj.weight, gain=1.0 / (math.sqrt(2 * d_tilde))
-            )
-            nn.init.xavier_uniform_(
-                self.v_proj.weight, gain=1.0 / (math.sqrt(2 * d_tilde))
-            )
-            nn.init.xavier_uniform_(
-                self.q_proj.weight, gain=1.0 / (math.sqrt(2 * d_tilde))
-            )
-        else:
-            nn.init.xavier_uniform_(self.k_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-            nn.init.xavier_uniform_(self.v_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-            nn.init.xavier_uniform_(self.q_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-
-        nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        if self.out_proj.bias is not None:
-            nn.init.constant_(self.out_proj.bias, 0.0)
-        self.layer_norm.reset_parameters()
-
-    def forward(
-        self,
-        query,
-        key: Optional[Tensor],
-        value: Optional[Tensor],
-        attn_bias: Optional[Tensor],
-        key_padding_mask: Optional[Tensor] = None,
-        need_weights: bool = True,
-        attn_mask: Optional[Tensor] = None,
-        expand_mask: Optional[Tensor] = None,
-        outcell_index: Optional[Tensor] = None,
-        before_softmax: bool = False,
-        need_head_weights: bool = False,
-    ) -> Tuple[Tensor, Optional[Tensor]]:
-        """Input shape: L x Batch x Channel
-
-        Args:
-            key_padding_mask (ByteTensor, optional): mask to exclude
-                keys that are pads, of shape `(batch, src_len)`, where
-                padding elements are indicated by 1s.
-            need_weights (bool, optional): return the attention weights,
-                averaged over heads (default: False).
-            attn_mask (ByteTensor, optional): typically used to
-                implement causal attention, where the mask prevents the
-                attention from looking forward in time (default: None).
-            before_softmax (bool, optional): return the raw attention
-                weights and values before the attention softmax.
-            need_head_weights (bool, optional): return the attention
-                weights for each head. Implies *need_weights*. Default:
-                return the average attention weights over all heads.
-        """
-        if need_head_weights:
-            pass
-
-        tgt_len, bsz, embed_dim = query.size()
-
-        src_len = tgt_len
-        assert embed_dim == self.embed_dim, f"query dim {embed_dim} != {self.embed_dim}"
-        assert list(query.size()) == [tgt_len, bsz, embed_dim]
-        if key is not None:
-            src_len, key_bsz, _ = key.size()
-            if not torch.jit.is_scripting():
-                assert key_bsz == bsz
-                assert value is not None
-                assert src_len, bsz == value.shape[:2]
-
-        if key is None:
-            key = query
-
-        if value is None:
-            value = query
-
-        q = self.q_proj(query)
-        k = self.k_proj(key)
-        v = self.v_proj(value)
-        q *= self.scaling
-
-        if outcell_index is not None:
-            outcell_index = (
-                outcell_index.transpose(1, 0).unsqueeze(-1).expand(-1, -1, embed_dim)
-            )
-            expand_k = torch.gather(k, dim=0, index=outcell_index + 1)
-            expand_v = torch.gather(v, dim=0, index=outcell_index + 1)
-
-            k = torch.cat([k, expand_k], dim=0)
-            v = torch.cat([v, expand_v], dim=0)
-
-            src_len = k.size()[0]
-
-        q = (
-            q.transpose(0, 1)
-            .contiguous()
-            .view(bsz, tgt_len, self.num_heads, self.head_dim)
-            .permute(0, 2, 1, 3)
-        )  # bsz, num_heads, tgt_len, head_dim
-        k = (
-            k.transpose(0, 1)
-            .contiguous()
-            .view(bsz, -1, self.num_heads, self.head_dim)
-            .permute(0, 2, 1, 3)
-        )  # bsz, num_heads, src_len, head_dim
-        v = (
-            v.transpose(0, 1)
-            .contiguous()
-            .view(bsz, -1, self.num_heads, self.head_dim)
-            .permute(0, 2, 1, 3)
-        )  # bsz, num_heads, src_len, head_dim
-
-        assert k is not None
-        assert k.size(2) == src_len
-
-        if key_padding_mask is not None:
-            if outcell_index is not None:
-                assert expand_mask is not None
-                key_padding_mask = torch.cat([key_padding_mask, expand_mask], dim=1)
-            assert key_padding_mask.size(0) == bsz
-            assert key_padding_mask.size(1) == src_len
-
-        if attn_mask is None:
-            attn_mask = torch.zeros([bsz, self.num_heads, tgt_len, src_len], dtype=query.dtype, device=query.device, requres_grad=False)  # type: ignore
-
-        if key_padding_mask is not None:
-            # don't attend to padding symbols
-            attn_mask = attn_mask.masked_fill(
-                key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
-                float("-inf"),
-            )
-
-        if attn_bias is not None:
-            attn_bias = attn_bias.contiguous().view(
-                bsz, self.num_heads, tgt_len, src_len
-            )
-            attn_bias += attn_mask
-
-        attn = _attention.apply(q, k, v, attn_mask, softmax_scale=self.scaling).type_as(
-            query
-        )
-
-        assert v is not None
-        # attn = torch.bmm(attn_probs, v)
-        assert list(attn.size()) == [bsz, self.num_heads, tgt_len, self.head_dim]
-
-        attn = (
-            attn.permute(0, 2, 1, 3)
-            .contiguous()
-            .view(bsz, tgt_len, embed_dim)
-            .transpose(0, 1)
-        )
-        attn = self.layer_norm(attn)
-        attn = self.out_proj(attn)
-
-        return attn, None
+flash_attn_func = FlashAttnFunc.apply

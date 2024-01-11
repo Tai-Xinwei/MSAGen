@@ -6,13 +6,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from sfm.models.graphormer.modules.graphormer_layers import NodeTaskHead
 from sfm.modules.FairseqDropout import FairseqDropout
 from sfm.modules.layer_norm import LayerNorm
 from sfm.modules.multihead_attention import MultiheadAttention
 from sfm.modules.quant_noise import quant_noise as apply_quant_noise_
 from sfm.utils import LayerDropModuleList
-from sfm.utils.pipelinemode import pipemode, pipemodegradcheck
 
 from .pfm_embedding import PFMEmbedding
 from .pfm_encoder_layer import PFMEncoderLayer
@@ -259,12 +257,16 @@ class PFMEncoder(nn.Module):
         cls_mask = (x_0[:, :]).eq(0)
         padding_mask = (x_0[:, :]).eq(1)  # B x T x 1
         eos_mask = (x_0[:, :]).eq(2)
+        comma_mask = (x_0[:, :]).eq(29)
+        (x_0[:, :]).eq(30)
 
         mask_aa = mask_aa.masked_fill(cls_mask.bool().unsqueeze(-1), False)
         mask_aa = mask_aa.masked_fill(padding_mask.bool().unsqueeze(-1), False)
         mask_aa = mask_aa.masked_fill(eos_mask.bool().unsqueeze(-1), False)
+        mask_aa = mask_aa.masked_fill(comma_mask.bool().unsqueeze(-1), False)
+        # mask_aa = mask_aa.masked_fill(line_mask.bool().unsqueeze(-1), False)
 
-        residue_seq = torch.where(cls_mask | eos_mask, x_0, residue_seq)
+        residue_seq = torch.where(cls_mask | eos_mask | comma_mask, x_0, residue_seq)
 
         return mask_aa, cls_mask, padding_mask, eos_mask, residue_seq
 
@@ -504,35 +506,3 @@ class PFMEncoder(nn.Module):
             None,
             None,
         )
-
-
-class NodeDecoder(nn.Module):
-    def __init__(
-        self,
-        embedding_dim: int = 768,
-        num_attention_heads: int = 8,
-        last_state_only: bool = True,
-        args=None,
-    ):
-        super().__init__()
-        if not args.ft:
-            self.node_proc = NodeTaskHead(embedding_dim, num_attention_heads)
-        self.args = args
-        self.last_state_only = last_state_only
-
-    def forward(self, x, attn_bias, delta_pos, inner_states):
-        sentence_rep = x[0, :, :]
-
-        node_output = None
-        if delta_pos is not None and not self.args.ft:
-            node_output = self.node_proc(
-                x[1:, :, :], attn_bias[:, :, 1:, 1:], delta_pos
-            )
-
-        if self.last_state_only:
-            inner_states = [x]
-
-        if not self.last_state_only:
-            return torch.stack(inner_states), node_output, sentence_rep
-        else:
-            return inner_states, node_output, sentence_rep
