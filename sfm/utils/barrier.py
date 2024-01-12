@@ -7,23 +7,26 @@ import sys
 
 
 def check(num_workers, rank):
-    print(f"Sync, rank: {rank} is waiting")
     abs_path = os.path.abspath(os.path.dirname(__file__))
     while True:
         all_ready = True
         for other_rank in range(num_workers):
             if other_rank == rank:
                 continue
-            other_ready = bool(
-                int(
-                    subprocess.check_output(
-                        f"ssh worker-{other_rank} 'ls {abs_path}/READY | wc -l'",
-                        shell=True,
+            try:
+                other_ready = bool(
+                    int(
+                        subprocess.check_output(
+                            f"ssh worker-{other_rank} 'ls {abs_path}/READY | wc -l'",
+                            shell=True,
+                        )
+                        .decode()
+                        .strip()
                     )
-                    .decode()
-                    .strip()
                 )
-            )
+            except Exception as e:
+                print(f"{e}")
+                other_ready = False
             if not other_ready:
                 all_ready = False
                 break

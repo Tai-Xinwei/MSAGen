@@ -1,0 +1,48 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+# train a chemical generalist
+
+description: chemical-copilot
+
+target:
+    service: amlk8s
+    name: itphyperdgx2cl1
+    vc: hai1
+
+environment:
+  image: pj/mfmds:20230207_b
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+storage:
+  blob:
+    storage_account_name: hai1data # Storage account
+    container_name: mfm # Container name
+    mount_dir: /blob
+
+code:
+  local_dir: ../../
+
+jobs:
+- name: ft_22BMFM_70Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi+chemcop-adaptor+graphormer-special-tokens-2e-5-pp16-nonprem
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  sku: 4xG16
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - export CUBE_TOKEN=<CUBE TOKEN>
+  - export SFM_TOKEN=<SFM TOKEN>
+  - mkdir -p $$HOME/scripts/generalist/cube/
+  - cp scripts/generalist/cube/* $$HOME/scripts/generalist/cube/
+  - cd $$HOME && bash scripts/generalist/cube/build_env.sh "<SAS>"
+  - export SAVE_DIR=/blob/generalist-checkpoints/ft_22BMFM_70Bppllama_graphqformer1_moldesc+funcgroup+funcgroup-desc+chebi+chemcop-adaptor+graphormer-special-tokens-2e-4-pp16-nonprem-cube
+  - export STAGE=1
+  - export NUM_WORKER=16 # number of data loader workers
+  - cd $$HOME && bash scripts/generalist/cube/run.sh
+  - sleep infinity
+  submit_args:
+    container_args:
+      shm_size: 1024g
+  preemptible: false
