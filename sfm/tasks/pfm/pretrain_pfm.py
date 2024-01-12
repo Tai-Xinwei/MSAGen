@@ -69,7 +69,7 @@ def main(args) -> None:
         total_num_steps=args.total_num_steps,
         warmup_max_lr=args.max_lr,
         warmup_num_steps=args.warmup_num_steps,
-        d_tilde=2,
+        d_tilde=4,
         decay_type=DECAY_COSINE_RATE,
     )
 

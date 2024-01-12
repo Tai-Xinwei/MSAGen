@@ -169,18 +169,17 @@ class FlashAttn(nn.Module):
         q = self.q_proj(query)
         k = self.k_proj(query)
         v = self.v_proj(query)
-        q *= self.scaling
 
         q = (
             q.contiguous()
-            .view(tgt_len, bsz, self.num_heads, self.head_dim)
+            .view(tgt_len, bsz * self.num_heads, self.head_dim)
             .transpose(0, 1)
         )
 
         if k is not None:
             k = (
                 k.contiguous()
-                .view(src_len, bsz, self.num_heads, self.head_dim)
+                .view(src_len, bsz * self.num_heads, self.head_dim)
                 .transpose(0, 1)
             )
         if v is not None:
@@ -201,6 +200,9 @@ class FlashAttn(nn.Module):
         # add rope
         if self.rot_emb:
             q, k = self.rot_emb(q, k)
+
+        q = q.view(bsz, self.num_heads, tgt_len, self.head_dim).transpose(1, 2)
+        k = k.view(bsz, self.num_heads, src_len, self.head_dim).transpose(1, 2)
 
         if key_padding_mask is not None:
             if key_padding_mask.bool().any():
