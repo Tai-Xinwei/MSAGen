@@ -176,6 +176,7 @@ class PFM(nn.Module):
         )
 
         self.bpe_head = None
+        self.mlm_out = None
         if self.load_softmax:
             # self.bpe_head = nn.Linear(args.encoder_embed_dim, 16384, bias=False)
 
@@ -185,6 +186,7 @@ class PFM(nn.Module):
                     args.num_residues,
                     bias=False,
                 )
+
             elif not self.share_input_output_embed:
                 self.embed_out = nn.Linear(
                     args.encoder_embed_dim,
@@ -256,7 +258,8 @@ class PFM(nn.Module):
         # if self.bpe_head is not None:
         #     mlm_logits = self.bpe_head(x)  # [B, L, 16384]
         # else:
-        mlm_logits = self.mlm_out(x)  # [B, L, vocab]
+        if self.mlm_out is not None:
+            mlm_logits = self.mlm_out(x)  # [B, L, vocab]
 
         if not self.mlm_only:
             # q = self.fc_pmlm_q(x)
@@ -266,14 +269,7 @@ class PFM(nn.Module):
             # # memory efficient implementation
             # # mask_aa is a boolean mask of shape [B, L, 1]
             B, L, H = x.shape
-            # masked_indices = torch.where(mask_aa.squeeze(-1).bool())
-            # x = x[masked_indices[0], masked_indices[1]]  # [num_masked, H]
 
-            # Compute q and k only for the selected positions
-            # q_masked = self.fc_pmlm_q(x)  # [num_masked, H]
-            # k_masked = self.fc_pmlm_k(x)  # [num_masked, H]
-
-            # masked_per_batch = mask_aa.squeeze(-1).sum(dim=1)
             masked_per_batch = []
             q_split = []
             k_split = []
@@ -312,13 +308,6 @@ class PFM(nn.Module):
                     masked_x = x[i, masked_indices[0], :]
                     q_split.append(self.fc_pmlm_q(masked_x))
                     k_split.append(self.fc_pmlm_k(masked_x))
-
-                # if pre_j < L - 1:
-                #     masked_per_batch.append(mask_aa[i, pre_j:].sum().item())
-                #     pair_mask_aa[i, pre_j:, pre_j:, :] = 1
-
-            # q_split = torch.split(q_masked, masked_per_batch)
-            # k_split = torch.split(k_masked, masked_per_batch)
 
             result_list = []
             mask_list = []

@@ -26,6 +26,7 @@ output/
 
 # Distribution / packaging
 .Python
+build/
 develop-eggs/
 dist/
 downloads/
@@ -87,8 +88,6 @@ instance/
 
 # Sphinx documentation
 docs/_build/
-docs/result/
-source/
 
 # PyBuilder
 target/
@@ -147,24 +146,30 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# pycharm
+#pycharm
 .idea
 
 
-# no need test for running in cluster
+#no need test for running in cluster
 /tests/
 
-# docs
-docs
-
-# storage or dataset
-/blob/
-/mp_data
-docs/
-dataset/
-*.log*
-logs/
-chemcop-inst-len.csv
+sfm/modules/Untitled*
 sfm/tasks/generalist/outputs/
-sfm/tasks/generalist/results/
+zero_pp_rank_13_mp_rank_00_optim_states.pt
+sfm/tasks/generalist/results/eval_70b_llama2_chat_aromatic.txt
+chemcop-inst-len.csv
+*.jsonl.0
+*.json.0
+*.jsonl
+dataset/
+*.pkl
 *.ipynb
+*.log*
+*.csv
+
+functional_group_description.json
+logs/
+checkmol
+*.pt
+*.txt.*
+cube/
