@@ -47,10 +47,10 @@ class LMDBDataset(FoundationModelDataset):
         metadata = bstr2obj(self.txn.get("__metadata__".encode()))
         self.sizes, self.keys = metadata["sizes"], metadata["keys"]
         self.comment = metadata["comment"]
-        # print(self.sizes[:5])
-        self.filter_indices_by_size(
-            indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
-        )
+        # Modified by yaosen @ 2024-01-12 due to downstream task
+        # self.filter_indices_by_size(
+        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
+        # )
 
     def __sort__(self):
         sorted_names_sizes = sorted(zip(self.keys, self.sizes), key=lambda x: x[1])
@@ -458,6 +458,9 @@ class ProteinLMDBDataset(LMDBDataset):
         - convert string sequence to int index
         """
         tokens = [self.vocab.tok_to_idx[tok] for tok in item["aa"]]
+        if len(tokens) > self.args.max_length:
+            start = random.randint(0, len(tokens) - self.args.max_length)
+            tokens = tokens[start : start + self.args.max_length]
         if self.vocab.prepend_bos:
             tokens.insert(0, self.vocab.cls_idx)
         if self.vocab.append_eos:
