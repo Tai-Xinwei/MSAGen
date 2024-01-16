@@ -464,7 +464,7 @@ def collate_secondary_structure_fn(samples: List[dict], vocab: Alphabet):
     )
     batch["target_mask"] = torch.cat(
         [
-            pad_1d_unsqueeze(torch.from_numpy(s["target_mask"]), max_tokens, 0, 0)
+            pad_1d_unsqueeze(torch.from_numpy(s["target_mask"]), max_tokens, 0, -1)
             for s in samples
         ]
     )

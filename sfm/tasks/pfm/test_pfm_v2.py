@@ -50,7 +50,7 @@ def test(args, trainer):
         trainer.state.global_step,
     )
 
-    pred, true = [], []
+    pred, true, mask = [], [], []
 
     for idx, batch_data in enumerate(trainer.valid_data_loader):
         trainer.model.eval()
@@ -69,6 +69,12 @@ def test(args, trainer):
                 target, target_offset, output.shape[0], trainer.model.n_classes
             )
             true.append(target.cpu())
+        elif (
+            DownstreamLMDBDataset.TASKINFO[args.task_name]["type"]
+            == "residue_classification"
+        ):
+            true.append(batch_data["target"].detach().cpu())
+            mask.append(batch_data["target_mask"].detach().cpu())
         else:
             true.append(batch_data["target"].detach().cpu())
 
@@ -94,6 +100,19 @@ def test(args, trainer):
         pred = torch.cat(pred, axis=0)  # (B, N_classes)
         true = torch.cat(true, axis=0)
         test_fns = [f1_max, area_under_prc]
+    elif (
+        DownstreamLMDBDataset.TASKINFO[args.task_name]["type"]
+        == "residue_classification"
+    ):
+        # pred: [(B1, L1, N_classes), (B2, L2, N_classes), ...]
+        # true: [(B1, L1), (B2, L2), ...]
+        # mask: [(B1, L1), (B2, L2), ...]
+        # score = pred[_labeled].argmax(-1) == _target[_labeled]
+        # score = variadic_mean(score.float(), _size).mean()
+        pred = torch.cat(pred, axis=0)
+        true = torch.cat(true, axis=0)
+        test_fns = [accuracy]
+
     else:
         raise NotImplementedError()
     # assert pred.shape == true.shape
@@ -165,7 +184,7 @@ def test_checkpoint(args) -> None:
                     train_data=train_data,
                     valid_data=testset,
                 )
-                logger.info(f"Testing test set: {len(val_data)} with name {name}")
+                logger.info(f"Testing test set: {len(testset)} with name {name}")
 
                 results = sorted(test(args, trainer).items(), key=lambda x: x[0])
                 if not idx:

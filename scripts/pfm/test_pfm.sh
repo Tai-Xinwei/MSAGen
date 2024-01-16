@@ -81,6 +81,13 @@ else
   label_normalize_args="--label_normalize"
 fi
 
+if [[ "${checkpoint_dir}" == "" ]]
+then
+  checkpoint_dir_args=""
+else
+  checkpoint_dir_args="--checkpoint_dir $checkpoint_dir"
+fi
+
 
 python sfm/tasks/pfm/test_pfm_v2.py \
           --task_name $task_name \
@@ -115,4 +122,4 @@ python sfm/tasks/pfm/test_pfm_v2.py \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
-          --head_dropout $head_dropout $early_stop_args $label_normalize_args --checkpoint_dir $checkpoint_dir --which_set $which_set
+          --head_dropout $head_dropout $early_stop_args $label_normalize_args $checkpoint_dir_args --which_set $which_set
