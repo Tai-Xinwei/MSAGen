@@ -143,3 +143,21 @@ def area_under_prc(pred, target):
     )
     auprc = precision[target == 1].sum() / ((target == 1).sum() + 1e-10)
     return auprc
+
+
+def variadic_mean(input, size):
+    """
+    Compute mean over sets with variadic sizes.
+
+    Suppose there are :math:`N` sets, and the sizes of all sets are summed to :math:`B`.
+
+    Parameters:
+        input (Tensor): input of shape :math:`(B, ...)`
+        size (LongTensor): size of sets of shape :math:`(N,)`
+    """
+    index2sample = torch.repeat_interleave(size)
+    index2sample = index2sample.view([-1] + [1] * (input.ndim - 1))
+    index2sample = index2sample.expand_as(input)
+
+    value = scatter_mean(input, index2sample, dim=0)
+    return value

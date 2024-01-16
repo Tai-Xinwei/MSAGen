@@ -151,8 +151,8 @@ class PFMEncoderLayer(nn.Module):
     ):
         # TODO: needs to be replaced by flash-att
         # return MemEffAttn(
-        return FlashAttn(
-            # return MultiheadAttention(
+        # return FlashAttn(
+        return MultiheadAttention(
             embed_dim,
             num_attention_heads,
             dropout=dropout,
