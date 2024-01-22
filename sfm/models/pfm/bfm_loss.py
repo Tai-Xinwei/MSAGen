@@ -164,6 +164,17 @@ class ProteinPMLMBPE(nn.Module):
 
             diag_logits = logits[diag_mask]
 
+            # # bpe mask
+            # if bpe_seq is not None:
+            #     # add random mask for bpe
+            #     mask_bpe = torch.bernoulli(
+            #         torch.ones_like(mask_aa) * 0.0
+            #     ).bool()
+            #     mask_bpe = mask_bpe | mask_aa.bool()
+
+            #     bpe_seq = bpe_seq[mask_bpe.squeeze(-1).bool()]
+            #     bpe_logits = bpe_logits[mask_bpe.squeeze(-1).bool()]
+
         type_loss = self.loss_pairtype(
             logits.view(-1, logits.size(-1)).to(torch.float32),
             paired_seq.view(-1),
@@ -225,15 +236,26 @@ class ProteinPMLMMSA(nn.Module):
         super().__init__()
         self.loss_pairtype = nn.CrossEntropyLoss(reduction=reduction, ignore_index=0)
         self.loss_mlm = nn.CrossEntropyLoss(reduction=reduction, ignore_index=0)
+        self.loss_bpe = nn.CrossEntropyLoss(reduction=reduction, ignore_index=0)
 
         self.args = args
         self.num_aa_type = args.num_residues
 
     def forward(
-        self, batch_data, logits, mlm_logits, diag_mask, mask_aa, pair_mask_aa_0
+        self, batch_data, logits, mlm_logits, bpe_logits, mask_aa, pair_mask_aa_0
     ):
         with torch.no_grad():
             aa_seq = batch_data["x"]
+            if "bpe" in batch_data and batch_data["bpe"] is not None:
+                bpe_seq = batch_data["bpe"]
+                bpe_mask = ~(bpe_seq.eq(0) | bpe_seq.eq(1) | bpe_seq.eq(2))
+                bpe_seq = bpe_seq[bpe_mask]
+            else:
+                bpe_seq = None
+                bpe_mask = None
+
+            if bpe_mask is not None and not bpe_mask.any():
+                bpe_seq = None
 
             paired_seq = aa_seq.unsqueeze(-1) * self.num_aa_type + aa_seq.unsqueeze(-2)
 
@@ -258,7 +280,18 @@ class ProteinPMLMMSA(nn.Module):
             aa_seq.view(-1),
         )
 
-        loss = 0.125 * pair_loss + mlm_loss
+        pair_loss_ratio = 0.25
+        if bpe_seq is not None:
+            bpe_logits = bpe_logits[bpe_mask.bool()]
+            bpe_loss = self.loss_bpe(
+                bpe_logits.view(-1, bpe_logits.size(-1)).to(torch.float32),
+                bpe_seq.view(-1),
+            )
+
+            loss = pair_loss_ratio * pair_loss + mlm_loss + bpe_loss
+        else:
+            bpe_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
+            loss = pair_loss_ratio * pair_loss + mlm_loss
 
         with torch.no_grad():
             # compute type accuracy
@@ -276,13 +309,26 @@ class ProteinPMLMMSA(nn.Module):
                 .to(torch.float32)
                 .mean()
             )
+            if bpe_seq is not None:
+                bpe_acc = (
+                    (
+                        bpe_logits.view(-1, bpe_logits.size(-1)).argmax(dim=-1)
+                        == bpe_seq.view(-1)
+                    )
+                    .to(torch.float32)
+                    .mean()
+                )
+            else:
+                bpe_acc = torch.tensor([0.0], device=logits.device)
 
         return loss, {
             "total_loss": loss,
             "loss_type": pair_loss,
             "loss_mlm": mlm_loss,
+            "loss_bpe": bpe_loss,
             "type_acc": type_acc,
             "mlm_acc": mlm_acc,
+            "bpe_acc": bpe_acc,
         }
 
 

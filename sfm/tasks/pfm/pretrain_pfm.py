@@ -7,22 +7,21 @@ import torch
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
-from sfm.criterions.mae3d import (
+from sfm.data.prot_data.dataset import (
+    BatchedDataDataset,
+    PackedBpeUR50LMDBDataset,
+    PackedUR50LMDBDataset,
+    PackedUR50LMDBMultiSrcDataset,
+    StackedSequenceIterableDataset,
+    UR50LMDBDataset,
+)
+from sfm.logging import logger
+from sfm.models.pfm.bfm_loss import (
     ProteinMAE3dCriterions,
     ProteinMLM,
     ProteinPMLM,
     ProteinPMLMMSA,
 )
-from sfm.data.prot_data.dataset import (
-    BatchedDataDataset,
-    PackedBPEUR50LMDBDataset,
-    PackedUR50LMDBDataset,
-    ProteinLMDBDataset,
-    StackedSequenceDataset,
-    StackedSequenceIterableDataset,
-    UR50LMDBDataset,
-)
-from sfm.logging import logger
 from sfm.models.pfm.pfm_config import PFMConfig
 from sfm.models.pfm.pfm_optimizer import DECAY_COSINE_RATE, groupWarmupDecayLR, myAdam
 from sfm.models.pfm.pfmmodel import PFMModel
@@ -33,7 +32,7 @@ from sfm.utils.cli_utils import cli
 
 @cli(DistributedTrainConfig, PFMConfig)
 def main(args) -> None:
-    trainset = PackedUR50LMDBDataset(args, args.train_data_path)
+    trainset = PackedBpeUR50LMDBDataset(args, args.train_data_path)
     valset = PackedUR50LMDBDataset(args, args.valid_data_path)
 
     if args.stack_seq:
@@ -69,7 +68,7 @@ def main(args) -> None:
         total_num_steps=args.total_num_steps,
         warmup_max_lr=args.max_lr,
         warmup_num_steps=args.warmup_num_steps,
-        d_tilde=4,
+        d_tilde=2,
         decay_type=DECAY_COSINE_RATE,
     )
 

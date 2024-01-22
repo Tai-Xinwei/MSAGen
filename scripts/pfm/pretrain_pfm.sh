@@ -4,6 +4,9 @@
 ulimit -c unlimited
 
 echo 'Solving MKL done!'
+echo 'print path'
+pwd
+ls /nfs/
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
@@ -43,8 +46,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${strategy}" ] && strategy=DDP
 
 # [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
-# [ -z "${train_data_path}" ] && train_data_path='/home/peiran/protein/uniref50_bpepack1024_train.lmdb'
-[ -z "${train_data_path}" ] && train_data_path='/home/peiran/protein/uniref50_msa_ppi_pack1536_train.lmdb'
+[ -z "${train_data_path}" ] && train_data_path='/home/peiran/protein/ur50_msa_ppi_bpe_pack1536_train.lmdb'
+# [ -z "${train_data_path}" ] && train_data_path='/home/peiran/protein/uniref50_msa_ppi_pack1536_train.lmdb'
 # [ -z "${train_data_path}" ] && train_data_path='/mnt/protein/uniref50_pack1024_train.lmdb'
 [ -z "${valid_data_path}" ] && valid_data_path='/home/peiran/protein/uniref50_pack1024_valid.lmdb'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
@@ -57,8 +60,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
 [ -z "${wandb_group}" ] && wandb_group=tinyBFM
-[ -z "${wandb_team}" ] && wandb_team=icuppjin
-[ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
+[ -z "${wandb_team}" ] && wandb_team=peiranjin
+[ -z "${wandb_project}" ] && wandb_project=BFM
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -120,8 +123,9 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
-export WANDB_API_KEY=5d03b7a46d10f86ff45c4aedc570660a523edc0b
+
+wandb login --relogin e9150e973268b83f75cda414757706e08e6a7a93
+export WANDB_API_KEY=e9150e973268b83f75cda414757706e08e6a7a93
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -139,7 +143,8 @@ else
   fi
 fi
 
-# echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
+echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
+
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --encoder_attention_heads $num_head \
@@ -157,6 +162,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --save_dir $save_dir \
           --seed 666666 \
           --fp16 \
+          --flash_attn \
           --mask_prob $mask_prob \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
@@ -173,5 +179,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
-          # --dynamic_loader \
-          # --stack_seq \
+#           # --dynamic_loader \
+#           # --stack_seq \
+#           # --flash_attn \
+#           # --ifresume \

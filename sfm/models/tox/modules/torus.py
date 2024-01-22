@@ -23,7 +23,7 @@ def grad(x, sigma, N=10):
     return p_
 
 
-X_MIN, X_N = 1e-4, 5000  # relative to pi
+X_MIN, X_N = 1e-5, 5000  # relative to pi
 SIGMA_MIN, SIGMA_MAX, SIGMA_N = 3e-3, 2, 5000  # relative to pi
 
 x = 10 ** np.linspace(np.log10(X_MIN), 0, X_N + 1) * np.pi
@@ -36,14 +36,14 @@ else:
     p_ = p(x, sigma[:, None], N=100)
     np.save(".p.npy", p_)
 
-    score_ = grad(x, sigma[:, None], N=100) / p_
+    score_ = grad(x, sigma[:, None], N=100) / (p_ + 1e-5)
     np.save(".score.npy", score_)
 
 
 def score(x, sigma):
     x = (x + np.pi) % (2 * np.pi) - np.pi
     sign = np.sign(x)
-    x = np.log(np.abs(x) / np.pi)
+    x = np.log(np.abs(x) / np.pi + X_MIN)
     x = (x - np.log(X_MIN)) / (0 - np.log(X_MIN)) * X_N
     x = np.round(np.clip(x, 0, X_N)).astype(int)
     sigma = np.log(sigma / np.pi)
@@ -56,7 +56,7 @@ def score(x, sigma):
 
 def p(x, sigma):
     x = (x + np.pi) % (2 * np.pi) - np.pi
-    x = np.log(np.abs(x) / np.pi)
+    x = np.log(np.abs(x) / np.pi + X_MIN)
     x = (x - np.log(X_MIN)) / (0 - np.log(X_MIN)) * X_N
     x = np.round(np.clip(x, 0, X_N)).astype(int)
     sigma = np.log(sigma / np.pi)

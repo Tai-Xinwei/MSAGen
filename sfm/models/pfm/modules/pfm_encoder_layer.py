@@ -56,6 +56,10 @@ class PFMEncoderLayer(nn.Module):
         self.qn_block_size = qn_block_size
         self.pfm_config = pfm_config
 
+        self.nl = nl
+        self.args = args
+        self.self_attn_mask = self_attn_mask
+
         if droppath_prob > 0.0:
             self.dropout_module = DropPath(droppath_prob)
         else:
@@ -105,10 +109,6 @@ class PFMEncoderLayer(nn.Module):
         # self.top_layer_norm = nn.LayerNorm(self.embedding_dim)
         # self.mid_layer_norm = nn.LayerNorm(self.embedding_dim)
 
-        self.nl = nl
-        self.args = args
-        self.self_attn_mask = self_attn_mask
-
         # TODO: 2D attention bias needs carefully designed, features such as MSA should be included
         # self.graph_attn_bias = graph2dBias()
 
@@ -151,18 +151,30 @@ class PFMEncoderLayer(nn.Module):
     ):
         # TODO: needs to be replaced by flash-att
         # return MemEffAttn(
-        # return FlashAttn(
-        return MultiheadAttention(
-            embed_dim,
-            num_attention_heads,
-            dropout=dropout,
-            self_attention=True,
-            q_noise=q_noise,
-            qn_block_size=qn_block_size,
-            d_tilde=d_tilde,
-            add_rope=add_rope,
-            layer_norm=False,
-        )
+        if self.args.flash_attn:
+            return FlashAttn(
+                embed_dim,
+                num_attention_heads,
+                dropout=dropout,
+                self_attention=True,
+                q_noise=q_noise,
+                qn_block_size=qn_block_size,
+                d_tilde=d_tilde,
+                add_rope=add_rope,
+                layer_norm=False,
+            )
+        else:
+            return MultiheadAttention(
+                embed_dim,
+                num_attention_heads,
+                dropout=dropout,
+                self_attention=True,
+                q_noise=q_noise,
+                qn_block_size=qn_block_size,
+                d_tilde=d_tilde,
+                add_rope=add_rope,
+                layer_norm=False,
+            )
 
     def forward(
         self,

@@ -9,7 +9,6 @@ echo "pip install start"
 python -m pip install pybind11
 pip install regex
 pip install einops
-pip install flash-attn --no-build-isolation
 
 cd apex
 pip install -v --disable-pip-version-check --no-cache-dir --no-build-isolation --config-settings "--build-option=--cpp_ext" --config-settings "--build-option=--cuda_ext" ./

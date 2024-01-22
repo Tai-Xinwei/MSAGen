@@ -50,7 +50,11 @@ class LossAccumulator(object):
             return
 
         if type(loss) == torch.Tensor:
-            loss = loss.item()
+            try:
+                loss = loss.item()
+            except:
+                logger.error(f"Loss is not a valid tensor: {loss}")
+                loss = 0.0
 
         if type(num_examples) == torch.Tensor:
             num_examples = num_examples.item()
@@ -528,6 +532,8 @@ class Trainer(object):
                 logger.info("StopIteration")
                 pass
 
+            self.state.batch = 0
+
             log_output = self.build_log_output(loss_accumulator.averge_loss)
             metric_logger.log(log_output, "train")
 
@@ -594,7 +600,6 @@ class Trainer(object):
                     )
 
             self.state.epoch += 1
-            self.state.batch = 0
 
         self.model.after_training()
 

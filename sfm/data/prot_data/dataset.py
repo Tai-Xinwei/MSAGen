@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import itertools
 import math
+import os
 import pickle as pkl
 import random
 from pathlib import Path
@@ -47,10 +48,9 @@ class LMDBDataset(FoundationModelDataset):
         metadata = bstr2obj(self.txn.get("__metadata__".encode()))
         self.sizes, self.keys = metadata["sizes"], metadata["keys"]
         self.comment = metadata["comment"]
-        # Modified by yaosen @ 2024-01-12 due to downstream task
-        # self.filter_indices_by_size(
-        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
-        # )
+        self.filter_indices_by_size(
+            indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
+        )
 
     def __sort__(self):
         sorted_names_sizes = sorted(zip(self.keys, self.sizes), key=lambda x: x[1])
@@ -458,9 +458,11 @@ class ProteinLMDBDataset(LMDBDataset):
         - convert string sequence to int index
         """
         tokens = [self.vocab.tok_to_idx[tok] for tok in item["aa"]]
-        if len(tokens) > self.args.max_length:
-            start = random.randint(0, len(tokens) - self.args.max_length)
-            tokens = tokens[start : start + self.args.max_length]
+        # if len(tokens) > self.args.max_length - 2:
+        #     start = random.randint(0, len(tokens) - self.args.max_length + 2)
+        #     tokens = tokens[start : start + self.args.max_length - 2]
+        # assert len(tokens) <= self.args.max_length - 2, f"len(tokens) = {len(tokens)} > {self.args.max_length - 2} = max_length - 2"
+
         if self.vocab.prepend_bos:
             tokens.insert(0, self.vocab.cls_idx)
         if self.vocab.append_eos:
@@ -748,7 +750,7 @@ class PackedUR50LMDBDataset(FoundationModelDataset):
     The process pipeline will be changed in the future, but the interface will not change.
     """
 
-    def __init__(self, args: Any, data_path: str = None) -> None:
+    def __init__(self, args: Any, data_path: str = None, init_lmdb=True) -> None:
         super().__init__()
 
         self.args = self.set_default_args(args)
@@ -759,8 +761,6 @@ class PackedUR50LMDBDataset(FoundationModelDataset):
         else:
             self.lmdb_path = Path(data_path)
 
-        assert self.lmdb_path.is_dir(), f"Processed file not found: {self.lmdb_path}"
-
         self.vocab = Alphabet()
 
         self.seed = self.args.seed
@@ -770,15 +770,25 @@ class PackedUR50LMDBDataset(FoundationModelDataset):
         self.pos_noise = self.args.pos_noise
         self.ang_noise = self.args.ang_noise
 
-        self.env = lmdb.open(
-            str(self.lmdb_path), subdir=True, readonly=True, lock=False, readahead=False
-        )
-        self.txn = self.env.begin(write=False)
+        if init_lmdb:
+            assert (
+                self.lmdb_path.is_dir()
+            ), f"Processed file not found: {self.lmdb_path}"
 
-        metadata = bstr2obj(self.txn.get("metadata".encode()))
-        self.sizes, self.names = metadata["lengths"], metadata["prot_accessions"]
+            self.env = lmdb.open(
+                str(self.lmdb_path),
+                subdir=True,
+                readonly=True,
+                lock=False,
+                readahead=False,
+            )
 
-        logger.info(f"Loaded {len(self.names)} proteins from {self.lmdb_path}")
+            self.txn = self.env.begin(write=False)
+
+            metadata = bstr2obj(self.txn.get("metadata".encode()))
+            self.sizes, self.names = metadata["lengths"], metadata["prot_accessions"]
+
+            logger.info(f"Loaded {len(self.names)} proteins from {self.lmdb_path}")
 
     def __sort__(self):
         sorted_names_sizes = sorted(zip(self.names, self.sizes), key=lambda x: x[1])
@@ -909,7 +919,7 @@ class PackedUR50LMDBDataset(FoundationModelDataset):
         return collate_ur50_fn(samples, self.vocab)
 
 
-class PackedBPEUR50LMDBDataset(PackedUR50LMDBDataset):
+class PackedUR50LMDBMultiSrcDataset(PackedUR50LMDBDataset):
     """
     This is a dataset for protein information, including amino acid, position, angles and confidence score.
     All the information are raw data. Please ues other dataset to process the data, eg, tokenize, encode...
@@ -918,7 +928,122 @@ class PackedBPEUR50LMDBDataset(PackedUR50LMDBDataset):
     """
 
     def __init__(self, args: Any, data_path: str = None) -> None:
-        super().__init__(args, data_path)
+        super(PackedUR50LMDBMultiSrcDataset, self).__init__(
+            args, data_path, init_lmdb=False
+        )
+
+        temp_path = str(self.lmdb_path).split(".")[0]
+        if self.args.rank % 8 == 0:
+            self.lmdb_path = temp_path + "_1.lmdb"
+            self.lmdb_path = self.lmdb_path.replace("nfs", "nfs1")
+            self.env = lmdb.open(
+                self.lmdb_path, subdir=True, readonly=True, lock=False, readahead=False
+            )
+        elif self.args.rank % 8 == 1:
+            self.lmdb_path = temp_path + "_2.lmdb"
+            self.lmdb_path = self.lmdb_path.replace("nfs", "nfs2")
+            self.env = lmdb.open(
+                self.lmdb_path, subdir=True, readonly=True, lock=False, readahead=False
+            )
+        elif self.args.rank % 8 == 2:
+            self.lmdb_path = temp_path + "_3.lmdb"
+            self.lmdb_path = self.lmdb_path.replace("nfs", "nfs3")
+            self.env = lmdb.open(
+                self.lmdb_path, subdir=True, readonly=True, lock=False, readahead=False
+            )
+        elif self.args.rank % 8 == 3:
+            self.lmdb_path = temp_path + "_4.lmdb"
+            self.lmdb_path = self.lmdb_path.replace("nfs", "nfs4")
+            self.env = lmdb.open(
+                self.lmdb_path, subdir=True, readonly=True, lock=False, readahead=False
+            )
+        elif self.args.rank % 8 == 4:
+            self.lmdb_path = temp_path + "_5.lmdb"
+            self.lmdb_path = self.lmdb_path.replace("nfs", "nfs5")
+            self.env = lmdb.open(
+                self.lmdb_path, subdir=True, readonly=True, lock=False, readahead=False
+            )
+        elif self.args.rank % 8 == 5:
+            self.lmdb_path = temp_path + "_6.lmdb"
+            self.lmdb_path = self.lmdb_path.replace("nfs", "nfs6")
+            self.env = lmdb.open(
+                self.lmdb_path, subdir=True, readonly=True, lock=False, readahead=False
+            )
+        elif self.args.rank % 8 == 6:
+            self.lmdb_path = temp_path + "_7.lmdb"
+            self.lmdb_path = self.lmdb_path.replace("nfs", "nfs7")
+            self.env = lmdb.open(
+                self.lmdb_path, subdir=True, readonly=True, lock=False, readahead=False
+            )
+        elif self.args.rank % 8 == 7:
+            self.lmdb_path = temp_path + "_8.lmdb"
+            self.lmdb_path = self.lmdb_path.replace("nfs", "nfs8")
+            self.env = lmdb.open(
+                self.lmdb_path, subdir=True, readonly=True, lock=False, readahead=False
+            )
+        else:
+            raise ValueError(f"Rank must be in [0, 7], but got {self.args.rank}")
+
+        self.txn = self.env.begin(write=False)
+
+        metadata = bstr2obj(self.txn.get("metadata".encode()))
+        self.sizes, self.names = metadata["lengths"], metadata["prot_accessions"]
+
+        logger.info(f"Loaded {len(self.names)} proteins from {self.lmdb_path}")
+
+
+class PackedBpeUR50LMDBDataset(FoundationModelDataset):
+    """
+    This is a dataset for protein information, including amino acid, position, angles and confidence score.
+    All the information are raw data. Please ues other dataset to process the data, eg, tokenize, encode...
+
+    The process pipeline will be changed in the future, but the interface will not change.
+    """
+
+    def __init__(self, args: Any, data_path: str = None, init_lmdb=True) -> None:
+        super().__init__()
+
+        self.args = self.set_default_args(args)
+
+        # logger.info(self.args)
+        if data_path is None:
+            self.lmdb_path = Path(self.args.data_path)
+        else:
+            self.lmdb_path = Path(data_path)
+
+        self.vocab = Alphabet()
+
+        self.seed = self.args.seed
+        self.seq_masking_method = self.args.seq_masking_method
+
+        self.noise_method = self.args.noise_method
+        self.pos_noise = self.args.pos_noise
+        self.ang_noise = self.args.ang_noise
+
+        if init_lmdb:
+            assert (
+                self.lmdb_path.is_dir()
+            ), f"Processed file not found: {self.lmdb_path}"
+
+            self.env = lmdb.open(
+                str(self.lmdb_path),
+                subdir=True,
+                readonly=True,
+                lock=False,
+                readahead=False,
+            )
+
+            self.txn = self.env.begin(write=False)
+
+            metadata = bstr2obj(self.txn.get("metadata".encode()))
+            self.sizes, self.names = metadata["lengths"], metadata["prot_accessions"]
+
+            logger.info(f"Loaded {len(self.names)} proteins from {self.lmdb_path}")
+
+    def __sort__(self):
+        sorted_names_sizes = sorted(zip(self.names, self.sizes), key=lambda x: x[1])
+        self.names = [name for name, size in sorted_names_sizes]
+        self.sizes = [size for name, size in sorted_names_sizes]
 
     def set_default_args(self, args):
         args.data_path = getattr(args, "data_path", None)
@@ -943,6 +1068,33 @@ class PackedBPEUR50LMDBDataset(PackedUR50LMDBDataset):
 
         return args
 
+    def split_dataset(self, validation_ratio=0.03, sort=False):
+        num_samples = len(self.names)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(666).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(self.args)
+        dataset_train.names = [self.names[idx] for idx in training_indices]
+        dataset_train.sizes = [self.sizes[idx] for idx in training_indices]
+
+        dataset_val = self.__class__(self.args)
+        dataset_val.names = [self.names[idx] for idx in validation_indices]
+        dataset_val.sizes = [self.sizes[idx] for idx in validation_indices]
+
+        if sort:
+            dataset_train.__sort__()
+            dataset_val.__sort__()
+
+        return dataset_train, dataset_val
+
     def __getitem__(self, index: int) -> dict:
         key = self.names[index]
         value = self.txn.get(f"{key}".encode())
@@ -950,14 +1102,12 @@ class PackedBPEUR50LMDBDataset(PackedUR50LMDBDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = pkl.loads(value)
 
-        # item = {"id": index, **data}
-        tokens = data["aa_seq"]
-        bpe_token = data["bpe_seq"]
+        tokens = list(data["aa_seq"])
+        bpe_token = list(data["bpe_seq"])
 
         item = {
             # "id": index,
             "aa": tokens,
-            "bpe": bpe_token,
         }
 
         item["aa"] = np.array(tokens, dtype=np.int64)
@@ -976,10 +1126,15 @@ class PackedBPEUR50LMDBDataset(PackedUR50LMDBDataset):
         - mask the sequence in different ways
         """
         seed = int(hash((self.seed, index)) % 1e6)
-
+        # item["aa"]
+        # {"id": index, 'aa': aa, 'pos': pos, 'ang': ang, 'conf': conf_score, "name": name}
         assert (
             "mask_idx" not in item
         ), "Item already contains mask_idx key, this is not expected!"
+
+        # new_seq, mask_type, mask_pos = masking_registry[self.seq_masking_method](
+        #     item, self.args, seed, self.vocab.mask_idx, self.vocab.standard_toks
+        # )
 
         # bert like mask
         new_seq, mask_type, rand_mask = masking_registry[self.seq_masking_method](

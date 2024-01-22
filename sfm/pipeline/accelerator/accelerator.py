@@ -273,6 +273,11 @@ class SingleNodeAccelerator(Accelerator):
         if not model_states_only:
             self.optimizer.load_state_dict(checkpoint["optimizer"])
             self.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
+            for state in self.optimizer.state.values():
+                for k, v in state.items():
+                    if isinstance(v, torch.Tensor):
+                        state[k] = v.to(self.device)
+            logger.info(f"optimizer is loaded from checkpoint {ckpt_id}")
 
         if not model_states_only:
             for k, v in checkpoint.items():

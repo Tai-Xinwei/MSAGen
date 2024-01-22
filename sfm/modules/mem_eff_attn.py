@@ -31,7 +31,10 @@ class MemEffAttn(nn.Module):
         kdim=None,
         vdim=None,
         dropout=0.0,
-        bias=True,
+        k_bias=False,
+        q_bias=True,
+        v_bias=True,
+        o_bias=True,
         self_attention=False,
         q_noise=0.0,
         qn_block_size=8,
@@ -65,17 +68,17 @@ class MemEffAttn(nn.Module):
         )
 
         self.k_proj = quant_noise(
-            nn.Linear(self.kdim, embed_dim, bias=False), q_noise, qn_block_size
+            nn.Linear(self.kdim, embed_dim, bias=k_bias), q_noise, qn_block_size
         )
         self.v_proj = quant_noise(
-            nn.Linear(self.vdim, embed_dim, bias=bias), q_noise, qn_block_size
+            nn.Linear(self.vdim, embed_dim, bias=v_bias), q_noise, qn_block_size
         )
         self.q_proj = quant_noise(
-            nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+            nn.Linear(embed_dim, embed_dim, bias=q_bias), q_noise, qn_block_size
         )
 
         self.out_proj = quant_noise(
-            nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+            nn.Linear(embed_dim, embed_dim, bias=o_bias), q_noise, qn_block_size
         )
 
         self.layer_norm = LayerNorm(embed_dim)

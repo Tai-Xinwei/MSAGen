@@ -178,7 +178,7 @@ class PFM(nn.Module):
         self.bpe_head = None
         self.mlm_out = None
         if self.load_softmax:
-            # self.bpe_head = nn.Linear(args.encoder_embed_dim, 16384, bias=False)
+            self.bpe_head = nn.Linear(args.encoder_embed_dim, 16384, bias=False)
 
             if mlm_only:
                 self.embed_out = nn.Linear(
@@ -188,6 +188,8 @@ class PFM(nn.Module):
                 )
 
             elif not self.share_input_output_embed:
+                self.mlm_layer_norm = nn.LayerNorm(args.encoder_embed_dim)
+
                 self.embed_out = nn.Linear(
                     args.encoder_embed_dim,
                     args.num_residues * args.num_residues,
@@ -260,6 +262,13 @@ class PFM(nn.Module):
         # else:
         if self.mlm_out is not None:
             mlm_logits = self.mlm_out(x)  # [B, L, vocab]
+        else:
+            mlm_logits = None
+
+        if self.bpe_head is not None:
+            bpe_logits = self.bpe_head(x)
+        else:
+            bpe_logits = None
 
         if not self.mlm_only:
             # q = self.fc_pmlm_q(x)
@@ -322,6 +331,8 @@ class PFM(nn.Module):
             x = torch.cat(result_list, dim=0)
             diag_mask = torch.cat(mask_list, dim=0)
 
+            x = self.mlm_layer_norm(x)
+
         # project back to size of vocabulary
         if self.share_input_output_embed and hasattr(
             self.sentence_encoder.embed_tokens, "weight"
@@ -334,9 +345,9 @@ class PFM(nn.Module):
             x = x + self.lm_output_learned_bias
 
         if self.mlm_only:
-            return (x, mlm_logits, diag_mask, mask_aa)
+            return (x, mlm_logits, bpe_logits, mask_aa)
         else:
-            return (x, mlm_logits, diag_mask, mask_aa, pair_mask_aa)
+            return (x, mlm_logits, bpe_logits, mask_aa, pair_mask_aa)
 
     def ft_forward(
         self,

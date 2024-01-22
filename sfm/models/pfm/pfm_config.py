@@ -13,6 +13,7 @@ class PFMConfig(GraphormerConfig):
     output_dim: int = 1024
 
     add_rope: bool = True
+    flash_attn: bool = False
     stack_seq: bool = False
     num_residues: int = 32
     max_num_aa: int = 1024
