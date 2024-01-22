@@ -8,6 +8,7 @@ sys.path.extend([".", ".."])
 from sfm.criterions.mae3ddiff import ProteinMAE3dCriterions
 from sfm.data.prot_data.dataset import BatchedDataDataset, ProteinLMDBDataset
 from sfm.logging import logger
+from sfm.models.tox.modules.mae3ddiff import ProteinMAEDistCriterions
 from sfm.models.tox.tox_config import TOXConfig
 from sfm.models.tox.toxmodel import TOXModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
@@ -38,7 +39,7 @@ def main(args) -> None:
         vocab=dataset.vocab,
     )
 
-    model = TOXModel(args, loss_fn=ProteinMAE3dCriterions)
+    model = TOXModel(args, loss_fn=ProteinMAEDistCriterions)
 
     optimizer, _ = myAdam(
         model,

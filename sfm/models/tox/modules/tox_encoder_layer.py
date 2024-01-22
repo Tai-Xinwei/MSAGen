@@ -144,8 +144,8 @@ class TOXEncoderLayer(nn.Module):
         add_rope=False,
     ):
         # TODO: needs to be replaced by flash-att
-        # return MemEffAttn(
-        return DeformableMultiheadAttention(
+        return MemEffAttn(
+            # return DeformableMultiheadAttention(
             embed_dim,
             num_attention_heads,
             dropout=dropout,

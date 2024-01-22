@@ -127,8 +127,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
-# export WANDB_API_KEY=5d03b7a46d10f86ff45c4aedc570660a523edc0b
+wandb login --relogin e9150e973268b83f75cda414757706e08e6a7a93
+export WANDB_API_KEY=e9150e973268b83f75cda414757706e08e6a7a93
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then

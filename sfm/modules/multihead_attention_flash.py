@@ -86,7 +86,10 @@ class FlashAttn(nn.Module):
             nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
         )
 
-        self.layer_norm = LayerNorm(embed_dim)
+        if layer_norm:
+            self.layer_norm = LayerNorm(embed_dim)
+        else:
+            self.layer_norm = None
 
         self.reset_parameters(d_tilde)
 
@@ -120,7 +123,8 @@ class FlashAttn(nn.Module):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         if self.out_proj.bias is not None:
             nn.init.constant_(self.out_proj.bias, 0.0)
-        self.layer_norm.reset_parameters()
+        if self.layer_norm is not None:
+            self.layer_norm.reset_parameters()
 
     def forward(
         self,
@@ -240,12 +244,8 @@ class FlashAttn(nn.Module):
                     attn_mask=attn_mask,
                 )
 
-        # bias = attn_mask
-        # causal = False
-        # softmax_scale = None
-        # attn = flash_attn_func(
-        #     q, k, v, bias, causal, softmax_scale
-        # )  # [B, tgt_len, nhead, ndim]
+        if self.layer_norm is not None:
+            attn = self.layer_norm(attn)
 
         attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
         attn = self.out_proj(attn)

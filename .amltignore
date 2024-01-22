@@ -88,6 +88,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/
 
 # PyBuilder
 target/
@@ -166,6 +167,7 @@ dataset/
 *.ipynb
 *.log*
 *.csv
+*.npy
 
 functional_group_description.json
 logs/

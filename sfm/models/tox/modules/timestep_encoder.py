@@ -148,30 +148,30 @@ class DiffNoise(nn.Module):
 
     #     return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
 
-    def _angle_noise_sample(self, x_start, t):
-        T = t / 1000.0
-        T = T.unsqueeze(-1).unsqueeze(-1)
-
-        sigma_min = 0.01
-
-        # sigma = sigma_min**(1 - T) * sigma_max**T
-        alpha_T = 1 - sigma_min ** (2 - 2 * T)
-        noise = torch.randn_like(x_start) * sigma_min ** (1 - T)
-
-        return torch.sqrt(alpha_T) * x_start + 3.1415926 * noise
-
     # def _angle_noise_sample(self, x_start, t):
     #     T = t / 1000.0
     #     T = T.unsqueeze(-1).unsqueeze(-1)
 
-    #     sigma_min = 0.01 * 3.1415926
-    #     sigma_max = 1.0 * 3.1415926
+    #     sigma_min = 0.01
 
-    #     sigma = sigma_min**(1 - T) * sigma_max**T
+    #     # sigma = sigma_min**(1 - T) * sigma_max**T
+    #     alpha_T = 1 - sigma_min ** (2 - 2 * T)
+    #     noise = torch.randn_like(x_start) * sigma_min ** (1 - T)
 
-    #     noise = torch.randn_like(x_start) * sigma
+    #     return torch.sqrt(alpha_T) * x_start + 3.1415926 * noise
 
-    #     return x_start + noise, noise, sigma
+    def _angle_noise_sample(self, x_start, t):
+        T = t / 1000.0
+        T = T.unsqueeze(-1).unsqueeze(-1)
+
+        sigma_min = 0.01 * 3.1415926
+        sigma_max = 1.0 * 3.1415926
+
+        sigma = sigma_min ** (1 - T) * sigma_max**T
+
+        noise = torch.randn_like(x_start) * sigma
+
+        return x_start + noise, noise, sigma
 
 
 if __name__ == "__main__":

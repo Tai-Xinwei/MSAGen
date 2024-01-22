@@ -17,7 +17,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=16
 [ -z "${max_length}" ] && max_length=1024
 
-[ -z "${dropout}" ] && dropout=0.0
+[ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
 [ -z "${attn_dropout}" ] && attn_dropout=0.1
 [ -z "${weight_decay}" ] && weight_decay=0.0
@@ -28,22 +28,22 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${seq_masking_method}" ] && seq_masking_method=continuousMask
 [ -z "${seq_masking_method}" ] && seq_masking_method=transformerM
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.0
+[ -z "${mask_ratio}" ] && mask_ratio=0.2
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=2e-4
+[ -z "${max_lr}" ] && max_lr=4e-5
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 [ -z "${train_batch_size}" ] && train_batch_size=32
 [ -z "${max_tokens}" ] && max_tokens=3000
 [ -z "${val_batch_size}" ] && val_batch_size=32
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 
-[ -z "${mode_prob}" ] && mode_prob='0.2,0.6,0.2' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-[ -z "${strategy}" ] && strategy=DDP
+[ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${data_path}" ] && data_path='/mnt/protein/48organism1m.lmdb/'
 # [ -z "${data_path}" ] && data_path='/mnt/protein/uniref50_train.lmdb'
@@ -57,7 +57,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
 [ -z "${wandb_group}" ] && wandb_group=TOX
-[ -z "${wandb_team}" ] && wandb_team=icuppjin
+[ -z "${wandb_team}" ] && wandb_team=peiranjin
 [ -z "${wandb_project}" ] && wandb_project=DiffMFM
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -121,8 +121,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin 5d03b7a46d10f86ff45c4aedc570660a523edc0b
-export WANDB_API_KEY=5d03b7a46d10f86ff45c4aedc570660a523edc0b
+wandb login --relogin e9150e973268b83f75cda414757706e08e6a7a93
+export WANDB_API_KEY=e9150e973268b83f75cda414757706e08e6a7a93
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -156,7 +156,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
           --data_path $data_path \
           --save_dir $save_dir \
           --seed 666666 \
-          --fp16 --add_3d \
+          --add_3d \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
