@@ -19,11 +19,11 @@ from sfm.modules.quant_noise import quant_noise
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
-from .modules.pfm_encoder import PFMEncoder
-from .modules.UnifiedDecoder import UnifiedDecoder
+from .openfold.structure_module import StructureModule
+from .pfmmodel import PFM
 
 
-class PFMModel(Model):
+class PFMFoldModel(Model):
     """
     Class for training a Masked Language Model. It also supports an
     additional sentence level prediction if the sent-loss argument is set.
@@ -49,7 +49,7 @@ class PFMModel(Model):
 
         self.loss = loss_fn(args)
 
-        self.net = PFM(args, pfm_config, mlm_only=mlm_only)
+        self.net = PFMFold(args, pfm_config, mlm_only=mlm_only)
 
         if load_ckpt:
             self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
@@ -141,7 +141,7 @@ class PFMModel(Model):
         return (None, None)
 
 
-class PFM(nn.Module):
+class PFMFold(nn.Module):
     """
     Encoder for Masked Language Modelling.
     """
@@ -150,63 +150,25 @@ class PFM(nn.Module):
         super().__init__()
         self.max_positions = args.max_positions
 
-        self.sentence_encoder = PFMEncoder(pfm_config)
+        self.pfm = PFM(args, pfm_config, mlm_only=mlm_only)
 
-        self.share_input_output_embed = args.share_encoder_input_output_embed
-        self.embed_out = None
-        self.sentence_projection_layer = None
-        self.sentence_out_dim = args.sentence_class_num
-        self.lm_output_learned_bias = None
-        self.proj_out = None
-        self.args = args
-        self.mlm_only = mlm_only
-
-        # Remove head is set to true during fine-tuning
-        self.load_softmax = not args.ft  # getattr(args, "remove_head", False)
-        print("if finetune:", args.ft)
-
-        self.lm_output_learned_bias = None
-
-        self.layer_norm = nn.LayerNorm(args.encoder_embed_dim)
-        self.fc_pmlm_q = nn.Linear(
-            args.encoder_embed_dim, args.encoder_embed_dim, bias=False
+        self.structure_module = StructureModule(
+            c_s=args.embedding_dim,
+            c_z=args.embedding_dim,
+            c_ipa=args.c_ipa,
+            c_resnet=args.c_resnet,
+            no_heads_ipa=args.no_heads_ipa,
+            no_qk_points=args.no_qk_points,
+            no_v_points=args.no_v_points,
+            dropout_rate=args.dropout,
+            no_blocks=args.no_blocks,
+            no_transition_layers=args.no_transition_layers,
+            no_resnet_blocks=args.no_resnet_blocks,
+            no_angles=args.no_angles,
+            trans_scale_factor=args.trans_scale_factor,
+            epsilon=args.epsilon,
+            inf=args.inf,
         )
-        self.fc_pmlm_k = nn.Linear(
-            args.encoder_embed_dim, args.encoder_embed_dim, bias=False
-        )
-
-        self.bpe_head = None
-        self.mlm_out = None
-        if self.load_softmax:
-            self.bpe_head = nn.Linear(args.encoder_embed_dim, 16384, bias=False)
-
-            if mlm_only:
-                self.embed_out = nn.Linear(
-                    args.encoder_embed_dim,
-                    args.num_residues,
-                    bias=False,
-                )
-
-            elif not self.share_input_output_embed:
-                self.mlm_layer_norm = nn.LayerNorm(args.encoder_embed_dim)
-
-                self.embed_out = nn.Linear(
-                    args.encoder_embed_dim,
-                    args.num_residues * args.num_residues,
-                    bias=False,
-                )
-                self.mlm_out = nn.Linear(
-                    args.encoder_embed_dim,
-                    args.num_residues,
-                    bias=False,
-                )
-
-            if args.sent_loss:
-                self.sentence_projection_layer = nn.Linear(
-                    args.encoder_embed_dim, self.sentence_out_dim, bias=False
-                )
-        else:
-            logger.info("finetune mode do not use embed_out")
 
     def forward(
         self,
@@ -297,7 +259,7 @@ class PFM(nn.Module):
                     mask_comma_idx = (residue_seq[i][s_idx:e_idx] == 29).nonzero(
                         as_tuple=True
                     )[0]
-                    if len(mask_comma_idx) == 1:
+                    if len(mask_comma_idx) >= 1:
                         c_idx = mask_comma_idx[0]
                         masked_per_batch.append(mask_aa[i, s_idx:c_idx].sum().item())
                         pair_mask_aa[i, s_idx:c_idx, s_idx:c_idx:, :] = 1

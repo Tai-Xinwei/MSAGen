@@ -33,7 +33,7 @@ from sfm.utils.cli_utils import cli
 @cli(DistributedTrainConfig, PFMConfig)
 def main(args) -> None:
     trainset = PackedBpeUR50LMDBDataset(args, args.train_data_path)
-    valset = PackedUR50LMDBDataset(args, args.valid_data_path)
+    valset = PackedBpeUR50LMDBDataset(args, args.valid_data_path)
 
     if args.stack_seq:
         train_data = StackedSequenceIterableDataset(

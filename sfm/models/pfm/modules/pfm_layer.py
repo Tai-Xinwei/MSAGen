@@ -48,10 +48,59 @@ class ResidueFeatureV0(nn.Module):
         self.atom_mask_embedding = nn.Embedding(9, hidden_dim, padding_idx=None)
 
     def forward(self, batched_data, time=None, mask_aa=None, mask_pos=None):
+        with torch.no_grad():
+            if "x_new" in batched_data.keys():
+                aa_seq = batched_data["x_new"]
+            else:
+                aa_seq = batched_data["x"]
+
+        x = self.token_embed(aa_seq)
+
+        return x
+
+
+class ResidueFeatureV1(nn.Module):
+    """
+    Compute residule features, three parts are included
+    1. learnable embedding of residue type
+    2. Prior of residue features
+    3. learnable embedding of angles
+    """
+
+    def __init__(
+        self,
+        num_residues,
+        hidden_dim,
+        max_len=1024,
+        prop_feat=True,
+        angle_feat=True,
+        t_timesteps=1010,
+        time_embedding_type="positional",
+        time_embedding_mlp=True,
+    ):
+        super(ResidueFeatureV1, self).__init__()
+
+        self.num_residues = num_residues
+        self.hidden_dim = hidden_dim
+        self.prop_feat = prop_feat
+        self.angle_feat = angle_feat
+
+        self.token_embed = nn.Embedding(num_residues, hidden_dim // 2)
+        self.bpe_embed = nn.Embedding(16384, hidden_dim // 2)
+        self.atom_mask_embedding = nn.Embedding(9, hidden_dim // 2, padding_idx=None)
+
+    def forward(self, batched_data, time=None, mask_aa=None, mask_pos=None):
         if "x_new" in batched_data.keys():
-            x = self.token_embed(batched_data["x_new"])
+            x_aa = self.token_embed(batched_data["x_new"])
         else:
-            x = self.token_embed(batched_data["x"])
+            x_aa = self.token_embed(batched_data["x"])
+
+        mask_embedding = self.atom_mask_embedding.weight.sum(dim=0)
+        x_bpe = self.bpe_embed(batched_data["bpe"])
+        x_bpe[mask_aa.bool().squeeze(-1)] = mask_embedding
+
+        x = torch.cat([x_aa, x_bpe], dim=-1)
+
         return x
 
 

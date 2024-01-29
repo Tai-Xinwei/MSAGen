@@ -150,7 +150,6 @@ class PFMEncoderLayer(nn.Module):
         add_rope=False,
     ):
         # TODO: needs to be replaced by flash-att
-        # return MemEffAttn(
         if self.args.flash_attn:
             return FlashAttn(
                 embed_dim,
@@ -164,6 +163,7 @@ class PFMEncoderLayer(nn.Module):
                 layer_norm=False,
             )
         else:
+            # return MemEffAttn(
             return MultiheadAttention(
                 embed_dim,
                 num_attention_heads,

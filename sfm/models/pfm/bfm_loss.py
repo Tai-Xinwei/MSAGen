@@ -249,6 +249,7 @@ class ProteinPMLMMSA(nn.Module):
             if "bpe" in batch_data and batch_data["bpe"] is not None:
                 bpe_seq = batch_data["bpe"]
                 bpe_mask = ~(bpe_seq.eq(0) | bpe_seq.eq(1) | bpe_seq.eq(2))
+                # bpe_mask = bpe_mask & mask_aa.squeeze(-1).bool()
                 bpe_seq = bpe_seq[bpe_mask]
             else:
                 bpe_seq = None
@@ -288,7 +289,7 @@ class ProteinPMLMMSA(nn.Module):
                 bpe_seq.view(-1),
             )
 
-            loss = pair_loss_ratio * pair_loss + mlm_loss + bpe_loss
+            loss = pair_loss_ratio * pair_loss + mlm_loss + 0.5 * bpe_loss
         else:
             bpe_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
             loss = pair_loss_ratio * pair_loss + mlm_loss
