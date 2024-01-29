@@ -258,13 +258,43 @@ class PFMEncoder(nn.Module):
         padding_mask = (x_0[:, :]).eq(1)  # B x T x 1
         eos_mask = (x_0[:, :]).eq(2)
         comma_mask = (x_0[:, :]).eq(29)
-        (x_0[:, :]).eq(30)
+        # line_mask = (x_0[:, :]).eq(30)
 
         mask_aa = mask_aa.masked_fill(cls_mask.bool().unsqueeze(-1), False)
         mask_aa = mask_aa.masked_fill(padding_mask.bool().unsqueeze(-1), False)
         mask_aa = mask_aa.masked_fill(eos_mask.bool().unsqueeze(-1), False)
         mask_aa = mask_aa.masked_fill(comma_mask.bool().unsqueeze(-1), False)
         # mask_aa = mask_aa.masked_fill(line_mask.bool().unsqueeze(-1), False)
+
+        # enable pair mask in msa data
+        for i in range(n_graph):
+            mask_start_idx = (x_0[i] == 0).nonzero(as_tuple=True)[0]
+            mask_end_idx = (x_0[i] == 2).nonzero(as_tuple=True)[0]
+            assert len(mask_start_idx) >= len(
+                mask_end_idx
+            ), f"length of mask_start_idx: {mask_start_idx} should be larger than mask_end_idx: {mask_start_idx}"
+            for j in range(len(mask_end_idx)):
+                s_idx = mask_start_idx[j]
+                e_idx = mask_end_idx[j]
+
+                mask_comma_idx = (x_0[i][s_idx:e_idx] == 29).nonzero(as_tuple=True)[0]
+
+                if len(mask_comma_idx) == 1:
+                    c_idx = mask_comma_idx[0]
+                    if e_idx - s_idx == 2 * c_idx:
+                        mask_aa[i, s_idx + c_idx + 1 : e_idx] = mask_aa[
+                            i, s_idx + 1 : s_idx + c_idx
+                        ]
+                        temp = x_0[i, s_idx + c_idx + 1 : e_idx]
+                        temp_mask = mask_aa[i, s_idx + c_idx + 1 : e_idx].squeeze(-1)
+                        temp[temp_mask] = 31
+                        residue_seq[i, s_idx + c_idx + 1 : e_idx] = temp
+                elif len(mask_comma_idx) > 1:
+                    torch.set_printoptions(profile="full")
+                    print(residue_seq[i][s_idx : e_idx + 1])
+                    raise ValueError(
+                        f"comma index error, number of comma is {len(mask_comma_idx)}, check the data"
+                    )
 
         residue_seq = torch.where(cls_mask | eos_mask | comma_mask, x_0, residue_seq)
 
@@ -443,7 +473,7 @@ class PFMEncoder(nn.Module):
         pos, time = None, None
         # 1 is pad token, 2 is eos token
 
-        (x_0[:, :]).eq(0)
+        # cls_mask = (x_0[:, :]).eq(0)
         padding_mask = (x_0[:, :]).eq(1)  # B x T x 1
         (x_0[:, :]).eq(2)
 

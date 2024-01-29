@@ -46,10 +46,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${strategy}" ] && strategy=DDP
 
 # [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
-[ -z "${train_data_path}" ] && train_data_path='/home/peiran/protein/ur50_msa_ppi_bpe_pack1536_train.lmdb'
+[ -z "${train_data_path}" ] && train_data_path='/home/peiran/protein/ur50_23_msa_ppi_bpe_pack1536.lmdb'
 # [ -z "${train_data_path}" ] && train_data_path='/home/peiran/protein/uniref50_msa_ppi_pack1536_train.lmdb'
 # [ -z "${train_data_path}" ] && train_data_path='/mnt/protein/uniref50_pack1024_train.lmdb'
-[ -z "${valid_data_path}" ] && valid_data_path='/home/peiran/protein/uniref50_pack1024_valid.lmdb'
+[ -z "${valid_data_path}" ] && valid_data_path='/home/peiran/protein/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
@@ -145,7 +145,6 @@ fi
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-
 torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
@@ -162,7 +161,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --save_dir $save_dir \
           --seed 666666 \
           --fp16 \
-          --flash_attn \
           --mask_prob $mask_prob \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
@@ -179,7 +177,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
-#           # --dynamic_loader \
-#           # --stack_seq \
-#           # --flash_attn \
-#           # --ifresume \
+          # --dynamic_loader \
+          # --stack_seq \
+          # --flash_attn \
+          # --ifresume \

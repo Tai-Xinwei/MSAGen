@@ -82,7 +82,7 @@ search:
         - export loadcheck_path=/blob/pfmexp/output/{run}/checkpoints/checkpoint_E{epoch}.pt
         - export save_dir=/blob/pfmexp/output/finetune/finetune-{task_name}_seed{seed}_lr{lr}_E{epochs}_bs{batch_size}_{run}
         - export early_stopping=true
-        - export early_stopping_patience=10
+        - export early_stopping_patience=5
         - export early_stopping_metric='binary_accuracy'
         - export early_stopping_mode='max'
         - export head_dropout=0.5
@@ -102,23 +102,23 @@ search:
           values: ['solubility'] # ['solubility', 'subcellular_localization_2', 'human_ppi', 'yeast_ppi']
         - name: lr
           spec: discrete
-          values: ["2e-5", "4e-5"]
+          values: ["2e-5"]
         - name: run
           spec: discrete
-          values: ["bfm650m_maskspan3_ddp4e5d32mask020drop1L1536B2k_pairv4_bert2_64A100_adam2_flash", ]
-          # values: ["bfm650m_maskspan1_ddp4e5d8mask020drop1L1536_pairv4_bert2_128V100_adam2"]
+          # values: ["bfm650m_maskspan3_ddp4e5d32mask020drop1L1536B2k_pairv4_bert2_64A100_adam2_flash", ]
+          values: ["bfm650m_data3_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2"]
         - name: epoch
           spec: discrete
-          values: ["37", ]
-        - name: epochs
-          spec: discrete
-          values: ["50", ]
+          values: ["10", ]
         - name: batch_size
           spec: discrete
-          values: ["32"] # ["32", "64", "128"]
+          values: ["64", "32"] # ["32", "64", "128"]
         - name: label_normalize
           spec: discrete
           values: ["false", ]
         - name: seed
           spec: discrete
           values: ["13", "21", "42",]
+        - name: epochs
+          spec: discrete
+          values: ["50", ]

@@ -10,10 +10,13 @@ ls /nfs/
 
 echo "start data copy"
 
-mkdir /mnt/amlt_code/ur50_msa_ppi_bpe_pack1536_train.lmdb
-cp -r /nfs/ur50_msa_ppi_bpe_pack1536_train.lmdb/* /mnt/amlt_code/ur50_msa_ppi_bpe_pack1536_train.lmdb/
+mkdir /mnt/amlt_code/ur50_23_msa_ppi_bpe_pack1536.lmdb
+cp -r /nfs/bfm/ur50_23_msa_ppi_bpe_pack1536.lmdb/* /mnt/amlt_code/ur50_23_msa_ppi_bpe_pack1536.lmdb/
 
-mkdir /mnt/amlt_code/uniref50_pack1024_valid.lmdb
-cp -r /nfs/uniref50_pack1024_valid_1.lmdb/* /mnt/amlt_code/uniref50_pack1024_valid.lmdb/
+# mkdir /mnt/amlt_code/uniref50_pack1024_valid.lmdb
+# cp -r /nfs/uniref50_pack1024_valid_1.lmdb/* /mnt/amlt_code/uniref50_pack1024_valid.lmdb/
+
+mkdir /mnt/amlt_code/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb
+cp -r /nfs/bfm/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb/* /mnt/amlt_code/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb/
 
 echo "data copied"

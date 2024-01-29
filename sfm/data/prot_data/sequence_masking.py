@@ -46,6 +46,7 @@ def BERT_sequence_masking(
     mask = np.full(size, False)
     # at least mask one element or one span
     num_mask = int(mask_prob * size / float(mask_multiple_length) + 1)
+    # print("aa", seq)
 
     # GLM like masking
     mask_idc = rng.choice(size, num_mask, replace=False)
@@ -129,6 +130,8 @@ def BPE_BERT_sequence_masking(
     # decide elements to mask
     seq = item["aa"]
     bpe = item["bpe"]
+
+    np.diff(bpe, prepend=bpe[0]) != 0
     unique_values, indices = np.unique(bpe, return_index=True)
     sorted_indices = np.sort(indices)
 

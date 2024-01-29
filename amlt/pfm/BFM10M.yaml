@@ -6,19 +6,19 @@
 
 description: pfmtest
 
-# target:
-#     service: amlk8s
-#     name: itphyperdgx2cl1
-#     vc: hai1
+target:
+    service: amlk8s
+    name: itphyperdgx2cl1
+    vc: hai1
 
 # target:
 #     service: amlk8s
 #     name: itphyperdgx2cl2
 #     vc: hcrr08
 
-target:
-    service: aml
-    name: gcrarca100cl1
+# target:
+#     service: aml
+#     name: gcrarca100cl1
 
 environment:
   image: pj/mfmds:20230207_b
@@ -35,24 +35,24 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: pfmtestamlt
+- name: pfmtest
   tags:
   - 'ProjectID: PRJ-0209-A40'
-  sku: 13xG8
+  sku: G16
   mpi: true
   process_count_per_node: 1
   command:
   - mkdir /blob/pfmexp/output
   # - mkdir /blob/pfmexp/output/pfmdiff50M_dyn_mode_prob550
-  - mkdir /blob/pfmexp/output/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2
-  - mkdir /blob/pfmexp/output/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2/checkpoints
-  - mkdir ./output
+  - mkdir /blob/pfmexp/output/bfm10m_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpepairv4_bert2_128A100_adam2
+  - mkdir /blob/pfmexp/output/bfm10m_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpepairv4_bert2_128A100_adam2/checkpoints
+  - mkdir ./outputs
   - export path=run.sh
-  - export layers=36
+  - export layers=2
   - export num_pred_attn_layer=2
-  - export hidden_size=2560
-  - export ffn_size=10240
-  - export num_head=40
+  - export hidden_size=1024
+  - export ffn_size=2048
+  - export num_head=16
   - export atom_loss_coeff=1.0
   - export pos_loss_coeff=1.0
   - export sandwich_ln="true"
@@ -67,31 +67,26 @@ jobs:
   - export mask_prob=0.20
   - export mode_prob=1.0,0.0,0.0
   - export d_tilde=1.0
-  - export max_lr=2e-5
+  - export max_lr=4e-5
   - export strategy=DDP
   - export pipeline_model_parallel_size=0
   - export total_num_steps=600000
   - export warmup_num_steps=30000
-  - export train_batch_size=832
-  - export val_batch_size=832
-  - export max_tokens=3072
+  - export train_batch_size=1024
+  - export val_batch_size=512
+  - export max_tokens=6400
   - export max_length=1536
-  - export gradient_accumulation_steps=2
+  - export gradient_accumulation_steps=8
   - export log_interval=100
   - export wandb_group=BFM
   - export wandb_project=ds_mfmpre
-  - export loadcheck_path=/blob/pfmexp/output/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2/checkpoints
-  # - export train_data_path=/blob/data/afdb/uniref50_msa_ppi_pack1536_train.lmdb/
-  # - export valid_data_path=/blob/data/afdb/uniref50_pack1024_valid.lmdb/
-  # - export train_data_path=/nfs/uniref50_msa_ppi_pack1536_train.lmdb/
-  # - export valid_data_path=/nfs/uniref50_pack1024_valid.lmdb/
-  - export train_data_path=/mnt/amlt_code/ur50_23_msa_ppi_bpe_pack1536.lmdb/
-  - export valid_data_path=/mnt/amlt_code/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb/
-  - bash ./scripts/pfm/copy_from_nfs.sh
-  - export save_dir=/blob/pfmexp/output/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2/checkpoints
+  - export loadcheck_path=/blob/pfmexp/output/bfm10m_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpepairv4_bert2_128A100_adam2/checkpoints
+  - mkdir /tmp/data/pm6-86m-3d-filter
+  - export train_data_path=/blob/data/afdb/ur50_23_msa_ppi_bpe_pack1536.lmdb/
+  - export valid_data_path=/blob/data/afdb/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb/
+  - export save_dir=/blob/pfmexp/output/bfm10m_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpepairv4_bert2_128A100_adam2/checkpoints
   - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
-  - bash ./install/install.sh
-  - bash ./install/install_megatron.sh
+  - bash ./install/install.sh && bash ./install/install_megatron.sh
   - bash ./scripts/pfm/pretrain_pfm.sh
   submit_args:
     container_args:

@@ -6,19 +6,19 @@
 
 description: pfmtest
 
-# target:
-#     service: amlk8s
-#     name: itphyperdgx2cl1
-#     vc: hai1
+target:
+    service: amlk8s
+    name: itphyperdgx2cl1
+    vc: hai1
 
 # target:
 #     service: amlk8s
 #     name: itphyperdgx2cl2
 #     vc: hcrr08
 
-target:
-    service: aml
-    name: gcrarca100cl1
+# target:
+#     service: aml
+#     name: gcrarca100cl1
 
 environment:
   image: pj/mfmds:20230207_b
@@ -38,14 +38,14 @@ jobs:
 - name: pfmtestamlt
   tags:
   - 'ProjectID: PRJ-0209-A40'
-  sku: 16xG8
+  sku: 8xG16
   mpi: true
   process_count_per_node: 1
   command:
   - mkdir /blob/pfmexp/output
   # - mkdir /blob/pfmexp/output/pfmdiff50M_dyn_mode_prob550
-  - mkdir /blob/pfmexp/output/bfm650m_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpepairv4_bert2_128A100_adam2
-  - mkdir /blob/pfmexp/output/bfm650m_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpepairv4_bert2_128A100_adam2/checkpoints
+  - mkdir /blob/pfmexp/output/bfm650m_data3_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpev2pairv4_bert2_128V100_adam2
+  - mkdir /blob/pfmexp/output/bfm650m_data3_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpev2pairv4_bert2_128V100_adam2/checkpoints
   - mkdir ./output
   - export path=run.sh
   - export layers=33
@@ -76,21 +76,21 @@ jobs:
   - export val_batch_size=1024
   - export max_tokens=3072
   - export max_length=1536
-  - export gradient_accumulation_steps=1
+  - export gradient_accumulation_steps=4
   - export log_interval=100
   - export wandb_group=BFM
   - export wandb_project=ds_mfmpre
-  - export loadcheck_path=/blob/pfmexp/output/bfm650m_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpepairv4_bert2_128A100_adam2/checkpoints
-  # - export train_data_path=/blob/data/afdb/uniref50_msa_ppi_pack1536_train.lmdb/
-  # - export valid_data_path=/blob/data/afdb/uniref50_pack1024_valid.lmdb/
+  - export loadcheck_path=/blob/pfmexp/output/bfm650m_data3_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpev2pairv4_bert2_128V100_adam2/checkpoints
+  - export train_data_path=/blob/data/afdb/ur50_23_msa_ppi_bpe_pack1536.lmdb/
+  - export valid_data_path=/blob/data/afdb/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb/
   # - export train_data_path=/nfs/uniref50_msa_ppi_pack1536_train.lmdb/
   # - export valid_data_path=/nfs/uniref50_pack1024_valid.lmdb/
   # - export train_data_path=/mnt/amlt_code/uniref50_msa_ppi_pack1536_train.lmdb/
   # - export valid_data_path=/mnt/amlt_code/uniref50_pack1024_valid.lmdb/
-  - export train_data_path=/mnt/amlt_code/ur50_msa_ppi_bpe_pack1536_train.lmdb/
-  - export valid_data_path=/mnt/amlt_code/uniref50_pack1024_valid.lmdb/
-  - bash ./scripts/pfm/copy_from_nfs.sh
-  - export save_dir=/blob/pfmexp/output/bfm650m_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpepairv4_bert2_128A100_adam2/checkpoints
+  # - export train_data_path=/mnt/amlt_code/ur50_23_msa_ppi_bpe_pack1536.lmdb/
+  # - export valid_data_path=/mnt/amlt_code/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb/
+  # - bash ./scripts/pfm/copy_from_nfs.sh
+  - export save_dir=/blob/pfmexp/output/bfm650m_data3_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpev2pairv4_bert2_128V100_adam2/checkpoints
   - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
   - bash ./install/install.sh
   - bash ./install/install_megatron.sh
