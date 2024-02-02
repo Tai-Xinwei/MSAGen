@@ -103,6 +103,7 @@ class Alphabet(object):
         self.all_toks.extend(self.append_toks)
 
         self.tok_to_idx = {tok: i for i, tok in enumerate(self.all_toks)}
+        self.idx2word = {v: k for k, v in self.tok_to_idx.items()}
 
         self.unk_idx = self.tok_to_idx["<unk>"]
         self.padding_idx = self.get_idx("<pad>")

@@ -113,22 +113,34 @@ class PFMModel(Model):
         mlm_logits = model_output[1]
         mask_pos = model_output[2]
         mask_aa = model_output[3]
-        if len(model_output) > 4:
+        if len(model_output) == 4:
             pair_mask_aa = model_output[4]
             output = self.loss(
                 batch_data, logits, mlm_logits, mask_pos, mask_aa, pair_mask_aa
+            )
+        elif len(model_output) > 5:
+            pair_mask_aa = model_output[4]
+            diag_mask = model_output[5]
+            diag_seq = model_output[6]
+            output = self.loss(
+                batch_data,
+                logits,
+                mlm_logits,
+                mask_pos,
+                mask_aa,
+                pair_mask_aa,
+                diag_mask,
+                diag_seq,
             )
         else:
             pair_mask_aa = None
             output = self.loss(batch_data, logits, mlm_logits, mask_pos, mask_aa)
 
         bs = seq_aa.shape[0]
-        output = self.loss(
-            batch_data, logits, mlm_logits, mask_pos, mask_aa, pair_mask_aa
-        )
         loss = output[0]
         if len(output) > 1:
             log_loss = output[1]
+
         return ModelOutput(loss=loss, log_output=log_loss, num_examples=bs)
 
     def config_optimizer(self):
@@ -287,6 +299,7 @@ class PFM(nn.Module):
             pair_mask_aa = torch.zeros(
                 (B, L, L, 1), device=residue_seq.device, dtype=torch.int8
             )
+            diag_seq_list = []
             for i in range(B):
                 mask_start_idx = (residue_seq[i] == 0).nonzero(as_tuple=True)[0]
                 mask_end_idx = (residue_seq[i] == 2).nonzero(as_tuple=True)[0]
@@ -299,9 +312,15 @@ class PFM(nn.Module):
                     )[0]
                     if len(mask_comma_idx) == 1:
                         c_idx = mask_comma_idx[0]
-                        masked_per_batch.append(mask_aa[i, s_idx:c_idx].sum().item())
-                        pair_mask_aa[i, s_idx:c_idx, s_idx:c_idx:, :] = 1
-                        masked_indices = torch.where(mask_aa[i, s_idx:c_idx, 0].bool())
+                        masked_per_batch.append(
+                            mask_aa[i, s_idx : s_idx + c_idx].sum().item()
+                        )
+                        pair_mask_aa[
+                            i, s_idx : s_idx + c_idx, s_idx : s_idx + c_idx, :
+                        ] = 1
+                        masked_indices = torch.where(
+                            mask_aa[i, s_idx : s_idx + c_idx, 0].bool()
+                        )
                     elif len(mask_comma_idx) == 0:
                         masked_per_batch.append(mask_aa[i, s_idx:e_idx].sum().item())
                         pair_mask_aa[i, s_idx:e_idx, s_idx:e_idx:, :] = 1
@@ -313,10 +332,10 @@ class PFM(nn.Module):
                         raise ValueError(
                             f"comma index error, number of comma is {len(mask_comma_idx)}, check the data"
                         )
-
-                    masked_x = x[i, masked_indices[0], :]
+                    masked_x = x[i, s_idx + masked_indices[0], :]
                     q_split.append(self.fc_pmlm_q(masked_x))
                     k_split.append(self.fc_pmlm_k(masked_x))
+                    diag_seq_list.append(residue_seq[i, s_idx + masked_indices[0]])
 
             result_list = []
             mask_list = []
@@ -330,6 +349,7 @@ class PFM(nn.Module):
 
             x = torch.cat(result_list, dim=0)
             diag_mask = torch.cat(mask_list, dim=0)
+            diag_seq = torch.cat(diag_seq_list, dim=0)
 
             x = self.mlm_layer_norm(x)
 
@@ -347,7 +367,15 @@ class PFM(nn.Module):
         if self.mlm_only:
             return (x, mlm_logits, bpe_logits, mask_aa)
         else:
-            return (x, mlm_logits, bpe_logits, mask_aa, pair_mask_aa)
+            return (
+                x,
+                mlm_logits,
+                bpe_logits,
+                mask_aa,
+                pair_mask_aa,
+                diag_mask,
+                diag_seq,
+            )
 
     def ft_forward(
         self,

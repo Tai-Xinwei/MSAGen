@@ -33,7 +33,7 @@ code:
 
 search:
     job_template:
-        name: "finetune-binary-{task_name:s}_seed{seed:s}_lr{lr:s}_E{epochs:s}_bs{batch_size:s}_{run:s}"
+        name: "finetune-binary-{task_name:s}_seed{seed:s}_lr{lr:s}_E{epoch:s}_bs{batch_size:s}_{run:s}"
         tags:
         - 'ProjectID: PRJ-0209-A40'
         sku: G8
@@ -45,14 +45,17 @@ search:
         - export hidden_size=1280
         - export ffn_size=5120
         - export num_head=20
-        - export num_pred_attn_layer=2
+        # - export layers=36
+        # - export hidden_size=2560
+        # - export ffn_size=10240
+        # - export num_head=40
         - export atom_loss_coeff=1.0
         - export pos_loss_coeff=1.0
         - export sandwich_ln="true"
         - export dropout=0.1
         - export attn_dropout=0.1
         - export act_dropout=0.1
-        - export weight_decay=0.0
+        - export weight_decay=0.0005
         - export droppath_prob=0.0
         - export max_num_aa=1024
         - export noise_mode=diff
@@ -69,18 +72,18 @@ search:
         - export max_length=2048
         - export gradient_accumulation_steps=1
         - export log_interval=10
-        - export epochs={epochs}
+        - export epochs=50
         - export wandb_group=650MBFM-finetune-solubility
         - export wandb_team=icuppjin
         - export wandb_project=ds_mfmpre
-        - export WANDB_RUN_NAME="finetune-{task_name}_seed{seed}_lr{lr}_E{epochs}_bs{batch_size}_{run}"
+        - export WANDB_RUN_NAME="finetune-{task_name}_seed{seed}_lr{lr}_E{epoch}_bs{batch_size}_{run}"
         - export train_data_path="None"
         - export valid_data_path="None"
         - export data_basepath="/blob/data/bfm_benchmark"
         - export task_name={task_name}
         # - export loadcheck_path=/blob/pfmexp/output/bfm650m_bpe3_maskspan3_ddp8e5d16mask020drop1_ln_pairv3_bert2_64A100_adam2/checkpoints/checkpoint_E39.pt
         - export loadcheck_path=/blob/pfmexp/output/{run}/checkpoints/checkpoint_E{epoch}.pt
-        - export save_dir=/blob/pfmexp/output/finetune/finetune-{task_name}_seed{seed}_lr{lr}_E{epochs}_bs{batch_size}_{run}
+        - export save_dir=/blob/pfmexp/output/finetune/finetune-{task_name}_seed{seed}_lr{lr}_E{epoch}_bs{batch_size}_{run}
         - export early_stopping=true
         - export early_stopping_patience=5
         - export early_stopping_metric='binary_accuracy'
@@ -102,23 +105,20 @@ search:
           values: ['solubility'] # ['solubility', 'subcellular_localization_2', 'human_ppi', 'yeast_ppi']
         - name: lr
           spec: discrete
-          values: ["2e-5"]
+          values: ["1e-5", "2e-5"]
         - name: run
           spec: discrete
-          # values: ["bfm650m_maskspan3_ddp4e5d32mask020drop1L1536B2k_pairv4_bert2_64A100_adam2_flash", ]
+          # values: ["bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2", ]
           values: ["bfm650m_data3_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2"]
         - name: epoch
           spec: discrete
-          values: ["10", ]
+          values: ["27", ]
         - name: batch_size
           spec: discrete
-          values: ["64", "32"] # ["32", "64", "128"]
+          values: ["32"] # ["32", "64", "128"]
         - name: label_normalize
           spec: discrete
           values: ["false", ]
         - name: seed
           spec: discrete
           values: ["13", "21", "42",]
-        - name: epochs
-          spec: discrete
-          values: ["50", ]

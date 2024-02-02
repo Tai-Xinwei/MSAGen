@@ -353,6 +353,7 @@ class PFMEncoder(nn.Module):
                 residue_seq = batched_data["x_new"].clone()
             else:
                 residue_seq = batched_data["x"].clone()
+
             x_0 = batched_data["x"].clone()
             mask_aa = batched_data["masked_aa"]
             mask_pos = batched_data["mask_pos"]

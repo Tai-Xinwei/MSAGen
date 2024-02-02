@@ -242,10 +242,19 @@ class ProteinPMLMMSA(nn.Module):
         self.num_aa_type = args.num_residues
 
     def forward(
-        self, batch_data, logits, mlm_logits, bpe_logits, mask_aa, pair_mask_aa_0
+        self,
+        batch_data,
+        logits,
+        mlm_logits,
+        bpe_logits,
+        mask_aa,
+        pair_mask_aa_0,
+        diag_mask=None,
+        diag_seq=None,
     ):
         with torch.no_grad():
             aa_seq = batch_data["x"]
+
             if "bpe" in batch_data and batch_data["bpe"] is not None:
                 bpe_seq = batch_data["bpe"]
                 bpe_mask = ~(bpe_seq.eq(0) | bpe_seq.eq(1) | bpe_seq.eq(2))
@@ -260,12 +269,14 @@ class ProteinPMLMMSA(nn.Module):
 
             paired_seq = aa_seq.unsqueeze(-1) * self.num_aa_type + aa_seq.unsqueeze(-2)
 
-            # pair_mask_aa = mask_aa.unsqueeze(1).bool() & mask_aa.unsqueeze(2).bool()
             pair_mask_aa = mask_aa.unsqueeze(1).bool() & mask_aa.unsqueeze(2).bool()
             pair_mask_aa = pair_mask_aa & pair_mask_aa_0.bool()
 
             # logits [mask_L, vocab^2]
             paired_seq = paired_seq[pair_mask_aa.squeeze(-1).bool()]
+
+            if diag_mask is not None:
+                diag_logits = logits[diag_mask]
 
             aa_seq = aa_seq[mask_aa.squeeze(-1).bool()]
 
@@ -310,6 +321,25 @@ class ProteinPMLMMSA(nn.Module):
                 .to(torch.float32)
                 .mean()
             )
+
+            if diag_mask is not None:
+                # compuate diag accuracy
+                diag_logits = diag_logits[
+                    ...,
+                    torch.arange(self.num_aa_type) * self.num_aa_type
+                    + torch.arange(self.num_aa_type),
+                ]
+                diag_type_acc = (
+                    (
+                        diag_logits.view(-1, diag_logits.size(-1)).argmax(dim=-1)
+                        == diag_seq
+                    )
+                    .to(torch.float32)
+                    .mean()
+                )
+            else:
+                diag_type_acc = torch.tensor([0.0], device=logits.device)
+
             if bpe_seq is not None:
                 bpe_acc = (
                     (
@@ -328,6 +358,7 @@ class ProteinPMLMMSA(nn.Module):
             "loss_mlm": mlm_loss,
             "loss_bpe": bpe_loss,
             "type_acc": type_acc,
+            "diag_type_acc": diag_type_acc,
             "mlm_acc": mlm_acc,
             "bpe_acc": bpe_acc,
         }
