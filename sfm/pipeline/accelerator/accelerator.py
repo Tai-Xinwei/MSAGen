@@ -170,7 +170,7 @@ class SingleNodeAccelerator(Accelerator):
             )
             assert (
                 valid_batch_size_per_gpu > 0
-            ), "train_batch_size_per_gpu should be greater than 0"
+            ), "valid_batch_size_per_gpu should be greater than 0"
 
             self.valid_data_loader = DataLoader(
                 valid_data,
@@ -200,13 +200,16 @@ class SingleNodeAccelerator(Accelerator):
             loss = model_output.loss / len(grouped_batch_data)
 
             if torch.isnan(loss).item() or torch.isinf(loss).item():
-                logger.info("loss is nan or inf. skip this batch")
-                continue
+                logger.warning("loss is nan or inf. skip this batch")
+                loss = loss.new_tensor(0.0, requires_grad=True)
             else:
                 success_batch_count += 1
-                self.scaler.backward(loss)
+
+            self.scaler.backward(loss)
+
             if model_output.num_examples is not None:
                 sample_count += model_output.num_examples
+
             self.model.after_batch()
 
         if success_batch_count > 0:
@@ -252,6 +255,9 @@ class SingleNodeAccelerator(Accelerator):
             "lr_scheduler": self.lr_scheduler.state_dict(),
         }
 
+        if self.args.fp16:
+            checkpoint["fpscaler"] = self.scaler.scale
+
         if extra_state is not None:
             checkpoint.update(extra_state)
         logger.info("save checkpoint: {}", ckpt_id)
@@ -259,6 +265,18 @@ class SingleNodeAccelerator(Accelerator):
 
         with open(save_dir / "checkpoint_list.txt", "a") as f:
             f.write(ckpt_id + "\n")
+
+    def _transfer_optimizer_state_to_fp32(self):
+        for group in self.optimizer.param_groups:
+            for p in group["params"]:
+                if "exp_avg" in self.optimizer.state[p]:
+                    self.optimizer.state[p]["exp_avg"] = self.optimizer.state[p][
+                        "exp_avg"
+                    ].float()
+                if "exp_avg_sq" in self.optimizer.state[p]:
+                    self.optimizer.state[p]["exp_avg_sq"] = self.optimizer.state[p][
+                        "exp_avg_sq"
+                    ].float()
 
     def load_checkpoint(
         self,
@@ -273,16 +291,17 @@ class SingleNodeAccelerator(Accelerator):
         if not model_states_only:
             self.optimizer.load_state_dict(checkpoint["optimizer"])
             self.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
-            for state in self.optimizer.state.values():
-                for k, v in state.items():
-                    if isinstance(v, torch.Tensor):
-                        state[k] = v.to(self.device)
+            if self.args.fp16:
+                self.scaler.scale = checkpoint["fpscaler"]
+                self._transfer_optimizer_state_to_fp32()
+
             logger.info(f"optimizer is loaded from checkpoint {ckpt_id}")
 
         if not model_states_only:
             for k, v in checkpoint.items():
                 if k not in ["model", "optimizer", "lr_scheduler"]:
                     setattr(trainer_state, k, v)
+
         return trainer_state
 
     def sync_valid_loss(self, total_loss, num_examples):
@@ -440,7 +459,7 @@ class DdpAccelerator(SingleNodeAccelerator):
             )
             assert (
                 valid_batch_size_per_gpu > 0
-            ), "train_batch_size_per_gpu should be greater than 0"
+            ), "valid_batch_size_per_gpu should be greater than 0"
 
             validsampler = torch.utils.data.distributed.DistributedSampler(
                 val_data, num_replicas=self.world_size, shuffle=False
@@ -920,7 +939,8 @@ class DeepSpeedAccelerator(Accelerator):
             loss = self.model_engine.train_batch(iter(grouped_batch_data))
             model_output = ModelOutput(
                 loss=loss,
-                num_examples=self.args.deepspeed_config["train_batch_size"],
+                num_examples=self.args.deepspeed_config["train_batch_size"]
+                // self.world_size,
                 log_output={"loss": loss},
             )
         else:
@@ -941,6 +961,7 @@ class DeepSpeedAccelerator(Accelerator):
 
                 self.model_engine.backward(loss)
                 self.model_engine.step()
+
             model_output.num_examples = sample_count
 
         torch.cuda.empty_cache()
@@ -1019,8 +1040,23 @@ class DeepSpeedAccelerator(Accelerator):
         )
 
         if not model_states_only:
+            self._transfer_optimizer_state_to_fp32()
+
+        if not model_states_only:
             trainer_state.global_step = self.model_engine.global_steps
         return trainer_state
+
+    def _transfer_optimizer_state_to_fp32(self):
+        for group in self.optimizer.param_groups:
+            for p in group["params"]:
+                if "exp_avg" in self.optimizer.state[p]:
+                    self.optimizer.state[p]["exp_avg"] = self.optimizer.state[p][
+                        "exp_avg"
+                    ].float()
+                if "exp_avg_sq" in self.optimizer.state[p]:
+                    self.optimizer.state[p]["exp_avg_sq"] = self.optimizer.state[p][
+                        "exp_avg_sq"
+                    ].float()
 
     def sync_valid_loss(self, total_loss, num_examples):
         total_loss = torch.Tensor([total_loss]).cuda()

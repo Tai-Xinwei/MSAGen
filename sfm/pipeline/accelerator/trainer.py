@@ -545,7 +545,9 @@ class Trainer(object):
             self.accelerator.barrier()
             if self.should_save_epoch_checkpoint():
                 checkpoint_name = f"checkpoint_E{self.state.epoch}.pt"
+                self.state.epoch += 1
                 self.save_checkpoint(checkpoint_name, self.state)
+                self.state.epoch -= 1
 
             # if use early stopping
             if self.args.early_stopping:

@@ -1104,7 +1104,6 @@ class PackedBpeUR50LMDBDataset(FoundationModelDataset):
 
         tokens = list(data["aa_seq"])
         bpe_token = list(data["bpe_seq"])
-
         item = {
             # "id": index,
             "aa": tokens,

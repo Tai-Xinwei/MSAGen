@@ -38,7 +38,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${val_batch_size}" ] && val_batch_size=64
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000000
+[ -z "${save_batch_interval}" ] && save_batch_interval=1000000000
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 
@@ -161,6 +161,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --save_dir $save_dir \
           --seed 666666 \
           --fp16 \
+          --ifresume \
           --mask_prob $mask_prob \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \

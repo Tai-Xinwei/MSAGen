@@ -45,7 +45,7 @@ class FP16Scaler(object):
                 if clip_grad_norm > 0:
                     torch.nn.utils.clip_grad_norm_(p, clip_grad_norm)
 
-    def step(self, model, optimizer, clip_grad_norm: float = 0.0):
+    def step(self, model, optimizer, clip_grad_norm: float = 1.0):
         params = model.parameters()
         if self.enabled:
             if self.check_grad_overflow(params):
