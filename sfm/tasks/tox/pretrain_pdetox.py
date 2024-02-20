@@ -8,9 +8,9 @@ sys.path.extend([".", ".."])
 from sfm.criterions.mae3ddiff import ProteinMAE3dCriterions
 from sfm.data.prot_data.dataset import BatchedDataDataset, ProteinLMDBDataset
 from sfm.logging import logger
-from sfm.models.tox.modules.mae3ddiff import ProteinMAEDistCriterions
+from sfm.models.tox.modules.mae3ddiff import ProteinMAEDistPDECriterions
 from sfm.models.tox.tox_config import TOXConfig
-from sfm.models.tox.toxmodel import TOXModel, TOXPDEModel
+from sfm.models.tox.toxmodel import TOXPDEModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils.cli_utils import cli
@@ -39,7 +39,7 @@ def main(args) -> None:
         vocab=dataset.vocab,
     )
 
-    model = TOXPDEModel(args, loss_fn=ProteinMAEDistCriterions)
+    model = TOXPDEModel(args, loss_fn=ProteinMAEDistPDECriterions)
 
     optimizer, _ = myAdam(
         model,

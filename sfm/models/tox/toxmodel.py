@@ -21,6 +21,7 @@ from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
 from .modules import torus as ts
+from .modules.physics import MixtureGaussian, set_time_step
 from .modules.timestep_encoder import DiffNoise
 from .modules.torchMD import TorchMD_HEAD
 from .modules.tox_encoder import NodeDecoder, TOXEncoder
@@ -150,6 +151,172 @@ class TOXModel(Model):
         pass
 
 
+class TOXPDEModel(TOXModel):
+    """
+    Support the PDE loss for the TOXModel
+    """
+
+    def __init__(
+        self,
+        args,
+        loss_fn=None,
+        data_mean=0.0,
+        data_std=1.0,
+        not_init=False,
+        load_ckpt=False,
+    ):
+        super().__init__(
+            args,
+            loss_fn,
+            data_mean,
+            data_std,
+            not_init,
+            load_ckpt,
+        )
+        self.mixture_gaussian = MixtureGaussian()
+
+    # PDE loss related only using the batch data for the gaussian mixture center points
+    def forward(self, batched_data, **kwargs):
+        # Forward the score model [out:angle_output] for score matching
+        (
+            x,
+            x_pair,
+            angle_output,
+            mask_pos,
+            mask_aa,
+            ang_score,
+            ang_score_norm,
+            padding_mask,
+        ) = self.net(batched_data, **kwargs)
+
+        # Using a class object's forward function to generate the q_point, phi, nabla_phi, laplace_phi
+        # genrate q_point, phi, nabla_phi, laplace_phi
+        q_point, nabla_phi_term, laplace_phi_term = self.mixture_gaussian(
+            batched_data["ang"]
+        )
+
+        # setting delta_tq
+        delta_tq = 0  # using self.score_time + delta_tq as the time_pos
+        # Forward the score model [out:q_output] for PDE loss
+        (
+            _,
+            _,
+            q_output,
+            _,
+            _,
+            q_score,
+            q_score_norm,
+            _,
+        ) = self.net(batched_data, q=q_point, delta_tq=delta_tq, **kwargs)
+
+        # Retrieve the time_pos from the TOX model instance
+        time_pos = self.net.score_time
+
+        # TODO: make it more general
+        # input time_pos in the setDeltaTq function to make time_pos - hm > 0
+        hp, hm = set_time_step(time_pos)
+
+        delta_tq = hp
+        # Forward the score model [out:q_output] for PDE loss
+        (
+            _,
+            _,
+            q_output_ptq,
+            _,
+            _,
+            q_score,
+            q_score_norm,
+            _,
+        ) = self.net(batched_data, q=q_point, delta_tq=delta_tq, **kwargs)
+
+        delta_tq = -hm
+        # Forward the score model [out:q_output] for PDE loss
+        (
+            _,
+            _,
+            q_output_mtq,
+            _,
+            _,
+            q_score,
+            q_score_norm,
+            _,
+        ) = self.net(batched_data, q=q_point, delta_tq=delta_tq, **kwargs)
+
+        return (
+            x,
+            x_pair,
+            angle_output,
+            mask_pos,
+            mask_aa,
+            ang_score,
+            ang_score_norm,
+            q_output,
+            q_output_mtq,
+            q_output_ptq,
+            q_score,
+            q_score_norm,
+            padding_mask,
+            time_pos,
+            q_point,  # for PDE loss
+            nabla_phi_term,
+            laplace_phi_term,
+            hp,
+            hm,
+        )
+
+    # def ft_forward(self, batched_data, **kwargs):
+    #     return self.net.ft_forward(batched_data, **kwargs)
+
+    def compute_loss(self, model_output, batch_data) -> ModelOutput:
+        logits = model_output[0]
+        node_output = model_output[1]
+        angle_output = model_output[2]
+        mask_pos = model_output[3]
+        mask_aa = model_output[4]
+        ang_score = model_output[5]
+        ang_score_norm = model_output[6]
+        q_output = model_output[7]  # used for PDE loss
+        q_output_mtq = model_output[8]  # used for PDE loss
+        q_output_ptq = model_output[9]  # used for PDE loss
+        q_score = model_output[10]
+        q_score_norm = model_output[11]
+        padding_mask = model_output[12]
+        time_pos = model_output[13]  # used for PDE loss
+        q_point = model_output[14]  # used for PDE loss
+        nabla_phi_term = model_output[15]  # used for PDE loss
+        laplace_phi_term = model_output[16]  # used for PDE loss
+        hp = model_output[17]  # used for PDE loss
+        hm = model_output[18]  # used for PDE loss
+
+        bs = logits.shape[0]
+        output = self.loss(
+            batch_data,
+            logits,
+            node_output,
+            angle_output,
+            mask_pos,
+            mask_aa,
+            ang_score,
+            ang_score_norm,
+            q_output,
+            q_output_mtq,
+            q_output_ptq,
+            q_score,
+            q_score_norm,
+            padding_mask,
+            time_pos,
+            q_point,
+            nabla_phi_term,
+            laplace_phi_term,
+            hp,
+            hm,
+        )
+        loss = output[0]
+        if len(output) > 1:
+            log_loss = output[1]
+        return ModelOutput(loss=loss, log_output=log_loss, num_examples=bs)
+
+
 class TOX(nn.Module):
     """
     Encoder for Masked Language Modelling.
@@ -176,6 +343,9 @@ class TOX(nn.Module):
         print("if finetune:", args.ft)
 
         self.pi = torch.from_numpy(np.array(np.pi))
+
+        # add score_time for PDE score loss
+        self.score_time = None
 
         # self.uni_decoder = UnifiedDecoder(
         #     args,
@@ -270,8 +440,9 @@ class TOX(nn.Module):
             noise = noise.masked_fill_(~mask_pos.bool(), 0.0)
             pos = ori_pos + noise
             return pos, None, None, None
-        elif self.pfm_config.noise_mode == "diff":
-            if infer:
+        elif self.pfm_config.noise_mode == "diff":  # diff means diffusion
+            # Here we modify the time_pos to be sampled from 0 to 1.
+            if infer:  # give the same final time step (end time) to the batch
                 if time_step is None:
                     time_step = self.t_timesteps - 1
 
@@ -280,17 +451,27 @@ class TOX(nn.Module):
                         (ori_pos.shape[0],), device=ori_pos.device, dtype=torch.long
                     )
                     * time_step
+                    / self.t_timesteps
                 )
 
                 time_ang = time_pos
 
                 ori_pos = torch.zeros_like(ori_pos)
                 ori_angle = torch.zeros_like(ori_angle)
-            else:
-                time_pos = torch.randint(
-                    0, self.t_timesteps, (ori_pos.shape[0],), device=ori_pos.device
-                ).long()
-                time_pos = torch.where((mode_mask == 2), self.t_timesteps - 1, time_pos)
+            else:  # give random time point to each one in the batch
+                time_pos = (
+                    torch.randint(
+                        0, self.t_timesteps, (ori_pos.shape[0],), device=ori_pos.device
+                    ).long()
+                    / self.t_timesteps
+                )
+                # FIXME: mode_mask == 2 is what? I forgot
+                time_pos = torch.where(
+                    (mode_mask == 2),
+                    (self.t_timesteps - 1) / self.t_timesteps,
+                    time_pos,
+                )
+                # FIXME: model input with only time_pos?
                 time_ang = time_pos
 
             pos_scale_coeff = 1.0
@@ -314,6 +495,7 @@ class TOX(nn.Module):
             noisy_ang, ang_noise, ang_sigma = self.diffnoise._angle_noise_sample(
                 ori_angle, time_ang
             )
+            # FIXME: ang_score is hard to identify if it is correct or not
             ang_score = ts.score(ang_noise.cpu().numpy(), ang_sigma.cpu().numpy())
             ang_score = torch.tensor(ang_score, device=noisy_ang.device)
             ang_score_norm = ts.score_norm(ang_sigma.cpu().numpy())
@@ -390,6 +572,8 @@ class TOX(nn.Module):
         batched_data,
         perturb=None,
         time_step=None,
+        q=None,  # for computing the score model on the q
+        delta_tq=None,  # for computing the score model on the q at time_pos + delta_tq
         mask_aa=None,
         mask_pos=None,
         mask_angle=None,
@@ -446,16 +630,41 @@ class TOX(nn.Module):
             mode_mask,
             mask_angle,
         ) = self._set_mask(mask_aa, mask_pos, residue_seq)
-        (
-            pos,
-            angle,
-            time_pos,
-            time_aa,
-            ang_score,
-            ang_score_norm,
-            ang_noise,
-        ) = self._set_noise(ori_pos, ori_angle, mask_pos, mask_angle, mode_mask)
-        angle = torch.remainder(angle, 2 * self.pi) - self.pi
+
+        if q is None:
+            (
+                pos,
+                angle,
+                time_pos,
+                time_aa,
+                ang_score,
+                ang_score_norm,
+                ang_noise,
+            ) = self._set_noise(ori_pos, ori_angle, mask_pos, mask_angle, mode_mask)
+            angle = torch.remainder(angle, 2 * self.pi) - self.pi
+            # TODO: 1000 should be given in the config file
+            # give score_time for PDE score loss when q is not None
+            self.score_time = time_pos
+        else:
+            # actually we do not need q_score and q_score_norm
+            angle = q
+            angle = torch.remainder(angle, 2 * self.pi) - self.pi
+
+            # if delta_tq is not None, means we are doing s(q, t + delta_tq)
+            # if delta_tq is given, then time_pos will be updated to the real time_pos= time_pos + delta_tq
+            if delta_tq is not None:
+                time_pos = self.score_time + delta_tq
+
+            # (
+            #     pos,
+            #     angle,
+            #     time_pos,
+            #     time_aa,
+            #     ang_score,
+            #     ang_score_norm,
+            #     ang_noise,
+            # ) = self._set_noise(ori_pos, ori_angle, mask_pos, mask_angle, mode_mask)
+            # angle = torch.remainder(angle, 2 * self.pi) - self.pi
 
         (
             x,
@@ -503,6 +712,14 @@ class TOX(nn.Module):
         x = self.layer_norm(x)
 
         angle_output = self.angle_decoder(x)
+
+        # apply ∆τ to ˆ C; predict δτ = sθ,G( ˆ C, t); update θ ← θ − α∇θ‖δτ − ∇∆τ pt|0(∆τ | 0)‖2; given in Algorithm 2 of
+        # Training procedure of Torsional Diffusion for Molecular Conformer Generation
+        # Hence here, angle_output gives the delta tau, which is the angle difference between the predicted and the ground truth
+        # FIXME: check if it is okay to use the angle_output as score approximation directly, Done. VE is okay, but VP is not okay. see (31, 33) in the paper
+        # SCORE-BASED GENERATIVE MODELING THROUGH STOCHASTIC DIFFERENTIAL EQUATIONS
+
+        # TODO: check if it is okay to mask the paddings for q
         angle_output = angle_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
         x_pair = self._pos_map(batched_data, x)
@@ -531,11 +748,12 @@ class TOX(nn.Module):
         return (
             x,
             x_pair,
-            angle_output,
+            angle_output,  # if q is not None, this is q_output
             mask_pos,
             mask_aa,
             ang_score,
             ang_score_norm,
+            padding_mask,
             padding_mask,
         )
         # return (x, node_output, angle_output, mask_pos, mask_aa, angle, pos, padding_mask)

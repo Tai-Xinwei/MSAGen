@@ -7,6 +7,8 @@ import torch
 # from sklearn.metrics import roc_auc_score
 import torch.nn as nn
 
+from sfm.models.tox.modules.physics import compute_PDEloss
+
 
 class DiffMAE3dCriterions(nn.Module):
     def __init__(self, args, reduction="mean") -> None:
@@ -524,6 +526,7 @@ class ProteinMAEDistCriterions(nn.Module):
             ori_angle = ori_angle[mask_angle.squeeze(-1)]
             angle_output = angle_output[mask_angle.squeeze(-1)]
 
+            # x0 diffusion model
             angle_loss = (
                 self.loss_angle(
                     angle_output.to(torch.float32), ori_angle.to(torch.float32)
@@ -534,6 +537,89 @@ class ProteinMAEDistCriterions(nn.Module):
             angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         loss = type_loss + angle_loss / (3.1415926) + dist_loss / 10
+
+        return loss, {
+            "total_loss": loss,
+            "loss_type": type_loss,
+            "loss_dist": dist_loss,
+            "loss_angle": angle_loss,
+            "type_acc": type_acc,
+        }
+
+    def forward_v2(
+        self,
+        batch_data,
+        logits,
+        pair_output,
+        angle_output,
+        mask_pos,
+        mask_aa,
+        ang_score,
+        ang_score_norm,
+        padding_mask,
+    ):
+        if mask_aa.any():
+            with torch.no_grad():
+                aa_seq = batch_data["x"][mask_aa.squeeze(-1).bool()]
+
+            logits = logits[:, :, :][mask_aa.squeeze(-1).bool()]
+
+            type_loss = (
+                self.loss_type(
+                    logits.view(-1, logits.size(-1)).to(torch.float32),
+                    aa_seq.view(-1),
+                )
+                * self.args.atom_loss_coeff
+            )
+            # compute type accuracy
+            type_acc = (
+                (logits.view(-1, logits.size(-1)).argmax(dim=-1) == aa_seq)
+                .to(torch.float32)
+                .mean()
+            )
+        else:
+            type_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
+            type_acc = 0.0
+
+        if mask_pos.any():
+            with torch.no_grad():
+                ori_pos = batch_data["pos"]
+                bsz, _, _ = ori_pos.size()
+                pos_mask = ori_pos == float("inf")
+                # pos_mask = pos_mask | padding_mask.bool()
+                ori_pos = ori_pos.masked_fill(pos_mask, 0.0)
+
+            delta_pos0 = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
+            ori_dist = delta_pos0.norm(dim=-1)
+
+            dist_mask = ~(
+                padding_mask.bool().unsqueeze(1) | padding_mask.bool().unsqueeze(2)
+            )
+
+            ori_dist = ori_dist[dist_mask]
+            dist = pair_output[dist_mask].squeeze(-1)
+
+            dist_loss = self.loss_dist(
+                ori_dist.to(torch.float32), dist.to(torch.float32)
+            )
+        else:
+            dist_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
+
+        mask_angle = mask_pos
+        if mask_angle.any():
+            with torch.no_grad():
+                ori_angle = batch_data["ang"]
+                angle_mask = ori_angle == float("inf")
+
+            mask_angle = mask_angle & (~angle_mask)
+            ang_score = ang_score[mask_angle.squeeze(-1)]
+            angle_output = angle_output[mask_angle.squeeze(-1)]
+            angle_output = angle_output * torch.sqrt(ang_score_norm)
+            angle_loss = ((ang_score - angle_output) ** 2).mean()
+        else:
+            angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
+
+        loss = type_loss + angle_loss / (3.1415926 * 10) + dist_loss
 
         return loss, {
             "total_loss": loss,
@@ -617,6 +703,130 @@ class ProteinMAEDistCriterions(nn.Module):
             angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         loss = type_loss + angle_loss / (3.1415926 * 10) + dist_loss
+
+        return loss, {
+            "total_loss": loss,
+            "loss_type": type_loss,
+            "loss_dist": dist_loss,
+            "loss_angle": angle_loss,
+            "type_acc": type_acc,
+        }
+
+
+class ProteinMAEDistPDECriterions(nn.Module):
+    def __init__(self, args, reduction="mean") -> None:
+        super().__init__()
+        self.loss_type = nn.CrossEntropyLoss(reduction=reduction, label_smoothing=0.05)
+        self.loss_pos = nn.MSELoss(reduction="mean")
+        self.loss_angle = nn.MSELoss(reduction="mean")
+        self.loss_dist = nn.L1Loss(reduction="mean")
+        self.args = args
+
+    # add the PDE loss for angle diffusion
+    def forward(
+        self,
+        batch_data,
+        logits,
+        pair_output,
+        angle_output,
+        mask_pos,
+        mask_aa,
+        ang_score,
+        ang_score_norm,
+        q_output,
+        q_output_mtq,
+        q_output_ptq,
+        q_score,
+        q_score_norm,
+        padding_mask,
+        time_pos,
+        q_point,
+        nabla_phi_term,
+        laplace_phi_term,
+        hp,
+        hm,
+    ):
+        if mask_aa.any():
+            with torch.no_grad():
+                aa_seq = batch_data["x"][mask_aa.squeeze(-1).bool()]
+
+            logits = logits[:, :, :][mask_aa.squeeze(-1).bool()]
+
+            type_loss = (
+                self.loss_type(
+                    logits.view(-1, logits.size(-1)).to(torch.float32),
+                    aa_seq.view(-1),
+                )
+                * self.args.atom_loss_coeff
+            )
+            # compute type accuracy
+            type_acc = (
+                (logits.view(-1, logits.size(-1)).argmax(dim=-1) == aa_seq)
+                .to(torch.float32)
+                .mean()
+            )
+        else:
+            type_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
+            type_acc = 0.0
+
+        if mask_pos.any():
+            with torch.no_grad():
+                ori_pos = batch_data["pos"]
+                bsz, _, _ = ori_pos.size()
+                pos_mask = ori_pos == float("inf")
+                # pos_mask = pos_mask | padding_mask.bool()
+                ori_pos = ori_pos.masked_fill(pos_mask, 0.0)
+
+            delta_pos0 = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
+            ori_dist = delta_pos0.norm(dim=-1)
+
+            dist_mask = ~(
+                padding_mask.bool().unsqueeze(1) | padding_mask.bool().unsqueeze(2)
+            )
+
+            ori_dist = ori_dist[dist_mask]
+            dist = pair_output[dist_mask].squeeze(-1)
+
+            dist_loss = self.loss_dist(
+                ori_dist.to(torch.float32), dist.to(torch.float32)
+            )
+        else:
+            dist_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
+
+        mask_angle = mask_pos
+        if mask_angle.any():
+            with torch.no_grad():
+                ori_angle = batch_data["ang"]
+                angle_mask = ori_angle == float("inf")
+
+            mask_angle = mask_angle & (~angle_mask)
+            ang_score = ang_score[mask_angle.squeeze(-1)]
+            angle_output = angle_output[mask_angle.squeeze(-1)]
+            angle_output = angle_output * torch.sqrt(ang_score_norm)
+            angle_loss = ((ang_score - angle_output) ** 2).mean()
+        else:
+            angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
+
+        # (q, t, mixtureGaussian, q_output, q_output_mtq, q_output_ptq, padding_mask)
+        q_pde_loss = compute_PDEloss(
+            q_output,
+            time_pos,
+            q_point,
+            nabla_phi_term,
+            laplace_phi_term,
+            q_output_mtq,
+            q_output_ptq,
+            padding_mask,
+            hp,
+            hm,
+        )
+        # TODO: lamb_pde should be a hyperparameter in config file
+        lamb_pde = 0.01
+        loss = (
+            type_loss
+            + (angle_loss + lamb_pde * q_pde_loss) / (3.1415926 * 10)
+            + dist_loss
+        )
 
         return loss, {
             "total_loss": loss,

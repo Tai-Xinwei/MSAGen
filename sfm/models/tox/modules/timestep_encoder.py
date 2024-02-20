@@ -100,7 +100,7 @@ class DiffNoise(nn.Module):
             betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
             beta_list = torch.clip(betas, 0.0001, 0.9999)
         else:
-            raise NotImplementedError
+            raise NotImplementedError("only support linear, quadratic, sigmoid, cosine")
 
         alphas = 1 - beta_list
         alphas_cumprod = torch.cumprod(alphas, dim=0)
@@ -160,15 +160,18 @@ class DiffNoise(nn.Module):
 
     #     return torch.sqrt(alpha_T) * x_start + 3.1415926 * noise
 
+    # Here, t is time point in (0, 1]
     def _angle_noise_sample(self, x_start, t):
-        T = t / 1000.0
+        T = t
+        # T = t / 1000.0
         T = T.unsqueeze(-1).unsqueeze(-1)
 
-        sigma_min = 0.01 * 3.1415926
-        sigma_max = 1.0 * 3.1415926
+        beta_min = 0.01 * 3.1415926
+        beta_max = 1.0 * 3.1415926
 
-        sigma = sigma_min ** (1 - T) * sigma_max**T
+        sigma = beta_min ** (1 - T) * beta_max**T  # SMLD (31)
 
+        noise = torch.randn_like(x_start) * sigma
         noise = torch.randn_like(x_start) * sigma
 
         return x_start + noise, noise, sigma

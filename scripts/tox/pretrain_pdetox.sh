@@ -142,7 +142,7 @@ fi
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_pdetox.py \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
           --encoder_ffn_embed_dim $ffn_size \
