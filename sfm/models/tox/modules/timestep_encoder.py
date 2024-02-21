@@ -162,12 +162,12 @@ class DiffNoise(nn.Module):
 
     # Here, t is time point in (0, 1]
     def _angle_noise_sample(self, x_start, t):
-        T = t
-        # T = t / 1000.0
+        # T = t
+        T = t / 1000.0
         T = T.unsqueeze(-1).unsqueeze(-1)
 
-        beta_min = 0.01 * 3.1415926
-        beta_max = 1.0 * 3.1415926
+        beta_min = 0.01 * torch.pi
+        beta_max = 1.0 * torch.pi
 
         sigma = beta_min ** (1 - T) * beta_max**T  # SMLD (31)
 

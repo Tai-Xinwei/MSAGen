@@ -8,8 +8,6 @@ from typing import List, Optional, Tuple, Union, final
 
 import torch
 import torch.nn as nn
-from transformers import LlamaConfig
-from transformers.models.llama.modeling_llama import LlamaDecoderLayer
 
 from sfm.logging import logger
 
@@ -165,124 +163,127 @@ def pipemodegradcheck(forward_func):
     return wrapper
 
 
-class LlamaDecoderLayerTest(LlamaDecoderLayer):
-    def __init__(self, config: LlamaConfig, l: int):
-        super().__init__(config)
-        self.config = config
-        self.l = l
-        self.dummy = nn.Linear(1, 1)
+## testing
+# from transformers import LlamaConfig
+# from transformers.models.llama.modeling_llama import LlamaDecoderLayer
+# class LlamaDecoderLayerTest(LlamaDecoderLayer):
+#     def __init__(self, config: LlamaConfig, l: int):
+#         super().__init__(config)
+#         self.config = config
+#         self.l = l
+#         self.dummy = nn.Linear(1, 1)
 
-        self.param_dict = {
-            "batched_data": {
-                "hidden_states": torch.Tensor,
-                "attention_mask": torch.Tensor,
-                "position_ids": torch.Tensor,
-            },
-        }
+#         self.param_dict = {
+#             "batched_data": {
+#                 "hidden_states": torch.Tensor,
+#                 "attention_mask": torch.Tensor,
+#                 "position_ids": torch.Tensor,
+#             },
+#         }
 
-        # self.param_dict = {
-        #     "hidden_states": torch.Tensor,
-        #     "attention_mask": torch.Tensor,
-        #     "position_ids": torch.Tensor,
-        # }
+#         # self.param_dict = {
+#         #     "hidden_states": torch.Tensor,
+#         #     "attention_mask": torch.Tensor,
+#         #     "position_ids": torch.Tensor,
+#         # }
 
-    @pipemode
-    def tensor_forward(
-        self,
-        hidden_states: torch.Tensor,
-        attention_mask_bool: Optional[torch.Tensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        past_key_value: Optional[Tuple[torch.Tensor]] = None,
-        output_attentions: Optional[bool] = False,
-        use_cache: Optional[bool] = False,
-    ) -> Tuple[torch.FloatTensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
-        """
-        Args:
-            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
-            attention_mask (`torch.FloatTensor`, *optional*): attention mask of size
-                `(batch, 1, tgt_len, src_len)` where padding elements are indicated by very large negative values.
-            output_attentions (`bool`, *optional*):
-                Whether or not to return the attentions tensors of all attention layers. See `attentions` under
-                returned tensors for more detail.
-            use_cache (`bool`, *optional*):
-                If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
-                (see `past_key_values`).
-            past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
-        """
+#     @pipemode
+#     def tensor_forward(
+#         self,
+#         hidden_states: torch.Tensor,
+#         attention_mask_bool: Optional[torch.Tensor] = None,
+#         position_ids: Optional[torch.LongTensor] = None,
+#         past_key_value: Optional[Tuple[torch.Tensor]] = None,
+#         output_attentions: Optional[bool] = False,
+#         use_cache: Optional[bool] = False,
+#     ) -> Tuple[torch.FloatTensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+#         """
+#         Args:
+#             hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+#             attention_mask (`torch.FloatTensor`, *optional*): attention mask of size
+#                 `(batch, 1, tgt_len, src_len)` where padding elements are indicated by very large negative values.
+#             output_attentions (`bool`, *optional*):
+#                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
+#                 returned tensors for more detail.
+#             use_cache (`bool`, *optional*):
+#                 If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
+#                 (see `past_key_values`).
+#             past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
+#         """
 
-        attention_mask = torch.zeros_like(
-            attention_mask_bool, dtype=hidden_states.dtype, device=hidden_states.device
-        )
-        attention_mask.masked_fill_(
-            ~attention_mask_bool, torch.finfo(hidden_states.dtype).min
-        )
+#         attention_mask = torch.zeros_like(
+#             attention_mask_bool, dtype=hidden_states.dtype, device=hidden_states.device
+#         )
+#         attention_mask.masked_fill_(
+#             ~attention_mask_bool, torch.finfo(hidden_states.dtype).min
+#         )
 
-        hidden_states = super().forward(
-            hidden_states=hidden_states,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-        )[0]
+#         hidden_states = super().forward(
+#             hidden_states=hidden_states,
+#             attention_mask=attention_mask,
+#             position_ids=position_ids,
+#         )[0]
 
-        return hidden_states, attention_mask_bool, position_ids
+#         return hidden_states, attention_mask_bool, position_ids
 
-    @pipemode
-    def dict_forward(
-        self,
-        batched_data: dict,
-    ) -> Tuple[torch.FloatTensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
-        """
-        Args:
-            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
-            attention_mask (`torch.FloatTensor`, *optional*): attention mask of size
-                `(batch, 1, tgt_len, src_len)` where padding elements are indicated by very large negative values.
-            output_attentions (`bool`, *optional*):
-                Whether or not to return the attentions tensors of all attention layers. See `attentions` under
-                returned tensors for more detail.
-            use_cache (`bool`, *optional*):
-                If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
-                (see `past_key_values`).
-            past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
-        """
+#     @pipemode
+#     def dict_forward(
+#         self,
+#         batched_data: dict,
+#     ) -> Tuple[torch.FloatTensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+#         """
+#         Args:
+#             hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+#             attention_mask (`torch.FloatTensor`, *optional*): attention mask of size
+#                 `(batch, 1, tgt_len, src_len)` where padding elements are indicated by very large negative values.
+#             output_attentions (`bool`, *optional*):
+#                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
+#                 returned tensors for more detail.
+#             use_cache (`bool`, *optional*):
+#                 If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
+#                 (see `past_key_values`).
+#             past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
+#         """
 
-        hidden_states = batched_data["hidden_states"]
-        attention_mask_bool = batched_data["attention_mask"]
-        position_ids = batched_data["position_ids"]
+#         hidden_states = batched_data["hidden_states"]
+#         attention_mask_bool = batched_data["attention_mask"]
+#         position_ids = batched_data["position_ids"]
 
-        attention_mask = torch.zeros_like(
-            attention_mask_bool, dtype=hidden_states.dtype, device=hidden_states.device
-        )
-        attention_mask.masked_fill_(
-            ~attention_mask_bool, torch.finfo(hidden_states.dtype).min
-        )
+#         attention_mask = torch.zeros_like(
+#             attention_mask_bool, dtype=hidden_states.dtype, device=hidden_states.device
+#         )
+#         attention_mask.masked_fill_(
+#             ~attention_mask_bool, torch.finfo(hidden_states.dtype).min
+#         )
 
-        hidden_states = super().forward(
-            hidden_states=hidden_states,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-        )[0]
+#         hidden_states = super().forward(
+#             hidden_states=hidden_states,
+#             attention_mask=attention_mask,
+#             position_ids=position_ids,
+#         )[0]
 
-        return batched_data
+#         return batched_data
 
 
-if __name__ == "__main__":
-    config = LlamaConfig.from_pretrained("sfm/models/llama2/llama-2-7B/config.json")
-    decoder = LlamaDecoderLayerTest(config, 0)
-    hidden_states = torch.randn((1, 20, config.hidden_size))
-    attention_mask = torch.ones(1, 1, 20, 20, dtype=torch.bool)
-    position_ids = torch.arange(20, dtype=torch.long).unsqueeze(0)
+# if __name__ == "__main__":
+#     config = LlamaConfig.from_pretrained("sfm/models/llama2/llama-2-7B/config.json")
+#     decoder = LlamaDecoderLayerTest(config, 0)
+#     hidden_states = torch.randn((1, 20, config.hidden_size))
+#     attention_mask = torch.ones(1, 1, 20, 20, dtype=torch.bool)
+#     position_ids = torch.arange(20, dtype=torch.long).unsqueeze(0)
 
-    tuple_input = (hidden_states, attention_mask, position_ids)
+#     tuple_input = (hidden_states, attention_mask, position_ids)
 
-    print(hidden_states.shape, attention_mask.shape, position_ids.shape)
+#     print(hidden_states.shape, attention_mask.shape, position_ids.shape)
 
-    # ### test Tensor input
-    # output = decoder.tensor_forward(tuple_input)
-    # print(type(output))
-    # for item in output:
-    #     print(item.shape)
+#     # ### test Tensor input
+#     # output = decoder.tensor_forward(tuple_input)
+#     # print(type(output))
+#     # for item in output:
+#     #     print(item.shape)
 
-    ### test dict input
-    dict_output = decoder.dict_forward(tuple_input)
-    print(type(dict_output))
-    for k in dict_output:
-        print(k.shape)
+#     ### test dict input
+#     dict_output = decoder.dict_forward(tuple_input)
+#     print(type(dict_output))
+#     for k in dict_output:
+#         print(k.shape)

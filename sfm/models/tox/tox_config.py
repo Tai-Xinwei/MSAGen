@@ -18,6 +18,8 @@ class TOXConfig(GraphormerConfig):
     train_data_path: str = ""
     valid_data_path: str = ""
 
+    lamb_pde: float = 0.01
+
     def __init__(
         self,
         args,

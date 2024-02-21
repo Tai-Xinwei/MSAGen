@@ -191,9 +191,12 @@ class TOXPDEModel(TOXModel):
 
         # Using a class object's forward function to generate the q_point, phi, nabla_phi, laplace_phi
         # genrate q_point, phi, nabla_phi, laplace_phi
-        q_point, nabla_phi_term, laplace_phi_term = self.mixture_gaussian(
-            batched_data["ang"]
-        )
+
+        ori_angle = batched_data["ang"]
+        angle_mask = ori_angle == float("inf")
+        ori_angle = ori_angle.masked_fill(angle_mask, 0.0)
+
+        q_point, nabla_phi_term, laplace_phi_term = self.mixture_gaussian(ori_angle)
 
         # setting delta_tq
         delta_tq = 0  # using self.score_time + delta_tq as the time_pos
@@ -366,7 +369,6 @@ class TOX(nn.Module):
             nn.GELU(),
             nn.Linear(args.encoder_embed_dim, 3),
         )
-        # self.angle_decoder = nn.Linear(args.encoder_embed_dim, 3)
 
         self.masked_lm_pooler = nn.Linear(
             args.encoder_embed_dim, args.encoder_embed_dim
@@ -382,13 +384,13 @@ class TOX(nn.Module):
             self.lm_output_learned_bias = nn.Parameter(torch.zeros(1))
 
             self.fc_pmlm_q = nn.Linear(
-                args.encoder_embed_dim, args.encoder_embed_dim, bias=False
+                args.encoder_embed_dim, args.encoder_embed_dim // 4, bias=False
             )
             self.fc_pmlm_k = nn.Linear(
-                args.encoder_embed_dim, args.encoder_embed_dim, bias=False
+                args.encoder_embed_dim, args.encoder_embed_dim // 4, bias=False
             )
-            self.pair_layer_norm = nn.LayerNorm(args.encoder_embed_dim)
-            self.dist_head = nn.Linear(args.encoder_embed_dim, 1, bias=False)
+            self.pair_layer_norm = nn.LayerNorm(args.encoder_embed_dim // 4)
+            self.dist_head = nn.Linear(args.encoder_embed_dim // 4, 1, bias=False)
 
             if not self.share_input_output_embed:
                 self.embed_out = nn.Linear(
@@ -451,7 +453,6 @@ class TOX(nn.Module):
                         (ori_pos.shape[0],), device=ori_pos.device, dtype=torch.long
                     )
                     * time_step
-                    / self.t_timesteps
                 )
 
                 time_ang = time_pos
@@ -459,19 +460,14 @@ class TOX(nn.Module):
                 ori_pos = torch.zeros_like(ori_pos)
                 ori_angle = torch.zeros_like(ori_angle)
             else:  # give random time point to each one in the batch
-                time_pos = (
-                    torch.randint(
-                        0, self.t_timesteps, (ori_pos.shape[0],), device=ori_pos.device
-                    ).long()
-                    / self.t_timesteps
-                )
-                # FIXME: mode_mask == 2 is what? I forgot
+                time_pos = torch.randint(
+                    0, self.t_timesteps, (ori_pos.shape[0],), device=ori_pos.device
+                ).long()
                 time_pos = torch.where(
                     (mode_mask == 2),
-                    (self.t_timesteps - 1) / self.t_timesteps,
+                    (self.t_timesteps - 1),
                     time_pos,
-                )
-                # FIXME: model input with only time_pos?
+                ).long()
                 time_ang = time_pos
 
             pos_scale_coeff = 1.0
@@ -483,18 +479,10 @@ class TOX(nn.Module):
             )
             noisy_pos = noisy_pos.masked_fill(~mask_pos.bool(), 0.0).to(ori_pos.dtype)
 
-            # ang_scale_coeff = 1.0
-            # noisy_ang = (
-            #     self.diffnoise._noise_sample(ori_angle / ang_scale_coeff, time_ang)
-            #     * ang_scale_coeff
-            # )
-            # noisy_ang = noisy_ang.masked_fill(~mask_angle.bool(), 0.0).to(ori_pos.dtype)
-            # ang_score = None
-            # ang_score_norm = None
-
             noisy_ang, ang_noise, ang_sigma = self.diffnoise._angle_noise_sample(
                 ori_angle, time_ang
             )
+
             # FIXME: ang_score is hard to identify if it is correct or not
             ang_score = ts.score(ang_noise.cpu().numpy(), ang_sigma.cpu().numpy())
             ang_score = torch.tensor(ang_score, device=noisy_ang.device)
@@ -555,14 +543,12 @@ class TOX(nn.Module):
 
         return mask_aa, mask_pos, padding_mask, eos_mask, mask_choice, mask_angle
 
-    def _pos_map(self, batched_data, x):
-        B, L, H = x.shape
-
+    def _pos_map(self, x):
         q = self.fc_pmlm_q(x)
         k = self.fc_pmlm_k(x)
 
         x_pair = torch.einsum("bih,bjh->bijh", q, k)
-        x_pair = self.pair_layer_norm(x_pair)
+        # x_pair = self.pair_layer_norm(x_pair)
         x_pair = self.dist_head(x_pair)
 
         return x_pair
@@ -648,6 +634,8 @@ class TOX(nn.Module):
         else:
             # actually we do not need q_score and q_score_norm
             angle = q
+            angle_mask = angle == float("inf")
+            angle = angle.masked_fill(angle_mask, 0.0).to(ori_pos.dtype)
             angle = torch.remainder(angle, 2 * self.pi) - self.pi
 
             # if delta_tq is not None, means we are doing s(q, t + delta_tq)
@@ -655,16 +643,8 @@ class TOX(nn.Module):
             if delta_tq is not None:
                 time_pos = self.score_time + delta_tq
 
-            # (
-            #     pos,
-            #     angle,
-            #     time_pos,
-            #     time_aa,
-            #     ang_score,
-            #     ang_score_norm,
-            #     ang_noise,
-            # ) = self._set_noise(ori_pos, ori_angle, mask_pos, mask_angle, mode_mask)
-            # angle = torch.remainder(angle, 2 * self.pi) - self.pi
+            pos = None
+            ang_score, ang_score_norm = None, None
 
         (
             x,
@@ -722,9 +702,10 @@ class TOX(nn.Module):
         # TODO: check if it is okay to mask the paddings for q
         angle_output = angle_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
-        x_pair = self._pos_map(batched_data, x)
-
-        # FIXME: not compatible with batched_data
+        if q is None:
+            x_pair = self._pos_map(x)
+        else:
+            x_pair = None
 
         # project masked tokens only
         if masked_tokens is not None:
@@ -753,7 +734,6 @@ class TOX(nn.Module):
             mask_aa,
             ang_score,
             ang_score_norm,
-            padding_mask,
             padding_mask,
         )
         # return (x, node_output, angle_output, mask_pos, mask_aa, angle, pos, padding_mask)

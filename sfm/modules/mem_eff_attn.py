@@ -184,7 +184,7 @@ class MemEffAttn(nn.Module):
         if v is not None:
             v = (
                 v.contiguous()
-                .view(src_len, bsz, self.num_heads, self.head_dim)
+                .view(src_len, bsz * self.num_heads, self.head_dim)
                 .transpose(0, 1)
             )
 
@@ -202,7 +202,7 @@ class MemEffAttn(nn.Module):
 
         q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
         k = k.view(bsz, self.num_heads, src_len, self.head_dim)
-        v = v.permute(0, 2, 1, 3)
+        v = v.view(bsz, self.num_heads, src_len, self.head_dim)
 
         if key_padding_mask is not None:
             if key_padding_mask.bool().any():
@@ -222,7 +222,7 @@ class MemEffAttn(nn.Module):
             raise NotImplementedError("mem efficient attn not support attn_bias")
 
         with torch.backends.cuda.sdp_kernel(
-            enable_math=True, enable_mem_efficient=True, enable_flash=True
+            enable_math=False, enable_mem_efficient=True, enable_flash=True
         ):
             attn = torch.nn.functional.scaled_dot_product_attention(
                 q,
@@ -232,10 +232,16 @@ class MemEffAttn(nn.Module):
                 attn_mask=attn_mask,
             )
 
+        attn = (
+            attn.transpose(1, 2)
+            .contiguous()
+            .view(bsz, tgt_len, embed_dim)
+            .transpose(0, 1)
+        )
+
         if self.layer_norm is not None:
             attn = self.layer_norm(attn)
 
-        attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
         attn = self.out_proj(attn)
         attn_weights: Optional[Tensor] = None
 
