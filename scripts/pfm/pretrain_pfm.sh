@@ -6,15 +6,15 @@ ulimit -c unlimited
 echo 'Solving MKL done!'
 echo 'print path'
 pwd
-ls /nfs/
+
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=12
+[ -z "${layers}" ] && layers=33
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
-[ -z "${hidden_size}" ] && hidden_size=256
-[ -z "${ffn_size}" ] && ffn_size=1024
-[ -z "${num_head}" ] && num_head=32
+[ -z "${hidden_size}" ] && hidden_size=1280
+[ -z "${ffn_size}" ] && ffn_size=5120
+[ -z "${num_head}" ] && num_head=20
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=4
@@ -28,40 +28,38 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
-[ -z "${mask_prob}" ] && mask_prob=0.2
+[ -z "${mask_prob}" ] && mask_prob=0.3
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=1e-5
-[ -z "${total_num_steps}" ] && total_num_steps=1000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=600
-[ -z "${train_batch_size}" ] && train_batch_size=64
+[ -z "${max_lr}" ] && max_lr=2e-5
+[ -z "${total_num_steps}" ] && total_num_steps=2000000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=30000
+[ -z "${train_batch_size}" ] && train_batch_size=256
 [ -z "${max_tokens}" ] && max_tokens=1600
-[ -z "${val_batch_size}" ] && val_batch_size=64
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${val_batch_size}" ] && val_batch_size=256
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=1000000000
-[ -z "${log_interval}" ] && log_interval=100
+[ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 
 [ -z "${mode_prob}" ] && mode_prob='1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 [ -z "${strategy}" ] && strategy=DDP
 
 # [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
-[ -z "${train_data_path}" ] && train_data_path='/home/peiran/protein/ur50_23_msa_ppi_bpe_pack1536.lmdb'
-# [ -z "${train_data_path}" ] && train_data_path='/home/peiran/protein/uniref50_msa_ppi_pack1536_train.lmdb'
-# [ -z "${train_data_path}" ] && train_data_path='/mnt/protein/uniref50_pack1024_train.lmdb'
-[ -z "${valid_data_path}" ] && valid_data_path='/home/peiran/protein/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb'
+[ -z "${train_data_path}" ] && train_data_path='/fastdata/peiran/bfm/ur50_23_msa_ppi_bpe_pack1536.lmdb'
+[ -z "${valid_data_path}" ] && valid_data_path='/fastdata/peiran/bfm/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb'
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
-[ -z "${loadcheck_path}" ] && loadcheck_path="."
-[ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/bfm/checkpoints/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2'
+[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/bfm/checkpoints/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2'
 # [ -z "${dataset_name}" ] && dataset_name="PCQM4M-LSC-V2-3D"
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=tinyBFM
+[ -z "${wandb_group}" ] && wandb_group=BFM
 [ -z "${wandb_team}" ] && wandb_team=peiranjin
-[ -z "${wandb_project}" ] && wandb_project=BFM
+[ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -161,7 +159,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/pretrain_pfm.py \
           --save_dir $save_dir \
           --seed 666666 \
           --fp16 \
-          --ifresume \
           --mask_prob $mask_prob \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \

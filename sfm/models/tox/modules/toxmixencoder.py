@@ -12,7 +12,6 @@ from sfm.modules.layer_norm import LayerNorm
 from sfm.modules.multihead_attention import MultiheadAttention
 from sfm.modules.quant_noise import quant_noise as apply_quant_noise_
 from sfm.utils import LayerDropModuleList
-from sfm.utils.pipelinemode import pipemode, pipemodegradcheck
 
 from .tox_embedding import TOXmixEmbedding
 from .tox_encoder_layer import TOXEncoderLayer

@@ -229,6 +229,7 @@ class FlashAttn(nn.Module):
             attn = flash_attn_func(
                 q, k, v, dropout_p=self.dropout
             )  # [B, tgt_len, nhead, ndim]
+            attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
         else:
             q = q.permute(0, 2, 1, 3)
             k = k.permute(0, 2, 1, 3)
@@ -243,11 +244,16 @@ class FlashAttn(nn.Module):
                     dropout_p=self.dropout,
                     attn_mask=attn_mask,
                 )
+            attn = (
+                attn.transpose(1, 2)
+                .contiguous()
+                .view(bsz, tgt_len, embed_dim)
+                .transpose(0, 1)
+            )
 
         if self.layer_norm is not None:
             attn = self.layer_norm(attn)
 
-        attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
         attn = self.out_proj(attn)
         attn_weights: Optional[Tensor] = None
 

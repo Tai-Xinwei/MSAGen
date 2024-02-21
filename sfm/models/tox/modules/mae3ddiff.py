@@ -721,6 +721,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
         self.loss_angle = nn.MSELoss(reduction="mean")
         self.loss_dist = nn.L1Loss(reduction="mean")
         self.args = args
+        self.lamb_pde = args.lamb_pde
 
     # add the PDE loss for angle diffusion
     def forward(
@@ -803,14 +804,14 @@ class ProteinMAEDistPDECriterions(nn.Module):
             ang_score = ang_score[mask_angle.squeeze(-1)]
             angle_output = angle_output[mask_angle.squeeze(-1)]
             angle_output = angle_output * torch.sqrt(ang_score_norm)
-            angle_loss = ((ang_score - angle_output) ** 2).mean()
+            angle_loss = ((ang_score - angle_output) ** 2).mean().to(torch.float32)
         else:
             angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         # (q, t, mixtureGaussian, q_output, q_output_mtq, q_output_ptq, padding_mask)
         q_pde_loss = compute_PDEloss(
             q_output,
-            time_pos,
+            time_pos / self.args.t_timesteps,
             q_point,
             nabla_phi_term,
             laplace_phi_term,
@@ -820,18 +821,14 @@ class ProteinMAEDistPDECriterions(nn.Module):
             hp,
             hm,
         )
-        # TODO: lamb_pde should be a hyperparameter in config file
-        lamb_pde = 0.01
-        loss = (
-            type_loss
-            + (angle_loss + lamb_pde * q_pde_loss) / (3.1415926 * 10)
-            + dist_loss
-        )
+
+        loss = type_loss + angle_loss / 10 + self.lamb_pde * q_pde_loss + dist_loss
 
         return loss, {
             "total_loss": loss,
             "loss_type": type_loss,
             "loss_dist": dist_loss,
             "loss_angle": angle_loss,
+            "q_pde_loss": q_pde_loss,
             "type_acc": type_acc,
         }

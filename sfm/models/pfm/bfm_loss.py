@@ -292,7 +292,8 @@ class ProteinPMLMMSA(nn.Module):
             aa_seq.view(-1),
         )
 
-        pair_loss_ratio = 0.25
+        pair_loss_ratio = 1.0
+        bpe_loss_ratio = 1.0
         if bpe_seq is not None:
             bpe_logits = bpe_logits[bpe_mask.bool()]
             bpe_loss = self.loss_bpe(
@@ -300,10 +301,10 @@ class ProteinPMLMMSA(nn.Module):
                 bpe_seq.view(-1),
             )
 
-            loss = pair_loss_ratio * pair_loss + mlm_loss + 0.5 * bpe_loss
+            loss = pair_loss_ratio * pair_loss + bpe_loss_ratio * bpe_loss  # + mlm_loss
         else:
             bpe_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
-            loss = pair_loss_ratio * pair_loss + mlm_loss
+            loss = pair_loss_ratio * pair_loss  # + mlm_loss
 
         with torch.no_grad():
             # compute type accuracy

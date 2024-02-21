@@ -7,15 +7,16 @@ echo 'Solving MKL done!'
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=8
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
+[ -z "${layers}" ] && layers=12
 [ -z "${hidden_size}" ] && hidden_size=256
 [ -z "${ffn_size}" ] && ffn_size=1024
-[ -z "${num_head}" ] && num_head=32
+[ -z "${num_head}" ] && num_head=8
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=16
 [ -z "${max_length}" ] && max_length=1024
+[ -z "${max_tokens}" ] && max_tokens=3000
 
 [ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -25,47 +26,47 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
+[ -z "${lamb_pde}" ] && lamb_pde=1.0
 # [ -z "${seq_masking_method}" ] && seq_masking_method=continuousMask
 [ -z "${seq_masking_method}" ] && seq_masking_method=transformerM
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.2
+[ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=4e-5
-[ -z "${total_num_steps}" ] && total_num_steps=1000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=600
-[ -z "${train_batch_size}" ] && train_batch_size=32
-[ -z "${max_tokens}" ] && max_tokens=3000
-[ -z "${val_batch_size}" ] && val_batch_size=32
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${max_lr}" ] && max_lr=1e-4
+[ -z "${total_num_steps}" ] && total_num_steps=2000000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
+[ -z "${train_batch_size}" ] && train_batch_size=256
+[ -z "${val_batch_size}" ] && val_batch_size=256
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
+[ -z "${strategy}" ] && strategy=DDP
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=100
+[ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 
-[ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-[ -z "${strategy}" ] && strategy=Zero1
+[ -z "${mode_prob}" ] && mode_prob='0.1,0.5,0.2,0.2' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+# [ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-[ -z "${data_path}" ] && data_path='/mnt/protein/48organism1m.lmdb/'
-# [ -z "${data_path}" ] && data_path='/mnt/protein/uniref50_train.lmdb'
-# [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
-[ -z "${loadcheck_path}" ] && loadcheck_path="."
+# [ -z "${data_path}" ] && data_path='/fastdata/peiran/bfm/48organism1m.lmdb/'
+[ -z "${data_path}" ] && data_path='/mnt/protein/48organism1m.lmdb'
+# [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_dist_score/'
+# [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_dist_score/'
+[ -z "${loadcheck_path}" ] && loadcheck_path='.'
 [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
-# [ -z "${dataset_name}" ] && dataset_name="PCQM4M-LSC-V2-3D"
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=TOX
+[ -z "${wandb_group}" ] && wandb_group=bfmdiff
 [ -z "${wandb_team}" ] && wandb_team=peiranjin
-[ -z "${wandb_project}" ] && wandb_project=DiffMFM
+[ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
 [ -z "${MASTER_PORT}" ] && MASTER_PORT=62347
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
-# [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=-1
 
 
 echo -e "\n\n"
@@ -80,7 +81,6 @@ echo "OMPI_COMM_WORLD_RANK: ${OMPI_COMM_WORLD_RANK}"
 echo "OMPI_COMM_WORLD_SIZE: ${OMPI_COMM_WORLD_SIZE}"
 echo "OMPI_COMM_WORLD_LOCAL_RANK: ${OMPI_COMM_WORLD_LOCAL_RANK}"
 
-# echo "AZUREML_EXPERIMENT_ID: ${AZUREML_EXPERIMENT_ID}"
 
 echo -e "\n\n"
 echo "=====================================ARGS======================================"
@@ -112,17 +112,11 @@ echo "mode_prob: ${mode_prob}"
 echo "noise_mode: ${noise_mode}"
 echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 
-# export NCCL_ASYNC_ERROR_HADNLING=1
-# export NCCL_DEBUG=INFO
-# export NCCL_IB_PCI_RELAXED_ORDERING=1
-# export NCCL_IB_DISABLE=1
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
-# export NCCL_SOCKET_IFNAME=eth0
-# export OMP_NUM_THREADS=1
 
-wandb login --relogin c8d70d137b9485c23348cfbc5bfe2db9f650d51a # pisquare
-export WANDB_API_KEY=c8d70d137b9485c23348cfbc5bfe2db9f650d51a
+wandb login --relogin e9150e973268b83f75cda414757706e08e6a7a93
+export WANDB_API_KEY=e9150e973268b83f75cda414757706e08e6a7a93
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -161,6 +155,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_pdetox.py \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
           --d_tilde $d_tilde \
+          --lamb_pde $lamb_pde \
           --strategy $strategy \
           --max_lr $max_lr \
           --t_timesteps 1000 \
@@ -173,7 +168,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_pdetox.py \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
-          # --dynamic_loader --max_tokens $max_tokens
+
 
 sleep inf
 sleep inf

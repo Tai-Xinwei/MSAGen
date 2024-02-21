@@ -4,9 +4,6 @@ import math
 import numpy as np
 import torch
 
-# FIXME: remove the device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 # FIXME: define different time step for different time_pos?
 def set_time_step(time_pos, hp=None, hm=None):
@@ -21,16 +18,16 @@ def set_time_step(time_pos, hp=None, hm=None):
 
 # To avoid zero cases, we do not compute gauss values here, instead we compute the nabla q/q and laplace q/q
 class MixtureGaussian(torch.nn.Module):
-    def __init__(self, sigma=1, device=device):
+    def __init__(self, sigma=1):
         super().__init__()
-        self.device = device
-        self.sigma = torch.tensor(sigma).to(self.device)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.sigma = torch.tensor(sigma, device=self.device)
 
     def compute_mixgauss_gradient_term(self, mu, q_point):
         # q_point: [q_batch_size, q_dim1, q_dim2]
         # mu: [gauss_num, q_dim1, q_dim2]
         func = torch.zeros(
-            [q_point.shape[0], q_point.shape[1], q_point.shape[2]]
+            [q_point.shape[0], q_point.shape[1], q_point.shape[2]], device=self.device
         )  # [q_batch_size, q_dim1, q_dim2, gauss_num]
         # FIXME: only support sampling the same number points as the batch size right now
         assert (
@@ -42,7 +39,7 @@ class MixtureGaussian(torch.nn.Module):
 
     def compute_mixgauss_laplace_term(self, mu, q_point):
         x_dim = q_point.shape[1] * q_point.shape[2]
-        func = torch.zeros([q_point.shape[0]])
+        func = torch.zeros([q_point.shape[0]], device=self.device)
         for k in range(q_point.shape[0]):
             func[k] = -1 / (self.sigma**2 * x_dim) + torch.sum(
                 ((q_point[k, :, :] - mu[k, :, :]) / self.sigma**2) ** 2, dim=(0, 1)
@@ -59,7 +56,7 @@ class MixtureGaussian(torch.nn.Module):
             sample_number = x.shape[0]  # batch size = gauss number = sample number
 
         # Sample from the standard Gaussian distribution
-        data = torch.randn((sample_number,) + x.shape[1:]).to(self.device)
+        data = torch.randn((sample_number,) + x.shape[1:], device=self.device)
 
         # Calculate the number of samples distributed on per Gaussian
         L = data.shape[0] // x.shape[0]  # Integer division
@@ -92,8 +89,13 @@ class MixtureGaussian(torch.nn.Module):
         # no computational graph
         with torch.no_grad():
             q_point = self.sampler(x)
+            assert not torch.isnan(q_point).any(), "q_point should not contain nan"
+            assert not torch.isnan(x).any(), "x should not contain nan"
             nabla_phi_term = self.compute_mixgauss_gradient_term(x, q_point)
             laplace_phi_term = self.compute_mixgauss_laplace_term(x, q_point)
+            assert not torch.isnan(
+                laplace_phi_term
+            ).any(), "laplace_phi_term should not contain nan"
             # normalize the laplace_phi_term as a inner product in high dimension space is usually large
             nabla_phi_term = 1 / (x.shape[1] * x.shape[2]) * nabla_phi_term
             laplace_phi_term = 1 / (x.shape[1] * x.shape[2]) * laplace_phi_term
@@ -103,9 +105,9 @@ class MixtureGaussian(torch.nn.Module):
 # This MixtureGaussian will encounter difficulties of zero values
 # We would use the approximation to avoid the zero values by re-designing the class
 class MixtureGaussian_v0(torch.nn.Module):
-    def __init__(self, sigma=1, device=device):
+    def __init__(self, sigma=1):
         super().__init__()
-        self.device = device
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.sigma = torch.tensor(sigma).to(self.device)
 
     def compute_mixgauss_value(self, mu, q_point):
@@ -258,15 +260,23 @@ def compute_PDEloss(
     LHS = t_finite_diff(q_output, q_output_mtq, q_output_ptq, hp, hm) / (
         q_point.shape[1] * q_point.shape[2]
     )
-    # Do Normalization on the RHS
-    RHS = 0.5 * diffusion**2 * torch.sum(q_output**2, dim=(1, 2)).reshape(
-        -1, 1, 1
-    ) * nabla_phi_term - 0.5 * diffusion**2 * q_output * laplace_phi_term.reshape(
-        -1, 1, 1
-    )
 
-    # print("LHS: ", LHS)
-    # print("RHS: ", RHS)
+    assert not torch.isnan(diffusion).any(), "diffusion should not contain nan"
+    assert not torch.isnan(
+        laplace_phi_term
+    ).any(), "laplace_phi_term should not contain nan"
+    assert not torch.isnan(
+        nabla_phi_term
+    ).any(), "nabla_phi_term should not contain nan"
+    assert not torch.isnan(q_output).any(), "diffusion should not contain nan"
+
+    # Do Normalization on the RHS
+    RHS = (0.5 * diffusion**2 * torch.sum(q_output**2, dim=(1, 2))).reshape(
+        -1, 1, 1
+    ) * nabla_phi_term - (0.5 * diffusion**2 * laplace_phi_term).reshape(
+        -1, 1, 1
+    ) * q_output
+
     assert not torch.isnan(LHS).any(), "LHS should not contain nan"
     assert not torch.isnan(RHS).any(), "RHS should not contain nan"
     # Clip the RHS values to be within a certain range to avoid very large values
