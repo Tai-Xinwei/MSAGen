@@ -1340,50 +1340,93 @@ class StackedSequenceIterableDataset(IterableDataset):
 
 
 if __name__ == "__main__":
+    from Bio import SeqIO
+    from Bio.Seq import Seq
+    from Bio.SeqRecord import SeqRecord
     from torch.utils.data import DataLoader, RandomSampler
+    from tqdm import tqdm
 
     class Namespace:
         def __init__(self, **kwargs):
             self.__dict__.update(kwargs)
 
-    print("=================")
-    print("Test DownstreamLMDBDataset")
-    new_args = Namespace()
-    new_args.max_length = 1024
-    for name in list(DownstreamLMDBDataset.TASKINFO.keys()):
-        new_args.data_basepath = "/mnta/yaosen/data/bfm_benchmark"
-        new_args.task_name = name
-        dsets = DownstreamLMDBDataset.load_dataset(new_args)
-        for dset in dsets.values():
-            print(len(dset))
-            print(len(set(dset.keys)))
-            data = dset[17]
-            for k, v in data.items():
-                print(
-                    f"'{k}': {v.shape if isinstance(v, np.ndarray) else v} of type {type(v)}"
-                )
-            break
-        print("=================")
+    def reverse2str(vocab, tokens):
+        idx_to_tok = {v: k for k, v in vocab.tok_to_idx.items()}
+        aaseq = []
+        for i in tokens:
+            if i in [
+                vocab.unk_idx,
+                vocab.padding_idx,
+                vocab.cls_idx,
+                vocab.mask_idx,
+                vocab.eos_idx,
+            ]:
+                continue
+            aaseq.append(idx_to_tok[i])
+        return "".join(aaseq)
 
-    print("Test BatchedDataDataset(DownstreamLMDBDataset)")
-    for name in list(DownstreamLMDBDataset.TASKINFO.keys()):
-        new_args.data_basepath = "/mnta/yaosen/data/bfm_benchmark"
-        new_args.task_name = name
-        dsets = DownstreamLMDBDataset.load_dataset(new_args)
-        for dset in dsets.values():
-            print(len(dset))
-            print(len(set(dset.keys)))
-            loader = DataLoader(
-                dset,
-                sampler=RandomSampler(dset),
-                batch_size=17,
-                collate_fn=dset.collate,
-                drop_last=True,
-            )
-            batch = next(iter(loader))
-            for k, v in batch.items():
-                print(
-                    f"'{k}': {v.shape if isinstance(v, (np.ndarray, torch.Tensor)) else v} of type {type(v)}"
+    args = Namespace()
+    args.data_basepath = "/mnta/yaosen/data/bfm_benchmark"
+    args.task_name = "solubility"
+    args.max_length = 2048
+
+    dsets = DownstreamLMDBDataset.load_dataset(args)
+    for name, dset in dsets.items():
+        seqrecords = []
+        for data in tqdm(dset):
+            name = data["name"]
+            aa = reverse2str(dset.vocab, data["aa"])
+            seqrecords.append(
+                SeqRecord(
+                    Seq(aa),
+                    id=name,
+                    description="",
                 )
-            break
-        print("=================")
+            )
+        SeqIO.write(
+            seqrecords,
+            Path(args.data_basepath) / f"{args.task_name}_{name}.fasta",
+            "fasta",
+        )
+
+    # print("=================")
+    # print("Test DownstreamLMDBDataset")
+    # new_args = Namespace()
+    # new_args.max_length = 1024
+    # for name in list(DownstreamLMDBDataset.TASKINFO.keys()):
+    #     new_args.data_basepath = "/mnta/yaosen/data/bfm_benchmark"
+    #     new_args.task_name = name
+    #     dsets = DownstreamLMDBDataset.load_dataset(new_args)
+    #     for dset in dsets.values():
+    #         print(len(dset))
+    #         print(len(set(dset.keys)))
+    #         data = dset[17]
+    #         for k, v in data.items():
+    #             print(
+    #                 f"'{k}': {v.shape if isinstance(v, np.ndarray) else v} of type {type(v)}"
+    #             )
+    #         break
+    #     print("=================")
+
+    # print("Test BatchedDataDataset(DownstreamLMDBDataset)")
+    # for name in list(DownstreamLMDBDataset.TASKINFO.keys()):
+    #     new_args.data_basepath = "/mnta/yaosen/data/bfm_benchmark"
+    #     new_args.task_name = name
+    #     dsets = DownstreamLMDBDataset.load_dataset(new_args)
+    #     for dset in dsets.values():
+    #         print(len(dset))
+    #         print(len(set(dset.keys)))
+    #         loader = DataLoader(
+    #             dset,
+    #             sampler=RandomSampler(dset),
+    #             batch_size=17,
+    #             collate_fn=dset.collate,
+    #             drop_last=True,
+    #         )
+    #         batch = next(iter(loader))
+    #         for k, v in batch.items():
+    #             print(
+    #                 f"'{k}': {v.shape if isinstance(v, (np.ndarray, torch.Tensor)) else v} of type {type(v)}"
+    #             )
+    #         break
+    #     print("=================")
