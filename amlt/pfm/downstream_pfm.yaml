@@ -3,6 +3,7 @@ description: bfm-finetune
 target:
     service: aml
     name: gcrarca100cl1
+    # name: sfm-nd96amsra100v4-uksouth
 
 # target:
 #     service: amlk8s
@@ -24,6 +25,10 @@ storage:
         storage_account_name: hai1data # Storage account
         container_name: pfm # Container name
         mount_dir: /blob
+    # blob:
+    #     storage_account_name: protein4uksouth
+    #     container_name: bfm
+    #     mount_dir: /blob
 
 code:
     local_dir: ../SFM_framework
@@ -31,7 +36,7 @@ code:
 
 # search:
 #     job_template:
-#         name: "finetune-regression-{task_name:s}_seed{seed:s}_lr{lr:s}_E{epochs:s}_bs{batch_size:s}_{run:s}"
+#         name: "finetune-regression-{task_name:s}_seed{seed:s}_lr{lr:s}_E{epochs:s}_bs{batch_size:s}_norm{label_normalize:s}_dp{dropout:s}_wd{weight_decay:s}_{run:s}"
 #         tags:
 #         - 'ProjectID: PRJ-0209-A40'
 #         sku: G16
@@ -47,9 +52,9 @@ code:
 #         - export atom_loss_coeff=1.0
 #         - export pos_loss_coeff=1.0
 #         - export sandwich_ln="true"
-#         - export dropout=0.1
-#         - export attn_dropout=0.1
-#         - export act_dropout=0.1
+#         - export dropout={dropout}
+#         - export attn_dropout={dropout}
+#         - export act_dropout={dropout}
 #         - export weight_decay=0.0
 #         - export droppath_prob=0.0
 #         - export max_num_aa=1024
@@ -68,21 +73,22 @@ code:
 #         - export gradient_accumulation_steps=1
 #         - export log_interval=10
 #         - export epochs={epochs}
-#         - export wandb_group=650MBFM-finetune
-#         - export wandb_team=icuppjin
-#         - export wandb_project=ds_mfmpre
-#         - export WANDB_RUN_NAME="finetune-{task_name}_seed{seed}_lr{lr}_E{epochs}_bs{batch_size}_{run}"
+#         - export wandb_group={run}
+#         # - export wandb_team=icuppjin
+#         - export wandb_project=bfm-ft
+#         - export WANDB_RUN_NAME="finetune-{task_name}_seed{seed}_lr{lr}_E{epochs}_bs{batch_size}_norm{label_normalize}_dp{dropout}_wd{weight_decay}_{run}"
 #         - export train_data_path="None"
 #         - export valid_data_path="None"
 #         - export data_basepath="/blob/data/bfm_benchmark"
 #         - export task_name={task_name}
-#         - export loadcheck_path=/blob/pfmexp/output/bfm650m_bpe3_maskspan3_ddp8e5d16mask020drop1_ln_pairv3_bert2_64A100_adam2/checkpoints/checkpoint_E39.pt
-#         - export save_dir=/blob/pfmexp/output/finetune/finetune-{task_name}_seed{seed}_lr{lr}_E{epochs}_bs{batch_size}_{run}
+#         # - export loadcheck_path=/blob/pfmexp/output/bfm650m_bpe3_maskspan3_ddp8e5d16mask020drop1_ln_pairv3_bert2_64A100_adam2/checkpoints/checkpoint_E39.pt
+#         - export loadcheck_path=/blob/pfmexp/output/bfm650m_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpepairv4_bert2_128A100_adam2/checkpoints/checkpoint_E63.pt
+#         - export save_dir=/blob/pfmexp/output/finetune/finetune-{task_name}_seed{seed}_lr{lr}_E{epochs}_bs{batch_size}_norm{label_normalize}_dp{dropout}_wd{weight_decay}_{run}
 #         - export early_stopping=true
-#         - export early_stopping_patience=10
+#         - export early_stopping_patience=20
 #         - export early_stopping_metric='spearmanr'
 #         - export early_stopping_mode='max'
-#         - export head_dropout=0.1
+#         - export head_dropout={dropout}
 #         - export label_normalize={label_normalize}
 #         - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
 #         - bash ./install/install.sh && bash ./install/install_megatron.sh
@@ -92,29 +98,35 @@ code:
 #                 shm_size: 1024g
 #     type: grid
 #     max_trials: 999
-#     parallel_trials: 1
+#     parallel_trials: 15
 #     params:
 #         - name: seed
 #           spec: discrete
 #           values: ["13", "21", "42",]
 #         - name: task_name
 #           spec: discrete
-#           values: ['stability'] # ['beta_lactamase', 'fluorescence', 'stability', ] # 'ppi_affinity']
+#           values: ['beta_lactamase'] #, 'fluorescence', 'stability', ] # 'ppi_affinity']
 #         - name: lr
 #           spec: discrete
-#           values: ["1e-4"]
+#           values: ["3e-6", "4e-6", "5e-6", "6e-6", "7e-6"]
 #         - name: run
 #           spec: discrete
-#           values: ["0108-test-run-650M-E40", ]
+#           values: ["0128-yaosen-650M-E63-hpsearch-beta", ]
 #         - name: epochs
 #           spec: discrete
 #           values: ["50", ]
 #         - name: batch_size
 #           spec: discrete
-#           values: ["64", ]
+#           values: ["16", "8"]
 #         - name: label_normalize
 #           spec: discrete
-#           values: ["true", ]
+#           values: ["false",]
+#         - name: dropout
+#           spec: discrete
+#           values: ["0.0", ]
+#         - name: weight_decay
+#           spec: discrete
+#           values: ["0.0", ]
 
 
 # search:
@@ -135,10 +147,10 @@ code:
 #         - export atom_loss_coeff=1.0
 #         - export pos_loss_coeff=1.0
 #         - export sandwich_ln="true"
-#         - export dropout=0.1
-#         - export attn_dropout=0.1
-#         - export act_dropout=0.1
-#         - export weight_decay=0.0
+#         - export dropout={dropout}
+#         - export attn_dropout={dropout}
+#         - export act_dropout={dropout}
+#         - export weight_decay={weight_decay}
 #         - export droppath_prob=0.0
 #         - export max_num_aa=1024
 #         - export noise_mode=diff
@@ -164,13 +176,15 @@ code:
 #         - export valid_data_path="None"
 #         - export data_basepath="/blob/data/bfm_benchmark"
 #         - export task_name={task_name}
-#         - export loadcheck_path=/blob/pfmexp/output/bfm650m_bpe3_maskspan3_ddp8e5d16mask020drop1_ln_pairv3_bert2_64A100_adam2/checkpoints/checkpoint_E39.pt
+#         # - export loadcheck_path=/blob/pfmexp/output/bfm650m_bpe3_maskspan3_ddp8e5d16mask020drop1_ln_pairv3_bert2_64A100_adam2/checkpoints/checkpoint_E48.pt
+#         # - export loadcheck_path=/blob/pfmexp/output/bfm650m_maskspan1_ddp4e5d8mask020drop1L1536_pairv4_bert2_128V100_adam2/checkpoints/checkpoint_E23.pt
+#         - export loadcheck_path=/blob/pfmexp/output/bfm650m_maskspan1_ddp4e5d8mask020drop1L1536_pairv4_bert2_128V100_adam2/checkpoints/checkpoint_E25E35E45.pt
 #         - export save_dir=/blob/pfmexp/output/finetune/finetune-{task_name}_seed{seed}_lr{lr}_E{epochs}_bs{batch_size}_{run}
 #         - export early_stopping=true
 #         - export early_stopping_patience=10
 #         - export early_stopping_metric='binary_accuracy'
 #         - export early_stopping_mode='max'
-#         - export head_dropout=0.1
+#         - export head_dropout={dropout}
 #         - export label_normalize={label_normalize}
 #         - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
 #         - bash ./install/install.sh && bash ./install/install_megatron.sh
@@ -180,29 +194,35 @@ code:
 #                 shm_size: 1024g
 #     type: grid
 #     max_trials: 999
-#     parallel_trials: 1
+#     parallel_trials: 6
 #     params:
 #         - name: seed
 #           spec: discrete
 #           values: ["13", "21", "42",]
 #         - name: task_name
 #           spec: discrete
-#           values: ['solubility'] # ['solubility', 'subcellular_localization_2', 'human_ppi', 'yeast_ppi']
+#           values: ['human_ppi', 'yeast_ppi'] # ['solubility', 'subcellular_localization_2', 'human_ppi', 'yeast_ppi']
 #         - name: lr
 #           spec: discrete
-#           values: ["1e-4"]
+#           values: ["1e-5", ]
 #         - name: run
 #           spec: discrete
-#           values: ["0108-test-run-650M-E40", ]
+#           values: ["0119-yaosen-650M-E25E35E45-1e-5-bs8-ppi-E50-p10-try", ]
 #         - name: epochs
 #           spec: discrete
 #           values: ["50", ]
 #         - name: batch_size
 #           spec: discrete
-#           values: ["64", ]
+#           values: ["8", ]
 #         - name: label_normalize
 #           spec: discrete
 #           values: ["false", ]
+#         - name: dropout
+#           spec: discrete
+#           values: ["0.2", "0.5"]
+#         - name: weight_decay
+#           spec: discrete
+#           values: ["1e-5", "5e-5"]
 
 
 # search:
@@ -275,13 +295,13 @@ code:
 #           values: ["13", "21", "42",]
 #         - name: task_name
 #           spec: discrete
-#           values: ['subcellular_localization'] # ['subcellular_localization', 'remote_homology_fold', ]
+#           values: ['subcellular_localization',] # ['subcellular_localization', 'remote_homology_fold', ]
 #         - name: lr
 #           spec: discrete
 #           values: ["1e-4"]
 #         - name: run
 #           spec: discrete
-#           values: ["0108-test-run-650M-E40", ]
+#           values: ["0111-yaosen-650M-E40", ]
 #         - name: epochs
 #           spec: discrete
 #           values: ["50", ]
@@ -295,26 +315,36 @@ code:
 
 # search:
 #     job_template:
-#         name: "finetune-multi_classification-{task_name:s}_seed{seed:s}_lr{lr:s}_E{epochs:s}_bs{batch_size:s}_{run:s}"
+#         name: "finetune-multi_classification-{task_name:s}_seed{seed:s}_lr{lr:s}_E{epochs:s}_bs{batch_size:s}_dropout{dropout:s}_weightdecay{weight_decay:s}_{run:s}"
 #         tags:
 #         - 'ProjectID: PRJ-0209-A40'
-#         sku: G16
+#         sku: G8
 #         mpi: true
 #         process_count_per_node: 1
 #         command:
 #         - export seed={seed}
-#         - export layers=33
-#         - export hidden_size=1280
-#         - export ffn_size=5120
-#         - export num_head=20
+#         # - export layers=12
+#         # - export hidden_size=1024
+#         # - export ffn_size=2048
+#         # - export num_head=16
+#         #
+#         # - export layers=33
+#         # - export hidden_size=1280
+#         # - export ffn_size=5120
+#         # - export num_head=20
+#         #
+#         - export layers=36
+#         - export hidden_size=2560
+#         - export ffn_size=10240
+#         - export num_head=40
 #         - export num_pred_attn_layer=2
 #         - export atom_loss_coeff=1.0
 #         - export pos_loss_coeff=1.0
 #         - export sandwich_ln="true"
-#         - export dropout=0.1
-#         - export attn_dropout=0.1
-#         - export act_dropout=0.1
-#         - export weight_decay=0.0
+#         - export dropout={dropout}
+#         - export attn_dropout={dropout}
+#         - export act_dropout={dropout}
+#         - export weight_decay={weight_decay}
 #         - export droppath_prob=0.0
 #         - export max_num_aa=1024
 #         - export noise_mode=diff
@@ -332,21 +362,20 @@ code:
 #         - export gradient_accumulation_steps=1
 #         - export log_interval=10
 #         - export epochs={epochs}
-#         - export wandb_group=650MBFM-finetune
-#         - export wandb_team=icuppjin
-#         - export wandb_project=ds_mfmpre
-#         - export WANDB_RUN_NAME="finetune-{task_name}_seed{seed}_lr{lr}_E{epochs}_bs{batch_size}_{run}"
+#         - export wandb_group={task_name}_{run}
+#         - export wandb_project=bfm-ft
+#         - export WANDB_RUN_NAME="{task_name}_seed{seed}_lr{lr}_E{epochs}_bs{batch_size}_dropout{dropout}_weightdecay{weight_decay}_{run}"
 #         - export train_data_path="None"
 #         - export valid_data_path="None"
 #         - export data_basepath="/blob/data/bfm_benchmark"
 #         - export task_name={task_name}
-#         - export loadcheck_path=/blob/pfmexp/output/bfm650m_bpe3_maskspan3_ddp8e5d16mask020drop1_ln_pairv3_bert2_64A100_adam2/checkpoints/checkpoint_E39.pt
-#         - export save_dir=/blob/pfmexp/output/finetune/finetune-{task_name}_seed{seed}_lr{lr}_E{epochs}_bs{batch_size}_{run}
+#         - export loadcheck_path=/blob/pfmexp/output/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2/checkpoints/checkpoint_E23.pt
+#         - export save_dir=/blob/pfmexp/output/finetune/finetune-{task_name}_seed{seed}_lr{lr}_E{epochs}_bs{batch_size}_dropout{dropout}_{run}
 #         - export early_stopping=true
 #         - export early_stopping_patience=10
 #         - export early_stopping_metric='f1_max'
 #         - export early_stopping_mode='max'
-#         - export head_dropout=0.1
+#         - export head_dropout={dropout}
 #         - export label_normalize={label_normalize}
 #         - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
 #         - bash ./install/install.sh && bash ./install/install_megatron.sh
@@ -356,26 +385,32 @@ code:
 #                 shm_size: 1024g
 #     type: grid
 #     max_trials: 999
-#     parallel_trials: 1
+#     parallel_trials: 12
 #     params:
+#         - name: task_name
+#           spec: discrete
+#           values: ['EnzymeCommission', 'GeneOntology_mf', 'GeneOntology_bp', 'GeneOntology_cc'] # ['EnzymeCommission', 'GeneOntology_mf', 'GeneOntology_bp', 'GeneOntology_cc']
 #         - name: seed
 #           spec: discrete
 #           values: ["13", "21", "42",]
-#         - name: task_name
-#           spec: discrete
-#           values: ['EnzymeCommission'] # ['EnzymeCommission', 'GeneOntology_mf', 'GeneOntology_bp', 'GeneOntology_cc']
 #         - name: lr
 #           spec: discrete
-#           values: ["1e-4"]
+#           values: ["1e-5", ]
 #         - name: run
 #           spec: discrete
-#           values: ["0108-test-run-650M-E40", ]
+#           values: ["0206-3B-E23-arca100-E100", ]
 #         - name: epochs
 #           spec: discrete
-#           values: ["50", ]
+#           values: ["100", ]
 #         - name: batch_size
 #           spec: discrete
-#           values: ["64", ]
+#           values: ["16",]
 #         - name: label_normalize
 #           spec: discrete
 #           values: ["false", ]
+#         - name: dropout
+#           spec: discrete
+#           values: ["0.3",]
+#         - name: weight_decay
+#           spec: discrete
+#           values: ["0.0", ]

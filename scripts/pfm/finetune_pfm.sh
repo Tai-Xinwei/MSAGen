@@ -162,6 +162,7 @@ fi
 
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm_v2.py \
+          --ifresume \
           --task_name $task_name \
           --data_basepath $data_basepath \
           --loadcheck_path $loadcheck_path \
@@ -198,6 +199,13 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm_v2.py \
           --calculate_metrics \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
+RESULT=$?
+if [ $RESULT -eq 0 ]; then
+  echo "Training finished successfully"
+else
+  echo "Training finished with error, not continue"
+  exit 1
+fi
 
 strategy=Single
 python sfm/tasks/pfm/test_pfm_v2.py \
