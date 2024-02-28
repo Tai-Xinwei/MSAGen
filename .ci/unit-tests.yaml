@@ -4,7 +4,13 @@
 # https://aka.ms/yaml
 
 trigger:
-- main
+  batch: true
+  branches:
+    include:
+    - main
+  tags:
+    include:
+      - refs/tags/v*
 pr:
 - main
 
@@ -27,9 +33,19 @@ steps:
     path: $(CONDA_ENV_DIR)
   displayName: Cache Conda environment
 
+- bash: |
+    # Note: build ids are not allowed to contain slashes
+    if [ "$BUILD_REASON" == "PullRequest" ]; then
+      NAME=${SYSTEM_PULLREQUEST_SOURCEBRANCH//[\/]/-}
+      NAME=${NAME//refs-heads/}
+    else
+      NAME=${BUILD_SOURCEBRANCHNAME//[\/]/-}
+    fi
+    echo "##vso[build.updatebuildnumber]$BUILD_BUILDID-$NAME"
+  displayName: Rename Build
 
 # Install and run unit tests
-- script: |
+- bash: |
     # Check if the cached environment exists and if not, create it
     if [ ! -d "$(CONDA_ENV_DIR)/$(CONDA_ENV_NAME)" ]; then
       conda create -y -n $(CONDA_ENV_NAME) python=3.9
@@ -50,3 +66,22 @@ steps:
     python setup_cython.py build_ext --inplace
     pytest tests/
   displayName: 'Install and run unit tests'
+- bash: |
+    eval "$(conda shell.bash hook)"
+    conda activate $(CONDA_ENV_DIR)/$(CONDA_ENV_NAME)
+    pip install setuptools-scm check-manifest
+    python -m check_manifest
+    python setup.py sdist bdist_wheel
+  displayName: 'Create source package'
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: sdist package'
+  inputs:
+    PathtoPublish: dist
+    ArtifactName: dist
+  # only publish the artifact if we built for the nightly branch (scheduled) or a tag
+  condition: >-
+      and(
+        succeeded(),
+        or(
+          eq(variables['Build.Reason'], 'Schedule'),
+          startsWith(variables['Build.SourceBranch'], 'refs/tags/')))

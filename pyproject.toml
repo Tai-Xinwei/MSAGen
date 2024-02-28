@@ -1,10 +1,9 @@
 [build-system]
-requires = ["setuptools>=61.0", "numpy", "Cython==0.29.32"]
+requires = ["setuptools>=61.0", "numpy", "Cython==0.29.32", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "a4sframework"
-version = "0.1.0"
 authors = [
   { name="MSRA4S" },
 ]
@@ -41,6 +40,8 @@ dependencies = [
   'biopython',
   'torch==2.1.0'
 ]
+
+dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [

@@ -1,3 +1,29 @@
 include sfm/data/mol_data/algos.pyx
 include sfm/data/data_utils_fast.pyx
 include requirements/requirements.txt
+
+# added by check-manifest
+exclude *.bk
+include *.py
+include *.yaml
+include *.yml
+exclude .isort.cfg
+exclude apex
+exclude tox.ini
+recursive-exclude amlt *
+recursive-exclude config_file *
+recursive-exclude docs *
+recursive-exclude install *
+recursive-exclude megatron *
+recursive-include requirements *.txt
+recursive-exclude scripts *
+recursive-include sfm *.json
+recursive-include sfm *.py
+recursive-include sfm *.txt
+recursive-exclude sfm *.md
+recursive-exclude sfm *.c
+recursive-exclude tests *
+recursive-exclude tools *
+recursive-exclude .ci *
+exclude .gitmodules
+exclude .amltignore
