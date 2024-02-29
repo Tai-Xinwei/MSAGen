@@ -181,6 +181,11 @@ class TrainerConfig:
     # validate
     calculate_metrics: bool = False
 
+    # profiler
+    profiling: bool = False
+    prof_dir: str = "./prof"
+    ptensorboard: bool = False
+
     def __str__(self):
         return (
             "Config[\n"
