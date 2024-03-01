@@ -28,6 +28,6 @@ For example, to create and activate a conda environment with Python3.9
 .. code::
 
     git clone --recursive git@github.com:msr-ai4science/feynman.git
-    cd feynman/projects/SFM/experimental/SFM_framework/install
-    bash install.sh
-    bash install_megatron.sh
+    cd feynman/projects/SFM/experimental/SFM_framework
+    bash install/install.sh
+    bash install/install_megatron.sh

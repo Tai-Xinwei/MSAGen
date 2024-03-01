@@ -39,4 +39,12 @@ DEFAULT_DS_CONFIG = {
         "group": "yourgroup",
         "project": "yourproject",
     },
+    "flops_profiler": {
+        "enabled": False,
+        "profile_step": 1,
+        "module_depth": -1,
+        "top_modules": 1,
+        "detailed": True,
+        "output_file": None,
+    },
 }

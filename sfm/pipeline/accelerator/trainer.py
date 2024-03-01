@@ -4,6 +4,7 @@ import os
 import random
 import shutil
 import time
+from contextlib import nullcontext
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Optional, Union
@@ -282,6 +283,12 @@ class Trainer(object):
         self.world_size = self.accelerator.world_size
         self.start_iteration = 0
 
+        if args.profiling:
+            assert torch.cuda.is_available(), "Profiling only works on GPU trainings"
+            self.prof_dir = Path(args.prof_dir)
+            self.prof_dir.mkdir(exist_ok=True)
+            self.prof = self.profiler_init()
+
     def save_checkpoint(self, name: str, state: Union[TrainerState, dict]):
         if isinstance(state, TrainerState):
             self.accelerator.save_checkpoint(name, asdict(state))
@@ -480,130 +487,145 @@ class Trainer(object):
             trainable_num,
         )
 
-        while (
-            self.state.epoch < self.args.total_num_epochs
-            and self.state.global_step < self.args.total_num_steps
-        ):
-            self.accelerator.before_epoch(self.state.epoch)
+        with self.prof if self.args.profiling else nullcontext() as prof:
+            while (
+                self.state.epoch < self.args.total_num_epochs
+                and self.state.global_step < self.args.total_num_steps
+            ):
+                self.accelerator.before_epoch(self.state.epoch)
 
-            logger.info("Start Training for epoch: {}", self.state.epoch)
+                logger.info("Start Training for epoch: {}", self.state.epoch)
 
-            loss_accumulator = LossAccumulator()
-            interval_loss_accumulator = LogAccumulator(
-                self.accelerator.world_size, self.accelerator._allreducelog
-            )
+                loss_accumulator = LossAccumulator()
+                interval_loss_accumulator = LogAccumulator(
+                    self.accelerator.world_size, self.accelerator._allreducelog
+                )
 
-            # skip first batches
-            data_iterator = iter(self.train_data_loader)
-            data_iterator = self.skip_first_batches(data_iterator, self.start_iteration)
-            try:
-                for grouped_batch_data in data_iterator:
-                    model_output = self.accelerator.train_step(grouped_batch_data)
-                    loss_accumulator.add(model_output.loss, model_output.num_examples)
-                    interval_loss_accumulator.add(
-                        model_output.loss,
-                        model_output.num_examples,
-                        model_output.log_output,
-                    )
-
-                    # Log and save checkpoint
-                    self.state.batch += 1
-                    self.state.global_step += 1
-                    self.state.sample += model_output.num_examples
-
-                    if self.should_do_batch_validate():
-                        self.validate()
-
-                    if self.should_log():
-                        log_output = self.build_log_output(
-                            # model_output.loss, model_output.log_output
-                            interval_loss_accumulator.averge_loss,
-                            interval_loss_accumulator.averge_log,
+                # skip first batches
+                data_iterator = iter(self.train_data_loader)
+                data_iterator = self.skip_first_batches(
+                    data_iterator, self.start_iteration
+                )
+                try:
+                    for grouped_batch_data in data_iterator:
+                        with torch.profiler.record_function("accelerator.train_step"):
+                            model_output = self.accelerator.train_step(
+                                grouped_batch_data
+                            )
+                        loss_accumulator.add(
+                            model_output.loss, model_output.num_examples
                         )
-                        interval_loss_accumulator.reset()
-                        metric_logger.log(log_output, "train_inner")
-
-                    if self.should_save_batch_checkpoint():
-                        checkpoint_name = (
-                            f"checkpoint_E{self.state.epoch}_B{self.state.batch}.pt"
+                        interval_loss_accumulator.add(
+                            model_output.loss,
+                            model_output.num_examples,
+                            model_output.log_output,
                         )
-                        self.save_checkpoint(checkpoint_name, self.state)
-            except StopIteration:
-                logger.info("StopIteration")
-                pass
 
-            self.state.batch = 0
+                        # Log and save checkpoint
+                        self.state.batch += 1
+                        self.state.global_step += 1
+                        self.state.sample += model_output.num_examples
 
-            log_output = self.build_log_output(loss_accumulator.averge_loss)
-            metric_logger.log(log_output, "train")
+                        if self.should_do_batch_validate():
+                            self.validate()
 
-            if self.should_do_epoch_validate():
-                valid_log = self.validate()
-            else:
-                valid_log = None
+                        if self.should_log():
+                            log_output = self.build_log_output(
+                                # model_output.loss, model_output.log_output
+                                interval_loss_accumulator.averge_loss,
+                                interval_loss_accumulator.averge_log,
+                            )
+                            interval_loss_accumulator.reset()
+                            metric_logger.log(log_output, "train_inner")
 
-            self.accelerator.barrier()
-            if self.should_save_epoch_checkpoint():
-                checkpoint_name = f"checkpoint_E{self.state.epoch}.pt"
-                self.state.epoch += 1
-                self.save_checkpoint(checkpoint_name, self.state)
-                self.state.epoch -= 1
+                        if self.should_save_batch_checkpoint():
+                            checkpoint_name = (
+                                f"checkpoint_E{self.state.epoch}_B{self.state.batch}.pt"
+                            )
+                            self.save_checkpoint(checkpoint_name, self.state)
 
-            # if use early stopping
-            if self.args.early_stopping:
-                if valid_log is None:
-                    logger.warning(
-                        "No validation log is available, early stopping is set but not not used in this epoch."
-                    )
+                        if self.args.profiling:
+                            prof.step()
+                except StopIteration:
+                    logger.info("StopIteration")
+                    pass
+
+                self.state.batch = 0
+
+                log_output = self.build_log_output(loss_accumulator.averge_loss)
+                metric_logger.log(log_output, "train")
+
+                if self.should_do_epoch_validate():
+                    valid_log = self.validate()
                 else:
-                    value = getattr(valid_log, self.early_stopping.metric, None)
-                    if value is None:
-                        value = valid_log.extra_output.get(
-                            self.early_stopping.metric, None
-                        )
-                    if value is None:
+                    valid_log = None
+
+                self.accelerator.barrier()
+                if self.should_save_epoch_checkpoint():
+                    checkpoint_name = f"checkpoint_E{self.state.epoch}.pt"
+                    self.state.epoch += 1
+                    self.save_checkpoint(checkpoint_name, self.state)
+                    self.state.epoch -= 1
+
+                # if use early stopping
+                if self.args.early_stopping:
+                    if valid_log is None:
                         logger.warning(
-                            f"Metric {self.early_stopping.metric} is not available in the validation log, early stopping is set but not not used in this epoch."
+                            "No validation log is available, early stopping is set but not not used in this epoch."
                         )
-                    # update early stopping and save stop flag
-                    should_stop = self.early_stopping(value)
-                    # just updated or the first epoch, update the best checkpoint
-                    if self.early_stopping.counter == 0:
-                        if self.args.strategy in [
-                            TrainStrategy.DDP,
-                            TrainStrategy.Single,
-                        ]:
-                            best_ckpt_path = (
-                                Path(self.args.save_dir)
-                                / f"checkpoint_E{self.early_stopping.best_at}.pt"
+                    else:
+                        value = getattr(valid_log, self.early_stopping.metric, None)
+                        if value is None:
+                            value = valid_log.extra_output.get(
+                                self.early_stopping.metric, None
                             )
-                        elif self.args.strategy in [
-                            TrainStrategy.Zero1,
-                            TrainStrategy.Zero2,
-                            TrainStrategy.Zero3,
-                        ]:
-                            best_ckpt_path = (
-                                Path(self.args.save_dir)
-                                / f"global_step{self.state.global_step}/mp_rank_00_model_states.pt"
+                        if value is None:
+                            logger.warning(
+                                f"Metric {self.early_stopping.metric} is not available in the validation log, early stopping is set but not not used in this epoch."
                             )
-                        shutil.copy(
-                            best_ckpt_path,
-                            Path(self.args.save_dir) / "checkpoint_best.pt",
-                        )
-                    if should_stop:
+                        # update early stopping and save stop flag
+                        should_stop = self.early_stopping(value)
+                        # just updated or the first epoch, update the best checkpoint
+                        if self.early_stopping.counter == 0:
+                            if self.args.strategy in [
+                                TrainStrategy.DDP,
+                                TrainStrategy.Single,
+                            ]:
+                                best_ckpt_path = (
+                                    Path(self.args.save_dir)
+                                    / f"checkpoint_E{self.early_stopping.best_at}.pt"
+                                )
+                            elif self.args.strategy in [
+                                TrainStrategy.Zero1,
+                                TrainStrategy.Zero2,
+                                TrainStrategy.Zero3,
+                            ]:
+                                best_ckpt_path = (
+                                    Path(self.args.save_dir)
+                                    / f"global_step{self.state.global_step}/mp_rank_00_model_states.pt"
+                                )
+                            shutil.copy(
+                                best_ckpt_path,
+                                Path(self.args.save_dir) / "checkpoint_best.pt",
+                            )
+                        if should_stop:
+                            logger.info(
+                                f"Early stopping at epoch {self.state.epoch}, exiting training loop, copying best model to checkpoint_best.pt."
+                            )
+                            break
+
                         logger.info(
-                            f"Early stopping at epoch {self.state.epoch}, exiting training loop, copying best model to checkpoint_best.pt."
+                            f"Best {self.early_stopping.metric} is {self.early_stopping.best} at epoch {self.early_stopping.best_at}, "
+                            f"not improving over past {self.early_stopping.counter} epochs. "
                         )
-                        break
 
-                    logger.info(
-                        f"Best {self.early_stopping.metric} is {self.early_stopping.best} at epoch {self.early_stopping.best_at}, "
-                        f"not improving over past {self.early_stopping.counter} epochs. "
-                    )
+                self.state.epoch += 1
 
-            self.state.epoch += 1
+            self.model.after_training()
 
-        self.model.after_training()
+        # profiling results
+        if self.args.profiling:
+            self.profiler_end(self.prof)
 
         logger.info("Finished Training")
 
@@ -792,3 +814,65 @@ class Trainer(object):
 
             self.start_iteration = 0
             return data_iterator
+
+    def profiler_init(self) -> torch.profiler.profile:
+        # Torch profiler ReadMe: https://pytorch.org/tutorials/recipes/recipes/profiler_recipe.html
+        return torch.profiler.profile(
+            activities=[
+                torch.profiler.ProfilerActivity.CPU,
+                torch.profiler.ProfilerActivity.CUDA,
+            ],
+            schedule=torch.profiler.schedule(
+                wait=1, warmup=1, active=8, repeat=9, skip_first=0
+            ),
+            # custom profiling results (TB in Torch ReadMe:)
+            # https://github.com/pytorch/kineto/blob/main/tb_plugin/README.md
+            on_trace_ready=torch.profiler.tensorboard_trace_handler(
+                str(self.prof_dir / "tensorboard")
+            )
+            if self.args.ptensorboard
+            else self.custom_trace_handler,
+            record_shapes=True,
+            profile_memory=True,
+            with_stack=True,
+            with_flops=True,
+            with_modules=True,
+        )
+
+    def custom_trace_handler(self, prof: torch.profiler.profile) -> None:
+        prof.export_chrome_trace(str(self.prof_dir / "profiler_chrome.json"))
+        """
+        stack export is not working as of 21.02.24:
+        https://github.com/pytorch/pytorch/issues/100253
+        """
+        prof.export_stacks(
+            str(self.prof_dir / "profiler_stacks.txt"), metric="self_cuda_time_total"
+        )
+        logger.info("Profiler called a trace.")
+
+    def profiler_end(self, prof: torch.profiler.profile) -> None:
+        if self.args.rank == 0:
+            with (self.prof_dir / "profiler_list.dat").open(
+                "w", encoding="utf-8"
+            ) as outT:
+                outT.write(
+                    f"Profiler results:\n{prof.key_averages().table(sort_by='self_cuda_time_total', row_limit=-1)}"
+                )
+                outT.write(
+                    "\n--------------------------------------------------------\n"
+                )
+                outT.write(
+                    f"Memory requirement: {str(int(torch.cuda.max_memory_reserved(self.args.rank)/1024/1024))} MB"
+                )
+                outT.write(
+                    "\n--------------------------------------------------------\n"
+                )
+                outT.write(
+                    f"Memory summary:\n{str(torch.cuda.memory_summary(self.args.rank))}"
+                )
+            print(
+                prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1)
+            )
+        logger.info(
+            f"Memory summary:\n{str(torch.cuda.memory_summary(self.args.rank))}"
+        )

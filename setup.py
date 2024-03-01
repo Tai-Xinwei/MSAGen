@@ -4,6 +4,7 @@ import subprocess
 import sys
 
 import numpy
+import setuptools_scm
 from Cython.Build import cythonize
 from setuptools import Extension, find_packages, setup
 from setuptools.command import egg_info
@@ -13,6 +14,8 @@ def fetch_requirements(path):
     with open(path, "r") as fd:
         return [r.strip() for r in fd.readlines()]
 
+
+__version__ = setuptools_scm.get_version()
 
 install_requires = fetch_requirements("requirements/requirements.txt")
 
@@ -24,7 +27,7 @@ cython_extensions = ["sfm/data/mol_data/algos.pyx", "sfm/data/data_utils_fast.py
 
 setup(
     name="a4sframework",
-    version="0.1.0",
+    version=__version__,
     description="A4S Framework",
     author="MSR A4S team",
     author_email="sfm.core@microsoft.com",
