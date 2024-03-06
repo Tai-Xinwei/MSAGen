@@ -8,17 +8,17 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${layers}" ] && layers=12
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
+[ -z "${no_blocks}" ] && no_blocks=4
 [ -z "${hidden_size}" ] && hidden_size=768
 [ -z "${ffn_size}" ] && ffn_size=3072
 [ -z "${num_head}" ] && num_head=8
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=8
 [ -z "${max_length}" ] && max_length=256
-[ -z "${max_tokens}" ] && max_tokens=3000
 
-[ -z "${dropout}" ] && dropout=0.1
+[ -z "${dropout}" ] && dropout=0.0
 [ -z "${act_dropout}" ] && act_dropout=0.1
 [ -z "${attn_dropout}" ] && attn_dropout=0.1
 [ -z "${weight_decay}" ] && weight_decay=0.0
@@ -26,40 +26,43 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
-[ -z "${lamb_pde}" ] && lamb_pde=0.01
-# [ -z "${seq_masking_method}" ] && seq_masking_method=continuousMask
-[ -z "${seq_masking_method}" ] && seq_masking_method=transformerM
-
-[ -z "${mask_ratio}" ] && mask_ratio=0.5
+[ -z "${mask_ratio}" ] && mask_ratio=0.0
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=1e-4
-[ -z "${total_num_steps}" ] && total_num_steps=2000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
-[ -z "${train_batch_size}" ] && train_batch_size=1024
-[ -z "${val_batch_size}" ] && val_batch_size=1024
+[ -z "${max_lr}" ] && max_lr=4e-5
+[ -z "${total_num_steps}" ] && total_num_steps=1000000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=600
+[ -z "${train_batch_size}" ] && train_batch_size=256
+[ -z "${max_tokens}" ] && max_tokens=2048
+[ -z "${val_batch_size}" ] && val_batch_size=256
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
-[ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=20
-[ -z "${epochs}" ] && epochs=1000
+[ -z "${log_interval}" ] && log_interval=100
+[ -z "${epochs}" ] && epochs=100
+[ -z "${seed}" ] && seed=42
 
-[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-# [ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${strategy}" ] && strategy=Zero1
 
-# [ -z "${data_path}" ] && data_path='/fastdata/peiran/bfm/48organism1m.lmdb/'
-# [ -z "${data_path}" ] && data_path='/mnt/protein/48organism1m.lmdb'
+[ -z "${train_data_path}" ] && train_data_path='None'
+[ -z "${valid_data_path}" ] && valid_data_path='None'
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1261_m5_bs256_ddpmnoise_score/global_step19787/'
+[ -z "${task_name}" ] && task_name="subcellular_localization"
+[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1261_m5_bs256_ddpmnoise_score/global_step19787/mp_rank_00_model_states.pt'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1261_m5_bs256_ddpmnoise_score/'
-[ -z "${loadcheck_path}" ] && loadcheck_path='.'
-# [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
+[ -z "${early_stopping}" ] && early_stopping=true
+[ -z "${early_stopping_patience}" ] && early_stopping_patience=5
+[ -z "${early_stopping_metric}" ] && early_stopping_metric='f1_max'
+[ -z "${early_stopping_mode}" ] && early_stopping_mode='min'
+[ -z "${head_dropout}" ] && head_dropout=0.1
+[ -z "${label_normalize}" ] && label_normalize=false
+
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=bfmdiff
+[ -z "${wandb_group}" ] && wandb_group=bfmdifffold
 [ -z "${wandb_team}" ] && wandb_team=peiranjin
 [ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
 
@@ -68,7 +71,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_PORT}" ] && MASTER_PORT=62347
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
-
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -142,40 +144,57 @@ else
   fi
 fi
 
-echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
+# if early_stop is false, then early_stop_args is empty
+if [[ "${early_stopping}" == "false" ]]
+then
+  early_stop_args=""
+else
+  early_stop_args="--early_stopping --early_stopping_patience $early_stopping_patience \
+                   --early_stopping_metric $early_stopping_metric \
+                   --early_stopping_mode $early_stopping_mode"
+fi
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
+if [[ "${label_normalize}" == "false" ]]
+then
+  label_normalize_args=""
+else
+  label_normalize_args="--label_normalize"
+fi
+
+
+torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/finetune_toxfold.py \
+          --task_name $task_name \
+          --data_path $data_path \
+          --loadcheck_path $loadcheck_path \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
           --encoder_ffn_embed_dim $ffn_size \
           --encoder_embed_dim $hidden_size \
+          --c_s $hidden_size --c_z $((hidden_size/4)) \
           --droppath_prob $droppath_prob \
           --attn_dropout $attn_dropout \
           --num_3d_bias_kernel $num_3d_bias_kernel \
           --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
           --sandwich_ln \
           --dataset_names $dataset_name \
-          --data_path $data_path \
+          --valid_data_path $valid_data_path \
+          --train_data_path $train_data_path \
           --save_dir $save_dir \
-          --seed 666666 \
-          --add_3d \
+          --seed $seed \
+          --no_blocks $no_blocks \
+          --ft --add_3d \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
           --d_tilde $d_tilde \
           --strategy $strategy \
           --max_lr $max_lr \
-          --t_timesteps 1000 \
-          --seq_masking_method $seq_masking_method \
           --mode_prob $mode_prob --noise_mode $noise_mode\
           --total_num_steps $total_num_steps \
           --warmup_num_steps $warmup_num_steps \
-          --train_batch_size $train_batch_size --val_batch_size $val_batch_size --max_length $max_length \
+          --train_batch_size $train_batch_size --val_batch_size $val_batch_size \
+          --max_tokens $max_tokens --max_length $max_length \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
-
-sleep inf
-sleep inf
-sleep inf

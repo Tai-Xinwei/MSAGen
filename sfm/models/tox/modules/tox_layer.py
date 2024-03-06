@@ -388,7 +388,7 @@ class Mix3DEmbeddingV2(nn.Module):
         # inter_dim = embed_dim // 2
         # self.trans_pos = TransNet(3, embed_dim)
         # self.trans_feat = TransNet(embed_dim, embed_dim)
-        # self.pos_emb = NonLinear(3, embed_dim // 2)
+        # self.pos_emb = NonLinear(3, embed_dim)
         self.angle_emb = NonLinear(3, embed_dim)
 
         self.time_embedding = TimeStepEncoder(
@@ -397,6 +397,8 @@ class Mix3DEmbeddingV2(nn.Module):
             timestep_emb_type=time_embedding_type,
             mlp=time_embedding_mlp,
         )
+
+        self.inf_angle_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
 
     def forward(
         self,
@@ -410,17 +412,23 @@ class Mix3DEmbeddingV2(nn.Module):
         time_angle,
     ):
         angle = angle.to(self.angle_emb.layer1.weight.dtype)
-
+        # bs = angle.shape[0]
+        # angle = angle.view(bs, -1, 1)
+        # angle_mask = angle == float("inf")
+        # angle = angle.masked_fill(angle_mask, 0.0)
+        # angle_feat = self.angle_emb(angle)
+        # angle_feat = torch.where(angle_mask, self.inf_angle_embedding.weight, angle_feat)
+        # node6dfeature = torch.sum(angle_feat.view(bs, -1, 3, self.embed_dim).transpose(2, 3), dim=-1)
+        angle = angle[:, :, :3]
         angle_feat = self.angle_emb(angle)
-
         node6dfeature = angle_feat
 
-        if time_pos is not None and mask_pos is not None:
+        if time_pos is not None and mask_angle is not None:
             time_embedding_pos = self.time_embedding(time_pos).unsqueeze(1)
             t0 = torch.zeros_like(time_pos).to(time_pos)
             t0_emb = self.time_embedding(t0).unsqueeze(1)
             time_embedding_pos = torch.where(
-                mask_pos.bool(), time_embedding_pos, t0_emb
+                mask_angle.bool(), time_embedding_pos, t0_emb
             )
             node6dfeature = node6dfeature + time_embedding_pos
 

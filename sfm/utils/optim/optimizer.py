@@ -61,7 +61,7 @@ def process_param(
                             logger.success(f"unfreeze layer: {name}")
 
     elif len(freeze_list) > 0:
-        freeze_list, freeze_layer_name_list = split_param_and_layer_name(unfreeze_list)
+        freeze_list, freeze_layer_name_list = split_param_and_layer_name(freeze_list)
         for name, param in net.named_parameters():
             nl = int(name.split(".")[0])
             if nl in freeze_layer_name_list:

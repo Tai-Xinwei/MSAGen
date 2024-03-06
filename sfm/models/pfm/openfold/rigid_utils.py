@@ -709,11 +709,7 @@ class Rotation:
 
         return Rotation(rot_mats=rot_mats, quats=None)
 
-    def map_tensor_fn(
-        self,
-        # fn: Callable[torch.Tensor, torch.Tensor]
-        fn: Callable[..., torch.Tensor],
-    ) -> Rotation:
+    def map_tensor_fn(self, fn: Callable[torch.Tensor, torch.Tensor]) -> Rotation:
         """
         Apply a Tensor -> Tensor function to underlying rotation tensors,
         mapping over the rotation dimension(s). Can be used e.g. to sum out
@@ -983,6 +979,16 @@ class Rigid:
         """
         return self._trans.device
 
+    @property
+    def dtype(self) -> torch.dtype:
+        """
+        Returns the dtype of the Rigid tensors.
+
+        Returns:
+            The dtype of the Rigid tensors
+        """
+        return self._rots.dtype
+
     def get_rots(self) -> Rotation:
         """
         Getter for the rotation.
@@ -1080,11 +1086,7 @@ class Rigid:
 
         return Rigid(rot_inv, -1 * trn_inv)
 
-    def map_tensor_fn(
-        self,
-        # fn: Callable[torch.Tensor, torch.Tensor]
-        fn: Callable[..., torch.Tensor],
-    ) -> Rigid:
+    def map_tensor_fn(self, fn: Callable[torch.Tensor, torch.Tensor]) -> Rigid:
         """
         Apply a Tensor -> Tensor function to underlying translation and
         rotation tensors, mapping over the translation/rotation dimensions
@@ -1250,11 +1252,7 @@ class Rigid:
 
         return Rigid(rots, trans)
 
-    def apply_rot_fn(
-        self,
-        #  fn: Callable[Rotation, Rotation]
-        fn: Callable[..., torch.Tensor],
-    ) -> Rigid:
+    def apply_rot_fn(self, fn: Callable[Rotation, Rotation]) -> Rigid:
         """
         Applies a Rotation -> Rotation function to the stored rotation
         object.
@@ -1266,11 +1264,7 @@ class Rigid:
         """
         return Rigid(fn(self._rots), self._trans)
 
-    def apply_trans_fn(
-        self,
-        #    fn: Callable[torch.Tensor, torch.Tensor]
-        fn: Callable[..., torch.Tensor],
-    ) -> Rigid:
+    def apply_trans_fn(self, fn: Callable[torch.Tensor, torch.Tensor]) -> Rigid:
         """
         Applies a Tensor -> Tensor function to the stored translation.
 

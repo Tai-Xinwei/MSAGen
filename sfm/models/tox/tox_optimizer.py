@@ -41,6 +41,7 @@ def process_param(
             or name.find("fc_pmlm_k") != -1
             or name.find("embed_out") != -1
             or name.find("head") != -1
+            or name.find("structure_module") != -1
         ):
             param_groups[1]["params"].append(param)
         else:
@@ -168,6 +169,7 @@ class groupWarmupDecayLR(WarmupLR):
             group["lr"] = 0.0
 
     def step(self, last_batch_iteration=None):
+        """Update the learning rate of each parameter group."""
         if last_batch_iteration is None:
             last_batch_iteration = self.last_batch_iteration + 1
         self.last_batch_iteration = last_batch_iteration

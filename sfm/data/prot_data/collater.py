@@ -38,6 +38,20 @@ def pad_2d_unsqueeze(
     return x.unsqueeze(0)
 
 
+def pad_3d_unsqueeze(
+    x: torch.Tensor, padlen: int, start: int, pad_num: Union[int, float]
+):
+    # (N, d) -> (1, padlen, d)
+    xlen, xnum, xdim = x.size()
+    assert (
+        start + xlen <= padlen
+    ), f"padlen {padlen} is too small for xlen {xlen} and start point {start}"
+    new_x = x.new_full([padlen, xnum, xdim], pad_num, dtype=x.dtype)
+    new_x[start : start + xlen, :, :] = x
+    x = new_x
+    return x.unsqueeze(0)
+
+
 def pad_2d_square_unsqueeze(
     x: torch.Tensor, padlen: int, start: int, pad_num: Union[int, float]
 ):
@@ -60,7 +74,7 @@ def convert_to_single_emb(x, offset: int = 512):
     return x
 
 
-def collate_fn(samples: List[dict], vocab: Alphabet):
+def collate_fn(samples: List[dict], vocab: Alphabet, offset=1):
     """
     Overload BaseWrapperDataset.collater
     May be future changes need config
@@ -70,7 +84,7 @@ def collate_fn(samples: List[dict], vocab: Alphabet):
     # max_tokens = Nres+2 (<cls> and <eos>)
     max_tokens = max(len(s["aa"]) for s in samples)
 
-    offset = int(vocab.prepend_bos)
+    offset = offset
     batch = dict()
 
     batch["id"] = torch.tensor([s["id"] for s in samples], dtype=torch.long)
@@ -123,6 +137,8 @@ def collate_fn(samples: List[dict], vocab: Alphabet):
         ]
     ).unsqueeze(-1)
 
+    batch["seq_length"] = torch.cat([torch.tensor([s["seq_length"]]) for s in samples])
+
     # batch["mask"] = torch.cat(
     #     [
     #         pad_1d_unsqueeze(
@@ -140,29 +156,40 @@ def collate_fn(samples: List[dict], vocab: Alphabet):
     #     ]
     # )
     # for confidence score, mind the prepended <cls>
-    batch["conf"] = torch.cat(
-        [
-            pad_1d_unsqueeze(
-                torch.from_numpy(s["conf"]), max_tokens, offset, vocab.padding_idx
-            )
-            for s in samples
-        ]
-    )
+    # batch["conf"] = torch.cat(
+    #     [
+    #         pad_1d_unsqueeze(
+    #             torch.from_numpy(s["conf"]), max_tokens, offset, vocab.padding_idx
+    #         )
+    #         for s in samples
+    #     ]
+    # )
 
     # (Nres, 3) -> (B, Nres+2, 3)
     batch["pos"] = torch.cat(
         [
-            pad_2d_unsqueeze(torch.from_numpy(s["pos"]), max_tokens, offset, 0.0)
+            pad_3d_unsqueeze(torch.from_numpy(s["pos"]), max_tokens, offset, 0)
+            for s in samples
+        ]
+    )
+    batch["pos_mask"] = torch.cat(
+        [
+            pad_2d_unsqueeze(torch.from_numpy(s["pos_mask"]), max_tokens, offset, 0)
             for s in samples
         ]
     )
     batch["ang"] = torch.cat(
         [
-            pad_2d_unsqueeze(torch.from_numpy(s["ang"]), max_tokens, offset, torch.inf)
+            pad_2d_unsqueeze(torch.from_numpy(s["ang"]), max_tokens, offset, 0)
             for s in samples
         ]
     )
-
+    batch["ang_mask"] = torch.cat(
+        [
+            pad_2d_unsqueeze(torch.from_numpy(s["ang_mask"]), max_tokens, offset, 0)
+            for s in samples
+        ]
+    )
     # batch["pos_noise"] = torch.cat(
     #     [
     #         pad_2d_unsqueeze(
@@ -175,22 +202,6 @@ def collate_fn(samples: List[dict], vocab: Alphabet):
         [
             pad_2d_unsqueeze(
                 torch.from_numpy(s["ang_noise"]), max_tokens, offset, torch.inf
-            )
-            for s in samples
-        ]
-    )
-
-    # calculate distance matrix
-    # (B, Nres+2, 3) -> (B, Nres+2, Nres+2)
-    batch["dist"] = torch.cat(
-        [
-            pad_2d_square_unsqueeze(
-                torch.from_numpy(
-                    np.linalg.norm(s["pos"][:, None, :] - s["pos"][None, :, :], axis=-1)
-                ),
-                max_tokens,
-                1,
-                torch.inf,
             )
             for s in samples
         ]

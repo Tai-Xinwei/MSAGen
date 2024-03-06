@@ -762,6 +762,10 @@ class DeepSpeedAccelerator(Accelerator):
                 logger.info("lr scheduler is set, remove the ds default scheduler")
                 self.args.deepspeed_config["scheduler"]["type"] = None
 
+            if self.optimizer is not None:
+                logger.info("optimizer is set, remove the ds default optimizer")
+                self.args.deepspeed_config["optimizer"]["type"] = None
+
             model_parameters = (
                 unfreeze_params
                 if unfreeze_params is not None
@@ -795,6 +799,12 @@ class DeepSpeedAccelerator(Accelerator):
         else:
             if self.optimizer is None:
                 self.optimizer, self.lr_scheduler = self.model.config_optimizer()
+
+            if self.lr_scheduler is not None:
+                # When using custom scheduler, we need to set the scheduler type to None
+                # Otherwise, deepspeed will use that scheduler instead of the custom one
+                logger.info("lr scheduler is set, remove the ds default scheduler")
+                self.args.deepspeed_config["scheduler"]["type"] = None
 
             (
                 self.model_engine,

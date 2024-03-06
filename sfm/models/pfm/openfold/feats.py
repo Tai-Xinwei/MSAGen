@@ -166,7 +166,6 @@ def torsion_angles_to_frames(
 ):
     # [*, N, 8, 4, 4]
     default_4x4 = rrgdf[aatype, ...]
-
     # [*, N, 8] transformations, i.e.
     #   One [*, N, 8, 3, 3] rotation matrix and
     #   One [*, N, 8, 3]    translation matrix
@@ -187,7 +186,6 @@ def torsion_angles_to_frames(
     # ]
     # This follows the original code rather than the supplement, which uses
     # different indices.
-
     all_rots = alpha.new_zeros(default_r.get_rots().get_rot_mats().shape)
     all_rots[..., 0, 0] = 1
     all_rots[..., 1, 1] = alpha[..., 1]

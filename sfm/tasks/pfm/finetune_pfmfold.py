@@ -13,10 +13,10 @@ from sfm.criterions.mae3d import ProteinPMLM
 from sfm.data.prot_data.dataset import BatchedDataDataset, ProteinLMDBDataset
 from sfm.logging import logger
 from sfm.models.pfm.openfold.loss import compute_predicted_aligned_error, compute_tm
+from sfm.models.pfm.openfold.openfold_config import StructureModuleConfig
 from sfm.models.pfm.openfold.structure_module import StructureModule
 from sfm.models.pfm.pfm_config import PFMConfig
 from sfm.models.pfm.pfm_optimizer import DECAY_COSINE_RATE, groupWarmupDecayLR, myAdam
-from sfm.models.pfm.pfmfold_config import StructureModuleConfig
 from sfm.models.pfm.pfmmodel import PFMModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig, ModelOutput
 from sfm.pipeline.accelerator.trainer import Model, Trainer
