@@ -39,7 +39,7 @@ def main(args) -> None:
         vocab=dataset.vocab,
     )
 
-    model = TOXPDEModel(args, loss_fn=ProteinMAEDistCriterions)
+    model = TOXModel(args, loss_fn=ProteinMAEDistCriterions)
 
     optimizer, _ = myAdam(
         model,

@@ -17,7 +17,7 @@ def fetch_requirements(path):
 
 __version__ = setuptools_scm.get_version()
 
-install_requires = fetch_requirements("requirements/requirements.txt")
+install_requires = fetch_requirements("install/requirements.txt")
 
 cython_extensions = ["sfm/data/mol_data/algos.pyx", "sfm/data/data_utils_fast.pyx"]
 # cython_extensions = [

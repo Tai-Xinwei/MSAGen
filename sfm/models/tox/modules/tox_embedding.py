@@ -121,13 +121,6 @@ class TOXmixEmbedding(nn.Module):
             else None
         )
 
-        # TODO: 2D attention bias needs carefully designed, features such as MSA should be included
-        # 2D attention bias is impletemented in pfmencoderlayers to avoid redundent communication
-        # self.graph_attn_bias = graph2dBias()
-
-        # 3D attention bias is impletemented in pfmencoderlayers to avoid redundent communication
-        # self.graph_3d_bias = Graph3DBias()
-
     def forward(
         self,
         batched_data,

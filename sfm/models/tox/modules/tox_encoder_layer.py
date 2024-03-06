@@ -144,6 +144,7 @@ class TOXEncoderLayer(nn.Module):
         add_rope=False,
     ):
         return MemEffAttn(
+            # return MultiheadAttention(
             embed_dim,
             num_attention_heads,
             dropout=dropout,

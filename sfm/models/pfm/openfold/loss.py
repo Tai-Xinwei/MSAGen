@@ -255,28 +255,28 @@ def sidechain_loss(
     return fape
 
 
-# def fape_loss(
-#     out: Dict[str, torch.Tensor],
-#     batch: Dict[str, torch.Tensor],
-#     config: ml_collections.ConfigDict,
-# ) -> torch.Tensor:
-#     bb_loss = backbone_loss(
-#         traj=out["sm"]["frames"],
-#         **{**batch, **config.backbone},
-#     )
+def fape_loss(
+    out: Dict[str, torch.Tensor],
+    batch: Dict[str, torch.Tensor],
+    config: dict,
+) -> torch.Tensor:
+    bb_loss = backbone_loss(
+        traj=out["sm"]["frames"],
+        **{**batch, **vars(config.backbone)},
+    )
 
-#     sc_loss = sidechain_loss(
-#         out["sm"]["sidechain_frames"],
-#         out["sm"]["positions"],
-#         **{**batch, **config.sidechain},
-#     )
+    sc_loss = sidechain_loss(
+        out["sm"]["sidechain_frames"],
+        out["sm"]["positions"],
+        **{**batch, **vars(config.sidechain)},
+    )
 
-#     loss = config.backbone.weight * bb_loss + config.sidechain.weight * sc_loss
+    loss = config.backbone.weight * bb_loss + config.sidechain.weight * sc_loss
 
-#     # Average over the batch dimension
-#     loss = torch.mean(loss)
+    # Average over the batch dimension
+    loss = torch.mean(loss)
 
-#     return loss
+    return loss
 
 
 def supervised_chi_loss(
@@ -1157,21 +1157,25 @@ def find_structural_violations(
     }
 
 
-# def find_structural_violations_np(
-#     batch: Dict[str, np.ndarray],
-#     atom14_pred_positions: np.ndarray,
-#     config: ml_collections.ConfigDict,
-# ) -> Dict[str, np.ndarray]:
-#     to_tensor = lambda x: torch.tensor(x)
-#     batch = tree_map(to_tensor, batch, np.ndarray)
-#     atom14_pred_positions = to_tensor(atom14_pred_positions)
+def find_structural_violations_np(
+    batch: Dict[str, np.ndarray],
+    atom14_pred_positions: np.ndarray,
+    config: dict,
+) -> Dict[str, np.ndarray]:
+    def to_tensor(x):
+        return torch.tensor(x)
 
-#     out = find_structural_violations(batch, atom14_pred_positions, **config)
+    batch = tree_map(to_tensor, batch, np.ndarray)
+    atom14_pred_positions = to_tensor(atom14_pred_positions)
 
-#     to_np = lambda x: np.array(x)
-#     np_out = tensor_tree_map(to_np, out)
+    out = find_structural_violations(batch, atom14_pred_positions, **config)
 
-#     return np_out
+    def to_np(x):
+        return np.array(x)
+
+    np_out = tensor_tree_map(to_np, out)
+
+    return np_out
 
 
 def extreme_ca_ca_distance_violations(
@@ -1466,12 +1470,12 @@ class AlphaFoldLoss(nn.Module):
         self.config = config
 
     def forward(self, out, batch, _return_breakdown=False):
-        if "violation" not in out.keys():
-            out["violation"] = find_structural_violations(
-                batch,
-                out["sm"]["positions"][-1],
-                **self.config.violation,
-            )
+        # if "violation" not in out.keys():
+        #     out["violation"] = find_structural_violations(
+        #         batch,
+        #         out["sm"]["positions"][-1],
+        #         **vars(self.config.violation),
+        #     )
 
         if "renamed_atom14_gt_positions" not in out.keys():
             batch.update(
@@ -1484,53 +1488,57 @@ class AlphaFoldLoss(nn.Module):
         loss_fns = {
             "distogram": lambda: distogram_loss(
                 logits=out["distogram_logits"],
-                **{**batch, **self.config.distogram},
+                **{**batch, **vars(self.config.distogram)},
             ),
-            "experimentally_resolved": lambda: experimentally_resolved_loss(
-                logits=out["experimentally_resolved_logits"],
-                **{**batch, **self.config.experimentally_resolved},
-            ),
-            # "fape": lambda: fape_loss(
-            #     out,
-            #     batch,
-            #     self.config.fape,
+            # "experimentally_resolved": lambda: experimentally_resolved_loss(
+            #     logits=out["experimentally_resolved_logits"],
+            #     **{**batch, **vars(self.config.experimentally_resolved)},
             # ),
-            "plddt_loss": lambda: lddt_loss(
-                logits=out["lddt_logits"],
-                all_atom_pred_pos=out["final_atom_positions"],
-                **{**batch, **self.config.plddt_loss},
+            "fape": lambda: fape_loss(
+                out,
+                batch,
+                self.config.fape,
             ),
-            "masked_msa": lambda: masked_msa_loss(
-                logits=out["masked_msa_logits"],
-                **{**batch, **self.config.masked_msa},
-            ),
+            # "plddt_loss": lambda: lddt_loss(
+            #     logits=out["lddt_logits"],
+            #     all_atom_pred_pos=out["final_atom_positions"],
+            #     **{**batch, **vars(self.config.plddt_loss)},
+            # ),
+            # "masked_msa": lambda: masked_msa_loss(
+            #     logits=out["masked_msa_logits"],
+            #     **{**batch, **self.config.masked_msa},
+            # ),
             "supervised_chi": lambda: supervised_chi_loss(
                 out["sm"]["angles"],
                 out["sm"]["unnormalized_angles"],
-                **{**batch, **self.config.supervised_chi},
+                **{**batch, **vars(self.config.supervised_chi)},
             ),
-            "violation": lambda: violation_loss(
-                out["violation"],
-                **batch,
-            ),
+            # "violation": lambda: violation_loss(
+            #     out["violation"],
+            #     **batch,
+            # ),
         }
 
         if self.config.tm.enabled:
             loss_fns["tm"] = lambda: tm_loss(
                 logits=out["tm_logits"],
-                **{**batch, **out, **self.config.tm},
+                **{**batch, **out, **vars(self.config.tm)},
             )
 
         cum_loss = 0.0
         losses = {}
         for loss_name, loss_fn in loss_fns.items():
-            weight = self.config[loss_name].weight
+            weight = getattr(self.config, loss_name).weight
             loss = loss_fn()
             if torch.isnan(loss) or torch.isinf(loss):
-                # for k,v in batch.items():
-                #    if(torch.any(torch.isnan(v)) or torch.any(torch.isinf(v))):
-                #        logging.warning(f"{k}: is nan")
-                # logging.warning(f"{loss_name}: {loss}")
+                for k, v in batch.items():
+                    # check if v is tensor
+                    if not isinstance(v, torch.Tensor):
+                        continue
+                    # check if v has nan or inf
+                    if torch.any(torch.isnan(v)) or torch.any(torch.isinf(v)):
+                        logger.warning(f"{k}: is nan")
+                logger.warning(f"{loss_name}: {loss}")
                 logger.warning(f"{loss_name} loss is NaN. Skipping...")
                 loss = loss.new_tensor(0.0, requires_grad=True)
             cum_loss = cum_loss + weight * loss
@@ -1541,7 +1549,7 @@ class AlphaFoldLoss(nn.Module):
         # Scale the loss by the square root of the minimum of the crop size and
         # the (average) sequence length. See subsection 1.9.
         seq_len = torch.mean(batch["seq_length"].float())
-        crop_len = batch["aatype"].shape[-1]
+        crop_len = torch.tensor(batch["aatype"].shape[-1])
         cum_loss = cum_loss * torch.sqrt(min(seq_len, crop_len))
 
         losses["loss"] = cum_loss.detach().clone()

@@ -24,6 +24,7 @@ class SinusoidalPositionEmbeddings(nn.Module):
 
     def forward(self, time):
         device = time.device
+        time = time * self.max_period
         half_dim = self.dim // 2
         embeddings = math.log(self.max_period) / (half_dim - 1)
         embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
@@ -115,7 +116,7 @@ class DiffNoise(nn.Module):
 
     def _extract(self, a, t, x_shape):
         batch_size = t.shape[0]
-        out = a.gather(-1, t.cpu())
+        out = a.gather(-1, t.cpu().long())
         return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
 
     def _noise_sample(self, x_start, t, unit_noise_scale=1.0):
@@ -130,40 +131,10 @@ class DiffNoise(nn.Module):
 
         return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
 
-    # def _angle_noise_sample(self, x_start, t):
-    #     T = t / 1000.0
-    #     T = T.unsqueeze(-1).unsqueeze(-1)
-    #     sigma_min = 0.01 * 3.1415926
-    #     sigma_max = 3.1415926
-    #     sigma = sigma_min**(1 - T) * sigma_max**T
-
-    #     noise = torch.randn_like(x_start) * sigma
-
-    #     sqrt_alphas_cumprod_t = self._extract(
-    #         self.sqrt_alphas_cumprod, t, x_start.shape
-    #     )
-    #     sqrt_one_minus_alphas_cumprod_t = self._extract(
-    #         self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
-    #     )
-
-    #     return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
-
-    # def _angle_noise_sample(self, x_start, t):
-    #     T = t / 1000.0
-    #     T = T.unsqueeze(-1).unsqueeze(-1)
-
-    #     sigma_min = 0.01
-
-    #     # sigma = sigma_min**(1 - T) * sigma_max**T
-    #     alpha_T = 1 - sigma_min ** (2 - 2 * T)
-    #     noise = torch.randn_like(x_start) * sigma_min ** (1 - T)
-
-    #     return torch.sqrt(alpha_T) * x_start + 3.1415926 * noise
-
     # Here, t is time point in (0, 1]
     def _angle_noise_sample(self, x_start, t):
-        # T = t
-        T = t / 1000.0
+        T = t
+        # T = t / 1000.0
         T = T.unsqueeze(-1).unsqueeze(-1)
 
         beta_min = 0.01 * torch.pi
@@ -171,7 +142,6 @@ class DiffNoise(nn.Module):
 
         sigma = beta_min ** (1 - T) * beta_max**T  # SMLD (31)
 
-        noise = torch.randn_like(x_start) * sigma
         noise = torch.randn_like(x_start) * sigma
 
         return x_start + noise, noise, sigma

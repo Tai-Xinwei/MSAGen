@@ -463,11 +463,12 @@ class ProteinLMDBDataset(LMDBDataset):
         #     tokens = tokens[start : start + self.args.max_length - 2]
         # assert len(tokens) <= self.args.max_length - 2, f"len(tokens) = {len(tokens)} > {self.args.max_length - 2} = max_length - 2"
 
-        if self.vocab.prepend_bos:
-            tokens.insert(0, self.vocab.cls_idx)
-        if self.vocab.append_eos:
-            tokens.append(self.vocab.eos_idx)
+        # if self.vocab.prepend_bos:
+        #     tokens.insert(0, self.vocab.cls_idx)
+        # if self.vocab.append_eos:
+        #     tokens.append(self.vocab.eos_idx)
         item["aa"] = np.array(tokens, dtype=np.int64)
+        item["seq_length"] = len(tokens)
 
         """
         - mask the sequence in different ways
@@ -497,7 +498,6 @@ class ProteinLMDBDataset(LMDBDataset):
         )
         item["pos_noise"] = pos_noise
         item["ang_noise"] = ang_noise
-
         item["ang"] = item["ang"] / 180.0 * 3.1415926
 
         # item["pos"] = item["pos"] + pos_noise
@@ -505,7 +505,8 @@ class ProteinLMDBDataset(LMDBDataset):
 
         # TODO: considering mask the pos and ang, not used in the current version
         # set first position to zero
-        item["pos"] = (item["pos"] - item["pos"][0]) / 10.0
+        # item["pos"] = (item["pos"] - item["pos"][0]) / 10.0
+        item["pos"] = item["pos"]  # / 10.0
 
         return item
 
@@ -524,7 +525,7 @@ class ProteinLMDBDataset(LMDBDataset):
         return self.sizes[index]
 
     def collate(self, samples: List[dict]) -> dict:
-        return collate_fn(samples, self.vocab)
+        return collate_fn(samples, self.vocab, offset=0)
 
 
 class UR50LMDBDataset(FoundationModelDataset):

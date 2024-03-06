@@ -1022,6 +1022,40 @@ ID_TO_HHBLITS_AA = {
     21: "-",
 }
 
+# ESMFold to ALPHAFOLD
+ESM_TO_ALPHAFOLD = {
+    4: 9,  # L
+    5: 0,  # A
+    6: 5,  # G
+    7: 17,  # V
+    8: 15,  # S
+    9: 3,  # E
+    10: 14,  # R
+    11: 16,  # T
+    12: 7,  # I
+    13: 2,  # D
+    14: 12,  # P
+    15: 8,  # K
+    16: 13,  # Q
+    17: 11,  # N
+    18: 4,  # F
+    19: 19,  # Y
+    20: 10,  # M
+    21: 6,  # H
+    22: 18,  # W
+    23: 1,  # C
+    24: 20,  # X
+    25: 2,  # B
+    26: 1,  # U
+    27: 3,  # Z
+    28: 20,  # O
+    29: 20,  # -
+    0: 20,  # -
+    1: 20,  # -
+    2: 20,  # -
+    3: 20,  # -
+}
+
 restypes_with_x_and_gap = restypes + ["X", "-"]
 MAP_HHBLITS_AATYPE_TO_OUR_AATYPE = tuple(
     restypes_with_x_and_gap.index(ID_TO_HHBLITS_AA[i])
@@ -1110,29 +1144,29 @@ def _make_rigid_transformation_4x4(ex, ey, translation):
     return m
 
 
-# # create an array with (restype, atomtype) --> rigid_group_idx
-# # and an array with (restype, atomtype, coord) for the atom positions
-# # and compute affine transformation matrices (4,4) from one rigid group to the
-# # previous group
-# restype_atom37_to_rigid_group = np.zeros([21, 37], dtype=int)
-# restype_atom37_mask = np.zeros([21, 37], dtype=np.float32)
-# restype_atom37_rigid_group_positions = np.zeros([21, 37, 3], dtype=np.float32)
-# restype_atom14_to_rigid_group = np.zeros([21, 14], dtype=int)
-# restype_atom14_mask = np.zeros([21, 14], dtype=np.float32)
-# restype_atom14_rigid_group_positions = np.zeros([21, 14, 3], dtype=np.float32)
-# restype_rigid_group_default_frame = np.zeros([21, 8, 4, 4], dtype=np.float32)
-
 # create an array with (restype, atomtype) --> rigid_group_idx
 # and an array with (restype, atomtype, coord) for the atom positions
 # and compute affine transformation matrices (4,4) from one rigid group to the
 # previous group
-restype_atom37_to_rigid_group = np.zeros([32, 37], dtype=int)
-restype_atom37_mask = np.zeros([32, 37], dtype=np.float32)
-restype_atom37_rigid_group_positions = np.zeros([32, 37, 3], dtype=np.float32)
-restype_atom14_to_rigid_group = np.zeros([32, 14], dtype=int)
-restype_atom14_mask = np.zeros([32, 14], dtype=np.float32)
-restype_atom14_rigid_group_positions = np.zeros([32, 14, 3], dtype=np.float32)
-restype_rigid_group_default_frame = np.zeros([32, 8, 4, 4], dtype=np.float32)
+restype_atom37_to_rigid_group = np.zeros([21, 37], dtype=int)
+restype_atom37_mask = np.zeros([21, 37], dtype=np.float32)
+restype_atom37_rigid_group_positions = np.zeros([21, 37, 3], dtype=np.float32)
+restype_atom14_to_rigid_group = np.zeros([21, 14], dtype=int)
+restype_atom14_mask = np.zeros([21, 14], dtype=np.float32)
+restype_atom14_rigid_group_positions = np.zeros([21, 14, 3], dtype=np.float32)
+restype_rigid_group_default_frame = np.zeros([21, 8, 4, 4], dtype=np.float32)
+
+# # create an array with (restype, atomtype) --> rigid_group_idx
+# # and an array with (restype, atomtype, coord) for the atom positions
+# # and compute affine transformation matrices (4,4) from one rigid group to the
+# # previous group
+# restype_atom37_to_rigid_group = np.zeros([32, 37], dtype=int)
+# restype_atom37_mask = np.zeros([32, 37], dtype=np.float32)
+# restype_atom37_rigid_group_positions = np.zeros([32, 37, 3], dtype=np.float32)
+# restype_atom14_to_rigid_group = np.zeros([32, 14], dtype=int)
+# restype_atom14_mask = np.zeros([32, 14], dtype=np.float32)
+# restype_atom14_rigid_group_positions = np.zeros([32, 14, 3], dtype=np.float32)
+# restype_rigid_group_default_frame = np.zeros([32, 8, 4, 4], dtype=np.float32)
 
 
 def _make_rigid_group_constants():
