@@ -12,6 +12,14 @@ sfm.utils.optim.adam module
    :undoc-members:
    :show-inheritance:
 
+sfm.utils.optim.mem\_eff\_adam module
+-------------------------------------
+
+.. automodule:: sfm.utils.optim.mem_eff_adam
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 sfm.utils.optim.optimizer module
 --------------------------------
 

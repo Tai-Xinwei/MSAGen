@@ -162,7 +162,6 @@ fi
 
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm_v2.py \
-          --ifresume \
           --task_name $task_name \
           --data_basepath $data_basepath \
           --loadcheck_path $loadcheck_path \
@@ -180,7 +179,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/pfm/finetune_pfm_v2.py \
           --train_data_path $train_data_path \
           --save_dir $save_dir \
           --seed $seed \
-          --fp16 \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
@@ -226,7 +224,7 @@ python sfm/tasks/pfm/test_pfm_v2.py \
           --train_data_path $train_data_path \
           --save_dir $save_dir \
           --seed $seed \
-          --fp16 --ft \
+          --ft \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
@@ -262,7 +260,7 @@ python sfm/tasks/pfm/test_pfm_v2.py \
           --train_data_path $train_data_path \
           --save_dir $save_dir \
           --seed $seed \
-          --fp16 --ft \
+          --ft \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \

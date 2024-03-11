@@ -20,10 +20,18 @@ sfm.data.prot\_data.dataset module
    :undoc-members:
    :show-inheritance:
 
-sfm.data.prot\_data.process module
-----------------------------------
+sfm.data.prot\_data.processed\_mlm\_dataset module
+--------------------------------------------------
 
-.. automodule:: sfm.data.prot_data.process
+.. automodule:: sfm.data.prot_data.processed_mlm_dataset
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+sfm.data.prot\_data.residue\_constants module
+---------------------------------------------
+
+.. automodule:: sfm.data.prot_data.residue_constants
    :members:
    :undoc-members:
    :show-inheritance:
@@ -40,14 +48,6 @@ sfm.data.prot\_data.spatial\_noise module
 -----------------------------------------
 
 .. automodule:: sfm.data.prot_data.spatial_noise
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-sfm.data.prot\_data.structure2lmdb module
------------------------------------------
-
-.. automodule:: sfm.data.prot_data.structure2lmdb
    :members:
    :undoc-members:
    :show-inheritance:

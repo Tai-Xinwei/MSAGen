@@ -36,7 +36,7 @@ def linear_molecule_adjacency(n_atoms):
 #     square_diffs = (actual_values - predicted_values) ** 2
 
 #     # Sum the square differences for each point
-#     sum_square_diffs = np.sum(square_diffs, axis=1)
+#     sum_square_diffs = np.sum(square_diffs, axis=1)``
 
 #     # Calculate the mean of square differences
 #     mean_square_diff = np.mean(sum_square_diffs)

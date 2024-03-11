@@ -8,7 +8,6 @@ Subpackages
    :maxdepth: 4
 
    sfm.pipeline.accelerator
-   sfm.pipeline.generalist
 
 Module contents
 ---------------

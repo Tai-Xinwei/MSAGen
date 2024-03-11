@@ -176,3 +176,5 @@ get_result.py
 # docs
 source/
 *.png
+docs/result/
+*.html

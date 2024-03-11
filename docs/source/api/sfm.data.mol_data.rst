@@ -28,6 +28,14 @@ sfm.data.mol\_data.dataset module
    :undoc-members:
    :show-inheritance:
 
+sfm.data.mol\_data.matbench\_data module
+----------------------------------------
+
+.. automodule:: sfm.data.mol_data.matbench_data
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 sfm.data.mol\_data.molftdataapi module
 --------------------------------------
 
@@ -64,14 +72,6 @@ sfm.data.mol\_data.wrapper module
 ---------------------------------
 
 .. automodule:: sfm.data.mol_data.wrapper
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-sfm.data.mol\_data.xyz2smiles module
-------------------------------------
-
-.. automodule:: sfm.data.mol_data.xyz2smiles
    :members:
    :undoc-members:
    :show-inheritance:

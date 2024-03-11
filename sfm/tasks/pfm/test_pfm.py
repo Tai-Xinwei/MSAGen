@@ -9,7 +9,6 @@ sys.path.extend([".", ".."])
 
 from dataclasses import asdict, dataclass
 
-from finetune_pfm import DownstreamConfig, init_model, load_batched_dataset
 from torch_scatter import scatter_add, scatter_max, scatter_mean
 
 from sfm.criterions.mae3d import ProteinPMLM
@@ -26,6 +25,11 @@ from sfm.pipeline.accelerator.dataclasses import (
     ValidLogOutput,
 )
 from sfm.pipeline.accelerator.trainer import Model, Trainer
+from sfm.tasks.pfm.finetune_pfm import (
+    DownstreamConfig,
+    init_model,
+    load_batched_dataset,
+)
 from sfm.utils.cli_utils import cli
 from sfm.utils.move_to_device import move_to_device
 
