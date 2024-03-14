@@ -92,10 +92,26 @@ sfm.models.graphormer.modules.graphormer\_sentence\_encoder\_mp module
    :undoc-members:
    :show-inheritance:
 
+sfm.models.graphormer.modules.graphormer\_sentence\_encoder\_pp module
+----------------------------------------------------------------------
+
+.. automodule:: sfm.models.graphormer.modules.graphormer_sentence_encoder_pp
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 sfm.models.graphormer.modules.graphormer\_timestep\_encoder module
 ------------------------------------------------------------------
 
 .. automodule:: sfm.models.graphormer.modules.graphormer_timestep_encoder
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+sfm.models.graphormer.modules.pbc module
+----------------------------------------
+
+.. automodule:: sfm.models.graphormer.modules.pbc
    :members:
    :undoc-members:
    :show-inheritance:

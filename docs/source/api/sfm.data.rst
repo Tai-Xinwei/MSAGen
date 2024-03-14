@@ -12,6 +12,7 @@ Subpackages
    sfm.data.prot_data
    sfm.data.sci_data
    sfm.data.tamgent2
+   sfm.data.threedimargen_data
 
 Submodules
 ----------

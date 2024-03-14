@@ -13,6 +13,7 @@ Subpackages
    sfm.tasks.pfm
    sfm.tasks.scigpt
    sfm.tasks.tamgent
+   sfm.tasks.tox
 
 Module contents
 ---------------

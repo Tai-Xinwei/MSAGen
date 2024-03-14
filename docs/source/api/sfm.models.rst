@@ -14,6 +14,8 @@ Subpackages
    sfm.models.pfm
    sfm.models.scigpt
    sfm.models.tamgent
+   sfm.models.threedimargen
+   sfm.models.tox
 
 Module contents
 ---------------

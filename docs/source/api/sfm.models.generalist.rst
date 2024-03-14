@@ -28,6 +28,14 @@ sfm.models.generalist.graphormer\_llama module
    :undoc-members:
    :show-inheritance:
 
+sfm.models.generalist.graphormer\_llama\_fused module
+-----------------------------------------------------
+
+.. automodule:: sfm.models.generalist.graphormer_llama_fused
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

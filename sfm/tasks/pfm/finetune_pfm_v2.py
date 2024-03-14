@@ -9,17 +9,6 @@ sys.path.extend([".", ".."])
 
 from dataclasses import asdict, dataclass
 
-from commons import (
-    accuracy,
-    area_under_prc,
-    binary_accuracy,
-    f1_max,
-    mae,
-    mse,
-    rmse,
-    spearmanr,
-)
-
 from sfm.criterions.mae3d import ProteinPMLM
 from sfm.data.prot_data.dataset import BatchedDataDataset, DownstreamLMDBDataset
 from sfm.logging import logger, metric_logger
@@ -29,6 +18,16 @@ from sfm.models.pfm.pfm_optimizer import DECAY_COSINE_RATE, groupWarmupDecayLR, 
 from sfm.models.pfm.pfmmodel import PFMModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig, ModelOutput
 from sfm.pipeline.accelerator.trainer import Model, Trainer
+from sfm.tasks.pfm.commons import (
+    accuracy,
+    area_under_prc,
+    binary_accuracy,
+    f1_max,
+    mae,
+    mse,
+    rmse,
+    spearmanr,
+)
 from sfm.utils.cli_utils import cli
 
 # for custimize training steps, cosine lr decay

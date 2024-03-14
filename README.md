@@ -4,6 +4,7 @@
 
 
 ## Pre-commit Hooks
+Run pre-commit hooks to ensure that the code is formatted correctly and passes all tests before committing.
 
 To install pre-commit, run the following command:
 ```
@@ -32,3 +33,41 @@ Mild: GCRHYP3C108, GCRHYP3C218, GCRHYP3C225, GCRHYP3C253 (Good to use, port erro
 ## Documentation
 
 [Check the documentation of the framework](https://aka.ms/A4SFramework)
+
+
+## Installation
+
+To install the dependencies, run the following command:
+```
+eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
+bash ./install/install.sh
+```
+
+To install the dependencies for the Tensor parallel, run the following command:
+```
+git clone https://github.com/NVIDIA/apex
+```
+Comment out the following line in `apex/setup.py`:
+```
+def check_cuda_torch_binary_vs_bare_metal(cuda_dir):
+    raw_output, bare_metal_version = get_cuda_bare_metal_version(cuda_dir)
+    torch_binary_version = parse(torch.version.cuda)
+
+    print("\nCompiling cuda extensions with")
+    print(raw_output + "from " + cuda_dir + "/bin\n")
+
+    # if (bare_metal_version != torch_binary_version):
+    #     raise RuntimeError(
+    #         "Cuda extensions are being compiled with a version of Cuda that does "
+    #         "not match the version used to compile Pytorch binaries.  "
+    #         "Pytorch binaries were compiled with Cuda {}.\n".format(torch.version.cuda)
+    #         + "In some cases, a minor-version mismatch will not cause later errors:  "
+    #         "https://github.com/NVIDIA/apex/pull/323#discussion_r287021798.  "
+    #         "You can try commenting out this check (at your own risk)."
+    #     )
+
+```
+Then run
+```
+bash ./install/install_megatron.sh
+```

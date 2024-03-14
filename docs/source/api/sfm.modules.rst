@@ -12,10 +12,18 @@ sfm.modules.FairseqDropout module
    :undoc-members:
    :show-inheritance:
 
-sfm.modules.FlashAtt\_bk module
--------------------------------
+sfm.modules.FlashAtt module
+---------------------------
 
-.. automodule:: sfm.modules.FlashAtt_bk
+.. automodule:: sfm.modules.FlashAtt
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+sfm.modules.deformable\_multihead\_attention module
+---------------------------------------------------
+
+.. automodule:: sfm.modules.deformable_multihead_attention
    :members:
    :undoc-members:
    :show-inheritance:
@@ -64,6 +72,14 @@ sfm.modules.multihead\_attention module
 ---------------------------------------
 
 .. automodule:: sfm.modules.multihead_attention
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+sfm.modules.multihead\_attention\_flash module
+----------------------------------------------
+
+.. automodule:: sfm.modules.multihead_attention_flash
    :members:
    :undoc-members:
    :show-inheritance:

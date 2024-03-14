@@ -12,14 +12,6 @@ sfm.tasks.generalist.eval\_generalist\_metric module
    :undoc-members:
    :show-inheritance:
 
-sfm.tasks.generalist.ft3d\_graphormer\_llama\_inst module
----------------------------------------------------------
-
-.. automodule:: sfm.tasks.generalist.ft3d_graphormer_llama_inst
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 sfm.tasks.generalist.ft\_graphormer\_llama\_inst module
 -------------------------------------------------------
 

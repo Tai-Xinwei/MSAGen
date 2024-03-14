@@ -12,6 +12,14 @@ sfm.tasks.graphormer.ft\_graphormer module
    :undoc-members:
    :show-inheritance:
 
+sfm.tasks.graphormer.ft\_matbench module
+----------------------------------------
+
+.. automodule:: sfm.tasks.graphormer.ft_matbench
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 sfm.tasks.graphormer.pretrain\_graphormer module
 ------------------------------------------------
 

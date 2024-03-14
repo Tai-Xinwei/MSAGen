@@ -9,7 +9,13 @@ sys.path.extend([".", ".."])
 
 from pathlib import Path
 
-from commons import (
+from sfm.data.prot_data.dataset import DownstreamLMDBDataset
+from sfm.logging import logger, metric_logger
+from sfm.models.pfm.pfm_config import PFMConfig
+from sfm.models.pfm.pfm_mlm_config import PfmMlmConfig
+from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
+from sfm.pipeline.accelerator.trainer import Trainer
+from sfm.tasks.pfm.commons import (
     accuracy,
     area_under_prc,
     binary_accuracy,
@@ -20,19 +26,12 @@ from commons import (
     rmse,
     spearmanr,
 )
-from finetune_pfm_bpe_v2 import (
+from sfm.tasks.pfm.finetune_pfm_bpe_v2 import (
     DownstreamConfig,
     init_model,
     load_batched_dataset,
     multi_label_transform,
 )
-
-from sfm.data.prot_data.dataset import DownstreamLMDBDataset
-from sfm.logging import logger, metric_logger
-from sfm.models.pfm.pfm_config import PFMConfig
-from sfm.models.pfm.pfm_mlm_config import PfmMlmConfig
-from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
-from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils.cli_utils import cli
 from sfm.utils.move_to_device import move_to_device
 
