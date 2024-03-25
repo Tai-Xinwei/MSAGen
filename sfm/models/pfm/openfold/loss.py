@@ -84,7 +84,9 @@ def compute_fape(
     pred_positions: torch.Tensor,
     target_positions: torch.Tensor,
     positions_mask: torch.Tensor,
+    seq_mask: torch.Tensor,
     length_scale: float,
+    pair_mask: Optional[torch.Tensor] = None,
     l1_clamp_distance: Optional[float] = None,
     eps=1e-8,
 ) -> torch.Tensor:
@@ -104,6 +106,8 @@ def compute_fape(
             [*, N_pts, 3] ground truth positions
         positions_mask:
             [*, N_pts] positions mask
+        seq_mask:
+            [*, N_pts] Seq mask
         length_scale:
             Length scale by which the loss is divided
         l1_clamp_distance:
@@ -113,13 +117,20 @@ def compute_fape(
     Returns:
         [*] loss tensor
     """
-    # [*, N_frames, N_pts, 3]
+    # [N_frames, B, N_pts, N_pts, 3]
     local_pred_pos = pred_frames.invert()[..., None].apply(
         pred_positions[..., None, :, :],
     )
     local_target_pos = target_frames.invert()[..., None].apply(
         target_positions[..., None, :, :],
     )
+
+    # local_pred_pos = local_pred_pos[pair_mask.bool().repeat(Nframes, 1, 1, 1, 1)].view(Nframes, B, -1, 3)
+    # local_target_pos = local_target_pos[pair_mask.bool()].view(1, B, -1, 3)
+    # print(local_pred_pos.shape, local_target_pos.shape, pair_mask.shape, positions_mask.shape, frames_mask.shape); exit()
+    if pair_mask is not None:
+        local_pred_pos = local_pred_pos * pair_mask
+        local_target_pos = local_target_pos * pair_mask
 
     error_dist = torch.sqrt(
         torch.sum((local_pred_pos - local_target_pos) ** 2, dim=-1) + eps
@@ -152,6 +163,7 @@ def compute_fape(
 def backbone_loss(
     backbone_rigid_tensor: torch.Tensor,
     backbone_rigid_mask: torch.Tensor,
+    seq_mask: torch.Tensor,
     traj: torch.Tensor,
     use_clamped_fape: Optional[torch.Tensor] = None,
     clamp_distance: float = 10.0,
@@ -159,6 +171,13 @@ def backbone_loss(
     eps: float = 1e-4,
     **kwargs,
 ) -> torch.Tensor:
+    """
+    backbone_rigid_tensor: [B, L, 4, 4]
+    backbone_rigid_mask: [B, L]
+    seq_mask: [B, L]
+    """
+    backbone_rigid_mask = backbone_rigid_mask * seq_mask
+
     pred_aff = Rigid.from_tensor_7(traj)
     pred_aff = Rigid(
         Rotation(rot_mats=pred_aff.get_rots().get_rot_mats(), quats=None),
@@ -173,6 +192,10 @@ def backbone_loss(
     # it might be fine.
     gt_aff = Rigid.from_tensor_4x4(backbone_rigid_tensor)
 
+    # Nframes, B, L = local_pred_pos.shape[:3]
+    pair_mask = seq_mask.unsqueeze(-1) * seq_mask.unsqueeze(-2)
+    pair_mask = pair_mask.unsqueeze(0).unsqueeze(-1).repeat(1, 1, 1, 1, 3)
+
     fape_loss = compute_fape(
         pred_aff,
         gt_aff[None],
@@ -180,8 +203,10 @@ def backbone_loss(
         pred_aff.get_trans(),
         gt_aff[None].get_trans(),
         backbone_rigid_mask[None],
+        seq_mask,
         l1_clamp_distance=clamp_distance,
         length_scale=loss_unit_distance,
+        pair_mask=pair_mask,
         eps=eps,
     )
     if use_clamped_fape is not None:
@@ -192,8 +217,10 @@ def backbone_loss(
             pred_aff.get_trans(),
             gt_aff[None].get_trans(),
             backbone_rigid_mask[None],
+            seq_mask,
             l1_clamp_distance=None,
             length_scale=loss_unit_distance,
+            pair_mask=pair_mask,
             eps=eps,
         )
 
@@ -216,11 +243,22 @@ def sidechain_loss(
     renamed_atom14_gt_positions: torch.Tensor,
     renamed_atom14_gt_exists: torch.Tensor,
     alt_naming_is_better: torch.Tensor,
+    seq_mask: torch.Tensor,
     clamp_distance: float = 10.0,
     length_scale: float = 10.0,
     eps: float = 1e-4,
     **kwargs,
 ) -> torch.Tensor:
+    """
+    sidechain_frames: [B, 4, L, 8, 4, 4]
+    sidechain_atom_pos: [B, 4, L, 14, 3]
+    rigidgroups_gt_frames: [B, L, 8, 4, 4]
+    rigidgroups_alt_gt_frames: [B, L, 8, 4, 4]
+    rigidgroups_gt_exists: [B, L, 8]
+    renamed_atom14_gt_positions: [B, L, 14, 3]
+    renamed_atom14_gt_exists: [B, L, 14]
+    """
+
     renamed_gt_frames = (
         1.0 - alt_naming_is_better[..., None, None, None]
     ) * rigidgroups_gt_frames + alt_naming_is_better[
@@ -247,6 +285,7 @@ def sidechain_loss(
         sidechain_atom_pos,
         renamed_atom14_gt_positions,
         renamed_atom14_gt_exists,
+        seq_mask=seq_mask,
         l1_clamp_distance=clamp_distance,
         length_scale=length_scale,
         eps=eps,
@@ -1541,6 +1580,7 @@ class AlphaFoldLoss(nn.Module):
                 logger.warning(f"{loss_name}: {loss}")
                 logger.warning(f"{loss_name} loss is NaN. Skipping...")
                 loss = loss.new_tensor(0.0, requires_grad=True)
+                exit(999)
             cum_loss = cum_loss + weight * loss
             losses[loss_name] = loss.detach().clone()
 

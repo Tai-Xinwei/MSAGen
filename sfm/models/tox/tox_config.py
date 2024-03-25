@@ -20,6 +20,8 @@ class TOXConfig(GraphormerConfig):
 
     lamb_pde: float = 0.01
 
+    mode: str = "score"
+
     def __init__(
         self,
         args,

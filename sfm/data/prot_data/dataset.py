@@ -498,7 +498,7 @@ class ProteinLMDBDataset(LMDBDataset):
         )
         item["pos_noise"] = pos_noise
         item["ang_noise"] = ang_noise
-        item["ang"] = item["ang"] / 180.0 * 3.1415926
+        item["ang"] = item["ang"] / 180.0 * torch.pi  # + torch.pi
 
         # item["pos"] = item["pos"] + pos_noise
         item["ang"] = item["ang"] + ang_noise

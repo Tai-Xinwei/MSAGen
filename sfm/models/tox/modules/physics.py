@@ -60,27 +60,27 @@ class MixtureGaussian(torch.nn.Module):
         # Sample from the standard Gaussian distribution
         data = torch.randn((sample_number,) + x.shape[1:], device=self.device)
 
-        # random_means = torch.mean(x, dim=1).unsqueeze(1)#.unsqueeze(-1)
-        random_means = torch.rand(1, device=self.device) * torch.pi * 2 - torch.pi
-        random_std_devs = 0.1
-        data = data * random_std_devs + random_means
+        # # random_means = torch.mean(x, dim=1).unsqueeze(1)#.unsqueeze(-1)
+        # random_means = torch.rand(1, device=self.device) * torch.pi * 2 - torch.pi
+        # random_std_devs = 0.1
+        # data = data * random_std_devs + random_means
 
         data0 = data.clone()
 
-        # # Calculate the number of samples distributed on per Gaussian
-        # L = data.shape[0] // x.shape[0]  # Integer division
+        # Calculate the number of samples distributed on per Gaussian
+        L = data.shape[0] // x.shape[0]  # Integer division
 
-        # # Shift samples to represent each non-standard Gaussian
-        # for k in range(x.shape[0]):
-        #     start_idx = k * L
-        #     end_idx = (k + 1) * L if (k + 1) * L < data.shape[0] else data.shape[0]
+        # Shift samples to represent each non-standard Gaussian
+        for k in range(x.shape[0]):
+            start_idx = k * L
+            end_idx = (k + 1) * L if (k + 1) * L < data.shape[0] else data.shape[0]
 
-        #     # Scale by the standard deviation and add the mean for each Gaussian
-        #     data[start_idx:end_idx] *= torch.sqrt(self.sigma)
-        #     data[start_idx:end_idx] += x[k]
+            # Scale by the standard deviation and add the mean for each Gaussian
+            data[start_idx:end_idx] *= torch.sqrt(self.sigma)
+            data[start_idx:end_idx] += x[k]
 
-        #     data0[start_idx:end_idx] *= torch.sqrt(self.sigma)
-        #     data0[start_idx:end_idx] += x_0[k]
+            data0[start_idx:end_idx] *= torch.sqrt(self.sigma)
+            data0[start_idx:end_idx] += x_0[k]
 
         return data, data0
 
@@ -105,8 +105,8 @@ class MixtureGaussian(torch.nn.Module):
             # assert not torch.isinf(q_point_0).any(), "q_point should not contain inf"
             # assert not torch.isnan(x).any(), "x should not contain nan"
             # assert not torch.isnan(x_0).any(), "x should not contain nan"
-            nabla_phi_term = self.compute_mixgauss_gradient_term(x, q_point)
-            laplace_phi_term = self.compute_mixgauss_laplace_term(x, q_point)
+            nabla_phi_term = self.compute_mixgauss_gradient_term(x, q_point_0)
+            laplace_phi_term = self.compute_mixgauss_laplace_term(x, q_point_0)
             assert not torch.isnan(
                 laplace_phi_term
             ).any(), "laplace_phi_term should not contain nan"

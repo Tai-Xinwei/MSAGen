@@ -64,6 +64,7 @@ class TimeStepEncoder(nn.Module):
 class DiffNoise(nn.Module):
     def __init__(self, args):
         super(DiffNoise, self).__init__()
+        self.args = args
 
         assert args.ddpm_schedule in ["linear", "quadratic", "sigmoid", "cosine"]
         (
@@ -72,7 +73,7 @@ class DiffNoise(nn.Module):
             self.alphas_cumprod,
             self.beta_list,
         ) = self._beta_schedule(
-            args.t_timesteps,
+            args.t_timesteps + 1,
             args.ddpm_beta_start,
             args.ddpm_beta_end,
             args.ddpm_schedule,
@@ -120,6 +121,7 @@ class DiffNoise(nn.Module):
         return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
 
     def _noise_sample(self, x_start, t, unit_noise_scale=1.0):
+        t = (t * self.args.t_timesteps).long()
         noise = torch.randn_like(x_start) * unit_noise_scale
 
         sqrt_alphas_cumprod_t = self._extract(
@@ -129,7 +131,10 @@ class DiffNoise(nn.Module):
             self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
         )
 
-        return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
+        x_t = sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
+        noise = x_t - x_start
+
+        return x_t, noise, sqrt_one_minus_alphas_cumprod_t
 
     # Here, t is time point in (0, 1]
     def _angle_noise_sample(self, x_start, t):

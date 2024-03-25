@@ -107,7 +107,7 @@ class StructureModel(Model):
                 | (x_0[:, :]).eq(3)
             )  # B x T x 1
 
-        # choose mode from ["ori_angle", "T_noise", "Diff_noise"]
+        # choose mode from ["ori_angle", "T_noise", "Diff_noise", "mix"]
         x = self.model.ft_forward(batch_data, mode="T_noise")
         x = self.model.net.layer_norm(x)
 
@@ -159,100 +159,20 @@ class StructureModel(Model):
     def load_pretrained_weights(self, args, pretrained_model_path):
         self.model.load_pretrained_weights(args, pretrained_model_path)
 
-    # def compute_loss(self, model_output, batch_data) -> ModelOutput:
-    #     structure = model_output[0]
-    #     angle_output = model_output[1]
-    #     x_pair = model_output[2]
-
-    #     with torch.no_grad():
-    #         ori_pos = batch_data["pos"]
-    #         bs = ori_pos.shape[0]
-
-    #         ori_angle = batch_data["ang"]
-    #         angle_mask = batch_data["ang_mask"]
-
-    #         pos_mask = batch_data["pos_mask"]
-
-    #         aa_seq = batch_data["x"]
-    #         padding_mask = (aa_seq).eq(1)  # B x T x 1
-
-    #         # delta_pos0 = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
-    #         # ori_dist = delta_pos0.norm(dim=-1)
-
-    #     pos_mask = pos_mask & (~padding_mask.unsqueeze(-1))
-    #     Ca_pos_m1 = structure["positions"][-1, :, :, 1, :]
-    #     Ca_pos_m2 = structure["positions"][-2, :, :, 1, :]
-    #     Ca_pos_m3 = structure["positions"][-3, :, :, 1, :]
-    #     Ca_pos_m4 = structure["positions"][-4, :, :, 1, :]
-
-    #     # pair_pos = (Ca_pos_m1.unsqueeze(1) - Ca_pos_m1.unsqueeze(2)).norm(dim=-1)
-    #     Ca_pos_m1 = Ca_pos_m1[pos_mask]
-    #     Ca_pos_m2 = Ca_pos_m2[pos_mask]
-    #     Ca_pos_m3 = Ca_pos_m3[pos_mask]
-    #     Ca_pos_m4 = Ca_pos_m4[pos_mask]
-    #     ori_pos = ori_pos[pos_mask]
-
-    #     angle_mask = angle_mask & (~padding_mask.unsqueeze(-1))
-    #     ori_angle = ori_angle[angle_mask]
-    #     angle_output = angle_output[angle_mask]
-
-    #     # dist_mask = ~(
-    #     #     padding_mask.bool().unsqueeze(1) | padding_mask.bool().unsqueeze(2)
-    #     # )
-    #     # dist_filter = ori_dist < 2.0
-    #     # dist_mask = dist_mask & dist_filter
-
-    #     # ori_dist = ori_dist[dist_mask]
-    #     # dist = x_pair[dist_mask].squeeze(-1)
-    #     # # dist = pair_pos[dist_mask].squeeze(-1)
-
-    #     # dist_loss = self.loss_dist(ori_dist.to(torch.float32), dist.to(torch.float32))
-
-    #     # compute loss
-    #     angle_loss = self.loss_angle(
-    #         angle_output.to(torch.float32), ori_angle.to(torch.float32)
-    #     )
-    #     pos_loss_m1 = self.loss_fn(Ca_pos_m1, ori_pos)
-    #     pos_loss_m2 = self.loss_fn(Ca_pos_m2, ori_pos)
-    #     pos_loss_m3 = self.loss_fn(Ca_pos_m3, ori_pos)
-    #     pos_loss_m4 = self.loss_fn(Ca_pos_m4, ori_pos)
-    #     loss = (
-    #         pos_loss_m1
-    #         + pos_loss_m2
-    #         + pos_loss_m3
-    #         + pos_loss_m4
-    #         + angle_loss
-    #         # + 10 * dist_loss
-    #     )
-
-    #     log_output = {
-    #         "total_loss": loss,
-    #         "loss_pos": pos_loss_m1,
-    #         "loss_pos_m2": pos_loss_m2,
-    #         "loss_pos_m3": pos_loss_m3,
-    #         "loss_pos_m4": pos_loss_m4,
-    #         "loss_angle": angle_loss,
-    #         # "loss_dist": dist_loss,
-    #     }
-
-    #     return ModelOutput(loss=loss, num_examples=bs, log_output=log_output)
-
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
         structure = model_output[0]
-        model_output[1]
-        model_output[2]
+        angle_outputs = model_output[1]
+        # x_pair = model_output[2]
 
         with torch.no_grad():
             ori_pos = batch_data["pos"]
             bs = ori_pos.shape[0]
 
-            batch_data["ang"]
-            batch_data["ang_mask"]
+            ori_angle = batch_data["ang"][:, :, :3]
+            angle_mask = batch_data["ang_mask"][:, :, :3].bool()
 
-            batch_data["pos_mask"]
-
-            aa_seq = batch_data["x"]
-            (aa_seq).eq(1)  # B x T x 1
+            # aa_seq = batch_data["x"]
+            # (aa_seq).eq(1)  # B x T x 1
 
             # delta_pos0 = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
             # ori_dist = delta_pos0.norm(dim=-1)
@@ -260,6 +180,16 @@ class StructureModel(Model):
         loss, loss_breakdown = self.loss_fn(
             structure, batch_data, _return_breakdown=True
         )
+
+        ori_angle = ori_angle[angle_mask]
+        angle_outputs = angle_outputs[angle_mask]
+
+        loss_angle = self.loss_angle(
+            angle_outputs.to(torch.float32), ori_angle.to(torch.float32)
+        )
+
+        loss = loss + loss_angle
+        loss_breakdown["loss_angle"] = loss_angle
 
         return ModelOutput(
             loss=loss, num_examples=bs, log_output=loss_breakdown
@@ -309,7 +239,7 @@ def load_batched_dataset(args):
 def finetune(args) -> None:
     train_data, val_data = load_batched_dataset(args)
 
-    basemodel = TOXModel(args, loss_fn=ProteinPMLM, load_ckpt=True)
+    basemodel = TOXModel(args, loss_fn=ProteinPMLM, load_ckpt=False)
     model = StructureModel(args, basemodel)
 
     # any important settings to keep in mind?

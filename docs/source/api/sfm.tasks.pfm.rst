@@ -68,6 +68,14 @@ sfm.tasks.pfm.pretrain\_pfm\_mlm\_bpe module
    :undoc-members:
    :show-inheritance:
 
+sfm.tasks.pfm.sample\_pfm module
+--------------------------------
+
+.. automodule:: sfm.tasks.pfm.sample_pfm
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 sfm.tasks.pfm.test\_pfm module
 ------------------------------
 
