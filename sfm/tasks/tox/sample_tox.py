@@ -66,9 +66,9 @@ def main(args) -> None:
     )
 
     model = TOXModel(args, loss_fn=ProteinMAE3dCriterions).cuda()
-    # model.load_state_dict(
-    #     torch.load(args.loadcheck_path + "/mp_rank_00_model_states.pt")["module"]
-    # )
+    model.load_state_dict(
+        torch.load(args.loadcheck_path + "/mp_rank_00_model_states.pt")["module"]
+    )
     logger.info(f"load model from {args.loadcheck_path}")
 
     model.eval()
@@ -101,7 +101,7 @@ def main(args) -> None:
     alphas_cumprod_list = model.net.diffnoise.alphas_cumprod
 
     pbar = tqdm(dataloader)
-    for batch in tqdm(pbar):
+    for batch in pbar:
         batch = move_to_device(batch, args.local_rank)
         with torch.no_grad():
             ori_pos = batch["pos"].clone()

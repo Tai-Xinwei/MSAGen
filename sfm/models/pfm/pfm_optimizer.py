@@ -19,6 +19,11 @@ except:
     # )
     from torch.optim import Adam  # isort:skip
 
+    # from sfm.utils.optim.mem_eff_adam import (
+    #     MemoryEfficientFP16Adam as Adam,  # isort:skip
+    # )
+    # from torch.optim import Adam  # isort:skip
+
 from sfm.utils.optim.adam import AdamW
 
 
