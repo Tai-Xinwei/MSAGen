@@ -78,6 +78,9 @@ class StructureModel(Model):
         self.loss_fn = AlphaFoldLoss(loss_config)
         self.loss_angle = torch.nn.MSELoss(reduction="mean")
         self.loss_dist = torch.nn.L1Loss(reduction="mean")
+        self.loss_mlm = torch.nn.CrossEntropyLoss(
+            reduction="mean", label_smoothing=0.05
+        )
 
     def data_transform(self, batch_data):
         batch_data = AFDT.esm_to_alphafold_aatype(batch_data)
@@ -108,7 +111,7 @@ class StructureModel(Model):
             )  # B x T x 1
 
         # choose mode from ["ori_angle", "T_noise", "Diff_noise", "mix"]
-        x = self.model.ft_forward(batch_data, mode="T_noise")
+        x, mask_aa = self.model.ft_forward(batch_data, mode="Diff_noise")
         x = self.model.net.layer_norm(x)
 
         angle_output = self.model.net.angle_decoder(x)
@@ -120,6 +123,7 @@ class StructureModel(Model):
         pair_rep = torch.einsum("bih,bjh->bijh", q, k)
         # x_pair = self.model.net.pair_head(pair_rep)
         x_pair = None
+        logits = self.model.net.embed_out(x)
 
         outputs = {
             "single": single_rep,
@@ -154,7 +158,7 @@ class StructureModel(Model):
         outputs["final_affine_tensor"] = outputs["sm"]["frames"][-1]
         outputs.update(self.aux_heads(outputs))
 
-        return outputs, angle_output, x_pair
+        return outputs, angle_output, x_pair, logits, mask_aa
 
     def load_pretrained_weights(self, args, pretrained_model_path):
         self.model.load_pretrained_weights(args, pretrained_model_path)
@@ -163,6 +167,8 @@ class StructureModel(Model):
         structure = model_output[0]
         angle_outputs = model_output[1]
         # x_pair = model_output[2]
+        logits = model_output[3]
+        mask_aa = model_output[4]
 
         with torch.no_grad():
             ori_pos = batch_data["pos"]
@@ -171,8 +177,8 @@ class StructureModel(Model):
             ori_angle = batch_data["ang"][:, :, :3]
             angle_mask = batch_data["ang_mask"][:, :, :3].bool()
 
-            # aa_seq = batch_data["x"]
-            # (aa_seq).eq(1)  # B x T x 1
+            aa_seq = batch_data["x"]
+            aa_seq = aa_seq[mask_aa.squeeze(-1).bool()]
 
             # delta_pos0 = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
             # ori_dist = delta_pos0.norm(dim=-1)
@@ -188,8 +194,23 @@ class StructureModel(Model):
             angle_outputs.to(torch.float32), ori_angle.to(torch.float32)
         )
 
-        loss = loss + loss_angle
+        logits = logits[:, :, :][mask_aa.squeeze(-1).bool()]
+
+        loss_mlm = self.loss_mlm(
+            logits.view(-1, logits.size(-1)).to(torch.float32),
+            aa_seq.view(-1),
+        )
+        # compute type accuracy
+        mlm_acc = (
+            (logits.view(-1, logits.size(-1)).argmax(dim=-1) == aa_seq)
+            .to(torch.float32)
+            .mean()
+        )
+
+        loss = loss + loss_angle + loss_mlm
         loss_breakdown["loss_angle"] = loss_angle
+        loss_breakdown["mlm_loss"] = loss_mlm
+        loss_breakdown["mlm_acc"] = mlm_acc
 
         return ModelOutput(
             loss=loss, num_examples=bs, log_output=loss_breakdown

@@ -521,14 +521,14 @@ class ProteinMAEDistCriterions(nn.Module):
             type_acc = 0.0
 
         with torch.no_grad():
-            ori_pos = batch_data["pos"][:, :, 1, :]
+            ori_pos = batch_data["pos"][:, :, :3, :]
             batch_data["pos_mask"].bool()
 
-            # ori_pos = ori_pos.mean(dim=2, keepdim=False)
+            ori_pos = ori_pos.mean(dim=2, keepdim=False)
             delta_pos0 = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
             ori_dist = delta_pos0.norm(dim=-1)
 
-        # pred_pos = backbone.mean(dim=2, keepdim=False)
+        pred_pos = backbone.mean(dim=2, keepdim=False)
 
         dist_mask = ~(
             padding_mask.bool().unsqueeze(1) | padding_mask.bool().unsqueeze(2)
@@ -537,37 +537,37 @@ class ProteinMAEDistCriterions(nn.Module):
         dist_mask = dist_mask & dist_filter
 
         ori_dist = ori_dist[dist_mask]
-        dist = pair_output[dist_mask]
-        # dist = pred_pos.unsqueeze(1) - pred_pos.unsqueeze(2)
-        # dist = dist.norm(dim=-1)
-        # dist = dist[dist_mask]
+        # dist = pair_output[dist_mask]
+        dist = pred_pos.unsqueeze(1) - pred_pos.unsqueeze(2)
+        dist = dist.norm(dim=-1)
+        dist = dist[dist_mask]
 
         dist_loss = self.loss_dist(ori_dist.to(torch.float32), dist.to(torch.float32))
 
-        # mask_angle = mask_pos.squeeze(-1)
-        # if mask_angle.any():
-        with torch.no_grad():
-            ori_angle = batch_data["ang"][:, :, :3]
-            angle_mask = batch_data["ang_mask"][:, :, :3].bool()
-        # mask_angle = mask_angle & angle_mask
-        mask_angle = angle_mask & (~padding_mask.bool().unsqueeze(-1))
+        # # mask_angle = mask_pos.squeeze(-1)
+        # # if mask_angle.any():
+        # with torch.no_grad():
+        #     ori_angle = batch_data["ang"][:, :, :3]
+        #     angle_mask = batch_data["ang_mask"][:, :, :3].bool()
+        # # mask_angle = mask_angle & angle_mask
+        # mask_angle = angle_mask & (~padding_mask.bool().unsqueeze(-1))
 
-        if self.mode == "score":
-            ang_score = ang_score[:, :, :3]
-            ang_score = ang_score[mask_angle.squeeze(-1)]
-            angle_output = angle_output.to(torch.float32) * torch.sqrt(
-                ang_score_norm.to(torch.float32)
-            )
-            angle_output = angle_output[mask_angle.squeeze(-1)]
-            angle_loss = ((ang_score - angle_output) ** 2).mean()
-        elif self.mode == "x0":
-            angle_output = angle_output[mask_angle.squeeze(-1)]
-            ori_angle = ori_angle[mask_angle.squeeze(-1)]
-            angle_loss = self.loss_angle(
-                angle_output.to(torch.float32), ori_angle.to(torch.float32)
-            )
-        # else:
-        # angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
+        # if self.mode == "score":
+        #     ang_score = ang_score[:, :, :3]
+        #     ang_score = ang_score[mask_angle.squeeze(-1)]
+        #     angle_output = angle_output.to(torch.float32) * torch.sqrt(
+        #         ang_score_norm.to(torch.float32)
+        #     )
+        #     angle_output = angle_output[mask_angle.squeeze(-1)]
+        #     angle_loss = ((ang_score - angle_output) ** 2).mean()
+        # elif self.mode == "x0":
+        #     angle_output = angle_output[mask_angle.squeeze(-1)]
+        #     ori_angle = ori_angle[mask_angle.squeeze(-1)]
+        #     angle_loss = self.loss_angle(
+        #         angle_output.to(torch.float32), ori_angle.to(torch.float32)
+        #     )
+        # # else:
+        angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         loss = type_loss + angle_loss / torch.pi + dist_loss
 
