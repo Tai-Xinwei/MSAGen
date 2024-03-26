@@ -1,0 +1,59 @@
+description: scigpt_7bv2-finetune
+
+# target:
+#     service: amlk8s
+#     name: itphyperdgx2cl1
+#     vc: hai1
+
+target:
+    service: aml
+    name: sfm-nd96amsra100v4-uksouth #nd96trial
+
+environment:
+    image: pj/mfmds:20230207_b
+    registry: itpeus4cr.azurecr.io
+    username: itpeus4cr
+
+storage:
+    pfm:
+        storage_account_name: hai1data # Storage account
+        container_name: pfm # Container name
+        mount_dir: /pfm
+    hai1:
+        storage_account_name: hai1data # Storage account
+        container_name: mfm # Container name
+        mount_dir: /hai1
+    blob:
+        storage_account_name: msralaphilly2
+        container_name: ml-la
+        mount_dir: /blob
+
+code:
+    local_dir: .
+
+search:
+  job_template:
+    name: "score_protein_{split}"
+    tags:
+    - 'ProjectID: PRJ-0209-A40'
+    sku: G16
+    mpi: true
+    process_count_per_node: 1
+    command:
+    - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 -y && conda activate sfm
+    - bash ./install/install.sh && bash ./install/install_megatron.sh
+    - pip install -e .
+    - >-
+      python tools/scigpt/score_protein.py
+      --model '/hai1/shufxi/scigpt/7bv3/stageB.prot/global_step105720'
+      --input '/blob/shufxi/data/ur50split/uniref50_2023_05.shorten.train.taged2.seqs.{split}'
+      --batch_size 32
+    submit_args:
+        container_args:
+            shm_size: 1024g
+  type: grid
+  max_trials: 999
+  parallel_trials: 5
+  params:
+    - name: split
+      values: [0, 1, 2, 3]

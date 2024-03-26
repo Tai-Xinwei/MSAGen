@@ -766,7 +766,13 @@ class Trainer(object):
         torch.random.set_rng_state(checkpoint_rng_state["cpu"])
         if torch.cuda.is_available():
             if self.accelerator.world_size > 1:
-                torch.cuda.random.set_rng_state_all(checkpoint_rng_state["cuda"])
+                try:
+                    torch.cuda.random.set_rng_state_all(checkpoint_rng_state["cuda"])
+                except Exception as e:
+                    logger.warning(
+                        f"Didn't manage to set back the RNG states of the GPU because of the following error:\n {e}"
+                        "\nThis won't yield the same results as if the training had not been interrupted."
+                    )
             else:
                 try:
                     torch.cuda.random.set_rng_state(checkpoint_rng_state["cuda"])
@@ -793,6 +799,8 @@ class Trainer(object):
         if start_iteration is None or start_iteration == 0:
             return data_iterator
 
+        self.state.batch = start_iteration
+
         if isinstance(self.accelerator, DeepSpeedAccelerator):
             skip_first_batches_in_accelerator = self.accelerator.skip_first_batches(
                 start_iteration
@@ -808,6 +816,7 @@ class Trainer(object):
             for i, _ in tqdm(
                 enumerate(data_iterator),
                 desc=f"Skipping first {start_iteration} batches",
+                miniters=1000,
             ):
                 if i == start_iteration - 1:
                     break

@@ -1,0 +1,63 @@
+description: train_sci_gpt_7b
+
+env_defaults:
+  NODES: 1
+  GPUS: 1
+  WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+
+
+target:
+    service: aml
+    name: nd96trial
+    # vc: hai1
+
+
+
+environment:
+    image: pj/mfmds:20230207_b
+    registry: itpeus4cr.azurecr.io
+    username: itpeus4cr
+
+
+
+storage:
+  blob:
+    storage_account_name: hai1data # Storage account
+    container_name: mfm # Container name
+    mount_dir: /hai1
+
+code:
+  local_dir: .
+
+search:
+  job_template:
+    name: eval_chebi_gpt_7bv3_ckpt_{ckpt}
+    tags:
+    - 'ProjectID: PRJ-0209-A40'
+    sku: G1
+    mpi: true
+    process_count_per_node: 1
+    command:
+    - mkdir -p /hai1/shufxi/scigpt/7bv3/stageB/eval/chebi
+    - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 -y && conda activate sfm
+    - bash ./install/install.sh
+    - pip install -e .
+    - >-
+      python tools/scigpt/test_chebi.py
+      --step {ckpt}
+      --ckpt_home /hai1/shufxi/scigpt/7bv3/stageB
+      --save_dir /hai1/shufxi/scigpt/7bv3/stageB/eval/chebi/
+    submit_args:
+      container_args:
+        shm_size: 1024g
+      env: # required by nc96
+        DATASET_MOUNT_BLOCK_BASED_CACHE_ENABLED: 'False'
+        DATASET_MOUNT_BLOCK_FILE_CACHE_ENABLED: 'False'
+        DATASET_MOUNT_FILE_CACHE_PRUNE_TARGET: '0.7'
+        DATASET_MOUNT_CACHE_SIZE: '100GB'
+  type: 'grid'
+  max_trials: 100
+  params:
+    - name: ckpt
+      spec: discrete
+      values: [7968, 15936, 23999]

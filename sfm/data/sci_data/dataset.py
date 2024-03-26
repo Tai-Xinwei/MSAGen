@@ -1,113 +1,10 @@
 # -*- coding: utf-8 -*-
-import os
-import random
-from dataclasses import dataclass
-from typing import Any, List, Union
-
 import numpy as np
 import torch
-from torch.utils.data import Dataset, IterableDataset
 
-from sfm.data.dataset import Batch, Data, InMemoryFoundationModelDataset
+from sfm.data.prot_data.dataset import DownstreamLMDBDataset
 from sfm.data.sci_data import SFMDecTokenizer
 from sfm.logging import logger
-
-
-# allow pad_num to be int or float
-def pad_1d_unsqueeze(
-    x: torch.Tensor, padlen: int, start: int, pad_num: Union[int, float]
-):
-    # (N) -> (1, padlen)
-    xlen = x.size(0)
-    assert (
-        start + xlen <= padlen
-    ), f"padlen {padlen} is too small for xlen {xlen} and start point {start}"
-    new_x = x.new_full([padlen], pad_num, dtype=x.dtype)
-    new_x[start : start + xlen] = x
-    x = new_x
-    return x.unsqueeze(0)
-
-
-def collate_fn(samples: List[dict], vocab: SFMDecTokenizer):
-    """
-    Overload BaseWrapperDataset.collater
-    May be future changes need config
-
-    By default, the collater pads and batch all torch.Tensors (np.array will be converted) in the sample dicts
-    """
-    # max_tokens = Nres+2 (<cls> and <eos>)
-    max_tokens = max(len(s["tokens"]) for s in samples)
-
-    batch = dict()
-
-    # naa = [Nres+2, ...] for each sample
-    batch["ntokens"] = torch.tensor(
-        [len(s["tokens"]) for s in samples], dtype=torch.long
-    )
-
-    # (Nres+2,) -> (B, Nres+2)
-    batch["x"] = torch.cat(
-        [
-            pad_1d_unsqueeze(
-                torch.from_numpy(s["tokens"]), max_tokens, 0, vocab.padding_idx
-            )
-            for s in samples
-        ]
-    )
-    return batch
-
-
-def collate_fn_pp(samples: List[dict], vocab: SFMDecTokenizer):
-    """
-    Overload BaseWrapperDataset.collater
-    May be future changes need config
-
-    By default, the collater pads and batch all torch.Tensors (np.array will be converted) in the sample dicts
-    """
-    max_tokens = max(len(s["tokens"]) for s in samples)
-
-    input_ids = torch.cat(
-        [
-            pad_1d_unsqueeze(
-                torch.from_numpy(s["tokens"]), max_tokens, 0, vocab.padding_idx
-            )
-            for s in samples
-        ]
-    )
-    input_ids = torch.nn.utils.rnn.pad_sequence(
-        input_ids, batch_first=True, padding_value=vocab.padding_idx
-    )
-    input = tuple([input_ids, input_ids.ne(vocab.padding_idx)])
-    labels = input
-    return (input, labels)
-
-
-class BatchedDataDataset(torch.utils.data.Dataset):
-    def __init__(
-        self,
-        dataset,
-        args=None,
-    ):
-        super().__init__()
-        self.dataset = dataset
-        self.args = args
-        self.vocab = dataset.vocab
-
-    def __getitem__(self, index):
-        item = self.dataset[int(index)]
-        return item
-
-    def __len__(self):
-        return len(self.dataset)
-
-    def collate(self, samples):
-        if self.args is None or self.args.pipeline_model_parallel_size == 0:
-            return collate_fn(samples, self.vocab)
-        else:
-            return collate_fn_pp(samples, self.vocab)
-
-    def num_tokens(self, index: int) -> int:
-        return self.dataset.sizes[index]
 
 
 class ProcessedSciDataset(torch.utils.data.Dataset):
@@ -143,23 +40,165 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
         return (input, labels)
 
 
-class SciDataset(InMemoryFoundationModelDataset):
-    def __init__(self, dict_path, data_path, args):
-        self.vocab = SFMDecTokenizer.from_file(dict_path)
-        self.args = args
-        self.max_position_embeddings = args.max_position_embeddings
+class RawTextSciDataset(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        path: str,
+        tokenizer: SFMDecTokenizer,
+        conditional_generation: bool = False,
+        use_template: bool = False,
+        max_len: int = 1024,
+    ):
+        super().__init__()
+        self.tokenizer = tokenizer
+        self.data = []
+        with open(path, "r") as f:
+            for line in f:
+                self.data.append(line.strip())
 
-        with open(data_path, "r") as f:
-            lines = f.read().splitlines()
-            self.data = list(
-                filter(lambda x: len(x) <= self.max_position_embeddings, lines)
+        logger.info(f"Loaded {path} with {len(self.data)} lines")
+        self.conditional_generation = conditional_generation
+        self.use_template = use_template
+        self.max_len = max_len
+
+    def __getitem__(self, index):
+        text = self.data[index]
+        if self.conditional_generation:
+            prompt, target = text.split("\t")
+
+            if self.use_template:
+                prompt = f"Instruction: {prompt}\n\n\nResponse:"
+
+            prompt_tokens = self.tokenizer.encode(prompt, add_special_tokens=False)
+            target_tokens = self.tokenizer.encode(target, add_special_tokens=False)
+            tokens = (
+                [self.tokenizer.bos_token_id]
+                + prompt_tokens
+                + target_tokens
+                + [self.tokenizer.eos_token_id]
             )
-            random.shuffle(self.data)
+            labels = tokens[:]
+            labels[: len(prompt_tokens) + 1] = [-100] * (len(prompt_tokens) + 1)
+        else:
+            tokens = (
+                [self.tokenizer.bos_token_id]
+                + self.tokenizer.encode(text, add_special_tokens=False)
+                + [self.tokenizer.eos_token_id]
+            )
+            labels = tokens[:]
+
+        # keep the last max_len tokens, or there maybe no labels to pred
+        tokens = tokens[-self.max_len :]
+        labels = labels[-self.max_len :]
+
+        return torch.tensor(tokens), torch.tensor(labels)
 
     def __len__(self):
         return len(self.data)
 
+    def collate(self, samples):
+        input_ids_list, labels_list = zip(*samples)
+        input_ids = torch.nn.utils.rnn.pad_sequence(
+            input_ids_list, batch_first=True, padding_value=self.tokenizer.pad_token_id
+        )
+        labels = torch.nn.utils.rnn.pad_sequence(
+            labels_list, batch_first=True, padding_value=-100
+        )
+        padding_mask = input_ids.ne(self.tokenizer.pad_token_id)
+
+        input = tuple([input_ids, padding_mask])
+        return (input, labels)
+
+
+class ProteinLmdbDataset(torch.utils.data.Dataset):
+    def __init__(self, task_name, lmdb_dataset, lmdb_vocab, tokenizer):
+        self.task_name = task_name
+        self.task_type = DownstreamLMDBDataset.TASKINFO[task_name]["type"]
+        self.lmdb_dataset = lmdb_dataset
+        self.lmdb_vocab = lmdb_vocab
+        self.tokenizer = tokenizer
+        self.multi_seq_tasks = ["yeast_ppi", "human_ppi", "ppi_affinity"]
+        self.idx_to_tok = {v: k for k, v in lmdb_vocab.tok_to_idx.items()}
+
+        logger.info(f"Loaded {task_name} with {len(self)} lines, type {self.task_type}")
+
+    def reverse2str(self, tokens):
+        vocab = self.lmdb_vocab
+        aa_seq = []
+        for i in tokens:
+            if i in [
+                vocab.unk_idx,
+                vocab.padding_idx,
+                vocab.cls_idx,
+                vocab.mask_idx,
+                vocab.eos_idx,
+            ]:
+                continue
+            aa_seq.append(self.idx_to_tok[i])
+        return "".join(aa_seq)
+
+    def __len__(self):
+        return len(self.lmdb_dataset)
+
     def __getitem__(self, index):
-        item = dict()
-        item["tokens"] = self.vocab.encode(self.data[index])
-        return item
+        item = self.lmdb_dataset[index]
+
+        sentence = ""
+
+        if self.task_name in self.multi_seq_tasks:
+            aa_seqs = [self.reverse2str(item[f"aa_{i}"]) for i in range(2)]
+            sentence = (
+                "<protein>"
+                + aa_seqs[0]
+                + "</protein><protein>"
+                + aa_seqs[1]
+                + "</protein>"
+            )
+        else:
+            aa_seq = self.reverse2str(item["aa"])
+            sentence = "<protein>" + aa_seq + "</protein>"
+
+        target = item["target"]
+        if self.task_type == "regression":
+            assert target.shape == (1,)
+            target = f"{target[0]:.8f}"
+        elif self.task_type == "binary":
+            assert target.shape == (1,)
+            target = "true" if target[0] == 1 else "false"
+        elif self.task_type == "classification":
+            assert len(target) == 1
+            target = str(target[0])
+        else:  # multi_classification
+            target = " , ".join([str(v) for v in item["target"]])
+
+        sentence = sentence + " " + target
+        # tokens = self.tokenizer.tokenize(sentence, add_special_tokens=False)
+        tokens = self.tokenizer.encode(sentence, add_special_tokens=False)
+
+        input_ids = (
+            [self.tokenizer.bos_token_id] + tokens + [self.tokenizer.eos_token_id]
+        )
+
+        prot_end_token_idx = self.tokenizer.convert_tokens_to_ids("</protein>")
+        last_prot_end = -1
+        for i, token in enumerate(tokens):
+            if token == prot_end_token_idx:
+                last_prot_end = i
+
+        labels = input_ids[:]
+        labels[: last_prot_end + 2] = [-100] * (last_prot_end + 2)
+
+        return torch.tensor(input_ids), torch.tensor(labels)
+
+    def collate(self, samples):
+        input_ids_list, labels_list = zip(*samples)
+        input_ids = torch.nn.utils.rnn.pad_sequence(
+            input_ids_list, batch_first=True, padding_value=self.tokenizer.pad_token_id
+        )
+        labels = torch.nn.utils.rnn.pad_sequence(
+            labels_list, batch_first=True, padding_value=-100
+        )
+        padding_mask = input_ids.ne(self.tokenizer.pad_token_id)
+
+        input = tuple([input_ids, padding_mask])
+        return (input, labels)

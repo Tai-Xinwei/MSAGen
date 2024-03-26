@@ -26,6 +26,10 @@ SCIENCE_TAG_TOKENS = [
     "</reactants>",
     "<antibody>",
     "</antibody>",
+    "<fragA>",
+    "</fragA>",
+    "<fragB>",
+    "</fragB>",
 ]
 
 # may need to use in future

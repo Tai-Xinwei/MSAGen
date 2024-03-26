@@ -1,0 +1,67 @@
+description: train_sci_gpt_7b
+
+env_defaults:
+  NODES: 1
+  GPUS: 1
+  WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+
+
+target:
+    service: aml
+    name: nd96trial
+    # vc: hai1
+
+environment:
+  image: shufxi/mfmds:20230807
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+code:
+  local_dir: .
+
+storage:
+    pfm:
+        storage_account_name: hai1data # Storage account
+        container_name: pfm # Container name
+        mount_dir: /pfm
+    hai1:
+        storage_account_name: hai1data # Storage account
+        container_name: mfm # Container name
+        mount_dir: /hai1
+    blob:
+        storage_account_name: msralaphilly2
+        container_name: ml-la
+        mount_dir: /blob
+
+search:
+  job_template:
+    name: prot_gen_t{t}_p{p}
+    tags:
+    - 'ProjectID: PRJ-0209-A40'
+    sku: G1
+    mpi: true
+    process_count_per_node: 1
+    command:
+    - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 -y && conda activate sfm
+    - bash ./install/install.sh
+    - pip install -e .
+    - >-
+      python ./sfm/tasks/scigpt/prot_gen.py
+      --ckpt_home '/hai1/shufxi/scigpt/7bv2/stageB/global_step26999/'
+      --tokenizer_home '/hai1/ds_dataset/llama2/llama-2-7b'
+      --output_path '/blob/shufxi/scigpt/7bv2/stageB/protgen'
+      --t {t}
+      --p {p}
+    submit_args:
+      container_args:
+        shm_size: 1024g
+  type: grid
+  max_trials: 100
+  parallel_trials: 100
+  params:
+    - name: t
+      spec: discrete
+      values: [0.2, 0.4, 0.6, 0.8, 1.0]
+    - name: p
+      spec: discrete
+      values: [0.5, 0.7, 0.9, 1.0]

@@ -1,0 +1,54 @@
+description: scigpt_7bv2-finetune
+
+# target:
+#     service: amlk8s
+#     name: itphyperdgx2cl1
+#     vc: hai1
+
+target:
+    service: aml
+    name: sfm-nd96amsra100v4-uksouth
+
+environment:
+    image: pj/mfmds:20230207_b
+    registry: itpeus4cr.azurecr.io
+    username: itpeus4cr
+
+storage:
+    pfm:
+        storage_account_name: hai1data # Storage account
+        container_name: pfm # Container name
+        mount_dir: /pfm
+    hai1:
+        storage_account_name: hai1data # Storage account
+        container_name: mfm # Container name
+        mount_dir: /hai1
+    blob:
+        storage_account_name: msralaphilly2
+        container_name: ml-la
+        mount_dir: /blob
+
+code:
+    local_dir: .
+
+jobs:
+- name: "finetune_scigpt7bv3_inst"
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  sku: G8
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - export WANDB_API_KEY='d34f864932245bbdf3a9396a1ebde883ad2068f3'
+  - export WANDB_PROJECT='scigpt7bv3_inst'
+  - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 -y && conda activate sfm
+  - bash ./install/install.sh && bash ./install/install_megatron.sh
+  - pip install -e .
+  - export train_data_path=/blob/yinxia/wu2/shared/SFM/SFM.overall.data/instruction_tuning/train.instruct_text2mat.tsv
+  - export valid_data_path=/blob/yinxia/wu2/shared/SFM/SFM.overall.data/instruction_tuning/valid.instruct_text2mat.tsv
+  - export total_num_epochs=3
+  - export save_dir=/blob/shufxi/scigpt/7bv3/inst_mat/run1
+  - bash ./scripts/scigpt/finetune_scigpt_7bv3_inst.sh
+  submit_args:
+      container_args:
+          shm_size: 1024g
