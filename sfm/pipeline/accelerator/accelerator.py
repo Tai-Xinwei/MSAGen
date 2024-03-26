@@ -37,6 +37,12 @@ from sfm.utils.PPEngine import initialize as initialize_pp_engine
 from .pipeline_module import SFMPipelineModule
 
 
+def safe_div(a, b):
+    if b == 0:
+        return 0
+    return a / b
+
+
 class GroupedBatchIter(object):
     """
     This class is used to group batches into a larger batch. i.e., gradient accumulation.
@@ -540,7 +546,7 @@ class DdpAccelerator(SingleNodeAccelerator):
             torch.distributed.all_reduce(v, op=torch.distributed.ReduceOp.SUM)
             log_num_dict[k] = v.item()
 
-        return {k: v / log_num_dict[k] for k, v in log_dict.items()}
+        return {k: safe_div(v, log_num_dict[k]) for k, v in log_dict.items()}
 
 
 class DeepSpeedAccelerator(Accelerator):
@@ -1047,7 +1053,7 @@ class DeepSpeedAccelerator(Accelerator):
     ) -> TrainerState:
         if isinstance(ckpt_id, int):
             ckpt_id = str(ckpt_id)
-        _, cliend_sd = self.model_engine.load_checkpoint(
+        load_path, client_sd = self.model_engine.load_checkpoint(
             str(ckpt_dir),
             load_optimizer_states=(not model_states_only),
             load_lr_scheduler_states=(not model_states_only),
@@ -1055,6 +1061,9 @@ class DeepSpeedAccelerator(Accelerator):
             tag=ckpt_id,
             load_module_strict=False,
         )
+
+        logger.info(f"Loaded checkpoint {load_path}")
+        logger.info(f"The client state {client_sd}")
 
         if not model_states_only:
             self._transfer_optimizer_state_to_fp32()
@@ -1142,7 +1151,7 @@ class DeepSpeedAccelerator(Accelerator):
             deepspeed.comm.all_reduce(v, op=torch.distributed.ReduceOp.SUM)
             log_num_dict[k] = v.item()
 
-        return {k: v / log_num_dict[k] for k, v in log_dict.items()}
+        return {k: safe_div(v, log_num_dict[k]) for k, v in log_dict.items()}
 
     def skip_first_batches(self, start_iteration):
         if (

@@ -5,9 +5,8 @@ from sfm.data.sci_data.SFMDecTokenizer import SFMDecTokenizer
 from sfm.logging import logger
 from sfm.models.scigpt.config import (
     ScigptConfig,
-    scigpt_7b_1k_config,
-    scigpt_7b_512_config,
     scigpt_7b_config,
+    scigpt_13b_config,
     scigpt_350m_config,
     scigpt_shallow_config,
     scigpt_tiny_config,
@@ -23,8 +22,7 @@ config_registry = {
     "scigpt_350m": scigpt_350m_config,
     "scigpt": scigpt_shallow_config,
     "scigpt_7b": scigpt_7b_config,
-    "scigpt_7b_1k": scigpt_7b_1k_config,
-    "scigpt_7b_512": scigpt_7b_512_config,
+    "scigpt_13b": scigpt_13b_config,
 }
 
 
@@ -38,9 +36,10 @@ def main(args) -> None:
         args.valid_data_path is not None and len(args.valid_data_path) > 0
     ), f"valid_dataset is {args.valid_data_path} it should not be None or empty"
 
-    tokenizer = SFMDecTokenizer.from_pretrained(args.dict_path)
-    args.vocab_size = len(tokenizer)  # now we have new tokens
-    args.pad_token_id = tokenizer.pad_token_id
+    if not args.vocab_size:
+        tokenizer = SFMDecTokenizer.from_pretrained(args.dict_path)
+        args.vocab_size = len(tokenizer)  # now we have new tokens
+        args.pad_token_id = tokenizer.pad_token_id
 
     config = arg_utils.from_args(args, ScigptConfig)
     config = config_registry.get(config.model_type, scigpt_tiny_config)(config)
@@ -50,10 +49,10 @@ def main(args) -> None:
     model = ScigptModel(config)
 
     train_dataset = ProcessedSciDataset(
-        config.train_data_path, tokenizer.pad_token_id, config.max_position_embeddings
+        config.train_data_path, args.pad_token_id, config.max_position_embeddings
     )
     valid_dataset = ProcessedSciDataset(
-        config.valid_data_path, tokenizer.pad_token_id, config.max_position_embeddings
+        config.valid_data_path, args.pad_token_id, config.max_position_embeddings
     )
 
     trainer = Trainer(

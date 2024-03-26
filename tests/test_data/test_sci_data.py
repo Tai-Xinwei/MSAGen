@@ -83,7 +83,7 @@ class TestSFMDecTokenizer(unittest.TestCase):
     def test_tok_prompt(self):
         self.check_tokenizer("AA <mol>", ["AA", "<mol>"])
 
-        self.check_tokenizer("AA <mol> BB", ["AA", "<mol>", "BB"])
+        self.check_tokenizer("AA <mol> BB", ["AA", "<mol>", "<m>B", "<m>B"])
 
 
 if __name__ == "__main__":

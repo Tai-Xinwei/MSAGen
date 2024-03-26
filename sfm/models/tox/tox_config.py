@@ -23,6 +23,8 @@ class TOXConfig(GraphormerConfig):
 
     mode: str = "score"
 
+    ode_mode: bool = False
+
     def __init__(
         self,
         args,

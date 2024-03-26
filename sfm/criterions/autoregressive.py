@@ -19,8 +19,10 @@ class AutoregressiveCriterion(nn.Module):
     def forward(self, output, label):
         if type(label) == tuple:
             labels = label[0]
-        else:
+        elif type(label) == dict:
             labels = label["x"]
+        else:
+            labels = label
 
         logits = output
 

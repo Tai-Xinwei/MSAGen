@@ -14,7 +14,7 @@ from sfm.models.scigpt.modules import SciGPTEmbeddingsPP
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
-from sfm.utils.optim.optimizer import myAdam
+from sfm.utils.optim.optimizer import myAdam, myAdamW
 from sfm.utils.optim.set_lr import DECAY_COSINE_RATE, groupWarmupDecayLR
 
 
@@ -128,13 +128,22 @@ class ScigptModel(SFMPipelineModelMixin):
         #     eps=1e-8,
         # )
 
-        optimizer = AdamW(
-            model.parameters(),
-            lr=self.config.max_lr,
-            betas=(self.config.beta1, self.config.beta2),
-            weight_decay=self.config.weight_decay,
-            eps=1e-8,
-        )
+        if self.config.ft:
+            optimizer, _ = myAdam(
+                model,
+                lr=self.config.max_lr,
+                betas=(self.config.beta1, self.config.beta2),
+                weight_decay=self.config.weight_decay,
+                eps=1e-8,
+            )
+        else:
+            optimizer = AdamW(
+                model.parameters(),
+                lr=self.config.max_lr,
+                betas=(self.config.beta1, self.config.beta2),
+                weight_decay=self.config.weight_decay,
+                eps=1e-8,
+            )
 
         lr_scheduler = groupWarmupDecayLR(
             optimizer,

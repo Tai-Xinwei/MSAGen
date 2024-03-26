@@ -546,12 +546,13 @@ class TOX(nn.Module):
             pos = ori_pos + noise
             return pos, None, None, None
         elif self.pfm_config.noise_mode == "diff":  # diff means diffusion
-            # Here we modify the time_pos to be sampled from 0 to 1.
-            if infer:  # give the same final time step (end time) to the batch
+            if infer:
                 if time_step is None:
                     time_step = self.t_timesteps - 1
 
-                time_pos = torch.ones((ori_pos.shape[0],), device=ori_pos.device)
+                time_pos = (
+                    torch.ones((ori_pos.shape[0],), device=ori_pos.device) * time_step
+                )
 
                 time_ang = time_pos
 
@@ -761,25 +762,28 @@ class TOX(nn.Module):
         ori_angle = batched_data["ang"]
 
         angle_mask = batched_data["ang_mask"].bool()
+
         ori_angle = ori_angle.masked_fill(~angle_mask, 100.0).to(ori_pos.dtype)
         pos_mask = batched_data["pos_mask"].bool().unsqueeze(-1)
         ori_pos = ori_pos.masked_fill(~pos_mask, 0.0)
 
         (
             mask_aa,
-            mask_pos,
+            mask_pos,  # mask_angle=mask_pos always true
             padding_mask,
             eos_mask,
             cls_mask,
             mode_mask,
             mask_angle,
-        ) = self._set_mask(mask_aa, mask_pos, residue_seq)
+        ) = self._set_mask(
+            mask_aa, mask_pos, residue_seq
+        )  # mask_res=0
 
         if q is None:
             (
                 pos,
                 angle,
-                time_pos,
+                time_pos,  #
                 time_aa,
                 ang_score,
                 ang_score_norm,
@@ -959,25 +963,21 @@ class TOX(nn.Module):
         ori_pos = batched_data["pos"]
         ori_angle = batched_data["ang"]
 
-        # angle_mask = ori_angle == float("inf")
-        # ori_angle = ori_angle.masked_fill(angle_mask, 0.0).to(ori_pos.dtype)
+        pos_mask = batched_data["pos_mask"].bool().unsqueeze(-1)
+        ori_pos = ori_pos.masked_fill(~pos_mask, 0.0)
 
-        pos_mask = ori_pos == float("inf")
-        ori_pos = ori_pos.masked_fill(pos_mask, 0.0)
+        angle_mask = batched_data["ang_mask"].bool()
+        ori_angle = ori_angle.masked_fill(~angle_mask, 100.0).to(ori_pos.dtype)
 
         pos = ori_pos
         angle = ori_angle
-        angle = torch.remainder(angle, 2 * self.pi) - self.pi
         # ang_score, ang_score_norm = None, None
 
         time_pos = (
             torch.ones((ori_pos.shape[0],), device=ori_pos.device, dtype=torch.long)
             * time_step
         )
-        (
-            torch.ones((ori_angle.shape[0],), device=ori_pos.device, dtype=torch.long)
-            * time_step
-        )
+        time_angle = time_pos
 
         (
             x,
@@ -998,6 +998,7 @@ class TOX(nn.Module):
             mask_pos=mask_pos,
             mask_angle=mask_angle,
             time_pos=time_pos,
+            time_angle=time_angle,
             time_aa=time_aa,
             mode_mask=mode_mask,
             padding_mask=padding_mask,
@@ -1009,18 +1010,20 @@ class TOX(nn.Module):
         padding_mask = padding_mask | eos_mask
         padding_mask[:, 0] = True
 
-        node_output, _, x_dec = self.uni_decoder(
-            batched_data,
-            x,
-            pos,
-            angle,
-            padding_mask,
-            mask_aa=mask_aa,
-            mask_pos=mask_pos,
-            time_pos=time_pos,
-        )
+        # node_output, _, x_dec = self.uni_decoder(
+        #     batched_data,
+        #     x,
+        #     pos,
+        #     angle,
+        #     padding_mask,
+        #     mask_aa=mask_aa,
+        #     mask_pos=mask_pos,
+        #     time_pos=time_pos,
+        # )
 
-        x = inner_states[-1].transpose(0, 1)
+        # x = inner_states[-1].transpose(0, 1)
+        x = x.transpose(0, 1)
+        x = self.layer_norm(x)
 
         angle_output = self.angle_decoder(x)
         angle_output = angle_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
@@ -1028,8 +1031,7 @@ class TOX(nn.Module):
         # project masked tokens only
         if masked_tokens is not None:
             x = x[masked_tokens, :]
-
-        x = self.layer_norm(self.activation_fn(self.lm_head_transform_weight(x)))
+        # x = self.layer_norm(self.activation_fn(self.lm_head_transform_weight(x)))
 
         # project back to size of vocabulary
         if self.share_input_output_embed and hasattr(
@@ -1047,7 +1049,7 @@ class TOX(nn.Module):
             x = self.proj_out(x)
 
         # return (x, node_output, angle_output, mask_pos, mask_aa, ang_score, ang_score_norm)
-        return (x, node_output, angle_output, mask_pos, mask_aa, angle, pos)
+        return (x, pos, angle_output, mask_pos, mask_aa, angle, pos)
 
     def ft_forward(
         self,
