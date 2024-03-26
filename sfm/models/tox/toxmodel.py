@@ -485,7 +485,7 @@ class TOX(nn.Module):
             args.encoder_embed_dim, args.encoder_pair_embed_dim, bias=False
         )
         self.pair_layer_norm = nn.LayerNorm(args.encoder_pair_embed_dim)
-        self.dist_head = nn.Linear(args.encoder_pair_embed_dim, 3, bias=False)
+        self.dist_head = nn.Linear(args.encoder_pair_embed_dim, 1, bias=False)
         self.pair_head = nn.Linear(
             args.encoder_pair_embed_dim,
             args.num_residues * args.num_residues,
@@ -690,7 +690,7 @@ class TOX(nn.Module):
         k = self.fc_pmlm_k(x)
         x = torch.einsum("bih,bjh->bijh", q, k)
         x = self.dist_head(x)
-        x = x.view(B, L, L, -1)
+        x = x.view(B, L, L)
         return x
 
     def _get_backbone(self, angle_pred, bond_angle_output):
@@ -854,7 +854,7 @@ class TOX(nn.Module):
         x = self.layer_norm(x)
 
         angle_output = self.angle_decoder(x)
-        self.bond_angle_decoder(x)
+        # self.bond_angle_decoder(x)
 
         # apply ∆τ to ˆ C; predict δτ = sθ,G( ˆ C, t); update θ ← θ − α∇θ‖δτ − ∇∆τ pt|0(∆τ | 0)‖2; given in Algorithm 2 of
         # Training procedure of Torsional Diffusion for Molecular Conformer Generation
