@@ -102,8 +102,9 @@ class Protein:
         for ridx, res in enumerate(self.chain):
             if res.resname not in residue_constants.restype_3to1 and res.resname != "UNK":
                 # not a standard amino acid, UNK instead
-                logger.warning(f"Nonstandard residue {res.resname} in {self.name}, treated as UNK.")
-                res.resname = "UNK"
+                logger.warning(f"Nonstandard residue {res.resname} in {self.name}, skip.")
+                # res.resname = "UNK"
+                continue
             for atm_name in residue_constants.residue_atoms[res.resname]:
                 try:
                     atm = res[atm_name]

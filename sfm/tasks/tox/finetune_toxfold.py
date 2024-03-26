@@ -128,6 +128,7 @@ class StructureModel(Model):
         outputs = {
             "single": single_rep,
             "pair": pair_rep,
+            "aatype": batch_data["aatype"],  # for inference use
         }
 
         mask = (~padding_mask).long()
