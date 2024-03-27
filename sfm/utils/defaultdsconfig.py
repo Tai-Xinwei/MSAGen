@@ -25,9 +25,9 @@ DEFAULT_DS_CONFIG = {
     "zero_optimization": {
         "stage": 1,
         "ignore_unused_parameters": True,
-        "contiguous_gradients": True,
-        "reduce_scatter": True,
-        "overlap_comm": True,
+        "contiguous_gradients": False,
+        "reduce_scatter": False,
+        "overlap_comm": False,
     },
     "fp16": {"enabled": True, "auto_cast": False},
     "bf16": {"enabled": False},

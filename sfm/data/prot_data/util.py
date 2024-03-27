@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import logging
 import os
+import pickle
+import zlib
 
 logger = logging.getLogger(__name__)
 
@@ -12,3 +14,7 @@ def add_to_env(toadd: dict):
                 f"Warning: environment variable {k}={os.environ[k]} already exists, will be overwritten"
             )
         os.environ[k] = str(v)
+
+
+def bstr2obj(bstr: bytes):
+    return pickle.loads(zlib.decompress(bstr))

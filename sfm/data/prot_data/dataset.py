@@ -25,9 +25,9 @@ from sfm.data.prot_data.collater import (
 )
 from sfm.data.prot_data.sequence_masking import masking_registry
 from sfm.data.prot_data.spatial_noise import noise_registry
+from sfm.data.prot_data.util import bstr2obj
 from sfm.data.prot_data.vocalubary import Alphabet
 from sfm.logging import logger
-from tools.protein_data_process.commons import bstr2obj
 
 
 class LMDBDataset(FoundationModelDataset):
