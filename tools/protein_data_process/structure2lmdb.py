@@ -15,11 +15,8 @@ from io import StringIO
 import gzip
 import json
 import numpy as np
-<<<<<<< HEAD
 
 logger = logging.getLogger(__name__)
-=======
->>>>>>> main
 
 
 def chunks(lst, n):
