@@ -521,10 +521,10 @@ class ProteinMAEDistCriterions(nn.Module):
             type_acc = 0.0
 
         with torch.no_grad():
-            ori_pos = batch_data["pos"][:, :, 1, :]
+            ori_pos = batch_data["pos"][:, :, :3, :]
             batch_data["pos_mask"].bool()
 
-            # ori_pos = ori_pos.mean(dim=2, keepdim=False)
+            ori_pos = ori_pos.mean(dim=2, keepdim=False)
             delta_pos0 = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
             ori_dist = delta_pos0.norm(dim=-1)
 
@@ -544,8 +544,8 @@ class ProteinMAEDistCriterions(nn.Module):
 
         dist_loss = self.loss_dist(ori_dist.to(torch.float32), dist.to(torch.float32))
 
-        # mask_angle = mask_pos.squeeze(-1)
-        # if mask_angle.any():
+        # # mask_angle = mask_pos.squeeze(-1)
+        # # if mask_angle.any():
         with torch.no_grad():
             ori_angle = batch_data["ang"][:, :, :3]
             angle_mask = batch_data["ang_mask"][:, :, :3].bool()
@@ -566,7 +566,7 @@ class ProteinMAEDistCriterions(nn.Module):
             angle_loss = self.loss_angle(
                 angle_output.to(torch.float32), ori_angle.to(torch.float32)
             )
-        # else:
+        # # else:
         # angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         loss = type_loss + angle_loss / torch.pi + dist_loss

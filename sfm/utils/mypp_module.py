@@ -675,7 +675,7 @@ class PipelineModule(nn.Module):
 
         return ckpt_files
 
-    def save_state_dict(self, save_dir, checkpoint_engine):
+    def save_state_dict(self, save_dir, checkpoint_engine, exclude_frozen_params=False):
         # Processes having the same model parallel rank on different data parallel instances
         # have identical layer weights.  We can distribute the task of saving the layer weights
         # among the data parallel ranks.  For example, if a pipeline stage has 9 layers and

@@ -9,7 +9,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${layers}" ] && layers=12
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
-[ -z "${no_blocks}" ] && no_blocks=4
+[ -z "${no_blocks}" ] && no_blocks=1
 [ -z "${hidden_size}" ] && hidden_size=768
 [ -z "${ffn_size}" ] && ffn_size=3072
 [ -z "${num_head}" ] && num_head=8
@@ -27,7 +27,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
 [ -z "${diffmode}" ] && diffmode=x0
-[ -z "${mask_ratio}" ] && mask_ratio=0.0
+[ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=4e-5
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
@@ -42,7 +42,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${epochs}" ] && epochs=100
 [ -z "${seed}" ] && seed=42
 
-[ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+# [ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 [ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${train_data_path}" ] && train_data_path='None'
@@ -173,7 +174,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/finetune_toxfold.py \
           --encoder_layers $layers \
           --encoder_ffn_embed_dim $ffn_size \
           --encoder_embed_dim $hidden_size \
-          --c_s $hidden_size --c_z $((hidden_size/4)) \
+          --c_s $hidden_size --c_z $((hidden_size/16)) \
           --droppath_prob $droppath_prob \
           --attn_dropout $attn_dropout \
           --num_3d_bias_kernel $num_3d_bias_kernel \
@@ -185,7 +186,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/finetune_toxfold.py \
           --save_dir $save_dir \
           --seed $seed \
           --no_blocks $no_blocks \
-          --finetune_from_checkpoint_dir $loadcheck_path \
           --add_3d \
           --mode $diffmode \
           --mask_ratio $mask_ratio \
@@ -203,3 +203,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/finetune_toxfold.py \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+
+          # --finetune_from_checkpoint_dir $loadcheck_path \

@@ -13,7 +13,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from sfm.logging import logger
-from sfm.models.tox.structure.backbone import BackboneBuilder
+from sfm.models.tox.structure.backbone import BackboneBuilder, BackboneBuilderV0
 from sfm.models.tox.tox_config import TOXConfig
 from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.layer_norm import LayerNorm
@@ -460,6 +460,12 @@ class TOX(nn.Module):
             nn.Linear(args.encoder_embed_dim, 3),
         )
 
+        self.bond_angle_decoder = nn.Sequential(
+            nn.Linear(args.encoder_embed_dim, args.encoder_embed_dim),
+            nn.GELU(),
+            nn.Linear(args.encoder_embed_dim, 3),
+        )
+
         self.masked_lm_pooler = nn.Linear(
             args.encoder_embed_dim, args.encoder_embed_dim
         )
@@ -473,20 +479,20 @@ class TOX(nn.Module):
         self.lm_output_learned_bias = nn.Parameter(torch.zeros(1))
 
         self.fc_pmlm_q = nn.Linear(
-            args.encoder_embed_dim, args.encoder_embed_dim // 16, bias=False
+            args.encoder_embed_dim, args.encoder_pair_embed_dim, bias=False
         )
         self.fc_pmlm_k = nn.Linear(
-            args.encoder_embed_dim, args.encoder_embed_dim // 16, bias=False
+            args.encoder_embed_dim, args.encoder_pair_embed_dim, bias=False
         )
-        self.pair_layer_norm = nn.LayerNorm(args.encoder_embed_dim // 16)
-        self.dist_head = nn.Linear(args.encoder_embed_dim // 16, 1, bias=False)
+        self.pair_layer_norm = nn.LayerNorm(args.encoder_pair_embed_dim)
+        self.dist_head = nn.Linear(args.encoder_pair_embed_dim, 1, bias=False)
         self.pair_head = nn.Linear(
-            args.encoder_embed_dim // 16,
+            args.encoder_pair_embed_dim,
             args.num_residues * args.num_residues,
             bias=False,
         )
 
-        self.backbonebuilder = BackboneBuilder()
+        self.backbonebuilder = BackboneBuilderV0()
 
         if self.load_softmax:
             if not self.share_input_output_embed:
@@ -688,17 +694,19 @@ class TOX(nn.Module):
         x = x.view(B, L, L)
         return x
 
-    def _get_backbone(self, angle_pred, ori_angle):
+    def _get_backbone(self, angle_pred, bond_angle_output):
+        bs = angle_pred.shape[0]
         psi = angle_pred[:, :, 0]
         phi = angle_pred[:, :, 1]
         omega = angle_pred[:, :, 2]
+        bond_angle_output.view(bs, -1)
         # psi = ori_angle[:, :, 0]
         # phi = ori_angle[:, :, 1]
         # omega = ori_angle[:, :, 2]
         # phi[:, :-1] = phi[:, 1:]
         # omega[:, :-1] = omega[:, 1:]
         backbone_pos = self.backbonebuilder(
-            phi=phi, psi=psi, omega=omega
+            phi=phi, psi=psi, omega=omega, add_O=False
         )  # B x L x 4 x 3 [N, CA, C, O]
         # diag_seq = torch.cat(diag_seq_list, dim=0)
         return backbone_pos
@@ -849,7 +857,8 @@ class TOX(nn.Module):
         x = x.transpose(0, 1)
         x = self.layer_norm(x)
 
-        angle_output = self.angle_decoder(x)  # angle_output is not final
+        angle_output = self.angle_decoder(x)
+        # self.bond_angle_decoder(x)
 
         # apply ∆τ to ˆ C; predict δτ = sθ,G( ˆ C, t); update θ ← θ − α∇θ‖δτ − ∇∆τ pt|0(∆τ | 0)‖2; given in Algorithm 2 of
         # Training procedure of Torsional Diffusion for Molecular Conformer Generation
@@ -859,7 +868,7 @@ class TOX(nn.Module):
 
         # TODO: check if it is okay to mask the paddings for q
         angle_output = angle_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
-        # backbone = self._get_backbone(angle_output, ori_angle)
+        # backbone = self._get_backbone(angle_output, bond_angle_output)
         backbone = None
 
         if q is None:
@@ -1115,6 +1124,7 @@ class TOX(nn.Module):
                 mask_pos,
                 padding_mask,
                 eos_mask,
+                cls_mask,
                 mode_mask,
                 mask_angle,
             ) = self._set_mask(mask_aa, mask_pos, residue_seq)
@@ -1200,7 +1210,7 @@ class TOX(nn.Module):
 
         x = inner_states[-1].transpose(0, 1)
 
-        return x
+        return x, mask_aa
 
     def upgrade_state_dict_named(self, state_dict, name):
         tmp_dict = {}
