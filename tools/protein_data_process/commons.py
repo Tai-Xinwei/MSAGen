@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import pickle
-from sfm.logging import logger
+import logging
 import zlib
 from io import StringIO
 from typing import List, Union
@@ -9,7 +9,7 @@ import numpy as np
 from Bio.PDB import MMCIFParser, PDBParser, Chain, PDBIO
 from Bio.PDB import PDBParser
 
-import tools.protein_data_process.residue_constants as residue_constants
+import residue_constants
 from pathlib import Path
 import gzip
 from urllib.request import urlretrieve
@@ -18,6 +18,7 @@ import hashlib
 import zipfile
 import tarfile
 
+logger = logging.getLogger(__name__)
 
 ANGLE_STRS: List[str]=["psi", "phi", "omg", "tau", "chi1", "chi2", "chi3", "chi4", "chi5"]
 

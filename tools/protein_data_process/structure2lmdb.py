@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from curses import meta
 import datetime
 from pathlib import Path
 from typing import List, Union
@@ -10,12 +9,17 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 
 from commons import bstr2obj, obj2bstr, Protein
-from sfm.logging import logger
+import logging
 import commons
 from io import StringIO
 import gzip
 import json
 import numpy as np
+<<<<<<< HEAD
+
+logger = logging.getLogger(__name__)
+=======
+>>>>>>> main
 
 
 def chunks(lst, n):
@@ -31,11 +35,11 @@ def process_item(input_path: Path):
     pae_path = input_path.parent / (input_path.name.rsplit("-", 1)[0] + '-predicted_aligned_error_v4.json.gz')
     if confidence_path.exists():
         d["confidence"] = np.array(json.loads(gzip.open(confidence_path, "rt").read())['confidenceScore'])
-    if pae_path.exists():
-        try:
-            d["pae"] = np.array(json.loads(gzip.open(pae_path, "rt").read())[0]['predicted_aligned_error'])
-        except:
-            print(pae_path)
+    # if pae_path.exists():
+    #     try:
+    #         d["pae"] = np.array(json.loads(gzip.open(pae_path, "rt").read())[0]['predicted_aligned_error'])
+    #     except:
+    #         print(pae_path)
     bstr = obj2bstr(d)
     return prot.name, len(prot), bstr
 
