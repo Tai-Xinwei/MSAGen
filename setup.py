@@ -15,7 +15,10 @@ def fetch_requirements(path):
         return [r.strip() for r in fd.readlines()]
 
 
-__version__ = setuptools_scm.get_version()
+try:
+    __version__ = setuptools_scm.get_version()
+except Exception:
+    __version__ = "0.0.1"
 
 install_requires = fetch_requirements("install/requirements.txt")
 
