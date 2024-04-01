@@ -13,6 +13,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from sfm.logging import logger
+from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.modules.equivariant import EquivariantDecoder
 from sfm.models.psm.modules.invariant_encoder import PSMEncoder
 from sfm.models.psm.psm_config import PSMConfig
@@ -175,6 +176,9 @@ class PSM(nn.Module):
         super().__init__()
         self.max_positions = args.max_positions
         self.args = args
+
+        # Implement the embedding
+        self.embedding = PSMMixEmbedding(psm_config)
 
         # Implement the encoder
         self.encoder = PSMEncoder(psm_config)
