@@ -20,9 +20,9 @@ class LmMoeCriterion(nn.Module):
         )
 
         loss = lm_loss + self.config.config.router_aux_loss_coef * lb_loss
-        log = {
+        log_loss = {
             "lm_loss": lm_loss.item(),
             "lb_loss": lb_loss.item(),
         }
 
-        return loss, log
+        return loss, log_loss

@@ -39,7 +39,7 @@ class ScigptMoeEmbeddingsPP(nn.Module):
         return text_embeds, position_ids, gate_logits
 
 
-class ScigptMoeDecoderLayer(nn.Module):
+class ScigptMoeDecoderLayerPP(nn.Module):
     def __init__(self, config: ScigptMoeConfig, layer_idx: int):
         super().__init__()
         self.config = config
@@ -81,7 +81,7 @@ class ScigptMoeDecoderLayer(nn.Module):
         return hidden_states, position_ids, gate_logits
 
 
-class ScigptMoeNorm(nn.Module):
+class ScigptMoeNormPP(nn.Module):
     def __init__(self, config: ScigptMoeConfig):
         super().__init__()
         self.config = config
@@ -98,7 +98,7 @@ class ScigptMoeNorm(nn.Module):
         return self.norm(hidden_states), gate_logits
 
 
-class ScigptMoeHead(nn.Module):
+class ScigptMoeHeadPP(nn.Module):
     def __init__(self, config: ScigptMoeConfig):
         super().__init__()
         self.config = config

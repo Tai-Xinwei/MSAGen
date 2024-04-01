@@ -7,14 +7,16 @@ from sfm.logging.loggers import logger
 try:
     from apex.optimizers import FusedAdam as Adam  # isort:skip
 
+    def AdamW(*args, **kwargs):
+        return Adam(*args, **kwargs, adam_w_mode=True)
+
     logger.info("apex is installed, using FusedAdam with fp16 optimizer states")
 except:
     logger.info("apex is not installed, using pytorch AdamW with fp32 optimizer states")
+    from sfm.utils.optim.adam import AdamW
     from sfm.utils.optim.mem_eff_adam import (
         MemoryEfficientFP16Adam as Adam,  # isort:skip
     )
-
-from sfm.utils.optim.adam import AdamW
 
 
 def split_param_and_layer_name(name_list: List[str]) -> Tuple[List[str], List[int]]:
