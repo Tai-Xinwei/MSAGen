@@ -14,7 +14,7 @@ mlflow
 azureml-mlflow
 wandb
 loguru
-transformers==4.34.0
+transformers==4.39.0
 peft
 sentencepiece
 sacremoses
