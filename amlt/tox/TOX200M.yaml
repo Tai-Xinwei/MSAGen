@@ -59,8 +59,8 @@ jobs:
   - export path=run.sh
   - export layers=12
   - export num_pred_attn_layer=2
-  - export hidden_size=768
-  - export ffn_size=3072
+  - export hidden_size=1024
+  - export ffn_size=4096
   - export num_head=32
   - export num_3d_bias_kernel=8
   - export atom_loss_coeff=1.0

@@ -25,7 +25,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
-[ -z "${lamb_pde}" ] && lamb_pde=1.0
+[ -z "${lamb_pde_q}" ] && lamb_pde_q=0.001
+[ -z "${lamb_pde_control}" ] && lamb_pde_control=0.001
+[ -z "${diffmode}" ] && diffmode=score
 # [ -z "${seq_masking_method}" ] && seq_masking_method=continuousMask
 [ -z "${seq_masking_method}" ] && seq_masking_method=transformerM
 
@@ -48,9 +50,9 @@ export MKL_THREADING_LAYER='GNU'
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/bfm/48organism1m.lmdb/'
 # [ -z "${data_path}" ] && data_path='/mnt/protein/48organism1m.lmdb'
-[ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
+[ -z "${data_path}" ] && data_path='/blob/hai1data/pfm/data/afdb/48organisms-fullatom.lmdb/'
 # [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_dist_score/'
-[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1261_m5_seq256_scorepde/'
+[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_dist_score/'
 [ -z "${loadcheck_path}" ] && loadcheck_path='.'
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
@@ -115,8 +117,8 @@ echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 
-wandb login --relogin e9150e973268b83f75cda414757706e08e6a7a93
-export WANDB_API_KEY=e9150e973268b83f75cda414757706e08e6a7a93
+wandb login --relogin 680f261d2b178f36d57f4644e235d9db1c207bc0
+export WANDB_API_KEY=680f261d2b178f36d57f4644e235d9db1c207bc0
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -154,7 +156,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_pdetox.py \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
           --d_tilde $d_tilde \
-          --lamb_pde $lamb_pde \
+          --lamb_pde_q $lamb_pde_q \
+          --lamb_pde_control $lamb_pde_control \
+          --diffmode $diffmode \
           --strategy $strategy \
           --max_lr $max_lr \
           --t_timesteps 1000 \
@@ -166,7 +170,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_pdetox.py \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
-          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
 
 
 sleep inf
