@@ -21,8 +21,8 @@ from sfm.modules.quant_noise import quant_noise
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
-# from .modules import torus as ts
-from .modules.physics import MixtureGaussian, set_time_step
+from .modules import torus as ts
+from .modules.physics import MixtureGaussian, SingleGaussian, set_time_step
 from .modules.timestep_encoder import DiffNoise
 from .modules.torchMD import TorchMD_HEAD
 from .modules.tox_encoder import NodeDecoder, TOXEncoder
@@ -159,30 +159,22 @@ class TOXModel(Model):
         Returns:
             ModelOutput: The model output which includes loss, log_output, num_examples.
         """
-        logits = model_output[0]
-        node_output = model_output[1]
-        angle_output = model_output[2]
-        mask_pos = model_output[3]
-        mask_aa = model_output[4]
-        ang_score = model_output[5]
-        ang_score_norm = model_output[6]
-        padding_mask = model_output[7]
-        pair_mask_aa = model_output[8]
-        backbone = model_output[9]
+        # logits = model_output[0]
+        # node_output = model_output[1]
+        # angle_output = model_output[2]
+        # mask_pos = model_output[3]
+        # mask_aa = model_output[4]
+        # ang_score = model_output[5]
+        # ang_score_norm = model_output[6]
+        # padding_mask = model_output[7]
+        # pair_mask_aa = model_output[8]
+        # backbone = model_output[9]
 
+        logits = model_output["x"]
         bs = logits.shape[0]
         output = self.loss(
             batch_data,
-            logits,
-            node_output,
-            pair_mask_aa,
-            angle_output,
-            mask_pos,
-            mask_aa,
-            ang_score,
-            ang_score_norm,
-            padding_mask,
-            backbone,
+            model_output,
         )
         loss = output[0]
         if len(output) > 1:
@@ -224,59 +216,66 @@ class TOXPDEModel(TOXModel):
             load_ckpt,
         )
         self.mixture_gaussian = MixtureGaussian()
+        # self.single_gaussian = SingleGaussian()
+        self.lamb_pde_q = args.lamb_pde_q
+        self.lamb_pde_control = args.lamb_pde_control
 
-    # PDE loss related only using the batch data for the gaussian mixture center points
+    # PDE loss related forward function
     def forward(self, batched_data, **kwargs):
         # Forward the score model [out:angle_output] for score matching
-        (
-            x,
-            x_pair,
-            angle_output,
-            mask_pos,
-            mask_aa,
-            ang_score,
-            ang_score_norm,
-            padding_mask,
-            pair_mask_aa,
-        ) = self.net(batched_data, **kwargs)
+        output_dict = self.net(batched_data, **kwargs)
 
         # Using a class object's forward function to generate the q_point, phi, nabla_phi, laplace_phi
         # genrate q_point, phi, nabla_phi, laplace_phi
 
         # Retrieve the time_pos from the TOX model instance
         time_pos = self.net.score_time
-        # time_pos[:] = time_pos[0].item()
-        time_pos = torch.zeros_like(time_pos)
-        self.net.score_time = time_pos
 
         # Retrieve the angle from the batched_data
         ori_angle = batched_data["ang"]
         # Retrieve the noised angle from the TOX model instance
         noised_angle = self.net.noised_angle
-        angle_mask = batched_data["ang_mask"].bool()
-        ori_angle = ori_angle.masked_fill(~angle_mask, 100.0)
-        noised_angle = noised_angle.masked_fill(~angle_mask, 100.0)
 
         # The input x is changed to the noised data
         # q_point, nabla_phi_term, laplace_phi_term = self.mixture_gaussian(noised_angle)
-        q_point, q_point_0, nabla_phi_term, laplace_phi_term = self.mixture_gaussian(
-            noised_angle, ori_angle
-        )
+        if_pde_q_loss = False if self.lamb_pde_q == 0 else True
+        if_pde_control_loss = False if self.lamb_pde_control == 0 else True
+
+        # PDE loss related variables
+        q_point = None
+        q_point_0 = None
+        nabla_phi_term = None
+        laplace_phi_term = None
+        hp = None
+        hm = None
+
+        # control loss related variables
+        x0 = None
+        terminal_output = None
+
+        if if_pde_q_loss:
+            (
+                q_point,
+                q_point_0,
+                nabla_phi_term,
+                laplace_phi_term,
+            ) = self.mixture_gaussian(noised_angle, ori_angle)
 
         # setting delta_tq
         delta_tq = 0  # using self.score_time + delta_tq as the time_pos
         # Forward the score model [out:q_output] for PDE loss
-        (
-            _,
-            _,
-            q_output,
-            _,
-            _,
-            q_score,
-            q_score_norm,
-            _,
-            _,
-        ) = self.net(
+        # (
+        #     _,
+        #     _,
+        #     q_output,
+        #     _,
+        #     _,
+        #     q_score,
+        #     q_score_norm,
+        #     _,
+        #     _,
+        # )
+        output_dict_q0 = self.net(
             batched_data,
             q=q_point,
             q_0=q_point_0,
@@ -291,17 +290,18 @@ class TOXPDEModel(TOXModel):
 
         delta_tq = hp
         # Forward the score model [out:q_output] for PDE loss
-        (
-            _,
-            _,
-            q_output_ptq,
-            _,
-            _,
-            q_score,
-            q_score_norm,
-            _,
-            _,
-        ) = self.net(
+        # (
+        #     _,
+        #     _,
+        #     q_output_ptq,
+        #     _,
+        #     _,
+        #     q_score,
+        #     q_score_norm,
+        #     _,
+        #     _,
+        # )
+        output_dict_qp = self.net(
             batched_data,
             q=q_point,
             q_0=q_point_0,
@@ -312,17 +312,18 @@ class TOXPDEModel(TOXModel):
 
         delta_tq = -hm
         # Forward the score model [out:q_output] for PDE loss
-        (
-            _,
-            _,
-            q_output_mtq,
-            _,
-            _,
-            q_score,
-            q_score_norm,
-            _,
-            _,
-        ) = self.net(
+        # (
+        #     _,
+        #     _,
+        #     q_output_mtq,
+        #     _,
+        #     _,
+        #     q_score,
+        #     q_score_norm,
+        #     _,
+        #     _,
+        # )
+        output_dict_qm = self.net(
             batched_data,
             q=q_point,
             q_0=q_point_0,
@@ -331,77 +332,64 @@ class TOXPDEModel(TOXModel):
             **kwargs,
         )
 
-        return (
-            x,
-            x_pair,
-            angle_output,
-            mask_pos,
-            mask_aa,
-            ang_score,
-            ang_score_norm,
-            q_output,
-            q_output_mtq,
-            q_output_ptq,
-            q_score,
-            q_score_norm,
-            padding_mask,
-            time_pos,
-            q_point,  # for PDE loss
-            nabla_phi_term,
-            laplace_phi_term,
-            hp,
-            hm,
-            pair_mask_aa,
-        )
+        ### forward for computing control loss (running loss and terminal loss) ###
+        # currently, here we compute the terminal loss
+        # FIXME: add running loss
+        if if_pde_control_loss:
+            # compute terminal loss
+            # add N(0, 0.001) noise to the ori_angle
+            x0 = (
+                ori_angle + torch.randn_like(ori_angle, device=ori_angle.device) * 0.001
+            )
+            x0.requires_grad_(True)
+            output_dict_terminal = self.net(batched_data, x0=x0, **kwargs)
+            terminal_output = output_dict_terminal["angle_output"]
+
+        output_dict["q_output"] = output_dict_q0["angle_output"]
+        output_dict["q_output_ptq"] = output_dict_qp["angle_output"]
+        output_dict["q_output_mtq"] = output_dict_qm["angle_output"]
+        output_dict["x0"] = x0
+        output_dict["terminal_output"] = terminal_output
+        output_dict["time_pos"] = time_pos
+        output_dict["q_point"] = q_point
+        output_dict["nabla_phi_term"] = nabla_phi_term
+        output_dict["laplace_phi_term"] = laplace_phi_term
+        output_dict["hp"] = hp
+        output_dict["hm"] = hm
+
+        return output_dict
 
     # def ft_forward(self, batched_data, **kwargs):
     #     return self.net.ft_forward(batched_data, **kwargs)
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
-        logits = model_output[0]
-        node_output = model_output[1]
-        angle_output = model_output[2]
-        mask_pos = model_output[3]
-        mask_aa = model_output[4]
-        ang_score = model_output[5]
-        ang_score_norm = model_output[6]
-        q_output = model_output[7]  # used for PDE loss
-        q_output_mtq = model_output[8]  # used for PDE loss
-        q_output_ptq = model_output[9]  # used for PDE loss
-        q_score = model_output[10]
-        q_score_norm = model_output[11]
-        padding_mask = model_output[12]
-        time_pos = model_output[13]  # used for PDE loss
-        q_point = model_output[14]  # used for PDE loss
-        nabla_phi_term = model_output[15]  # used for PDE loss
-        laplace_phi_term = model_output[16]  # used for PDE loss
-        hp = model_output[17]  # used for PDE loss
-        hm = model_output[18]  # used for PDE loss
-        pair_mask_aa = model_output[19]
+        # logits = model_output[0]
+        # node_output = model_output[1]
+        # angle_output = model_output[2]
+        # mask_pos = model_output[3]
+        # mask_aa = model_output[4]
+        # ang_score = model_output[5]
+        # ang_score_norm = model_output[6]
+        # q_output = model_output[7]  # used for PDE loss
+        # q_output_mtq = model_output[8]  # used for PDE loss
+        # q_output_ptq = model_output[9]  # used for PDE loss
+        # q_score = model_output[10]
+        # q_score_norm = model_output[11]
+        # x0 = model_output[12]
+        # terminal_output = model_output[13]
+        # padding_mask = model_output[14]
+        # time_pos = model_output[15]  # used for PDE loss
+        # q_point = model_output[16]  # used for PDE loss
+        # nabla_phi_term = model_output[17]  # used for PDE loss
+        # laplace_phi_term = model_output[18]  # used for PDE loss
+        # hp = model_output[19]  # used for PDE loss
+        # hm = model_output[20]  # used for PDE loss
 
+        logits = model_output["x"]
         bs = logits.shape[0]
         output = self.loss(
             batch_data,
-            logits,
-            node_output,
-            angle_output,
-            mask_pos,
-            mask_aa,
-            ang_score,
-            ang_score_norm,
-            q_output,
-            q_output_mtq,
-            q_output_ptq,
-            q_score,
-            q_score_norm,
-            padding_mask,
-            pair_mask_aa,
-            time_pos,
-            q_point,
-            nabla_phi_term,
-            laplace_phi_term,
-            hp,
-            hm,
+            model_output,
         )
         loss = output[0]
         if len(output) > 1:
@@ -573,20 +561,17 @@ class TOX(nn.Module):
                 ori_angle, time_ang
             )
 
-            # # FIXME: ang_score is hard to identify if it is correct or not
-            # ang_score = ts.score(
-            #     ang_noise.float().cpu().numpy(), ang_sigma.float().cpu().numpy()
-            # )
-            # ang_score = torch.tensor(ang_score, device=noisy_ang.device)
-            # ang_score_norm = ts.score_norm(ang_sigma.float().cpu().numpy())
-            # ang_score_norm = torch.tensor(ang_score_norm, device=noisy_ang.device)
-            # noisy_ang = noisy_ang.masked_fill(~mask_angle.bool(), 0.0).to(
-            #     ori_angle.dtype
-            # )
-            ang_score = None
-            ang_score_norm = None
+            # FIXME: ang_score is hard to identify if it is correct or not
+            ang_score = ts.score(
+                ang_noise.float().cpu().numpy(), ang_sigma.float().cpu().numpy()
+            )
+            ang_score = torch.tensor(ang_score, device=noisy_ang.device)
+            ang_score_norm = ts.score_norm(ang_sigma.float().cpu().numpy())
+            ang_score_norm = torch.tensor(ang_score_norm, device=noisy_ang.device)
+            noisy_ang = noisy_ang.masked_fill(~mask_angle.bool(), 0.0).to(
+                ori_angle.dtype
+            )
 
-            noisy_pos = noisy_pos.masked_fill(~mask_pos.bool(), 0.0).to(ori_pos.dtype)
             vis_pos = ori_pos.masked_fill(mask_pos.bool(), 0.0)
             pos = noisy_pos + vis_pos
 
@@ -718,6 +703,7 @@ class TOX(nn.Module):
         time_step=None,
         q=None,  # for computing the score model on the q
         q_0=None,
+        x0=None,
         delta_tq=None,  # for computing the score model on the q at time_pos + delta_tq
         mask_aa=None,
         mask_pos=None,
@@ -779,7 +765,7 @@ class TOX(nn.Module):
             mask_aa, mask_pos, residue_seq
         )  # mask_res=0
 
-        if q is None:
+        if q is None and x0 is None:
             (
                 pos,
                 angle,
@@ -793,12 +779,17 @@ class TOX(nn.Module):
             # angle = torch.remainder(angle, 2 * self.pi) - self.pi
             # TODO: 1000 should be given in the config file
             # give score_time for PDE score loss when q is not None
-            self.score_time = time_pos
+
+            # first_element = time_pos[0]
+            # self.score_time = first_element.expand_as(time_pos)
+            random_number = torch.rand(1, device=time_pos.device) * 0.1
+            self.score_time = random_number.expand_as(time_pos)
             self.noised_angle = angle
             self.ang_sigma = ang_sigma
             self.ang_score = ang_score
             self.angle_score_norm = ang_score_norm
-        else:
+
+        elif x0 is None and q is not None:
             # actually we do not need q_score and q_score_norm
             angle = q
             angle_mask = batched_data["ang_mask"].bool()
@@ -807,11 +798,24 @@ class TOX(nn.Module):
 
             # if delta_tq is not None, means we are doing s(q, t + delta_tq)
             # if delta_tq is given, then time_pos will be updated to the real time_pos= time_pos + delta_tq
-            if delta_tq is not None:
-                time_pos = time_pos + delta_tq
+
+            assert delta_tq is not None, "delta_tq should be given"
+            time_pos = self.score_time + delta_tq
 
             pos = None
             ang_score, ang_score_norm = None, None
+
+        elif x0 is not None and q is None:
+            angle = x0
+            angle_mask = batched_data["ang_mask"].bool()
+            angle = angle.masked_fill(~angle_mask, 100.0).to(ori_pos.dtype)
+            angle.requires_grad_(True)
+
+            time_pos = 0 * self.score_time
+            pos = None
+            ang_score, ang_score_norm = None, None
+        else:
+            assert False, "q and x0 should not be given at the same time in this class"
 
         (
             x,
@@ -906,19 +910,27 @@ class TOX(nn.Module):
         # else:
         #     raise NotImplementedError
 
-        return (
-            x,
-            x_pair,
-            angle_output,  # if q is not None, this is q_output
-            mask_pos,
-            mask_aa,
-            ang_score,
-            ang_score_norm,
-            padding_mask,
-            pair_mask_aa,
-            backbone,
-        )
-        # return (x, node_output, angle_output, mask_pos, mask_aa, angle, pos, padding_mask)
+        # if q is None:
+        #     pass
+        # elif q_0 is not None:
+        #     angle_output = (angle_output - q) #/ self.ang_sigma**2
+        # else:
+        #     raise NotImplementedError
+
+        output_dict = {
+            "x": x,
+            "x_pair": x_pair,
+            "angle_output": angle_output,
+            "mask_pos": mask_pos,
+            "mask_aa": mask_aa,
+            "ang_score": ang_score,
+            "ang_score_norm": ang_score_norm,
+            "padding_mask": padding_mask,
+            "pair_mask_aa": pair_mask_aa,
+            "backbone": backbone,
+        }
+
+        return output_dict
 
     @torch.no_grad()
     def sample(
@@ -963,8 +975,8 @@ class TOX(nn.Module):
         ori_pos = batched_data["pos"]
         ori_angle = batched_data["ang"]
 
-        pos_mask = batched_data["pos_mask"].bool().unsqueeze(-1)
-        ori_pos = ori_pos.masked_fill(~pos_mask, 0.0)
+        # angle_mask = ori_angle == float("inf")
+        # ori_angle = ori_angle.masked_fill(angle_mask, 0.0).to(ori_pos.dtype)
 
         angle_mask = batched_data["ang_mask"].bool()
         ori_angle = ori_angle.masked_fill(~angle_mask, 100.0).to(ori_pos.dtype)

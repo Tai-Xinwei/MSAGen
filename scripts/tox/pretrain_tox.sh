@@ -51,9 +51,8 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/bfm/48organism1m.lmdb/'
 # [ -z "${data_path}" ] && data_path='/mnt/protein/48organism1m.lmdb'
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1261_m5_seq256_score/global_step19787/'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq512_x0_dist/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq512_x0_dist/'
-[ -z "${loadcheck_path}" ] && loadcheck_path='.'
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
@@ -124,8 +123,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin e9150e973268b83f75cda414757706e08e6a7a93
-export WANDB_API_KEY=e9150e973268b83f75cda414757706e08e6a7a93
+wandb login --relogin 680f261d2b178f36d57f4644e235d9db1c207bc0
+export WANDB_API_KEY=680f261d2b178f36d57f4644e235d9db1c207bc0
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -160,7 +159,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
           --save_dir $save_dir \
           --seed 666666 \
           --add_3d \
-          --mode $diffmode \
+          --diffmode $diffmode \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \

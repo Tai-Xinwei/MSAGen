@@ -389,6 +389,7 @@ class Mix3DEmbeddingV2(nn.Module):
         # self.trans_pos = TransNet(3, embed_dim)
         # self.trans_feat = TransNet(embed_dim, embed_dim)
         # self.pos_emb = NonLinear(3, embed_dim)
+        # self.pos_emb = NonLinear(3, embed_dim)
         self.angle_emb = NonLinear(3, embed_dim)
 
         self.time_embedding = TimeStepEncoder(
