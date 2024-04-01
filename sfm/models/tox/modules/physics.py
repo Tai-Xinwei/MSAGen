@@ -116,7 +116,8 @@ class MixtureGaussian(torch.nn.Module):
 
         # no computational graph
         with torch.no_grad():
-            q_point, q_point_0 = self.sampler(x, x_0)
+            # q_point, q_point_0 = self.sampler(x, x_0)
+            q_point, q_point_0 = x, x_0
             # assert not torch.isinf(q_point).any(), "q_point should not contain inf"
             # assert not torch.isinf(q_point_0).any(), "q_point should not contain inf"
             # assert not torch.isnan(x).any(), "x should not contain nan"
