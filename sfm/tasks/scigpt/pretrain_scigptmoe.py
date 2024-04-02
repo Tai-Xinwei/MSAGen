@@ -35,8 +35,13 @@ def main(args) -> None:
     model = ScigptMoeModel(config)
 
     train_dataset = ProcessedSciDataset(
-        config.train_data_path, args.pad_token_id, config.max_position_embeddings
+        config.train_data_path,
+        args.pad_token_id,
+        config.max_position_embeddings,
+        eos_idx=config.eos_token_id,
+        shuffle_subseq=True,
     )
+
     valid_dataset = ProcessedSciDataset(
         config.valid_data_path, args.pad_token_id, config.max_position_embeddings
     )
