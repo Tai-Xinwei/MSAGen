@@ -15,10 +15,13 @@ class ScigptMoeEmbeddingsPP(nn.Module):
     def __init__(self, config: ScigptMoeConfig):
         super().__init__()
         self.config = config
+        self.learnable_cutoff = config.learnable_cutoff
 
         self.embed_tokens = nn.Embedding(
             config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id
         )
+
+        self.embed_tokens.weight.register_hook(self.freeze_parital_weight_hook)
 
         self.param_dict = {
             "input_ids": torch.Tensor,
@@ -32,11 +35,15 @@ class ScigptMoeEmbeddingsPP(nn.Module):
             0, seq_len, dtype=torch.long, device=input_ids.device
         ).expand(bsz, -1)
 
-        gate_logits = torch.LongTensor(
-            self.config.num_hidden_layers, bsz, seq_len, self.config.num_experts
-        ).to(input_ids.device)
+        gate_logits = torch.zeros(
+            self.config.num_hidden_layers, bsz, seq_len, self.config.num_local_experts
+        ).to(self.embed_tokens.weight)
 
         return text_embeds, position_ids, gate_logits
+
+    def freeze_parital_weight_hook(self, grad):
+        grad[: self.learnable_cutoff, :] = 0
+        return grad
 
 
 class ScigptMoeDecoderLayerPP(nn.Module):
@@ -45,7 +52,7 @@ class ScigptMoeDecoderLayerPP(nn.Module):
         self.config = config
         self.layer_idx = layer_idx
 
-        self.self_attn = MixtralFlashAttention2(config, layer_id=layer_idx)
+        self.self_attn = MixtralFlashAttention2(config, layer_idx=layer_idx)
         self.block_sparse_moe = MixtralSparseMoeBlock(config)
         self.input_layer_norm = MixtralRMSNorm(config.hidden_size)
         self.post_attention_layernorm = MixtralRMSNorm(config.hidden_size)
@@ -57,11 +64,11 @@ class ScigptMoeDecoderLayerPP(nn.Module):
         }
 
     @pipemode
-    def foreward(self, hidden_states, position_ids, gate_logits):
+    def forward(self, hidden_states, position_ids, gate_logits):
         residual = hidden_states
         hidden_states = self.input_layer_norm(hidden_states)
 
-        hidden_states, _ = self.self_attn(
+        hidden_states, _, _ = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=None,  # default to causal attention
             position_ids=position_ids,

@@ -32,7 +32,7 @@ dependencies = [
   'azureml-mlflow',
   'wandb',
   'loguru',
-  'transformers==4.34.0',
+  'transformers==4.39.2',
   'peft',
   'sentencepiece',
   'sacremoses',

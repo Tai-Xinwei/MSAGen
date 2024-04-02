@@ -11,9 +11,44 @@ from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 class ScigptMoeConfig(MixtralConfig, DistributedTrainConfig):
     model_type: str = "scigpt_moe"
 
+    vocab_size: int = 34177
     learnable_cutoff: int = 0
+    hidden_size: int = 768
+    intermediate_size: int = 4096
+    num_hidden_layers: int = 32
+    num_attention_heads: int = 32
+    num_key_value_heads: int = 32
+    hidden_act: str = "silu"
+    max_position_embeddings: int = 2048
+    tokens_per_sample: int = 2048
+    initializer_range: float = 0.02
+    rms_norm_eps: float = 1e-6
+    use_cache: bool = True
+    pad_token_id: int = 32000
+    bos_token_id: int = 1
+    eos_token_id: int = 2
+    pretraining_tp: int = 1
+    tie_word_embeddings: bool = False
+    rope_theta: float = 10000.0
+    rope_scaling: Optional[Dict[str, str]] = None
+    attention_bias: bool = False
+    attention_dropout: float = 0.0
+    num_experts_per_tok: int = 2
+    num_local_experts: int = 8
+    output_router_logits: bool = True
+    router_aux_loss_coef: float = 0.001
 
-    pretrained_ckpt_path: Optional[str] = None
+    dict_path: str = ""
+    prot_spm_path: str = "/blob/shufxi/data/scigpt/ur50bpe/bpe"
+    dna_spm_path: str = "/blob/shufxi/data/scigpt/dnabpe/bpe"
+    rna_spm_path: str = "/blob/shufxi/data/scigpt/rnabpe/bpe"
+    train_data_path: str = ""
+    valid_data_path: str = ""
+    pretrained_ckpt_path: str = ""
+    load_ckpt: bool = False
+
+    ft: bool = False
+    infer: bool = False
 
 
 def scigptmoe_tiny_config(config: ScigptMoeConfig):

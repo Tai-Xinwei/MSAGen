@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import os
-from typing import Optional, Tuple
+from typing import Tuple
 
 import torch
 from torch.nn.modules import Module
-from torch.optim import AdamW, Optimizer
+from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 from sfm.criterions.lm_moe import LmMoeCriterion
@@ -42,8 +42,6 @@ class ScigptMoeModel(SFMPipelineModelMixin):
             PretrainedLayerSpec(
                 ScigptMoeEmbeddingsPP,
                 self.config,
-                new_num_tokens=self.config.vocab_size,
-                learnable_cutoff=self.config.learnable_cutoff,
                 pretrained_ckpt_path=pretrained_ckpt_path,
                 load_ckpt=self.config.load_ckpt,
             )
@@ -61,7 +59,7 @@ class ScigptMoeModel(SFMPipelineModelMixin):
                 PretrainedLayerSpec(
                     ScigptMoeDecoderLayerPP,
                     self.config,
-                    i,
+                    layer_idx=i,
                     pretrained_ckpt_path=pretrained_ckpt_path,
                     load_ckpt=self.config.load_ckpt,
                 )
@@ -96,10 +94,10 @@ class ScigptMoeModel(SFMPipelineModelMixin):
         return layers
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
-        logits = model_output[0]
+        logits, gate_logits = model_output
 
         bs = logits.shape[0]
-        output = self.loss(logits, batch_data)
+        output = self.loss(logits, batch_data, gate_logits)
         loss = output[0]
 
         if len(output) > 1:
@@ -108,11 +106,11 @@ class ScigptMoeModel(SFMPipelineModelMixin):
             log_loss = {}
         return ModelOutput(loss=loss, log_output=log_loss, num_examples=bs)
 
-    def config_optimizer(self, model: Module | None) -> Tuple[Optimizer | LRScheduler]:
+    def config_optimizer(self, model):
         if model is None:
             model = self
 
-        optimizer = myAdamW(
+        optimizer, _ = myAdamW(
             model,
             lr=self.config.max_lr,
             betas=(self.config.beta1, self.config.beta2),
