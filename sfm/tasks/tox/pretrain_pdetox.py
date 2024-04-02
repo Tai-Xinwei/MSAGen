@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import wandb
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
@@ -70,6 +71,11 @@ def main(args) -> None:
     )
     trainer.train()
 
-
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt!")
+    finally:
+        wandb.finish() # support to finish wandb logging
+        logger.info("wandb finish logging!")
