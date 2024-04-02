@@ -20,9 +20,9 @@ export max_lr=1e-4
 export weight_decay=0.0
 
 # variables for batch size
-export max_tokens=3000
-export train_batch_size=1024
-export val_batch_size=1024
+export max_tokens=4000
+export train_batch_size=512
+export val_batch_size=512
 
 # variables for log
 export log_interval=20
@@ -54,7 +54,7 @@ export num_head=32
 export num_pred_attn_layer=2
 export atom_loss_coeff=1.0
 export pos_loss_coeff=1.0
-export max_length=256
+export max_length=128
 export dropout=0.0
 export attn_dropout=0.1
 export act_dropout=0.1
@@ -69,10 +69,10 @@ export diffmode=score
 export seq_masking_method=transformerM
 export mask_ratio=0.5
 export d_tilde=1
-export mode_prob='0.1,0.2,0.6,0.1'
+export mode_prob='0.1,0.5,0.2,0.2'
 export add_3d=true
 export no_2d=false
-
+export num_3d_bias_kernel=8
 
 # Create the output directory
 mkdir -p ${loadcheck_path}
