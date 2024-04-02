@@ -13,9 +13,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from sfm.logging import logger
+from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
+from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
-from sfm.models.psm.modules.equivariant import EquivariantDecoder
-from sfm.models.psm.modules.invariant_encoder import PSMEncoder
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.layer_norm import LayerNorm

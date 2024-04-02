@@ -2,6 +2,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from typing import Callable, Dict, Optional, Tuple
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -36,12 +38,14 @@ class PSMBias(nn.Module):
             1, psm_config.num_attention_heads, padding_idx=None
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, batch_data: Dict, masked_token_type: torch.Tensor
+    ) -> torch.Tensor:
         """
         Forward pass of the PSMBias class.
         """
 
-        return x
+        pass
 
 
 @torch.jit.script
