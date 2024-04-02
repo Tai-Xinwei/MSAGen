@@ -9,6 +9,7 @@ from typing import Callable, Dict, Optional
 import torch
 import torch.nn as nn
 
+from sfm.models.psm.invariant.mixture_bias import PSMBias
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.droppath import DropPath
 from sfm.modules.FairseqDropout import FairseqDropout
@@ -25,6 +26,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
 
     def __init__(
         self,
+        psm_config: PSMConfig,
         embedding_dim: int = 768,
         ffn_embedding_dim: int = 3072,
         num_attention_heads: int = 8,
@@ -93,7 +95,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             qn_block_size=qn_block_size,
         )
 
-        self.attn_bias = self.build_attn_bias()
+        self.attn_bias = self.build_attn_bias(args, psm_config)
 
         self.nl = nl
         self.args = args
@@ -141,12 +143,14 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             o_bias=False,
         )
 
-    def build_attn_bias(self):
-        return
+    def build_attn_bias(self, args, psm_config):
+        return PSMBias(args, psm_config)
 
     def forward(
         self,
         x: torch.Tensor,
+        batch_data: Dict,
+        masked_token_type: torch.Tensor,
         self_attn_mask: Optional[torch.Tensor] = None,
         self_attn_padding_mask: Optional[torch.Tensor] = None,
         pbc_expand_batched: Optional[Dict[str, torch.Tensor]] = None,
@@ -154,9 +158,18 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         """
         LayerNorm is applied either before or after the self-attention/ffn
         modules similar to the original Transformer implementation.
+        Args:
+            x: Input tensor [T x B x C].
+            batch_data: Input data for the forward pass.
+            masked_token_type: The masked token type [B, L].
+            self_attn_mask: The self-attention mask [B, L, L].
+            self_attn_padding_mask: The self-attention padding mask [B, L].
+            pbc_expand_batched: The pbc expand batched data.
         """
         # TODO: graphormer stype attn bias
-        self_attn_bias = None
+        self_attn_bias = self.attn_bias(
+            batch_data, masked_token_type, self_attn_padding_mask
+        )
 
         # x: T x B x C
         residual = x

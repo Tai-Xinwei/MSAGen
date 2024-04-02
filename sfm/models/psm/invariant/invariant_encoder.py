@@ -96,7 +96,11 @@ class PSMEncoder(nn.Module):
         )
 
     def forward(
-        self, x: torch.Tensor, padding_mask: torch.Tensor, batch_data: Dict
+        self,
+        x: torch.Tensor,
+        padding_mask: torch.Tensor,
+        batch_data: Dict,
+        masked_token_type: torch.Tensor,
     ) -> torch.Tensor:
         """
         Forward pass of the PSMEncoder class.
@@ -104,6 +108,7 @@ class PSMEncoder(nn.Module):
             x (torch.Tensor): Input tensor, [B, L, H].
             padding_mask (torch.Tensor): Padding mask, [B, L].
             batch_data (Dict): Input data for the forward pass.
+            masked_token_type (torch.Tensor): The masked token type, [B, L].
         Returns:
             torch.Tensor: Encoded tensor, [B, L, H].
         """
@@ -113,6 +118,8 @@ class PSMEncoder(nn.Module):
         for nl, layer in enumerate(self.layers):
             x, _ = layer(
                 x,
+                batch_data,
+                masked_token_type,
                 self_attn_padding_mask=padding_mask,
                 self_attn_mask=attn_mask,
                 pbc_expand_batched=pbc_expand_batched,
