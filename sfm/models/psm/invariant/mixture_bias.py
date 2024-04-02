@@ -14,7 +14,7 @@ class PSMBias(nn.Module):
     Class for the invariant encoder bias in the PSM model.
     """
 
-    def __init__(self, args, psm_config):
+    def __init__(self, psm_config):
         """
         Initialize the PSMBias class.
         """

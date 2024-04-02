@@ -95,7 +95,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             qn_block_size=qn_block_size,
         )
 
-        self.attn_bias = self.build_attn_bias(args, psm_config)
+        self.attn_bias = self.build_attn_bias(psm_config)
 
         self.nl = nl
         self.args = args
@@ -143,8 +143,8 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             o_bias=False,
         )
 
-    def build_attn_bias(self, args, psm_config):
-        return PSMBias(args, psm_config)
+    def build_attn_bias(self, psm_config):
+        return PSMBias(psm_config)
 
     def forward(
         self,
