@@ -29,14 +29,14 @@ class ScigptMoeConfig(MixtralConfig, DistributedTrainConfig):
     eos_token_id: int = 2
     pretraining_tp: int = 1
     tie_word_embeddings: bool = False
-    rope_theta: float = 10000.0
+    rope_theta: float = 1000000.0
     rope_scaling: Optional[Dict[str, str]] = None
     attention_bias: bool = False
     attention_dropout: float = 0.0
     num_experts_per_tok: int = 2
     num_local_experts: int = 8
     output_router_logits: bool = True
-    router_aux_loss_coef: float = 0.001
+    router_aux_loss_coef: float = 0.02
 
     dict_path: str = ""
     prot_spm_path: str = "/blob/shufxi/data/scigpt/ur50bpe/bpe"
@@ -46,6 +46,7 @@ class ScigptMoeConfig(MixtralConfig, DistributedTrainConfig):
     valid_data_path: str = ""
     pretrained_ckpt_path: str = ""
     load_ckpt: bool = False
+    compile_layers: bool = False
 
     ft: bool = False
     infer: bool = False
@@ -58,4 +59,14 @@ def scigptmoe_tiny_config(config: ScigptMoeConfig):
     config.num_hidden_layers = 2
     config.num_attention_heads = 16
     config.num_key_value_heads = 16
+    return config
+
+
+def scigptmoe_8x7b_config(config: ScigptMoeConfig):
+    # see https://huggingface.co/mistralai/Mixtral-8x7B-v0.1/blob/main/config.json
+    config.hidden_size = 4096
+    config.intermediate_size = 14336
+    config.num_hidden_layers = 32
+    config.num_attention_heads = 32
+    config.num_key_value_heads = 32
     return config

@@ -57,6 +57,12 @@ class ScigptMoeDecoderLayerPP(nn.Module):
         self.input_layer_norm = MixtralRMSNorm(config.hidden_size)
         self.post_attention_layernorm = MixtralRMSNorm(config.hidden_size)
 
+        if config.compile_layers:
+            # No need & cannot compile attn as it is already FlashAttn
+            self.block_sparse_moe = torch.compile(self.block_sparse_moe)
+            self.input_layer_norm = torch.compile(self.input_layer_norm)
+            self.post_attention_layernorm = torch.compile(self.post_attention_layernorm)
+
         self.param_dict = {
             "hidden_states": torch.Tensor,
             "position_ids": torch.Tensor,
