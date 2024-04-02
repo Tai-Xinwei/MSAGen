@@ -32,8 +32,8 @@ export log_interval=20
 # variables for wandb
 export WANDB_GROUP=pde_q_sample
 export WANDB_TEAM=junzhe_personal
-export WANDB_PROJECT=pde_running_loss
-export WANDB_RUN_NAME="without_pde_q_sample_baseline"
+export WANDB_PROJECT=pde_q_running_loss
+export WANDB_RUN_NAME="without_pde_q_baseline"
 export wandb_group=${WANDB_GROUP}
 export wandb_team=${WANDB_TEAM}
 export wandb_project=${WANDB_PROJECT}
