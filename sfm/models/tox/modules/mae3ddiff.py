@@ -597,7 +597,6 @@ class ProteinMAEDistPDECriterions(nn.Module):
         self.lamb_pde_control = args.lamb_pde_control
         self.diffmode = args.diffmode
         self.vesde = VESDE()
-        self.diffmode = args.diffmode
 
     # add the PDE loss for angle diffusion
     def forward(
@@ -605,26 +604,37 @@ class ProteinMAEDistPDECriterions(nn.Module):
         batch_data,
         output_dict,
     ):
+        # output of TOXModel
         logits = output_dict["x"]
         angle_output = output_dict["angle_output"]
-        mask_pos = output_dict["mask_pos"]
-        mask_aa = output_dict["mask_aa"]
         ang_score = output_dict["ang_score"]
         ang_score_norm = output_dict["ang_score_norm"]
         padding_mask = output_dict["padding_mask"]
-        q_output = output_dict["q_output"]
-        q_output_mtq = output_dict["q_output_mtq"]
-        q_output_ptq = output_dict["q_output_ptq"]
-        x0 = output_dict["x0"]
-        terminal_output = output_dict["terminal_output"]
         time_pos = output_dict["time_pos"]
+
+        # output added by TOXPDEModel
+        ## pde_q_loss
         q_point = output_dict["q_point"]
         nabla_phi_term = output_dict["nabla_phi_term"]
         laplace_phi_term = output_dict["laplace_phi_term"]
         hp = output_dict["hp"]
         hm = output_dict["hm"]
+        q_output = output_dict["q_output"]
+        q_output_ptq = output_dict["q_output_ptq"]
+        q_output_mtq = output_dict["q_output_mtq"]
+        ## pde_control_loss
+        x0 = output_dict["x0"]
+        terminal_output = output_dict["terminal_output"]
+        mask_pos = output_dict["mask_pos"]
+        mask_aa = output_dict["mask_aa"]
 
+        # whether to use the PDE loss
+        if_pde_q_loss = False if self.lamb_pde_q == 0 else True
+        if_pde_control_loss = False if self.lamb_pde_control == 0 else True
+ 
+        '''----------------------type loss----------------------'''
         if mask_aa.any():
+
             with torch.no_grad():
                 aa_seq = batch_data["x"][mask_aa.squeeze(-1).bool()]
 
@@ -647,6 +657,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
             type_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
             type_acc = 0.0
 
+        '''----------------------dist loss----------------------'''
         # # if not mask_pos.any():
         # with torch.no_grad():
         #     ori_pos = batch_data["pos"]
@@ -671,6 +682,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
         # else:
         #     dist_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
+        '''----------------------angle loss----------------------'''
         mask_angle = mask_pos.squeeze(-1)
         if mask_angle.any():
             with torch.no_grad():
@@ -695,7 +707,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
         else:
             angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
-        # (q, t, mixtureGaussian, q_output, q_output_mtq, q_output_ptq, padding_mask)
+        '''----------------------pde q loss----------------------'''
         pde_q_loss = compute_PDE_qloss(
             self.vesde,
             q_output,
@@ -708,17 +720,15 @@ class ProteinMAEDistPDECriterions(nn.Module):
             padding_mask,
             hp,
             hm,
-        )
+        ) if if_pde_q_loss else 0.0
 
-        # FIXME: add control type
-        # try here for ommiting the derivatives for the
+        '''----------------------pde control loss----------------------'''
         try:
-            time_pos = 0.0 * time_pos
             pde_control_loss = compute_pde_control_loss(
                 self.vesde,
                 terminal_output,
                 x0,
-                time_pos,
+                torch.zeros_like(time_pos),
                 diffmode=self.diffmode,
                 noise=None,
                 detach=False,
@@ -729,7 +739,6 @@ class ProteinMAEDistPDECriterions(nn.Module):
                 [0.0], device=logits.device, requires_grad=True
             )
 
-        # loss = type_loss + angle_loss / 100 + self.lamb_pde_q * pde_q_loss + dist_loss
         loss = (
             type_loss
             + angle_loss

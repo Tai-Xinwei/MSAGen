@@ -222,22 +222,14 @@ class TOXPDEModel(TOXModel):
 
     # PDE loss related forward function
     def forward(self, batched_data, **kwargs):
-        # Forward the score model [out:angle_output] for score matching
+
+        # retrieve the result of forward in TOXModel
         output_dict = self.net(batched_data, **kwargs)
-
-        # Using a class object's forward function to generate the q_point, phi, nabla_phi, laplace_phi
-        # genrate q_point, phi, nabla_phi, laplace_phi
-
-        # Retrieve the time_pos from the TOX model instance
         time_pos = self.net.score_time
-
-        # Retrieve the angle from the batched_data
         ori_angle = batched_data["ang"]
-        # Retrieve the noised angle from the TOX model instance
         noised_angle = self.net.noised_angle
 
-        # The input x is changed to the noised data
-        # q_point, nabla_phi_term, laplace_phi_term = self.mixture_gaussian(noised_angle)
+        # whether to use the PDE loss
         if_pde_q_loss = False if self.lamb_pde_q == 0 else True
         if_pde_control_loss = False if self.lamb_pde_control == 0 else True
 
@@ -254,6 +246,7 @@ class TOXPDEModel(TOXModel):
         terminal_output = None
 
         if if_pde_q_loss:
+            # RHS terms of the PDE
             (
                 q_point,
                 q_point_0,
@@ -261,83 +254,40 @@ class TOXPDEModel(TOXModel):
                 laplace_phi_term,
             ) = self.mixture_gaussian(noised_angle, ori_angle)
 
-        # setting delta_tq
-        delta_tq = 0  # using self.score_time + delta_tq as the time_pos
-        # Forward the score model [out:q_output] for PDE loss
-        # (
-        #     _,
-        #     _,
-        #     q_output,
-        #     _,
-        #     _,
-        #     q_score,
-        #     q_score_norm,
-        #     _,
-        #     _,
-        # )
-        output_dict_q0 = self.net(
-            batched_data,
-            q=q_point,
-            q_0=q_point_0,
-            delta_tq=delta_tq,
-            time_pos=time_pos,
-            **kwargs,
-        )
+            # LHS terms of the PDE
+            delta_tq = 0  
+            output_dict_q0 = self.net(
+                batched_data,
+                q=q_point,
+                q_0=q_point_0,
+                delta_tq=delta_tq,
+                time_pos=time_pos,
+                **kwargs,
+            )
 
-        # TODO: make it more general
-        # input time_pos in the setDeltaTq function to make time_pos - hm > 0
-        hp, hm = set_time_step(time_pos)
+            hp, hm = set_time_step(time_pos)
 
-        delta_tq = hp
-        # Forward the score model [out:q_output] for PDE loss
-        # (
-        #     _,
-        #     _,
-        #     q_output_ptq,
-        #     _,
-        #     _,
-        #     q_score,
-        #     q_score_norm,
-        #     _,
-        #     _,
-        # )
-        output_dict_qp = self.net(
-            batched_data,
-            q=q_point,
-            q_0=q_point_0,
-            delta_tq=delta_tq,
-            time_pos=time_pos,
-            **kwargs,
-        )
+            delta_tq = hp
+            output_dict_qp = self.net(
+                batched_data,
+                q=q_point,
+                q_0=q_point_0,
+                delta_tq=delta_tq,
+                time_pos=time_pos,
+                **kwargs,
+            )
 
-        delta_tq = -hm
-        # Forward the score model [out:q_output] for PDE loss
-        # (
-        #     _,
-        #     _,
-        #     q_output_mtq,
-        #     _,
-        #     _,
-        #     q_score,
-        #     q_score_norm,
-        #     _,
-        #     _,
-        # )
-        output_dict_qm = self.net(
-            batched_data,
-            q=q_point,
-            q_0=q_point_0,
-            delta_tq=delta_tq,
-            time_pos=time_pos,
-            **kwargs,
-        )
+            delta_tq = -hm
+            output_dict_qm = self.net(
+                batched_data,
+                q=q_point,
+                q_0=q_point_0,
+                delta_tq=delta_tq,
+                time_pos=time_pos,
+                **kwargs,
+            )
 
-        ### forward for computing control loss (running loss and terminal loss) ###
-        # currently, here we compute the terminal loss
-        # FIXME: add running loss
         if if_pde_control_loss:
-            # compute terminal loss
-            # add N(0, 0.001) noise to the ori_angle
             x0 = (
                 ori_angle + torch.randn_like(ori_angle, device=ori_angle.device) * 0.001
             )
@@ -345,17 +295,20 @@ class TOXPDEModel(TOXModel):
             output_dict_terminal = self.net(batched_data, x0=x0, **kwargs)
             terminal_output = output_dict_terminal["angle_output"]
 
-        output_dict["q_output"] = output_dict_q0["angle_output"]
-        output_dict["q_output_ptq"] = output_dict_qp["angle_output"]
-        output_dict["q_output_mtq"] = output_dict_qm["angle_output"]
-        output_dict["x0"] = x0
-        output_dict["terminal_output"] = terminal_output
+        # return the dictionary
+        output_dict["q_point"] = q_point if if_pde_q_loss else None
+        output_dict["nabla_phi_term"] = nabla_phi_term if if_pde_q_loss else None
+        output_dict["laplace_phi_term"] = laplace_phi_term if if_pde_q_loss else None
+        output_dict["hp"] = hp if if_pde_q_loss else None
+        output_dict["hm"] = hm if if_pde_q_loss else None
+        output_dict["q_output"] = output_dict_q0["angle_output"] if if_pde_q_loss else None
+        output_dict["q_output_ptq"] = output_dict_qp["angle_output"] if if_pde_q_loss else None
+        output_dict["q_output_mtq"] = output_dict_qm["angle_output"] if if_pde_q_loss else None
+
+        output_dict["x0"] = x0 if if_pde_control_loss else None
+        output_dict["terminal_output"] = terminal_output if if_pde_control_loss else None
+
         output_dict["time_pos"] = time_pos
-        output_dict["q_point"] = q_point
-        output_dict["nabla_phi_term"] = nabla_phi_term
-        output_dict["laplace_phi_term"] = laplace_phi_term
-        output_dict["hp"] = hp
-        output_dict["hm"] = hm
 
         return output_dict
 
@@ -363,28 +316,7 @@ class TOXPDEModel(TOXModel):
     #     return self.net.ft_forward(batched_data, **kwargs)
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
-        # logits = model_output[0]
-        # node_output = model_output[1]
-        # angle_output = model_output[2]
-        # mask_pos = model_output[3]
-        # mask_aa = model_output[4]
-        # ang_score = model_output[5]
-        # ang_score_norm = model_output[6]
-        # q_output = model_output[7]  # used for PDE loss
-        # q_output_mtq = model_output[8]  # used for PDE loss
-        # q_output_ptq = model_output[9]  # used for PDE loss
-        # q_score = model_output[10]
-        # q_score_norm = model_output[11]
-        # x0 = model_output[12]
-        # terminal_output = model_output[13]
-        # padding_mask = model_output[14]
-        # time_pos = model_output[15]  # used for PDE loss
-        # q_point = model_output[16]  # used for PDE loss
-        # nabla_phi_term = model_output[17]  # used for PDE loss
-        # laplace_phi_term = model_output[18]  # used for PDE loss
-        # hp = model_output[19]  # used for PDE loss
-        # hm = model_output[20]  # used for PDE loss
-
+        
         logits = model_output["x"]
         bs = logits.shape[0]
         output = self.loss(
