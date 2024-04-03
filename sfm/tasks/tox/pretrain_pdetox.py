@@ -2,6 +2,7 @@
 import os
 import sys
 import wandb
+import wandb.util
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
@@ -73,6 +74,7 @@ def main(args) -> None:
 
 if __name__ == "__main__":
     try:
+        os.environ["WANDB_RUN_ID"] = wandb.util.generate_id()
         main()
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt!")
