@@ -114,13 +114,21 @@ def hydracli(*cfg_classes_and_funcs, conifg_path):
                     wandb_team = os.getenv("WANDB_TEAM")
                     wandb_group = os.getenv("WANDB_GROUP")
 
-                    args.wandb_team = getattr(args, "wandb_team", wandb_team)
-                    args.wandb_group = getattr(args, "wandb_group", wandb_group)
-                    args.wandb_project = getattr(args, "wandb_project", wandb_project)
+                    args.DistributedTrainConfig.wandb_team = getattr(
+                        args, "wandb_team", wandb_team
+                    )
+                    args.DistributedTrainConfig.wandb_group = getattr(
+                        args, "wandb_group", wandb_group
+                    )
+                    args.DistributedTrainConfig.wandb_project = getattr(
+                        args, "wandb_project", wandb_project
+                    )
 
-                    wandb_project = wandb_project or args.wandb_project
-                    wandb_team = wandb_team or args.wandb_team
-                    wandb_group = wandb_group or args.wandb_group
+                    wandb_project = (
+                        wandb_project or args.DistributedTrainConfig.wandb_project
+                    )
+                    wandb_team = wandb_team or args.DistributedTrainConfig.wandb_team
+                    wandb_group = wandb_group or args.DistributedTrainConfig.wandb_group
 
                     wandb.init(
                         project=wandb_project,
