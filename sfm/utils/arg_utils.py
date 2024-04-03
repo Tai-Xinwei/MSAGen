@@ -2,8 +2,11 @@
 import ast
 import typing
 from argparse import ArgumentParser
-from dataclasses import MISSING, fields
+from dataclasses import MISSING, dataclass, fields, is_dataclass
 from enum import Enum
+from typing import List, Type
+
+from pydantic import create_model, parse_file_as
 
 from sfm.logging import logger
 
@@ -89,6 +92,16 @@ def add_dataclass_to_parser(configs, parser: ArgumentParser):
                 group.add_argument("--" + name, type=field_type, default=default)
 
     return parser
+
+
+def add_dataclass_to_dictconfig(configs: List[Type[dataclass]], config_path: str):
+    fields = {
+        config.__name__: (config, ...) for config in configs
+    }  # `...` indicates that the field is required
+    Config = create_model("Config", **fields)
+    args = parse_file_as(Config, config_path)
+
+    return args
 
 
 def from_args(args, config):
