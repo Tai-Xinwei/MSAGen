@@ -2,10 +2,11 @@
 import ast
 import typing
 from argparse import ArgumentParser
-from dataclasses import MISSING, dataclass, fields, is_dataclass
+from dataclasses import MISSING, Field, dataclass, fields, is_dataclass
 from enum import Enum
 from typing import List, Type
 
+import yaml
 from pydantic import create_model, parse_file_as
 
 from sfm.logging import logger
@@ -96,10 +97,17 @@ def add_dataclass_to_parser(configs, parser: ArgumentParser):
 
 def add_dataclass_to_dictconfig(configs: List[Type[dataclass]], config_path: str):
     fields = {
-        config.__name__: (config, ...) for config in configs
-    }  # `...` indicates that the field is required
-    Config = create_model("Config", **fields)
-    args = parse_file_as(Config, config_path)
+        field.name: (field.type, Field())
+        for config in configs
+        for field in fields(config)
+    }
+    Config = type("Config", (object,), fields)
+    Config = dataclass(Config)
+
+    with open(config_path) as f:
+        data = yaml.safe_load(f)
+
+    args = Config(**data)
 
     return args
 
