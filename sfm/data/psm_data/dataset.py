@@ -338,40 +338,13 @@ class ProteinLMDBDataset(LMDBDataset):
         """
         - mask the sequence in different ways
         """
-        seed = int(hash((self.seed, index)) % 1e6)
+        int(hash((self.seed, index)) % 1e6)
         assert (
             "mask_idx" not in item
         ), "Item already contains mask_idx key, this is not expected!"
 
-        masked_seq, mask_type, mask_pos = masking_registry[self.seq_masking_method](
-            item, self.args, seed, self.vocab.mask_idx, self.vocab.standard_toks
-        )
-
-        item["masked_aa"] = mask_type
-        item["mask_pos"] = mask_pos
-
-        """
-        Add noise to the coordinate or angles, manupilate the item['pos']/item['ang']:
-        - add noise to the coordinate
-        - add noise to the angles
-        """
-        assert (
-            "pos_noise" or "ang_noise" not in item
-        ), "Item already contains mask_idx key, this is not expected!"
-        pos_noise, ang_noise = noise_registry[self.noise_method](
-            item, self.args, seed, self.pos_noise, self.ang_noise
-        )
-        item["pos_noise"] = pos_noise
-        item["ang_noise"] = ang_noise
         item["ang"] = item["ang"] / 180.0 * torch.pi  # + torch.pi
-
-        # item["pos"] = item["pos"] + pos_noise
-        item["ang"] = item["ang"] + ang_noise
-
-        # TODO: considering mask the pos and ang, not used in the current version
-        # set first position to zero
-        # item["pos"] = (item["pos"] - item["pos"][0]) / 10.0
-        item["pos"] = item["pos"]  # / 10.0
+        item["pos"] = item["pos"]
 
         return item
 
