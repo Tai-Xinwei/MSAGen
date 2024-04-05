@@ -18,13 +18,11 @@ from transformers.models.llama.configuration_llama import LlamaConfig
 from megatron.core import parallel_state
 from sfm.criterions.copilotloss import CopilotCriterionsNum, CopilotCriterionsNumPP
 from sfm.logging.loggers import logger
-from sfm.models.graphormer.graphormer_config import GraphormerConfig
-from sfm.models.graphormer.modules import GraphormerSentenceEncoder
-from sfm.models.graphormer.modules.graphormer_sentence_encoder_pp import (
-    GraphormerEncoderPP,
-)
 from sfm.models.llama2.llama2mp_config import MPLlamaConfig
 from sfm.models.llama2.llama_modules import LlamaEmbeddingsPP, LlamaModelPP, NumMLP
+from sfm.models.pfm.modules.pfm_encoder import PFMEncoder
+from sfm.models.pfm.pfm_config import PFMConfig
+from sfm.models.progpt.modules.bfm_encoder import PFMEncoderPP
 from sfm.pipeline.accelerator.dataclasses import ModelOutput, TrainStrategy
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
@@ -78,8 +76,8 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
     ):
         super().__init__()
 
-        graphormer_config = GraphormerConfig(args)
-        self.args = graphormer_config.args
+        pfm_config = PFMConfig(args)
+        self.args = pfm_config.args
         logger.info(f"Trainer args: {args}")
 
         llama_config = LlamaConfig.from_pretrained(args.llm_model_name_or_path)
@@ -99,7 +97,7 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             args.strategy != TrainStrategy.ThreeD
             and args.strategy != TrainStrategy.Pipeline
         ):
-            self.graphormer_encoder = GraphormerSentenceEncoder(graphormer_config)
+            self.graphormer_encoder = PFMEncoder(pfm_config)
 
             if self.args.llm_lora:
                 self.decoder = LlamaForCausalLMLora(llama_config)
@@ -115,9 +113,9 @@ class GraphormerLlamaModel(SFMPipelineModelMixin):
             )
         elif args.strategy == TrainStrategy.Pipeline:
             self.pipe_layers.extend(
-                GraphormerEncoderPP.to_layers(
-                    args,
-                    graphormer_config,
+                PretrainedLayerSpec(
+                    PFMEncoderPP,
+                    pfm_config,
                     load_ckpt=args.load_ckpt,
                     ckp_list=ckp_list,
                 )
