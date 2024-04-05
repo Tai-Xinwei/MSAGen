@@ -36,12 +36,15 @@ class PFMEncoderPP(PFMEncoder):
 
     def forward(self, input_batchdata: Tuple) -> Tuple[torch.Tensor, torch.Tensor]:
         # compute padding mask. This is needed for multi-head attention
-        residue_seq, masked_aa, mask_pos = input_batchdata
+        input_ids, labels, llm_mask, residue_seq = input_batchdata
 
         batched_data = {}
         batched_data["x"] = residue_seq
+        masked_aa = torch.zeros_like(residue_seq).unsqueeze(-1).bool()
+
+        masked_pos = masked_aa
         batched_data["masked_aa"] = masked_aa
-        batched_data["mask_pos"] = mask_pos
+        batched_data["mask_pos"] = masked_pos
 
         (
             x,
@@ -56,11 +59,7 @@ class PFMEncoderPP(PFMEncoder):
 
         return (
             x,
-            attn_bias,
-            delta_pos,
-            pos,
-            inner_states,
             padding_mask,
-            mask_pos,
-            mask_aa,
+            llm_mask,
+            input_ids,
         )
