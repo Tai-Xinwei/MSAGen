@@ -62,7 +62,7 @@ class LlamaForCausalLMLora(LlamaForCausalLM):
         self.model = LlamaModelLora(config)
 
 
-class GraphormerLlamaModel(SFMPipelineModelMixin):
+class ProGPTModel(SFMPipelineModelMixin):
     """
     Class for training a Masked Language Model. It also supports an
     additional sentence level prediction if the sent-loss argument is set.

@@ -616,20 +616,6 @@ class HybridEmbeddings(nn.Module):
             mol_emb, mol_padding_mask, text_embeds, input_ids
         )
 
-        # # embed positions
-        # if attention_mask is None:
-        #     attention_mask = torch.ones(
-        #         (batch_size, seq_length_with_past),
-        #         dtype=torch.bool,
-        #         device=inputs_embeds.device,
-        #     )
-        # attention_mask = self._prepare_decoder_attention_mask(
-        #     attention_mask,
-        #     (batch_size, seq_length),
-        #     inputs_embeds,
-        #     past_key_values_length,
-        # )
-
         hidden_states = inputs_embeds
 
         return hidden_states, position_ids
@@ -638,15 +624,6 @@ class HybridEmbeddings(nn.Module):
 class HybridEmbeddingsPP(HybridEmbeddings):
     def __init__(self, config: PretrainedConfig, **kwargs):
         super().__init__(config, if_initialize=True, **kwargs)
-        # self.embed_tokens = torch.nn.Embedding(
-        #     config.vocab_size, config.hidden_size, config.pad_token_id
-        # )
-        # self.weight = self.embed_tokens.weight.data.requires_grad_().cuda()
-        # self.weight.grad = torch.zeros_like(self.weight)
-
-        # self.partial_learnable_emb = PartialGradEmbedding(
-        # self.embed_tokens, new_embedding_cutoff=32000
-        # )
 
     def resize_token_embeddings(self, new_num_tokens: int) -> None:
         if new_num_tokens == self.config.vocab_size:
