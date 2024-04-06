@@ -16,18 +16,17 @@
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=2e-5
+[ -z "${max_lr}" ] && max_lr=1e-5
 [ -z "${total_num_steps}" ] && total_num_steps=100000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 # training parameters for generalist
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
-[ -z "${train_batch_size}" ] && train_batch_size=64
-
+[ -z "${train_batch_size}" ] && train_batch_size=128
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/nlm/progpt_train.lmdb/'
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
-[ -z "${model_max_length}" ] && model_max_length=512
+[ -z "${model_max_length}" ] && model_max_length=2048
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/nlm/checkpoints/'
@@ -36,12 +35,13 @@
 [ -z "${save_batch_interval}"] && save_batch_interval=1000
 [ -z "${log_interval}" ] && log_interval=20
 
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=2
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
 [ -z "${strategy}" ] && strategy=Pipeline
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="manual"
 # [ -z "${part_list}" ] && part_list="0,6,16,26,37"
-[ -z "${part_list}" ] && part_list="0,16,37"
+# [ -z "${part_list}" ] && part_list="0,16,37"
+[ -z "${part_list}" ] && part_list="0,37"
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='./hostfile'

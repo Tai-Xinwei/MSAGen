@@ -134,11 +134,42 @@ class ProteinTextDataset(Dataset):
         metadata = bstr2obj(self.txn.get("metadata".encode()))
         self.len, self.keys = metadata["size"], metadata["keys"]
 
-        logger.info(f"Dataset size: {self.len}")
-
         self.collate_fn = ProGPTCollator(
             pad_token_id=pad_token_id, pp_mode=pp_mode, protein_pad_id=protein_pad_id
         )
+
+        self.keys, self.len_filter = self.filter_dataset()
+
+        logger.info(f"Dataset size: {self.len}, Filtered size: {self.len_filter}")
+        self.len = self.len_filter
+
+    def filter_dataset(self):
+        filter_keys = []
+        for key in self.keys:
+            value = self.txn.get(str(key).encode())
+            if value is None:
+                raise IndexError(f"Name {key} has no data in the dataset")
+
+            input_ids, proteins = pkl.loads(value)
+            if len(proteins) > self.max_pro_per_sample:
+                continue
+
+            skip = 0
+            sample_len = len(input_ids)
+            for protein in proteins:
+                if len(protein) > self.protein_max_size:
+                    skip = 1
+                    break
+
+                sample_len += len(protein) - 1
+                if sample_len > self.model_max_length:
+                    skip = 1
+                    break
+
+            if not skip:
+                filter_keys.append(key)
+
+        return filter_keys, len(filter_keys)
 
     def __len__(self):
         return self.len
