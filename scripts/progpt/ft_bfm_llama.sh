@@ -21,7 +21,7 @@
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 # training parameters for generalist
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
-[ -z "${train_batch_size}" ] && train_batch_size=32
+[ -z "${train_batch_size}" ] && train_batch_size=64
 
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/nlm/progpt_train.lmdb/'
@@ -36,11 +36,12 @@
 [ -z "${save_batch_interval}"] && save_batch_interval=1000
 [ -z "${log_interval}" ] && log_interval=20
 
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=2
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
 [ -z "${strategy}" ] && strategy=Pipeline
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="manual"
-[ -z "${part_list}" ] && part_list="0,8,17,26,37"
+# [ -z "${part_list}" ] && part_list="0,6,16,26,37"
+[ -z "${part_list}" ] && part_list="0,16,37"
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='./hostfile'
@@ -72,7 +73,6 @@ echo "OMPI_COMM_WORLD_LOCAL_RANK: ${OMPI_COMM_WORLD_LOCAL_RANK}"
 echo -e "\n\n"
 echo "=====================================ARGS======================================"
 echo "n_layers: ${layers}"
-echo "num_pred_attn_layer: ${num_pred_attn_layer}"
 echo "hidden_size: ${hidden_size}"
 echo "ffn_size: ${ffn_size}"
 echo "num_head: ${num_head}"
