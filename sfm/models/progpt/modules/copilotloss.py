@@ -39,6 +39,7 @@ class CopilotCriterionsPP(CopilotCriterions):
     def forward(self, output, label):
         labels = label[0]
         logits = output[0]
+
         # logger.info(f"labels, {labels.shape}, logits, {logits.shape}")
 
         shift_logits = logits[..., :-1, :].contiguous()
@@ -51,7 +52,7 @@ class CopilotCriterionsPP(CopilotCriterions):
 
         loss = self.l1(shift_logits, shift_labels)
 
-        loss_log = {"lm_loss": float(loss.detach())}
+        loss_log = {"lm_loss": loss}
         return (loss, loss_log)
 
 

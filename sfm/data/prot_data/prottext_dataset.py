@@ -187,7 +187,7 @@ class ProteinTextDataset(Dataset):
         input_ids = torch.tensor(new_input_ids).to(dtype=torch.int64)
 
         labels = input_ids.clone()
-        labels[:input_ids_len] = IGNORE_INDEX
+        # labels[:input_ids_len] = IGNORE_INDEX
         labels[labels < 0] = IGNORE_INDEX
 
         return dict(
