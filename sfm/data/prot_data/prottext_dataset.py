@@ -207,15 +207,13 @@ class ProteinTextDataset(Dataset):
                     if mol_pos[i + 1] < original_input_ids_len:
                         input_ids_len += len_protein - 1
 
-            # input_ids = input_ids[: self.model_max_length]
-            # proteins = proteins[: self.protein_max_size]
-
         elif self.pool_mode == "qformer":
             raise NotImplementedError
         else:
             raise ValueError(f"Invalid pool_mode: {self.pool_mode}")
 
         input_ids = torch.tensor(new_input_ids).to(dtype=torch.int64)
+        # input_ids = input_ids[: self.model_max_length]
 
         labels = input_ids.clone()
         # labels[:input_ids_len] = IGNORE_INDEX

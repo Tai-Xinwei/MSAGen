@@ -698,14 +698,14 @@ class DeepSpeedAccelerator(Accelerator):
             for name, param in self.ppmodel.named_parameters():
                 for param_name in unfreeze_param_name_list:
                     if name.find(param_name) != -1:
-                        logger.warning(f"Unfreezing {name}")
+                        logger.info(f"Unfreezing {name}")
                         unfreeze_param.append(param)
                         break
         else:
             for name, param in self.model.named_parameters():
                 for param_name in unfreeze_param_name_list:
                     if name.find(param_name) != -1:
-                        logger.warning(f"Unfreezing {name}")
+                        logger.info(f"Unfreezing {name}")
                         unfreeze_param.append(param)
                         break
 
