@@ -8,9 +8,9 @@ sys.path.extend([".", ".."])
 
 from transformers import AutoTokenizer
 
-from megatron.arguments import parse_megatron_args
-from megatron.core.transformer.transformer_config import TransformerConfig
-from megatron.initialize import initialize_megatron
+# from megatron.arguments import parse_megatron_args
+# from megatron.core.transformer.transformer_config import TransformerConfig
+# from megatron.initialize import initialize_megatron
 from sfm.data.prot_data.prottext_dataset import ProteinTextDataset
 from sfm.logging import logger
 from sfm.models.pfm.pfm_config import PFMConfig
@@ -58,28 +58,18 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     """ Make dataset and collator for supervised fine-tuning. """
     dataset = ProteinTextDataset(
         data_path=args.data_path,
-        dataset_names=args.dataset_names,
-        dataset_splits=args.dataset_splits,
-        in_memory=False,
         model_max_length=args.model_max_length,
-        mol_embed_type="atoms",
-        molecule_max_size=args.molecule_max_size,
+        protein_max_size=args.protein_max_size,
         pad_token_id=tokenizer.pad_token_id,
-        dataset_ratios=args.dataset_ratios,
         pool_mode=args.pool_mode,
         embedding_length=args.embedding_length,
         num_token_id=tokenizer.encode("<num>", add_special_tokens=False)[0],
-        use_pp=(
+        protein_pad_id=1,
+        pp_mode=(
             args.strategy == TrainStrategy.Pipeline
             or args.strategy == TrainStrategy.ThreeD
         ),
-        use_pbc=args.use_pbc,
         local_rank=args.local_rank,
-        num_data_loading_workers=args.num_data_loading_workers,
-        skip_num_datasets=args.skip_num_datasets,
-        use_global_padding=args.use_global_padding,
-        max_num_mol_per_sample=args.max_num_mol_per_sample,
-        multi_hop_max_dist=args.multi_hop_max_dist,
     )
 
     return dict(
@@ -94,16 +84,17 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     DistributedTrainConfig,
     PFMConfig,
     ProGPTConfig,
-    TransformerConfig,
-    parse_megatron_args,
+    # TransformerConfig,
+    # parse_megatron_args,
 )
 def main(args) -> None:
     data_module = make_supervised_data_module(args, mode="train")
 
-    if args.strategy == TrainStrategy.ThreeD:
-        initialize_megatron(args, tokenizer=data_module["tokenizer"])
+    # if args.strategy == TrainStrategy.ThreeD:
+    # initialize_megatron(args, tokenizer=data_module["tokenizer"])
 
     logger.info(f"length of dataset: {len(data_module['train_dataset'])}")
+    logger.info(f"vocab size: {data_module['vocab_size']}")
 
     model = ProGPTModel(args, data_module["vocab_size"])
 
@@ -112,7 +103,7 @@ def main(args) -> None:
         train_data=data_module["train_dataset"],
         # valid_data=data_module["eval_dataset"],
         model=model,
-        loss_log_dict={"lm_loss": 0.0, "num_loss": 0.0, "bce_loss": 0.0},
+        loss_log_dict={"lm_loss": 0.0},
     )
     trainer.train()
 

@@ -74,12 +74,18 @@ def main():
     path = "/fastdata/peiran/nlm/data/"
 
     tokenizer = tokenize()
-    write_file = "/fastdata/peiran/nlm/progpt.lmdb"
+    write_file = "/fastdata/peiran/nlm/progpt_train.lmdb"
+    write_file2 = "/fastdata/peiran/nlm/progpt_valid.lmdb"
+
     write_env = lmdb.open(write_file, map_size=1024 ** 4)
     write_txn = write_env.begin(write=True)
 
+    write_env2 = lmdb.open(write_file2, map_size=1024 ** 4)
+    write_txn2 = write_env2.begin(write=True)
+
     idx = 0
-    keys = []
+    keys_train = []
+    keys_valid = []
     for file in os.listdir(path):
         file_path = os.path.join(path, file)
         with open(file_path, 'r') as file:
@@ -87,10 +93,15 @@ def main():
 
         flag = 0
         for line in vocab_lines:
+
             text, protein = process(line)
             protein_id_list = []
             for p in protein:
                 try:
+                    if len(p) == 0:
+                        print(f"Empty protein sequence in {line}")
+                        flag = 1
+                        break
                     protein_id = protein_process(p)
                     protein_id_list.append(protein_id)
                 except:
@@ -113,19 +124,30 @@ def main():
                     input_ids.append(-1)
                     input_ids.extend(tokenizer.encode("</protein> " + text[i])[1:])
 
-            write_txn.put(str(idx).encode(), pkl.dumps((input_ids, protein_id_list)))
-            keys.append(idx)
+            if random.random() < 0.9:
+                write_txn.put(str(idx).encode(), pkl.dumps((input_ids, protein_id_list)))
+                keys_train.append(idx)
+            else:
+                write_txn2.put(str(idx).encode(), pkl.dumps((input_ids, protein_id_list)))
+                keys_valid.append(idx)
             idx += 1
 
     metadata = {}
-    metadata['keys'] = keys
-    metadata['size'] = idx
+    metadata['keys'] = keys_train
+    metadata['size'] = len(keys_train)
     write_txn.put("metadata".encode(), obj2bstr(metadata))
 
     write_txn.commit()
     print(f"Finish processing {write_file}")
 
+    metadata['keys'] = keys_valid
+    metadata['size'] = len(keys_valid)
+    write_txn2.put("metadata".encode(), obj2bstr(metadata))
+    write_txn2.commit()
+    print(f"Finish processing {write_file2}")
+
     write_env.close()
+    write_env2.close()
 
 
 if __name__ == "__main__":

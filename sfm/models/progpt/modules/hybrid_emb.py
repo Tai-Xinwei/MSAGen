@@ -359,7 +359,7 @@ class HybridEmbeddings(nn.Module):
     ):
         # TODO (Roger)
         # input_ids: bsz, num_tokens
-        mol_rep = mol_rep.transpose(0, 1)[:, 1:, :]
+        mol_rep = mol_rep.transpose(0, 1)[:, 1:-1, :]  # remove cls and eos
         mol_padding_mask = mol_padding_mask[:, 1:]
         B, T = input_ids.shape
 

@@ -33,6 +33,10 @@ class ProGPTCollator(object):
     def pad_1d_unsqueeze(
         self, x: torch.Tensor, padlen: int, start: int, pad_num: Union[int, float]
     ):
+        # insert 1 in the front of x as cls token and append 2 in the end as eos token
+        x = torch.cat(
+            [torch.tensor([0], dtype=x.dtype), x, torch.tensor([2], dtype=x.dtype)]
+        )
         # (N) -> (1, padlen)
         xlen = x.size(0)
         assert (
@@ -60,7 +64,7 @@ class ProGPTCollator(object):
             labels, batch_first=True, padding_value=IGNORE_INDEX
         )
 
-        max_tokens = max(len(p) for p in proteins)
+        max_tokens = max(len(p) for p in proteins) + 2  # add cls and eos token
 
         # convert proteins from list to torch tensor and pad it
         padded_proteins = torch.cat(
@@ -77,7 +81,7 @@ class ProGPTCollator(object):
                 input_ids,
                 labels,
                 input_ids.ne(self.pad_token_id),
-                padded_proteins,
+                padded_proteins.long(),
             )
             label_tuple = (labels, input_ids.ne(self.pad_token_id))
             return (input_tuple, label_tuple)
@@ -86,7 +90,7 @@ class ProGPTCollator(object):
                 input_ids=input_ids,
                 labels=labels,
                 llm_mask=input_ids.ne(self.pad_token_id),
-                proteins=padded_proteins,
+                proteins=padded_proteins.long(),
             )
 
 
@@ -94,7 +98,6 @@ class ProteinTextDataset(Dataset):
     def __init__(
         self,
         data_path: str,
-        in_memory: bool,
         model_max_length: int,
         protein_max_size: int,
         pad_token_id: int,
@@ -108,7 +111,6 @@ class ProteinTextDataset(Dataset):
     ) -> None:
         super().__init__()
         self.data_path = data_path
-        self.in_memory = in_memory
         self.model_max_length = model_max_length
         self.protein_max_size = protein_max_size
         self.pool_mode = pool_mode
@@ -120,10 +122,8 @@ class ProteinTextDataset(Dataset):
 
         self.len = 0
         self.index_to_key_map = []
-        self.in_memory_data = {}
         self.read_txns = {}
         self.read_envs = {}
-        self.weight_dict = {}
         self.dataset_count = {}
         self.dataset_filtered = {}
 
@@ -131,8 +131,8 @@ class ProteinTextDataset(Dataset):
             str(self.data_path), subdir=True, readonly=True, lock=False, readahead=False
         )
         self.txn = self.env.begin(write=False)
-        metadata = bstr2obj(self.txn.get("__metadata__".encode()))
-        self.len, self.keys = metadata["sizes"], metadata["keys"]
+        metadata = bstr2obj(self.txn.get("metadata".encode()))
+        self.len, self.keys = metadata["size"], metadata["keys"]
 
         logger.info(f"Dataset size: {self.len}")
 
@@ -145,15 +145,20 @@ class ProteinTextDataset(Dataset):
 
     def __getitem__(self, index) -> Dict[str, torch.Tensor]:
         key = self.keys[index]
-        value = self.txn.get(key.encode())
+        value = self.txn.get(str(key).encode())
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
 
         input_ids, proteins = pkl.loads(value)
+        assert len(proteins) > 0, f"Protein list is empty for {key}"
 
         new_input_ids = []
         original_input_ids_len = len(input_ids)
         input_ids_len = len(input_ids)
+
+        if isinstance(input_ids, list):
+            input_ids = torch.tensor(input_ids, dtype=torch.int64)
+
         if self.pool_mode == "full":
             mol_pos = torch.nonzero(input_ids < 0).squeeze(-1)
             mol_pos = torch.cat(
@@ -161,23 +166,25 @@ class ProteinTextDataset(Dataset):
             )
 
             for i in range(mol_pos.size(0) - 1):
-                len_protein = len(proteins[i - 1])
-                new_input_ids.append(input_ids[mol_pos[i] : mol_pos[i + 1]])
+                new_input_ids.extend(input_ids[mol_pos[i] : mol_pos[i + 1]])
                 if i < len(mol_pos) - 2:
+                    len_protein = len(proteins[i])
                     mol_idx = input_ids[mol_pos[i + 1]]
-                    new_input_ids.extend(torch.ones([len_protein - 1]) * mol_idx)
+                    if len_protein > 1:
+                        new_input_ids.extend(torch.ones([len_protein - 1]) * mol_idx)
+
                     if mol_pos[i + 1] < original_input_ids_len:
                         input_ids_len += len_protein - 1
 
-            input_ids = input_ids[: self.model_max_length]
-            proteins = proteins[: self.protein_max_size]
+            # input_ids = input_ids[: self.model_max_length]
+            # proteins = proteins[: self.protein_max_size]
+
         elif self.pool_mode == "qformer":
             raise NotImplementedError
         else:
             raise ValueError(f"Invalid pool_mode: {self.pool_mode}")
 
-        input_ids = torch.tensor(new_input_ids)
-        input_ids = input_ids.to(dtype=torch.int64)
+        input_ids = torch.tensor(new_input_ids).to(dtype=torch.int64)
 
         labels = input_ids.clone()
         labels[:input_ids_len] = IGNORE_INDEX

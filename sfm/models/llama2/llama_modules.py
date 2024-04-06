@@ -71,6 +71,7 @@ class LlamaEfficientAttention(LlamaAttention):
         past_key_value: Optional[Tuple[torch.Tensor]] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
+        cache_position: Optional[torch.LongTensor] = None,
         padding_mask: Optional[torch.LongTensor] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         if not self.training:
@@ -153,7 +154,7 @@ class LlamaEfficientAttention(LlamaAttention):
             with torch.backends.cuda.sdp_kernel(
                 enable_math=True,
                 enable_mem_efficient=True,
-                enable_flash=False,
+                enable_flash=True,
             ):
                 attn_output = F.scaled_dot_product_attention(
                     query_states, key_states, value_states, attn_mask=attention_mask
@@ -196,10 +197,11 @@ class LlamaDecoderLayerPP(LlamaDecoderLayer):
         self,
         config: LlamaConfig,
         layer_index: int,
-        enable_mem_efficient: bool = True,
+        enable_mem_efficient: bool = False,
         use_flash_attention: Optional[bool] = None,
     ):
-        super().__init__(config)
+        config._attn_implementation = "sdpa"
+        super().__init__(config, layer_index)
         if enable_mem_efficient:
             self.self_attn = LlamaEfficientAttention(config, use_flash_attention)
 
@@ -487,7 +489,7 @@ class LlamaModelPP(LlamaPreTrainedModel):
 
     @classmethod
     def to_layers(
-        cls, args, config, learnable_cutoff=0, new_num_tokens=None, load_ckpt=False
+        cls, args, config, learnable_cutoff=32001, new_num_tokens=None, load_ckpt=False
     ):
         cls.pipe_layer = []
         for i in range(config.num_hidden_layers):

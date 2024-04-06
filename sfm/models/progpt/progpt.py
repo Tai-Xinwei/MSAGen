@@ -15,14 +15,18 @@ from torch.optim.lr_scheduler import LRScheduler
 from transformers.models.llama import LlamaForCausalLM, LlamaModel
 from transformers.models.llama.configuration_llama import LlamaConfig
 
-from megatron.core import parallel_state
-from sfm.criterions.copilotloss import CopilotCriterionsNum, CopilotCriterionsNumPP
 from sfm.logging.loggers import logger
-from sfm.models.llama2.llama2mp_config import MPLlamaConfig
+
+# from sfm.models.llama2.llama2mp_config import MPLlamaConfig
 from sfm.models.llama2.llama_modules import LlamaEmbeddingsPP, LlamaModelPP, NumMLP
 from sfm.models.pfm.modules.pfm_encoder import PFMEncoder
 from sfm.models.pfm.pfm_config import PFMConfig
 from sfm.models.progpt.modules.bfm_encoder import PFMEncoderPP
+from sfm.models.progpt.modules.copilotloss import (
+    CopilotCriterionsNum,
+    CopilotCriterionsNumPP,
+    CopilotCriterionsPP,
+)
 from sfm.pipeline.accelerator.dataclasses import ModelOutput, TrainStrategy
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
@@ -85,12 +89,12 @@ class ProGPTModel(SFMPipelineModelMixin):
         adaptor_config = self.init_adaptor_config(args, llama_config)
 
         self.llama_config = llama_config
-        if args.strategy == TrainStrategy.ThreeD:
-            args.padded_vocab_size = max(args.padded_vocab_size, vocab_size)
-            vocab_size = args.padded_vocab_size
-            llama_config.vocab_size = vocab_size
-            mp_config = self.init_mp_config(args, llama_config)
-            self.llama_config = mp_config
+        # if args.strategy == TrainStrategy.ThreeD:
+        #     args.padded_vocab_size = max(args.padded_vocab_size, vocab_size)
+        #     vocab_size = args.padded_vocab_size
+        #     llama_config.vocab_size = vocab_size
+        #     mp_config = self.init_mp_config(args, llama_config)
+        #     self.llama_config = mp_config
 
         self.pipe_layers = []
         if (
@@ -112,38 +116,34 @@ class ProGPTModel(SFMPipelineModelMixin):
                 self.llama_config, self.llama_config.vocab_size
             )
         elif args.strategy == TrainStrategy.Pipeline:
-            self.pipe_layers.extend(
+            self.pipe_layers.append(
                 PretrainedLayerSpec(
                     PFMEncoderPP,
                     pfm_config,
                     load_ckpt=args.load_ckpt,
-                    ckp_list=ckp_list,
+                    pretrained_ckpt_path=args.loadbfmckpt_path,
                 )
             )
-            self.pipe_layers.extend(
-                [
-                    PretrainedLayerSpec(
-                        LlamaEmbeddingsPP,
-                        llama_config,
-                        new_num_tokens=vocab_size,
-                        load_ckpt=args.load_ckpt,
-                        pretrained_ckpt_path=os.path.join(
-                            args.llm_model_name_or_path, "model.hybrid_emb.pt"
-                        ),
-                        lora_mode="full",
-                    )
-                ]
+            self.pipe_layers.append(
+                PretrainedLayerSpec(
+                    LlamaEmbeddingsPP,
+                    llama_config,
+                    new_num_tokens=vocab_size,
+                    load_ckpt=args.load_ckpt,
+                    pretrained_ckpt_path=os.path.join(
+                        args.llm_model_name_or_path, "model.hybrid_emb.pt"
+                    ),
+                    lora_mode="full",
+                )
             )
 
-            self.pipe_layers.extend(
-                [
-                    PretrainedLayerSpec(
-                        HybridEmbeddingsPP,
-                        adaptor_config,
-                        new_num_tokens=vocab_size,
-                        load_ckpt=args.load_ckpt,
-                    )
-                ]
+            self.pipe_layers.append(
+                PretrainedLayerSpec(
+                    HybridEmbeddingsPP,
+                    adaptor_config,
+                    new_num_tokens=vocab_size,
+                    load_ckpt=args.load_ckpt,
+                )
             )
 
             self.pipe_layers.extend(
@@ -155,7 +155,7 @@ class ProGPTModel(SFMPipelineModelMixin):
                 )
             )
 
-            self.loss = CopilotCriterionsNumPP(
+            self.loss = CopilotCriterionsPP(
                 self.llama_config, self.llama_config.vocab_size
             )
         else:
@@ -299,31 +299,31 @@ class ProGPTModel(SFMPipelineModelMixin):
 
         return config
 
-    def init_mp_config(self, args, llama_config):
-        config = MPLlamaConfig(
-            args,
-            vocab_size=llama_config.vocab_size,
-            hidden_size=llama_config.hidden_size,
-            intermediate_size=llama_config.intermediate_size,
-            num_hidden_layers=llama_config.num_hidden_layers,
-            num_attention_heads=llama_config.num_attention_heads,
-            num_key_value_heads=llama_config.num_key_value_heads,
-            hidden_act=llama_config.hidden_act,
-            max_position_embeddings=llama_config.max_position_embeddings,
-            initializer_range=llama_config.initializer_range,
-            rms_norm_eps=llama_config.rms_norm_eps,
-            use_cache=llama_config.use_cache,
-            pad_token_id=llama_config.pad_token_id,
-            bos_token_id=llama_config.bos_token_id,
-            eos_token_id=llama_config.eos_token_id,
-            pretraining_tp=llama_config.pretraining_tp,
-            tie_word_embeddings=llama_config.tie_word_embeddings,
-            rope_scaling=llama_config.rope_scaling,
-            seq_length=args.seq_length,
-            rotary_percent=args.rotary_percent,
-        )
+    # def init_mp_config(self, args, llama_config):
+    #     config = MPLlamaConfig(
+    #         args,
+    #         vocab_size=llama_config.vocab_size,
+    #         hidden_size=llama_config.hidden_size,
+    #         intermediate_size=llama_config.intermediate_size,
+    #         num_hidden_layers=llama_config.num_hidden_layers,
+    #         num_attention_heads=llama_config.num_attention_heads,
+    #         num_key_value_heads=llama_config.num_key_value_heads,
+    #         hidden_act=llama_config.hidden_act,
+    #         max_position_embeddings=llama_config.max_position_embeddings,
+    #         initializer_range=llama_config.initializer_range,
+    #         rms_norm_eps=llama_config.rms_norm_eps,
+    #         use_cache=llama_config.use_cache,
+    #         pad_token_id=llama_config.pad_token_id,
+    #         bos_token_id=llama_config.bos_token_id,
+    #         eos_token_id=llama_config.eos_token_id,
+    #         pretraining_tp=llama_config.pretraining_tp,
+    #         tie_word_embeddings=llama_config.tie_word_embeddings,
+    #         rope_scaling=llama_config.rope_scaling,
+    #         seq_length=args.seq_length,
+    #         rotary_percent=args.rotary_percent,
+    #     )
 
-        return config
+    #     return config
 
     def compute_loss(self, pred, batch) -> ModelOutput:
         loss, loss_log = self.loss(pred, batch)

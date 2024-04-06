@@ -14,7 +14,7 @@ class ProGPTConfig:
     model_max_length: int = 512
 
     smiles_dict_path: str = ""
-    loadmfmcheck_path: str = ""
+    loadbfmckpt_path: str = ""
     llm_model_name_or_path: str = ""
     mol_size_path: str = ""
 
@@ -31,4 +31,4 @@ class ProGPTConfig:
     num_data_loading_workers: int = 16
     use_global_padding: bool = False
     max_num_mol_per_sample: int = 8
-    molecule_max_size: int = 128
+    protein_max_size: int = 1024
