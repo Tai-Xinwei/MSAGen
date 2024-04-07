@@ -9,10 +9,15 @@ from sfm.logging import logger
 
 def shuffle_sub_sequences(seq, eos_idx):
     """
-    For a sequence like [a, a, eos, b, eos, c],
+    For a science_token sequence like [a, a, eos, b, eos, c]
     shuffle the sub sequences to [b, eos, a, a, eos, c]
     Note the last sequence is not shuffled if it's not complete.
     """
+    only_contains_sci_tokens = np.all(seq <= 32000)
+    if not only_contains_sci_tokens:
+        # don't shuffle text or mixed sequences
+        return seq
+
     indices = np.where(seq == eos_idx)[0] + 1
     split_arrays = np.split(seq, indices)
     last_seq_complete = seq[-1] == eos_idx
