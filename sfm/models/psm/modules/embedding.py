@@ -37,5 +37,8 @@ class PSMMixEmbedding(nn.Module):
         token_id = batch_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
 
+        # TODO: need to implement the masked token type here or in the encoder
+        mask_token_type = batch_data["token_id"]
+
         x = self.embed(token_id)
-        return x, padding_mask
+        return x, padding_mask, mask_token_type
