@@ -15,7 +15,7 @@ from sfm.data.psm_data.dataset import (
 
 
 class UnifiedPSMDataset(FoundationModelDataset):
-    def __init__(self, data_path_list: List, dataset_name_list: List, **kwargs):
+    def __init__(self, args, data_path_list: List, dataset_name_list: List, **kwargs):
         super().__init__()
         self.data_path_list = data_path_list
         self.dataset_name_list = dataset_name_list

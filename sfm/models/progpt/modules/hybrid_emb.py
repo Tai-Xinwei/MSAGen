@@ -700,6 +700,6 @@ class HybridEmbeddingsPP(HybridEmbeddings):
             input_ids,
         )
 
-        hidden_states = inputs_embeds.to(mol_emb.dtype)
+        hidden_states = inputs_embeds.to(text_embeds.dtype)
 
         return (hidden_states, llm_mask, position_ids)

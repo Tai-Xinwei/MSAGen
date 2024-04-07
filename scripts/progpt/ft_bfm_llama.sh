@@ -32,7 +32,7 @@
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/nlm/checkpoints/'
 [ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/fastdata/peiran/bfm/checkpoints/bfm650m_data3_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2/checkpoint_E144_new.pt'
 [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/llama-2-7b"
-[ -z "${save_batch_interval}"] && save_batch_interval=1000
+[ -z "${save_batch_interval}"] && save_batch_interval=500
 [ -z "${log_interval}" ] && log_interval=20
 
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
