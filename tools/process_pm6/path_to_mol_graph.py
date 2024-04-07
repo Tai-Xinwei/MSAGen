@@ -110,9 +110,10 @@ def path_to_mol_graph(dirname):
             json_obj = json.load(in_file)
         connection_index = json_obj["pubchem"]["B3LYP@PM6"]["bonds"]["connections"]["index"]
         connection_order = json_obj["pubchem"]["B3LYP@PM6"]["bonds"]["order"]
+        charge = int(json_obj["pubchem"]["B3LYP@PM6"]["properties"]["charge"])
         connection_index = np.array(connection_index).reshape(-1, 2)
         mol = rdkit.Chem.rdmolfiles.MolFromXYZFile(xyz_fname)
-        rdDetermineBonds.DetermineBonds(mol)
+        rdDetermineBonds.DetermineBonds(mol, charge=charge)
         # editable_mol = RWMol(mol)
         # for connection, order in zip(connection_index, connection_order):
         #     editable_mol.AddBond(int(connection[0]) - 1, int(connection[1]) - 1, bond_dict[order])
@@ -126,6 +127,7 @@ def path_to_mol_graph(dirname):
         graph['beta_lumo'] = json_obj['pubchem']['B3LYP@PM6']['properties']['energy']['beta']['lumo']
         graph['beta_gap'] = json_obj['pubchem']['B3LYP@PM6']['properties']['energy']['beta']['gap']
         graph['total_energy'] = json_obj['pubchem']['B3LYP@PM6']['properties']['energy']['total']
+        graph['charge'] = charge
         graph['smiles'] = json_obj['pubchem']['Isomeric SMILES']
         graph = compress(graph)
     except Exception as e:
