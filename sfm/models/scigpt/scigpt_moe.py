@@ -42,6 +42,7 @@ class ScigptMoeModel(SFMPipelineModelMixin):
             PretrainedLayerSpec(
                 ScigptMoeEmbeddingsPP,
                 self.config,
+                new_num_tokens=self.config.vocab_size,
                 pretrained_ckpt_path=pretrained_ckpt_path,
                 load_ckpt=self.config.load_ckpt,
             )
@@ -86,6 +87,7 @@ class ScigptMoeModel(SFMPipelineModelMixin):
             PretrainedLayerSpec(
                 ScigptMoeHeadPP,
                 self.config,
+                new_num_tokens=self.config.vocab_size,
                 pretrained_ckpt_path=pretrained_ckpt_path,
                 load_ckpt=self.config.load_ckpt,
             )

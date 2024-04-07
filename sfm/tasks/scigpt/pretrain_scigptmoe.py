@@ -3,13 +3,16 @@
 from sfm.data.sci_data.dataset import ProcessedSciDataset
 from sfm.data.sci_data.SFMDecTokenizer import SFMDecTokenizer
 from sfm.logging import logger
-from sfm.models.scigpt.moe_config import ScigptMoeConfig, scigptmoe_tiny_config
+from sfm.models.scigpt.moe_config import ScigptMoeConfig, scigptmoe_tiny_config, scigptmoe_8x7b_config
 from sfm.models.scigpt.scigpt_moe import ScigptMoeModel
 from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils import arg_utils
 from sfm.utils.cli_utils import cli
 
-config_registry = {"scigptmoe_tiny": scigptmoe_tiny_config}
+config_registry = {
+    "scigptmoe_tiny": scigptmoe_tiny_config,
+    "scigptmoe_8x7b": scigptmoe_8x7b_config
+}
 
 
 @cli(ScigptMoeConfig)

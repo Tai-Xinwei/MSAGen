@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from typing import Mapping
 import torch
 from torch import nn
 from transformers.models.mixtral.modeling_mixtral import (
@@ -54,13 +55,13 @@ class ScigptMoeDecoderLayerPP(nn.Module):
 
         self.self_attn = MixtralFlashAttention2(config, layer_idx=layer_idx)
         self.block_sparse_moe = MixtralSparseMoeBlock(config)
-        self.input_layer_norm = MixtralRMSNorm(config.hidden_size)
+        self.input_layernorm = MixtralRMSNorm(config.hidden_size)
         self.post_attention_layernorm = MixtralRMSNorm(config.hidden_size)
 
         if config.compile_layers:
             # No need & cannot compile attn as it is already FlashAttn
             self.block_sparse_moe = torch.compile(self.block_sparse_moe)
-            self.input_layer_norm = torch.compile(self.input_layer_norm)
+            self.input_layernorm = torch.compile(self.input_layernorm)
             self.post_attention_layernorm = torch.compile(self.post_attention_layernorm)
 
         self.param_dict = {
@@ -69,10 +70,30 @@ class ScigptMoeDecoderLayerPP(nn.Module):
             "gate_logits": torch.Tensor,
         }
 
+    def state_dict(self):
+        state_dict = super().state_dict()
+        if self.config.compile_layers:
+            return {k.replace("._orig_mod", ""): v for k, v in state_dict.items()}
+        else:
+            return state_dict
+
+    def load_state_dict(self, state_dict, strict = True, assign = False):
+        if self.config.compile_layers:
+            state_dict_compiled = {}
+            for k, v in state_dict.items():
+                if k.startswith("self_attn."):
+                    state_dict_compiled[k] = v
+                    continue
+                fields = k.split('.')
+                fields = fields[0] + '._orig_mod.' + '.'.join(fields[1:])
+                state_dict_compiled[fields] = v
+            state_dict = state_dict_compiled
+        return super().load_state_dict(state_dict, strict, assign)
+
     @pipemode
     def forward(self, hidden_states, position_ids, gate_logits):
         residual = hidden_states
-        hidden_states = self.input_layer_norm(hidden_states)
+        hidden_states = self.input_layernorm(hidden_states)
 
         hidden_states, _, _ = self.self_attn(
             hidden_states=hidden_states,
@@ -116,7 +137,7 @@ class ScigptMoeHeadPP(nn.Module):
         super().__init__()
         self.config = config
         self.learnable_cutoff = config.learnable_cutoff
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size)
+        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.lm_head.weight.register_hook(self.freeze_parital_weight_hook)
 
         self.param_dict = {
@@ -131,27 +152,6 @@ class ScigptMoeHeadPP(nn.Module):
     def freeze_parital_weight_hook(self, grad):
         grad[: self.learnable_cutoff, :] = 0
         return grad
-
-    def resize_token_embeddings(self, new_num_tokens: int) -> None:
-        if new_num_tokens == self.config.vocab_size:
-            return
-        elif new_num_tokens > self.config.vocab_size:
-            old_head = self.lm_head.weight
-            new_head = nn.Linear(
-                self.config.hidden_size,
-                new_num_tokens,
-                bias=False,
-                dtype=old_head.dtype,
-                device=old_head.device,
-            )
-
-            new_head.weight.data[: old_head.size(0), :] = old_head.data
-            self.lm_head = new_head
-
-        else:
-            raise ValueError(
-                f"new embedding size {new_num_tokens} must be larger than the current one {self.config.vocab_size}"
-            )
 
     @pipemode
     def forward(self, hidden_states, gate_logits):

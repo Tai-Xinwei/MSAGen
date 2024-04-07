@@ -57,8 +57,8 @@ def scigptmoe_tiny_config(config: ScigptMoeConfig):
     config.hidden_size = 1024
     config.intermediate_size = 4096
     config.num_hidden_layers = 2
-    config.num_attention_heads = 16
-    config.num_key_value_heads = 16
+    config.num_attention_heads = 8
+    config.num_key_value_heads = 8
     return config
 
 
@@ -68,5 +68,5 @@ def scigptmoe_8x7b_config(config: ScigptMoeConfig):
     config.intermediate_size = 14336
     config.num_hidden_layers = 32
     config.num_attention_heads = 32
-    config.num_key_value_heads = 32
+    config.num_key_value_heads = 8
     return config
