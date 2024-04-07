@@ -57,7 +57,12 @@ def process_files():
                 filter_i += 1
                 continue
 
-            smiles = Chem.MolToSmiles(Chem.MolFromSmiles(graph["smiles"]))
+            try:
+                smiles = Chem.MolToSmiles(Chem.MolFromSmiles(graph["smiles"]))
+            except:
+                filter_i += 1
+                continue
+
             write_txn.put(smiles.encode(), pkl.dumps(graph))
             keys.append(smiles)
             mol_sizes.append(graph["num_nodes"])
