@@ -4,7 +4,10 @@
 
 echo "pip install start"
 # # # python=3.9, cuda 11.8
-# conda install nvidia/label/cuda-11.8.0::cuda-toolkit
+# conda install nvidia/label/cuda-11.8.0::cuda-toolkit -y
+
+pip install torch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 --index-url https://download.pytorch.org/whl/cu118
+
 pip install uv
 uv pip compile pyproject.toml -o install/requirements.txt
 pip install -r install/requirements.txt
