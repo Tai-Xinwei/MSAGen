@@ -86,6 +86,7 @@ class ProGPTModel(SFMPipelineModelMixin):
 
         llama_config = LlamaConfig.from_pretrained(args.llm_model_name_or_path)
         llama_config.vocab_size = vocab_size
+        args.load_ckpt = args.load_ckpt and not args.ifresume
         adaptor_config = self.init_adaptor_config(args, llama_config)
 
         self.llama_config = llama_config

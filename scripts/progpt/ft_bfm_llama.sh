@@ -136,6 +136,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --seed 6666 \
           --ft \
           --fp16 \
+          --ifresume \
           --d_tilde $d_tilde \
           --max_lr $max_lr \
           --save_dir $save_dir \
