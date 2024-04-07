@@ -9,7 +9,7 @@ export path=run.sh
 
 # variables for distributed
 export pipeline_model_parallel_size=0 
-export strategy=DDP # option:(Single, DDP, Zero1, Zero2, Zero3, Pipeline, ThreeD)
+export strategy=Zero1 # option:(Single, DDP, Zero1, Zero2, Zero3, Pipeline, ThreeD)
 export launcher='openmpi'
 export hostfile='/job/hostfile'
 export MASTER_PORT=62347
@@ -17,14 +17,14 @@ export MASTER_ADDR=127.0.0.1
 export OMPI_COMM_WORLD_SIZE=1
 
 # variables for optimizer
-export gradient_accumulation_steps=4
+export gradient_accumulation_steps=1
 export max_lr=1e-4
 export weight_decay=0.0
 
 # variables for batch size
 export max_tokens=4000
-export train_batch_size=512
-export val_batch_size=512
+export train_batch_size=256
+export val_batch_size=256
 
 # variables for log
 export log_interval=20
@@ -72,9 +72,9 @@ export lamb_pde_control=0
 export diffmode=score
 # export seq_masking_method=continuousMask
 export seq_masking_method=transformerM
-export mask_ratio=0.5
+export mask_ratio=0.0
 export d_tilde=1.0
-export mode_prob='0.1,0.5,0.2,0.2'
+export mode_prob='0.0,0.0,1.0,0.0'
 export add_3d=true
 export no_2d=false
 export num_3d_bias_kernel=8
