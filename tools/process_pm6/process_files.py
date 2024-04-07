@@ -53,7 +53,7 @@ def process_files():
             graph = path_to_mol_graph(mol_path)
 
             # for graph in tqdm(graphs):
-            if "smiles" not in graph:
+            if "smiles" not in graph or graph["smiles"] is None:
                 filter_i += 1
                 continue
 

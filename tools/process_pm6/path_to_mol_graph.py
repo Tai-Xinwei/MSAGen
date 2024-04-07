@@ -113,13 +113,13 @@ def path_to_mol_graph(dirname):
         charge = int(json_obj["pubchem"]["B3LYP@PM6"]["properties"]["charge"])
         connection_index = np.array(connection_index).reshape(-1, 2)
         mol = rdkit.Chem.rdmolfiles.MolFromXYZFile(xyz_fname)
-        rdDetermineBonds.DetermineBonds(mol, charge=charge)
-        # editable_mol = RWMol(mol)
-        # for connection, order in zip(connection_index, connection_order):
-        #     editable_mol.AddBond(int(connection[0]) - 1, int(connection[1]) - 1, bond_dict[order])
+        # rdDetermineBonds.DetermineBonds(mol, charge=charge)
+        editable_mol = RWMol(mol)
+        for connection, order in zip(connection_index, connection_order):
+            editable_mol.AddBond(int(connection[0]) - 1, int(connection[1]) - 1, bond_dict[order])
         # no_h_mol = RemoveHs(emolditable_mol)
-        Chem.SanitizeMol(mol)
-        graph = mol2graph(mol)
+        Chem.SanitizeMol(editable_mol)
+        graph = mol2graph(editable_mol)
         graph['alpha_homo'] = json_obj['pubchem']['B3LYP@PM6']['properties']['energy']['alpha']['homo']
         graph['alpha_lumo'] = json_obj['pubchem']['B3LYP@PM6']['properties']['energy']['alpha']['lumo']
         graph['alpha_gap'] = json_obj['pubchem']['B3LYP@PM6']['properties']['energy']['alpha']['gap']
