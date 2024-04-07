@@ -612,9 +612,12 @@ class HybridEmbeddings(nn.Module):
         )
         position_ids = position_ids.unsqueeze(0).view(-1, seq_length)
 
-        inputs_embeds = self._forward_embedding(
-            mol_emb, mol_padding_mask, text_embeds, input_ids
-        )
+        if mol_emb is None:
+            inputs_embeds = text_embeds
+        else:
+            inputs_embeds = self._forward_embedding(
+                mol_emb, mol_padding_mask, text_embeds, input_ids
+            )
 
         hidden_states = inputs_embeds
 
@@ -673,9 +676,13 @@ class HybridEmbeddingsPP(HybridEmbeddings):
         )
 
         # Merge text and mol embeddings
-        inputs_embeds = self._forward_embedding(
-            mol_emb, mol_padding_mask, text_embeds, input_ids
-        )
+
+        if mol_emb is None:
+            inputs_embeds = text_embeds
+        else:
+            inputs_embeds = self._forward_embedding(
+                mol_emb, mol_padding_mask, text_embeds, input_ids
+            )
 
         # attention mask
         if llm_mask is None:

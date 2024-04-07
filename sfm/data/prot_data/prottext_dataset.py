@@ -64,17 +64,19 @@ class ProGPTCollator(object):
             labels, batch_first=True, padding_value=IGNORE_INDEX
         )
 
-        max_tokens = max(len(p) for p in proteins) + 2  # add cls and eos token
-
-        # convert proteins from list to torch tensor and pad it
-        padded_proteins = torch.cat(
-            [
-                self.pad_1d_unsqueeze(
-                    torch.tensor(p), max_tokens, 0, self.protein_pad_id
-                )
-                for p in proteins
-            ]
-        )
+        if len(proteins) > 0:
+            max_tokens = max(len(p) for p in proteins) + 2  # add cls and eos token
+            # convert proteins from list to torch tensor and pad it
+            padded_proteins = torch.cat(
+                [
+                    self.pad_1d_unsqueeze(
+                        torch.tensor(p), max_tokens, 0, self.protein_pad_id
+                    )
+                    for p in proteins
+                ]
+            )
+        else:
+            padded_proteins = torch.tensor([0, 2], dtype=torch.int64).unsqueeze(0)
 
         if self.pp_mode:
             input_tuple = (
@@ -181,7 +183,7 @@ class ProteinTextDataset(Dataset):
             raise IndexError(f"Name {key} has no data in the dataset")
 
         input_ids, proteins = pkl.loads(value)
-        assert len(proteins) > 0, f"Protein list is empty for {key}"
+        # assert len(proteins) > 0, f"Protein list is empty for {key}"
 
         new_input_ids = []
         original_input_ids_len = len(input_ids)

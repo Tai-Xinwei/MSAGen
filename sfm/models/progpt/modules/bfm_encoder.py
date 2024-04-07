@@ -46,16 +46,20 @@ class PFMEncoderPP(PFMEncoder):
         batched_data["masked_aa"] = masked_aa
         batched_data["mask_pos"] = masked_pos
 
-        (
-            x,
-            attn_bias,
-            delta_pos,
-            pos,
-            inner_states,
-            padding_mask,
-            mask_pos,
-            mask_aa,
-        ) = super().forward(batched_data)
+        if residue_seq.shape[1] > 2:
+            (
+                x,
+                attn_bias,
+                delta_pos,
+                pos,
+                inner_states,
+                padding_mask,
+                mask_pos,
+                mask_aa,
+            ) = super().forward(batched_data)
+        else:
+            x = None
+            padding_mask = None
 
         return (
             x,

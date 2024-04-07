@@ -16,7 +16,7 @@
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=1e-5
+[ -z "${max_lr}" ] && max_lr=2e-5
 [ -z "${total_num_steps}" ] && total_num_steps=100000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 # training parameters for generalist
@@ -133,7 +133,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --tensor_model_parallel_size $tensor_model_parallel_size \
           --train_batch_size $train_batch_size \
           --gradient_accumulation_steps $gradient_accumulation_steps \
-          --seed 12345 \
+          --seed 6666 \
           --ft \
           --fp16 \
           --d_tilde $d_tilde \
@@ -151,6 +151,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --pp_part_list $part_list \
           --loadbfmckpt_path $loadbfmckpt_path \
           --log_interval $log_interval --load_ckpt \
+          --save_batch_interval $save_batch_interval \
           --unfreeze_param_list "mol_adaptor,mol_rep_layernorm,embed_tokens" \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
