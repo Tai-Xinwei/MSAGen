@@ -1,4 +1,6 @@
-# reference code
+# not used amlt yaml
+amlt_test
+mock.py
 
 __pycache__/
 .ruff_cache

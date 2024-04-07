@@ -13,6 +13,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from sfm.logging import logger
+from sfm.models.tox.structure.backbone import BackboneBuilder, BackboneBuilderV0
 from sfm.models.tox.tox_config import TOXConfig
 from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.layer_norm import LayerNorm
@@ -21,7 +22,7 @@ from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
 from .modules import torus as ts
-from .modules.physics import MixtureGaussian, set_time_step
+from .modules.physics import MixtureGaussian, SingleGaussian, set_time_step
 from .modules.timestep_encoder import DiffNoise
 from .modules.torchMD import TorchMD_HEAD
 from .modules.tox_encoder import NodeDecoder, TOXEncoder
@@ -44,6 +45,18 @@ class TOXModel(Model):
         not_init=False,
         load_ckpt=False,
     ):
+        """
+        Initialize the TOXModel class.
+
+        Args:
+            args: Command line arguments.
+            loss_fn: The loss function to use.
+            data_mean: The mean of the data.
+            data_std: The standard deviation of the data.
+            not_init: If True, the model will not be initialized. Default is False.
+            load_ckpt: If True, the model will load a checkpoint. Default is False.
+        """
+
         super().__init__()
         if not_init:
             return
@@ -64,6 +77,10 @@ class TOXModel(Model):
     def load_pretrained_weights(self, args, checkpoint_path):
         """
         Load pretrained weights from a given state_dict.
+
+        Args:
+            args: Command line arguments.
+            checkpoint_path: Path to the pretrained weights.
         """
         if args.ft or args.infer:
             checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
@@ -106,37 +123,58 @@ class TOXModel(Model):
             logger.info("No checkpoint is loaded")
 
     def max_positions(self):
+        """
+        Returns the maximum positions of the net.
+        """
         return self.net.max_positions
 
     def forward(self, batched_data, **kwargs):
+        """
+        Forward pass of the model.
+
+        Args:
+            batched_data: Input data for the forward pass.
+            **kwargs: Additional keyword arguments.
+        """
         return self.net(batched_data, **kwargs)
 
     def ft_forward(self, batched_data, **kwargs):
+        """
+        Forward pass of the model during fine-tuning.
+
+        Args:
+            batched_data: Input data for the forward pass.
+            **kwargs: Additional keyword arguments.
+        """
         return self.net.ft_forward(batched_data, **kwargs)
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
-        logits = model_output[0]
-        node_output = model_output[1]
-        angle_output = model_output[2]
-        mask_pos = model_output[3]
-        mask_aa = model_output[4]
-        ang_score = model_output[5]
-        ang_score_norm = model_output[6]
-        padding_mask = model_output[7]
-        pair_mask_aa = model_output[8]
+        """
+        Compute loss for the model.
 
+        Args:
+            model_output: The output from the model.
+            batch_data: The batch data.
+
+        Returns:
+            ModelOutput: The model output which includes loss, log_output, num_examples.
+        """
+        # logits = model_output[0]
+        # node_output = model_output[1]
+        # angle_output = model_output[2]
+        # mask_pos = model_output[3]
+        # mask_aa = model_output[4]
+        # ang_score = model_output[5]
+        # ang_score_norm = model_output[6]
+        # padding_mask = model_output[7]
+        # pair_mask_aa = model_output[8]
+        # backbone = model_output[9]
+
+        logits = model_output["x"]
         bs = logits.shape[0]
         output = self.loss(
             batch_data,
-            logits,
-            node_output,
-            pair_mask_aa,
-            angle_output,
-            mask_pos,
-            mask_aa,
-            ang_score,
-            ang_score_norm,
-            padding_mask,
+            model_output,
         )
         loss = output[0]
         if len(output) > 1:
@@ -178,60 +216,72 @@ class TOXPDEModel(TOXModel):
             load_ckpt,
         )
         self.mixture_gaussian = MixtureGaussian()
+        # self.single_gaussian = SingleGaussian()
+        self.lamb_pde_q = args.lamb_pde_q
+        self.lamb_pde_control = args.lamb_pde_control
 
-    # PDE loss related only using the batch data for the gaussian mixture center points
+    # PDE loss related forward function
     def forward(self, batched_data, **kwargs):
         # Forward the score model [out:angle_output] for score matching
-        (
-            x,
-            x_pair,
-            angle_output,
-            mask_pos,
-            mask_aa,
-            ang_score,
-            ang_score_norm,
-            padding_mask,
-            pair_mask_aa,
-        ) = self.net(batched_data, **kwargs)
+        output_dict = self.net(batched_data, **kwargs)
 
         # Using a class object's forward function to generate the q_point, phi, nabla_phi, laplace_phi
         # genrate q_point, phi, nabla_phi, laplace_phi
 
         # Retrieve the time_pos from the TOX model instance
         time_pos = self.net.score_time
-        # time_pos[:] = time_pos[0].item()
-        time_pos = torch.zeros_like(time_pos)
-        self.net.score_time = time_pos
 
         # Retrieve the angle from the batched_data
         ori_angle = batched_data["ang"]
         # Retrieve the noised angle from the TOX model instance
         noised_angle = self.net.noised_angle
-        angle_mask = batched_data["ang_mask"].bool()
-        ori_angle = ori_angle.masked_fill(~angle_mask, 100.0)
-        noised_angle = noised_angle.masked_fill(~angle_mask, 100.0)
 
         # The input x is changed to the noised data
         # q_point, nabla_phi_term, laplace_phi_term = self.mixture_gaussian(noised_angle)
-        q_point, q_point_0, nabla_phi_term, laplace_phi_term = self.mixture_gaussian(
-            noised_angle, ori_angle
-        )
+        if_pde_q_loss = False if self.lamb_pde_q == 0 else True
+        if_pde_control_loss = False if self.lamb_pde_control == 0 else True
+
+        # PDE loss related variables
+        q_point = None
+        q_point_0 = None
+        nabla_phi_term = None
+        laplace_phi_term = None
+        hp = None
+        hm = None
+
+        # control loss related variables
+        x0 = None
+        terminal_output = None
+
+        if if_pde_q_loss:
+            (
+                q_point,
+                q_point_0,
+                nabla_phi_term,
+                laplace_phi_term,
+            ) = self.mixture_gaussian(noised_angle, ori_angle)
 
         # setting delta_tq
         delta_tq = 0  # using self.score_time + delta_tq as the time_pos
         # Forward the score model [out:q_output] for PDE loss
-        (
-            _,
-            _,
-            q_output,
-            _,
-            _,
-            q_score,
-            q_score_norm,
-            _,
-            _,
-        ) = self.net(
-            batched_data, q=q_point, q_0=q_point_0, delta_tq=delta_tq, **kwargs
+        # (
+        #     _,
+        #     _,
+        #     q_output,
+        #     _,
+        #     _,
+        #     q_score,
+        #     q_score_norm,
+        #     _,
+        #     _,
+        # )
+        output_dict_q0 = self.net(
+            batched_data,
+            q=q_point,
+            q_0=q_point_0,
+            delta_tq=delta_tq,
+            time_pos=time_pos,
+            **kwargs,
         )
 
         # TODO: make it more general
@@ -240,103 +290,106 @@ class TOXPDEModel(TOXModel):
 
         delta_tq = hp
         # Forward the score model [out:q_output] for PDE loss
-        (
-            _,
-            _,
-            q_output_ptq,
-            _,
-            _,
-            q_score,
-            q_score_norm,
-            _,
-        ) = self.net(
-            batched_data, q=q_point, q_0=q_point_0, delta_tq=delta_tq, **kwargs
+        # (
+        #     _,
+        #     _,
+        #     q_output_ptq,
+        #     _,
+        #     _,
+        #     q_score,
+        #     q_score_norm,
+        #     _,
+        #     _,
+        # )
+        output_dict_qp = self.net(
+            batched_data,
+            q=q_point,
+            q_0=q_point_0,
+            delta_tq=delta_tq,
+            time_pos=time_pos,
+            **kwargs,
         )
 
         delta_tq = -hm
         # Forward the score model [out:q_output] for PDE loss
-        (
-            _,
-            _,
-            q_output_mtq,
-            _,
-            _,
-            q_score,
-            q_score_norm,
-            _,
-            _,
-        ) = self.net(
-            batched_data, q=q_point, q_0=q_point_0, delta_tq=delta_tq, **kwargs
+        # (
+        #     _,
+        #     _,
+        #     q_output_mtq,
+        #     _,
+        #     _,
+        #     q_score,
+        #     q_score_norm,
+        #     _,
+        #     _,
+        # )
+        output_dict_qm = self.net(
+            batched_data,
+            q=q_point,
+            q_0=q_point_0,
+            delta_tq=delta_tq,
+            time_pos=time_pos,
+            **kwargs,
         )
 
-        return (
-            x,
-            x_pair,
-            angle_output,
-            mask_pos,
-            mask_aa,
-            ang_score,
-            ang_score_norm,
-            q_output,
-            q_output_mtq,
-            q_output_ptq,
-            q_score,
-            q_score_norm,
-            padding_mask,
-            time_pos,
-            q_point,  # for PDE loss
-            nabla_phi_term,
-            laplace_phi_term,
-            hp,
-            hm,
-        )
+        ### forward for computing control loss (running loss and terminal loss) ###
+        # currently, here we compute the terminal loss
+        # FIXME: add running loss
+        if if_pde_control_loss:
+            # compute terminal loss
+            # add N(0, 0.001) noise to the ori_angle
+            x0 = (
+                ori_angle + torch.randn_like(ori_angle, device=ori_angle.device) * 0.001
+            )
+            x0.requires_grad_(True)
+            output_dict_terminal = self.net(batched_data, x0=x0, **kwargs)
+            terminal_output = output_dict_terminal["angle_output"]
+
+        output_dict["q_output"] = output_dict_q0["angle_output"]
+        output_dict["q_output_ptq"] = output_dict_qp["angle_output"]
+        output_dict["q_output_mtq"] = output_dict_qm["angle_output"]
+        output_dict["x0"] = x0
+        output_dict["terminal_output"] = terminal_output
+        output_dict["time_pos"] = time_pos
+        output_dict["q_point"] = q_point
+        output_dict["nabla_phi_term"] = nabla_phi_term
+        output_dict["laplace_phi_term"] = laplace_phi_term
+        output_dict["hp"] = hp
+        output_dict["hm"] = hm
+
+        return output_dict
 
     # def ft_forward(self, batched_data, **kwargs):
     #     return self.net.ft_forward(batched_data, **kwargs)
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
-        logits = model_output[0]
-        node_output = model_output[1]
-        angle_output = model_output[2]
-        mask_pos = model_output[3]
-        mask_aa = model_output[4]
-        ang_score = model_output[5]
-        ang_score_norm = model_output[6]
-        q_output = model_output[7]  # used for PDE loss
-        q_output_mtq = model_output[8]  # used for PDE loss
-        q_output_ptq = model_output[9]  # used for PDE loss
-        q_score = model_output[10]
-        q_score_norm = model_output[11]
-        padding_mask = model_output[12]
-        time_pos = model_output[13]  # used for PDE loss
-        q_point = model_output[14]  # used for PDE loss
-        nabla_phi_term = model_output[15]  # used for PDE loss
-        laplace_phi_term = model_output[16]  # used for PDE loss
-        hp = model_output[17]  # used for PDE loss
-        hm = model_output[18]  # used for PDE loss
+        # logits = model_output[0]
+        # node_output = model_output[1]
+        # angle_output = model_output[2]
+        # mask_pos = model_output[3]
+        # mask_aa = model_output[4]
+        # ang_score = model_output[5]
+        # ang_score_norm = model_output[6]
+        # q_output = model_output[7]  # used for PDE loss
+        # q_output_mtq = model_output[8]  # used for PDE loss
+        # q_output_ptq = model_output[9]  # used for PDE loss
+        # q_score = model_output[10]
+        # q_score_norm = model_output[11]
+        # x0 = model_output[12]
+        # terminal_output = model_output[13]
+        # padding_mask = model_output[14]
+        # time_pos = model_output[15]  # used for PDE loss
+        # q_point = model_output[16]  # used for PDE loss
+        # nabla_phi_term = model_output[17]  # used for PDE loss
+        # laplace_phi_term = model_output[18]  # used for PDE loss
+        # hp = model_output[19]  # used for PDE loss
+        # hm = model_output[20]  # used for PDE loss
 
+        logits = model_output["x"]
         bs = logits.shape[0]
         output = self.loss(
             batch_data,
-            logits,
-            node_output,
-            angle_output,
-            mask_pos,
-            mask_aa,
-            ang_score,
-            ang_score_norm,
-            q_output,
-            q_output_mtq,
-            q_output_ptq,
-            q_score,
-            q_score_norm,
-            padding_mask,
-            time_pos,
-            q_point,
-            nabla_phi_term,
-            laplace_phi_term,
-            hp,
-            hm,
+            model_output,
         )
         loss = output[0]
         if len(output) > 1:
@@ -368,8 +421,6 @@ class TOX(nn.Module):
         self.load_softmax = not args.ft  # getattr(args, "remove_head", False)
         print("if finetune:", args.ft)
 
-        self.pi = torch.from_numpy(np.array(np.pi))
-
         # add score_time for PDE score loss
         self.score_time = None
         self.noised_angle = None
@@ -397,6 +448,12 @@ class TOX(nn.Module):
             nn.Linear(args.encoder_embed_dim, 3),
         )
 
+        self.bond_angle_decoder = nn.Sequential(
+            nn.Linear(args.encoder_embed_dim, args.encoder_embed_dim),
+            nn.GELU(),
+            nn.Linear(args.encoder_embed_dim, 3),
+        )
+
         self.masked_lm_pooler = nn.Linear(
             args.encoder_embed_dim, args.encoder_embed_dim
         )
@@ -410,18 +467,20 @@ class TOX(nn.Module):
         self.lm_output_learned_bias = nn.Parameter(torch.zeros(1))
 
         self.fc_pmlm_q = nn.Linear(
-            args.encoder_embed_dim, args.encoder_embed_dim // 4, bias=False
+            args.encoder_embed_dim, args.encoder_pair_embed_dim, bias=False
         )
         self.fc_pmlm_k = nn.Linear(
-            args.encoder_embed_dim, args.encoder_embed_dim // 4, bias=False
+            args.encoder_embed_dim, args.encoder_pair_embed_dim, bias=False
         )
-        self.pair_layer_norm = nn.LayerNorm(args.encoder_embed_dim // 4)
-        # self.dist_head = nn.Linear(args.encoder_embed_dim // 4, 1, bias=False)
+        self.pair_layer_norm = nn.LayerNorm(args.encoder_pair_embed_dim)
+        self.dist_head = nn.Linear(args.encoder_pair_embed_dim, 1, bias=False)
         self.pair_head = nn.Linear(
-            args.encoder_embed_dim // 4,
+            args.encoder_pair_embed_dim,
             args.num_residues * args.num_residues,
             bias=False,
         )
+
+        self.backbonebuilder = BackboneBuilderV0()
 
         if self.load_softmax:
             if not self.share_input_output_embed:
@@ -475,33 +534,30 @@ class TOX(nn.Module):
             pos = ori_pos + noise
             return pos, None, None, None
         elif self.pfm_config.noise_mode == "diff":  # diff means diffusion
-            # Here we modify the time_pos to be sampled from 0 to 1.
-            if infer:  # give the same final time step (end time) to the batch
+            if infer:
                 if time_step is None:
                     time_step = self.t_timesteps - 1
 
-                time_pos = torch.ones((ori_pos.shape[0],), device=ori_pos.device)
+                time_pos = (
+                    torch.ones((ori_pos.shape[0],), device=ori_pos.device) * time_step
+                )
 
                 time_ang = time_pos
 
                 ori_pos = torch.zeros_like(ori_pos)
                 ori_angle = torch.zeros_like(ori_angle)
             else:  # give random time point to each one in the batch
-                time_pos = torch.rand((ori_pos.shape[0],), device=ori_pos.device)
-                time_pos = torch.where((mode_mask == 2), 1, time_pos)
+                time_pos = 1.0 - torch.rand((ori_pos.shape[0],), device=ori_pos.device)
+                time_pos = torch.where((mode_mask == 1), 1, time_pos)
 
                 time_ang = time_pos
 
             pos_scale_coeff = 1.0
-            noisy_pos = (
-                self.diffnoise._noise_sample(
-                    ori_pos / pos_scale_coeff, time_pos, unit_noise_scale=1.0
-                )
-                * pos_scale_coeff
+            noisy_pos, _, _ = self.diffnoise._noise_sample(
+                ori_pos / pos_scale_coeff, time_pos, unit_noise_scale=1.0
             )
-            noisy_pos = noisy_pos.masked_fill(~mask_pos.bool(), 0.0).to(ori_pos.dtype)
 
-            noisy_ang, ang_noise, ang_sigma = self.diffnoise._angle_noise_sample(
+            noisy_ang, ang_noise, ang_sigma = self.diffnoise._noise_sample(
                 ori_angle, time_ang
             )
 
@@ -519,6 +575,9 @@ class TOX(nn.Module):
             vis_pos = ori_pos.masked_fill(mask_pos.bool(), 0.0)
             pos = noisy_pos + vis_pos
 
+            noisy_ang = noisy_ang.masked_fill(~mask_angle.bool(), 0.0).to(
+                ori_angle.dtype
+            )
             vis_ang = ori_angle.masked_fill(mask_angle.bool(), 0.0)
             angle = noisy_ang + vis_ang
 
@@ -541,6 +600,7 @@ class TOX(nn.Module):
         n_graph, n_node = residue_seq.size()[:2]
 
         # 1 is pad token, 2 is eos token
+        cls_mask = (residue_seq[:, :]).eq(0)  # B x T x 1
         padding_mask = (residue_seq[:, :]).eq(1)  # B x T x 1
         eos_mask = (residue_seq[:, :]).eq(2)
 
@@ -562,10 +622,10 @@ class TOX(nn.Module):
         mask_pos = torch.where(mask == 3, False, mask_pos)
 
         # # cls token should not be masked
-        mask_aa[:, 0, :] = False
-        mask_pos[:, 0, :] = False
+        mask_aa = mask_aa.masked_fill(cls_mask.bool().unsqueeze(-1), False)
         mask_aa = mask_aa.masked_fill(padding_mask.bool().unsqueeze(-1), False)
         mask_aa = mask_aa.masked_fill(eos_mask.bool().unsqueeze(-1), False)
+        mask_pos = mask_pos.masked_fill(cls_mask.bool().unsqueeze(-1), False)
         mask_pos = mask_pos.masked_fill(padding_mask.bool().unsqueeze(-1), False)
         mask_pos = mask_pos.masked_fill(eos_mask.bool().unsqueeze(-1), False)
 
@@ -576,7 +636,15 @@ class TOX(nn.Module):
 
         # mask_angle = mask_aa | mask_pos
 
-        return mask_aa, mask_pos, padding_mask, eos_mask, mask_choice, mask_angle
+        return (
+            mask_aa,
+            mask_pos,
+            padding_mask,
+            eos_mask,
+            cls_mask,
+            mask_choice,
+            mask_angle,
+        )
 
     def _pos_map(self, x, mask_aa, residue_seq):
         B, L, H = x.shape
@@ -602,6 +670,32 @@ class TOX(nn.Module):
 
         return x_pair, pair_mask_aa
 
+    def _dist_map(self, x):
+        B, L, H = x.shape
+        q = self.fc_pmlm_q(x)
+        k = self.fc_pmlm_k(x)
+        x = torch.einsum("bih,bjh->bijh", q, k)
+        x = self.dist_head(x)
+        x = x.view(B, L, L)
+        return x
+
+    def _get_backbone(self, angle_pred, bond_angle_output):
+        bs = angle_pred.shape[0]
+        psi = angle_pred[:, :, 0]
+        phi = angle_pred[:, :, 1]
+        omega = angle_pred[:, :, 2]
+        bond_angle_output.view(bs, -1)
+        # psi = ori_angle[:, :, 0]
+        # phi = ori_angle[:, :, 1]
+        # omega = ori_angle[:, :, 2]
+        # phi[:, :-1] = phi[:, 1:]
+        # omega[:, :-1] = omega[:, 1:]
+        backbone_pos = self.backbonebuilder(
+            phi=phi, psi=psi, omega=omega, add_O=False
+        )  # B x L x 4 x 3 [N, CA, C, O]
+        # diag_seq = torch.cat(diag_seq_list, dim=0)
+        return backbone_pos
+
     def forward(
         self,
         batched_data,
@@ -609,6 +703,7 @@ class TOX(nn.Module):
         time_step=None,
         q=None,  # for computing the score model on the q
         q_0=None,
+        x0=None,
         delta_tq=None,  # for computing the score model on the q at time_pos + delta_tq
         mask_aa=None,
         mask_pos=None,
@@ -653,24 +748,28 @@ class TOX(nn.Module):
         ori_angle = batched_data["ang"]
 
         angle_mask = batched_data["ang_mask"].bool()
+
         ori_angle = ori_angle.masked_fill(~angle_mask, 100.0).to(ori_pos.dtype)
         pos_mask = batched_data["pos_mask"].bool().unsqueeze(-1)
         ori_pos = ori_pos.masked_fill(~pos_mask, 0.0)
 
         (
             mask_aa,
-            mask_pos,
+            mask_pos,  # mask_angle=mask_pos always true
             padding_mask,
             eos_mask,
+            cls_mask,
             mode_mask,
             mask_angle,
-        ) = self._set_mask(mask_aa, mask_pos, residue_seq)
+        ) = self._set_mask(
+            mask_aa, mask_pos, residue_seq
+        )  # mask_res=0
 
-        if q is None:
+        if q is None and x0 is None:
             (
                 pos,
                 angle,
-                time_pos,
+                time_pos,  #
                 time_aa,
                 ang_score,
                 ang_score_norm,
@@ -680,12 +779,17 @@ class TOX(nn.Module):
             # angle = torch.remainder(angle, 2 * self.pi) - self.pi
             # TODO: 1000 should be given in the config file
             # give score_time for PDE score loss when q is not None
-            self.score_time = time_pos
+
+            # first_element = time_pos[0]
+            # self.score_time = first_element.expand_as(time_pos)
+            random_number = torch.rand(1, device=time_pos.device) * 0.1
+            self.score_time = random_number.expand_as(time_pos)
             self.noised_angle = angle
             self.ang_sigma = ang_sigma
             self.ang_score = ang_score
             self.angle_score_norm = ang_score_norm
-        else:
+
+        elif x0 is None and q is not None:
             # actually we do not need q_score and q_score_norm
             angle = q
             angle_mask = batched_data["ang_mask"].bool()
@@ -694,11 +798,24 @@ class TOX(nn.Module):
 
             # if delta_tq is not None, means we are doing s(q, t + delta_tq)
             # if delta_tq is given, then time_pos will be updated to the real time_pos= time_pos + delta_tq
-            if delta_tq is not None:
-                time_pos = self.score_time + delta_tq
+
+            assert delta_tq is not None, "delta_tq should be given"
+            time_pos = self.score_time + delta_tq
 
             pos = None
             ang_score, ang_score_norm = None, None
+
+        elif x0 is not None and q is None:
+            angle = x0
+            angle_mask = batched_data["ang_mask"].bool()
+            angle = angle.masked_fill(~angle_mask, 100.0).to(ori_pos.dtype)
+            angle.requires_grad_(True)
+
+            time_pos = 0 * self.score_time
+            pos = None
+            ang_score, ang_score_norm = None, None
+        else:
+            assert False, "q and x0 should not be given at the same time in this class"
 
         (
             x,
@@ -726,8 +843,7 @@ class TOX(nn.Module):
             perturb=perturb,
         )
 
-        padding_mask = padding_mask | eos_mask
-        padding_mask[:, 0] = True
+        padding_mask = padding_mask | eos_mask | cls_mask
 
         # dist_mask = padding_mask.unsqueeze(-1) | padding_mask.unsqueeze(-2)
 
@@ -746,6 +862,7 @@ class TOX(nn.Module):
         x = self.layer_norm(x)
 
         angle_output = self.angle_decoder(x)
+        # self.bond_angle_decoder(x)
 
         # apply ∆τ to ˆ C; predict δτ = sθ,G( ˆ C, t); update θ ← θ − α∇θ‖δτ − ∇∆τ pt|0(∆τ | 0)‖2; given in Algorithm 2 of
         # Training procedure of Torsional Diffusion for Molecular Conformer Generation
@@ -755,9 +872,14 @@ class TOX(nn.Module):
 
         # TODO: check if it is okay to mask the paddings for q
         angle_output = angle_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
+        # backbone = self._get_backbone(angle_output, bond_angle_output)
+        backbone = None
 
         if q is None:
-            x_pair, pair_mask_aa = self._pos_map(x, mask_aa, residue_seq)
+            # x_pair, pair_mask_aa = self._pos_map(x, mask_aa, residue_seq)
+            x_pair = self._dist_map(x)
+            # x_pair = None
+            pair_mask_aa = None
         else:
             x_pair = None
             pair_mask_aa = None
@@ -788,18 +910,27 @@ class TOX(nn.Module):
         # else:
         #     raise NotImplementedError
 
-        return (
-            x,
-            x_pair,
-            angle_output,  # if q is not None, this is q_output
-            mask_pos,
-            mask_aa,
-            ang_score,
-            ang_score_norm,
-            padding_mask,
-            pair_mask_aa,
-        )
-        # return (x, node_output, angle_output, mask_pos, mask_aa, angle, pos, padding_mask)
+        # if q is None:
+        #     pass
+        # elif q_0 is not None:
+        #     angle_output = (angle_output - q) #/ self.ang_sigma**2
+        # else:
+        #     raise NotImplementedError
+
+        output_dict = {
+            "x": x,
+            "x_pair": x_pair,
+            "angle_output": angle_output,
+            "mask_pos": mask_pos,
+            "mask_aa": mask_aa,
+            "ang_score": ang_score,
+            "ang_score_norm": ang_score_norm,
+            "padding_mask": padding_mask,
+            "pair_mask_aa": pair_mask_aa,
+            "backbone": backbone,
+        }
+
+        return output_dict
 
     @torch.no_grad()
     def sample(
@@ -847,22 +978,18 @@ class TOX(nn.Module):
         # angle_mask = ori_angle == float("inf")
         # ori_angle = ori_angle.masked_fill(angle_mask, 0.0).to(ori_pos.dtype)
 
-        pos_mask = ori_pos == float("inf")
-        ori_pos = ori_pos.masked_fill(pos_mask, 0.0)
+        angle_mask = batched_data["ang_mask"].bool()
+        ori_angle = ori_angle.masked_fill(~angle_mask, 100.0).to(ori_pos.dtype)
 
         pos = ori_pos
         angle = ori_angle
-        angle = torch.remainder(angle, 2 * self.pi) - self.pi
         # ang_score, ang_score_norm = None, None
 
         time_pos = (
             torch.ones((ori_pos.shape[0],), device=ori_pos.device, dtype=torch.long)
             * time_step
         )
-        (
-            torch.ones((ori_angle.shape[0],), device=ori_pos.device, dtype=torch.long)
-            * time_step
-        )
+        time_angle = time_pos
 
         (
             x,
@@ -883,6 +1010,7 @@ class TOX(nn.Module):
             mask_pos=mask_pos,
             mask_angle=mask_angle,
             time_pos=time_pos,
+            time_angle=time_angle,
             time_aa=time_aa,
             mode_mask=mode_mask,
             padding_mask=padding_mask,
@@ -894,18 +1022,20 @@ class TOX(nn.Module):
         padding_mask = padding_mask | eos_mask
         padding_mask[:, 0] = True
 
-        node_output, _, x_dec = self.uni_decoder(
-            batched_data,
-            x,
-            pos,
-            angle,
-            padding_mask,
-            mask_aa=mask_aa,
-            mask_pos=mask_pos,
-            time_pos=time_pos,
-        )
+        # node_output, _, x_dec = self.uni_decoder(
+        #     batched_data,
+        #     x,
+        #     pos,
+        #     angle,
+        #     padding_mask,
+        #     mask_aa=mask_aa,
+        #     mask_pos=mask_pos,
+        #     time_pos=time_pos,
+        # )
 
-        x = inner_states[-1].transpose(0, 1)
+        # x = inner_states[-1].transpose(0, 1)
+        x = x.transpose(0, 1)
+        x = self.layer_norm(x)
 
         angle_output = self.angle_decoder(x)
         angle_output = angle_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
@@ -913,8 +1043,7 @@ class TOX(nn.Module):
         # project masked tokens only
         if masked_tokens is not None:
             x = x[masked_tokens, :]
-
-        x = self.layer_norm(self.activation_fn(self.lm_head_transform_weight(x)))
+        # x = self.layer_norm(self.activation_fn(self.lm_head_transform_weight(x)))
 
         # project back to size of vocabulary
         if self.share_input_output_embed and hasattr(
@@ -932,7 +1061,7 @@ class TOX(nn.Module):
             x = self.proj_out(x)
 
         # return (x, node_output, angle_output, mask_pos, mask_aa, ang_score, ang_score_norm)
-        return (x, node_output, angle_output, mask_pos, mask_aa, angle, pos)
+        return (x, pos, angle_output, mask_pos, mask_aa, angle, pos)
 
     def ft_forward(
         self,
@@ -1007,6 +1136,29 @@ class TOX(nn.Module):
                 mask_pos,
                 padding_mask,
                 eos_mask,
+                cls_mask,
+                mode_mask,
+                mask_angle,
+            ) = self._set_mask(mask_aa, mask_pos, residue_seq)
+            (
+                pos,
+                angle,
+                time_pos,
+                time_aa,
+                ang_score,
+                ang_score_norm,
+                ang_noise,
+                ang_sigma,
+            ) = self._set_noise(pos, angle, mask_pos, mask_angle, mode_mask)
+        elif mode == "mix":  # T_noise and Diff_noise
+            mask_pos = torch.ones_like(residue_seq).bool().unsqueeze(-1)
+            mask_aa = torch.zeros_like(residue_seq).bool().unsqueeze(-1)
+
+            (
+                mask_aa,
+                mask_pos,
+                padding_mask,
+                eos_mask,
                 mode_mask,
                 mask_angle,
             ) = self._set_mask(mask_aa, mask_pos, residue_seq)
@@ -1021,6 +1173,12 @@ class TOX(nn.Module):
                 ang_sigma,
             ) = self._set_noise(pos, angle, mask_pos, mask_angle, mode_mask)
 
+            angle_T = torch.rand_like(angle) * torch.pi
+            n_graph = angle.shape[0]
+            mask_T = np.random.choice(np.arange(2), n_graph, p=[0.5, 0.5])
+            mask_T = torch.tensor([i for i in mask_T]).to(angle_T.device).bool()
+            angle = torch.where(mask_T.unsqueeze(-1).unsqueeze(-1), angle_T, angle)
+            time_pos = torch.where(mask_T, 1, time_pos)
         elif mode == "ori_angle":
             mask_pos = torch.zeros_like(residue_seq).bool().unsqueeze(-1)
             mask_aa = torch.zeros_like(residue_seq).bool().unsqueeze(-1)
@@ -1064,7 +1222,7 @@ class TOX(nn.Module):
 
         x = inner_states[-1].transpose(0, 1)
 
-        return x
+        return x, mask_aa
 
     def upgrade_state_dict_named(self, state_dict, name):
         tmp_dict = {}

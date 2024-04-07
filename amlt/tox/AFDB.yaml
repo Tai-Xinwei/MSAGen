@@ -1,0 +1,52 @@
+description: afdb
+
+target:
+    service: sing
+    name: msrresrchvc
+
+environment:
+    image: base/job/pytorch/1.11.0-cuda11.6:20230808T123448994
+    registry: singularitybase.azurecr.io
+
+storage:
+    blob:
+        storage_account_name: sfmdata
+        container_name: protein
+        mount_dir: /blob
+
+code:
+    local_dir: ../SFM_framework
+
+
+
+# jobs:
+# - name: test-1
+#   sku: 8C60
+#   command:
+#   - eval "$$(conda shell.bash hook)" && conda create -n afdb python=3.9 -y && conda activate afdb
+#   - conda install -y conda-forge::biopython conda-forge::dm-tree conda-forge::python-lmdb numpy click joblib tqdm
+#   - bash ./tools/protein_data_process/processafdb.sh 5
+#   submit_args:
+#     container_args:
+#       shm_size: 1024g
+
+
+
+search:
+    job_template:
+        name: "AFDB-shard-{idx}"
+        sku: 8C60
+        command:
+        - eval "$$(conda shell.bash hook)" && conda create -n afdb python=3.9 -y && conda activate afdb
+        - conda install -y conda-forge::biopython conda-forge::dm-tree conda-forge::python-lmdb conda-forge::parallel numpy click joblib tqdm
+        - bash ./tools/protein_data_process/processafdb.sh {idx}
+        submit_args:
+            container_args:
+                shm_size: 1024g
+    type: grid
+    max_trials: 1000
+    parallel_trials: 32
+    params:
+        - name: idx
+          spec: discrete
+          values: range(0,500)

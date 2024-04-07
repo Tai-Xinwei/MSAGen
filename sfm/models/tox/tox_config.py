@@ -12,13 +12,19 @@ class TOXConfig(GraphormerConfig):
     add_rope: bool = True
     num_residues: int = 32
     max_num_aa: int = 1024
+    encoder_pair_embed_dim: int = 64
     task: str = "mae"
     sample_mode: bool = False
 
     train_data_path: str = ""
     valid_data_path: str = ""
 
-    lamb_pde: float = 0.01
+    lamb_pde_q: float = 0
+    lamb_pde_control: float = 0
+
+    diffmode: str = "score"
+
+    ode_mode: bool = False
 
     def __init__(
         self,

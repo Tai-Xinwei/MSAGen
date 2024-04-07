@@ -168,7 +168,7 @@ def collate_fn(samples: List[dict], vocab: Alphabet, offset=1):
     # (Nres, 3) -> (B, Nres+2, 3)
     batch["pos"] = torch.cat(
         [
-            pad_3d_unsqueeze(torch.from_numpy(s["pos"]), max_tokens, offset, 0)
+            pad_3d_unsqueeze(torch.from_numpy(s["pos"]), max_tokens, offset, torch.inf)
             for s in samples
         ]
     )
@@ -180,7 +180,7 @@ def collate_fn(samples: List[dict], vocab: Alphabet, offset=1):
     )
     batch["ang"] = torch.cat(
         [
-            pad_2d_unsqueeze(torch.from_numpy(s["ang"]), max_tokens, offset, 0)
+            pad_2d_unsqueeze(torch.from_numpy(s["ang"]), max_tokens, offset, torch.inf)
             for s in samples
         ]
     )

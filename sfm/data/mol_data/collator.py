@@ -491,10 +491,15 @@ def collator_ft(
     head = None
     cofeat = None
     max_node_num = max(item.x.size(0) for item in items if item is not None)
+    forces = None
 
     if hasattr(items[0], "pos") and items[0].pos is not None:
         poses = [item.pos - item.pos.mean(dim=0, keepdim=True) for item in items]
+        # poses = [item.pos for item in items]
         pos = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in poses])
+    if hasattr(items[0], "forces") and items[0].forces is not None:
+        forcess = [item.forces for item in items]
+        forces = torch.cat([pad_pos_unsqueeze(i, max_node_num) for i in forcess])
     if hasattr(items[0], "head") and items[0].head is not None:
         head = torch.cat([item.head for item in items])
     if hasattr(items[0], "cofeat") and items[0].cofeat is not None:
@@ -617,6 +622,7 @@ def collator_ft(
         pbc=pbc,
         cell=cell,
         natoms=natoms,
+        forces=forces,
     )
 
 

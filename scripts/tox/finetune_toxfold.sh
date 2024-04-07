@@ -9,14 +9,14 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${layers}" ] && layers=12
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
-[ -z "${no_blocks}" ] && no_blocks=4
+[ -z "${no_blocks}" ] && no_blocks=1
 [ -z "${hidden_size}" ] && hidden_size=768
 [ -z "${ffn_size}" ] && ffn_size=3072
 [ -z "${num_head}" ] && num_head=8
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=8
-[ -z "${max_length}" ] && max_length=256
+[ -z "${max_length}" ] && max_length=512
 
 [ -z "${dropout}" ] && dropout=0.0
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -26,7 +26,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
-[ -z "${mask_ratio}" ] && mask_ratio=0.0
+[ -z "${diffmode}" ] && diffmode=x0
+[ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=4e-5
 [ -z "${total_num_steps}" ] && total_num_steps=1000000
@@ -34,22 +35,25 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${train_batch_size}" ] && train_batch_size=256
 [ -z "${max_tokens}" ] && max_tokens=2048
 [ -z "${val_batch_size}" ] && val_batch_size=256
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=100
+[ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=100
 [ -z "${seed}" ] && seed=42
 
-[ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+# [ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 [ -z "${strategy}" ] && strategy=Zero1
 
 [ -z "${train_data_path}" ] && train_data_path='None'
 [ -z "${valid_data_path}" ] && valid_data_path='None'
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
 [ -z "${task_name}" ] && task_name="subcellular_localization"
-[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1261_m5_bs256_ddpmnoise_score/global_step19787/mp_rank_00_model_states.pt'
-[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1261_m5_bs256_ddpmnoise_score/'
+# [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1261_m5_seq512_x0/global_step115362/mp_rank_00_model_states.pt'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1261_m5_seq512_x0/'
+
+[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1261_m5_seq512_x0/'
 [ -z "${early_stopping}" ] && early_stopping=true
 [ -z "${early_stopping_patience}" ] && early_stopping_patience=5
 [ -z "${early_stopping_metric}" ] && early_stopping_metric='f1_max'
@@ -170,7 +174,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/finetune_toxfold.py \
           --encoder_layers $layers \
           --encoder_ffn_embed_dim $ffn_size \
           --encoder_embed_dim $hidden_size \
-          --c_s $hidden_size --c_z $((hidden_size/4)) \
+          --c_s $hidden_size --c_z $((hidden_size/16)) \
           --droppath_prob $droppath_prob \
           --attn_dropout $attn_dropout \
           --num_3d_bias_kernel $num_3d_bias_kernel \
@@ -182,7 +186,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/finetune_toxfold.py \
           --save_dir $save_dir \
           --seed $seed \
           --no_blocks $no_blocks \
-          --ft --add_3d \
+          --add_3d \
+          --mode $diffmode \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
@@ -198,3 +203,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/finetune_toxfold.py \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+
+          # --finetune_from_checkpoint_dir $loadcheck_path \

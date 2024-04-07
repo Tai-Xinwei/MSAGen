@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from curses import meta
 import datetime
 from pathlib import Path
 from typing import List, Union
@@ -10,10 +9,14 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 
 from commons import bstr2obj, obj2bstr, Protein
-from sfm.logging import logger
+import logging
 import commons
 from io import StringIO
 import gzip
+import json
+import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 def chunks(lst, n):
@@ -22,9 +25,19 @@ def chunks(lst, n):
         yield lst[i : i + n]
 
 
-def process_item(input_path: Union[str, Path]):
+def process_item(input_path: Path):
     prot = Protein.from_file(input_path, input_path.stem)
-    bstr = prot.encode()
+    d = prot.to_dict()
+    confidence_path = input_path.parent / (input_path.name.rsplit("-", 1)[0] + '-confidence_v4.json.gz')
+    pae_path = input_path.parent / (input_path.name.rsplit("-", 1)[0] + '-predicted_aligned_error_v4.json.gz')
+    if confidence_path.exists():
+        d["confidence"] = np.array(json.loads(gzip.open(confidence_path, "rt").read())['confidenceScore'])
+    # if pae_path.exists():
+    #     try:
+    #         d["pae"] = np.array(json.loads(gzip.open(pae_path, "rt").read())[0]['predicted_aligned_error'])
+    #     except:
+    #         print(pae_path)
+    bstr = obj2bstr(d)
     return prot.name, len(prot), bstr
 
 
@@ -163,7 +176,6 @@ def fix_pdb(indir: Union[Path, str], outdir: Union[Path, str], glob: str, format
         delayed(fix_item)(pdb_file, format, indir, outdir)
         for pdb_file in tqdm(list(indir.glob(glob)), ncols=80, desc="Fixing")
     )
-
 
 
 if __name__ == "__main__":

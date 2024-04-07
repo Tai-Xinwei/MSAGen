@@ -34,6 +34,9 @@ class ScigptConfig(LlamaConfig, DistributedTrainConfig):
     attention_bias: bool = False
 
     dict_path: str = ""
+    prot_spm_path: str = "/blob/shufxi/data/scigpt/ur50bpe/bpe"
+    dna_spm_path: str = "/blob/shufxi/data/scigpt/dnabpe/bpe"
+    rna_spm_path: str = "/blob/shufxi/data/scigpt/rnabpe/bpe"
     train_data_path: str = ""
     valid_data_path: str = ""
     pretrained_ckpt_path: str = ""
@@ -81,19 +84,10 @@ def scigpt_7b_config(config: ScigptConfig):
     return config
 
 
-def scigpt_7b_1k_config(config: ScigptConfig):
-    config.hidden_size = 4096
-    config.intermediate_size = 11008
-    config.num_hidden_layers = 32
-    config.num_attention_heads = 32
-    config.num_key_value_heads = 32
-    return config
-
-
-def scigpt_7b_512_config(config: ScigptConfig):
-    config.hidden_size = 4096
-    config.intermediate_size = 11008
-    config.num_hidden_layers = 32
-    config.num_attention_heads = 32
-    config.num_key_value_heads = 32
+def scigpt_13b_config(config: ScigptConfig):
+    config.hidden_size = 5120
+    config.intermediate_size = 13824
+    config.num_hidden_layers = 40
+    config.num_attention_heads = 40
+    config.num_key_value_heads = 40
     return config

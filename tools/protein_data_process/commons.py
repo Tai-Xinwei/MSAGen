@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import pickle
-from sfm.logging import logger
+import logging
 import zlib
 from io import StringIO
 from typing import List, Union
@@ -9,7 +9,7 @@ import numpy as np
 from Bio.PDB import MMCIFParser, PDBParser, Chain, PDBIO
 from Bio.PDB import PDBParser
 
-import tools.protein_data_process.residue_constants as residue_constants
+import residue_constants
 from pathlib import Path
 import gzip
 from urllib.request import urlretrieve
@@ -18,6 +18,7 @@ import hashlib
 import zipfile
 import tarfile
 
+logger = logging.getLogger(__name__)
 
 ANGLE_STRS: List[str]=["psi", "phi", "omg", "tau", "chi1", "chi2", "chi3", "chi4", "chi5"]
 
@@ -102,8 +103,9 @@ class Protein:
         for ridx, res in enumerate(self.chain):
             if res.resname not in residue_constants.restype_3to1 and res.resname != "UNK":
                 # not a standard amino acid, UNK instead
-                logger.warning(f"Nonstandard residue {res.resname} in {self.name}, treated as UNK.")
-                res.resname = "UNK"
+                logger.warning(f"Nonstandard residue {res.resname} in {self.name}, skip.")
+                # res.resname = "UNK"
+                continue
             for atm_name in residue_constants.residue_atoms[res.resname]:
                 try:
                     atm = res[atm_name]

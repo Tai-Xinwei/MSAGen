@@ -710,6 +710,7 @@ def make_atom14_positions(protein):
     """Constructs denser atom positions (14 dimensions instead of 37)."""
     residx_atom14_mask = protein["atom14_atom_exists"]
     residx_atom14_to_atom37 = protein["residx_atom14_to_atom37"]
+    seq_mask = protein["seq_mask"]
 
     # Create a mask for known ground truth positions.
     residx_atom14_gt_mask = residx_atom14_mask * batched_gather(
@@ -718,6 +719,7 @@ def make_atom14_positions(protein):
         dim=-1,
         no_batch_dims=len(protein["all_atom_mask"].shape[:-1]),
     )
+    residx_atom14_gt_mask = residx_atom14_gt_mask * seq_mask[..., None]
 
     # Gather the ground truth positions.
     residx_atom14_gt_positions = residx_atom14_gt_mask[..., None] * (
@@ -727,6 +729,9 @@ def make_atom14_positions(protein):
             dim=-2,
             no_batch_dims=len(protein["all_atom_positions"].shape[:-2]),
         )
+    )
+    residx_atom14_gt_positions = residx_atom14_gt_positions.masked_fill(
+        ~(seq_mask[..., None, None].bool()), 0
     )
 
     protein["atom14_atom_exists"] = residx_atom14_mask
@@ -804,6 +809,7 @@ def atom37_to_frames(protein, eps=1e-8):
     aatype = protein["aatype"]
     all_atom_positions = protein["all_atom_positions"]
     all_atom_mask = protein["all_atom_mask"]
+    seq_mask = protein["seq_mask"]
 
     if is_multimer:
         all_atom_positions = Vec3Array.from_array(all_atom_positions)
@@ -866,6 +872,12 @@ def atom37_to_frames(protein, eps=1e-8):
             dim=-2,
             no_batch_dims=len(all_atom_positions.shape[:-2]),
         )
+
+    # base_atom_pos: [B, L, 8 ,3 ,3]
+    # mask padding part before computing the rot
+    base_atom_pos = base_atom_pos.masked_fill(
+        ~(seq_mask[..., None, None, None].bool()), 0.0
+    )
 
     if is_multimer:
         point_on_neg_x_axis = base_atom_pos[:, :, 0]

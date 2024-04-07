@@ -26,6 +26,8 @@ copyright = "2023, MSR A4S team"
 author = "MSR A4S team"
 
 
+html_static_path = []
+
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be

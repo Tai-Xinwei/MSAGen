@@ -3,6 +3,7 @@ import math
 
 import numpy as np
 import torch
+import torch.autograd as autograd
 
 from sfm.logging import logger
 
@@ -60,6 +61,13 @@ class MixtureGaussian(torch.nn.Module):
         # Sample from the standard Gaussian distribution
         data = torch.randn((sample_number,) + x.shape[1:], device=self.device)
 
+        # # random_means = torch.mean(x, dim=1).unsqueeze(1)#.unsqueeze(-1)
+        # random_means = torch.rand(1, device=self.device) * torch.pi * 2 - torch.pi
+        # random_std_devs = 0.1
+        # data = data * random_std_devs + random_means
+
+        data0 = data.clone()
+
         # random_means = torch.mean(x, dim=1).unsqueeze(1)#.unsqueeze(-1)
         random_means = torch.rand(1, device=self.device) * torch.pi * 2 - torch.pi
         random_std_devs = 0.1
@@ -87,8 +95,10 @@ class MixtureGaussian(torch.nn.Module):
     def forward(self, x, x_0):
         """
         Compute the value, gradient, a67nd laplacian of the mixture Gaussian.
+        Compute the value, gradient, a67nd laplacian of the mixture Gaussian.
 
         Args:
+            x (torch.Tensor): Input data points at time t.
             x (torch.Tensor): Input data points at time t.
 
         Returns:
@@ -97,6 +107,12 @@ class MixtureGaussian(torch.nn.Module):
                 - nabla_phi_term (torch.Tensor): nabla q/q.
                 - laplace_phi_term (torch.Tensor): laplace q/q.
         """
+
+        # FIXME: discuss about the inf values
+        inf_mask = x == float("inf")
+        x = x.masked_fill(inf_mask, 100.0)
+        inf_mask_0 = x_0 == float("inf")
+        x_0 = x_0.masked_fill(inf_mask_0, 100.0)
 
         # no computational graph
         with torch.no_grad():
@@ -110,9 +126,11 @@ class MixtureGaussian(torch.nn.Module):
             assert not torch.isnan(
                 laplace_phi_term
             ).any(), "laplace_phi_term should not contain nan"
-            # normalize the laplace_phi_term as a inner product in high dimension space is usually large
-            nabla_phi_term = 1 / (x.shape[1] * x.shape[2]) * nabla_phi_term
-            laplace_phi_term = 1 / (x.shape[1] * x.shape[2]) * laplace_phi_term
+            # # normalize the laplace_phi_term as a inner product in high dimension space is usually large
+            # nabla_phi_term = 1 / (x.shape[1] * x.shape[2]) * nabla_phi_term
+            # laplace_phi_term = 1 / (x.shape[1] * x.shape[2]) * laplace_phi_term
+            nabla_phi_term = nabla_phi_term
+            laplace_phi_term = laplace_phi_term
             return q_point, q_point_0, nabla_phi_term, laplace_phi_term
 
 
@@ -219,70 +237,184 @@ class MixtureGaussian_v0(torch.nn.Module):
             return q_point, phi, nabla_phi, laplace_phi
 
 
-def t_finite_diff(q_output, q_output_mtq, q_output_ptq, hp, hm):
-    assert not torch.isnan(q_output_mtq).any(), "q_output_mtq should not contain nan"
-    assert not torch.isnan(q_output_ptq).any(), "q_output_ptq should not contain nan"
+def t_finite_diff(q_output, q_output_m, q_output_p, hp, hm):
+    assert not torch.isnan(q_output_m).any(), "q_output_mtq should not contain nan"
+    assert not torch.isnan(q_output_p).any(), "q_output_ptq should not contain nan"
     # assert not torch.isnan(hp).any(), "hp should not contain nan"
     # assert not torch.isnan(hm).any(), "hm should not contain nan"
 
-    up = (
-        hm**2 * q_output_ptq + (hp**2 - hm**2) * q_output - hp**2 * q_output_mtq
-    )
+    up = hm**2 * q_output_p + (hp**2 - hm**2) * q_output - hp**2 * q_output_m
     low = hm * hp * (hp + hm)  # TODO: check this file
     return up / low
 
 
-# TODO: should have the same config as the model and refer to (30)
-def sde(q, t, type="VE"):
-    if type == "VE":
-        drift = 0
-        sigma_min = 0.01 * torch.pi
-        sigma_max = torch.pi
-        diffusion = (
-            sigma_min ** (1 - t)
-            * sigma_max**t
-            * math.sqrt(2 * math.log(sigma_max / sigma_min))
+class SingleGaussian(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.mean_vector = None
+        self.covariance_matrix = None
+
+    def _compute_gradient_term(self, q_point):
+        result = torch.zeros((q_point.shape[0], q_point.shape[1]), device=self.device)
+        for i in range(q_point.shape[0]):
+            result[i] = self.covariance_matrix.inverse() @ (
+                q_point[i] - self.mean_vector
+            )
+
+        return result
+
+    def _compute_laplace_term(self, q_point):
+        result = torch.zeros((q_point.shape[0]), device=self.device)
+        for i in range(q_point.shape[0]):
+            q_centered = q_point[i] - self.mean_vector
+            covariance_matrix_inv = self.covariance_matrix.inverse()
+            result[i] = (
+                -torch.trace(covariance_matrix_inv)
+                + q_centered.T
+                @ covariance_matrix_inv
+                @ covariance_matrix_inv
+                @ q_centered
+            )
+
+        return result
+
+    def _sampler(self, batch_size, sampler_number=None):
+        # default sampler number is 10x of batch size
+        sample_num_tensor = (
+            torch.tensor([sampler_number], device=self.device)
+            if sampler_number is not None
+            else torch.tensor([10 * batch_size], device=self.device)
         )
-    elif type == "VP":
-        beta_min = 0.1
-        beta_max = 20
-        beta_t = beta_min + t * (beta_max - beta_min)
-        print("beta_t: ", beta_t)
-        drift = -0.5 * beta_t[:, None, None] * q
-        diffusion = torch.sqrt(beta_t)
-    else:
-        raise NotImplementedError("only support VE and VP right now")
-    return drift, diffusion
+
+        multivariate_gaussian = torch.distributions.MultivariateNormal(
+            self.mean_vector, self.covariance_matrix
+        )
+
+        data = multivariate_gaussian.sample(sample_num_tensor)
+
+        data0 = data.clone()
+
+        return data, data0
+
+    def forward(self, x, x_0):
+        inf_mask = x == float("inf")
+        x = x.masked_fill(inf_mask, 100.0)
+        inf_mask_0 = x_0 == float("inf")
+        x_0 = x_0.masked_fill(inf_mask_0, 100.0)
+
+        with torch.no_grad():
+            # flatten the input tensor
+            x_flattened = x.view(x.shape[0], -1)
+            x0_flattened = x_0.view(x_0.shape[0], -1)
+
+            # modify the inf or 100.0 to 0.0
+            mask = torch.logical_or(x_flattened == 100.0, x_flattened == float("inf"))
+            x_flattened = x_flattened.masked_fill(mask, 0.0)
+            mask_0 = torch.logical_or(
+                x0_flattened == 100.0, x0_flattened == float("inf")
+            )
+            x0_flattened = x0_flattened.masked_fill(mask_0, 0.0)
+
+            # maximum likelihood estimation
+            self.mean_vector = torch.mean(x_flattened, dim=0)
+            x_centered = x_flattened - self.mean_vector
+            self.covariance_matrix = (
+                (x_centered.T @ x_centered) / (x_flattened.shape[0] - 1)
+                if x_flattened.shape[0] > 0
+                else torch.zeros_like(x_centered.T @ x_centered)
+            )
+
+            # regularize the covariance matrix
+            eps = 1e-6
+            self.covariance_matrix = self.covariance_matrix + eps * torch.eye(
+                self.covariance_matrix.shape[0], device=self.covariance_matrix.device
+            )
+
+            # sample from multivariate Gaussian
+            q_point, q_point_0 = self._sampler(
+                x_flattened.shape[0], 50 * x_flattened.shape[0]
+            )
+            q_point, q_point_0 = q_point.to(self.device), q_point_0.to(self.device)
+            nabla_phi_term = self._compute_gradient_term(q_point)
+            laplace_phi_term = self._compute_laplace_term(q_point)
+            # logger.debug(f"q_point.shape: {q_point.shape}, q_point_0.shape: {q_point_0.shape},  nabla_phi_term.shape: {nabla_phi_term.shape}, laplace_phi_term.shape: {laplace_phi_term.shape}")
+
+            # reshape q_point, q_point_0, nabla_phi_term, laplace_phi_term to (B, R, 3)
+            q_point = q_point.view(q_point.shape[0], x.shape[1], x.shape[2])
+            q_point_0 = q_point_0.view(q_point_0.shape[0], x_0.shape[1], x_0.shape[2])
+            nabla_phi_term = nabla_phi_term.view(
+                nabla_phi_term.shape[0], x.shape[1], x.shape[2]
+            )
+            laplace_phi_term = laplace_phi_term.view(laplace_phi_term.shape[0])
+
+        return q_point, q_point_0, nabla_phi_term, laplace_phi_term
 
 
-def compute_PDEloss(
+class VESDE(object):
+    def __init__(self, sigma_min=0.01 * torch.pi, sigma_max=torch.pi):
+        self.sigma_min = sigma_min
+        self.sigma_max = sigma_max
+
+    def marginal_prob(self, x, t):
+        std = self.sigma_min * (self.sigma_max / self.sigma_min) ** t
+        mean = x
+        return mean, std
+
+    def sde_term(self, q, t):
+        drift = 0
+        diffusion = (
+            self.sigma_min ** (1 - t)
+            * self.sigma_max**t
+            * math.sqrt(2 * math.log(self.sigma_max / self.sigma_min))
+        )
+        return drift, diffusion
+
+
+def compute_PDE_qloss(
+    sde,
     q_output,
     time_pos,
     q_point,
     nabla_phi_term,
     laplace_phi_term,
-    q_output_mtq,
-    q_output_ptq,
+    q_output_m,
+    q_output_p,
     padding_mask,
     hp,
     hm,
     is_clip=False,
 ):
-    _, diffusion = sde(q_point, time_pos, type="VE")
-    # FIXME: paddings for q_output_mtq and q_output_ptq
-    # TODO: Do we need to consider the padding_mask here? We may not need it. Discuss with the team here.
-    # TODO: add more general sde form
+    """
+    Computes the partial differential equation (PDE) loss for the given inputs.
 
-    # assert not torch.isinf(q_output).any(), "q_output should not contain inf"
-    # assert not torch.isinf(q_output_mtq).any(), "q_output_mtq should not contain inf"
-    # assert not torch.isinf(q_output_ptq).any(), "q_output_ptq should not contain inf"
+    Args:
+        sde (SDE): The stochastic differential equation object.
+        q_output (torch.Tensor): The output tensor.
+        time_pos (torch.Tensor): The time positions tensor.
+        q_point (torch.Tensor): The tensor representing the points in the domain.
+        nabla_phi_term (torch.Tensor): The tensor representing the nabla phi term.
+        laplace_phi_term (torch.Tensor): The tensor representing the laplace phi term.
+        q_output_m (torch.Tensor): The tensor representing the output tensor at the previous time step.
+        q_output_p (torch.Tensor): The tensor representing the output tensor at the next time step.
+        padding_mask (torch.Tensor): The tensor representing the padding mask.
+        hp (float): The positive step size.
+        hm (float): The negative step size.
+        is_clip (bool, optional): Whether to clip the RHS values. Defaults to False.
+
+    Returns:
+        torch.Tensor: The computed PDE loss.
+
+    Raises:
+        AssertionError: If any of the input tensors contain NaN values.
+
+    """
+    if q_point is None:
+        return 0
+    _, diffusion = sde.sde_term(q_point, time_pos)
 
     # As normalizations are used in nabla_phi_term and laplace_phi_term, we need to do the same for LHS
-    LHS = (
-        t_finite_diff(q_output, q_output_mtq, q_output_ptq, hp, hm)
-        / (q_point.shape[1] * q_point.shape[2])
-        # * 1000
-    )
+    LHS = t_finite_diff(q_output, q_output_m, q_output_p, hp, hm)
 
     assert not torch.isnan(diffusion).any(), "diffusion should not contain nan"
     assert not torch.isnan(
@@ -293,26 +425,118 @@ def compute_PDEloss(
     ).any(), "nabla_phi_term should not contain nan"
     assert not torch.isnan(q_output).any(), "diffusion should not contain nan"
 
-    RHS = (0.5 * diffusion**2 * torch.sum(q_output**2, dim=(1, 2))).reshape(
-        -1, 1, 1
-    ) * nabla_phi_term - (0.5 * diffusion**2 * laplace_phi_term).reshape(
-        -1, 1, 1
-    ) * q_output
+    RHS = (
+        -(0.5 * diffusion**2 * torch.sum(q_output**2, dim=(1, 2))).reshape(-1, 1, 1)
+        * nabla_phi_term
+        + (0.5 * diffusion**2 * laplace_phi_term).reshape(-1, 1, 1) * q_output
+    )
 
     assert not torch.isnan(LHS).any(), "LHS should not contain nan"
     assert not torch.isnan(RHS).any(), "RHS should not contain nan"
+
     # Clip the RHS values to be within a certain range to avoid very large values
     # When in debugging, we can set is_clip to False to see the original values
     if is_clip:
         clip_min = -1e8
-        clip_max = 1e8
+        clip_max = 1e20
         RHS_clipped = torch.clamp(RHS, min=clip_min, max=clip_max)
     else:
         RHS_clipped = RHS
-    # logger.info(f"LHS: {LHS}")
-    # logger.info(f"RHS_clipped: {RHS_clipped}"); exit()
-    # TODO: here we use 1-norm to compute the loss, we may need to use 2-norm to compute the loss
-    # res = torch.mean(torch.mean((LHS + RHS_clipped), dim=(1, 2)), dim=0).abs()
-    res = torch.mean(torch.mean((LHS + RHS_clipped), dim=0).abs(), dim=(0, 1))
 
+    # Here, we compute the mean on the batched data, and then compute the mse on the spatial dimensions
+    res = torch.mean(torch.mean((LHS - RHS_clipped), dim=(0)) ** 2, dim=(0, 1))
     return res
+
+
+### Terminal loss for score model ###
+# Refer the code from https://github.com/ermongroup/sliced_score_matching/blob/master/losses/score_matching.py
+# https://github.com/ermongroup/sliced_score_matching/blob/master/losses/sliced_sm.py
+
+# single_sliced_score_matching and sliced_VR_score_matching implement a basic version of SSM
+# with only M=1. These are used in density estimation experiments for DKEF.
+
+
+def compute_pde_control_loss(
+    sde,
+    net_output,
+    samples,
+    time_pos,
+    diffmode="score",
+    noise=None,
+    detach=False,
+    noise_type="radermacher",
+):
+    """
+    Computes the control loss for the diffusion.
+
+    Args:
+        sde: The stochastic differential equation (SDE) instance.
+        net_output: The output of the neural network.
+        samples: The samples used for computing the loss.
+        time_pos: The time positions of the samples.
+        diffmode: The type of diffusion term to use. Default is "score".
+        noise: The noise vector used for computing the loss. Default is None.
+        detach: Whether to detach the loss from the computation graph. Default is False.
+        noise_type: The type of noise to use. Default is "radermacher".
+
+    Returns:
+        The computed loss.
+
+    Raises:
+        ValueError: If the control type is not supported.
+
+    """
+    if net_output is None:  # unplugging the control loss
+        return 0
+    else:
+        pass
+    control_type = "running_loss" if time_pos.sum() > 0 else "terminal_loss"
+    if control_type == "running_loss":
+        _, diffusion = sde.sde_term(samples, time_pos)
+    elif control_type == "terminal_loss":
+        pass
+    else:
+        raise ValueError("Only support running_loss and terminal_loss")
+
+    if diffmode == "score":
+        score_output = net_output
+    elif diffmode == "x0":
+        _, std = sde.marginal_prob(samples, time_pos)
+        score_output = (
+            net_output - samples
+        ) / std**2  # VE case, alpha = 1, diffusion = sigma**2
+
+    # shape: samples: [batch_size, dim1, dim2]
+    if noise is None:
+        vectors = torch.randn_like(samples)
+        if noise_type == "radermacher":
+            vectors = vectors.sign()
+        elif noise_type == "sphere":
+            vectors = (
+                vectors
+                / torch.norm(vectors, dim=-1, keepdim=True)
+                * np.sqrt(vectors.shape[-1])
+            )
+        elif noise_type == "gaussian":
+            pass
+        else:
+            raise ValueError("Noise type not implemented")
+    else:
+        vectors = noise
+    gradv = torch.sum(score_output * vectors)  # all dimensions are reduced
+    loss1 = torch.sum(score_output * vectors, dim=(1, 2)) ** 2 * 0.5
+    if detach:
+        loss1 = loss1.detach()
+    grad2 = autograd.grad(gradv, samples, create_graph=True)[0]
+    loss2 = torch.sum(vectors * grad2, dim=(1, 2))
+    if detach:
+        loss2 = loss2.detach()
+
+    if control_type == "running_loss":
+        loss = (diffusion**2 * (2 * loss1 + loss2)).mean()
+    elif control_type == "terminal_loss":
+        loss = (loss1 + loss2).mean()
+
+    else:
+        raise ValueError("Only support running_loss and terminal_loss")
+    return loss

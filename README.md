@@ -21,6 +21,61 @@ To run pre-commit manually on all files in your repository, use the following co
 pre-commit run --all-files
 ```
 
+## Installation
+
+To install the dependencies, run the following command:
+```
+eval "$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
+bash ./install/install.sh
+```
+
+Use two $ in amlt yaml file, e.g.,
+```
+eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
+```
+
+To install the dependencies for the Tensor parallel, run the following command:
+```
+git clone https://github.com/NVIDIA/apex
+```
+
+Replace the following line in `apex/setup.py`:
+```if (bare_metal_version != torch_binary_version):```
+with
+```if (0 and bare_metal_version != torch_binary_version):```
+
+Then run
+```
+bash ./install/install_megatron.sh
+```
+
+## Usage
+
+To run models on your local machine, try bash scripts in ./scripts folder, e.g.,
+```
+bash ./scripts/pfm/pretrain_pfm.sh
+```
+
+To run jobs on cluster, use yaml file in the ./amlt folder, e.g.,
+```
+amlt run ./amlt/pfm/BFM3B.yaml BFM3B
+```
+
+More details can be found in the documentation page.
+
+## Docker Image
+CUDA 11.7 docker image: itpeus4cr.azurecr.io/pj/mfmds:20230207_b.
+
+CUDA 12.1 docker image will be updated.
+
+## Data
+
+TBA, all data of SFM will be moved to one place
+
+## Documentation
+
+[ For more details, check the documentation of the framework](https://aka.ms/A4SFramework)
+
 ## Hai1 Cluster Blocklist
 
 When submit multi-node job in Hai1 Cluster, avoid using following nodes due to IB port error:
@@ -28,46 +83,4 @@ When submit multi-node job in Hai1 Cluster, avoid using following nodes due to I
 Severe: GCRHYP3C103, GCRHYP3C112, GCRHYP3C142, GCRHYP3C149, GCRHYP3C224, GCRHYP3C321, GCRHYP3C324, GCRHYP3C336 (Not use),
 Medium: GCRHYP3C257, GCRHYP3C314, GCRHYP3C342, GCRHYP3C346 (OK to use with short job like 1-3 days, do not use it with pretraining),
 Mild: GCRHYP3C108, GCRHYP3C218, GCRHYP3C225, GCRHYP3C253 (Good to use, port error happens rarely)
-```
-
-## Documentation
-
-[Check the documentation of the framework](https://aka.ms/A4SFramework)
-
-
-## Installation
-
-To install the dependencies, run the following command:
-```
-eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
-bash ./install/install.sh
-```
-
-To install the dependencies for the Tensor parallel, run the following command:
-```
-git clone https://github.com/NVIDIA/apex
-```
-Comment out the following line in `apex/setup.py`:
-```
-def check_cuda_torch_binary_vs_bare_metal(cuda_dir):
-    raw_output, bare_metal_version = get_cuda_bare_metal_version(cuda_dir)
-    torch_binary_version = parse(torch.version.cuda)
-
-    print("\nCompiling cuda extensions with")
-    print(raw_output + "from " + cuda_dir + "/bin\n")
-
-    # if (bare_metal_version != torch_binary_version):
-    #     raise RuntimeError(
-    #         "Cuda extensions are being compiled with a version of Cuda that does "
-    #         "not match the version used to compile Pytorch binaries.  "
-    #         "Pytorch binaries were compiled with Cuda {}.\n".format(torch.version.cuda)
-    #         + "In some cases, a minor-version mismatch will not cause later errors:  "
-    #         "https://github.com/NVIDIA/apex/pull/323#discussion_r287021798.  "
-    #         "You can try commenting out this check (at your own risk)."
-    #     )
-
-```
-Then run
-```
-bash ./install/install_megatron.sh
 ```

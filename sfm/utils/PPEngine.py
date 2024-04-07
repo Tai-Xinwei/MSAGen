@@ -1563,7 +1563,7 @@ class SFMPipeEngine(DeepSpeedEngine):
             f"current cache={new_cached:0.4f}GB (delta={delta_cached:0.4f}GB max={max_cached:0.4f}GB)",
         )
 
-    def module_state_dict(self):
+    def module_state_dict(self, exclude_frozen_parameters=False):
         """Override hack to save a pipe model and return the directory path of the save.
 
         This method should only be called by DeepSpeed's ``save_checkpoint()``. The
@@ -1579,7 +1579,9 @@ class SFMPipeEngine(DeepSpeedEngine):
         ), "PipelineEngine expects module_state_dict() to be called from save_checkpoint()"
 
         self.module.save_state_dict(
-            self._curr_ckpt_path, checkpoint_engine=self.checkpoint_engine
+            self._curr_ckpt_path,
+            checkpoint_engine=self.checkpoint_engine,
+            exclude_frozen_params=exclude_frozen_parameters,
         )
         return None
 

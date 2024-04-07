@@ -45,6 +45,7 @@ class GraphormerConfig:
     ddpm_beta_end: float = 0.02
     ddpm_schedule: str = "linear"
     noise_mode: str = "const"
+    num_edges: int = 1536
 
     def __init__(
         self,

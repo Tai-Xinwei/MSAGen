@@ -14,9 +14,10 @@ try:
     logger.info("apex is installed, using FusedAdam with fp16 optimizer states")
 except:
     logger.info("apex is not installed, using pytorch AdamW with fp32 optimizer states")
-    from sfm.utils.optim.mem_eff_adam import (
-        MemoryEfficientFP16Adam as Adam,  # isort:skip
-    )
+    # from sfm.utils.optim.mem_eff_adam import (
+    #     MemoryEfficientFP16Adam as Adam,  # isort:skip
+    # )
+    from torch.optim import Adam  # isort:skip
 
 from sfm.utils.optim.adam import AdamW
 

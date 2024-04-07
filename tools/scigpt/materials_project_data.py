@@ -120,35 +120,24 @@ atom_symbols_templates = [
 ]
 
 
-
 # %%
 from PyAstronomy import pyasl
 
-# %%
 def atom_symbol_to_name(atom_symbol):
     an = pyasl.AtomicNo()
     return an.getElementName(an.getAtomicNo(atom_symbol)).lower()
+
+def get_formula(data):
+    return " ".join([site["label"] for site in data["structure"]["sites"]])
+
 # %%
-import re
-def tokenize_formula(formula):
-    # Define the regular expression pattern for tokenizing
-    pattern = r"([A-Z][a-z]*)(\d*)|(\()|(\))(\d*)|([A-Z][a-z]*)"
-    # Use regular expression to find all tokens
-    tokens = re.findall(pattern, formula)
-
-    # Flatten the list of tokens and remove empty strings
-    tokens = [item for sublist in tokens for item in sublist if item]
-    return ' '.join(tokens)
-
-print(tokenize_formula('Mo6PbCl14'))
-print(tokenize_formula('HCl'))
-print(tokenize_formula('H2O'))
-print(tokenize_formula('(Al2(O4)2)2SiO4'))
-
+def get_atom_symbol(atom_name):
+    an = pyasl.AtomicNo()
+    return an.getSymbol(an.getAtomicNo(atom_name)).lower()
 
 # %%
 def describe_material(data):
-    formula = data['formula_pretty'] if 'formula_pretty' in data else None
+    formula = get_formula(data)
     formation_energy = data['formation_energy_per_atom'] if 'formation_energy_per_atom' in data else None
     energy_above_hull = data['energy_above_hull'] if 'energy_above_hull' in data else None
     band_gap = data['band_gap'] if 'band_gap' in data else None
@@ -182,14 +171,14 @@ def describe_material(data):
 
     if formula:
         sg = f'<sg{space_group["no"]}>' if space_group else ''
-        formula = f'<material> {tokenize_formula(formula)} {sg} </material>'
+        formula = f'<material> {formula} {sg} </material>'
         description.append(random.choice(formula_templates).format(formula=formula))
 
     random.shuffle(description)
 
     return ' '.join(description)
 
-describe_material(train_raw_data[0])
+print(describe_material(train_raw_data[0]))
 
 # %%
 output_folder = '/blob/shufxi/data/scigpt/materials_project_data'
