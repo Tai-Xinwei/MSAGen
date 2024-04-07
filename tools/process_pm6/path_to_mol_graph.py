@@ -3,7 +3,9 @@ import rdkit
 from glob import glob
 import numpy as np
 from rdkit.Chem.rdchem import RWMol
+from rdkit.Chem import RemoveHs
 import json
+from rdkit.Chem import rdDetermineBonds
 
 from rdkit import Chem
 
@@ -110,11 +112,13 @@ def path_to_mol_graph(dirname):
         connection_order = json_obj["pubchem"]["B3LYP@PM6"]["bonds"]["order"]
         connection_index = np.array(connection_index).reshape(-1, 2)
         mol = rdkit.Chem.rdmolfiles.MolFromXYZFile(xyz_fname)
-        editable_mol = RWMol(mol)
-        for connection, order in zip(connection_index, connection_order):
-            editable_mol.AddBond(int(connection[0]) - 1, int(connection[1]) - 1, bond_dict[order])
-        # no_h_mol = RemoveHs(editable_mol)
-        graph = mol2graph(editable_mol)
+        rdDetermineBonds.DetermineBonds(mol)
+        # editable_mol = RWMol(mol)
+        # for connection, order in zip(connection_index, connection_order):
+        #     editable_mol.AddBond(int(connection[0]) - 1, int(connection[1]) - 1, bond_dict[order])
+        # no_h_mol = RemoveHs(emolditable_mol)
+        Chem.SanitizeMol(mol)
+        graph = mol2graph(mol)
         graph['alpha_homo'] = json_obj['pubchem']['B3LYP@PM6']['properties']['energy']['alpha']['homo']
         graph['alpha_lumo'] = json_obj['pubchem']['B3LYP@PM6']['properties']['energy']['alpha']['lumo']
         graph['alpha_gap'] = json_obj['pubchem']['B3LYP@PM6']['properties']['energy']['alpha']['gap']
