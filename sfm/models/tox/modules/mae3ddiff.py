@@ -608,10 +608,12 @@ class ProteinMAEDistPDECriterions(nn.Module):
         # output of TOXModel
         logits = output_dict["x"]
         angle_output = output_dict["angle_output"]
-        ang_score = output_dict["ang_score"]
+        output_dict["ang_score"]
         output_dict["ang_score_norm"]
         padding_mask = output_dict["padding_mask"]
         time_pos = output_dict["time_pos"]
+        ang_noise = output_dict["ang_noise"]
+        ang_sigma = output_dict["ang_sigma"]
 
         # output added by TOXPDEModel
         ## pde_q_loss
@@ -691,16 +693,13 @@ class ProteinMAEDistPDECriterions(nn.Module):
             mask_angle = mask_angle & angle_mask
 
             if self.diffmode == "score":
-                # retrieve the origin score
-                ang_score = ang_score[:, :, :3]
-                ang_score = ang_score[mask_angle.squeeze(-1)]
-                # from epsilon to score
-                sigma_t = self.vesde.sigma_term(time_pos)  # shape: [B]
-                sigma_t = sigma_t.reshape(-1, 1, 1)
+                # retrieve the noise
+                ang_noise = ang_noise[:, :, :3][mask_angle.squeeze(-1)]
+                # from epsilon to noise
                 angle_output = angle_output[mask_angle.squeeze(-1)].to(
                     torch.float32
                 )  # epsilon is the NN output
-                angle_loss = ((angle_output - ang_score * sigma_t) ** 2).mean()
+                angle_loss = ((-angle_output * ang_sigma - ang_noise) ** 2).mean()
             elif self.diffmode == "x0":
                 angle_output = angle_output[mask_angle.squeeze(-1)]
                 ori_angle = ori_angle[mask_angle.squeeze(-1)]
