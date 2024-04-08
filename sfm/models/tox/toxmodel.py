@@ -245,6 +245,7 @@ class TOXPDEModel(TOXModel):
         terminal_output = None
 
         if if_pde_q_loss:
+            self.mixture_gaussian.set_sigma(output_dict["ang_sigma"])
             # RHS terms of the PDE
             (
                 q_point,
@@ -255,14 +256,7 @@ class TOXPDEModel(TOXModel):
 
             # LHS terms of the PDE
             delta_tq = 0
-            output_dict_q0 = self.net(
-                batched_data,
-                q=q_point,
-                q_0=q_point_0,
-                delta_tq=delta_tq,
-                time_pos=time_pos,
-                **kwargs,
-            )
+            output_dict_q0 = output_dict
 
             hp, hm = set_time_step(time_pos)
 
@@ -272,7 +266,6 @@ class TOXPDEModel(TOXModel):
                 q=q_point,
                 q_0=q_point_0,
                 delta_tq=delta_tq,
-                time_pos=time_pos,
                 **kwargs,
             )
 
@@ -282,7 +275,6 @@ class TOXPDEModel(TOXModel):
                 q=q_point,
                 q_0=q_point_0,
                 delta_tq=delta_tq,
-                time_pos=time_pos,
                 **kwargs,
             )
 
@@ -318,9 +310,6 @@ class TOXPDEModel(TOXModel):
         output_dict["time_pos"] = time_pos
 
         return output_dict
-
-    # def ft_forward(self, batched_data, **kwargs):
-    #     return self.net.ft_forward(batched_data, **kwargs)
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
         logits = model_output["x"]
@@ -719,14 +708,10 @@ class TOX(nn.Module):
                 ang_sigma,
                 ang_epsilon,
             ) = self._set_noise(ori_pos, ori_angle, mask_pos, mask_angle, mode_mask)
-            # angle = torch.remainder(angle, 2 * self.pi) - self.pi
-            # TODO: 1000 should be given in the config file
-            # give score_time for PDE score loss when q is not None
 
-            # first_element = time_pos[0]
-            # self.score_time = first_element.expand_as(time_pos)
-            random_number = torch.rand(1, device=time_pos.device) * 0.1
-            self.score_time = random_number.expand_as(time_pos)
+            # random_number = torch.rand(1, device=time_pos.device) * 0.1
+            # self.score_time = random_number.expand_as(time_pos)
+            self.score_time = time_pos
             self.noised_angle = angle
             self.ang_sigma = ang_sigma
             self.ang_score = ang_score
@@ -737,10 +722,6 @@ class TOX(nn.Module):
             angle = q
             angle_mask = batched_data["ang_mask"].bool()
             angle = angle.masked_fill(~angle_mask, 100.0).to(ori_pos.dtype)
-            # angle = torch.remainder(angle, 2 * self.pi) - self.pi
-
-            # if delta_tq is not None, means we are doing s(q, t + delta_tq)
-            # if delta_tq is given, then time_pos will be updated to the real time_pos= time_pos + delta_tq
 
             assert delta_tq is not None, "delta_tq should be given"
             time_pos = self.score_time + delta_tq
