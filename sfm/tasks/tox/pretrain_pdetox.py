@@ -2,9 +2,9 @@
 import os
 import sys
 
-import wandb.util
+import wandb.util  # isort:skip
 
-import wandb
+import wandb  # isort:skip
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
