@@ -123,8 +123,8 @@ class MixtureGaussian(torch.nn.Module):
             # assert not torch.isinf(q_point_0).any(), "q_point should not contain inf"
             # assert not torch.isnan(x).any(), "x should not contain nan"
             # assert not torch.isnan(x_0).any(), "x should not contain nan"
-            nabla_phi_term = self.compute_mixgauss_gradient_term(q_point_0, q_point_0)
-            laplace_phi_term = self.compute_mixgauss_laplace_term(q_point_0, q_point_0)
+            nabla_phi_term = self.compute_mixgauss_gradient_term(q_point_0, q_point)
+            laplace_phi_term = self.compute_mixgauss_laplace_term(q_point_0, q_point)
             assert not torch.isnan(
                 laplace_phi_term
             ).any(), "laplace_phi_term should not contain nan"
