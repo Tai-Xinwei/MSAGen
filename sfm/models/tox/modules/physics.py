@@ -21,31 +21,32 @@ def set_time_step(time_pos, hp=None, hm=None):
 
 # To avoid zero cases, we do not compute gauss values here, instead we compute the nabla q/q and laplace q/q
 class MixtureGaussian(torch.nn.Module):
-    def __init__(self, sigma=0.1):
+    def __init__(self):
         super().__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.sigma = torch.tensor(sigma, device=self.device)
+        self.sigma = None
+
+    def set_sigma(self, sigma):
+        self.sigma = sigma  # [B, 1, 1]
 
     def compute_mixgauss_gradient_term(self, mu, q_point):
-        # q_point: [q_batch_size, q_dim1, q_dim2]
-        # mu: [gauss_num, q_dim1, q_dim2]
         func = torch.zeros(
             [q_point.shape[0], q_point.shape[1], q_point.shape[2]], device=self.device
-        )  # [q_batch_size, q_dim1, q_dim2, gauss_num]
-        # FIXME: only support sampling the same number points as the batch size right now
+        )
         assert (
             mu.shape[0] == q_point.shape[0]
         ), "mu.shape[0] should be the same as q_point.shape[0]"
         for k in range(q_point.shape[0]):
-            func[k, :, :] = -(q_point[k, :, :] - mu[k, :, :]) / self.sigma**2
+            func[k, :, :] = -(q_point[k, :, :] - mu[k, :, :]) / self.sigma[k, 0, 0] ** 2
         return func  # [q_batch_size, q_dim1, q_dim2]
 
     def compute_mixgauss_laplace_term(self, mu, q_point):
         x_dim = q_point.shape[1] * q_point.shape[2]
         func = torch.zeros([q_point.shape[0]], device=self.device)
         for k in range(q_point.shape[0]):
-            func[k] = -1 / (self.sigma**2) * x_dim + torch.sum(
-                ((q_point[k, :, :] - mu[k, :, :]) / self.sigma**2) ** 2, dim=(0, 1)
+            func[k] = -1 / (self.sigma[k, 0, 0] ** 2) * x_dim + torch.sum(
+                ((q_point[k, :, :] - mu[k, :, :]) / self.sigma[k, 0, 0] ** 2) ** 2,
+                dim=(0, 1),
             )
         return func
 
@@ -122,8 +123,8 @@ class MixtureGaussian(torch.nn.Module):
             # assert not torch.isinf(q_point_0).any(), "q_point should not contain inf"
             # assert not torch.isnan(x).any(), "x should not contain nan"
             # assert not torch.isnan(x_0).any(), "x should not contain nan"
-            nabla_phi_term = self.compute_mixgauss_gradient_term(x, q_point)
-            laplace_phi_term = self.compute_mixgauss_laplace_term(x, q_point)
+            nabla_phi_term = self.compute_mixgauss_gradient_term(q_point_0, q_point_0)
+            laplace_phi_term = self.compute_mixgauss_laplace_term(q_point_0, q_point_0)
             assert not torch.isnan(
                 laplace_phi_term
             ).any(), "laplace_phi_term should not contain nan"
