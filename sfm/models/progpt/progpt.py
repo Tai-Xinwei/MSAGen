@@ -102,7 +102,7 @@ class ProGPTModel(SFMPipelineModelMixin):
             args.strategy != TrainStrategy.ThreeD
             and args.strategy != TrainStrategy.Pipeline
         ):
-            self.graphormer_encoder = PFMEncoder(pfm_config)
+            self.pfm_encoder = PFMEncoder(pfm_config)
 
             if self.args.llm_lora:
                 self.decoder = LlamaForCausalLMLora(llama_config)
@@ -193,24 +193,24 @@ class ProGPTModel(SFMPipelineModelMixin):
             torch.where(input_ids > 0, input_ids, 0)
         )
 
-        if batched_data is not None:
-            # generate mol emb
+        residue_seq = batched_data["proteins"]
+        if residue_seq.shape[1] > 2:
+            batched_data["x"] = residue_seq
             (
-                mol_emb,
-                graphormer_attn_bias,
+                prot_emb,
                 _,
                 _,
                 _,
-                mol_padding_mask,
                 _,
-            ) = self.graphormer_encoder(
-                batched_data,
-            )
+                prot_padding_mask,
+                _,
+                _,
+            ) = self.pfm_encoder(batched_data)
 
             # mix embeddings
             inputs_embeds, _ = self.adaptor(
-                mol_emb,
-                mol_padding_mask,
+                prot_emb,
+                prot_padding_mask,
                 text_embeds,
                 attention_mask,
                 input_ids,
@@ -241,34 +241,39 @@ class ProGPTModel(SFMPipelineModelMixin):
         perturb=None,
         segment_labels=None,
     ) -> torch.Tensor:
-        # generate mol_emb
-        (
-            mol_emb,
-            graphormer_attn_bias,
-            _,
-            _,
-            _,
-            mol_padding_mask,
-            _,
-        ) = self.graphormer_encoder(
-            batched_data,
-            segment_labels=segment_labels,
-            perturb=perturb,
-        )
+        # generate prot_emb
+        residue_seq = batched_data["proteins"]
+        if residue_seq.shape[1] > 2:
+            batched_data["x"] = residue_seq
+            (
+                prot_emb,
+                _,
+                _,
+                _,
+                _,
+                prot_padding_mask,
+                _,
+                _,
+            ) = self.pfm_encoder(batched_data)
 
-        # generate text_emb
-        text_embeds = self.decoder.get_input_embeddings()(
-            torch.where(batched_data["input_ids"] > 0, batched_data["input_ids"], 0)
-        )
+            # generate text_emb
+            text_embeds = self.decoder.get_input_embeddings()(
+                torch.where(batched_data["input_ids"] > 0, batched_data["input_ids"], 0)
+            )
 
-        # mix embeddings
-        inputs_embeds, position_ids = self.adaptor(
-            mol_emb,
-            mol_padding_mask,
-            text_embeds,
-            batched_data.get("llm_mask", batched_data["attention_mask"]),
-            batched_data["input_ids"],
-        )
+            # mix embeddings
+            inputs_embeds, position_ids = self.adaptor(
+                prot_emb,
+                prot_padding_mask,
+                text_embeds,
+                batched_data.get("llm_mask", batched_data["attention_mask"]),
+                batched_data["input_ids"],
+            )
+        else:
+            inputs_embeds = self.decoder.get_input_embeddings()(
+                torch.where(batched_data["input_ids"] > 0, batched_data["input_ids"], 0)
+            )
+            position_ids = None
 
         outputs = self.decoder(
             inputs_embeds=inputs_embeds,
