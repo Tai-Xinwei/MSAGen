@@ -489,7 +489,7 @@ class TOX(nn.Module):
                 ori_pos / pos_scale_coeff, time_pos, unit_noise_scale=1.0
             )
 
-            noisy_ang, ang_noise, ang_sigma = self.diffnoise._noise_sample(
+            noisy_ang, ang_noise, ang_sigma = self.diffnoise._angle_noise_sample(
                 ori_angle, time_ang
             )
 
@@ -720,6 +720,7 @@ class TOX(nn.Module):
             self.ang_sigma = ang_sigma
             self.ang_score = ang_score
             self.angle_score_norm = ang_score_norm
+            self.ang_noise = ang_noise
 
         elif x0 is None and q is not None:
             # actually we do not need q_score and q_score_norm
@@ -735,7 +736,7 @@ class TOX(nn.Module):
             time_pos = self.score_time + delta_tq
 
             pos = None
-            ang_score, ang_score_norm = None, None
+            ang_noise, ang_score, ang_score_norm = None, None, None
 
         elif x0 is not None and q is None:
             angle = x0
@@ -745,7 +746,7 @@ class TOX(nn.Module):
 
             time_pos = 0 * self.score_time
             pos = None
-            ang_score, ang_score_norm = None, None
+            ang_noise, ang_score, ang_score_norm = None, None, None
         else:
             assert False, "q and x0 should not be given at the same time in this class"
 
@@ -860,6 +861,7 @@ class TOX(nn.Module):
             "padding_mask": padding_mask,
             "pair_mask_aa": pair_mask_aa,
             "backbone": backbone,
+            "ang_noise": ang_noise,
         }
 
         return output_dict
