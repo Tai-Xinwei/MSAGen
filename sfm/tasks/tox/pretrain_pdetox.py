@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-import wandb
+
 import wandb.util
+
+import wandb
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
@@ -72,6 +74,7 @@ def main(args) -> None:
     )
     trainer.train()
 
+
 if __name__ == "__main__":
     try:
         os.environ["WANDB_RUN_ID"] = wandb.util.generate_id()
@@ -79,5 +82,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt!")
     finally:
-        wandb.finish() # support to finish wandb logging
+        wandb.finish()  # support to finish wandb logging
         logger.info("wandb finish logging!")

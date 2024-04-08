@@ -222,7 +222,6 @@ class TOXPDEModel(TOXModel):
 
     # PDE loss related forward function
     def forward(self, batched_data, **kwargs):
-
         # retrieve the result of forward in TOXModel
         output_dict = self.net(batched_data, **kwargs)
         time_pos = self.net.score_time
@@ -255,7 +254,7 @@ class TOXPDEModel(TOXModel):
             ) = self.mixture_gaussian(noised_angle, ori_angle)
 
             # LHS terms of the PDE
-            delta_tq = 0  
+            delta_tq = 0
             output_dict_q0 = self.net(
                 batched_data,
                 q=q_point,
@@ -301,12 +300,20 @@ class TOXPDEModel(TOXModel):
         output_dict["laplace_phi_term"] = laplace_phi_term if if_pde_q_loss else None
         output_dict["hp"] = hp if if_pde_q_loss else None
         output_dict["hm"] = hm if if_pde_q_loss else None
-        output_dict["q_output"] = output_dict_q0["angle_output"] if if_pde_q_loss else None
-        output_dict["q_output_ptq"] = output_dict_qp["angle_output"] if if_pde_q_loss else None
-        output_dict["q_output_mtq"] = output_dict_qm["angle_output"] if if_pde_q_loss else None
+        output_dict["q_output"] = (
+            output_dict_q0["angle_output"] if if_pde_q_loss else None
+        )
+        output_dict["q_output_ptq"] = (
+            output_dict_qp["angle_output"] if if_pde_q_loss else None
+        )
+        output_dict["q_output_mtq"] = (
+            output_dict_qm["angle_output"] if if_pde_q_loss else None
+        )
 
         output_dict["x0"] = x0 if if_pde_control_loss else None
-        output_dict["terminal_output"] = terminal_output if if_pde_control_loss else None
+        output_dict["terminal_output"] = (
+            terminal_output if if_pde_control_loss else None
+        )
 
         output_dict["time_pos"] = time_pos
 
@@ -316,7 +323,6 @@ class TOXPDEModel(TOXModel):
     #     return self.net.ft_forward(batched_data, **kwargs)
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
-        
         logits = model_output["x"]
         bs = logits.shape[0]
         output = self.loss(

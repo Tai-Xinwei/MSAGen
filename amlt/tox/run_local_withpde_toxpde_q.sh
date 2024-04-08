@@ -8,7 +8,7 @@ mkdir -p ${checkpoint_dir_path}
 export path=run.sh
 
 # variables for distributed
-export pipeline_model_parallel_size=0 
+export pipeline_model_parallel_size=0
 export strategy=Zero1 # option:(Single, DDP, Zero1, Zero2, Zero3, Pipeline, ThreeD)
 export launcher='openmpi'
 export hostfile='/job/hostfile'

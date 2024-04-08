@@ -7,12 +7,12 @@ import torch
 # from sklearn.metrics import roc_auc_score
 import torch.nn as nn
 
+from sfm.logging import logger
 from sfm.models.tox.modules.physics import (
     VESDE,
     compute_pde_control_loss,
     compute_PDE_qloss,
 )
-from sfm.logging import logger
 
 
 class DiffMAE3dCriterions(nn.Module):
@@ -609,7 +609,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
         logits = output_dict["x"]
         angle_output = output_dict["angle_output"]
         ang_score = output_dict["ang_score"]
-        ang_score_norm = output_dict["ang_score_norm"]
+        output_dict["ang_score_norm"]
         padding_mask = output_dict["padding_mask"]
         time_pos = output_dict["time_pos"]
 
@@ -631,11 +631,9 @@ class ProteinMAEDistPDECriterions(nn.Module):
 
         # whether to use the PDE loss
         if_pde_q_loss = False if self.lamb_pde_q == 0 else True
-        if_pde_control_loss = False if self.lamb_pde_control == 0 else True
- 
-        '''----------------------type loss----------------------'''
-        if mask_aa.any():
 
+        """----------------------type loss----------------------"""
+        if mask_aa.any():
             with torch.no_grad():
                 aa_seq = batch_data["x"][mask_aa.squeeze(-1).bool()]
 
@@ -658,7 +656,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
             type_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
             type_acc = 0.0
 
-        '''----------------------dist loss----------------------'''
+        """----------------------dist loss----------------------"""
         # # if not mask_pos.any():
         # with torch.no_grad():
         #     ori_pos = batch_data["pos"]
@@ -683,7 +681,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
         # else:
         #     dist_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
-        '''----------------------angle loss----------------------'''
+        """----------------------angle loss----------------------"""
 
         mask_angle = mask_pos.squeeze(-1)
         if mask_angle.any():
@@ -697,9 +695,11 @@ class ProteinMAEDistPDECriterions(nn.Module):
                 ang_score = ang_score[:, :, :3]
                 ang_score = ang_score[mask_angle.squeeze(-1)]
                 # from epsilon to score
-                sigma_t = self.vesde.sigma_term(time_pos) # shape: [B]
+                sigma_t = self.vesde.sigma_term(time_pos)  # shape: [B]
                 sigma_t = sigma_t.reshape(-1, 1, 1)
-                angle_output = angle_output[mask_angle.squeeze(-1)].to(torch.float32) # epsilon is the NN output
+                angle_output = angle_output[mask_angle.squeeze(-1)].to(
+                    torch.float32
+                )  # epsilon is the NN output
                 angle_loss = ((angle_output - ang_score * sigma_t) ** 2).mean()
             elif self.diffmode == "x0":
                 angle_output = angle_output[mask_angle.squeeze(-1)]
@@ -710,22 +710,26 @@ class ProteinMAEDistPDECriterions(nn.Module):
         else:
             angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
-        '''----------------------pde q loss----------------------'''
-        pde_q_loss = compute_PDE_qloss(
-            self.vesde,
-            q_output,
-            time_pos,
-            q_point[:, :, :3],
-            nabla_phi_term[:, :, :3],
-            laplace_phi_term,
-            q_output_mtq,
-            q_output_ptq,
-            padding_mask,
-            hp,
-            hm,
-        ) if if_pde_q_loss else 0.0
+        """----------------------pde q loss----------------------"""
+        pde_q_loss = (
+            compute_PDE_qloss(
+                self.vesde,
+                q_output,
+                time_pos,
+                q_point[:, :, :3],
+                nabla_phi_term[:, :, :3],
+                laplace_phi_term,
+                q_output_mtq,
+                q_output_ptq,
+                padding_mask,
+                hp,
+                hm,
+            )
+            if if_pde_q_loss
+            else 0.0
+        )
 
-        '''----------------------pde control loss----------------------'''
+        """----------------------pde control loss----------------------"""
         try:
             pde_control_loss = compute_pde_control_loss(
                 self.vesde,
