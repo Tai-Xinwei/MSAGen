@@ -414,7 +414,7 @@ def compute_PDE_qloss(
 
     """
     sigma_t = sde.sigma_term(time_pos)
-    LHS = t_finite_diff(q_output, q_output_m, q_output_p, hp, hm) - q_output * torch.log(sde.sigma_max/sde.sigma_min)
+    LHS = t_finite_diff(q_output, q_output_m, q_output_p, hp, hm) - q_output * math.log(sde.sigma_max / sde.sigma_min)
 
     assert not torch.isnan(
         laplace_phi_term
@@ -424,7 +424,7 @@ def compute_PDE_qloss(
     ).any(), "nabla_phi_term should not contain nan"
     assert not torch.isnan(q_output).any(), "diffusion should not contain nan"
 
-    RHS = -torch.log(sde.sigma_max/sde.sigma_min) * ( (sigma_t * torch.sum(q_output**2, dim=(1, 2))).reshape(-1, 1, 1) * nabla_phi_term - q_output * (sigma_t**2 * laplace_phi_term).reshape(-1, 1, 1) )
+    RHS = -math.log(sde.sigma_max/sde.sigma_min) * ( (sigma_t * torch.sum(q_output**2, dim=(1, 2))).reshape(-1, 1, 1) * nabla_phi_term - q_output * (sigma_t**2 * laplace_phi_term).reshape(-1, 1, 1) )
 
     assert not torch.isnan(LHS).any(), "LHS should not contain nan"
     assert not torch.isnan(RHS).any(), "RHS should not contain nan"
