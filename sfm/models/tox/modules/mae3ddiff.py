@@ -12,6 +12,7 @@ from sfm.models.tox.modules.physics import (
     compute_pde_control_loss,
     compute_PDE_qloss,
 )
+from sfm.logging import logger
 
 
 class DiffMAE3dCriterions(nn.Module):
@@ -683,6 +684,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
         #     dist_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         '''----------------------angle loss----------------------'''
+
         mask_angle = mask_pos.squeeze(-1)
         if mask_angle.any():
             with torch.no_grad():
@@ -691,13 +693,14 @@ class ProteinMAEDistPDECriterions(nn.Module):
             mask_angle = mask_angle & angle_mask
 
             if self.diffmode == "score":
+                # retrieve the origin score
                 ang_score = ang_score[:, :, :3]
                 ang_score = ang_score[mask_angle.squeeze(-1)]
-                angle_output = angle_output.to(torch.float32) * torch.sqrt(
-                    ang_score_norm.to(torch.float32)
-                )
-                angle_output = angle_output[mask_angle.squeeze(-1)]
-                angle_loss = ((ang_score - angle_output) ** 2).mean()
+                # from epsilon to score
+                sigma_t = self.vesde.sigma_term(time_pos) # shape: [B]
+                sigma_t = sigma_t.reshape(-1, 1, 1)
+                angle_output = angle_output[mask_angle.squeeze(-1)].to(torch.float32) # epsilon is the NN output
+                angle_loss = ((angle_output - ang_score * sigma_t) ** 2).mean()
             elif self.diffmode == "x0":
                 angle_output = angle_output[mask_angle.squeeze(-1)]
                 ori_angle = ori_angle[mask_angle.squeeze(-1)]

@@ -370,10 +370,13 @@ class VESDE(object):
             * math.sqrt(2 * math.log(self.sigma_max / self.sigma_min))
         )
         return drift, diffusion
+    
+    def sigma_term(self ,t):
+        return self.sigma_min * (self.sigma_max / self.sigma_min) ** t
 
 
 def compute_PDE_qloss(
-    sde,
+    sde: VESDE,
     q_output,
     time_pos,
     q_point,
@@ -410,14 +413,9 @@ def compute_PDE_qloss(
         AssertionError: If any of the input tensors contain NaN values.
 
     """
-    if q_point is None:
-        return 0
-    _, diffusion = sde.sde_term(q_point, time_pos)
+    sigma_t = sde.sigma_term(time_pos)
+    LHS = t_finite_diff(q_output, q_output_m, q_output_p, hp, hm) - q_output * torch.log(sde.sigma_max/sde.sigma_min)
 
-    # As normalizations are used in nabla_phi_term and laplace_phi_term, we need to do the same for LHS
-    LHS = t_finite_diff(q_output, q_output_m, q_output_p, hp, hm)
-
-    assert not torch.isnan(diffusion).any(), "diffusion should not contain nan"
     assert not torch.isnan(
         laplace_phi_term
     ).any(), "laplace_phi_term should not contain nan"
@@ -426,11 +424,7 @@ def compute_PDE_qloss(
     ).any(), "nabla_phi_term should not contain nan"
     assert not torch.isnan(q_output).any(), "diffusion should not contain nan"
 
-    RHS = (
-        -(0.5 * diffusion**2 * torch.sum(q_output**2, dim=(1, 2))).reshape(-1, 1, 1)
-        * nabla_phi_term
-        + (0.5 * diffusion**2 * laplace_phi_term).reshape(-1, 1, 1) * q_output
-    )
+    RHS = -torch.log(sde.sigma_max/sde.sigma_min) * ( (sigma_t * torch.sum(q_output**2, dim=(1, 2))).reshape(-1, 1, 1) * nabla_phi_term - q_output * (sigma_t**2 * laplace_phi_term).reshape(-1, 1, 1) )
 
     assert not torch.isnan(LHS).any(), "LHS should not contain nan"
     assert not torch.isnan(RHS).any(), "RHS should not contain nan"
