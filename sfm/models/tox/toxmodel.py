@@ -717,6 +717,7 @@ class TOX(nn.Module):
                 ang_score_norm,
                 ang_noise,
                 ang_sigma,
+                ang_epsilon,
             ) = self._set_noise(ori_pos, ori_angle, mask_pos, mask_angle, mode_mask)
             # angle = torch.remainder(angle, 2 * self.pi) - self.pi
             # TODO: 1000 should be given in the config file
@@ -730,7 +731,6 @@ class TOX(nn.Module):
             self.ang_sigma = ang_sigma
             self.ang_score = ang_score
             self.angle_score_norm = ang_score_norm
-            self.ang_noise = ang_noise
 
         elif x0 is None and q is not None:
             # actually we do not need q_score and q_score_norm
@@ -747,7 +747,7 @@ class TOX(nn.Module):
 
             pos = None
             ang_score, ang_score_norm = None, None
-            ang_noise, ang_sigma = None, None
+            ang_epsilon, ang_sigma = None, None
 
         elif x0 is not None and q is None:
             angle = x0
@@ -758,7 +758,7 @@ class TOX(nn.Module):
             time_pos = 0 * self.score_time
             pos = None
             ang_score, ang_score_norm = None, None
-            ang_noise, ang_sigma = None, None
+            ang_epsilon, ang_sigma = None, None
         else:
             assert False, "q and x0 should not be given at the same time in this class"
 
@@ -873,8 +873,8 @@ class TOX(nn.Module):
             "padding_mask": padding_mask,
             "pair_mask_aa": pair_mask_aa,
             "backbone": backbone,
-            "ang_noise": ang_noise,
             "ang_sigma": ang_sigma,
+            "ang_epsilon": ang_epsilon,
         }
 
         return output_dict
