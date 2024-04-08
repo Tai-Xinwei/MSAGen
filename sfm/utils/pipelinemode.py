@@ -143,7 +143,7 @@ def pipemode(forward_func):
 
         check_grad_requirements(output_list)
 
-        return output_list
+        return tuple(output_list)
 
     return wrapper
 

@@ -1,10 +1,17 @@
 # -*- coding: utf-8 -*-
+from collections import namedtuple
+
 import numpy as np
 import torch
 
 from sfm.data.prot_data.dataset import DownstreamLMDBDataset
 from sfm.data.sci_data import SFMDecTokenizer
 from sfm.logging import logger
+
+# we have to use named tuple to avoid being convreted to list by pytorch,
+# but also compatible with DeepSpeed PP
+SciTokenIdxAndMask = namedtuple("SciTokenIdxAndMask", ["input_ids", "padding_mask"])
+SciDataTuple = namedtuple("SciDataTuple", ["input", "labels"])
 
 
 def shuffle_sub_sequences(seq, eos_idx):
@@ -72,9 +79,9 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
     def collate(self, samples):
         input_ids = torch.stack(samples, dim=0)
         padding_mask = input_ids.ne(self.padding_idx)
-        input = tuple([input_ids, padding_mask])
+        input = SciTokenIdxAndMask(input_ids, padding_mask)
         labels = input
-        return (input, labels)
+        return SciDataTuple(input, labels)
 
 
 class RawTextSciDataset(torch.utils.data.Dataset):
