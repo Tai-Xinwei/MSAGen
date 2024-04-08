@@ -389,6 +389,7 @@ def compute_PDE_qloss(
     hp,
     hm,
     is_clip=False,
+    sigma_t=None,
 ):
     """
     Computes the partial differential equation (PDE) loss for the given inputs.
@@ -406,6 +407,7 @@ def compute_PDE_qloss(
         hp (float): The positive step size.
         hm (float): The negative step size.
         is_clip (bool, optional): Whether to clip the RHS values. Defaults to False.
+        sigma_t (torch.Tensor, optional): The tensor representing the sigma term. Defaults to None.
 
     Returns:
         torch.Tensor: The computed PDE loss.
@@ -414,9 +416,8 @@ def compute_PDE_qloss(
         AssertionError: If any of the input tensors contain NaN values.
 
     """
-    sigma_t = sde.sigma_term(time_pos)
-    LHS = t_finite_diff(q_output, q_output_m, q_output_p, hp, hm) - q_output * math.log(
-        sde.sigma_max / sde.sigma_min
+    LHS = q_output * math.log(sde.sigma_max / sde.sigma_min) - t_finite_diff(
+        q_output, q_output_m, q_output_p, hp, hm
     )
 
     assert not torch.isnan(
@@ -428,9 +429,9 @@ def compute_PDE_qloss(
     assert not torch.isnan(q_output).any(), "diffusion should not contain nan"
 
     RHS = -math.log(sde.sigma_max / sde.sigma_min) * (
-        (sigma_t * torch.sum(q_output**2, dim=(1, 2))).reshape(-1, 1, 1)
+        (sigma_t[:, 0, 0] * torch.sum(q_output**2, dim=(1, 2))).reshape(-1, 1, 1)
         * nabla_phi_term
-        - q_output * (sigma_t**2 * laplace_phi_term).reshape(-1, 1, 1)
+        + q_output * (sigma_t[:, 0, 0] ** 2 * laplace_phi_term).reshape(-1, 1, 1)
     )
 
     assert not torch.isnan(LHS).any(), "LHS should not contain nan"

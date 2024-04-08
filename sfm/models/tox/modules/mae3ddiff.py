@@ -613,7 +613,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
         padding_mask = output_dict["padding_mask"]
         time_pos = output_dict["time_pos"]
         ang_epsilon = output_dict["ang_epsilon"]
-        output_dict["ang_sigma"]
+        ang_sigma = output_dict["ang_sigma"]
 
         # output added by TOXPDEModel
         ## pde_q_loss
@@ -625,6 +625,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
         q_output = output_dict["q_output"]
         q_output_ptq = output_dict["q_output_ptq"]
         q_output_mtq = output_dict["q_output_mtq"]
+
         ## pde_control_loss
         x0 = output_dict["x0"]
         terminal_output = output_dict["terminal_output"]
@@ -723,6 +724,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
                 padding_mask,
                 hp,
                 hm,
+                sigma_t=ang_sigma,
             )
             if if_pde_q_loss
             else 0.0

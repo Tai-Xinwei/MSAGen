@@ -308,7 +308,6 @@ class TOXPDEModel(TOXModel):
         )
 
         output_dict["time_pos"] = time_pos
-
         return output_dict
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
