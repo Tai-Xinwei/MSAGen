@@ -204,21 +204,23 @@ class ProteinTextDataset(Dataset):
             )
 
             for i in range(mol_pos.size(0) - 1):
-                new_input_ids.extend(input_ids[mol_pos[i] : mol_pos[i + 1]])
                 if i == 0:
                     label.extend(input_ids[mol_pos[i] : mol_pos[i + 1]])
+                    new_input_ids.extend(input_ids[mol_pos[i] : mol_pos[i + 1]])
                 else:
                     label.extend(input_ids[mol_pos[i] + 1 : mol_pos[i + 1]])
+                    new_input_ids.extend(input_ids[mol_pos[i] + 1 : mol_pos[i + 1]])
 
                 if i < len(mol_pos) - 2:
                     len_protein = len(proteins[i])
                     mol_idx = input_ids[mol_pos[i + 1]]
                     if len_protein > 1:
-                        new_input_ids.extend(torch.ones([len_protein - 1]) * mol_idx)
+                        new_input_ids.extend(torch.ones([len_protein]) * mol_idx)
                         label.extend(proteins_bpeid[i])
 
                     if mol_pos[i + 1] < original_input_ids_len:
                         input_ids_len += len_protein - 1
+
         elif self.pool_mode == "qformer":
             raise NotImplementedError
         else:
@@ -226,6 +228,11 @@ class ProteinTextDataset(Dataset):
 
         input_ids = torch.tensor(new_input_ids).to(dtype=torch.int64)
         labels = torch.tensor(label).to(dtype=torch.int64)
+
+        # print(input_ids-labels)
+        mask = input_ids > 0
+        error = input_ids[mask] - labels[mask]
+        assert torch.sum(error) == 0, f"Error in input_ids and labels: {error}"
 
         # labels = input_ids.clone()
         # labels[:input_ids_len] = IGNORE_INDEX

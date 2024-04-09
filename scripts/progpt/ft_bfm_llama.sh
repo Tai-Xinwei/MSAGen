@@ -156,7 +156,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --loadbfmckpt_path $loadbfmckpt_path \
           --log_interval $log_interval --load_ckpt \
           --save_batch_interval $save_batch_interval \
-          --unfreeze_param_list "mol_adaptor,mol_rep_layernorm,embed_tokens" \
+          --unfreeze_param_list "mol_adaptor,mol_rep_layernorm" \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
           # --ifresume \
