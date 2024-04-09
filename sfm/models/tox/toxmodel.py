@@ -216,7 +216,6 @@ class TOXPDEModel(TOXModel):
             load_ckpt,
         )
         self.mixture_gaussian = MixtureGaussian()
-        # self.single_gaussian = SingleGaussian()
         self.lamb_pde_q = args.lamb_pde_q
         self.lamb_pde_control = args.lamb_pde_control
 
@@ -224,29 +223,25 @@ class TOXPDEModel(TOXModel):
     def forward(self, batched_data, **kwargs):
         # retrieve the result of forward in TOXModel
         output_dict = self.net(batched_data, **kwargs)
+
+        # retrieve the time, ori_angle, noised_angle
         time_pos = self.net.score_time
         ori_angle = batched_data["ang"]
         noised_angle = self.net.noised_angle
 
-        # whether to use the PDE loss
+        # guarantee the same inf_mask
+        inf_mask = ori_angle == float("inf")
+        ori_angle = ori_angle.masked_fill(inf_mask, 100.0)
+        noised_angle = noised_angle.masked_fill(inf_mask, 100.0)
+
+        # whether to use the PDE q loss and control loss
         if_pde_q_loss = False if self.lamb_pde_q == 0 else True
         if_pde_control_loss = False if self.lamb_pde_control == 0 else True
 
-        # PDE loss related variables
-        q_point = None
-        q_point_0 = None
-        nabla_phi_term = None
-        laplace_phi_term = None
-        hp = None
-        hm = None
-
-        # control loss related variables
-        x0 = None
-        terminal_output = None
 
         if if_pde_q_loss:
-            self.mixture_gaussian.set_sigma(output_dict["ang_sigma"])
-            # RHS terms of the PDE
+            self.mixture_gaussian.set_sigma(output_dict["ang_sigma"]) # sigma_t's shape is [B, 1, 1]
+            # RHS terms of the PDE. Now q_point is noised and q_point_0 is ori
             (
                 q_point,
                 q_point_0,
@@ -277,35 +272,21 @@ class TOXPDEModel(TOXModel):
                 **kwargs,
             )
 
-        if if_pde_control_loss:
-            x0 = (
-                ori_angle + torch.randn_like(ori_angle, device=ori_angle.device) * 0.001
+            output_dict.update(
+                {
+                    "nabla_phi_term": nabla_phi_term[:, :, :3],
+                    "laplace_phi_term": laplace_phi_term,
+                    "hp": hp,
+                    "hm": hm,
+                    "q_output": output_dict_q0["angle_output"][:, :, :3], 
+                    "q_output_ptq": output_dict_qp["angle_output"][:, :, :3],
+                    "q_output_mtq": output_dict_qm["angle_output"][:, :, :3],
+                }
             )
-            x0.requires_grad_(True)
-            output_dict_terminal = self.net(batched_data, x0=x0, **kwargs)
-            terminal_output = output_dict_terminal["angle_output"]
 
-        # return the dictionary
-        output_dict["q_point"] = q_point if if_pde_q_loss else None
-        output_dict["nabla_phi_term"] = nabla_phi_term if if_pde_q_loss else None
-        output_dict["laplace_phi_term"] = laplace_phi_term if if_pde_q_loss else None
-        output_dict["hp"] = hp if if_pde_q_loss else None
-        output_dict["hm"] = hm if if_pde_q_loss else None
-        output_dict["q_output"] = (
-            output_dict_q0["angle_output"] if if_pde_q_loss else None
-        )
-        output_dict["q_output_ptq"] = (
-            output_dict_qp["angle_output"] if if_pde_q_loss else None
-        )
-        output_dict["q_output_mtq"] = (
-            output_dict_qm["angle_output"] if if_pde_q_loss else None
-        )
-
-        output_dict["x0"] = x0 if if_pde_control_loss else None
-        output_dict["terminal_output"] = (
-            terminal_output if if_pde_control_loss else None
-        )
-
+        if if_pde_control_loss:
+            pass
+        
         output_dict["time_pos"] = time_pos
         return output_dict
 
@@ -844,16 +825,16 @@ class TOX(nn.Module):
         output_dict = {
             "x": x,
             "x_pair": x_pair,
-            "angle_output": angle_output,
+            "angle_output": angle_output[:, :, :3], 
             "mask_pos": mask_pos,
             "mask_aa": mask_aa,
-            "ang_score": ang_score,
+            "ang_score": ang_score[:, :, :3] if ang_score is not None else None,
             "ang_score_norm": ang_score_norm,
             "padding_mask": padding_mask,
             "pair_mask_aa": pair_mask_aa,
             "backbone": backbone,
             "ang_sigma": ang_sigma,
-            "ang_epsilon": ang_epsilon,
+            "ang_epsilon": ang_epsilon[:, :, :3] if ang_score is not None else None,
         }
 
         return output_dict

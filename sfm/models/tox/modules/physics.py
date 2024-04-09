@@ -44,7 +44,7 @@ class MixtureGaussian(torch.nn.Module):
 
     def compute_mixgauss_laplace_term(self, mu, q_point):
         x_dim = q_point.shape[1] * q_point.shape[2]
-        
+
         func = torch.zeros([q_point.shape[0]], device=self.device)
         for k in range(q_point.shape[0]):
             func[k] = -1 / (self.sigma[k, 0, 0] ** 2) * x_dim + torch.sum(
@@ -111,31 +111,20 @@ class MixtureGaussian(torch.nn.Module):
                 - nabla_phi_term (torch.Tensor): nabla q/q.
                 - laplace_phi_term (torch.Tensor): laplace q/q.
         """
-
-        # FIXME: discuss about the inf values
-        inf_mask = x == float("inf")
-        x = x.masked_fill(inf_mask, 100.0)
-        inf_mask_0 = x_0 == float("inf")
-        x_0 = x_0.masked_fill(inf_mask_0, 100.0)
-
-        # no computational graph
         with torch.no_grad():
             # q_point, q_point_0 = self.sampler(x, x_0)
             q_point, q_point_0 = x, x_0
-            # assert not torch.isinf(q_point).any(), "q_point should not contain inf"
-            # assert not torch.isinf(q_point_0).any(), "q_point should not contain inf"
-            # assert not torch.isnan(x).any(), "x should not contain nan"
-            # assert not torch.isnan(x_0).any(), "x should not contain nan"
-            nabla_phi_term = self.compute_mixgauss_gradient_term(q_point_0, q_point)
-            laplace_phi_term = self.compute_mixgauss_laplace_term(q_point_0, q_point)
+
+            # only use the first three dimensions to compute the gradient and laplace
+            nabla_phi_term = self.compute_mixgauss_gradient_term(q_point_0[:, :, :3], q_point[:, :, :3])
+            laplace_phi_term = self.compute_mixgauss_laplace_term(q_point_0[:, :, :3], q_point[:, :, :3])
             assert not torch.isnan(
                 laplace_phi_term
             ).any(), "laplace_phi_term should not contain nan"
             # # normalize the laplace_phi_term as a inner product in high dimension space is usually large
             # nabla_phi_term = 1 / (x.shape[1] * x.shape[2]) * nabla_phi_term
             # laplace_phi_term = 1 / (x.shape[1] * x.shape[2]) * laplace_phi_term
-            nabla_phi_term = nabla_phi_term
-            laplace_phi_term = laplace_phi_term
+
             return q_point, q_point_0, nabla_phi_term, laplace_phi_term
 
 
@@ -382,17 +371,14 @@ class VESDE(object):
 def compute_PDE_qloss(
     sde: VESDE,
     q_output,
-    time_pos,
-    q_point,
     nabla_phi_term,
     laplace_phi_term,
     q_output_m,
     q_output_p,
-    padding_mask,
     hp,
     hm,
-    is_clip=False,
     sigma_t=None,
+    is_clip=False,
 ):
     """
     Computes the partial differential equation (PDE) loss for the given inputs.
@@ -458,91 +444,110 @@ def compute_PDE_qloss(
 # Refer the code from https://github.com/ermongroup/sliced_score_matching/blob/master/losses/score_matching.py
 # https://github.com/ermongroup/sliced_score_matching/blob/master/losses/sliced_sm.py
 
+
 # single_sliced_score_matching and sliced_VR_score_matching implement a basic version of SSM
 # with only M=1. These are used in density estimation experiments for DKEF.
-
-
-def compute_pde_control_loss(
-    sde,
-    net_output,
-    samples,
-    time_pos,
-    diffmode="score",
-    noise=None,
-    detach=False,
-    noise_type="radermacher",
-):
+def compute_pde_control_loss(epsilon_predict, epsilon_true):
     """
-    Computes the control loss for the diffusion.
+    Compute the control loss for the diffusion.
 
     Args:
-        sde: The stochastic differential equation (SDE) instance.
-        net_output: The output of the neural network.
-        samples: The samples used for computing the loss.
-        time_pos: The time positions of the samples.
-        diffmode: The type of diffusion term to use. Default is "score".
-        noise: The noise vector used for computing the loss. Default is None.
-        detach: Whether to detach the loss from the computation graph. Default is False.
-        noise_type: The type of noise to use. Default is "radermacher".
+        epsilon_predict: The predicted epsilon, shape is [batch_size, dim1, dim2]
+        epsilon_true: The true epsilon, shape is [batch_size, dim1, dim2]
 
     Returns:
         The computed loss.
 
-    Raises:
-        ValueError: If the control type is not supported.
-
     """
-    if net_output is None:  # unplugging the control loss
-        return 0
-    else:
-        pass
-    control_type = "running_loss" if time_pos.sum() > 0 else "terminal_loss"
-    if control_type == "running_loss":
-        _, diffusion = sde.sde_term(samples, time_pos)
-    elif control_type == "terminal_loss":
-        pass
-    else:
-        raise ValueError("Only support running_loss and terminal_loss")
-
-    if diffmode == "score":
-        score_output = net_output
-    elif diffmode == "x0":
-        _, std = sde.marginal_prob(samples, time_pos)
-        score_output = (
-            net_output - samples
-        ) / std**2  # VE case, alpha = 1, diffusion = sigma**2
-
-    # shape: samples: [batch_size, dim1, dim2]
-    if noise is None:
-        vectors = torch.randn_like(samples)
-        if noise_type == "radermacher":
-            vectors = vectors.sign()
-        elif noise_type == "sphere":
-            vectors = (
-                vectors
-                / torch.norm(vectors, dim=-1, keepdim=True)
-                * np.sqrt(vectors.shape[-1])
-            )
-        elif noise_type == "gaussian":
-            pass
-        else:
-            raise ValueError("Noise type not implemented")
-    else:
-        vectors = noise
-    gradv = torch.sum(score_output * vectors)  # all dimensions are reduced
-    loss1 = torch.sum(score_output * vectors, dim=(1, 2)) ** 2 * 0.5
-    if detach:
-        loss1 = loss1.detach()
-    grad2 = autograd.grad(gradv, samples, create_graph=True)[0]
-    loss2 = torch.sum(vectors * grad2, dim=(1, 2))
-    if detach:
-        loss2 = loss2.detach()
-
-    if control_type == "running_loss":
-        loss = (diffusion**2 * (2 * loss1 + loss2)).mean()
-    elif control_type == "terminal_loss":
-        loss = (loss1 + loss2).mean()
-
-    else:
-        raise ValueError("Only support running_loss and terminal_loss")
+    loss = torch.mean(
+        torch.sum(epsilon_predict**2, dim=(1, 2))
+        - torch.sum(epsilon_true**2, dim=(1, 2))
+        - 2 * torch.sum(epsilon_predict - epsilon_true, dim=(1, 2))
+    )
     return loss
+
+
+# def compute_pde_control_loss(
+#     sde,
+#     net_output,
+#     samples,
+#     time_pos,
+#     diffmode="score",
+#     noise=None,
+#     detach=False,
+#     noise_type="radermacher",
+# ):
+#     """
+#     Computes the control loss for the diffusion.
+
+#     Args:
+#         sde: The stochastic differential equation (SDE) instance.
+#         net_output: The output of the neural network.
+#         samples: The samples used for computing the loss.
+#         time_pos: The time positions of the samples.
+#         diffmode: The type of diffusion term to use. Default is "score".
+#         noise: The noise vector used for computing the loss. Default is None.
+#         detach: Whether to detach the loss from the computation graph. Default is False.
+#         noise_type: The type of noise to use. Default is "radermacher".
+
+#     Returns:
+#         The computed loss.
+
+#     Raises:
+#         ValueError: If the control type is not supported.
+
+#     """
+#     if net_output is None:  # unplugging the control loss
+#         return 0
+#     else:
+#         pass
+#     control_type = "running_loss" if time_pos.sum() > 0 else "terminal_loss"
+#     if control_type == "running_loss":
+#         _, diffusion = sde.sde_term(samples, time_pos)
+#     elif control_type == "terminal_loss":
+#         pass
+#     else:
+#         raise ValueError("Only support running_loss and terminal_loss")
+
+#     if diffmode == "score":
+#         score_output = net_output
+#     elif diffmode == "x0":
+#         _, std = sde.marginal_prob(samples, time_pos)
+#         score_output = (
+#             net_output - samples
+#         ) / std**2  # VE case, alpha = 1, diffusion = sigma**2
+
+#     # shape: samples: [batch_size, dim1, dim2]
+#     if noise is None:
+#         vectors = torch.randn_like(samples)
+#         if noise_type == "radermacher":
+#             vectors = vectors.sign()
+#         elif noise_type == "sphere":
+#             vectors = (
+#                 vectors
+#                 / torch.norm(vectors, dim=-1, keepdim=True)
+#                 * np.sqrt(vectors.shape[-1])
+#             )
+#         elif noise_type == "gaussian":
+#             pass
+#         else:
+#             raise ValueError("Noise type not implemented")
+#     else:
+#         vectors = noise
+#     gradv = torch.sum(score_output * vectors)  # all dimensions are reduced
+#     loss1 = torch.sum(score_output * vectors, dim=(1, 2)) ** 2 * 0.5
+#     if detach:
+#         loss1 = loss1.detach()
+#     grad2 = autograd.grad(gradv, samples, create_graph=True)[0]
+#     loss2 = torch.sum(vectors * grad2, dim=(1, 2))
+#     if detach:
+#         loss2 = loss2.detach()
+
+#     if control_type == "running_loss":
+#         loss = (diffusion**2 * (2 * loss1 + loss2)).mean()
+#     elif control_type == "terminal_loss":
+#         loss = (loss1 + loss2).mean()
+
+#     else:
+#         raise ValueError("Only support running_loss and terminal_loss")
+#     return loss
