@@ -21,14 +21,6 @@ from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig, TrainSt
 from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils.cli_utils import cli
 
-# from sfm.utils.science_tokens import SCIENCE_TAG_TOKENS
-
-# IGNORE_INDEX = -100
-# DEFAULT_PAD_TOKEN = "[PAD]"
-# DEFAULT_EOS_TOKEN = "</s>"
-# DEFAULT_BOS_TOKEN = "<s>"
-# DEFAULT_UNK_TOKEN = "<unk>"
-
 
 def make_supervised_data_module(args, mode="train") -> Dict:
     assert mode in [
@@ -36,26 +28,6 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         "eval",
         "test",
     ], f"Invalid mode: {mode}, must be train, eval, or test."
-
-    # tokenizer = AutoTokenizer.from_pretrained(
-    #     args.llm_model_name_or_path,
-    #     model_max_length=args.model_max_length,
-    #     padding_side="right",
-    #     use_fast=False,
-    # )
-
-    # special_tokens_dict = dict()
-    # if tokenizer.pad_token is None:
-    #     special_tokens_dict["pad_token"] = DEFAULT_PAD_TOKEN
-    # if tokenizer.eos_token is None:
-    #     special_tokens_dict["eos_token"] = DEFAULT_EOS_TOKEN
-    # if tokenizer.bos_token is None:
-    #     special_tokens_dict["bos_token"] = DEFAULT_BOS_TOKEN
-    # if tokenizer.unk_token is None:
-    #     special_tokens_dict["unk_token"] = DEFAULT_UNK_TOKEN
-
-    # special_tokens_dict["additional_special_tokens"] = SCIENCE_TAG_TOKENS
-    # tokenizer.add_special_tokens(special_tokens_dict)
 
     tokenizer = SFMDecTokenizer.from_pretrained(
         args.llm_model_name_or_path,

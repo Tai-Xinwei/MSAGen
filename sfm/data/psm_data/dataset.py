@@ -52,24 +52,22 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
-        item = {"id": idx, **data}
-        # item keys
-        # {'name', 'size', "atom_coords", "token_type", "id"}
 
-        x = item["x"].to(torch.int64)
-        coords = item["coords"].to(torch.float32)
+        x = data["x"].to(torch.int64)
+        coords = data["coords"].to(torch.float32)
 
         x = convert_to_single_emb(x)
 
+        data["sample_type"] = 0
         data["token_type"] = x
-        item["idx"] = idx
+        data["idx"] = idx
 
         coords = coords - coords.mean(dim=0, keepdim=True)
         data["coords"] = coords
 
-        item["cell"] = torch.tensor(item["cell"], dtype=torch.float64)
-        item["pbc"] = torch.tensor(item["pbc"], dtype=torch.bool)
-        item["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
+        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+        data["pbc"] = torch.zeros(3, dtype=torch.float64)
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
         data["forces"] = torch.zeros(
             (x.size()[0], 3), dtype=torch.float64, device=x.device
         )
@@ -106,21 +104,23 @@ class MatterSimDataset:
     @lru_cache(maxsize=16)
     def __getitem__(self, idx):
         data_name, key = self.index_to_dataset_name[idx]
-        item = pkl.loads(self.data_name_to_txn[data_name].get(key.encode()))
-        numbers = item.pop("numbers")
+        data = pkl.loads(self.data_name_to_txn[data_name].get(key.encode()))
+        numbers = data.pop("numbers")
         x = torch.tensor(numbers, dtype=torch.long).unsqueeze(-1)
-        positions = item.pop("positions")
-        item["coords"] = torch.tensor(positions, dtype=torch.float64)
-        item["token_type"] = convert_to_single_emb(x)
-        item["idx"] = idx
+        positions = data.pop("positions")
 
-        item["cell"] = torch.tensor(item["cell"], dtype=torch.float64)
-        item["pbc"] = torch.tensor(item["pbc"], dtype=torch.bool)
-        item["stress"] = torch.tensor(item["info"]["stress"], dtype=torch.float64)
-        item["forces"] = torch.tensor(item["forces"], dtype=torch.float64)
-        item["energy"] = torch.tensor([item["info"]["energy"] / x.size()[0]])
+        data["sample_type"] = 1
+        data["coords"] = torch.tensor(positions, dtype=torch.float64)
+        data["token_type"] = convert_to_single_emb(x)
+        data["idx"] = idx
 
-        return item
+        data["cell"] = torch.tensor(data["cell"], dtype=torch.float64)
+        data["pbc"] = torch.tensor(data["pbc"], dtype=torch.bool)
+        data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
+        data["forces"] = torch.tensor(data["forces"], dtype=torch.float64)
+        data["energy"] = torch.tensor([data["info"]["energy"] / x.size()[0]])
+
+        return data
 
     def __len__(self):
         return len(self.index_to_dataset_name)

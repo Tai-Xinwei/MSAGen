@@ -7,6 +7,7 @@ from multiprocessing import Pool
 from typing import List
 
 from sfm.data.dataset import FoundationModelDataset
+from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import (
     MatterSimDataset,
     PM6FullLMDBDataset,
@@ -47,7 +48,7 @@ class UnifiedPSMDataset(FoundationModelDataset):
         return self.len
 
     def collate(self, samples):
-        pass
+        return collate_fn(samples)
 
 
 if __name__ == "__main__":
