@@ -116,8 +116,12 @@ class MixtureGaussian(torch.nn.Module):
             q_point, q_point_0 = x, x_0
 
             # only use the first three dimensions to compute the gradient and laplace
-            nabla_phi_term = self.compute_mixgauss_gradient_term(q_point_0[:, :, :3], q_point[:, :, :3])
-            laplace_phi_term = self.compute_mixgauss_laplace_term(q_point_0[:, :, :3], q_point[:, :, :3])
+            nabla_phi_term = self.compute_mixgauss_gradient_term(
+                q_point_0[:, :, :3], q_point[:, :, :3]
+            )
+            laplace_phi_term = self.compute_mixgauss_laplace_term(
+                q_point_0[:, :, :3], q_point[:, :, :3]
+            )
             assert not torch.isnan(
                 laplace_phi_term
             ).any(), "laplace_phi_term should not contain nan"

@@ -238,9 +238,10 @@ class TOXPDEModel(TOXModel):
         if_pde_q_loss = False if self.lamb_pde_q == 0 else True
         if_pde_control_loss = False if self.lamb_pde_control == 0 else True
 
-
         if if_pde_q_loss:
-            self.mixture_gaussian.set_sigma(output_dict["ang_sigma"]) # sigma_t's shape is [B, 1, 1]
+            self.mixture_gaussian.set_sigma(
+                output_dict["ang_sigma"]
+            )  # sigma_t's shape is [B, 1, 1]
             # RHS terms of the PDE. Now q_point is noised and q_point_0 is ori
             (
                 q_point,
@@ -278,7 +279,7 @@ class TOXPDEModel(TOXModel):
                     "laplace_phi_term": laplace_phi_term,
                     "hp": hp,
                     "hm": hm,
-                    "q_output": output_dict_q0["angle_output"][:, :, :3], 
+                    "q_output": output_dict_q0["angle_output"][:, :, :3],
                     "q_output_ptq": output_dict_qp["angle_output"][:, :, :3],
                     "q_output_mtq": output_dict_qm["angle_output"][:, :, :3],
                 }
@@ -286,7 +287,7 @@ class TOXPDEModel(TOXModel):
 
         if if_pde_control_loss:
             pass
-        
+
         output_dict["time_pos"] = time_pos
         return output_dict
 
@@ -825,7 +826,7 @@ class TOX(nn.Module):
         output_dict = {
             "x": x,
             "x_pair": x_pair,
-            "angle_output": angle_output[:, :, :3], 
+            "angle_output": angle_output[:, :, :3],
             "mask_pos": mask_pos,
             "mask_aa": mask_aa,
             "ang_score": ang_score[:, :, :3] if ang_score is not None else None,

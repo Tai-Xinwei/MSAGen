@@ -613,7 +613,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
         mask_pos = output_dict["mask_pos"]
         mask_angle = mask_pos.squeeze(-1)
         angle_mask = batch_data["ang_mask"][:, :, :3].bool()
-        mask_angle = mask_angle & angle_mask # [B, L, 3]
+        mask_angle = mask_angle & angle_mask  # [B, L, 3]
 
         """----------------------type loss----------------------"""
         mask_aa = output_dict["mask_aa"]
@@ -666,7 +666,6 @@ class ProteinMAEDistPDECriterions(nn.Module):
         # else:
         #     dist_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
-
         """----------------------angle loss----------------------"""
         angle_output = output_dict["angle_output"]
         ang_epsilon = output_dict["ang_epsilon"]
@@ -682,50 +681,55 @@ class ProteinMAEDistPDECriterions(nn.Module):
                 angle_output_data_loss = angle_output[mask_angle]
                 ori_angle_data_loss = ori_angle[mask_angle]
                 angle_loss = self.loss_angle(
-                    angle_output_data_loss.to(torch.float32), ori_angle_data_loss.to(torch.float32)
+                    angle_output_data_loss.to(torch.float32),
+                    ori_angle_data_loss.to(torch.float32),
                 )
         else:
             angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         """----------------------pde q loss----------------------"""
         # TODO: add the mask for q loss
-        if mask_angle.any() and if_pde_q_loss:   
+        if mask_angle.any() and if_pde_q_loss:
             nabla_phi_term = output_dict["nabla_phi_term"]
             laplace_phi_term = output_dict["laplace_phi_term"]
             hp = output_dict["hp"]
             hm = output_dict["hm"]
             q_output = output_dict["q_output"]
             q_output_ptq = output_dict["q_output_ptq"]
-            q_output_mtq = output_dict["q_output_mtq"] 
+            q_output_mtq = output_dict["q_output_mtq"]
             ang_sigma = output_dict["ang_sigma"]
-    
+
             pde_q_loss = compute_PDE_qloss(
-                            self.vesde,
-                            q_output,
-                            nabla_phi_term,
-                            laplace_phi_term,
-                            q_output_mtq,
-                            q_output_ptq,
-                            hp,
-                            hm,
-                            ang_sigma,
-                            is_clip=False,
-                        )
+                self.vesde,
+                q_output,
+                nabla_phi_term,
+                laplace_phi_term,
+                q_output_mtq,
+                q_output_ptq,
+                hp,
+                hm,
+                ang_sigma,
+                is_clip=False,
+            )
         else:
             pde_q_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         """----------------------pde control loss----------------------"""
-        if mask_angle.any() and if_pde_control_loss: 
+        if mask_angle.any() and if_pde_control_loss:
             pde_control_loss = (
                 compute_pde_control_loss(
-                    angle_output.masked_fill(mask_angle, 0.0).to(torch.float32), # hava masked in data loss
+                    angle_output.masked_fill(mask_angle, 0.0).to(
+                        torch.float32
+                    ),  # hava masked in data loss
                     ang_epsilon.masked_fill(mask_angle, 0.0).to(torch.float32),
                 )
                 if if_pde_control_loss
                 else 0.0
             )
         else:
-            pde_control_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
+            pde_control_loss = torch.tensor(
+                [0.0], device=logits.device, requires_grad=True
+            )
 
         """----------------------total loss----------------------"""
         loss = (
