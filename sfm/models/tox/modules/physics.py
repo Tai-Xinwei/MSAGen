@@ -21,31 +21,32 @@ def set_time_step(time_pos, hp=None, hm=None):
 
 # To avoid zero cases, we do not compute gauss values here, instead we compute the nabla q/q and laplace q/q
 class MixtureGaussian(torch.nn.Module):
-    def __init__(self, sigma=0.1):
+    def __init__(self):
         super().__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.sigma = torch.tensor(sigma, device=self.device)
+        self.sigma = None
+
+    def set_sigma(self, sigma):
+        self.sigma = sigma  # [B, 1, 1]
 
     def compute_mixgauss_gradient_term(self, mu, q_point):
-        # q_point: [q_batch_size, q_dim1, q_dim2]
-        # mu: [gauss_num, q_dim1, q_dim2]
         func = torch.zeros(
             [q_point.shape[0], q_point.shape[1], q_point.shape[2]], device=self.device
-        )  # [q_batch_size, q_dim1, q_dim2, gauss_num]
-        # FIXME: only support sampling the same number points as the batch size right now
+        )
         assert (
             mu.shape[0] == q_point.shape[0]
         ), "mu.shape[0] should be the same as q_point.shape[0]"
         for k in range(q_point.shape[0]):
-            func[k, :, :] = -(q_point[k, :, :] - mu[k, :, :]) / self.sigma**2
+            func[k, :, :] = -(q_point[k, :, :] - mu[k, :, :]) / self.sigma[k, 0, 0] ** 2
         return func  # [q_batch_size, q_dim1, q_dim2]
 
     def compute_mixgauss_laplace_term(self, mu, q_point):
         x_dim = q_point.shape[1] * q_point.shape[2]
         func = torch.zeros([q_point.shape[0]], device=self.device)
         for k in range(q_point.shape[0]):
-            func[k] = -1 / (self.sigma**2) * x_dim + torch.sum(
-                ((q_point[k, :, :] - mu[k, :, :]) / self.sigma**2) ** 2, dim=(0, 1)
+            func[k] = -1 / (self.sigma[k, 0, 0] ** 2) * x_dim + torch.sum(
+                ((q_point[k, :, :] - mu[k, :, :]) / self.sigma[k, 0, 0] ** 2) ** 2,
+                dim=(0, 1),
             )
         return func
 
@@ -116,13 +117,14 @@ class MixtureGaussian(torch.nn.Module):
 
         # no computational graph
         with torch.no_grad():
-            q_point, q_point_0 = self.sampler(x, x_0)
+            # q_point, q_point_0 = self.sampler(x, x_0)
+            q_point, q_point_0 = x, x_0
             # assert not torch.isinf(q_point).any(), "q_point should not contain inf"
             # assert not torch.isinf(q_point_0).any(), "q_point should not contain inf"
             # assert not torch.isnan(x).any(), "x should not contain nan"
             # assert not torch.isnan(x_0).any(), "x should not contain nan"
-            nabla_phi_term = self.compute_mixgauss_gradient_term(x, q_point)
-            laplace_phi_term = self.compute_mixgauss_laplace_term(x, q_point)
+            nabla_phi_term = self.compute_mixgauss_gradient_term(q_point_0, q_point)
+            laplace_phi_term = self.compute_mixgauss_laplace_term(q_point_0, q_point)
             assert not torch.isnan(
                 laplace_phi_term
             ).any(), "laplace_phi_term should not contain nan"
@@ -370,9 +372,12 @@ class VESDE(object):
         )
         return drift, diffusion
 
+    def sigma_term(self, t):
+        return self.sigma_min * (self.sigma_max / self.sigma_min) ** t
+
 
 def compute_PDE_qloss(
-    sde,
+    sde: VESDE,
     q_output,
     time_pos,
     q_point,
@@ -384,6 +389,7 @@ def compute_PDE_qloss(
     hp,
     hm,
     is_clip=False,
+    sigma_t=None,
 ):
     """
     Computes the partial differential equation (PDE) loss for the given inputs.
@@ -401,6 +407,7 @@ def compute_PDE_qloss(
         hp (float): The positive step size.
         hm (float): The negative step size.
         is_clip (bool, optional): Whether to clip the RHS values. Defaults to False.
+        sigma_t (torch.Tensor, optional): The tensor representing the sigma term. Defaults to None.
 
     Returns:
         torch.Tensor: The computed PDE loss.
@@ -409,14 +416,10 @@ def compute_PDE_qloss(
         AssertionError: If any of the input tensors contain NaN values.
 
     """
-    if q_point is None:
-        return 0
-    _, diffusion = sde.sde_term(q_point, time_pos)
+    LHS = q_output * math.log(sde.sigma_max / sde.sigma_min) - t_finite_diff(
+        q_output, q_output_m, q_output_p, hp, hm
+    )
 
-    # As normalizations are used in nabla_phi_term and laplace_phi_term, we need to do the same for LHS
-    LHS = t_finite_diff(q_output, q_output_m, q_output_p, hp, hm)
-
-    assert not torch.isnan(diffusion).any(), "diffusion should not contain nan"
     assert not torch.isnan(
         laplace_phi_term
     ).any(), "laplace_phi_term should not contain nan"
@@ -425,10 +428,10 @@ def compute_PDE_qloss(
     ).any(), "nabla_phi_term should not contain nan"
     assert not torch.isnan(q_output).any(), "diffusion should not contain nan"
 
-    RHS = (
-        -(0.5 * diffusion**2 * torch.sum(q_output**2, dim=(1, 2))).reshape(-1, 1, 1)
+    RHS = -math.log(sde.sigma_max / sde.sigma_min) * (
+        (sigma_t[:, 0, 0] * torch.sum(q_output**2, dim=(1, 2))).reshape(-1, 1, 1)
         * nabla_phi_term
-        + (0.5 * diffusion**2 * laplace_phi_term).reshape(-1, 1, 1) * q_output
+        + q_output * (sigma_t[:, 0, 0] ** 2 * laplace_phi_term).reshape(-1, 1, 1)
     )
 
     assert not torch.isnan(LHS).any(), "LHS should not contain nan"
