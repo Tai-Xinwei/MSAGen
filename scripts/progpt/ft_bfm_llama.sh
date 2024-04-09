@@ -103,8 +103,8 @@ echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 echo "embedding_length: ${embedding_length}"
 echo "pool_mode: ${pool_mode}"
 
-# wandb login --relogin $wandb_key
-# export WANDB_API_KEY=$wandb_key
+wandb login --relogin $wandb_key
+export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then

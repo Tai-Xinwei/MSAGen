@@ -152,7 +152,7 @@ class ProteinTextDataset(Dataset):
             if value is None:
                 raise IndexError(f"Name {key} has no data in the dataset")
 
-            input_ids, proteins = pkl.loads(value)
+            input_ids, proteins, _ = pkl.loads(value)
             if len(proteins) > self.max_pro_per_sample:
                 continue
 
@@ -193,6 +193,10 @@ class ProteinTextDataset(Dataset):
         if isinstance(input_ids, list):
             input_ids = torch.tensor(input_ids, dtype=torch.int64)
 
+        if isinstance(proteins_bpeid, list):
+            for i in range(len(proteins_bpeid)):
+                proteins_bpeid[i] = torch.tensor(proteins_bpeid[i], dtype=torch.int64)
+
         if self.pool_mode == "full":
             mol_pos = torch.nonzero(input_ids < 0).squeeze(-1)
             mol_pos = torch.cat(
@@ -201,17 +205,20 @@ class ProteinTextDataset(Dataset):
 
             for i in range(mol_pos.size(0) - 1):
                 new_input_ids.extend(input_ids[mol_pos[i] : mol_pos[i + 1]])
-                label.extend(input_ids[mol_pos[i] : mol_pos[i + 1] - 1])
+                if i == 0:
+                    label.extend(input_ids[mol_pos[i] : mol_pos[i + 1]])
+                else:
+                    label.extend(input_ids[mol_pos[i] + 1 : mol_pos[i + 1]])
+
                 if i < len(mol_pos) - 2:
                     len_protein = len(proteins[i])
                     mol_idx = input_ids[mol_pos[i + 1]]
                     if len_protein > 1:
                         new_input_ids.extend(torch.ones([len_protein - 1]) * mol_idx)
-                        label.extend(torch.tensor(proteins_bpeid))
+                        label.extend(proteins_bpeid[i])
 
                     if mol_pos[i + 1] < original_input_ids_len:
                         input_ids_len += len_protein - 1
-
         elif self.pool_mode == "qformer":
             raise NotImplementedError
         else:
@@ -219,7 +226,6 @@ class ProteinTextDataset(Dataset):
 
         input_ids = torch.tensor(new_input_ids).to(dtype=torch.int64)
         labels = torch.tensor(label).to(dtype=torch.int64)
-        # input_ids = input_ids[: self.model_max_length]
 
         # labels = input_ids.clone()
         # labels[:input_ids_len] = IGNORE_INDEX
