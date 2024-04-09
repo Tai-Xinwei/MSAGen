@@ -31,7 +31,8 @@
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/nlm/checkpoints/'
 [ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/fastdata/peiran/bfm/checkpoints/bfm650m_data3_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2/checkpoint_E144_new.pt'
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/llama-2-7b"
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/llama-2-7b"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/scigpt/ckpt/7bv3/global_step29999"
 [ -z "${tokenizer_path}" ] && tokenizer_path="/fastdata/peiran/scigpt"
 
 [ -z "${save_batch_interval}"] && save_batch_interval=500
