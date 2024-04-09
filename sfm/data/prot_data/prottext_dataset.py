@@ -182,10 +182,11 @@ class ProteinTextDataset(Dataset):
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
 
-        input_ids, proteins = pkl.loads(value)
+        input_ids, proteins, proteins_bpeid = pkl.loads(value)
         # assert len(proteins) > 0, f"Protein list is empty for {key}"
 
         new_input_ids = []
+        label = []
         original_input_ids_len = len(input_ids)
         input_ids_len = len(input_ids)
 
@@ -200,11 +201,13 @@ class ProteinTextDataset(Dataset):
 
             for i in range(mol_pos.size(0) - 1):
                 new_input_ids.extend(input_ids[mol_pos[i] : mol_pos[i + 1]])
+                label.extend(input_ids[mol_pos[i] : mol_pos[i + 1] - 1])
                 if i < len(mol_pos) - 2:
                     len_protein = len(proteins[i])
                     mol_idx = input_ids[mol_pos[i + 1]]
                     if len_protein > 1:
                         new_input_ids.extend(torch.ones([len_protein - 1]) * mol_idx)
+                        label.extend(torch.tensor(proteins_bpeid))
 
                     if mol_pos[i + 1] < original_input_ids_len:
                         input_ids_len += len_protein - 1
@@ -215,11 +218,12 @@ class ProteinTextDataset(Dataset):
             raise ValueError(f"Invalid pool_mode: {self.pool_mode}")
 
         input_ids = torch.tensor(new_input_ids).to(dtype=torch.int64)
+        labels = torch.tensor(label).to(dtype=torch.int64)
         # input_ids = input_ids[: self.model_max_length]
 
-        labels = input_ids.clone()
+        # labels = input_ids.clone()
         # labels[:input_ids_len] = IGNORE_INDEX
-        labels[labels < 0] = IGNORE_INDEX
+        # labels[labels < 0] = IGNORE_INDEX
 
         return dict(
             input_ids=input_ids,

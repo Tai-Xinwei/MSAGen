@@ -500,7 +500,9 @@ class LlamaModelPP(LlamaPreTrainedModel):
                     i,
                     load_ckpt=load_ckpt,
                     pretrained_ckpt_path=os.path.join(
-                        args.llm_model_name_or_path, "model.layers.{}.pt".format(i)
+                        # args.llm_model_name_or_path, "model.layers.{}.pt".format(i)
+                        args.llm_model_name_or_path,
+                        "layer_{}-model_states.pt".format(str(i + 1).zfill(2)),
                     ),
                     lora_mode="freeze",
                 )
@@ -511,7 +513,9 @@ class LlamaModelPP(LlamaPreTrainedModel):
                 config,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    args.llm_model_name_or_path, "model.norm.pt"
+                    # args.llm_model_name_or_path, "model.norm.pt"
+                    args.llm_model_name_or_path,
+                    "layer_{}-model_states.pt".format(str(33).zfill(2)),
                 ),
                 lora_mode="freeze",
             )
@@ -523,7 +527,9 @@ class LlamaModelPP(LlamaPreTrainedModel):
                 new_num_tokens=new_num_tokens,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    args.llm_model_name_or_path, "model.lm_head.pt"
+                    # args.llm_model_name_or_path, "model.lm_head.pt"
+                    args.llm_model_name_or_path,
+                    "layer_{}-model_states.pt".format(str(34).zfill(2)),
                 ),
                 lora_mode="freeze",
             )

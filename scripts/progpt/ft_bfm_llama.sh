@@ -23,7 +23,7 @@
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
 [ -z "${train_batch_size}" ] && train_batch_size=128
 
-[ -z "${data_path}" ] && data_path='/fastdata/peiran/nlm/progpt_train.lmdb/'
+[ -z "${data_path}" ] && data_path='/fastdata/peiran/nlm/progpt_train_bpe.lmdb/'
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
 [ -z "${model_max_length}" ] && model_max_length=2048
@@ -32,6 +32,8 @@
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/nlm/checkpoints/'
 [ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/fastdata/peiran/bfm/checkpoints/bfm650m_data3_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2/checkpoint_E144_new.pt'
 [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/llama-2-7b"
+[ -z "${tokenizer_path}" ] && tokenizer_path="/fastdata/peiran/scigpt"
+
 [ -z "${save_batch_interval}"] && save_batch_interval=500
 [ -z "${log_interval}" ] && log_interval=20
 
@@ -100,8 +102,8 @@ echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 echo "embedding_length: ${embedding_length}"
 echo "pool_mode: ${pool_mode}"
 
-wandb login --relogin $wandb_key
-export WANDB_API_KEY=$wandb_key
+# wandb login --relogin $wandb_key
+# export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -136,7 +138,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --seed 6666 \
           --ft \
           --fp16 \
-          --ifresume \
           --d_tilde $d_tilde \
           --max_lr $max_lr \
           --save_dir $save_dir \
@@ -144,6 +145,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --warmup_num_steps $warmup_num_steps \
           --loadcheck_path $loadcheck_path \
           --llm_model_name_or_path $llm_model_name_or_path \
+          --tokenizer_path $tokenizer_path \
           --pool_mode $pool_mode \
           --strategy $strategy \
           --embedding_length $embedding_length \
@@ -155,6 +157,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --save_batch_interval $save_batch_interval \
           --unfreeze_param_list "mol_adaptor,mol_rep_layernorm,embed_tokens" \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+
+          # --ifresume \
 
 
 sleep inf

@@ -19,6 +19,7 @@ from joblib import Parallel, delayed
 from sfm.utils.science_tokens import SCIENCE_TAG_TOKENS
 from transformers import AutoTokenizer
 from sfm.data.prot_data.util import bstr2obj, obj2bstr
+from sfm.data.sci_data.SFMDecTokenizer import SFMDecTokenizer
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "[PAD]"
@@ -27,24 +28,34 @@ DEFAULT_BOS_TOKEN = "<s>"
 DEFAULT_UNK_TOKEN = "<unk>"
 
 def tokenize():
-    tokenizer = AutoTokenizer.from_pretrained(
+    # tokenizer = AutoTokenizer.from_pretrained(
+    #     "/fastdata/peiran/llama-2-7b",
+    #     padding_side="right",
+    #     use_fast=False,
+    # )
+
+    # special_tokens_dict = dict()
+    # if tokenizer.pad_token is None:
+    #     special_tokens_dict["pad_token"] = DEFAULT_PAD_TOKEN
+    # if tokenizer.eos_token is None:
+    #     special_tokens_dict["eos_token"] = DEFAULT_EOS_TOKEN
+    # if tokenizer.bos_token is None:
+    #     special_tokens_dict["bos_token"] = DEFAULT_BOS_TOKEN
+    # if tokenizer.unk_token is None:
+    #     special_tokens_dict["unk_token"] = DEFAULT_UNK_TOKEN
+
+    # special_tokens_dict["additional_special_tokens"] = SCIENCE_TAG_TOKENS
+    # tokenizer.add_special_tokens(special_tokens_dict)
+
+
+
+    tokenizer_path = "/fastdata/peiran/scigpt"
+    tokenizer = SFMDecTokenizer.from_pretrained(
         "/fastdata/peiran/llama-2-7b",
-        padding_side="right",
-        use_fast=False,
+        prot_spm_path=os.path.join(tokenizer_path, "ur50bpe/bpe"),
+        dna_spm_path=os.path.join(tokenizer_path, "dnabpe/bpe"),
+        rna_spm_path=os.path.join(tokenizer_path, "rnabpe/bpe"),
     )
-
-    special_tokens_dict = dict()
-    if tokenizer.pad_token is None:
-        special_tokens_dict["pad_token"] = DEFAULT_PAD_TOKEN
-    if tokenizer.eos_token is None:
-        special_tokens_dict["eos_token"] = DEFAULT_EOS_TOKEN
-    if tokenizer.bos_token is None:
-        special_tokens_dict["bos_token"] = DEFAULT_BOS_TOKEN
-    if tokenizer.unk_token is None:
-        special_tokens_dict["unk_token"] = DEFAULT_UNK_TOKEN
-
-    special_tokens_dict["additional_special_tokens"] = SCIENCE_TAG_TOKENS
-    tokenizer.add_special_tokens(special_tokens_dict)
 
     return tokenizer
 
@@ -52,10 +63,14 @@ vocab = {'<cls>': 0, '<pad>': 1, '<eos>': 2, '<unk>': 3, 'L': 4, 'A': 5, 'G': 6,
 # revert vocab to get id to word
 idx2word = {v: k for k, v in vocab.items()}
 
+scigpt_vacab = {'L': 33874, 'A': 33875, 'G': 33878, 'V': 33877, 'S': 33876, 'E': 33879, 'R': 33880, 'T': 33881, 'I': 33882, 'D': 33884, 'P': 33886, 'K': 33883, 'Q': 33885, 'N': 33887, 'F': 33888, 'Y': 33890, 'M': 33873, 'H': 33889, 'W': 33891, 'C': 33892, 'X': 34276, 'B': 37965, 'U': 37967, 'Z': 37966, 'O': 0}
+
+
 def protein_process(protein):
     protein_id = [vocab[tok] for tok in protein]
+    protein_bpe_id = [scigpt_vacab[tok] for tok in protein]
 
-    return protein_id
+    return protein_id, protein_bpe_id
 
 def process(text):
     # find the part of protein seq that surrounded by <protein> and </protein> in text
@@ -74,8 +89,15 @@ def main():
     path = "/fastdata/peiran/nlm/data/"
 
     tokenizer = tokenize()
-    write_file = "/fastdata/peiran/nlm/progpt_train.lmdb"
-    write_file2 = "/fastdata/peiran/nlm/progpt_valid.lmdb"
+    # scigpt_vacab = {}
+    # for key in vocab.keys():
+    #     idx = tokenizer.encode("<protein> "+key+" </protein>")[2]
+    #     scigpt_vacab[key] = idx
+
+    # print(scigpt_vacab)
+
+    write_file = "/fastdata/peiran/nlm/progpt_train_bpe.lmdb"
+    write_file2 = "/fastdata/peiran/nlm/progpt_valid_bpe.lmdb"
 
     write_env = lmdb.open(write_file, map_size=1024 ** 4)
     write_txn = write_env.begin(write=True)
@@ -96,14 +118,16 @@ def main():
 
             text, protein = process(line)
             protein_id_list = []
+            protein_bpe_id_list = []
             for p in protein:
                 try:
                     if len(p) == 0:
                         print(f"Empty protein sequence in {line}")
                         flag = 1
                         break
-                    protein_id = protein_process(p)
+                    protein_id, protein_bpe_id = protein_process(p)
                     protein_id_list.append(protein_id)
+                    protein_bpe_id_list.append(protein_bpe_id)
                 except:
                     print(f"Error in processing {p}")
                     flag = 1
@@ -119,16 +143,18 @@ def main():
                     input_ids.extend(tokenizer.encode(text[i] + " <protein>"))
                 elif i != len(text) - 1:
                     input_ids.append(-1)
+                    # input_ids.extend(protein_bpe_id_list[i-1])
                     input_ids.extend(tokenizer.encode("</protein> " + text[i] + " <protein>")[1:])
                 else:
                     input_ids.append(-1)
+                    # input_ids.extend(protein_bpe_id_list[i-1])
                     input_ids.extend(tokenizer.encode("</protein> " + text[i])[1:])
 
             if random.random() < 0.9:
-                write_txn.put(str(idx).encode(), pkl.dumps((input_ids, protein_id_list)))
+                write_txn.put(str(idx).encode(), pkl.dumps((input_ids, protein_id_list, protein_bpe_id_list)))
                 keys_train.append(idx)
             else:
-                write_txn2.put(str(idx).encode(), pkl.dumps((input_ids, protein_id_list)))
+                write_txn2.put(str(idx).encode(), pkl.dumps((input_ids, protein_id_list, protein_bpe_id_list)))
                 keys_valid.append(idx)
             idx += 1
 
@@ -136,7 +162,6 @@ def main():
     metadata['keys'] = keys_train
     metadata['size'] = len(keys_train)
     write_txn.put("metadata".encode(), obj2bstr(metadata))
-
     write_txn.commit()
     print(f"Finish processing {write_file}")
 

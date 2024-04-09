@@ -17,6 +17,7 @@ class ProGPTConfig:
     loadbfmckpt_path: str = ""
     llm_model_name_or_path: str = ""
     mol_size_path: str = ""
+    tokenizer_path: str = ""
 
     mfm_lora: bool = False
     llm_lora: bool = False

@@ -44,16 +44,6 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     #     use_fast=False,
     # )
 
-    tokenizer = SFMDecTokenizer.from_pretrained(
-        args.llm_model_name_or_path,
-        prot_spm_path="/home/yinxia/blob1.v2/shufxi/data/scigpt/ur50bpe/bpe",
-        dna_spm_path="/home/yinxia/blob1.v2/shufxi/data/scigpt/dnabpe/bpe",
-        rna_spm_path="/home/yinxia/blob1.v2/shufxi/data/scigpt/rnabpe/bpe",
-    )
-
-    args.vocab_size = len(tokenizer)  # now we have new tokens
-    args.pad_token_id = tokenizer.pad_token_id
-
     # special_tokens_dict = dict()
     # if tokenizer.pad_token is None:
     #     special_tokens_dict["pad_token"] = DEFAULT_PAD_TOKEN
@@ -66,6 +56,16 @@ def make_supervised_data_module(args, mode="train") -> Dict:
 
     # special_tokens_dict["additional_special_tokens"] = SCIENCE_TAG_TOKENS
     # tokenizer.add_special_tokens(special_tokens_dict)
+
+    tokenizer = SFMDecTokenizer.from_pretrained(
+        args.llm_model_name_or_path,
+        prot_spm_path=os.path.join(args.tokenizer_path, "ur50bpe/bpe"),
+        dna_spm_path=os.path.join(args.tokenizer_path, "dnabpe/bpe"),
+        rna_spm_path=os.path.join(args.tokenizer_path, "rnabpe/bpe"),
+    )
+
+    args.vocab_size = len(tokenizer)  # now we have new tokens
+    args.pad_token_id = tokenizer.pad_token_id
 
     """ Make dataset and collator for supervised fine-tuning. """
     dataset = ProteinTextDataset(
