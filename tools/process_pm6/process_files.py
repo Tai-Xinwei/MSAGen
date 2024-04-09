@@ -73,6 +73,9 @@ def process_files():
         write_txn.commit()
         write_txn = write_env.begin(write=True)
 
+        #remvoe the folder created by os.system
+        os.system(f"rm -rf {unzip_dir_name}")
+
     metadata = {}
     metadata['keys'] = keys
     metadata['size'] = mol_sizes
