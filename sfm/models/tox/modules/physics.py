@@ -33,15 +33,18 @@ class MixtureGaussian(torch.nn.Module):
         func = torch.zeros(
             [q_point.shape[0], q_point.shape[1], q_point.shape[2]], device=self.device
         )
+
         assert (
             mu.shape[0] == q_point.shape[0]
         ), "mu.shape[0] should be the same as q_point.shape[0]"
+
         for k in range(q_point.shape[0]):
             func[k, :, :] = -(q_point[k, :, :] - mu[k, :, :]) / self.sigma[k, 0, 0] ** 2
         return func  # [q_batch_size, q_dim1, q_dim2]
 
     def compute_mixgauss_laplace_term(self, mu, q_point):
         x_dim = q_point.shape[1] * q_point.shape[2]
+        
         func = torch.zeros([q_point.shape[0]], device=self.device)
         for k in range(q_point.shape[0]):
             func[k] = -1 / (self.sigma[k, 0, 0] ** 2) * x_dim + torch.sum(

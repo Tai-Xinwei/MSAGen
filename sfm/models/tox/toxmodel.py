@@ -253,7 +253,6 @@ class TOXPDEModel(TOXModel):
                 nabla_phi_term,
                 laplace_phi_term,
             ) = self.mixture_gaussian(noised_angle, ori_angle)
-
             # LHS terms of the PDE
             delta_tq = 0
             output_dict_q0 = output_dict
