@@ -473,7 +473,7 @@ def compute_PDE_qloss(
 
 # single_sliced_score_matching and sliced_VR_score_matching implement a basic version of SSM
 # with only M=1. These are used in density estimation experiments for DKEF.
-def compute_pde_control_loss(epsilon_predict, epsilon_true):
+def compute_pde_control_loss(output, epsilon):
     """
     Compute the control loss for the diffusion.
 
@@ -486,8 +486,9 @@ def compute_pde_control_loss(epsilon_predict, epsilon_true):
 
     """
     # Now is regular MSE loss
-    loss = torch.mean(torch.sum(epsilon_predict * (epsilon_predict-epsilon_true), dim=(1, 2)))
+    loss = torch.mean(torch.sum(output * (output-epsilon), dim=(1, 2)))
     return loss
+    
 
 
 # def compute_pde_control_loss(

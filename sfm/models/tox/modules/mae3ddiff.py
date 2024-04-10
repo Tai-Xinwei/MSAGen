@@ -610,7 +610,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
         if_pde_control_loss = False if self.lamb_pde_control == 0 else True
 
         # need mask when computing loss
-        unified_mask = output_dict["unified_mask"]
+        unified_angle_mask = output_dict["unified_angle_mask"]
 
         """----------------------type loss----------------------"""
         mask_aa = output_dict["mask_aa"]
@@ -666,26 +666,26 @@ class ProteinMAEDistPDECriterions(nn.Module):
         """----------------------angle loss----------------------"""
         angle_output = output_dict["angle_output"]
         angle_epsilon = output_dict["ang_epsilon"]
-        if unified_mask.any():
+        if unified_angle_mask.any():
             if self.diffmode == "score":
                 # retrieve the noise
-                epsilo_true_masked = angle_epsilon[unified_mask].to(torch.float32)
+                angle_epsilon_masked = angle_epsilon[unified_angle_mask].to(torch.float32)
                 # from epsilon to noise
-                epsilon_predict_masked = angle_output[unified_mask].to(torch.float32)
-                angle_loss = ((epsilon_predict_masked - epsilo_true_masked) ** 2).mean()
+                angle_output_masked = angle_output[unified_angle_mask].to(torch.float32)
+                angle_loss = ((angle_output_masked - angle_epsilon_masked) ** 2).mean()
             elif self.diffmode == "x0":
                 ori_angle = batch_data["ang"][:, :, :3]
-                angle_output_data_loss = angle_output[unified_mask]
-                ori_angle_data_loss = ori_angle[unified_mask]
+                angle_output_masked = angle_output[unified_angle_mask]
+                ori_angle_masked = ori_angle[unified_angle_mask]
                 angle_loss = self.loss_angle(
-                    angle_output_data_loss.to(torch.float32),
-                    ori_angle_data_loss.to(torch.float32),
+                    angle_output_masked .to(torch.float32),
+                    ori_angle_masked.to(torch.float32),
                 )
         else:
             angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         """----------------------pde q loss----------------------"""
-        if unified_mask.any() and if_pde_q_loss:
+        if unified_angle_mask.any() and if_pde_q_loss:
             nabla_phi_term = output_dict["nabla_phi_term"]
             laplace_phi_term = output_dict["laplace_phi_term"]
             hp = output_dict["hp"]
@@ -697,13 +697,13 @@ class ProteinMAEDistPDECriterions(nn.Module):
 
             # nabla_phi and laplace_phi have been masked
             q_output = torch.where(
-                unified_mask, q_output, torch.zeros_like(q_output)
+                unified_angle_mask, q_output, torch.zeros_like(q_output)
             ).to(torch.float32)
             q_output_mtq = torch.where(
-                unified_mask, q_output_mtq, torch.zeros_like(q_output_mtq)
+                unified_angle_mask, q_output_mtq, torch.zeros_like(q_output_mtq)
             ).to(torch.float32)
             q_output_ptq = torch.where(
-                unified_mask, q_output_ptq, torch.zeros_like(q_output_ptq)
+                unified_angle_mask, q_output_ptq, torch.zeros_like(q_output_ptq)
             ).to(torch.float32)
 
             pde_q_loss = compute_PDE_qloss(
@@ -722,12 +722,12 @@ class ProteinMAEDistPDECriterions(nn.Module):
             pde_q_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         """----------------------pde control loss----------------------"""
-        if unified_mask.any() and if_pde_control_loss:
+        if unified_angle_mask.any() and if_pde_control_loss:
             angle_output = torch.where(
-                unified_mask, angle_output, torch.zeros_like(angle_output)
+                unified_angle_mask, angle_output, torch.zeros_like(angle_output)
             ).to(torch.float32)
             angle_epsilon = torch.where(
-                unified_mask, angle_epsilon, torch.zeros_like(angle_epsilon)
+                unified_angle_mask, angle_epsilon, torch.zeros_like(angle_epsilon)
             ).to(torch.float32)
             pde_control_loss = compute_pde_control_loss(
                 angle_output,

@@ -226,7 +226,7 @@ class TOXPDEModel(TOXModel):
         output_dict = self.net(batched_data, **kwargs)
 
         # retrieve the time, ori_angle, noised_angle
-        time_pos = self.net.score_time
+        time_angle = self.net.score_time
         ori_angle = batched_data["ang"]
         noised_angle = self.net.noised_angle
 
@@ -236,10 +236,10 @@ class TOXPDEModel(TOXModel):
         ori_angle = torch.where(inf_mask, noised_T, ori_angle)
         noised_angle = torch.where(inf_mask, noised_T, noised_angle)
 
-        # use a unified mask, unused when unified_mask is False
+        # use a unified mask, unused when unified_angle_mask is False
         angle_mask = batched_data["ang_mask"].bool()
         mask_angle = output_dict["mask_pos"].squeeze(-1)
-        unified_mask = angle_mask & mask_angle
+        unified_angle_mask = angle_mask & mask_angle
 
         # whether to use the PDE q loss and control loss
         if_pde_q_loss = False if self.lamb_pde_q == 0 else True
@@ -248,7 +248,7 @@ class TOXPDEModel(TOXModel):
         if if_pde_q_loss:
             self.mixture_gaussian.set_sigma(output_dict["ang_sigma"])
 
-            self.mixture_gaussian.set_mask(unified_mask[:, :, :3])
+            self.mixture_gaussian.set_mask(unified_angle_mask[:, :, :3])
 
             # RHS terms of the PDE. Now q_point is noised_angle and q_point_0 is ori_angle
             (
@@ -264,7 +264,7 @@ class TOXPDEModel(TOXModel):
             delta_tq = 0
             output_dict_q0 = output_dict
 
-            hp, hm = set_time_step(time_pos)
+            hp, hm = set_time_step(time_angle)
 
             delta_tq = hp
             output_dict_qp = self.net(
@@ -301,8 +301,8 @@ class TOXPDEModel(TOXModel):
         
         output_dict["angle_output"] = output_dict["angle_output"][:, :, :3]
         output_dict["ang_epsilon"] = output_dict["ang_epsilon"][:, :, :3]
-        output_dict["unified_mask"] = unified_mask[:, :, :3]
-        output_dict["time_pos"] = time_pos
+        output_dict["unified_angle_mask"] = unified_angle_mask[:, :, :3]
+        output_dict["time_angle"] = time_angle
         return output_dict
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
