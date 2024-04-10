@@ -286,6 +286,8 @@ class TOXPDEModel(TOXModel):
 
             output_dict.update(
                 {
+                    "angle_output": output_dict["angle_output"][:, :, :3],
+                    "ang_epsilon": output_dict["ang_epsilon"][:, :, :3],
                     "nabla_phi_term": nabla_phi_term,
                     "laplace_phi_term": laplace_phi_term,
                     "hp": hp,
@@ -838,16 +840,16 @@ class TOX(nn.Module):
         output_dict = {
             "x": x,
             "x_pair": x_pair,
-            "angle_output": angle_output[:, :, :3],
+            "angle_output": angle_output,
             "mask_pos": mask_pos,
             "mask_aa": mask_aa,
-            "ang_score": ang_score[:, :, :3] if ang_score is not None else None,
+            "ang_score": ang_score,
             "ang_score_norm": ang_score_norm,
             "padding_mask": padding_mask,
             "pair_mask_aa": pair_mask_aa,
             "backbone": backbone,
             "ang_sigma": ang_sigma,
-            "ang_epsilon": ang_epsilon[:, :, :3] if ang_score is not None else None,
+            "ang_epsilon": ang_epsilon,
         }
 
         return output_dict
