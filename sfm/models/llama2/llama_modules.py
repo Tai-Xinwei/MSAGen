@@ -154,7 +154,7 @@ class LlamaEfficientAttention(LlamaAttention):
             with torch.backends.cuda.sdp_kernel(
                 enable_math=True,
                 enable_mem_efficient=True,
-                enable_flash=True,
+                enable_flash=False,
             ):
                 attn_output = F.scaled_dot_product_attention(
                     query_states, key_states, value_states, attn_mask=attention_mask
