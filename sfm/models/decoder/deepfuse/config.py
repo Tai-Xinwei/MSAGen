@@ -81,6 +81,7 @@ class DecDeepFuseConfig(DistributedTrainConfig):
     num_adapter_layers: int = 2
     adapter_hidden_size: int = 64
     adapter_activation: str = "gelu"
+    _attn_implementation: str = "sdpa"
 
     vocab_size: int = 0  # total vocab size
     entity_vocab_size: int = 0  # total entity vocab size
