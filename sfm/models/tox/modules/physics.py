@@ -486,7 +486,7 @@ def compute_pde_control_loss(epsilon_predict, epsilon_true):
 
     """
     # Now is regular MSE loss
-    loss = torch.mean(torch.sum(epsilon_predict**2, dim=(1, 2)))
+    loss = torch.mean(torch.sum(epsilon_predict * (epsilon_predict-epsilon_true), dim=(1, 2)))
     return loss
 
 
