@@ -13,8 +13,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from sfm.logging import logger
-from sfm.models.psm.modules.equivariant import EquivariantDecoder
-from sfm.models.psm.modules.invariant_encoder import PSMEncoder
+from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
+from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
+from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.layer_norm import LayerNorm
@@ -176,6 +177,9 @@ class PSM(nn.Module):
         self.max_positions = args.max_positions
         self.args = args
 
+        # Implement the embedding
+        self.embedding = PSMMixEmbedding(psm_config)
+
         # Implement the encoder
         self.encoder = PSMEncoder(psm_config)
 
@@ -212,7 +216,7 @@ class PSM(nn.Module):
 
     def forward(
         self,
-        batched_data,
+        batch_data,
         perturb=None,
         time_step=None,
         q=None,  # for computing the score model on the q
@@ -233,7 +237,7 @@ class PSM(nn.Module):
         Forward pass for PSM. This first computes the token
 
         Args:
-            - batched_data: keys need to be defined in the data module
+            - batch_data: keys need to be defined in the data module
         Returns:
             - need to be defined
         """
@@ -242,7 +246,7 @@ class PSM(nn.Module):
     @torch.no_grad()
     def sample(
         self,
-        batched_data,
+        batch_data,
         perturb=None,
         time_step=None,
         mask_aa=None,
@@ -264,7 +268,7 @@ class PSM(nn.Module):
 
     def ft_forward(
         self,
-        batched_data,
+        batch_data,
         mode="T_noise",
         perturb=None,
         time_step=None,

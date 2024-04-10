@@ -5,6 +5,11 @@
 checkpoint_dir_path=/blob/pfmexp/output/junzhe/checkpoints
 mkdir -p ${checkpoint_dir_path}
 
+
+# Create the output father directory
+checkpoint_dir_path=/blob/pfmexp/output/junzhe/checkpoints
+mkdir -p ${checkpoint_dir_path}
+
 export path=run.sh
 
 # variables for distributed

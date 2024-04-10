@@ -191,7 +191,7 @@ class SFMPipeEngine(DeepSpeedEngine):
         total_params = params_tensor[0]
         unique_params = params_tensor[1]
         if self.grid.data_parallel_id == 0:
-            logger.info(
+            logger.warning(
                 f"RANK={self.global_rank} "
                 f"STAGE={self.stage_id} "
                 f"LAYERS={self.module._local_stop - self.module._local_start} "
