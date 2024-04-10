@@ -286,8 +286,6 @@ class TOXPDEModel(TOXModel):
 
             output_dict.update(
                 {
-                    "angle_output": output_dict["angle_output"][:, :, :3],
-                    "ang_epsilon": output_dict["ang_epsilon"][:, :, :3],
                     "nabla_phi_term": nabla_phi_term,
                     "laplace_phi_term": laplace_phi_term,
                     "hp": hp,
@@ -300,7 +298,9 @@ class TOXPDEModel(TOXModel):
 
         if if_pde_control_loss:
             pass
-
+        
+        output_dict["angle_output"] = output_dict["angle_output"][:, :, :3]
+        output_dict["ang_epsilon"] = output_dict["ang_epsilon"][:, :, :3]
         output_dict["unified_mask"] = unified_mask[:, :, :3]
         output_dict["time_pos"] = time_pos
         return output_dict

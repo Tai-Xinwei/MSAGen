@@ -401,7 +401,6 @@ def compute_PDE_qloss(
     hm,
     sigma_t=None,
     is_clip=False,
-    sigma_t=None,
 ):
     """
     Computes the partial differential equation (PDE) loss for the given inputs.
