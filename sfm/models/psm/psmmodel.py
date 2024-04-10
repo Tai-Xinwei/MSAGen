@@ -216,7 +216,7 @@ class PSM(nn.Module):
 
     def forward(
         self,
-        batched_data,
+        batch_data,
         perturb=None,
         time_step=None,
         q=None,  # for computing the score model on the q
@@ -237,7 +237,7 @@ class PSM(nn.Module):
         Forward pass for PSM. This first computes the token
 
         Args:
-            - batched_data: keys need to be defined in the data module
+            - batch_data: keys need to be defined in the data module
         Returns:
             - need to be defined
         """
@@ -246,7 +246,7 @@ class PSM(nn.Module):
     @torch.no_grad()
     def sample(
         self,
-        batched_data,
+        batch_data,
         perturb=None,
         time_step=None,
         mask_aa=None,
@@ -268,7 +268,7 @@ class PSM(nn.Module):
 
     def ft_forward(
         self,
-        batched_data,
+        batch_data,
         mode="T_noise",
         perturb=None,
         time_step=None,

@@ -29,7 +29,11 @@ DEFAULT_DS_CONFIG = {
         "reduce_scatter": False,
         "overlap_comm": False,
     },
-    "fp16": {"enabled": True, "auto_cast": False},
+    "fp16": {
+        "enabled": True,
+        "auto_cast": False,
+        "min_loss_scale": 0.001,
+    },
     "bf16": {"enabled": False},
     "gradient_clipping": 1.0,
     "steps_per_print": 100,
