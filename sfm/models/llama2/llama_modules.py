@@ -71,6 +71,7 @@ class LlamaEfficientAttention(LlamaAttention):
         past_key_value: Optional[Tuple[torch.Tensor]] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
+        cache_position: Optional[torch.LongTensor] = None,
         padding_mask: Optional[torch.LongTensor] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         if not self.training:
@@ -196,10 +197,11 @@ class LlamaDecoderLayerPP(LlamaDecoderLayer):
         self,
         config: LlamaConfig,
         layer_index: int,
-        enable_mem_efficient: bool = True,
+        enable_mem_efficient: bool = False,
         use_flash_attention: Optional[bool] = None,
     ):
-        super().__init__(config)
+        config._attn_implementation = "sdpa"
+        super().__init__(config, layer_index)
         if enable_mem_efficient:
             self.self_attn = LlamaEfficientAttention(config, use_flash_attention)
 
@@ -487,7 +489,7 @@ class LlamaModelPP(LlamaPreTrainedModel):
 
     @classmethod
     def to_layers(
-        cls, args, config, learnable_cutoff=0, new_num_tokens=None, load_ckpt=False
+        cls, args, config, learnable_cutoff=32001, new_num_tokens=None, load_ckpt=False
     ):
         cls.pipe_layer = []
         for i in range(config.num_hidden_layers):
@@ -498,7 +500,9 @@ class LlamaModelPP(LlamaPreTrainedModel):
                     i,
                     load_ckpt=load_ckpt,
                     pretrained_ckpt_path=os.path.join(
-                        args.llm_model_name_or_path, "model.layers.{}.pt".format(i)
+                        # args.llm_model_name_or_path, "model.layers.{}.pt".format(i)
+                        args.llm_model_name_or_path,
+                        "layer_{}-model_states.pt".format(str(i + 1).zfill(2)),
                     ),
                     lora_mode="freeze",
                 )
@@ -509,7 +513,9 @@ class LlamaModelPP(LlamaPreTrainedModel):
                 config,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    args.llm_model_name_or_path, "model.norm.pt"
+                    # args.llm_model_name_or_path, "model.norm.pt"
+                    args.llm_model_name_or_path,
+                    "layer_{}-model_states.pt".format(str(33).zfill(2)),
                 ),
                 lora_mode="freeze",
             )
@@ -521,7 +527,9 @@ class LlamaModelPP(LlamaPreTrainedModel):
                 new_num_tokens=new_num_tokens,
                 load_ckpt=load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    args.llm_model_name_or_path, "model.lm_head.pt"
+                    # args.llm_model_name_or_path, "model.lm_head.pt"
+                    args.llm_model_name_or_path,
+                    "layer_{}-model_states.pt".format(str(34).zfill(2)),
                 ),
                 lora_mode="freeze",
             )

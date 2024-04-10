@@ -14,7 +14,7 @@ class PSMBias(nn.Module):
     Class for the invariant encoder bias in the PSM model.
     """
 
-    def __init__(self, args, psm_config):
+    def __init__(self, psm_config):
         """
         Initialize the PSMBias class.
         """
@@ -27,25 +27,42 @@ class PSMBias(nn.Module):
         )
         self.gbf_proj = NonLinear(psm_config.num_3d_bias_kernel, rpe_heads)
 
-        if psm_config.num_3d_bias_kernel != psm_config.embedding_dim:
-            self.edge_proj = nn.Linear(
-                psm_config.num_3d_bias_kernel, psm_config.embedding_dim
-            )
-        else:
-            self.edge_proj = None
-
-        self.mask_bias = nn.Embedding(
-            1, psm_config.num_attention_heads, padding_idx=None
-        )
-
     def forward(
-        self, batch_data: Dict, masked_token_type: torch.Tensor
+        self,
+        batch_data: Dict,
+        masked_token_type: torch.Tensor,
+        padding_mask: torch.Tensor,
     ) -> torch.Tensor:
         """
         Forward pass of the PSMBias class.
+        Args:
+            batch_data: Input data for the forward pass.
+            masked_token_type: The masked token type [B, L].
+            padding_mask: The padding mask [B, L].
         """
 
-        pass
+        pos = batch_data["pos"]
+        n_node = pos.size()[1]
+
+        delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
+        dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
+
+        masked_token_type_i = (
+            masked_token_type.unsqueeze(-1).repeat(1, 1, n_node).unsqueeze(-1)
+        )
+        masked_token_type_j = (
+            masked_token_type.unsqueeze(1).repeat(1, n_node, 1).unsqueeze(-1)
+        )
+        pair_token_type = torch.cat([masked_token_type_i, masked_token_type_j], dim=-1)
+
+        edge_feature = self.gbf(dist.unsqueeze(-1), pair_token_type.long())
+        graph_attn_bias = self.gbf_proj(edge_feature)
+
+        graph_attn_bias.masked_fill_(
+            padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
+        )
+
+        return graph_attn_bias
 
 
 @torch.jit.script

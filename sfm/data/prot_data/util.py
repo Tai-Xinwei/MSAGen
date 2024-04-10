@@ -18,3 +18,7 @@ def add_to_env(toadd: dict):
 
 def bstr2obj(bstr: bytes):
     return pickle.loads(zlib.decompress(bstr))
+
+
+def obj2bstr(obj):
+    return zlib.compress(pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL))

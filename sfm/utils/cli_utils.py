@@ -81,3 +81,78 @@ def cli(*cfg_classes_and_funcs):
         return wrapper
 
     return decorator
+
+
+def hydracli(*cfg_classes_and_funcs, conifg_path):
+    def decorator(main):
+        @wraps(main)
+        def wrapper():
+            cfg_classes = []
+            for cfg in cfg_classes_and_funcs:
+                if inspect.isclass(cfg):
+                    cfg_classes.append(cfg)
+                else:
+                    logger.warning(f"cfg_func {cfg} is not supported in hydracli")
+
+            args = arg_utils.add_dataclass_to_dictconfig(cfg_classes, conifg_path)
+            logger.info(args)
+
+            seed_everything(args.seed)
+
+            env_init.set_env(args)
+
+            if dist_utils.is_master_node():
+                wandb_api_key = os.getenv("WANDB_API_KEY")
+
+                if not wandb_api_key:
+                    logger.warning("Wandb not configured, logging to console only")
+                # elif args.strategy == "DDP" or args.strategy == "Single":
+                else:
+                    args.wandb = True
+                    wandb_project = os.getenv("WANDB_PROJECT")
+                    wandb_run_name = os.getenv("WANDB_RUN_NAME")
+                    wandb_team = os.getenv("WANDB_TEAM")
+                    wandb_group = os.getenv("WANDB_GROUP")
+
+                    args.DistributedTrainConfig.wandb_team = getattr(
+                        args, "wandb_team", wandb_team
+                    )
+                    args.DistributedTrainConfig.wandb_group = getattr(
+                        args, "wandb_group", wandb_group
+                    )
+                    args.DistributedTrainConfig.wandb_project = getattr(
+                        args, "wandb_project", wandb_project
+                    )
+
+                    wandb_project = (
+                        wandb_project or args.DistributedTrainConfig.wandb_project
+                    )
+                    wandb_team = wandb_team or args.DistributedTrainConfig.wandb_team
+                    wandb_group = wandb_group or args.DistributedTrainConfig.wandb_group
+
+                    wandb.init(
+                        project=wandb_project,
+                        group=wandb_group,
+                        name=wandb_run_name,
+                        config=args,
+                    )
+
+            logger.success(
+                "====================================Start!===================================="
+            )
+            try:
+                main(args)
+            except Exception as e:
+                logger.exception(e)
+                logger.error(
+                    "====================================Fail!===================================="
+                )
+                exit()
+
+            logger.success(
+                "====================================Done!===================================="
+            )
+
+        return wrapper
+
+    return decorator
