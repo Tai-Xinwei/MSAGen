@@ -669,7 +669,9 @@ class ProteinMAEDistPDECriterions(nn.Module):
         if unified_angle_mask.any():
             if self.diffmode == "score":
                 # retrieve the noise
-                angle_epsilon_masked = angle_epsilon[unified_angle_mask].to(torch.float32)
+                angle_epsilon_masked = angle_epsilon[unified_angle_mask].to(
+                    torch.float32
+                )
                 # from epsilon to noise
                 angle_output_masked = angle_output[unified_angle_mask].to(torch.float32)
                 angle_loss = ((angle_output_masked - angle_epsilon_masked) ** 2).mean()
@@ -678,7 +680,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
                 angle_output_masked = angle_output[unified_angle_mask]
                 ori_angle_masked = ori_angle[unified_angle_mask]
                 angle_loss = self.loss_angle(
-                    angle_output_masked .to(torch.float32),
+                    angle_output_masked.to(torch.float32),
                     ori_angle_masked.to(torch.float32),
                 )
         else:

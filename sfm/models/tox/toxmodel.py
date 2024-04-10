@@ -298,7 +298,7 @@ class TOXPDEModel(TOXModel):
 
         if if_pde_control_loss:
             pass
-        
+
         output_dict["angle_output"] = output_dict["angle_output"][:, :, :3]
         output_dict["ang_epsilon"] = output_dict["ang_epsilon"][:, :, :3]
         output_dict["unified_angle_mask"] = unified_angle_mask[:, :, :3]
