@@ -241,7 +241,7 @@ class TOXPDEModel(TOXModel):
         if if_pde_q_loss:
             self.mixture_gaussian.set_sigma(
                 output_dict["ang_sigma"]
-            )  # sigma_t's shape is [B, 1, 1]
+            )  
             # RHS terms of the PDE. Now q_point is noised and q_point_0 is ori
             (
                 q_point,

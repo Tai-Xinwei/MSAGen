@@ -39,16 +39,21 @@ class MixtureGaussian(torch.nn.Module):
         ), "mu.shape[0] should be the same as q_point.shape[0]"
 
         for k in range(q_point.shape[0]):
-            func[k, :, :] = -(q_point[k, :, :] - mu[k, :, :]) / self.sigma[k, 0, 0] ** 2
-        return func  # [q_batch_size, q_dim1, q_dim2]
+            # func[k, :, :] = -(q_point[k, :, :] - mu[k, :, :]) / self.sigma[k, 0, 0] ** 2
+            func[k, :, :] = -(q_point[k, :, :] - mu[k, :, :])
+        return func
 
     def compute_mixgauss_laplace_term(self, mu, q_point):
         x_dim = q_point.shape[1] * q_point.shape[2]
 
         func = torch.zeros([q_point.shape[0]], device=self.device)
         for k in range(q_point.shape[0]):
-            func[k] = -1 / (self.sigma[k, 0, 0] ** 2) * x_dim + torch.sum(
-                ((q_point[k, :, :] - mu[k, :, :]) / self.sigma[k, 0, 0] ** 2) ** 2,
+            # func[k] = -1 / (self.sigma[k, 0, 0] ** 2) * x_dim + torch.sum(
+            #     ((q_point[k, :, :] - mu[k, :, :]) / self.sigma[k, 0, 0] ** 2) ** 2,
+            #     dim=(0, 1),
+            # )
+            func[k] = -1.0 * x_dim + torch.sum(
+                ((q_point[k, :, :] - mu[k, :, :]) / self.sigma[k, 0, 0]) ** 2,
                 dim=(0, 1),
             )
         return func
@@ -409,9 +414,12 @@ def compute_PDE_qloss(
         AssertionError: If any of the input tensors contain NaN values.
 
     """
-    LHS = q_output * math.log(sde.sigma_max / sde.sigma_min) - t_finite_diff(
+    # LHS = (q_output * math.log(sde.sigma_max / sde.sigma_min) - t_finite_diff(
+    #     q_output, q_output_m, q_output_p, hp, hm
+    # ))
+    LHS = (q_output * math.log(sde.sigma_max / sde.sigma_min) - t_finite_diff(
         q_output, q_output_m, q_output_p, hp, hm
-    )
+    )) * sigma_t
 
     assert not torch.isnan(
         laplace_phi_term
@@ -419,7 +427,9 @@ def compute_PDE_qloss(
     assert not torch.isnan(
         nabla_phi_term
     ).any(), "nabla_phi_term should not contain nan"
-    assert not torch.isnan(q_output).any(), "diffusion should not contain nan"
+    assert not torch.isnan(
+        q_output
+    ).any(), "diffusion should not contain nan"
 
     RHS = -math.log(sde.sigma_max / sde.sigma_min) * (
         (sigma_t[:, 0, 0] * torch.sum(q_output**2, dim=(1, 2))).reshape(-1, 1, 1)
