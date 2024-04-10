@@ -648,7 +648,7 @@ class TextOnly(DeepFuseLayerBase):
 
     def __init__(self, config) -> None:
         super().__init__(config)
-        self.text_layer = LlamaDecoderLayer(config)
+        self.text_layer = LlamaDecoderLayer(config, layer_idx=0)
 
     def forward_impl(
         self,
@@ -831,7 +831,7 @@ class SeperateLayer(DeepFuseLayerBase):
     @staticmethod
     def _to_layer_type(token_type: TokenType, config: DecDeepFuseConfig) -> nn.Module:
         if token_type == TokenType.Text:
-            return LlamaDecoderLayer(config)
+            return LlamaDecoderLayer(config, layer_idx=0)
         else:
             if config.entity_decoder_model_type == EntityDecoderType.BioGPT:
                 config_copy = deepcopy(config)
@@ -839,7 +839,7 @@ class SeperateLayer(DeepFuseLayerBase):
                 config_copy.intermediate_size = config.entity_intermediate_size
                 return BioGptDecoderLayer(config_copy)
             else:
-                return LlamaDecoderLayer(config)
+                return LlamaDecoderLayer(config, layer_idx=0)
 
     def forward_impl(
         self,
