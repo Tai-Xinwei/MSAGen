@@ -3,13 +3,14 @@
 # Licensed under the MIT License.
 
 echo "pip install start"
-# # # python=3.9, cuda 11.8
+# # # python=3.9, cuda 12.1
 # conda install nvidia/label/cuda-11.8.0::cuda-toolkit -y
 
 pip install torch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 --index-url https://download.pytorch.org/whl/cu118
+# pip install torch==2.2.0 torchvision==0.17.0 torchaudio==2.2.0 --index-url https://download.pytorch.org/whl/cu121
 
-pip install uv
-uv pip compile pyproject.toml -o install/requirements.txt
+# pip install uv
+# uv pip compile pyproject.toml -o install/requirements.txt
 pip install -r install/requirements.txt
 
 pip install torch-scatter==2.1.2 -f https://pytorch-geometric.com/whl/torch-2.1.0+cu118.html

@@ -1,15 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import os
-from typing import Tuple
 
-import torch
-from torch.nn.modules import Module
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler
+from torch.optim import AdamW
 
 from sfm.criterions.lm_moe import LmMoeCriterion
-from sfm.logging import logger
 from sfm.models.scigpt.moe_config import ScigptMoeConfig
 from sfm.models.scigpt.moe_modules import (
     ScigptMoeDecoderLayerPP,
@@ -119,6 +114,15 @@ class ScigptMoeModel(SFMPipelineModelMixin):
             weight_decay=self.config.weight_decay,
             eps=1e-8,
         )
+
+        # optimizer = AdamW(
+        #         model.parameters(),
+        #         lr=self.config.max_lr,
+        #         betas=(self.config.beta1, self.config.beta2),
+        #         weight_decay=self.config.weight_decay,
+        #         eps=1e-8,
+        #         fused=False,
+        # )
 
         lr_scheduler = groupWarmupDecayLR(
             optimizer,

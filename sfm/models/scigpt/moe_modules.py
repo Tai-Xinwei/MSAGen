@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from typing import Mapping
+
 import torch
 from torch import nn
 from transformers.models.mixtral.modeling_mixtral import (
@@ -47,6 +48,79 @@ class ScigptMoeEmbeddingsPP(nn.Module):
         return grad
 
 
+class SafeMixtralSparseMoeBlock(MixtralSparseMoeBlock):
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        """ """
+        batch_size, sequence_length, hidden_dim = hidden_states.shape
+        hidden_states = hidden_states.view(-1, hidden_dim)
+        # router_logits: (batch * sequence_length, n_experts)
+        router_logits = self.gate(hidden_states)
+
+        routing_weights = torch.nn.functional.softmax(
+            router_logits, dim=1, dtype=torch.float
+        )
+        routing_weights, selected_experts = torch.topk(
+            routing_weights, self.top_k, dim=-1
+        )
+        routing_weights /= routing_weights.sum(dim=-1, keepdim=True)
+        # we cast back to the input dtype
+        routing_weights = routing_weights.to(hidden_states.dtype)
+
+        final_hidden_states = torch.zeros(
+            (batch_size * sequence_length, hidden_dim),
+            dtype=hidden_states.dtype,
+            device=hidden_states.device,
+        )
+
+        # One hot encode the selected experts to create an expert mask
+        # this will be used to easily index which expert is going to be sollicitated
+        expert_mask = torch.nn.functional.one_hot(
+            selected_experts, num_classes=self.num_experts
+        ).permute(2, 1, 0)
+
+        # Loop over all available experts in the model and perform the computation on each expert
+        for expert_idx in range(self.num_experts):
+            expert_layer = self.experts[expert_idx]
+            idx, top_x = torch.where(expert_mask[expert_idx])
+
+            if top_x.shape[0] == 0 and self.training:
+                # When no tokens are selected, we need to mock the current_state
+                # Or there will be no gradient for the expert
+                # Then the PP will fail
+                # see https://github.com/microsoft/DeepSpeed/issues/5066
+                top_x_ = torch.zeros(1).to(hidden_states.device).to(torch.int32)
+                top_x_list = top_x_.tolist()
+                current_state = hidden_states[None, top_x_list].reshape(-1, hidden_dim)
+                fake_state = expert_layer(current_state * 0)
+                final_hidden_states.index_add_(
+                    0, top_x_, fake_state.to(hidden_states.dtype)
+                )
+            else:
+                # in torch it is faster to index using lists than torch tensors
+                top_x_list = top_x.tolist()
+                idx_list = idx.tolist()
+
+                # Index the correct hidden states and compute the expert hidden state for
+                # the current expert. We need to make sure to multiply the output hidden
+                # states by `routing_weights` on the corresponding tokens (top-1 and top-2)
+                current_state = hidden_states[None, top_x_list].reshape(-1, hidden_dim)
+                current_hidden_states = (
+                    expert_layer(current_state)
+                    * routing_weights[top_x_list, idx_list, None]
+                )
+
+                # However `index_add_` only support torch tensors for indexing so we'll use
+                # the `top_x` tensor here.
+                final_hidden_states.index_add_(
+                    0, top_x, current_hidden_states.to(hidden_states.dtype)
+                )
+
+        final_hidden_states = final_hidden_states.reshape(
+            batch_size, sequence_length, hidden_dim
+        )
+        return final_hidden_states, router_logits
+
+
 class ScigptMoeDecoderLayerPP(nn.Module):
     def __init__(self, config: ScigptMoeConfig, layer_idx: int):
         super().__init__()
@@ -54,13 +128,12 @@ class ScigptMoeDecoderLayerPP(nn.Module):
         self.layer_idx = layer_idx
 
         self.self_attn = MixtralFlashAttention2(config, layer_idx=layer_idx)
-        self.block_sparse_moe = MixtralSparseMoeBlock(config)
+        self.block_sparse_moe = SafeMixtralSparseMoeBlock(config)
         self.input_layernorm = MixtralRMSNorm(config.hidden_size)
         self.post_attention_layernorm = MixtralRMSNorm(config.hidden_size)
 
         if config.compile_layers:
-            # No need & cannot compile attn as it is already FlashAttn
-            self.block_sparse_moe = torch.compile(self.block_sparse_moe)
+            # Moe And Flash attn cannot be compiled yet.
             self.input_layernorm = torch.compile(self.input_layernorm)
             self.post_attention_layernorm = torch.compile(self.post_attention_layernorm)
 
@@ -77,16 +150,16 @@ class ScigptMoeDecoderLayerPP(nn.Module):
         else:
             return state_dict
 
-    def load_state_dict(self, state_dict, strict = True, assign = False):
+    def load_state_dict(self, state_dict, strict=True, assign=False):
         if self.config.compile_layers:
             state_dict_compiled = {}
             for k, v in state_dict.items():
-                if k.startswith("self_attn."):
+                if "layernorm" in k:
+                    fields = k.split(".")
+                    fields = fields[0] + "._orig_mod." + ".".join(fields[1:])
+                    state_dict_compiled[fields] = v
+                else:
                     state_dict_compiled[k] = v
-                    continue
-                fields = k.split('.')
-                fields = fields[0] + '._orig_mod.' + '.'.join(fields[1:])
-                state_dict_compiled[fields] = v
             state_dict = state_dict_compiled
         return super().load_state_dict(state_dict, strict, assign)
 

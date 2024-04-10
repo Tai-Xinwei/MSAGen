@@ -19,7 +19,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=80000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=8000
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
-[ -z "${train_batch_size}" ] && train_batch_size=1
+[ -z "${train_batch_size}" ] && train_batch_size=4
 [ -z "${val_batch_size}" ] && val_batch_size=4
 # [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,embed_tokens.weight"
 # [ -z "${learnable_cutoff}" ] && learnable_cutoff=32000
@@ -28,7 +28,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1000000
 [ -z "${save_batch_interval}" ] && save_batch_interval=4000000
-[ -z "${log_interval}" ] && log_interval=10
+[ -z "${log_interval}" ] && log_interval=1
 [ -z "${epochs}" ] && epochs=1
 
 [ -z "${strategy}" ] && strategy=Pipeline
@@ -106,10 +106,25 @@ fi
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
+nvidia-smi topo -m
+ifconfig -s
+
 set -x
+for i in $(seq 0 7); do
+    echo "ib${i}"
+    ifconfig ib${i}
+    ip addr show ib${i}
+done
+
+sudo apt-get update && sudo apt-get install infiniband-diags -y
+ibdev2netdev -v
+ibstatus
+ibv_devinfo
+
+
 torchrun $DISTRIBUTED_ARGS sfm/tasks/scigpt/pretrain_scigptmoe.py \
       --model_type "$model_type" \
-      --vocab_size 40014 \
+      --vocab_size 32001 \
       --pad_token_id 32000 --eos_token_id 2 \
       --max_position_embeddings 8192 \
       --train_data_path "$train_data_path" \
@@ -135,3 +150,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/scigpt/pretrain_scigptmoe.py \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --load_ckpt --pretrained_ckpt_path "$loadcheck_path" \
       --compile_layers
+
+sleep infinity
+sleep infinity
+sleep infinity
