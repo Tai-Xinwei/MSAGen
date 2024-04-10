@@ -25,11 +25,17 @@ class MixtureGaussian(torch.nn.Module):
         super().__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.sigma = None
+        self.mask = None
 
     def set_sigma(self, sigma):
         self.sigma = sigma  # [B, 1, 1]
 
+    def set_mask(self, mask):
+        self.mask = mask  # [B, L, 3]
+
     def compute_mixgauss_gradient_term(self, mu, q_point):
+        assert self.mask is not None
+
         func = torch.zeros(
             [q_point.shape[0], q_point.shape[1], q_point.shape[2]], device=self.device
         )
@@ -39,23 +45,30 @@ class MixtureGaussian(torch.nn.Module):
         ), "mu.shape[0] should be the same as q_point.shape[0]"
 
         for k in range(q_point.shape[0]):
-            # func[k, :, :] = -(q_point[k, :, :] - mu[k, :, :]) / self.sigma[k, 0, 0] ** 2
-            func[k, :, :] = -(q_point[k, :, :] - mu[k, :, :])
+            # func[k, :, :] = torch.where(self.mask, -(q_point[k, :, :] - mu[k, :, :]) / self.sigma[k] ** 2, torch.zeros_like(q_point[k, :, :]))
+            func[k, :, :] = torch.where(
+                self.mask[k],
+                -(q_point[k, :, :] - mu[k, :, :]),
+                torch.zeros_like(q_point[k, :, :]),
+            )
+
         return func
 
     def compute_mixgauss_laplace_term(self, mu, q_point):
-        x_dim = q_point.shape[1] * q_point.shape[2]
+        assert self.mask is not None
 
         func = torch.zeros([q_point.shape[0]], device=self.device)
         for k in range(q_point.shape[0]):
-            # func[k] = -1 / (self.sigma[k, 0, 0] ** 2) * x_dim + torch.sum(
-            #     ((q_point[k, :, :] - mu[k, :, :]) / self.sigma[k, 0, 0] ** 2) ** 2,
-            #     dim=(0, 1),
-            # )
-            func[k] = -1.0 * x_dim + torch.sum(
-                ((q_point[k, :, :] - mu[k, :, :]) / self.sigma[k, 0, 0]) ** 2,
-                dim=(0, 1),
+            # diff_squared = ((q_point[k, :, :] - mu[k, :, :]) / self.sigma[k]) ** 2
+            # masked_diff_squared = torch.where(self.mask[k], diff_squared, torch.zeros_like(diff_squared))
+            # func[k] = -1.0 * torch.sum(self.mask[k]) / self.sigma[k, 0, 0] ** 2 + torch.sum(masked_diff_squared) / self.sigma[k, 0, 0] ** 2
+
+            diff_squared = ((q_point[k, :, :] - mu[k, :, :]) / self.sigma[k]) ** 2
+            masked_diff_squared = torch.where(
+                self.mask[k], diff_squared, torch.zeros_like(diff_squared)
             )
+            func[k] = -1.0 * torch.sum(self.mask[k]) + torch.sum(masked_diff_squared)
+
         return func
 
     def sampler(self, x, x_0, sample_number=None):
@@ -120,16 +133,16 @@ class MixtureGaussian(torch.nn.Module):
             # q_point, q_point_0 = self.sampler(x, x_0)
             q_point, q_point_0 = x, x_0
 
-            # only use the first three dimensions to compute the gradient and laplace
-            nabla_phi_term = self.compute_mixgauss_gradient_term(
-                q_point_0[:, :, :3], q_point[:, :, :3]
-            )
-            laplace_phi_term = self.compute_mixgauss_laplace_term(
-                q_point_0[:, :, :3], q_point[:, :, :3]
-            )
+            nabla_phi_term = self.compute_mixgauss_gradient_term(q_point_0, q_point)
+            laplace_phi_term = self.compute_mixgauss_laplace_term(q_point_0, q_point)
+
+            assert not torch.isnan(
+                nabla_phi_term
+            ).any(), "nabla_phi_term should not contain nan"
             assert not torch.isnan(
                 laplace_phi_term
             ).any(), "laplace_phi_term should not contain nan"
+
             # # normalize the laplace_phi_term as a inner product in high dimension space is usually large
             # nabla_phi_term = 1 / (x.shape[1] * x.shape[2]) * nabla_phi_term
             # laplace_phi_term = 1 / (x.shape[1] * x.shape[2]) * laplace_phi_term
@@ -417,9 +430,10 @@ def compute_PDE_qloss(
     # LHS = (q_output * math.log(sde.sigma_max / sde.sigma_min) - t_finite_diff(
     #     q_output, q_output_m, q_output_p, hp, hm
     # ))
-    LHS = (q_output * math.log(sde.sigma_max / sde.sigma_min) - t_finite_diff(
-        q_output, q_output_m, q_output_p, hp, hm
-    )) * sigma_t
+    LHS = (
+        q_output * math.log(sde.sigma_max / sde.sigma_min)
+        - t_finite_diff(q_output, q_output_m, q_output_p, hp, hm)
+    ) * sigma_t**2
 
     assert not torch.isnan(
         laplace_phi_term
@@ -427,9 +441,7 @@ def compute_PDE_qloss(
     assert not torch.isnan(
         nabla_phi_term
     ).any(), "nabla_phi_term should not contain nan"
-    assert not torch.isnan(
-        q_output
-    ).any(), "diffusion should not contain nan"
+    assert not torch.isnan(q_output).any(), "diffusion should not contain nan"
 
     RHS = -math.log(sde.sigma_max / sde.sigma_min) * (
         (sigma_t[:, 0, 0] * torch.sum(q_output**2, dim=(1, 2))).reshape(-1, 1, 1)
@@ -450,7 +462,7 @@ def compute_PDE_qloss(
         RHS_clipped = RHS
 
     # Here, we compute the mean on the batched data, and then compute the mse on the spatial dimensions
-    res = torch.mean(torch.mean((LHS - RHS_clipped), dim=(0)) ** 2, dim=(0, 1))
+    res = torch.mean(torch.mean((LHS - RHS_clipped), dim=(0)) ** 2)
     return res
 
 
@@ -473,11 +485,8 @@ def compute_pde_control_loss(epsilon_predict, epsilon_true):
         The computed loss.
 
     """
-    loss = torch.mean(
-        torch.sum(epsilon_predict**2, dim=(1, 2))
-        - torch.sum(epsilon_true**2, dim=(1, 2))
-        - 2 * torch.sum(epsilon_predict - epsilon_true, dim=(1, 2))
-    )
+    # Now is regular MSE loss
+    loss = torch.mean(torch.sum(epsilon_predict**2, dim=(1, 2)))
     return loss
 
 

@@ -22,7 +22,7 @@ from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
 from .modules import torus as ts
-from .modules.physics import MixtureGaussian, SingleGaussian, set_time_step
+from .modules.physics import VESDE, MixtureGaussian, SingleGaussian, set_time_step
 from .modules.timestep_encoder import DiffNoise
 from .modules.torchMD import TorchMD_HEAD
 from .modules.tox_encoder import NodeDecoder, TOXEncoder
@@ -216,12 +216,13 @@ class TOXPDEModel(TOXModel):
             load_ckpt,
         )
         self.mixture_gaussian = MixtureGaussian()
+        self.sde = VESDE()
         self.lamb_pde_q = args.lamb_pde_q
         self.lamb_pde_control = args.lamb_pde_control
 
     # PDE loss related forward function
     def forward(self, batched_data, **kwargs):
-        # retrieve the result of forward in TOXModel
+        # forward for data loss
         output_dict = self.net(batched_data, **kwargs)
 
         # retrieve the time, ori_angle, noised_angle
@@ -229,26 +230,36 @@ class TOXPDEModel(TOXModel):
         ori_angle = batched_data["ang"]
         noised_angle = self.net.noised_angle
 
-        # guarantee the same inf_mask
+        # guarantee the same inf_mask, masked into the noise of T
+        noised_T = torch.rand_like(ori_angle) * self.sde.sigma_term(1.0)
         inf_mask = ori_angle == float("inf")
-        ori_angle = ori_angle.masked_fill(inf_mask, 100.0)
-        noised_angle = noised_angle.masked_fill(inf_mask, 100.0)
+        ori_angle = torch.where(inf_mask, noised_T, ori_angle)
+        noised_angle = torch.where(inf_mask, noised_T, noised_angle)
+
+        # use a unified mask, unused when unified_mask is False
+        angle_mask = batched_data["ang_mask"].bool()
+        mask_angle = output_dict["mask_pos"].squeeze(-1)
+        unified_mask = angle_mask & mask_angle
 
         # whether to use the PDE q loss and control loss
         if_pde_q_loss = False if self.lamb_pde_q == 0 else True
         if_pde_control_loss = False if self.lamb_pde_control == 0 else True
 
         if if_pde_q_loss:
-            self.mixture_gaussian.set_sigma(
-                output_dict["ang_sigma"]
-            )  
-            # RHS terms of the PDE. Now q_point is noised and q_point_0 is ori
+            self.mixture_gaussian.set_sigma(output_dict["ang_sigma"])
+
+            self.mixture_gaussian.set_mask(unified_mask[:, :, :3])
+
+            # RHS terms of the PDE. Now q_point is noised_angle and q_point_0 is ori_angle
             (
                 q_point,
                 q_point_0,
                 nabla_phi_term,
                 laplace_phi_term,
-            ) = self.mixture_gaussian(noised_angle, ori_angle)
+            ) = self.mixture_gaussian(noised_angle[:, :, :3], ori_angle[:, :, :3])
+            q_point = noised_angle
+            q_point_0 = ori_angle
+
             # LHS terms of the PDE
             delta_tq = 0
             output_dict_q0 = output_dict
@@ -275,7 +286,7 @@ class TOXPDEModel(TOXModel):
 
             output_dict.update(
                 {
-                    "nabla_phi_term": nabla_phi_term[:, :, :3],
+                    "nabla_phi_term": nabla_phi_term,
                     "laplace_phi_term": laplace_phi_term,
                     "hp": hp,
                     "hm": hm,
@@ -288,6 +299,7 @@ class TOXPDEModel(TOXModel):
         if if_pde_control_loss:
             pass
 
+        output_dict["unified_mask"] = unified_mask[:, :, :3]
         output_dict["time_pos"] = time_pos
         return output_dict
 
