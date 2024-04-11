@@ -17,6 +17,8 @@ from .layer_norm import Fp32LayerNorm, LayerNorm
 from .quant_noise import quant_noise
 from .rotary_embedding import RotaryEmbedding
 
+# from torch.nn.attention import SDPBackend, sdpa_kernel
+
 
 class MemEffAttn(nn.Module):
     """Multi-headed attention.
@@ -221,6 +223,9 @@ class MemEffAttn(nn.Module):
         if attn_bias is not None:
             raise NotImplementedError("mem efficient attn not support attn_bias")
 
+        # FutureWarning: torch.backends.cuda.sdp_kernel() is deprecated. In the future, this context manager will be removed.
+        # Please see, torch.nn.attention.sdpa_kernel() for the new context manager, with updated signature.
+        # with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
         with torch.backends.cuda.sdp_kernel(
             enable_math=False, enable_mem_efficient=True, enable_flash=True
         ):
@@ -230,6 +235,7 @@ class MemEffAttn(nn.Module):
                 v,
                 dropout_p=self.dropout,
                 attn_mask=attn_mask,
+                is_casual=False,
             )
 
         attn = (

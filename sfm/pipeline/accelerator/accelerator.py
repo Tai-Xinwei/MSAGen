@@ -24,6 +24,7 @@ from sfm.data.data_utils import batch_by_size
 from sfm.data.dataset import Batch, Data, FoundationModelDataset
 from sfm.data.dynamics_loader import DynamicBatchSampler, DynamicDistributedSampler
 from sfm.logging import logger
+from sfm.pipeline.accelerator.compile_opts import torch_compile
 from sfm.pipeline.accelerator.dataclasses import (
     ModelOutput,
     TrainerState,
@@ -140,6 +141,9 @@ class SingleNodeAccelerator(Accelerator):
         if args.fp16:
             self.model = self.model.half()
 
+        self.model.to(self.device)
+        self.model = torch_compile(self.model, self.args.compile)
+
     @property
     def grad_scale(self) -> float:
         return self.scaler.scale
@@ -192,7 +196,6 @@ class SingleNodeAccelerator(Accelerator):
         assert grouped_batch_data, "grouped_batch_data is empty"
 
         self.model.train()
-        self.model.to(self.device)
 
         self.optimizer.zero_grad()
         success_batch_count = 0
@@ -228,7 +231,6 @@ class SingleNodeAccelerator(Accelerator):
 
     def valid_step(self, batch_data: Batch, epoch: int = 0) -> ValidLogOutput:
         self.model.eval()
-        self.model.to(self.device)
 
         batch_data = move_to_device(batch_data, self.device)
         with torch.no_grad():
@@ -361,6 +363,7 @@ class DdpAccelerator(SingleNodeAccelerator):
             output_device=self.local_rank,
             find_unused_parameters=True,
         )
+        self.ddp_model = torch_compile(self.ddp_model, self.args.compile)
 
     def barrier(self):
         torch.distributed.barrier()
@@ -562,7 +565,7 @@ class DeepSpeedAccelerator(Accelerator):
     ) -> None:
         super().__init__()
         self.args = args
-        self.model = model
+        self.model = torch_compile(model, self.args.compile).cpu()
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
         self.train_data = train_data
@@ -611,7 +614,15 @@ class DeepSpeedAccelerator(Accelerator):
 
             self.args.deepspeed_config["bf16"]["enabled"] = self.args.bf16
 
-            if (
+            if self.args.strategy == TrainStrategy.Zero0:
+                logger.warning(
+                    "Zero0 is not compatible with offloading; setting zero_offload to False"
+                )
+                self.args.zero_offload = False
+
+            if self.args.strategy == TrainStrategy.Zero0:
+                self.args.deepspeed_config["zero_optimization"]["stage"] = 0
+            elif (
                 self.args.strategy == TrainStrategy.Zero1
                 or self.args.strategy == TrainStrategy.Pipeline
             ):
@@ -620,10 +631,33 @@ class DeepSpeedAccelerator(Accelerator):
                 self.args.deepspeed_config["zero_optimization"]["stage"] = 2
             elif self.args.strategy == TrainStrategy.Zero3:
                 self.args.deepspeed_config["zero_optimization"]["stage"] = 3
+            elif self.args.strategy == TrainStrategy.ZeroInf:
+                self.args.deepspeed_config["zero_optimization"]["stage"] = 3
+                self.args.deepspeed_config["zero_optimization"]["offload_optimizer"][
+                    "device"
+                ] = "nvme"
+                self.args.deepspeed_config["zero_optimization"]["offload_param"][
+                    "device"
+                ] = "nvme"
+                self.args.deepspeed_config["zero_optimization"]["offload_optimizer"][
+                    "nvme_path"
+                ] = self.args.zero_offload_dir
+                self.args.deepspeed_config["zero_optimization"]["offload_param"][
+                    "nvme_path"
+                ] = self.args.zero_offload_dir
             else:
                 raise ValueError(
                     f"Unsupported accelerator strategy: {self.args.strategy}"
                 )
+
+            if self.args.zero_offload and self.args.strategy != TrainStrategy.ZeroInf:
+                self.args.deepspeed_config["zero_optimization"]["offload_optimizer"][
+                    "device"
+                ] = "cpu"
+                self.args.deepspeed_config["zero_optimization"]["offload_param"][
+                    "device"
+                ] = "cpu"
+                self.args.deepspeed_config["zero_force_ds_cpu_optimizer"] = False
 
             self.args.deepspeed_config["optimizer"]["params"]["lr"] = self.args.max_lr
             self.args.deepspeed_config["optimizer"]["params"]["betas"] = [
@@ -667,6 +701,10 @@ class DeepSpeedAccelerator(Accelerator):
             self.args.deepspeed_config["flops_profiler"]["output_file"] = os.path.join(
                 self.args.prof_dir, "profiler_ds.txt"
             )
+            self.args.deepspeed_config["wall_clock_breakdown"] = self.args.profiling
+            self.args.deepspeed_config["comms_logger"]["enabled"] = self.args.debug
+
+            self.args.deepspeed_config["memory_breakdown"] = self.args.debug
             return
 
     def get_unfreeze_param_list(self, unfreeze_param_name_list: str):
@@ -765,7 +803,7 @@ class DeepSpeedAccelerator(Accelerator):
             if self.lr_scheduler is not None:
                 # When using custom scheduler, we need to set the scheduler type to None
                 # Otherwise, deepspeed will use that scheduler instead of the custom one
-                logger.info("lr scheduler is set, remove the ds default scheduler")
+                logger.info("custom scheduler is set, DS scheduler is disabled")
                 self.args.deepspeed_config["scheduler"]["type"] = None
 
             if self.optimizer is not None:
@@ -803,8 +841,18 @@ class DeepSpeedAccelerator(Accelerator):
                 "gradient_accumulation_steps"
             ] = self.args.gradient_accumulation_steps
         else:
-            if self.optimizer is None:
+            if self.optimizer is None or self.args.zero_offload:
                 self.optimizer, self.lr_scheduler = self.model.config_optimizer()
+            else:
+                # When using custom scheduler, it is a good idea to set the optimizer type to None
+                logger.info("custom optimizer is set, DS optimizer is disabled")
+                self.args.deepspeed_config["optimizer"]["type"] = None
+
+            if self.lr_scheduler is not None:
+                # When using custom scheduler, we need to set the scheduler type to None
+                # Otherwise, deepspeed will use that scheduler instead of the custom one
+                logger.info("custom scheduler is set, DS scheduler is disabled")
+                self.args.deepspeed_config["scheduler"]["type"] = None
 
             if self.lr_scheduler is not None:
                 # When using custom scheduler, we need to set the scheduler type to None
@@ -880,7 +928,7 @@ class DeepSpeedAccelerator(Accelerator):
         if self.args.dynamic_loader:
             assert (
                 self.args.strategy is not TrainStrategy.Pipeline
-            ), "dyanmic loader is not supported in pipeline mode"
+            ), "dynamic loader is not supported in pipeline mode"
 
             train_batch_size_per_gpu = self.args.train_batch_size // (
                 self.model_engine.dp_world_size * self.args.gradient_accumulation_steps
