@@ -15,11 +15,15 @@ class TrainStrategy(str, Enum):
 
         DDP: Distributed Data Parallel (DDP) training, where the model is replicated across multiple devices and gradients are synchronized.
 
-        Zero1: The first level of the ZeRO (Zero Redundancy Optimizer) parallelism strategy.
+        Zero0: DeepSpeed Training without using ZeRO (Zero Redundancy Optimizer) parallelism strategy.
 
-        Zero2: The second level of the ZeRO parallelism strategy.
+        Zero1: The first level of the ZeRO parallelism strategy. The optimizer states are partitioned
 
-        Zero3: The third level of the ZeRO parallelism strategy.
+        Zero2: The second level of the ZeRO parallelism strategy. Zero1 + reduced gradients for updating the model weights are partitioned.
+
+        Zero3: The third level of the ZeRO parallelism strategy. Zero1 + Zero2 + model parameters are partitioned.
+
+        ZeroInf: Extension to the third level of the ZeRO parallelism strategy by enabling NVMe offloading.
 
         Pipeline: Pipeline parallelism, where the model is divided into stages and processed on
         different devices in a pipeline fashion.
@@ -28,9 +32,11 @@ class TrainStrategy(str, Enum):
     """
 
     DDP = "DDP"
+    Zero0 = "Zero0"
     Zero1 = "Zero1"
     Zero2 = "Zero2"
     Zero3 = "Zero3"
+    ZeroInf = "ZeroInf"
     Single = "Single"
     Pipeline = "Pipeline"
     ThreeD = "ThreeD"
@@ -178,13 +184,23 @@ class TrainerConfig:
     early_stopping_metric: str = "valid_loss"
     early_stopping_mode: str = "min"
 
+    # compile CUDA kernels with torch.compile
+    compile: bool = False
+
     # validate
     calculate_metrics: bool = False
+
+    # offload parameters to CPU/NVMe if Zero optimizer is used
+    zero_offload: bool = False
+    zero_offload_dir: str = "./"
 
     # profiler
     profiling: bool = False
     prof_dir: str = "./prof"
     ptensorboard: bool = False
+
+    # debugger
+    debug: bool = False
 
     def __str__(self):
         return (
