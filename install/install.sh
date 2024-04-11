@@ -25,3 +25,6 @@ pip install torch-cluster==1.6.2 -f https://pytorch-geometric.com/whl/torch-2.1.
 
 python setup_cython.py build_ext --inplace
 pip install flash-attn --no-build-isolation
+
+# MeagBlocks for MoE training
+pip install megablocks[gg]==0.5.1

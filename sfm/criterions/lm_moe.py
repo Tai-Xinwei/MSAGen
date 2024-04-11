@@ -3,11 +3,11 @@ from torch import nn
 from transformers.models.mixtral.modeling_mixtral import load_balancing_loss_func
 
 from sfm.criterions.autoregressive import AutoregressiveCriterion
-from sfm.models.scigpt.moe_config import ScigptMoeConfig
+from sfm.models.nlm.moe_config import MoeModelConfig
 
 
 class LmMoeCriterion(nn.Module):
-    def __init__(self, config: ScigptMoeConfig, reduction="mean"):
+    def __init__(self, config: MoeModelConfig, reduction="mean"):
         super().__init__()
         self.config = config
         self.lm_loss_func = AutoregressiveCriterion(config, reduction)
