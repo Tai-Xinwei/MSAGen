@@ -2,7 +2,10 @@
 from typing import Mapping
 
 import torch
+from megablocks.layers import common, dmoe
+from megablocks.layers.arguments import Arguments as MegablocksArguments
 from torch import nn
+from transformers.activations import ACT2FN
 from transformers.models.mixtral.modeling_mixtral import (
     MixtralFlashAttention2,
     MixtralRMSNorm,
@@ -11,6 +14,39 @@ from transformers.models.mixtral.modeling_mixtral import (
 
 from sfm.models.nlm.moe_config import MoeModelConfig
 from sfm.utils.pipelinemode import pipemode
+
+
+def to_magablocks_config(config: MoeModelConfig) -> MegablocksArguments:
+    return MegablocksArguments(
+        # Model arguments.
+        hidden_size=config.hidden_size,
+        ffn_hidden_size=config.intermediate_size,
+        num_layers=1,
+        bias=False,
+        return_bias=False,
+        activation_fn=ACT2FN[config.hidden_act],
+        # MoE arguments.
+        moe_num_experts=config.num_local_experts,
+        moe_top_k=config.num_experts_per_tok,
+        moe_capacity_factor=1.0,  # Seems to be unused in DMOE
+        moe_normalize_expert_weights=1.0,
+        moe_loss_weight=config.router_aux_loss_coef,
+        moe_jitter_eps=config.router_jitter_noise,
+        # Parallelism arguments.
+        moe_expert_model_parallelism=False,
+        expert_parallel_group=None,
+        moe_weight_parallelism=False,
+        weight_parallel_group=None,
+        pipeline_model_parallel_size=1,
+        num_layers_per_virtual_pipeline_stage=None,
+        # Compute arguments
+        memory_optimized_mlp=False,
+        mlp_type="glu",
+        mlp_impl="grouped",
+        # Initialization arguments.
+        fp16=config.fp16,
+        bf16=config.bf16,
+    )
 
 
 class MoeEmbeddingsPP(nn.Module):
@@ -128,6 +164,71 @@ class SafeMixtralSparseMoeBlock(MixtralSparseMoeBlock):
             batch_size, sequence_length, hidden_dim
         )
         return final_hidden_states, router_logits
+
+
+class MegaBlockMoeBlock(dmoe.dMoE):
+    def __init__(self, config: MoeModelConfig):
+        args = to_magablocks_config(config)
+        super().__init__(args)
+        self.config = config
+        self.args = args
+
+    def forward(self, x):
+        # NOTE: If we're going to cast the activations to lower precision
+        # do it before we permute the tokens to save bandwidth.
+        x = common.cast_if_autocast_enabled(x)
+
+        # Compute the expert scores and assignments.
+        scores, expert_weights, top_experts = self.router(x)
+
+        # Compute the experts.
+        return self.experts(x, scores, expert_weights, top_experts), scores
+
+    def state_dict(self):
+        """
+        Build a state dict that is compatible with mixtral.
+        """
+        router_state_dict = self.router.layer.state_dict()
+
+        state_dict = dict()
+        state_dict["gate.weight"] = router_state_dict["weight"]
+        for i in range(self.config.num_local_experts):
+            slice_begin = i * self.config.intermediate_size
+            slice_end = (i + 1) * self.config.intermediate_size
+            state_dict[f"experts.{i}.w1.weight"] = self.experts.mlp.w1[
+                slice_begin:slice_end
+            ].T
+            state_dict[f"experts.{i}.w2.weight"] = self.experts.mlp.w2[
+                slice_begin:slice_end
+            ]
+            state_dict[f"experts.{i}.w3.weight"] = self.experts.mlp.v1[
+                slice_begin:slice_end
+            ].T
+
+        return state_dict
+
+    def load_state_dict(self, state_dict, strict=True, assign=False):
+        """
+        Load a state dict that is compatible with mixtral.
+        """
+        router_state_dict = dict()
+        router_state_dict["weight"] = state_dict["gate.weight"]
+        self.router.layer.load_state_dict(router_state_dict, strict, assign)
+
+        w1 = torch.zeros(self.config.hidden_size, self.config.intermediate_size)
+        w2 = torch.zeros(self.config.hidden_size, self.config.intermediate_size)
+        v1 = torch.zeros(self.config.hidden_size, self.config.intermediate_size)
+
+        for i in range(self.config.num_local_experts):
+            slice_begin = i * self.config.intermediate_size
+            slice_end = (i + 1) * self.config.intermediate_size
+            w1[slice_begin:slice_end] = state_dict[f"experts.{i}.w1.weight"].T
+            w2[slice_begin:slice_end] = state_dict[f"experts.{i}.w2.weight"]
+            v1[slice_begin:slice_end] = state_dict[f"experts.{i}.w3.weight"].T
+
+        expert_state_dict = {"w1": w1, "w2": w2, "v1": v1}
+
+        self.experts.mlp.load_state_dict(expert_state_dict, strict, assign)
 
 
 class MoeDecoderLayerPP(nn.Module):
