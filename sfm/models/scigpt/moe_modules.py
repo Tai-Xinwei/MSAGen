@@ -49,9 +49,18 @@ class ScigptMoeEmbeddingsPP(nn.Module):
 
 
 class SafeMixtralSparseMoeBlock(MixtralSparseMoeBlock):
+    def __init__(self, config):
+        super().__init__(config)
+        self.config = config
+
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         """ """
         batch_size, sequence_length, hidden_dim = hidden_states.shape
+        if self.training and self.config.router_jitter_noise > 0:
+            hidden_states = hidden_states * torch.empty_like(hidden_states).uniform_(
+                1.0 - self.config.router_jitter_noise,
+                1.0 + self.config.router_jitter_noise,
+            )
         hidden_states = hidden_states.view(-1, hidden_dim)
         # router_logits: (batch * sequence_length, n_experts)
         router_logits = self.gate(hidden_states)

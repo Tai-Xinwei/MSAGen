@@ -37,6 +37,7 @@ class ScigptMoeConfig(MixtralConfig, DistributedTrainConfig):
     num_local_experts: int = 8
     output_router_logits: bool = True
     router_aux_loss_coef: float = 0.02
+    router_jitter_noise: float = 0.01  # From SwitchTransformer
 
     dict_path: str = ""
     prot_spm_path: str = "/blob/shufxi/data/scigpt/ur50bpe/bpe"
