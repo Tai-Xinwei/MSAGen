@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 import math
+from typing import Optional
 
 import numpy as np
 import torch
 import torch.nn as nn
+from torch import Tensor
 
 from sfm.logging import logger
 
@@ -61,6 +63,43 @@ class TimeStepEncoder(nn.Module):
         return t_emb
 
 
+class TimeStepSampler:
+    def __init__(self, num_timesteps):
+        self.num_timesteps = num_timesteps
+
+    def sample(self, n_graph, device, dtype, noise_ratio: float = 0.0):
+        time_step = torch.randint(
+            0, self.num_timesteps, size=(n_graph // 2 + 1,), device=device
+        )
+        time_step = torch.cat([time_step, self.num_timesteps - time_step - 1], dim=0)[
+            :n_graph
+        ]
+        time_step = time_step.to(dtype=dtype) / self.num_timesteps
+        if noise_ratio > 0.0:
+            clean_mask_index = np.random.choice(
+                n_graph, min(int(noise_ratio * n_graph), n_graph), replace=False
+            )
+            clean_mask_index = torch.tensor(
+                clean_mask_index, device=device, dtype=torch.long
+            )
+            clean_mask = torch.zeros(n_graph, dtype=torch.bool, device=device)
+            clean_mask[clean_mask_index] = True
+        else:
+            clean_mask = None
+        return time_step, clean_mask
+
+    def get_continuous_time_step(self, t, n_graph, device, dtype):
+        time_step = torch.zeros(
+            [
+                n_graph,
+            ],
+            device=device,
+            dtype=dtype,
+        )
+        time_step = time_step.fill_(t * 1.0 / self.num_timesteps)
+        return time_step
+
+
 class DiffNoise(nn.Module):
     def __init__(self, args):
         super(DiffNoise, self).__init__()
@@ -73,30 +112,30 @@ class DiffNoise(nn.Module):
             self.alphas_cumprod,
             self.beta_list,
         ) = self._beta_schedule(
-            args.t_timesteps + 1,
+            args.num_timesteps + 1,
             args.ddpm_beta_start,
             args.ddpm_beta_end,
             args.ddpm_schedule,
         )
 
     def _beta_schedule(
-        self, t_timesteps, beta_start, beta_end, schedule_type="sigmoid"
+        self, num_timesteps, beta_start, beta_end, schedule_type="sigmoid"
     ):
         if schedule_type == "linear":
-            beta_list = torch.linspace(beta_start, beta_end, t_timesteps)
+            beta_list = torch.linspace(beta_start, beta_end, num_timesteps)
         elif schedule_type == "quadratic":
             beta_list = (
-                torch.linspace(beta_start**0.5, beta_end**0.5, t_timesteps) ** 2
+                torch.linspace(beta_start**0.5, beta_end**0.5, num_timesteps) ** 2
             )
         elif schedule_type == "sigmoid":
-            betas = torch.linspace(-6, 6, t_timesteps)
+            betas = torch.linspace(-6, 6, num_timesteps)
             beta_list = torch.sigmoid(betas) * (beta_end - beta_start) + beta_start
         elif schedule_type == "cosine":
             s = 0.008
-            steps = t_timesteps + 1
-            x = torch.linspace(0, t_timesteps, steps)
+            steps = num_timesteps + 1
+            x = torch.linspace(0, num_timesteps, steps)
             alphas_cumprod = (
-                torch.cos(((x / t_timesteps) + s) / (1 + s) * torch.pi * 0.5) ** 2
+                torch.cos(((x / num_timesteps) + s) / (1 + s) * torch.pi * 0.5) ** 2
             )
             alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
             betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
@@ -120,8 +159,15 @@ class DiffNoise(nn.Module):
         out = a.gather(-1, t.cpu().long())
         return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
 
-    def _noise_sample(self, x_start, t, unit_noise_scale=1.0):
-        t = (t * self.args.t_timesteps).long()
+    def noise_sample(
+        self,
+        x_start,
+        t,
+        x_init=None,
+        unit_noise_scale=1.0,
+        clean_mask: Optional[Tensor] = None,
+    ):
+        t = (t * self.args.num_timesteps).long()
         noise = torch.randn_like(x_start) * unit_noise_scale
 
         sqrt_alphas_cumprod_t = self._extract(
@@ -131,8 +177,20 @@ class DiffNoise(nn.Module):
             self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
         )
 
-        x_t = sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
-        noise = x_t - x_start
+        if x_init is None:
+            x_t = (
+                sqrt_alphas_cumprod_t * x_start
+                + sqrt_one_minus_alphas_cumprod_t * noise
+            )
+        else:
+            x_t = (
+                sqrt_alphas_cumprod_t * (x_start - x_init)
+                + sqrt_one_minus_alphas_cumprod_t * noise
+                + x_init
+            )
+
+        if clean_mask is not None:
+            x_t = torch.where(clean_mask.unsqueeze(-1).unsqueeze(-1), x_start, x_t)
 
         return x_t, noise, sqrt_one_minus_alphas_cumprod_t
 

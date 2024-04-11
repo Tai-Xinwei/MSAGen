@@ -3,13 +3,14 @@
 # Licensed under the MIT License.
 
 import math
-from typing import Callable, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch.nn import Parameter
+
+from sfm.models.psm.psm_config import PSMConfig, VecInitApproach
 
 torch._C._jit_set_profiling_mode(False)
 torch._C._jit_set_profiling_executor(False)
@@ -326,8 +327,30 @@ class InvariantAttention(nn.Module):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         self.out_proj.bias.data.fill_(0)
 
-    def forward(self, q, k, v, attn_bias, key_padding_mask):
+    def forward(
+        self,
+        q,
+        k,
+        v,
+        attn_bias,
+        key_padding_mask,
+        pbc_expand_batched: Optional[Dict] = None,
+    ):
         q = q * self.scaling
+
+        if pbc_expand_batched is not None:
+            outcell_index = (
+                pbc_expand_batched["outcell_index"]
+                .unsqueeze(-1)
+                .repeat(1, 1, k.size()[-1])
+            )
+            local_attention_weight = pbc_expand_batched["local_attention_weight"]
+            expand_k = torch.gather(k, dim=1, index=outcell_index)
+            expand_v = torch.gather(v, dim=1, index=outcell_index)
+            k = torch.cat([k, expand_k], dim=1)
+            v = torch.cat([v, expand_v], dim=1)
+        else:
+            local_attention_weight = None
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
 
@@ -348,10 +371,18 @@ class InvariantAttention(nn.Module):
             attn_weights = attn_weights + attn_bias
 
         if key_padding_mask is not None:
+            if pbc_expand_batched is not None:
+                expand_mask = pbc_expand_batched["expand_mask"]
+                key_padding_mask = torch.cat([key_padding_mask, expand_mask], dim=-1)
             # don't attend to padding symbols
             attn_weights = attn_weights.masked_fill(
                 key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
                 float("-inf"),
+            )
+
+        if local_attention_weight is not None:
+            attn_weights = attn_weights.masked_fill(
+                (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
             )
 
         attn_probs_float = F.dropout(
@@ -359,6 +390,10 @@ class InvariantAttention(nn.Module):
             self.dropout,
             training=self.training,
         )
+
+        if local_attention_weight is not None:
+            attn_probs_float = attn_probs_float * local_attention_weight.unsqueeze(1)
+
         attn_probs = attn_probs_float.type_as(
             attn_weights
         )  # (bsz, num_heads, tgt_len, src_len)
@@ -387,8 +422,31 @@ class EquivariantAttention(nn.Module):
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
 
-    def forward(self, q, k, v, attn_bias, key_padding_mask):
+    def forward(
+        self,
+        q,
+        k,
+        v,
+        attn_bias,
+        key_padding_mask,
+        pbc_expand_batched: Optional[Dict] = None,
+    ):
         q = q * self.scaling
+
+        if pbc_expand_batched is not None:
+            outcell_index = (
+                pbc_expand_batched["outcell_index"]
+                .unsqueeze(-1)
+                .unsqueeze(-1)
+                .repeat(1, 1, k.size()[-2], k.size()[-1])
+            )
+            local_attention_weight = pbc_expand_batched["local_attention_weight"]
+            expand_k = torch.gather(k, dim=1, index=outcell_index)
+            expand_v = torch.gather(v, dim=1, index=outcell_index)
+            k = torch.cat([k, expand_k], dim=1)
+            v = torch.cat([v, expand_v], dim=1)
+        else:
+            local_attention_weight = None
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
 
@@ -424,10 +482,18 @@ class EquivariantAttention(nn.Module):
             attn_weights = attn_weights + attn_bias
 
         if key_padding_mask is not None:
+            if pbc_expand_batched is not None:
+                expand_mask = pbc_expand_batched["expand_mask"]
+                key_padding_mask = torch.cat([key_padding_mask, expand_mask], dim=-1)
             # don't attend to padding symbols
             attn_weights = attn_weights.masked_fill(
                 key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
                 float("-inf"),
+            )
+
+        if local_attention_weight is not None:
+            attn_weights = attn_weights.masked_fill(
+                (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
             )
 
         attn_probs_float = F.dropout(
@@ -435,6 +501,10 @@ class EquivariantAttention(nn.Module):
             self.dropout,
             self.training,
         )
+
+        if local_attention_weight is not None:
+            attn_probs_float = attn_probs_float * local_attention_weight.unsqueeze(1)
+
         attn_probs = attn_probs_float.type_as(
             attn_weights
         )  # (bsz, num_heads, tgt_len, src_len)
@@ -475,12 +545,14 @@ class InvariantSelfAttention(nn.Module):
         nn.init.xavier_uniform_(self.v_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         self.v_proj.bias.data.fill_(0)
 
-    def forward(self, x, attn_bias, mask):
+    def forward(self, x, attn_bias, mask, pbc_expand_batched: Optional[Dict] = None):
         q = self.q_proj(x)
         k = self.k_proj(x)
         v = self.v_proj(x)
 
-        attn = self.invariant_attention(q, k, v, attn_bias, mask)
+        attn = self.invariant_attention(
+            q, k, v, attn_bias, mask, pbc_expand_batched=pbc_expand_batched
+        )
 
         return attn
 
@@ -504,12 +576,14 @@ class EquivariantSelfAttention(nn.Module):
         nn.init.xavier_uniform_(self.k_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         nn.init.xavier_uniform_(self.v_proj.weight, gain=1.0 / math.sqrt(d_tilde))
 
-    def forward(self, vec, attn_bias, mask):
+    def forward(self, vec, attn_bias, mask, pbc_expand_batched: Optional[Dict] = None):
         q = self.q_proj(vec)
         k = self.k_proj(vec)
         v = self.v_proj(vec)
 
-        attn = self.equiariant_attention(q, k, v, attn_bias, mask)
+        attn = self.equiariant_attention(
+            q, k, v, attn_bias, mask, pbc_expand_batched=pbc_expand_batched
+        )
 
         return attn
 
@@ -538,7 +612,9 @@ class Invariant2EquivariantAttention(nn.Module):
         nn.init.xavier_uniform_(self.v1_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         nn.init.xavier_uniform_(self.v2_proj.weight, gain=1.0 / math.sqrt(d_tilde))
 
-    def forward(self, x, vec, attn_bias, mask):
+    def forward(
+        self, x, vec, attn_bias, mask, pbc_expand_batched: Optional[Dict] = None
+    ):
         q = self.q_proj(x)
         k1 = self.k1_proj(vec)
         k2 = self.k2_proj(vec)
@@ -547,7 +623,9 @@ class Invariant2EquivariantAttention(nn.Module):
         v2 = self.v2_proj(vec)
         v = (v1 * v2).sum(dim=-2) * (3**-0.5)  # (n_graph, n_node, feat_dim)
 
-        attn = self.invariant_attention(q, k, v, attn_bias, mask)
+        attn = self.invariant_attention(
+            q, k, v, attn_bias, mask, pbc_expand_batched=pbc_expand_batched
+        )
 
         return attn
 
@@ -594,7 +672,16 @@ class Equivariant2InvariantAttention(nn.Module):
         self.v1_proj.bias.data.fill_(0)
         nn.init.xavier_uniform_(self.v2_proj.weight, gain=1.0 / math.sqrt(d_tilde))
 
-    def forward(self, x, vec, attn_bias, mask, pos_unit, gbf_args):
+    def forward(
+        self,
+        x,
+        vec,
+        attn_bias,
+        mask,
+        pos_unit,
+        gbf_args,
+        pbc_expand_batched: Optional[Dict] = None,
+    ):
         q = self.q_proj(vec)
 
         k1 = self.k1_proj(x)
@@ -662,7 +749,9 @@ class Equivariant2InvariantAttention(nn.Module):
             k = k1.unsqueeze(-2) * feat_sum  # (n_graph, n_node, 3, feat_dim)
             v = v1.unsqueeze(-2) * feat_sum  # (n_graph, n_node, 3, feat_dim)
 
-        attn = self.equiariant_attention(q, k, v, attn_bias, mask)
+        attn = self.equiariant_attention(
+            q, k, v, attn_bias, mask, pbc_expand_batched=pbc_expand_batched
+        )
 
         return attn
 
@@ -773,30 +862,39 @@ class EncoderLayer(nn.Module):
         mask,
         pos_unit,
         gbf_args,
+        pbc_expand_batched: Optional[Dict] = None,
     ):
         # attetion
         dx = self.invariant_attn_layer_norm(x)
         dvec = self.equivariant_attn_layer_norm(vec)
 
         if self.layer_index % 2 == 0:
-            dx_invariant = self.invariant_self_attention(dx, attn_bias_iself, mask)
+            dx_invariant = self.invariant_self_attention(
+                dx, attn_bias_iself, mask, pbc_expand_batched=pbc_expand_batched
+            )
             dx_invariant = F.dropout(
                 dx_invariant, p=self.dropout, training=self.training
             )
             dvec_equivariant = self.equivariant_self_attention(
-                dvec, attn_bias_eself, mask
+                dvec, attn_bias_eself, mask, pbc_expand_batched=pbc_expand_batched
             )
             x = x + dx_invariant
             vec = vec + dvec_equivariant
         else:
             dx_equivariant = self.invariant2equivariant_attention(
-                dx, dvec, attn_bias_i2e, mask
+                dx, dvec, attn_bias_i2e, mask, pbc_expand_batched=pbc_expand_batched
             )
             dx_equivariant = F.dropout(
                 dx_equivariant, p=self.dropout, training=self.training
             )
             dvec_invariant = self.equivaiant2invariant_attention(
-                dx, dvec, attn_bias_e2i, mask, pos_unit, gbf_args
+                dx,
+                dvec,
+                attn_bias_e2i,
+                mask,
+                pos_unit,
+                gbf_args,
+                pbc_expand_batched=pbc_expand_batched,
             )
 
             x = x + dx_equivariant
@@ -827,7 +925,7 @@ class EncoderLayer(nn.Module):
 class GeomFormer(nn.Module):
     def __init__(
         self,
-        args,
+        psm_config: PSMConfig,
         num_pred_attn_layer: int,
         embedding_dim: int,
         num_attention_heads: int,
@@ -840,7 +938,7 @@ class GeomFormer(nn.Module):
         num_atoms: int,
     ):
         super().__init__()
-        self.args = args
+        self.psm_config = psm_config
 
         self.unified_encoder_layers = nn.ModuleList()
         for _ in range(num_pred_attn_layer):
@@ -862,6 +960,8 @@ class GeomFormer(nn.Module):
 
         self.unified_gbf_pos = NodeGaussianLayer(num_3d_bias_kernel, num_atoms)
 
+        self.unified_gbf_vec = GaussianLayer(num_3d_bias_kernel, num_edges)
+
         self.unified_bias_proj = nn.Linear(num_3d_bias_kernel, num_attention_heads)
 
         self.unified_vec_proj = nn.Linear(num_3d_bias_kernel, embedding_dim)
@@ -874,52 +974,119 @@ class GeomFormer(nn.Module):
 
         self.unified_output_layer = nn.Linear(embedding_dim, 1, bias=False)
 
-    def forward(self, batched_data, x, pos, padding_mask, mask_pos=None):
-        node_type_edge, node_type = (
-            # batched_data["pos"],
-            batched_data["node_type_edge"],
-            batched_data["x"][:, :, 0],
-        )
-        node_mask = batched_data["node_mask"]
-        n_node = pos.shape[1]
+        self.unified_score_output_layer = nn.Linear(embedding_dim, 1, bias=False)
 
-        uni_delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
-        dist = uni_delta_pos.norm(dim=-1).view(-1, n_node, n_node)
+    def forward(
+        self,
+        batched_data,
+        x,
+        pos,
+        padding_mask,
+        pbc_expand_batched: Optional[Dict] = None,
+    ):
+        n_node = pos.shape[1]
+        if pbc_expand_batched is not None:
+            # use pbc and multi-graph
+            node_type_edge = pbc_expand_batched["expand_node_type_edge"]
+            node_type = batched_data["x"][:, :, 0]
+            expand_pos = torch.cat([pos, pbc_expand_batched["expand_pos"]], dim=1)
+            uni_delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
+            n_expand_node = expand_pos.size()[-2]
+            expand_mask = torch.cat(
+                [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
+            )
+        else:
+            node_type_edge, node_type = (
+                batched_data["node_type_edge"],
+                batched_data["x"][:, :, 0],
+            )
+            if node_type_edge is None:
+                atomic_numbers = batched_data["x"][:, :, 0]
+                node_type_edge = torch.cat(
+                    [
+                        atomic_numbers.unsqueeze(-1).repeat(1, 1, n_node).unsqueeze(-1),
+                        atomic_numbers.unsqueeze(1).repeat(1, n_node, 1).unsqueeze(-1),
+                    ],
+                    dim=-1,
+                )
+            uni_delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
+            n_expand_node = n_node
+            expand_mask = padding_mask
+
+        dist = uni_delta_pos.norm(dim=-1).view(-1, n_node, n_expand_node)
         uni_delta_pos /= dist.unsqueeze(-1) + 1e-5
 
-        # r_i/||r_i|| * gbf(||r_i||)
-        pos_norm = pos.norm(dim=-1)
-        gbf_node_type_mask = node_mask.squeeze(-1)
-        node_type = node_type.masked_fill(gbf_node_type_mask.bool(), 0).to(node_type)
+        if self.psm_config.equivar_vec_init == VecInitApproach.ZERO_CENTERED_POS:
+            # r_i/||r_i|| * gbf(||r_i||)
+            pos_norm = pos.norm(dim=-1)
+            uni_gbf_pos_feature = self.unified_gbf_pos(
+                pos_norm, node_type.unsqueeze(-1)
+            )
+            uni_pos_feature = uni_gbf_pos_feature.masked_fill(
+                padding_mask.unsqueeze(-1), 0.0
+            )
+            uni_vec_value = self.unified_vec_proj(uni_pos_feature).unsqueeze(-2)
+            vec = pos.unsqueeze(-1) * uni_vec_value
+        elif self.psm_config.equivar_vec_init == VecInitApproach.RELATIVE_POS:
+            uni_gbf_pos_feature = self.unified_gbf_vec(
+                dist, node_type_edge
+            )  # n_graph x n_node x n_expand_node x num_kernel
+            uni_pos_feature = uni_gbf_pos_feature.masked_fill(
+                padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0
+            )
+            uni_pos_feature = uni_pos_feature.masked_fill(
+                expand_mask.unsqueeze(1).unsqueeze(-1), 0.0
+            )
+            uni_pos_feature = uni_delta_pos.unsqueeze(-1) * uni_pos_feature.unsqueeze(
+                -2
+            )  # n_graph x n_node x n_expand_node x 3 x num_kernel
+            if pbc_expand_batched is not None:
+                local_attention_weight = pbc_expand_batched["local_attention_weight"]
+                if local_attention_weight is not None:
+                    vec = (
+                        uni_pos_feature
+                        * local_attention_weight.unsqueeze(-1).unsqueeze(-1)
+                    ).sum(
+                        dim=-3
+                    )  # n_graph x n_node x 3 x num_kernel
+                else:
+                    vec = uni_pos_feature.sum(
+                        dim=-3
+                    )  # n_graph x n_node x 3 x num_kernel
+            else:
+                vec = uni_pos_feature.sum(dim=-3)  # n_graph x n_node x 3 x num_kernel
+            vec = self.unified_vec_proj(vec)  # n_graph x n_node x 3 x embedding_dim
+        else:
+            raise ValueError(
+                f"Unkown equivariant vector initialization method {self.psm_config.equivar_vec_init}"
+            )
 
-        uni_gbf_pos_feature = self.unified_gbf_pos(pos_norm, node_type.unsqueeze(-1))
-        uni_pos_feature = uni_gbf_pos_feature.masked_fill(
-            padding_mask[:, 1:].unsqueeze(-1), 0.0
-        )
-        uni_vec_value = self.unified_vec_proj(uni_pos_feature).unsqueeze(-2)
-        vec = pos.unsqueeze(-1) * uni_vec_value
-
-        vec = vec.masked_fill(padding_mask[:, 1:].unsqueeze(-1).unsqueeze(-1), 0.0)
+        vec = vec.masked_fill(padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0)
         pos_mean_centered_dist = pos.norm(dim=-1)
         pos_mean_centered_unit = pos / (pos_mean_centered_dist.unsqueeze(-1) + 1e-5)
 
         # attn_bias
-        node_mask_i = node_mask.unsqueeze(-2).repeat(1, 1, n_node, 1)
-        node_mask_j = node_mask.unsqueeze(1).repeat(1, n_node, 1, 1)
-        new_node_mask = torch.cat([node_mask_i, node_mask_j], dim=-1).bool()
-        node_type_edge = node_type_edge.masked_fill(new_node_mask, 0).to(node_type_edge)
-
         uni_gbf_feature = self.unified_gbf_attn_bias(dist, node_type_edge)
-
         uni_graph_attn_bias = (
             self.unified_bias_proj(uni_gbf_feature).permute(0, 3, 1, 2).contiguous()
         )
+
+        if pbc_expand_batched is not None:
+            expand_mask = pbc_expand_batched["expand_mask"]
+            full_mask = torch.cat([padding_mask, expand_mask], dim=-1)
+            uni_graph_attn_bias = uni_graph_attn_bias.masked_fill(
+                full_mask.unsqueeze(1).unsqueeze(2), float("-inf")
+            )
+        else:
+            uni_graph_attn_bias = uni_graph_attn_bias.masked_fill(
+                padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
+            )
         uni_graph_attn_bias = uni_graph_attn_bias.masked_fill(
-            padding_mask[:, 1:].unsqueeze(1).unsqueeze(2), float("-inf")
+            padding_mask.unsqueeze(1).unsqueeze(-1), 0.0
         )
 
-        output = x.contiguous().transpose(0, 1)[:, 1:, :]
-        output = output.masked_fill(padding_mask[:, 1:].unsqueeze(-1), 0.0)
+        output = x.contiguous().transpose(0, 1)
+        output = output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
         for layer in self.unified_encoder_layers:
             output, vec = layer(
                 output,
@@ -928,15 +1095,19 @@ class GeomFormer(nn.Module):
                 uni_graph_attn_bias,
                 uni_graph_attn_bias,
                 uni_graph_attn_bias,
-                padding_mask[:, 1:],
+                padding_mask,
                 [pos_mean_centered_unit, uni_delta_pos],
                 [dist, node_type_edge],
+                pbc_expand_batched,
             )
 
         node_output = self.unified_final_equivariant_ln(vec)
         output = self.unified_final_invariant_ln(output)
 
-        node_output = self.unified_output_layer(node_output).squeeze(-1)
-        node_output = node_output.masked_fill(padding_mask[:, 1:].unsqueeze(-1), 0.0)
+        force_output = self.unified_output_layer(node_output).squeeze(-1)
+        force_output = force_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
-        return node_output
+        score_output = self.unified_score_output_layer(node_output).squeeze(-1)
+        score_output = score_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
+
+        return output, force_output, score_output

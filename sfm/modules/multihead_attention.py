@@ -178,16 +178,18 @@ class MultiheadAttention(nn.Module):
         if pbc_expand_batched is not None:
             outcell_index = pbc_expand_batched["outcell_index"]
             expand_mask = pbc_expand_batched["expand_mask"]
+            local_attention_weight = pbc_expand_batched["local_attention_weight"]
         else:
             outcell_index = None
             expand_mask = None
+            local_attention_weight = None
 
         if outcell_index is not None:
             outcell_index = (
                 outcell_index.transpose(1, 0).unsqueeze(-1).expand(-1, -1, embed_dim)
             )
-            expand_k = torch.gather(k, dim=0, index=outcell_index + 1)
-            expand_v = torch.gather(v, dim=0, index=outcell_index + 1)
+            expand_k = torch.gather(k, dim=0, index=outcell_index)
+            expand_v = torch.gather(v, dim=0, index=outcell_index)
 
             k = torch.cat([k, expand_k], dim=0)
             v = torch.cat([v, expand_v], dim=0)
@@ -254,10 +256,28 @@ class MultiheadAttention(nn.Module):
             )
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
+        if local_attention_weight is not None:
+            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
+            attn_weights = attn_weights.masked_fill(
+                local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")
+            )
+            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
+
         if before_softmax:
             return attn_weights, v
 
         attn_weights_float = nn.functional.softmax(attn_weights, dim=-1)
+
+        if local_attention_weight is not None:
+            attn_weights_float = attn_weights_float.view(
+                bsz, self.num_heads, tgt_len, src_len
+            )
+            attn_weights_float = attn_weights_float * local_attention_weight.unsqueeze(
+                1
+            )
+            attn_weights_float = attn_weights_float.view(
+                bsz * self.num_heads, tgt_len, src_len
+            )
 
         attn_weights = attn_weights_float.type_as(attn_weights)
 

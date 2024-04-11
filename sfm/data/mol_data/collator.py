@@ -564,6 +564,7 @@ def collator_ft(
             if use_pbc
             else None,
             (int(item.num_atoms) if hasattr(item, "num_atoms") else item.x.size()[0]),
+            (int(item.num_atoms_in_cell) if use_pbc else None),
         )
         for item in items
     ]
@@ -580,6 +581,7 @@ def collator_ft(
         pbcs,
         cells,
         natoms,
+        num_atoms_in_cells,
     ) = zip(*items)
 
     for idx, _ in enumerate(attn_biases):
@@ -603,6 +605,7 @@ def collator_ft(
     pbc = torch.cat([i.unsqueeze(0) for i in pbcs], dim=0) if use_pbc else None
     cell = torch.cat([i.unsqueeze(0) for i in cells], dim=0) if use_pbc else None
     natoms = torch.tensor(natoms) if use_pbc else None
+    num_atoms_in_cell = torch.tensor(num_atoms_in_cells) if use_pbc else None
 
     return dict(
         idx=torch.LongTensor(idxs),
@@ -612,6 +615,7 @@ def collator_ft(
         in_degree=in_degree,
         out_degree=in_degree,  # for undirected graph
         x=x,
+        token_id=x[:, :, 0],
         edge_input=edge_input,
         y=y,
         pos=pos,
@@ -622,6 +626,7 @@ def collator_ft(
         pbc=pbc,
         cell=cell,
         natoms=natoms,
+        num_atoms_in_cell=num_atoms_in_cell,
         forces=forces,
     )
 
