@@ -56,7 +56,7 @@
 [ -z "${wandb_group}" ] && wandb_group=NLM
 [ -z "${wandb_team}" ] && wandb_team=peiranjin
 [ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
-[ -z "${wandb_key}" ] && wandb_key=e9150e973268b83f75cda414757706e08e6a7a93
+[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
