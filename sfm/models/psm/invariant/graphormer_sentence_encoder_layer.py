@@ -167,8 +167,11 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             pbc_expand_batched: The pbc expand batched data.
         """
         # TODO: graphormer stype attn bias
-        self_attn_bias = self.attn_bias(
-            batch_data, masked_token_type, self_attn_padding_mask
+        self_attn_bias, _ = self.attn_bias(
+            batch_data,
+            masked_token_type,
+            self_attn_padding_mask,
+            pbc_expand_batched=pbc_expand_batched,
         )
 
         # x: T x B x C

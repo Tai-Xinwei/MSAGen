@@ -7,7 +7,6 @@ from enum import Enum
 from typing import List, Type
 
 import yaml
-from pydantic import create_model, parse_file_as
 
 from sfm.logging import logger
 
