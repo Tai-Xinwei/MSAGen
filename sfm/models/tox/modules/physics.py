@@ -63,11 +63,14 @@ class MixtureGaussian(torch.nn.Module):
             # masked_diff_squared = torch.where(self.mask[k], diff_squared, torch.zeros_like(diff_squared))
             # func[k] = -1.0 * torch.sum(self.mask[k]) / self.sigma[k, 0, 0] ** 2 + torch.sum(masked_diff_squared) / self.sigma[k, 0, 0] ** 2
 
-            diff_squared = ((q_point[k, :, :] - mu[k, :, :]) / self.sigma[k]) ** 2
+            diff_squared = (q_point[k, :, :] - mu[k, :, :]) ** 2
             masked_diff_squared = torch.where(
                 self.mask[k], diff_squared, torch.zeros_like(diff_squared)
             )
-            func[k] = -1.0 * torch.sum(self.mask[k]) + torch.sum(masked_diff_squared)
+            # sigma**4 * laplace q/q
+            func[k] = -1.0 * torch.sum(self.mask[k]) * self.sigma**2 + torch.sum(
+                masked_diff_squared
+            )
 
         return func
 
@@ -340,10 +343,12 @@ def compute_PDE_qloss(
     ).any(), "nabla_phi_term should not contain nan"
     assert not torch.isnan(q_output).any(), "diffusion should not contain nan"
 
+    # nabla_phi_term = sigma_t^2 * nabla q/q
+    # laplace_phi_term = sigma_t^4 * laplace q/q
     RHS = -math.log(sde.sigma_max / sde.sigma_min) * (
         (sigma_t[:, 0, 0] * torch.sum(q_output**2, dim=(1, 2))).reshape(-1, 1, 1)
         * nabla_phi_term
-        + q_output * (sigma_t[:, 0, 0] ** 2 * laplace_phi_term).reshape(-1, 1, 1)
+        + q_output * laplace_phi_term.reshape(-1, 1, 1)
     )
 
     assert not torch.isnan(LHS).any(), "LHS should not contain nan"
@@ -382,8 +387,8 @@ def compute_pde_control_loss(output, epsilon):
         The computed loss.
 
     """
-    # Now is regular MSE loss
-    loss = torch.mean(torch.sum(output * (output - epsilon), dim=(1, 2)))
+    # Now is regular MSE loss, here we approximate it by square
+    loss = torch.mean(torch.sum((output * (output - epsilon)) ** 2, dim=(1, 2)))
     return loss
 
 

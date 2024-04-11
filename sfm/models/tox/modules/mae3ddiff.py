@@ -472,10 +472,11 @@ class ProteinMAEDistCriterions(nn.Module):
         logits = output_dict["x"]
         pair_output = output_dict["x_pair"]
         angle_output = output_dict["angle_output"]
+        ang_epsilon = output_dict["ang_epsilon"]  # add agn_epsilon target
         output_dict["mask_pos"]
         mask_aa = output_dict["mask_aa"]
-        ang_score = output_dict["ang_score"]
-        ang_score_norm = output_dict["ang_score_norm"]
+        # ang_score = output_dict["ang_score"]
+        output_dict["ang_score_norm"]
         padding_mask = output_dict["padding_mask"]
         output_dict["backbone"]
 
@@ -559,21 +560,18 @@ class ProteinMAEDistCriterions(nn.Module):
         mask_angle = angle_mask & (~padding_mask.bool().unsqueeze(-1))
 
         if self.diffmode == "score":
-            ang_score = ang_score[:, :, :3]
-            ang_score = ang_score[mask_angle.squeeze(-1)]
-            angle_output = angle_output.to(torch.float32) * torch.sqrt(
-                ang_score_norm.to(torch.float32)
-            )
+            ang_epsilon = ang_epsilon[:, :, :3]
+            ang_epsilon = ang_epsilon[mask_angle.squeeze(-1)]
             angle_output = angle_output[mask_angle.squeeze(-1)]
-            angle_loss = ((ang_score - angle_output) ** 2).mean()
+            angle_loss = ((ang_epsilon - angle_output) ** 2).mean()
         elif self.diffmode == "x0":
             angle_output = angle_output[mask_angle.squeeze(-1)]
             ori_angle = ori_angle[mask_angle.squeeze(-1)]
             angle_loss = self.loss_angle(
                 angle_output.to(torch.float32), ori_angle.to(torch.float32)
             )
-        # # else:
-        # angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
+        else:
+            angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         loss = type_loss + angle_loss / torch.pi + dist_loss
 
@@ -665,14 +663,11 @@ class ProteinMAEDistPDECriterions(nn.Module):
 
         """----------------------angle loss----------------------"""
         angle_output = output_dict["angle_output"]
-        angle_epsilon = output_dict["ang_epsilon"]
+        ang_epsilon = output_dict["ang_epsilon"]
         if unified_angle_mask.any():
             if self.diffmode == "score":
                 # retrieve the noise
-                angle_epsilon_masked = angle_epsilon[unified_angle_mask].to(
-                    torch.float32
-                )
-                # from epsilon to noise
+                angle_epsilon_masked = ang_epsilon[unified_angle_mask].to(torch.float32)
                 angle_output_masked = angle_output[unified_angle_mask].to(torch.float32)
                 angle_loss = ((angle_output_masked - angle_epsilon_masked) ** 2).mean()
             elif self.diffmode == "x0":
@@ -728,12 +723,12 @@ class ProteinMAEDistPDECriterions(nn.Module):
             angle_output = torch.where(
                 unified_angle_mask, angle_output, torch.zeros_like(angle_output)
             ).to(torch.float32)
-            angle_epsilon = torch.where(
-                unified_angle_mask, angle_epsilon, torch.zeros_like(angle_epsilon)
+            ang_epsilon = torch.where(
+                unified_angle_mask, ang_epsilon, torch.zeros_like(ang_epsilon)
             ).to(torch.float32)
             pde_control_loss = compute_pde_control_loss(
                 angle_output,
-                angle_epsilon,
+                ang_epsilon,
             )
         else:
             pde_control_loss = torch.tensor(
