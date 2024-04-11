@@ -8,7 +8,7 @@ from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 
 
 @dataclass
-class ScigptMoeConfig(MixtralConfig, DistributedTrainConfig):
+class MoeModelConfig(MixtralConfig, DistributedTrainConfig):
     model_type: str = "scigpt_moe"
 
     vocab_size: int = 34177
@@ -53,7 +53,7 @@ class ScigptMoeConfig(MixtralConfig, DistributedTrainConfig):
     infer: bool = False
 
 
-def scigptmoe_tiny_config(config: ScigptMoeConfig):
+def sfm_nlm_moe_tiny_config(config: MoeModelConfig):
     # just for debug
     config.hidden_size = 1024
     config.intermediate_size = 4096
@@ -63,7 +63,7 @@ def scigptmoe_tiny_config(config: ScigptMoeConfig):
     return config
 
 
-def scigptmoe_8x7b_config(config: ScigptMoeConfig):
+def sfm_nlm_moe_8x7b_config(config: MoeModelConfig):
     # see https://huggingface.co/mistralai/Mixtral-8x7B-v0.1/blob/main/config.json
     config.hidden_size = 4096
     config.intermediate_size = 14336

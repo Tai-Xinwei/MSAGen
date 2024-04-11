@@ -9,12 +9,12 @@ from transformers.models.mixtral.modeling_mixtral import (
     MixtralSparseMoeBlock,
 )
 
-from sfm.models.scigpt.moe_config import ScigptMoeConfig
+from sfm.models.nlm.moe_config import MoeModelConfig
 from sfm.utils.pipelinemode import pipemode
 
 
-class ScigptMoeEmbeddingsPP(nn.Module):
-    def __init__(self, config: ScigptMoeConfig):
+class MoeEmbeddingsPP(nn.Module):
+    def __init__(self, config: MoeModelConfig):
         super().__init__()
         self.config = config
         self.learnable_cutoff = config.learnable_cutoff
@@ -130,8 +130,8 @@ class SafeMixtralSparseMoeBlock(MixtralSparseMoeBlock):
         return final_hidden_states, router_logits
 
 
-class ScigptMoeDecoderLayerPP(nn.Module):
-    def __init__(self, config: ScigptMoeConfig, layer_idx: int):
+class MoeDecoderLayerPP(nn.Module):
+    def __init__(self, config: MoeModelConfig, layer_idx: int):
         super().__init__()
         self.config = config
         self.layer_idx = layer_idx
@@ -197,8 +197,8 @@ class ScigptMoeDecoderLayerPP(nn.Module):
         return hidden_states, position_ids, gate_logits
 
 
-class ScigptMoeNormPP(nn.Module):
-    def __init__(self, config: ScigptMoeConfig):
+class MoeNormPP(nn.Module):
+    def __init__(self, config: MoeModelConfig):
         super().__init__()
         self.config = config
         self.norm = MixtralRMSNorm(config.hidden_size)
@@ -214,8 +214,8 @@ class ScigptMoeNormPP(nn.Module):
         return self.norm(hidden_states), gate_logits
 
 
-class ScigptMoeHeadPP(nn.Module):
-    def __init__(self, config: ScigptMoeConfig):
+class MoeHeadPP(nn.Module):
+    def __init__(self, config: MoeModelConfig):
         super().__init__()
         self.config = config
         self.learnable_cutoff = config.learnable_cutoff

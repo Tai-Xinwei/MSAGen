@@ -3,19 +3,23 @@
 from sfm.data.sci_data.dataset import ProcessedSciDataset
 from sfm.data.sci_data.SFMDecTokenizer import SFMDecTokenizer
 from sfm.logging import logger
-from sfm.models.scigpt.moe_config import ScigptMoeConfig, scigptmoe_tiny_config, scigptmoe_8x7b_config
-from sfm.models.scigpt.scigpt_moe import ScigptMoeModel
+from sfm.models.nlm.moe_config import (
+    MoeModelConfig,
+    sfm_nlm_moe_8x7b_config,
+    sfm_nlm_moe_tiny_config,
+)
+from sfm.models.nlm.moe_model import Model
 from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils import arg_utils
 from sfm.utils.cli_utils import cli
 
 config_registry = {
-    "scigptmoe_tiny": scigptmoe_tiny_config,
-    "scigptmoe_8x7b": scigptmoe_8x7b_config
+    "scigptmoe_tiny": sfm_nlm_moe_tiny_config,
+    "scigptmoe_8x7b": sfm_nlm_moe_8x7b_config,
 }
 
 
-@cli(ScigptMoeConfig)
+@cli(MoeModelConfig)
 def main(args) -> None:
     assert (
         args.train_data_path is not None and len(args.train_data_path) > 0
@@ -30,12 +34,12 @@ def main(args) -> None:
         args.vocab_size = len(tokenizer)  # now we have new tokens
         args.pad_token_id = tokenizer.pad_token_id
 
-    config = arg_utils.from_args(args, ScigptMoeConfig)
-    config = config_registry.get(config.model_type, scigptmoe_tiny_config)(config)
+    config = arg_utils.from_args(args, MoeModelConfig)
+    config = config_registry.get(config.model_type, sfm_nlm_moe_tiny_config)(config)
 
     logger.info(f"config: {config}")
 
-    model = ScigptMoeModel(config)
+    model = Model(config)
 
     train_dataset = ProcessedSciDataset(
         config.train_data_path,

@@ -2,25 +2,23 @@
 
 import os
 
-from torch.optim import AdamW
-
 from sfm.criterions.lm_moe import LmMoeCriterion
-from sfm.models.scigpt.moe_config import ScigptMoeConfig
-from sfm.models.scigpt.moe_modules import (
-    ScigptMoeDecoderLayerPP,
-    ScigptMoeEmbeddingsPP,
-    ScigptMoeHeadPP,
-    ScigptMoeNormPP,
+from sfm.models.nlm.moe_config import MoeModelConfig
+from sfm.models.nlm.moe_modules import (
+    MoeDecoderLayerPP,
+    MoeEmbeddingsPP,
+    MoeHeadPP,
+    MoeNormPP,
 )
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
-from sfm.utils.optim.optimizer import myAdam, myAdamW
+from sfm.utils.optim.optimizer import myAdamW
 from sfm.utils.optim.set_lr import DECAY_COSINE_RATE, groupWarmupDecayLR
 
 
-class ScigptMoeModel(SFMPipelineModelMixin):
-    def __init__(self, config: ScigptMoeConfig):
+class Model(SFMPipelineModelMixin):
+    def __init__(self, config: MoeModelConfig):
         super().__init__()
         self.config = config
         self.loss = LmMoeCriterion(config)
@@ -35,7 +33,7 @@ class ScigptMoeModel(SFMPipelineModelMixin):
 
         layers.append(
             PretrainedLayerSpec(
-                ScigptMoeEmbeddingsPP,
+                MoeEmbeddingsPP,
                 self.config,
                 new_num_tokens=self.config.vocab_size,
                 pretrained_ckpt_path=pretrained_ckpt_path,
@@ -53,7 +51,7 @@ class ScigptMoeModel(SFMPipelineModelMixin):
 
             layers.append(
                 PretrainedLayerSpec(
-                    ScigptMoeDecoderLayerPP,
+                    MoeDecoderLayerPP,
                     self.config,
                     layer_idx=i,
                     pretrained_ckpt_path=pretrained_ckpt_path,
@@ -67,7 +65,7 @@ class ScigptMoeModel(SFMPipelineModelMixin):
 
         layers.append(
             PretrainedLayerSpec(
-                ScigptMoeNormPP,
+                MoeNormPP,
                 self.config,
                 pretrained_ckpt_path=pretrained_ckpt_path,
                 load_ckpt=self.config.load_ckpt,
@@ -80,7 +78,7 @@ class ScigptMoeModel(SFMPipelineModelMixin):
 
         layers.append(
             PretrainedLayerSpec(
-                ScigptMoeHeadPP,
+                MoeHeadPP,
                 self.config,
                 new_num_tokens=self.config.vocab_size,
                 pretrained_ckpt_path=pretrained_ckpt_path,
