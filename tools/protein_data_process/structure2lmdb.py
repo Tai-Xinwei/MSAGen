@@ -69,7 +69,7 @@ def processafdb(
     if Path(output_file).exists():
         logger.warning(f"Output file {output_file} exists. Stop.")
         return
-    env = lmdb.open(output_file, map_size=1024**4)
+    env = lmdb.open(output_file, map_size=8*1024**4) # 8TB max size
     metadata = {
         "sizes": [],
         "keys": [],
@@ -104,11 +104,11 @@ def merge(lmdb_files: List[str], output_file: str):
     logger.warning(f"Merging {len(lmdb_files)} lmdb files into {output_file}")
     metadata_dicts = []
     metadata = {"sizes": [], "keys": [], "comment": ""}
-    env = lmdb.open(output_file, map_size=1024**4)
+    env = lmdb.open(output_file, map_size=8*1024**4) # 8TB max size
     for lmdb_file in tqdm(lmdb_files, ncols=80, desc="# LMDBs merged"):
         txn = env.begin(write=True)
         exist_keys = set(list(txn.cursor().iternext(values=False)))
-        env2 = lmdb.open(lmdb_file, readonly=True)
+        env2 = lmdb.open(lmdb_file, readonly=True, map_size=8*1024**4) # 8TB max size
         keys = list(env2.begin(write=False).cursor().iternext(values=False))
         # progress bar
         with tqdm(total=len(keys), ncols=150, desc=f"Merging {Path(lmdb_file).stem}", leave=False) as pbar:
