@@ -61,17 +61,45 @@ def convert_to_single_emb(x, offset: int = 512):
 
 def preprocess_item(item, idx):
     numbers = item.pop("numbers")
-    item["x"] = torch.tensor(numbers, dtype=torch.long).unsqueeze(-1)
+    item["x"] = torch.tensor(numbers, dtype=torch.long)
+    item["x"] = torch.cat(
+        [item["x"], torch.full([8], 128)], dim=-1
+    )  # use 128 for unit cell corners
+    item["x"] = item["x"].unsqueeze(-1)
     positions = item.pop("positions")
     item["pos"] = torch.tensor(positions, dtype=torch.float64)
+
+    item["cell"] = torch.tensor(item["cell"], dtype=torch.float64)
+    cell_corner_pos_matrix = torch.tensor(
+        [
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 1.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 0.0, 1.0],
+            [1.0, 1.0, 0.0],
+            [1.0, 1.0, 1.0],
+        ],
+        dtype=torch.float64,
+    )
+
+    cell_corner_pos = torch.matmul(cell_corner_pos_matrix, item["cell"])
+    item["pos"] = torch.cat(
+        [item["pos"], cell_corner_pos], dim=0
+    )  # expand pos with cell corners
+    item["num_atoms_in_cell"] = int(item["x"].size()[0] - 8)
+
     item["edge_attr"] = torch.zeros([0, 3], dtype=torch.long)
     item["edge_index"] = torch.zeros([2, 0], dtype=torch.long)
-    item["cell"] = torch.tensor(item["cell"], dtype=torch.float64)
     item["pbc"] = torch.tensor(item["pbc"], dtype=torch.bool)
     item["idx"] = idx
     item["y"] = torch.tensor([item["info"]["energy"] / item["x"].size()[0]])
     item["stress"] = torch.tensor(item["info"]["stress"], dtype=torch.float64)
     item["forces"] = torch.tensor(item["forces"], dtype=torch.float64)
+    item["forces"] = torch.cat(
+        [item["forces"], torch.zeros([8, 3], dtype=torch.float64)], dim=0
+    )  # expand forces for cell corners
 
     item = Data(**item)
 

@@ -7,6 +7,8 @@ from typing import Callable, Dict, Optional, Tuple
 import torch
 import torch.nn as nn
 
+from ..modules.pbc import CellExpander
+from ..psm_config import PSMConfig
 from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
 
 
@@ -15,7 +17,7 @@ class PSMEncoder(nn.Module):
     Class for the invariant encoder in the PSM model.
     """
 
-    def __init__(self, args, psm_config):
+    def __init__(self, args, psm_config: PSMConfig):
         """
         Initialize the PSMEncoder class.
         """
@@ -27,6 +29,7 @@ class PSMEncoder(nn.Module):
             self.layers.extend(
                 [
                     self.build_transformer_sentence_encoder_layer(
+                        psm_config=psm_config,
                         embedding_dim=psm_config.embedding_dim,
                         ffn_embedding_dim=psm_config.ffn_embedding_dim,
                         num_attention_heads=psm_config.num_attention_heads,
@@ -40,8 +43,18 @@ class PSMEncoder(nn.Module):
                 ]
             )
 
+        self.cell_expander = CellExpander(
+            psm_config.pbc_expanded_distance_cutoff,
+            psm_config.pbc_expanded_token_cutoff,
+            psm_config.pbc_expanded_num_cell_per_direction,
+            psm_config.pbc_multigraph_cutoff,
+        )
+
+        self.psm_config = psm_config
+
     def build_transformer_sentence_encoder_layer(
         self,
+        psm_config,
         embedding_dim,
         ffn_embedding_dim,
         num_attention_heads,
@@ -49,11 +62,6 @@ class PSMEncoder(nn.Module):
         attention_dropout,
         activation_dropout,
         activation_fn,
-        export,
-        q_noise,
-        qn_block_size,
-        sandwich_ln,
-        droppath_prob,
         nl,
         args,
     ):
@@ -67,17 +75,13 @@ class PSMEncoder(nn.Module):
             attention_dropout: Attention dropout rate.
             activation_dropout: Activation dropout rate.
             activation_fn: Activation function.
-            export: If True, export the model.
-            q_noise: Noise for quantization.
-            qn_block_size: Block size for quantization.
-            sandwich_ln: If True, use sandwich layer normalization.
-            droppath_prob: Dropout path probability.
             nl: Number of layers.
             args: Command line arguments.
         Returns:
             GraphormerSentenceEncoderLayer: The transformer sentence encoder layer.
         """
         return GraphormerSentenceEncoderLayer(
+            psm_config=psm_config,
             embedding_dim=embedding_dim,
             ffn_embedding_dim=ffn_embedding_dim,
             num_attention_heads=num_attention_heads,
@@ -85,11 +89,6 @@ class PSMEncoder(nn.Module):
             attention_dropout=attention_dropout,
             activation_dropout=activation_dropout,
             activation_fn=activation_fn,
-            export=export,
-            q_noise=q_noise,
-            qn_block_size=qn_block_size,
-            sandwich_ln=sandwich_ln,
-            droppath_prob=droppath_prob,
             nl=nl,
             args=args,
             pp_mode=False,
@@ -113,7 +112,20 @@ class PSMEncoder(nn.Module):
             torch.Tensor: Encoded tensor, [B, L, H].
         """
         attn_mask = None
-        pbc_expand_batched = None
+        if (
+            "pbc" in batch_data
+            and batch_data["pbc"] is not None
+            and torch.any(batch_data["pbc"])
+        ):
+            pos = batch_data["pos"]
+            pbc = batch_data["pbc"]
+            atoms = batch_data["token_id"]
+            cell = batch_data["cell"]
+            pbc_expand_batched = self.cell_expander.expand(
+                pos, pbc, atoms, cell, self.psm_config.pbc_use_local_attention
+            )
+        else:
+            pbc_expand_batched = None
 
         for nl, layer in enumerate(self.layers):
             x, _ = layer(
@@ -125,4 +137,4 @@ class PSMEncoder(nn.Module):
                 pbc_expand_batched=pbc_expand_batched,
             )
 
-        return x
+        return x, pbc_expand_batched
