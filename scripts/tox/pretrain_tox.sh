@@ -59,7 +59,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=SFM_tox
+[ -z "${wandb_group}" ] && wandb_group=tox
 [ -z "${wandb_team}" ] && wandb_team=peiranjin
 [ -z "${wandb_project}" ] && wandb_project=SFM_tox
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
