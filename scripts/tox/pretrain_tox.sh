@@ -59,9 +59,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=bfmdiff
+[ -z "${wandb_group}" ] && wandb_group=SFM_tox
 [ -z "${wandb_team}" ] && wandb_team=peiranjin
-[ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
+[ -z "${wandb_project}" ] && wandb_project=SFM_tox
+[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -123,8 +124,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin local-094f941ede8eda7a00c307f50595f054be5382f7
-export WANDB_API_KEY=local-094f941ede8eda7a00c307f50595f054be5382f7
+wandb login --relogin $wandb_key
+export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
