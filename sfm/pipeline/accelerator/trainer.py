@@ -357,9 +357,11 @@ class Trainer(object):
                 "cpu" if self.args.cpu else "cuda",
             )
         elif self.args.strategy in [
+            TrainStrategy.Zero0,
             TrainStrategy.Zero1,
             TrainStrategy.Zero2,
             TrainStrategy.Zero3,
+            TrainStrategy.ZeroInf,
             TrainStrategy.Pipeline,
             TrainStrategy.ThreeD,
         ]:
@@ -596,9 +598,11 @@ class Trainer(object):
                                     / f"checkpoint_E{self.early_stopping.best_at}.pt"
                                 )
                             elif self.args.strategy in [
+                                TrainStrategy.Zero0,
                                 TrainStrategy.Zero1,
                                 TrainStrategy.Zero2,
                                 TrainStrategy.Zero3,
+                                TrainStrategy.ZeroInf,
                             ]:
                                 best_ckpt_path = (
                                     Path(self.args.save_dir)
@@ -885,3 +889,6 @@ class Trainer(object):
         logger.info(
             f"Memory summary:\n{str(torch.cuda.memory_summary(self.args.rank))}"
         )
+
+        if self.args.strategy.find("Zero") == 0:
+            deepspeed.comm.log_summary()

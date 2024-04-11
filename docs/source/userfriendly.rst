@@ -75,7 +75,8 @@ Training Strategy
    :undoc-members:
    :show-inheritance:
 
-The training strategy is used to define the training strategy. The trainer supports 7 modes: Single GPU, DDP, Zero1, Zero2, Zero3, Pipeline parallelism, 3D parallelism. The training strategy can be used by the following code:
+The training strategy is used to define the training strategy. The trainer supports 9 modes: Single GPU, DDP (Distributed Data-Parallel), Zero0 (pure DeepSpeed), Zero1, Zero2, Zero3, ZeroInf (Zero-Infinity),
+Pipeline parallelism and 3D parallelism. The training strategy can be used by the following code:
 
 .. code-block:: bash
 

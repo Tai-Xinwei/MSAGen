@@ -12,6 +12,9 @@ from torch import Tensor, nn
 
 from sfm.logging import logger
 
+# from torch.nn.attention import SDPBackend, sdpa_kernel
+
+
 try:
     from flash_attn import flash_attn_func, flash_attn_qkvpacked_func
 
@@ -23,6 +26,13 @@ from .FairseqDropout import FairseqDropout
 from .layer_norm import Fp32LayerNorm, LayerNorm
 from .quant_noise import quant_noise
 from .rotary_embedding import RotaryEmbedding
+
+
+@torch.compiler.disable
+def ext_flash_attn(q: Tensor, k: Tensor, v: Tensor, dropout: float) -> Tensor:
+    return flash_attn_func(
+        q, k, v, dropout_p=dropout, causal=False
+    )  # [B, tgt_len, nhead, ndim]
 
 
 class FlashAttn(nn.Module):
@@ -226,14 +236,20 @@ class FlashAttn(nn.Module):
             raise NotImplementedError("mem efficient attn not support attn_bias")
 
         if attn_mask is None:
-            attn = flash_attn_func(
-                q, k, v, dropout_p=self.dropout
-            )  # [B, tgt_len, nhead, ndim]
+            attn = ext_flash_attn(q, k, v, self.dropout)
             attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
         else:
             q = q.permute(0, 2, 1, 3)
             k = k.permute(0, 2, 1, 3)
             v = v.permute(0, 2, 1, 3)
+            # FutureWarning: torch.backends.cuda.sdp_kernel() is deprecated. In the future, this context manager will be replaced as:
+            # with sdpa_kernel(
+            #     [
+            #         SDPBackend.MATH,
+            #         SDPBackend.FLASH_ATTENTION,
+            #         SDPBackend.EFFICIENT_ATTENTION,
+            #     ]
+            # ):
             with torch.backends.cuda.sdp_kernel(
                 enable_math=True, enable_mem_efficient=True, enable_flash=True
             ):
@@ -243,6 +259,7 @@ class FlashAttn(nn.Module):
                     v,
                     dropout_p=self.dropout,
                     attn_mask=attn_mask,
+                    is_casual=False,
                 )
             attn = (
                 attn.transpose(1, 2)

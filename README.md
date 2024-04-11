@@ -50,7 +50,7 @@ environment:
 For development / debug, create conda environment from the YAML files in `./install` folder:
 
 ```bash
-conda env revmoe -n sfm
+conda env remove -n sfm
 conda env create -f ./install/py39-torch2.2.2-cuda12.1.yaml -n sfm
 # conda env create -f ./install/py310-torch2.2.2-cuda12.1.yaml -n sfm
 
