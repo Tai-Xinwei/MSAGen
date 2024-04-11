@@ -81,6 +81,7 @@ def main(args) -> None:
     logger.info(f"length of dataset: {len(data_module['eval_dataset'])}")
     logger.info(f"vocab size: {data_module['vocab_size']}")
 
+    args.val_batch_log_interval = 100
     model = ProGPTModel(args, data_module["vocab_size"])
 
     trainer = Trainer(
