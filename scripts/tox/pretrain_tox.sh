@@ -167,7 +167,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
           --d_tilde $d_tilde \
           --strategy $strategy \
           --max_lr $max_lr \
-          --t_timesteps 1000 \
+          --num_timesteps 1000 \
           --seq_masking_method $seq_masking_method \
           --mode_prob $mode_prob --noise_mode $noise_mode\
           --total_num_steps $total_num_steps \

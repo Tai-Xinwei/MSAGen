@@ -426,7 +426,7 @@ class TOX(nn.Module):
             else:
                 raise NotImplementedError
 
-        self.t_timesteps = args.t_timesteps
+        self.num_timesteps = args.num_timesteps
 
         self.diffnoise = DiffNoise(pfm_config)
 
