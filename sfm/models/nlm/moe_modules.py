@@ -12,8 +12,17 @@ from transformers.models.mixtral.modeling_mixtral import (
     MixtralSparseMoeBlock,
 )
 
+from sfm.logging import logger
 from sfm.models.nlm.moe_config import MoeModelConfig
 from sfm.utils.pipelinemode import pipemode
+
+try:
+    from apex.normalization.fused_layer_norm import FusedRMSNorm as RMSNorm
+
+    logger.info("using apex fused RMSNorm")
+except ImportError:
+    logger.info("using MixtralRMSNorm")
+    RMSNorm = MixtralRMSNorm
 
 
 def to_magablocks_config(config: MoeModelConfig) -> MegablocksArguments:
@@ -42,7 +51,7 @@ def to_magablocks_config(config: MoeModelConfig) -> MegablocksArguments:
         # Compute arguments
         memory_optimized_mlp=False,
         mlp_type="glu",
-        mlp_impl="grouped",
+        mlp_impl=config.moe_impl,  # grouped, sparse
         # Initialization arguments.
         fp16=config.fp16,
         bf16=config.bf16,
@@ -73,11 +82,11 @@ class MoeEmbeddingsPP(nn.Module):
             0, seq_len, dtype=torch.long, device=input_ids.device
         ).expand(bsz, -1)
 
-        gate_logits = torch.zeros(
+        gate_scores = torch.zeros(
             self.config.num_hidden_layers, bsz, seq_len, self.config.num_local_experts
         ).to(self.embed_tokens.weight)
 
-        return text_embeds, position_ids, gate_logits
+        return text_embeds, position_ids, gate_scores
 
     def freeze_parital_weight_hook(self, grad):
         grad[: self.learnable_cutoff, :] = 0
@@ -104,6 +113,9 @@ class SafeMixtralSparseMoeBlock(MixtralSparseMoeBlock):
         routing_weights = torch.nn.functional.softmax(
             router_logits, dim=1, dtype=torch.float
         )
+
+        routing_scores = routing_weights
+
         routing_weights, selected_experts = torch.topk(
             routing_weights, self.top_k, dim=-1
         )
@@ -163,12 +175,13 @@ class SafeMixtralSparseMoeBlock(MixtralSparseMoeBlock):
         final_hidden_states = final_hidden_states.reshape(
             batch_size, sequence_length, hidden_dim
         )
-        return final_hidden_states, router_logits
+        return final_hidden_states, routing_scores
 
 
 class MegaBlockMoeBlock(dmoe.dMoE):
     def __init__(self, config: MoeModelConfig):
         args = to_magablocks_config(config)
+        logger.info("using MegaBlockMoeBlock, args: %s", args)
         super().__init__(args)
         self.config = config
         self.args = args
@@ -238,43 +251,21 @@ class MoeDecoderLayerPP(nn.Module):
         self.layer_idx = layer_idx
 
         self.self_attn = MixtralFlashAttention2(config, layer_idx=layer_idx)
-        self.block_sparse_moe = SafeMixtralSparseMoeBlock(config)
-        self.input_layernorm = MixtralRMSNorm(config.hidden_size)
-        self.post_attention_layernorm = MixtralRMSNorm(config.hidden_size)
-
-        if config.compile_layers:
-            # Moe And Flash attn cannot be compiled yet.
-            self.input_layernorm = torch.compile(self.input_layernorm)
-            self.post_attention_layernorm = torch.compile(self.post_attention_layernorm)
+        if config.moe_impl == "vanilla":
+            self.block_sparse_moe = SafeMixtralSparseMoeBlock(config)
+        else:
+            self.block_sparse_moe = MegaBlockMoeBlock(config)
+        self.input_layernorm = RMSNorm(config.hidden_size)
+        self.post_attention_layernorm = RMSNorm(config.hidden_size)
 
         self.param_dict = {
             "hidden_states": torch.Tensor,
             "position_ids": torch.Tensor,
-            "gate_logits": torch.Tensor,
+            "gate_scores": torch.Tensor,
         }
 
-    def state_dict(self):
-        state_dict = super().state_dict()
-        if self.config.compile_layers:
-            return {k.replace("._orig_mod", ""): v for k, v in state_dict.items()}
-        else:
-            return state_dict
-
-    def load_state_dict(self, state_dict, strict=True, assign=False):
-        if self.config.compile_layers:
-            state_dict_compiled = {}
-            for k, v in state_dict.items():
-                if "layernorm" in k:
-                    fields = k.split(".")
-                    fields = fields[0] + "._orig_mod." + ".".join(fields[1:])
-                    state_dict_compiled[fields] = v
-                else:
-                    state_dict_compiled[k] = v
-            state_dict = state_dict_compiled
-        return super().load_state_dict(state_dict, strict, assign)
-
     @pipemode
-    def forward(self, hidden_states, position_ids, gate_logits):
+    def forward(self, hidden_states, position_ids, gate_scores):
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
 
@@ -290,12 +281,12 @@ class MoeDecoderLayerPP(nn.Module):
 
         residual = hidden_states
         hidden_states = self.post_attention_layernorm(hidden_states)
-        hidden_states, router_logits = self.block_sparse_moe(hidden_states)
+        hidden_states, router_scores = self.block_sparse_moe(hidden_states)
         hidden_states = residual + hidden_states
 
-        gate_logits[self.layer_idx] = router_logits
+        gate_scores[self.layer_idx] = router_scores
 
-        return hidden_states, position_ids, gate_logits
+        return hidden_states, position_ids, gate_scores
 
 
 class MoeNormPP(nn.Module):
@@ -307,12 +298,12 @@ class MoeNormPP(nn.Module):
         self.param_dict = {
             "hidden_states": torch.Tensor,
             "position_ids": torch.Tensor,
-            "gate_logits": torch.Tensor,
+            "gate_scores": torch.Tensor,
         }
 
     @pipemode
-    def forward(self, hidden_states, position_ids, gate_logits):
-        return self.norm(hidden_states), gate_logits
+    def forward(self, hidden_states, position_ids, gate_scores):
+        return self.norm(hidden_states), gate_scores
 
 
 class MoeHeadPP(nn.Module):
@@ -325,7 +316,7 @@ class MoeHeadPP(nn.Module):
 
         self.param_dict = {
             "hidden_states": torch.Tensor,
-            "gate_logits": torch.Tensor,
+            "gate_scores": torch.Tensor,
         }
 
     @property
@@ -337,5 +328,5 @@ class MoeHeadPP(nn.Module):
         return grad
 
     @pipemode
-    def forward(self, hidden_states, gate_logits):
-        return self.lm_head(hidden_states), gate_logits
+    def forward(self, hidden_states, gate_scores):
+        return self.lm_head(hidden_states), gate_scores

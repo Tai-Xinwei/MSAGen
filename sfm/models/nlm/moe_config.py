@@ -38,6 +38,7 @@ class MoeModelConfig(MixtralConfig, DistributedTrainConfig):
     output_router_logits: bool = True
     router_aux_loss_coef: float = 0.02
     router_jitter_noise: float = 0.01  # From SwitchTransformer
+    moe_impl: str = "vanilla"  # grouped, sparse, vanilla
 
     dict_path: str = ""
     prot_spm_path: str = "/blob/shufxi/data/scigpt/ur50bpe/bpe"
@@ -47,7 +48,6 @@ class MoeModelConfig(MixtralConfig, DistributedTrainConfig):
     valid_data_path: str = ""
     pretrained_ckpt_path: str = ""
     load_ckpt: bool = False
-    compile_layers: bool = False
 
     ft: bool = False
     infer: bool = False
