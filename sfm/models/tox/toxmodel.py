@@ -694,8 +694,8 @@ class TOX(nn.Module):
                 angle,
                 time_pos,  #
                 time_aa,
-                ang_score,
-                ang_score_norm,
+                # ang_score,
+                # ang_score_norm,
                 ang_noise,
                 ang_sigma,
                 ang_epsilon,
@@ -706,8 +706,8 @@ class TOX(nn.Module):
             self.score_time = time_pos
             self.noised_angle = angle
             self.ang_sigma = ang_sigma
-            self.ang_score = ang_score
-            self.angle_score_norm = ang_score_norm
+            # self.ang_score = ang_score
+            # self.angle_score_norm = ang_score_norm
 
         elif x0 is None and q is not None:
             # actually we do not need q_score and q_score_norm
@@ -841,8 +841,8 @@ class TOX(nn.Module):
             "angle_output": angle_output,
             "mask_pos": mask_pos,
             "mask_aa": mask_aa,
-            "ang_score": ang_score,
-            "ang_score_norm": ang_score_norm,
+            # "ang_score": ang_score,
+            # "ang_score_norm": ang_score_norm,
             "padding_mask": padding_mask,
             "pair_mask_aa": pair_mask_aa,
             "backbone": backbone,
