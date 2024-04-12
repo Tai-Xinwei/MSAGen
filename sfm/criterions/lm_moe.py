@@ -63,7 +63,7 @@ class LmMoeCriterion(nn.Module):
         lb_loss = load_balancing_loss_func(
             gate_scores=gate_scores,
             n_exp=self.config.num_local_experts,
-            top_k=self.config.n_exp_per_tok,
+            top_k=self.config.num_experts_per_tok,
         )
 
         loss = lm_loss + self.config.router_aux_loss_coef * lb_loss
