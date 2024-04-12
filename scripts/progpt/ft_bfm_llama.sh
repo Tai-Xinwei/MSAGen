@@ -21,8 +21,8 @@
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 # training parameters for generalist
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
-[ -z "${train_batch_size}" ] && train_batch_size=128
-[ -z "${val_batch_size}" ] && val_batch_size=128
+[ -z "${train_batch_size}" ] && train_batch_size=256
+[ -z "${val_batch_size}" ] && val_batch_size=256
 
 [ -z "${train_data_path}" ] && train_data_path='/fastdata/peiran/nlm/progpt_train_bpe.lmdb/'
 [ -z "${valid_data_path}" ] && valid_data_path='/fastdata/peiran/nlm/progpt_valid_bpe.lmdb/'

@@ -80,10 +80,10 @@ jobs:
   - export train_batch_size=1024
   - export val_batch_size=1024
   - export max_tokens=4000
-  - export max_length=1024
+  - export max_length=512
   - export gradient_accumulation_steps=4
-  - export wandb_group=bfmdiff
-  - export wandb_project=ds_mfmpre
+  - export wandb_group=toxdiff
+  - export wandb_project=tox
   - export log_interval=100
   - export loadcheck_path=/blob/pfmexp/output/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_pair_x0/checkpoints
   - mkdir /tmp/data/pm6-86m-3d-filter

@@ -234,8 +234,8 @@ class ProteinTextDataset(Dataset):
         error = input_ids[mask] - labels[mask]
         assert torch.sum(error) == 0, f"Error in input_ids and labels: {error}"
 
-        labels = input_ids.clone()
-        labels[labels < 0] = IGNORE_INDEX
+        # labels = input_ids.clone()
+        # labels[labels < 0] = IGNORE_INDEX
 
         return dict(
             input_ids=input_ids,

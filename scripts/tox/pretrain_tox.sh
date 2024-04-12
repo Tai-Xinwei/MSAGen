@@ -14,7 +14,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=8
 [ -z "${max_length}" ] && max_length=512
 [ -z "${max_tokens}" ] && max_tokens=3000
 
@@ -38,7 +37,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
@@ -152,7 +151,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
           --encoder_embed_dim $hidden_size \
           --droppath_prob $droppath_prob \
           --attn_dropout $attn_dropout \
-          --num_3d_bias_kernel $num_3d_bias_kernel \
           --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
           --sandwich_ln \
           --dataset_names $dataset_name \
