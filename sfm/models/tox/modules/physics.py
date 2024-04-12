@@ -290,7 +290,7 @@ class VESDE(object):
         return self.sigma_min * (self.sigma_max / self.sigma_min) ** t
 
 
-def compute_PDE_qloss(
+def compute_PDE_q_loss(
     sde: VESDE,
     q_output,
     nabla_phi_term,
