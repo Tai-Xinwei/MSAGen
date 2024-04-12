@@ -612,8 +612,9 @@ class ProteinMAEDistPDECriterions(nn.Module):
 
         """----------------------type loss----------------------"""
         mask_aa = output_dict["mask_aa"]
-        logits = output_dict["x"]
         if mask_aa.any():
+            logits = output_dict["x"]
+
             with torch.no_grad():
                 aa_seq = batch_data["x"][mask_aa.squeeze(-1).bool()]
 
@@ -662,14 +663,15 @@ class ProteinMAEDistPDECriterions(nn.Module):
         #     dist_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         """----------------------angle loss----------------------"""
-        angle_output = output_dict["angle_output"]
-        ang_epsilon = output_dict["ang_epsilon"]
         if unified_angle_mask.any():
+            angle_output = output_dict["angle_output"]
+            ang_epsilon = output_dict["ang_epsilon"]
+
             if self.diffmode == "score":
                 # retrieve the noise
                 angle_epsilon_masked = ang_epsilon[unified_angle_mask].to(torch.float32)
-                angle_output_masked = angle_output[unified_angle_mask].to(torch.float32)
-                angle_loss = ((angle_output_masked - angle_epsilon_masked) ** 2).mean()
+                epsilon_pre_masked = angle_output[unified_angle_mask].to(torch.float32)
+                angle_loss = ((epsilon_pre_masked - angle_epsilon_masked) ** 2).mean()
             elif self.diffmode == "x0":
                 ori_angle = batch_data["ang"][:, :, :3]
                 angle_output_masked = angle_output[unified_angle_mask]
@@ -720,15 +722,22 @@ class ProteinMAEDistPDECriterions(nn.Module):
 
         """----------------------pde control loss----------------------"""
         if unified_angle_mask.any() and if_pde_control_loss:
-            angle_output = torch.where(
-                unified_angle_mask, angle_output, torch.zeros_like(angle_output)
+            angle_output_single_time = output_dict["angle_output_single_time"]
+            ang_spsilon_single_time = output_dict["ang_epsilon_single_time"]
+
+            epsilon_pred_single_time_masked = torch.where(
+                unified_angle_mask,
+                angle_output_single_time,
+                torch.zeros_like(angle_output_single_time),
             ).to(torch.float32)
-            ang_epsilon = torch.where(
-                unified_angle_mask, ang_epsilon, torch.zeros_like(ang_epsilon)
+            ang_epsilon_single_time_masked = torch.where(
+                unified_angle_mask,
+                ang_spsilon_single_time,
+                torch.zeros_like(ang_spsilon_single_time),
             ).to(torch.float32)
             pde_control_loss = compute_pde_control_loss(
-                angle_output,
-                ang_epsilon,
+                epsilon_pred_single_time_masked,
+                ang_epsilon_single_time_masked,
             )
         else:
             pde_control_loss = torch.tensor(

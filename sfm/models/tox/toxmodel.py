@@ -295,7 +295,32 @@ class TOXPDEModel(TOXModel):
             )
 
         if if_pde_control_loss:
-            pass
+            # Use the same time for different points in the batch
+            output_dict_single_time = self.net(
+                batched_data,
+                time_pos=(1.0 - torch.rand([1], device=ori_angle.device))
+                * torch.ones([ori_angle.shape[0]], device=ori_angle.device),
+            )
+            
+            time_angle_single = (
+                self.net.score_time
+            )  # "Single" means the same time, shape: [B]
+
+            assert torch.allclose(
+                time_angle_single,
+                time_angle_single[0:1].expand_as(time_angle_single),
+            ), "time_angle_single should have the same time in different points"
+
+            angle_output_single_time = output_dict_single_time["angle_output"]
+            ang_epsilon_single_time = output_dict_single_time["ang_epsilon"]
+
+            output_dict.update(
+                {
+                    "time_angle_single": time_angle_single,
+                    "angle_output_single_time": angle_output_single_time[:, :, :3],
+                    "ang_epsilon_single_time": ang_epsilon_single_time[:, :, :3],
+                }
+            )
 
         output_dict["angle_output"] = output_dict["angle_output"][:, :, :3]
         output_dict["ang_epsilon"] = output_dict["ang_epsilon"][:, :, :3]
@@ -440,6 +465,7 @@ class TOX(nn.Module):
         mask_angle,
         mode_mask=None,
         time_step=None,
+        time_pos=None,
         infer=False,
     ):
         if self.pfm_config.noise_mode == "mae":
@@ -466,9 +492,11 @@ class TOX(nn.Module):
                 ori_pos = torch.zeros_like(ori_pos)
                 ori_angle = torch.zeros_like(ori_angle)
             else:  # give random time point to each one in the batch
-                time_pos = 1.0 - torch.rand((ori_pos.shape[0],), device=ori_pos.device)
+                if time_pos is None:
+                    time_pos = 1.0 - torch.rand(
+                        (ori_pos.shape[0],), device=ori_pos.device
+                    )  # (0, 1]
                 time_pos = torch.where((mode_mask == 1), 1, time_pos)
-
                 time_ang = time_pos
 
             pos_scale_coeff = 1.0
@@ -692,14 +720,16 @@ class TOX(nn.Module):
             (
                 pos,
                 angle,
-                time_pos,  #
+                time_pos,
                 time_aa,
                 # ang_score,
                 # ang_score_norm,
                 ang_noise,
                 ang_sigma,
                 ang_epsilon,
-            ) = self._set_noise(ori_pos, ori_angle, mask_pos, mask_angle, mode_mask)
+            ) = self._set_noise(
+                ori_pos, ori_angle, mask_pos, mask_angle, mode_mask, time_pos=time_pos
+            )
 
             # random_number = torch.rand(1, device=time_pos.device) * 0.1
             # self.score_time = random_number.expand_as(time_pos)

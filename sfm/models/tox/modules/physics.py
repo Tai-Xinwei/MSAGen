@@ -380,15 +380,15 @@ def compute_pde_control_loss(output, epsilon):
     Compute the control loss for the diffusion.
 
     Args:
-        epsilon_predict: The predicted epsilon, shape is [batch_size, dim1, dim2]
-        epsilon_true: The true epsilon, shape is [batch_size, dim1, dim2]
+        output: The predicted epsilon, shape is [batch_size, dim1, dim2]
+        epsilon: The true epsilon, shape is [batch_size, dim1, dim2]
 
     Returns:
         The computed loss.
 
     """
     # Now is regular MSE loss, here we approximate it by square
-    loss = torch.mean(torch.sum((output * (output - epsilon)) ** 2, dim=(1, 2)))
+    loss = torch.mean(torch.sum((output * (output - epsilon)), dim=(1, 2))) ** 2  # (53)
     return loss
 
 
