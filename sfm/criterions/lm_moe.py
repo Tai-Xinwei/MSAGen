@@ -10,7 +10,7 @@ from sfm.models.nlm.moe_config import MoeModelConfig
 
 def load_balancing_loss_func(
     gate_scores: torch.Tensor,
-    num_experts: torch.Tensor = None,
+    n_exp: torch.Tensor = None,
     top_k=2,
     attention_mask: Optional[torch.Tensor] = None,
 ) -> float:
@@ -19,38 +19,33 @@ def load_balancing_loss_func(
     # https://github.com/huggingface/transformers/issues/28255#issuecomment-1874241942
     # So modified the code to match the SwithTransformers paper
 
-    num_layers, batch_size, sequence_length, num_experts = gate_scores.shape
+    num_layers, bsz, seq_len, n_exp = gate_scores.shape
 
-    gate_scores = gate_scores.view(
-        num_layers, batch_size * sequence_length, num_experts
-    )  # [L, B*H, E]
+    gate_scores = gate_scores.view(num_layers, bsz * seq_len, n_exp)  # [L, B*H, E]
 
     gate_scores = gate_scores.transpose(1, 0)  # [B*H, L, E]
 
     _, selected_experts = torch.topk(gate_scores, top_k, dim=-1)  # [B*H, L, k]
 
     expert_mask = torch.nn.functional.one_hot(
-        selected_experts, num_experts
-    )  # [B*H, L, k, num_experts]
+        selected_experts, n_exp
+    )  # [B*H, L, k, n_exp]
 
-    num_of_tokens_to_compute_loss = batch_size * sequence_length
+    n_tok = bsz * seq_len
     if attention_mask is not None:
-        num_of_tokens_to_compute_loss = attention_mask.sum().item()
+        n_tok = attention_mask.sum().item()
         expert_mask[attention_mask.reshape(-1), :, :, :] = 0
         gate_scores[attention_mask.reshape(-1), :] = 0
 
-    tokens_per_expert = (
-        expert_mask.float().sum(dim=0) / num_of_tokens_to_compute_loss
-    )  # [L, k, num_experts]
-    router_prob_per_expert = (
-        gate_scores.sum(dim=0) / num_of_tokens_to_compute_loss
-    ).unsqueeze(
-        1
-    )  # [L, 1, num_experts]
-    all_expert_loss = tokens_per_expert * router_prob_per_expert  # [L, k, num_experts]
+    tokens_per_expert = expert_mask.float().sum(dim=0) / n_tok  # [L, k, n_exp]
+
+    router_prob_per_expert = gate_scores.sum(dim=0) / n_tok
+    router_prob_per_expert = router_prob_per_expert.unsqueeze(1)  # [L, 1, n_exp]
+
+    all_expert_loss = tokens_per_expert * router_prob_per_expert  # [L, k, n_exp]
 
     # sum over experts inside one layer, then avergae over layers and top_k
-    loss = all_expert_loss.sum(dim=-1).mean() * num_experts
+    loss = all_expert_loss.sum(dim=-1).mean() * n_exp
 
     return loss
 
@@ -67,8 +62,8 @@ class LmMoeCriterion(nn.Module):
 
         lb_loss = load_balancing_loss_func(
             gate_scores=gate_scores,
-            num_experts=self.config.num_local_experts,
-            top_k=self.config.num_experts_per_tok,
+            n_exp=self.config.num_local_experts,
+            top_k=self.config.n_exp_per_tok,
         )
 
         loss = lm_loss + self.config.router_aux_loss_coef * lb_loss
