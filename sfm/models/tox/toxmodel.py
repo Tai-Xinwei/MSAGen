@@ -21,7 +21,6 @@ from sfm.modules.quant_noise import quant_noise
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
-from .modules import torus as ts
 from .modules.physics import VESDE, MixtureGaussian, SingleGaussian, set_time_step
 from .modules.timestep_encoder import DiffNoise
 from .modules.torchMD import TorchMD_HEAD
@@ -232,12 +231,11 @@ class TOXPDEModel(TOXModel):
 
         # guarantee the same inf_mask, masked into the noise of T
         noised_T = torch.rand_like(ori_angle) * self.sde.sigma_term(1.0)
-        inf_mask = ori_angle == float("inf")
-        ori_angle = torch.where(inf_mask, noised_T, ori_angle)
-        noised_angle = torch.where(inf_mask, noised_T, noised_angle)
+        angle_mask = batched_data["ang_mask"].bool()
+        ori_angle = torch.where(~angle_mask, noised_T, ori_angle)
+        noised_angle = torch.where(~angle_mask, noised_T, noised_angle)
 
         # use a unified mask, unused when unified_angle_mask is False
-        angle_mask = batched_data["ang_mask"].bool()
         mask_angle = output_dict["mask_pos"].squeeze(-1)
         unified_angle_mask = angle_mask & mask_angle
 
@@ -486,12 +484,12 @@ class TOX(nn.Module):
             ) = self.diffnoise._angle_noise_sample(ori_angle, time_ang)
 
             # FIXME: ang_score is hard to identify if it is correct or not
-            ang_score = ts.score(
-                ang_noise.float().cpu().numpy(), ang_sigma.float().cpu().numpy()
-            )
-            ang_score = torch.tensor(ang_score, device=noisy_ang.device)
-            ang_score_norm = ts.score_norm(ang_sigma.float().cpu().numpy())
-            ang_score_norm = torch.tensor(ang_score_norm, device=noisy_ang.device)
+            # ang_score = ts.score(
+            #     ang_noise.float().cpu().numpy(), ang_sigma.float().cpu().numpy()
+            # )
+            # ang_score = torch.tensor(ang_score, device=noisy_ang.device)
+            # ang_score_norm = ts.score_norm(ang_sigma.float().cpu().numpy())
+            # ang_score_norm = torch.tensor(ang_score_norm, device=noisy_ang.device)
             noisy_ang = noisy_ang.masked_fill(~mask_angle.bool(), 0.0).to(
                 ori_angle.dtype
             )
@@ -510,8 +508,8 @@ class TOX(nn.Module):
                 angle,
                 time_pos,
                 time_ang,
-                ang_score,
-                ang_score_norm,
+                # ang_score,
+                # ang_score_norm,
                 ang_noise,
                 ang_sigma,
                 ang_epsilon,
