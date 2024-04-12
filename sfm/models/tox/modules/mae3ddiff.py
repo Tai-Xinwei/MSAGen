@@ -11,7 +11,7 @@ from sfm.logging import logger
 from sfm.models.tox.modules.physics import (
     VESDE,
     compute_pde_control_loss,
-    compute_PDE_qloss,
+    compute_PDE_q_loss,
 )
 
 
@@ -562,8 +562,8 @@ class ProteinMAEDistCriterions(nn.Module):
         if self.diffmode == "score":
             ang_epsilon = ang_epsilon[:, :, :3]
             ang_epsilon = ang_epsilon[mask_angle.squeeze(-1)]
-            angle_output = angle_output[mask_angle.squeeze(-1)]
-            angle_loss = ((ang_epsilon - angle_output) ** 2).mean()
+            epsilon_pred = angle_output[mask_angle.squeeze(-1)]
+            angle_loss = ((ang_epsilon - epsilon_pred) ** 2).mean()
         elif self.diffmode == "x0":
             angle_output = angle_output[mask_angle.squeeze(-1)]
             ori_angle = ori_angle[mask_angle.squeeze(-1)]
@@ -703,7 +703,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
                 unified_angle_mask, q_output_ptq, torch.zeros_like(q_output_ptq)
             ).to(torch.float32)
 
-            pde_q_loss = compute_PDE_qloss(
+            pde_q_loss = compute_PDE_q_loss(
                 self.vesde,
                 q_output,
                 nabla_phi_term,
