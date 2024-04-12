@@ -301,7 +301,7 @@ class TOXPDEModel(TOXModel):
                 time_pos=(1.0 - torch.rand([1], device=ori_angle.device))
                 * torch.ones([ori_angle.shape[0]], device=ori_angle.device),
             )
-            
+
             time_angle_single = (
                 self.net.score_time
             )  # "Single" means the same time, shape: [B]
