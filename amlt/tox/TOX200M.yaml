@@ -11,20 +11,17 @@ description: diffP
 #     name: itphyperdgx2cl2
 #     vc: hcrr08
 
-target:
-    service: sing
-    name: msroctovc
 
 # target:
 #     service: amlk8s
 #     name: itplabrr1cl1
 #     vc: mprr3
 
-# target:
-#     service: aml
-#     # name: gcrarca100cl1
-#     name: sfm-nd96amsra100v4-uksouth
-#     # name: sfm-nc96-westus3
+target:
+    service: aml
+    # name: gcrarca100cl1
+    name: sfm-nd96amsra100v4-uksouth
+    # name: sfm-nc96-westus3
 
 environment:
   image: yaosen/sfm-cuda:py39-torch2.2.2-cuda12.1
@@ -80,17 +77,17 @@ jobs:
   - export pipeline_model_parallel_size=0
   - export total_num_steps=2000000
   - export warmup_num_steps=1000
-  - export train_batch_size=128
-  - export val_batch_size=128
+  - export train_batch_size=1024
+  - export val_batch_size=1024
   - export max_tokens=4000
-  - export max_length=256
-  - export gradient_accumulation_steps=1
+  - export max_length=512
+  - export gradient_accumulation_steps=2
   - export wandb_group=bfmdiff
   - export wandb_project=ds_mfmpre
   - export log_interval=100
   - export loadcheck_path=/blob/pfmexp/output/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_pair_x0/checkpoints
   - mkdir /tmp/data/pm6-86m-3d-filter
-  - export data_path=/blob/data/afdb/48organism1m.lmdb/
+  - export data_path=/blob/data/afdb/48organisms-fullatom.lmdb/
   - export save_dir=/blob/pfmexp/output/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_pair_x0/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace

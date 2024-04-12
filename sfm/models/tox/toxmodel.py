@@ -24,10 +24,7 @@ from sfm.pipeline.accelerator.trainer import Model
 from .modules import torus as ts
 from .modules.physics import MixtureGaussian, SingleGaussian, set_time_step
 from .modules.timestep_encoder import DiffNoise
-from .modules.torchMD import TorchMD_HEAD
-from .modules.tox_encoder import NodeDecoder, TOXEncoder
 from .modules.toxmixencoder import TOXMixEncoder
-from .modules.UnifiedDecoder import UnifiedDecoder
 
 
 class TOXModel(Model):

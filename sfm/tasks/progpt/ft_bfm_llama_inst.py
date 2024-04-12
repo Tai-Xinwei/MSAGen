@@ -3,6 +3,8 @@ import os
 import sys
 from typing import Dict
 
+import wandb  # isort:skip
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
@@ -103,10 +105,17 @@ def main(args) -> None:
         train_data=data_module["train_dataset"],
         valid_data=data_module["eval_dataset"],
         model=model,
-        loss_log_dict={"lm_loss": 0.0},
+        loss_log_dict={"lm_loss": 0.0, "lm_loss_text": 0.0, "lm_loss_special": 0.0},
     )
     trainer.train()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        os.environ["WANDB_RUN_ID"] = wandb.util.generate_id()
+        main()
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt!")
+    finally:
+        wandb.finish()  # support to finish wandb logging
+        logger.info("wandb finish logging!")

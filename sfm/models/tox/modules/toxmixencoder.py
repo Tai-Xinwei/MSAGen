@@ -6,7 +6,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from sfm.models.graphormer.modules.graphormer_layers import NodeTaskHead
 from sfm.modules.FairseqDropout import FairseqDropout
 from sfm.modules.layer_norm import LayerNorm
 from sfm.modules.multihead_attention import MultiheadAttention
@@ -253,35 +252,3 @@ class TOXMixEncoder(nn.Module):
             time_pos,
             time_aa,
         )
-
-
-class NodeDecoder(nn.Module):
-    def __init__(
-        self,
-        embedding_dim: int = 768,
-        num_attention_heads: int = 8,
-        last_state_only: bool = True,
-        args=None,
-    ):
-        super().__init__()
-        if not args.ft:
-            self.node_proc = NodeTaskHead(embedding_dim, num_attention_heads)
-        self.args = args
-        self.last_state_only = last_state_only
-
-    def forward(self, x, attn_bias, delta_pos, inner_states):
-        sentence_rep = x[0, :, :]
-
-        node_output = None
-        if delta_pos is not None and not self.args.ft:
-            node_output = self.node_proc(
-                x[1:, :, :], attn_bias[:, :, 1:, 1:], delta_pos
-            )
-
-        if self.last_state_only:
-            inner_states = [x]
-
-        if not self.last_state_only:
-            return torch.stack(inner_states), node_output, sentence_rep
-        else:
-            return inner_states, node_output, sentence_rep

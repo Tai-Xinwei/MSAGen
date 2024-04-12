@@ -31,10 +31,12 @@
 [ -z "${model_max_length}" ] && model_max_length=2048
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
-[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/nlm/checkpoints/'
+[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/nlm/checkpoints/stageB.prot/'
 [ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/fastdata/peiran/bfm/checkpoints/bfm650m_data3_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2/checkpoint_E144_new.pt'
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/llama-2-7b"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/scigpt/ckpt/7bv3/global_step29999"
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/scigpt/ckpt/7bv3/global_step29999"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/scigpt/ckpt/stageB.prot/global_step224655"
+
 [ -z "${tokenizer_path}" ] && tokenizer_path="/fastdata/peiran/scigpt"
 
 [ -z "${save_batch_interval}"] && save_batch_interval=500
@@ -55,9 +57,9 @@
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 # [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=-1
 
-[ -z "${wandb_group}" ] && wandb_group=NLM
+[ -z "${wandb_group}" ] && wandb_group=progpt
 [ -z "${wandb_team}" ] && wandb_team=peiranjin
-[ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
+[ -z "${wandb_project}" ] && wandb_project=NLM
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 echo -e "\n\n"
@@ -142,7 +144,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --seed 6666 \
           --ft \
-          --fp16 \
+          --bf16 \
           --d_tilde $d_tilde \
           --max_lr $max_lr \
           --save_dir $save_dir \
