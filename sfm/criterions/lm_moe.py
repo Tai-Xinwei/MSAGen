@@ -15,50 +15,44 @@ def load_balancing_loss_func(
     attention_mask: Optional[torch.Tensor] = None,
 ) -> float:
     # see transformers.models.mixtral.modeling_mixtral import load_balancing_loss_func
-    _, selected_experts = torch.topk(gate_scores, top_k, dim=-1)
+    # see also https://github.com/huggingface/transformers/issues/29503
+    # https://github.com/huggingface/transformers/issues/28255#issuecomment-1874241942
+    # So modified the code to match the SwithTransformers paper
 
-    expert_mask = torch.nn.functional.one_hot(selected_experts, num_experts)
+    num_layers, batch_size, sequence_length, num_experts = gate_scores.shape
 
-    if attention_mask is None:
-        # Compute the percentage of tokens routed to each experts
-        tokens_per_expert = torch.mean(expert_mask.float(), dim=0)
+    gate_scores = gate_scores.view(
+        num_layers, batch_size * sequence_length, num_experts
+    )  # [L, B*H, E]
 
-        # Compute the average probability of routing to these experts
-        router_prob_per_expert = torch.mean(gate_scores, dim=0)
-    else:
-        batch_size, sequence_length = attention_mask.shape
-        num_hidden_layers = gate_scores.shape[0] // (batch_size * sequence_length)
+    gate_scores = gate_scores.transpose(1, 0)  # [B*H, L, E]
 
-        # Compute the mask that masks all padding tokens as 0 with the same shape of expert_mask
-        expert_attention_mask = (
-            attention_mask[None, :, :, None, None]
-            .expand(
-                (num_hidden_layers, batch_size, sequence_length, top_k, num_experts)
-            )
-            .reshape(-1, top_k, num_experts)
-            .to(attention_mask.device)
-        )
+    _, selected_experts = torch.topk(gate_scores, top_k, dim=-1)  # [B*H, L, k]
 
-        # Compute the percentage of tokens routed to each experts
-        tokens_per_expert = torch.sum(
-            expert_mask.float() * expert_attention_mask, dim=0
-        ) / torch.sum(expert_attention_mask, dim=0)
+    expert_mask = torch.nn.functional.one_hot(
+        selected_experts, num_experts
+    )  # [B*H, L, k, num_experts]
 
-        # Compute the mask that masks all padding tokens as 0 with the same shape of tokens_per_expert
-        router_per_expert_attention_mask = (
-            attention_mask[None, :, :, None]
-            .expand((num_hidden_layers, batch_size, sequence_length, num_experts))
-            .reshape(-1, num_experts)
-            .to(attention_mask.device)
-        )
+    num_of_tokens_to_compute_loss = batch_size * sequence_length
+    if attention_mask is not None:
+        num_of_tokens_to_compute_loss = attention_mask.sum().item()
+        expert_mask[attention_mask.reshape(-1), :, :, :] = 0
+        gate_scores[attention_mask.reshape(-1), :] = 0
 
-        # Compute the average probability of routing to these experts
-        router_prob_per_expert = torch.sum(
-            gate_scores * router_per_expert_attention_mask, dim=0
-        ) / torch.sum(router_per_expert_attention_mask, dim=0)
+    tokens_per_expert = (
+        expert_mask.float().sum(dim=0) / num_of_tokens_to_compute_loss
+    )  # [L, k, num_experts]
+    router_prob_per_expert = (
+        gate_scores.sum(dim=0) / num_of_tokens_to_compute_loss
+    ).unsqueeze(
+        1
+    )  # [L, 1, num_experts]
+    all_expert_loss = tokens_per_expert * router_prob_per_expert  # [L, k, num_experts]
 
-    overall_loss = torch.sum(tokens_per_expert * router_prob_per_expert.unsqueeze(0))
-    return overall_loss * num_experts
+    # sum over experts inside one layer, then avergae over layers and top_k
+    loss = all_expert_loss.sum(dim=-1).mean() * num_experts
+
+    return loss
 
 
 class LmMoeCriterion(nn.Module):
@@ -67,6 +61,7 @@ class LmMoeCriterion(nn.Module):
         self.config = config
         self.lm_loss_func = AutoregressiveCriterion(config, reduction)
 
+    @torch.compile
     def forward(self, output, label, gate_scores):
         lm_loss, _ = self.lm_loss_func(output, label)
 

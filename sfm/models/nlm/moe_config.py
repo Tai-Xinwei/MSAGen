@@ -39,6 +39,7 @@ class MoeModelConfig(MixtralConfig, DistributedTrainConfig):
     router_aux_loss_coef: float = 0.02
     router_jitter_noise: float = 0.01  # From SwitchTransformer
     moe_impl: str = "vanilla"  # grouped, sparse, vanilla
+    moe_memory_optimized_mlp: bool = False
 
     dict_path: str = ""
     prot_spm_path: str = "/blob/shufxi/data/scigpt/ur50bpe/bpe"

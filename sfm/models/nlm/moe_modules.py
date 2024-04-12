@@ -49,7 +49,7 @@ def to_magablocks_config(config: MoeModelConfig) -> MegablocksArguments:
         pipeline_model_parallel_size=1,
         num_layers_per_virtual_pipeline_stage=None,
         # Compute arguments
-        memory_optimized_mlp=False,
+        memory_optimized_mlp=config.moe_memory_optimized_mlp,
         mlp_type="glu",
         mlp_impl=config.moe_impl,  # grouped, sparse
         # Initialization arguments.
@@ -175,13 +175,15 @@ class SafeMixtralSparseMoeBlock(MixtralSparseMoeBlock):
         final_hidden_states = final_hidden_states.reshape(
             batch_size, sequence_length, hidden_dim
         )
+
+        # Note: as MegaBlocks returns the rougting scores rather than the logits,
+        # we need to return the scores here
         return final_hidden_states, routing_scores
 
 
 class MegaBlockMoeBlock(dmoe.dMoE):
     def __init__(self, config: MoeModelConfig):
         args = to_magablocks_config(config)
-        logger.info("using MegaBlockMoeBlock, args: %s", args)
         super().__init__(args)
         self.config = config
         self.args = args
