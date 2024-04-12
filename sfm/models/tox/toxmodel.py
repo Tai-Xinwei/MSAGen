@@ -719,7 +719,7 @@ class TOX(nn.Module):
             time_pos = self.score_time + delta_tq
 
             pos = None
-            ang_score, ang_score_norm = None, None
+            # ang_score, ang_score_norm = None, None
             ang_epsilon, ang_sigma = None, None
 
         elif x0 is not None and q is None:
@@ -730,7 +730,7 @@ class TOX(nn.Module):
 
             time_pos = 0 * self.score_time
             pos = None
-            ang_score, ang_score_norm = None, None
+            # ang_score, ang_score_norm = None, None
             ang_epsilon, ang_sigma = None, None
         else:
             assert False, "q and x0 should not be given at the same time in this class"

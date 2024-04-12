@@ -68,7 +68,7 @@ class MixtureGaussian(torch.nn.Module):
                 self.mask[k], diff_squared, torch.zeros_like(diff_squared)
             )
             # sigma**4 * laplace q/q
-            func[k] = -1.0 * torch.sum(self.mask[k]) * self.sigma**2 + torch.sum(
+            func[k] = -1.0 * torch.sum(self.mask[k]) * self.sigma[k] ** 2 + torch.sum(
                 masked_diff_squared
             )
 
