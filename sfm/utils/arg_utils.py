@@ -2,8 +2,11 @@
 import ast
 import typing
 from argparse import ArgumentParser
-from dataclasses import MISSING, fields
+from dataclasses import MISSING, Field, dataclass, fields, is_dataclass
 from enum import Enum
+from typing import List, Type
+
+import yaml
 
 from sfm.logging import logger
 
@@ -89,6 +92,23 @@ def add_dataclass_to_parser(configs, parser: ArgumentParser):
                 group.add_argument("--" + name, type=field_type, default=default)
 
     return parser
+
+
+def add_dataclass_to_dictconfig(configs: List[Type[dataclass]], config_path: str):
+    fields = {
+        field.name: (field.type, Field())
+        for config in configs
+        for field in fields(config)
+    }
+    Config = type("Config", (object,), fields)
+    Config = dataclass(Config)
+
+    with open(config_path) as f:
+        data = yaml.safe_load(f)
+
+    args = Config(**data)
+
+    return args
 
 
 def from_args(args, config):

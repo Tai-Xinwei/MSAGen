@@ -78,7 +78,7 @@ def main(args) -> None:
 
     trainer = Trainer(
         args,
-        model,  # =torch.compile(model),
+        model,
         train_data=train_data,
         valid_data=val_data,
         optimizer=optimizer,

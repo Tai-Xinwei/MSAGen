@@ -17,6 +17,7 @@ Welcome to A4SFramework's documentation!
    modelzoo
    datapipeline
    trainargs
+   profiling
    api/modules
 
 

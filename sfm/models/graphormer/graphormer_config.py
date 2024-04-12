@@ -40,11 +40,12 @@ class GraphormerConfig:
     # TM and ddpm params
     transformer_m_pretrain: bool = True
     mode_prob: str = "0.6,0.2,0.2"
-    t_timesteps: int = 1000
+    num_timesteps: int = 1000
     ddpm_beta_start: float = 0.0001
     ddpm_beta_end: float = 0.02
     ddpm_schedule: str = "linear"
     noise_mode: str = "const"
+    num_edges: int = 1536
 
     def __init__(
         self,

@@ -10,7 +10,7 @@ sys.path.extend([".", ".."])
 from argparse import ArgumentParser
 
 from sfm.logging import logger
-from sfm.models.psm.modules.mae3ddiff import DiffMAE3dCriterions
+from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.models.psm.psmmodel import PSMModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig

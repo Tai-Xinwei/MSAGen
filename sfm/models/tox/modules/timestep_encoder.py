@@ -147,9 +147,11 @@ class DiffNoise(nn.Module):
 
         sigma = beta_min ** (1 - T) * beta_max**T  # SMLD (31)
 
-        noise = torch.randn_like(x_start) * sigma
+        epsilon = torch.randn_like(x_start)
 
-        return x_start + noise, noise, sigma
+        noise = epsilon * sigma
+
+        return x_start + noise, noise, sigma, epsilon
 
 
 if __name__ == "__main__":

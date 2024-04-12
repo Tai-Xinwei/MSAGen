@@ -76,11 +76,13 @@ class DecDeepFuseConfig(DistributedTrainConfig):
     entity_num_attention_heads: int = 0
     rms_norm_eps: float = 1e-6
     rope_theta: float = 10000.0
+    attention_dropout: float = 0.0
     rope_scaling: Optional[Dict[str, float]] = None
 
     num_adapter_layers: int = 2
     adapter_hidden_size: int = 64
     adapter_activation: str = "gelu"
+    _attn_implementation: str = "sdpa"
 
     vocab_size: int = 0  # total vocab size
     entity_vocab_size: int = 0  # total entity vocab size
