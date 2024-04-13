@@ -138,9 +138,7 @@ class DiffNoise(nn.Module):
 
     # Here, t is time point in (0, 1]
     def _angle_noise_sample(self, x_start, t):
-        T = t
-        # T = t / 1000.0
-        T = T.unsqueeze(-1).unsqueeze(-1)
+        T = t.unsqueeze(-1).unsqueeze(-1)
 
         beta_min = 0.01 * torch.pi
         beta_max = 1.0 * torch.pi
@@ -152,6 +150,14 @@ class DiffNoise(nn.Module):
         noise = epsilon * sigma
 
         return x_start + noise, noise, sigma, epsilon
+
+    def _angle_T_noise(self, x_start, angle_mask):
+        beta_max = 1.0 * torch.pi
+        epsilon = torch.randn_like(x_start)
+        T_noise = epsilon * beta_max
+
+        x_start = torch.where(angle_mask, x_start, T_noise)
+        return x_start
 
 
 if __name__ == "__main__":

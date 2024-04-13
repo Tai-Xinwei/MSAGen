@@ -510,8 +510,6 @@ class ProteinMAEDistCriterions(nn.Module):
             delta_pos0 = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
             ori_dist = delta_pos0.norm(dim=-1)
 
-        # pred_pos = backbone.mean(dim=2, keepdim=False)
-
         dist_mask = ~(
             padding_mask.bool().unsqueeze(1) | padding_mask.bool().unsqueeze(2)
         )
@@ -532,12 +530,12 @@ class ProteinMAEDistCriterions(nn.Module):
 
             if self.diffmode == "epsilon":
                 ang_epsilon = ang_epsilon[:, :, :3]
-                ang_epsilon = ang_epsilon[mask_angle.squeeze(-1)]
-                epsilon_pred = angle_output[mask_angle.squeeze(-1)]
+                ang_epsilon = ang_epsilon[mask_angle]
+                epsilon_pred = angle_output[mask_angle]
                 angle_loss = ((ang_epsilon - epsilon_pred) ** 2).mean()
             elif self.diffmode == "x0":
-                angle_output = angle_output[mask_angle.squeeze(-1)]
-                ori_angle = ori_angle[mask_angle.squeeze(-1)]
+                angle_output = angle_output[mask_angle]
+                ori_angle = ori_angle[mask_angle]
                 angle_loss = self.loss_angle(
                     angle_output.to(torch.float32), ori_angle.to(torch.float32)
                 )
