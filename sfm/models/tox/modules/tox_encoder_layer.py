@@ -144,7 +144,6 @@ class TOXEncoderLayer(nn.Module):
         add_rope=False,
     ):
         return MemEffAttn(
-            # return MultiheadAttention(
             embed_dim,
             num_attention_heads,
             dropout=dropout,
@@ -157,13 +156,12 @@ class TOXEncoderLayer(nn.Module):
             v_bias=False,
             o_bias=False,
             add_rope=add_rope,
-            # layer_norm=True,
         )
 
     def forward(
         self,
         x: torch.Tensor,
-        if_attn_bias: bool = True,
+        if_attn_bias: bool = False,
         edge_feature: Optional[torch.Tensor] = None,
         self_attn_mask: Optional[torch.Tensor] = None,
         self_attn_padding_mask: Optional[torch.Tensor] = None,
