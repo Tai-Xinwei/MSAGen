@@ -697,14 +697,6 @@ class TOX(nn.Module):
                 mode_mask,
                 time_pos=time_pos,
             )
-            if torch.isinf(angle).any():
-                logger.info("angle is inf")
-                print(angle)
-                exit()
-            elif torch.isnan(angle).any():
-                logger.info("angle is nan")
-                print(angle)
-                exit()
 
             # random_number = torch.rand(1, device=time_pos.device) * 0.1
             # self.score_time = random_number.expand_as(time_pos)
