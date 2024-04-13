@@ -4,7 +4,6 @@ from typing import Dict, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
-from icecream import ic
 from torch import Tensor, nn
 
 from sfm.logging.loggers import logger
@@ -191,8 +190,6 @@ class MultiheadAttention(nn.Module):
         q = self.q_proj(query)
         k = self.k_proj(query)
         v = self.v_proj(query)
-
-        # ic(q, k, v, self.v_proj.weight.data, self.v_proj.bias.data)
 
         q *= self.scaling
 

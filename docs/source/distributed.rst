@@ -60,32 +60,31 @@ For example, to load a pretrained checkpoint for the Llama2 decoder layer, we ca
         )
     )
 
-The detailed usage example of :mod:sfm.utils.pretrained_layer_spec.PretrainedLayerSpec can be find in :mod:`models.generalist.graphormer_llama` as well.
-
+The detailed usage example of :mod:`sfm.utils.pretrained_layer_spec.PretrainedLayerSpec` can be find in :mod:`models.generalist.graphormer_llama` as well.
 
 Examples
 ~~~~~~~~
-Here are some examples for DDP, Zero, and model parallelism.
+Here are some examples for DDP, DeepSpeed with FSDP (ZeRO optimizer), and Model Parallelism.
 
-Pretraining Graphormer with DDP or Zero:
+Pretraining Graphormer with DDP or DeepSpeed with ZeRO optimizer stage 1:
 
 .. code::
 
     bash scripts/graphormer/pretrain_graphormer.sh
 
-Finetuning Graphormer with DDP or Zero:
+Finetuning Graphormer with DDP or DeepSpeed with ZeRO optimizer stage 1:
 
 .. code::
 
     bash scripts/graphormer/ft_graphormer.sh
 
-Finetuning Llama2 + Graphormer with model parallelism:
+Finetuning Llama2 + Graphormer with Model Parallelism:
 
 .. code::
 
     bash scripts/generalist/ft_graphormer_llama_smiles.sh
 
-Finetuning Llama2 + Graphormer with PP + TP + Zero1:
+Finetuning Llama2 + Graphormer with Data + Pipeline + Tensor Parallelisms with ZeRO optimizer stage 1:
 
 .. code::
 

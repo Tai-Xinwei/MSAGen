@@ -15,4 +15,5 @@ A4SFramework aims to reduces redundant coding work for researchers and facilitat
 3. In the `Installation <installation.html>`__, packages will be released by pip in the future.
 4. In the `Model Zoo <modelzoo.html>`__, examples show how to use models in A4SFramework.
 5. In the `Data Pipeline <datapipeline.html>`__, data pipeline will be developed.
-6. In the `Training Args <trainargs.html>`__, the detailed info of training args in A4SFramework will be provided.
+6. In the `Profiling <profiling.html>`__, comprehensive guide on how to profile your code.
+7. In the `Training Args <trainargs.html>`__, the detailed info of training args in A4SFramework will be provided.

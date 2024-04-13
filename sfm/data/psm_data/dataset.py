@@ -32,19 +32,49 @@ from sfm.data.prot_data.vocalubary import Alphabet
 class PM6FullLMDBDataset(FoundationModelDataset):
     def __init__(
         self,
-        root: Optional[str] = None,
-        max_node: Optional[int] = 512,
+        lmdb_path: Optional[str],
     ):
-        self.root = root
-        self.max_node = max_node
+        self.lmdb_path = lmdb_path
+        # for dataloader with num_workers > 1
+        self._env, self._txn = None, None
+        self._sizes, self._keys = None, None
 
-        self.env = lmdb.open(
-            str(self.lmdb_path), subdir=True, readonly=True, lock=False, readahead=False
+    def _init_db(self):
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
         )
-        self.txn = self.env.begin(write=False)
-
+        self._txn = self.env.begin(write=False)
         metadata = bstr2obj(self.txn.get("metadata".encode()))
-        self.sizes, self.keys = metadata["sizes"], metadata["keys"]
+        self._sizes, self._keys = metadata["sizes"], metadata["keys"]
+
+    @property
+    def env(self):
+        if self._env is None:
+            self._init_db()
+        return self._env
+
+    @property
+    def txn(self):
+        if self._txn is None:
+            self._init_db()
+        return self._txn
+
+    @property
+    def sizes(self):
+        if self._sizes is None:
+            self._init_db()
+        return self._sizes
+
+    @property
+    def keys(self):
+        if self._keys is None:
+            self._init_db()
+        return self._keys
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
@@ -76,10 +106,7 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         return data
 
     def __len__(self) -> int:
-        if self._indices is None:
-            return self.total_len
-        else:
-            return len(self._indices)
+        return len(self.keys)
 
 
 class MatterSimDataset:
@@ -126,127 +153,88 @@ class MatterSimDataset:
         return len(self.index_to_dataset_name)
 
 
-class ProteinLMDBDataset(FoundationModelDataset):
-    """
-    This is a dataset for protein information, including amino acid, position, angles and confidence score.
-    All the information are raw data. Please ues other dataset to process the data, eg, tokenize, encode...
-
-    The process pipeline will be changed in the future, but the interface will not change.
-    """
-
-    def __init__(self, data_path: str) -> None:
-        super().__init__()
-        assert (
-            data_path and Path(data_path).is_dir()
-        ), f"Processed file not found: {data_path}"
-        self.lmdb_path = data_path
+class AFDBLMDBDataset(FoundationModelDataset):
+    def __init__(
+        self,
+        lmdb_path: Optional[str],
+    ):
+        self.lmdb_path = lmdb_path
         self.vocab = Alphabet()
 
-        self.env = lmdb.open(
-            str(self.lmdb_path), subdir=True, readonly=True, lock=False, readahead=False
+        # for dataloader with num_workers > 1
+        self._env, self._txn = None, None
+        self._sizes, self._keys = None, None
+
+    def _init_db(self):
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
         )
-        self.txn = self.env.begin(write=False)
+        self._txn = self.env.begin(write=False)
+        metadata = bstr2obj(self.txn.get("metadata".encode()))
+        self._sizes, self._keys = metadata["sizes"], metadata["keys"]
 
-        metadata = bstr2obj(self.txn.get("__metadata__".encode()))
-        self.sizes, self.keys = metadata["sizes"], metadata["keys"]
-        # self.comment = metadata["comment"]
-        # self.filter_indices_by_size(
-        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
-        # )
+    @property
+    def env(self):
+        if self._env is None:
+            self._init_db()
+        return self._env
 
-    def set_default_args(self, args):
-        args.data_path = getattr(args, "data_path", None)
-        args.seed = getattr(args, "seed", "2023")
-        args.max_length = getattr(args, "max_length", 1024)
-        args.seq_masking_method = getattr(args, "seq_masking_method", "transformerM")
+    @property
+    def txn(self):
+        if self._txn is None:
+            self._init_db()
+        return self._txn
 
-        args.mask_prob = getattr(args, "mask_prob", 0.15)
-        args.leave_unmasked_prob = getattr(args, "leave_unmasked_prob", 0.1)
-        args.random_token_prob = getattr(args, "random_token_prob", 0.1)
-        args.mask_multiple_length = getattr(args, "mask_multiple_length", 1)
-        args.mask_stdev = getattr(args, "mask_stdev", 0.0)
+    @property
+    def sizes(self):
+        if self._sizes is None:
+            self._init_db()
+        return self._sizes
 
-        args.noise_method = getattr(args, "noise_method", "normal")
-        args.pos_noise = getattr(args, "pos_noise", True)
-        args.ang_noise = getattr(args, "ang_noise", True)
+    @property
+    def keys(self):
+        if self._keys is None:
+            self._init_db()
+        return self._keys
 
-        args.coord_noise_mean = getattr(args, "coord_noise_mean", 0.0)
-        args.coord_noise_stdev = getattr(args, "coord_noise_stdev", 0.1)
-        args.angle_noise_mean = getattr(args, "angle_noise_mean", 0.0)
-        args.angle_noise_stdev = getattr(args, "angle_noise_stdev", 0.003)
-
-        return args
-
-    def split_dataset(self, validation_ratio=0.03, sort=False):
-        num_samples = len(self.keys)
-        # Shuffle the indices and split them into training and validation sets
-        indices = list(range(num_samples))
-        random.Random(666).shuffle(indices)
-
-        num_validation_samples = int(num_samples * validation_ratio)
-        num_training_samples = num_samples - num_validation_samples
-
-        training_indices = indices[:num_training_samples]
-        validation_indices = indices[num_training_samples:]
-
-        # Create training and validation datasets
-        dataset_train = self.__class__(self.args)
-        dataset_train.keys = [self.keys[idx] for idx in training_indices]
-        dataset_train.sizes = [self.sizes[idx] for idx in training_indices]
-
-        dataset_val = self.__class__(self.args)
-        dataset_val.keys = [self.keys[idx] for idx in validation_indices]
-        dataset_val.sizes = [self.sizes[idx] for idx in validation_indices]
-
-        if sort:
-            dataset_train.__sort__()
-            dataset_val.__sort__()
-
-        return dataset_train, dataset_val
-
-    def __getitem__(self, index: int) -> dict:
-        key = self.keys[index]
+    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
+        key = self.keys[idx]
         value = self.txn.get(key.encode())
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
-        item = {"id": index, **data}
-        # item keys
-        # {'name', 'size', "pos": np.ndarray(N, 37, 3, dtype=float32), "pos_mask": np.ndarray(N, 37, 3, dtype=int32), "ang": np.ndarray(N, 9, dtype=float32), "ang_mask": np.ndarray(N, 9, dtype=int32), "aa", "id": int}
 
-        """
-        - convert string sequence to int index
-        """
-        tokens = [self.vocab.tok_to_idx[tok] for tok in item["aa"]]
-        item["aa"] = np.array(tokens, dtype=np.int64)
-        item["seq_length"] = len(tokens)
+        x = torch.tensor(
+            [self.vocab.tok_to_idx[tok] for tok in data["aa"]], dtype=torch.int64
+        )
+        # CA atom positions, assume all values are valid.
+        coords = data["coords"][:, 1, :].to(torch.float32)
+        x = convert_to_single_emb(x)
 
-        """
-        - mask the sequence in different ways
-        """
-        int(hash((self.seed, index)) % 1e6)
-        assert (
-            "mask_idx" not in item
-        ), "Item already contains mask_idx key, this is not expected!"
+        data["sample_type"] = 0
+        data["token_type"] = x
+        data["idx"] = idx
 
-        item["ang"] = item["ang"] / 180.0 * torch.pi  # + torch.pi
-        item["coord"] = item["pos"]
+        coords = coords - coords.mean(dim=0, keepdim=True)
+        data["coords"] = coords
 
-        return item
+        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+        data["pbc"] = torch.zeros(3, dtype=torch.float64)
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
+        data["forces"] = torch.zeros(
+            (x.size()[0], 3), dtype=torch.float64, device=x.device
+        )
+        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+
+        return data
 
     def __len__(self) -> int:
         return len(self.keys)
-
-    def size(self, index: int) -> int:
-        sz = self.sizes[index]
-        if self.vocab.prepend_bos:
-            sz += 1
-        if self.vocab.append_eos:
-            sz += 1
-        raise sz
-
-    def num_tokens(self, index: int) -> int:
-        return self.sizes[index]
 
 
 @torch.jit.script
