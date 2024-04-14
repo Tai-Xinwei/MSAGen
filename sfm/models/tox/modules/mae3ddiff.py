@@ -544,7 +544,7 @@ class ProteinMAEDistCriterions(nn.Module):
         else:
             angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
-        loss = type_loss + angle_loss / torch.pi + dist_loss
+        loss = type_loss + 10 * angle_loss + dist_loss
 
         return loss, {
             "total_loss": loss,

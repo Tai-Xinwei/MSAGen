@@ -73,30 +73,30 @@ class DiffNoise(nn.Module):
             self.alphas_cumprod,
             self.beta_list,
         ) = self._beta_schedule(
-            args.t_timesteps + 1,
+            args.num_timesteps + 1,
             args.ddpm_beta_start,
             args.ddpm_beta_end,
             args.ddpm_schedule,
         )
 
     def _beta_schedule(
-        self, t_timesteps, beta_start, beta_end, schedule_type="sigmoid"
+        self, num_timesteps, beta_start, beta_end, schedule_type="sigmoid"
     ):
         if schedule_type == "linear":
-            beta_list = torch.linspace(beta_start, beta_end, t_timesteps)
+            beta_list = torch.linspace(beta_start, beta_end, num_timesteps)
         elif schedule_type == "quadratic":
             beta_list = (
-                torch.linspace(beta_start**0.5, beta_end**0.5, t_timesteps) ** 2
+                torch.linspace(beta_start**0.5, beta_end**0.5, num_timesteps) ** 2
             )
         elif schedule_type == "sigmoid":
-            betas = torch.linspace(-6, 6, t_timesteps)
+            betas = torch.linspace(-6, 6, num_timesteps)
             beta_list = torch.sigmoid(betas) * (beta_end - beta_start) + beta_start
         elif schedule_type == "cosine":
             s = 0.008
-            steps = t_timesteps + 1
-            x = torch.linspace(0, t_timesteps, steps)
+            steps = num_timesteps + 1
+            x = torch.linspace(0, num_timesteps, steps)
             alphas_cumprod = (
-                torch.cos(((x / t_timesteps) + s) / (1 + s) * torch.pi * 0.5) ** 2
+                torch.cos(((x / num_timesteps) + s) / (1 + s) * torch.pi * 0.5) ** 2
             )
             alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
             betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
@@ -121,7 +121,7 @@ class DiffNoise(nn.Module):
         return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
 
     def _noise_sample(self, x_start, t, unit_noise_scale=1.0):
-        t = (t * self.args.t_timesteps).long()
+        t = (t * self.args.num_timesteps).long()
         noise = torch.randn_like(x_start) * unit_noise_scale
 
         sqrt_alphas_cumprod_t = self._extract(
