@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-from typing import Mapping
 
 import torch
-from megablocks.layers import common, dmoe
+from megablocks.layers import common, dmoe, moe
 from megablocks.layers.arguments import Arguments as MegablocksArguments
 from torch import nn
 from transformers.activations import ACT2FN
@@ -197,7 +196,12 @@ class MegaBlockMoeBlock(dmoe.dMoE):
         scores, expert_weights, top_experts = self.router(x)
 
         # Compute the experts.
-        return self.experts(x, scores, expert_weights, top_experts), scores
+        ret = self.experts(x, scores, expert_weights, top_experts)
+
+        # We compute the loss by ourselves
+        # so we need to clear the loss by MegaBlocks
+        moe.clear_load_balancing_loss()
+        return ret, scores
 
     def state_dict(self):
         """

@@ -39,7 +39,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${loadcheck_path}" ] && loadcheck_path='/hai1/shufxi/Mixtral-8x7B-v0.1'
 [ -z "${save_dir}" ] && save_dir='/mnt/output/'
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=8
-[ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="ScigptMoeDecoderLayerPP"
+[ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="MoeDecoderLayerPP"
 
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -116,13 +116,15 @@ for i in $(seq 0 7); do
     ip addr show ib${i}
 done
 
-sudo apt-get update && sudo apt-get install infiniband-diags -y
-ibdev2netdev -v
-ibstatus
-ibv_devinfo
+# Debug IB
+# sudo apt-get update && sudo apt-get install infiniband-diags -y
+# ibdev2netdev -v
+# ibstatus
+# ibv_devinfo
 
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/scigpt/pretrain_scigptmoe.py \
+set -x
+torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_sfm_nlm_moe.py \
       --model_type "$model_type" \
       --vocab_size 32001 \
       --pad_token_id 32000 --eos_token_id 2 \
@@ -149,7 +151,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/scigpt/pretrain_scigptmoe.py \
       --pipeline_model_parallel_size "$pipeline_model_parallel_size" \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --load_ckpt --pretrained_ckpt_path "$loadcheck_path" \
-      --compile_layers
+      --moe_impl "sparse" \
+      --moe_memory_optimized_mlp
+
 
 sleep infinity
 sleep infinity

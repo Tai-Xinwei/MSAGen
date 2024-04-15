@@ -92,14 +92,26 @@ def process_param(
     return param_groups
 
 
+def process_parm_list(param_list):
+    if param_list is None:
+        return []
+    if isinstance(param_list, str):
+        param_list = param_list.strip()
+        param_list = param_list.split(",") if param_list != "" else []
+    return param_list
+
+
 def myAdam(
     net,
     impl=Adam,
-    freeze_list: List = [],
-    unfreeze_list: List = [],
+    freeze_list=None,
+    unfreeze_list=None,
     mfm_lora=False,
     **kwargs,
 ):
+    freeze_list = process_parm_list(freeze_list)
+    unfreeze_list = process_parm_list(unfreeze_list)
+
     assert (
         len(freeze_list) == 0 or len(unfreeze_list) == 0
     ), "freeze_list and unfreeze_list cannot be set at the same time"
@@ -120,14 +132,17 @@ def myAdam(
 def myAdamW(
     net,
     impl=AdamW,
-    freeze_list: List = [],
-    unfreeze_list: List = [],
+    freeze_list=None,
+    unfreeze_list=None,
     mfm_lora=False,
     **kwargs,
 ):
+    freeze_list = process_parm_list(freeze_list)
+    unfreeze_list = process_parm_list(unfreeze_list)
+
     assert (
         len(freeze_list) == 0 or len(unfreeze_list) == 0
-    ), "freeze_list and unfreeze_list cannot be set at the same time"
+    ), f"freeze_list and unfreeze_list cannot be set at the same time, got {freeze_list=}, {unfreeze_list=}"
 
     new_param_groups = []
     param_groups = process_param(

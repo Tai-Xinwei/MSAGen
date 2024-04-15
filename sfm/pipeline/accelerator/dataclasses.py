@@ -147,6 +147,7 @@ class TrainerConfig:
     cpu: bool = False
     ifresume: bool = False
     load_ckpt: bool = False
+    freeze_param_list: str = ""
     unfreeze_param_list: str = ""
     finetune_from_checkpoint_dir: Optional[str] = None
     finetune_from_checkpoint_id: Optional[str] = None
