@@ -49,8 +49,13 @@ def mol2graph(mol):
     atom_features_list = []
     pos = []
     for i, atom in enumerate(mol.GetAtoms()):
-        atom_features_list.append(atom_to_feature_vector(atom))
         pos.append(list(mol.GetConformer().GetAtomPosition(i)))
+
+    # remove conformation in mol
+    mol.RemoveConformer(0)
+    for i, atom in enumerate(mol.GetAtoms()):
+        atom_features_list.append(atom_to_feature_vector(atom))
+
     x = np.array(atom_features_list, dtype = np.int64)
 
     # bonds
@@ -155,8 +160,10 @@ def path_to_mol_graph(dirname):
         if num_fragments > 1:
             return f"Failed {dirname}: f'Number of fragments: {num_fragments}'"
 
-        editable_mol = setAtomicCharge(editable_mol, charge)
+        # editable_mol = setAtomicCharge(editable_mol, charge)
         Chem.SanitizeMol(editable_mol)
+        no_h_mol = RemoveHs(editable_mol)
+        mol_smile = Chem.MolToSmiles(no_h_mol, isomericSmiles=False)
         # Chem.SanitizeMol(editable_mol, sanitizeOps=Chem.SANITIZE_ALL^Chem.SANITIZE_PROPERTIES)
 
         graph = mol2graph(editable_mol)
@@ -169,6 +176,7 @@ def path_to_mol_graph(dirname):
         graph['total_energy'] = json_obj['pubchem']['B3LYP@PM6']['properties']['energy']['total']
         graph['charge'] = charge
         graph['smiles'] = json_obj['pubchem']['Isomeric SMILES']
+        graph['mol_smile'] = mol_smile
         graph = compress(graph)
     except Exception as e:
         print(f"Failed {dirname}: {e}")

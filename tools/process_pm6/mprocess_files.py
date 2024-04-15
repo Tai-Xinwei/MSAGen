@@ -47,6 +47,12 @@ def process_file(xz_file, data_path, output_dir):
             filter_count += 1
             continue
 
+        cononical_smile = Chem.MolToSmiles(Chem.MolFromSmiles(graph["smiles"]), isomericSmiles=False)
+        if cononical_smile != graph["mol_smile"]:
+            print(f"smiles is {cononical_smile}, mol_smile is {graph['mol_smile']}")
+            filter_count += 1
+            continue
+
         # write_txn.put(smiles.encode(), pkl.dumps(graph))
         # molecule_keys.add(smiles)
         # molecule_sizes.append(graph["num_nodes"])
@@ -72,7 +78,7 @@ def process_files():
     # arg_parser.add_argument('end_index', type=int)
     # arg_parser.add_argument('num_processes', type=int)
     arg_parser.add_argument('--output_dir', type=str, default="/home/peiran/data/pm6_unzip/output")
-    arg_parser.add_argument('--lmdb_dir', type=str, default="/home/peiran/data/pm6_unzip/pm6_10M_refined3.lmdb")
+    arg_parser.add_argument('--lmdb_dir', type=str, default="/home/peiran/data/pm6_unzip/pm6_10M_refined4.lmdb")
 
     args = arg_parser.parse_args()
 
@@ -90,7 +96,7 @@ def process_files():
     i = 0
     filter_i = 0
 
-    pool = Pool(12)
+    pool = Pool(24)
     partial_process_file = partial(process_file, data_path=args.data_path, output_dir=args.output_dir)
     output_tuples = pool.map(partial_process_file, xz_names)
 

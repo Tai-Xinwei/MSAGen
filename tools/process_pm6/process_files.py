@@ -18,7 +18,7 @@ def process_files():
     # arg_parser.add_argument('end_index', type=int)
     # arg_parser.add_argument('num_processes', type=int)
     arg_parser.add_argument('--output_dir', type=str, default="/home/peiran/data/pm6_unzip/output")
-    arg_parser.add_argument('--lmdb_dir', type=str, default="/home/peiran/data/pm6_unzip/pm6_8M.lmdb")
+    arg_parser.add_argument('--lmdb_dir', type=str, default="/home/peiran/data/pm6_unzip/pm6_10M_refined4.lmdb")
 
     args = arg_parser.parse_args()
 
@@ -31,9 +31,8 @@ def process_files():
     xz_names = os.listdir(args.data_path)
     # print(xz_names)
 
-    keys = []
+    mol_keys = set()
     mol_sizes = []
-
     i = 0
     filter_i = 0
     for xz_name in xz_names:
@@ -63,8 +62,18 @@ def process_files():
                 filter_i += 1
                 continue
 
+            if smiles in mol_keys:
+                filter_i += 1
+                continue
+
+            cononical_smile = Chem.MolToSmiles(Chem.MolFromSmiles(graph["smiles"]), isomericSmiles=False)
+            if cononical_smile != graph["mol_smile"]:
+                print(f"smiles is {cononical_smile}, mol_smile is {graph['mol_smile']}")
+                filter_i += 1
+                continue
+
             write_txn.put(smiles.encode(), pkl.dumps(graph))
-            keys.append(smiles)
+            mol_keys.add(smiles)
             mol_sizes.append(graph["num_nodes"])
             i += 1
 
@@ -76,8 +85,9 @@ def process_files():
         #remvoe the folder created by os.system
         os.system(f"rm -rf {unzip_dir_name}")
 
+    mol_keys = list(mol_keys)
     metadata = {}
-    metadata['keys'] = keys
+    metadata['keys'] = mol_keys
     metadata['size'] = mol_sizes
     write_txn.put("metadata".encode(), obj2bstr(metadata))
 
