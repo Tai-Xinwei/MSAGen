@@ -368,13 +368,6 @@ def compute_PDE_q_loss(
     return res
 
 
-### Terminal loss for score model ###
-# Refer the code from https://github.com/ermongroup/sliced_score_matching/blob/master/losses/score_matching.py
-# https://github.com/ermongroup/sliced_score_matching/blob/master/losses/sliced_sm.py
-
-
-# single_sliced_score_matching and sliced_VR_score_matching implement a basic version of SSM
-# with only M=1. These are used in density estimation experiments for DKEF.
 def compute_pde_control_loss(output, epsilon):
     """
     Compute the control loss for the diffusion.
@@ -387,11 +380,36 @@ def compute_pde_control_loss(output, epsilon):
         The computed loss.
 
     """
-    # Now is regular MSE loss, here we approximate it by square
+    # First Mean (expectation) and then square
     loss = torch.mean(torch.sum((output * (output - epsilon)), dim=(1, 2))) ** 2  # (53)
     return loss
 
 
+# testing the loss design by simply replacing compute_pde_control_loss in the mae3ddiff.py
+def compute_pde_control_penalty_loss(output, epsilon):
+    """
+    Compute the control penalty loss for the diffusion.
+
+    Args:
+        output: The predicted epsilon, shape is [batch_size, dim1, dim2]
+        epsilon: The true epsilon, shape is [batch_size, dim1, dim2]
+
+    Returns:
+        The computed loss.
+
+    """
+    # First square and then Mean (expectation)
+    loss = torch.mean(torch.sum((output * (output - epsilon)), dim=(1, 2)) ** 2)  # (53)
+    return loss
+
+
+### Terminal loss for score model ###
+# Refer the code from https://github.com/ermongroup/sliced_score_matching/blob/master/losses/score_matching.py
+# https://github.com/ermongroup/sliced_score_matching/blob/master/losses/sliced_sm.py
+
+
+# single_sliced_score_matching and sliced_VR_score_matching implement a basic version of SSM
+# with only M=1. These are used in density estimation experiments for DKEF.
 # def compute_pde_control_loss(
 #     sde,
 #     net_output,
