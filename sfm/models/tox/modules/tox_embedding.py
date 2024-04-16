@@ -125,6 +125,7 @@ class TOXmixEmbedding(nn.Module):
         self,
         batched_data,
         padding_mask,
+        angle_mask=None,
         pos=None,
         angle=None,
         mask_aa=None,
@@ -140,6 +141,7 @@ class TOXmixEmbedding(nn.Module):
             mask_pos=mask_pos,
             time_aa=time_aa,
         )
+
         edge_feature = None
         delta_pos = None
         if mask_pos is not None and self.pfm_config.add_3d:
@@ -150,6 +152,7 @@ class TOXmixEmbedding(nn.Module):
                 mask_aa,
                 mask_pos,
                 mask_angle,
+                angle_mask,
                 time_pos,
                 time_angle,
             )
