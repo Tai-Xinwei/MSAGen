@@ -47,9 +47,12 @@ def mol2graph(mol):
 
     # atoms
     atom_features_list = []
-    pos = []
-    for i, atom in enumerate(mol.GetAtoms()):
-        pos.append(list(mol.GetConformer().GetAtomPosition(i)))
+    # pos = []
+    # for i, atom in enumerate(mol.GetAtoms()):
+    #     pos.append(list(mol.GetConformer().GetAtomPosition(i)))
+
+    pos = mol.GetConformer().GetPositions()
+    # assert type(pos) == np.ndarray, "pos is not np.ndarray"
 
     # remove conformation in mol
     mol.RemoveConformer(0)
@@ -90,7 +93,8 @@ def mol2graph(mol):
     graph['edge_feat'] = edge_attr
     graph['node_feat'] = x
     graph['num_nodes'] = len(x)
-    graph['pos'] = np.array(pos)
+    # graph['pos'] = np.array(pos)
+    graph['pos'] = pos
 
     return graph
 
