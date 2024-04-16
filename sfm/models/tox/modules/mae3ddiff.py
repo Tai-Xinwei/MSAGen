@@ -11,7 +11,7 @@ from sfm.logging import logger
 from sfm.models.tox.modules.physics import (
     VESDE,
     compute_pde_control_loss,
-    compute_PDE_qloss,
+    compute_PDE_q_loss,
 )
 
 
@@ -472,24 +472,15 @@ class ProteinMAEDistCriterions(nn.Module):
         logits = output_dict["x"]
         pair_output = output_dict["x_pair"]
         angle_output = output_dict["angle_output"]
-        output_dict["mask_pos"]
+        ang_epsilon = output_dict["ang_epsilon"]  # add agn_epsilon target
+        mask_pos = output_dict["mask_pos"]
         mask_aa = output_dict["mask_aa"]
-        ang_score = output_dict["ang_score"]
-        ang_score_norm = output_dict["ang_score_norm"]
         padding_mask = output_dict["padding_mask"]
         output_dict["backbone"]
 
         if mask_aa.any():
             with torch.no_grad():
                 aa_seq = batch_data["x"]
-                # paired_seq = aa_seq.unsqueeze(-1) * self.num_aa_type + aa_seq.unsqueeze(
-                #     -2
-                # )
-                # pair_mask_aa = mask_aa.unsqueeze(1).bool() & mask_aa.unsqueeze(2).bool()
-                # pair_mask_aa = pair_mask_aa & pair_mask_aa_0.bool()
-
-                # # logits [mask_L, vocab^2]
-                # paired_seq = paired_seq[pair_mask_aa.squeeze(-1).bool()]
                 aa_seq = aa_seq[mask_aa.squeeze(-1).bool()]
 
             logits = logits[:, :, :][mask_aa.squeeze(-1).bool()]
@@ -507,21 +498,6 @@ class ProteinMAEDistCriterions(nn.Module):
                 .to(torch.float32)
                 .mean()
             )
-
-            # type_loss = self.loss_type(
-            #     pair_output.view(-1, pair_output.size(-1)).to(torch.float32),
-            #     paired_seq.view(-1),
-            # )
-
-            # type_acc = (
-            #     (
-            #         pair_output.view(-1, pair_output.size(-1)).argmax(dim=-1)
-            #         == paired_seq
-            #     )
-            #     .to(torch.float32)
-            #     .mean()
-            # )
-
         else:
             type_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
             type_acc = 0.0
@@ -534,8 +510,6 @@ class ProteinMAEDistCriterions(nn.Module):
             delta_pos0 = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
             ori_dist = delta_pos0.norm(dim=-1)
 
-        # pred_pos = backbone.mean(dim=2, keepdim=False)
-
         dist_mask = ~(
             padding_mask.bool().unsqueeze(1) | padding_mask.bool().unsqueeze(2)
         )
@@ -544,36 +518,31 @@ class ProteinMAEDistCriterions(nn.Module):
 
         ori_dist = ori_dist[dist_mask]
         dist = pair_output[dist_mask]
-        # dist = pred_pos.unsqueeze(1) - pred_pos.unsqueeze(2)
-        # dist = dist.norm(dim=-1)
-        # dist = dist[dist_mask]
-
         dist_loss = self.loss_dist(ori_dist.to(torch.float32), dist.to(torch.float32))
 
-        # # mask_angle = mask_pos.squeeze(-1)
-        # # if mask_angle.any():
-        with torch.no_grad():
-            ori_angle = batch_data["ang"][:, :, :3]
-            angle_mask = batch_data["ang_mask"][:, :, :3].bool()
-        # mask_angle = mask_angle & angle_mask
-        mask_angle = angle_mask & (~padding_mask.bool().unsqueeze(-1))
+        mask_angle = mask_pos.squeeze(-1)
+        if mask_angle.any():
+            with torch.no_grad():
+                ori_angle = batch_data["ang"][:, :, :3]
+                angle_mask = batch_data["ang_mask"][:, :, :3].bool()
+            mask_angle = mask_angle & angle_mask
+            mask_angle = angle_mask & (~padding_mask.bool().unsqueeze(-1))
 
-        if self.diffmode == "score":
-            ang_score = ang_score[:, :, :3]
-            ang_score = ang_score[mask_angle.squeeze(-1)]
-            angle_output = angle_output.to(torch.float32) * torch.sqrt(
-                ang_score_norm.to(torch.float32)
-            )
-            angle_output = angle_output[mask_angle.squeeze(-1)]
-            angle_loss = ((ang_score - angle_output) ** 2).mean()
-        elif self.diffmode == "x0":
-            angle_output = angle_output[mask_angle.squeeze(-1)]
-            ori_angle = ori_angle[mask_angle.squeeze(-1)]
-            angle_loss = self.loss_angle(
-                angle_output.to(torch.float32), ori_angle.to(torch.float32)
-            )
-        # # else:
-        # angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
+            if self.diffmode == "epsilon":
+                ang_epsilon = ang_epsilon[:, :, :3]
+                ang_epsilon = ang_epsilon[mask_angle]
+                epsilon_pred = angle_output[mask_angle]
+                angle_loss = ((ang_epsilon - epsilon_pred) ** 2).mean()
+            elif self.diffmode == "x0":
+                angle_output = angle_output[mask_angle]
+                ori_angle = ori_angle[mask_angle]
+                angle_loss = self.loss_angle(
+                    angle_output.to(torch.float32), ori_angle.to(torch.float32)
+                )
+            else:
+                raise ValueError(f"diffmode {self.diffmode} not supported")
+        else:
+            angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         loss = type_loss + angle_loss / torch.pi + dist_loss
 
@@ -605,38 +574,18 @@ class ProteinMAEDistPDECriterions(nn.Module):
         batch_data,
         output_dict,
     ):
-        # output of TOXModel
-        logits = output_dict["x"]
-        angle_output = output_dict["angle_output"]
-        output_dict["ang_score"]
-        output_dict["ang_score_norm"]
-        padding_mask = output_dict["padding_mask"]
-        time_pos = output_dict["time_pos"]
-        ang_epsilon = output_dict["ang_epsilon"]
-        ang_sigma = output_dict["ang_sigma"]
-
-        # output added by TOXPDEModel
-        ## pde_q_loss
-        q_point = output_dict["q_point"]
-        nabla_phi_term = output_dict["nabla_phi_term"]
-        laplace_phi_term = output_dict["laplace_phi_term"]
-        hp = output_dict["hp"]
-        hm = output_dict["hm"]
-        q_output = output_dict["q_output"]
-        q_output_ptq = output_dict["q_output_ptq"]
-        q_output_mtq = output_dict["q_output_mtq"]
-
-        ## pde_control_loss
-        x0 = output_dict["x0"]
-        terminal_output = output_dict["terminal_output"]
-        mask_pos = output_dict["mask_pos"]
-        mask_aa = output_dict["mask_aa"]
-
         # whether to use the PDE loss
         if_pde_q_loss = False if self.lamb_pde_q == 0 else True
+        if_pde_control_loss = False if self.lamb_pde_control == 0 else True
+
+        # need mask when computing loss
+        unified_angle_mask = output_dict["unified_angle_mask"]
 
         """----------------------type loss----------------------"""
+        mask_aa = output_dict["mask_aa"]
         if mask_aa.any():
+            logits = output_dict["x"]
+
             with torch.no_grad():
                 aa_seq = batch_data["x"][mask_aa.squeeze(-1).bool()]
 
@@ -685,68 +634,88 @@ class ProteinMAEDistPDECriterions(nn.Module):
         #     dist_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         """----------------------angle loss----------------------"""
+        if unified_angle_mask.any():
+            angle_output = output_dict["angle_output"]
+            ang_epsilon = output_dict["ang_epsilon"]
 
-        mask_angle = mask_pos.squeeze(-1)
-        if mask_angle.any():
-            with torch.no_grad():
-                ori_angle = batch_data["ang"][:, :, :3]
-                angle_mask = batch_data["ang_mask"][:, :, :3].bool()
-            mask_angle = mask_angle & angle_mask
-
-            if self.diffmode == "score":
+            if self.diffmode == "epsilon":
                 # retrieve the noise
-                ang_epsilon = ang_epsilon[:, :, :3][mask_angle.squeeze(-1)]
-                # from epsilon to noise
-                angle_output = angle_output[mask_angle.squeeze(-1)].to(
-                    torch.float32
-                )  # epsilon is the NN output
-                angle_loss = ((angle_output - ang_epsilon) ** 2).mean()
+                angle_epsilon_masked = ang_epsilon[unified_angle_mask].to(torch.float32)
+                epsilon_pre_masked = angle_output[unified_angle_mask].to(torch.float32)
+                angle_loss = ((epsilon_pre_masked - angle_epsilon_masked) ** 2).mean()
             elif self.diffmode == "x0":
-                angle_output = angle_output[mask_angle.squeeze(-1)]
-                ori_angle = ori_angle[mask_angle.squeeze(-1)]
+                ori_angle = batch_data["ang"][:, :, :3]
+                angle_output_masked = angle_output[unified_angle_mask]
+                ori_angle_masked = ori_angle[unified_angle_mask]
                 angle_loss = self.loss_angle(
-                    angle_output.to(torch.float32), ori_angle.to(torch.float32)
+                    angle_output_masked.to(torch.float32),
+                    ori_angle_masked.to(torch.float32),
                 )
         else:
             angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         """----------------------pde q loss----------------------"""
-        pde_q_loss = (
-            compute_PDE_qloss(
+        if unified_angle_mask.any() and if_pde_q_loss:
+            nabla_phi_term = output_dict["nabla_phi_term"]
+            laplace_phi_term = output_dict["laplace_phi_term"]
+            hp = output_dict["hp"]
+            hm = output_dict["hm"]
+            q_output = output_dict["q_output"]
+            q_output_ptq = output_dict["q_output_ptq"]
+            q_output_mtq = output_dict["q_output_mtq"]
+            ang_sigma = output_dict["ang_sigma"]
+
+            # nabla_phi and laplace_phi have been masked
+            q_output = torch.where(
+                unified_angle_mask, q_output, torch.zeros_like(q_output)
+            ).to(torch.float32)
+            q_output_mtq = torch.where(
+                unified_angle_mask, q_output_mtq, torch.zeros_like(q_output_mtq)
+            ).to(torch.float32)
+            q_output_ptq = torch.where(
+                unified_angle_mask, q_output_ptq, torch.zeros_like(q_output_ptq)
+            ).to(torch.float32)
+
+            pde_q_loss = compute_PDE_q_loss(
                 self.vesde,
                 q_output,
-                time_pos,
-                q_point[:, :, :3],
-                nabla_phi_term[:, :, :3],
+                nabla_phi_term,
                 laplace_phi_term,
                 q_output_mtq,
                 q_output_ptq,
-                padding_mask,
                 hp,
                 hm,
-                sigma_t=ang_sigma,
+                ang_sigma,
+                is_clip=False,
             )
-            if if_pde_q_loss
-            else 0.0
-        )
+        else:
+            pde_q_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
         """----------------------pde control loss----------------------"""
-        try:
+        if unified_angle_mask.any() and if_pde_control_loss:
+            angle_output_single_time = output_dict["angle_output_single_time"]
+            ang_spsilon_single_time = output_dict["ang_epsilon_single_time"]
+
+            epsilon_pred_single_time_masked = torch.where(
+                unified_angle_mask,
+                angle_output_single_time,
+                torch.zeros_like(angle_output_single_time),
+            ).to(torch.float32)
+            ang_epsilon_single_time_masked = torch.where(
+                unified_angle_mask,
+                ang_spsilon_single_time,
+                torch.zeros_like(ang_spsilon_single_time),
+            ).to(torch.float32)
             pde_control_loss = compute_pde_control_loss(
-                self.vesde,
-                terminal_output,
-                x0,
-                torch.zeros_like(time_pos),
-                diffmode=self.diffmode,
-                noise=None,
-                detach=False,
-                noise_type="radermacher",
+                epsilon_pred_single_time_masked,
+                ang_epsilon_single_time_masked,
             )
-        except:
+        else:
             pde_control_loss = torch.tensor(
                 [0.0], device=logits.device, requires_grad=True
             )
 
+        """----------------------total loss----------------------"""
         loss = (
             type_loss
             + angle_loss
@@ -758,10 +727,10 @@ class ProteinMAEDistPDECriterions(nn.Module):
         return loss, {
             "total_loss": loss,
             "loss_type": type_loss,
-            # "loss_dist": dist_loss,
             "loss_angle": angle_loss,
             "pde_q_loss": pde_q_loss,
             "pde_control_loss": pde_control_loss,
+            # "loss_dist": dist_loss,
             "type_acc": type_acc,
         }
 

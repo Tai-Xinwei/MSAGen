@@ -5,6 +5,11 @@
 checkpoint_dir_path=/blob/pfmexp/output/junzhe/checkpoints
 mkdir -p ${checkpoint_dir_path}
 
+
+# Create the output father directory
+checkpoint_dir_path=/blob/pfmexp/output/junzhe/checkpoints
+mkdir -p ${checkpoint_dir_path}
+
 export path=run.sh
 
 # variables for distributed
@@ -33,7 +38,7 @@ export log_interval=20
 export WANDB_GROUP=pde_q_sample
 export WANDB_TEAM=junzhe_personal
 export WANDB_PROJECT=pde_q_running_loss
-export WANDB_RUN_NAME="without_pde_q_epsilon_new"
+export WANDB_RUN_NAME="epsilon_model_with_pde_control_0.01"
 export wandb_group=${WANDB_GROUP}
 export wandb_team=${WANDB_TEAM}
 export wandb_project=${WANDB_PROJECT}
@@ -67,8 +72,8 @@ export sandwich_ln=true
 export droppath_prob=0.0
 export noise_scale=0.2
 export noise_mode=diff
-export lamb_pde_q=0.01
-export lamb_pde_control=0
+export lamb_pde_q=0
+export lamb_pde_control=0.01
 export diffmode=score
 # export seq_masking_method=continuousMask
 export seq_masking_method=transformerM

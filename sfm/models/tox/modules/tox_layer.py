@@ -50,60 +50,17 @@ class ResidueFeature(nn.Module):
         # self.token_embed = nn.Linear(num_residues, hidden_dim, bias=False)
         self.atom_mask_embedding = nn.Embedding(9, hidden_dim, padding_idx=None)
 
-        self.time_embedding = TimeStepEncoder(
-            t_timesteps,
-            hidden_dim,
-            timestep_emb_type=time_embedding_type,
-            mlp=time_embedding_mlp,
-        )
-        self.diffnoise = DiffNoise(pfm_config)
-
-        if self.prop_feat:
-            # [ Chemical polarity ]
-            ### 0 - Polar
-            ### 1 - Nonpolar
-            ### 2 - Brønsted base
-            ### 3 - Brønsted acid
-            ### 4 - Brønsted acid and base
-            ### 5 - Basic polar
-            ### 6 - Unknown
-            # [ Net charge at pH 7.4 ]
-            ### 0 - Neutral
-            ### 1 - Positive
-            ### 2 - Negative
-            ### 3 - Unknown
-            # [ Hydropathy index ]
-            ### real value
-            # [ Molecular mass ]
-            ### real value
-            self.prop_nets = nn.ModuleDict(
-                {
-                    "chem_polar": nn.Embedding(7, hidden_dim),
-                    "net_charge": nn.Embedding(4, hidden_dim),
-                    "hydropathy": nn.Linear(1, hidden_dim, bias=False),
-                    "mol_mass": nn.Linear(1, hidden_dim, bias=False),
-                }
-            )
-
-        if self.angle_feat:
-            self.angle_embed = nn.Linear(3, hidden_dim, bias=False)
+        # self.time_embedding = TimeStepEncoder(
+        #     t_timesteps,
+        #     hidden_dim,
+        #     timestep_emb_type=time_embedding_type,
+        #     mlp=time_embedding_mlp,
+        # )
 
     def forward(self, batched_data, time_aa=None, mask_aa=None, mask_pos=None):
         x = self.token_embed(batched_data["x"])
 
         mask_embedding = self.atom_mask_embedding.weight.sum(dim=0)
-
-        if self.prop_feat:
-            for prop_name, prop_net in self.prop_nets.items():
-                prop_data = batched_data[prop_name]
-                if prop_data.dtype == torch.float:
-                    prop_data = prop_data.to(x.dtype)
-                x = x + prop_net(prop_data)
-
-        if self.angle_feat:
-            angle_data = batched_data["ang"].to(x.dtype)
-            anlge_mask = angle_data == float("inf")
-            x = x + self.angle_embed(angle_data.masked_fill(anlge_mask, 0.0))
 
         x[mask_aa.bool().squeeze(-1)] = mask_embedding
 
@@ -384,22 +341,18 @@ class Mix3DEmbeddingV2(nn.Module):
         self.num_edges = num_edges
         self.num_kernel = num_kernel
         self.embed_dim = embed_dim
+        self.time_embedding_dim = embed_dim
 
-        # inter_dim = embed_dim // 2
-        # self.trans_pos = TransNet(3, embed_dim)
-        # self.trans_feat = TransNet(embed_dim, embed_dim)
-        # self.pos_emb = NonLinear(3, embed_dim)
-        # self.pos_emb = NonLinear(3, embed_dim)
-        self.angle_emb = NonLinear(3, embed_dim)
+        self.angle_emb = AngleEmb(1, self.time_embedding_dim)
 
         self.time_embedding = TimeStepEncoder(
             t_timesteps,
-            embed_dim,
+            self.time_embedding_dim,
             timestep_emb_type=time_embedding_type,
             mlp=time_embedding_mlp,
         )
 
-        self.inf_angle_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
+        self.feature_proj = nn.Linear(3 * self.time_embedding_dim, embed_dim)
 
     def forward(
         self,
@@ -409,29 +362,38 @@ class Mix3DEmbeddingV2(nn.Module):
         mask_aa,
         mask_pos,
         mask_angle,
+        angle_mask,
         time_pos,
         time_angle,
     ):
+        bs, nnode, _ = angle.shape
         angle = angle.to(self.angle_emb.layer1.weight.dtype)
-        # bs = angle.shape[0]
-        # angle = angle.view(bs, -1, 1)
-        # angle_mask = angle == float("inf")
-        # angle = angle.masked_fill(angle_mask, 0.0)
-        # angle_feat = self.angle_emb(angle)
-        # angle_feat = torch.where(angle_mask, self.inf_angle_embedding.weight, angle_feat)
-        # node6dfeature = torch.sum(angle_feat.view(bs, -1, 3, self.embed_dim).transpose(2, 3), dim=-1)
-        angle = angle[:, :, :3]
+        angle = angle[:, :, :3].reshape(bs, -1, 1)
+        angle_mask = angle_mask[:, :, :3]
         angle_feat = self.angle_emb(angle)
         node6dfeature = angle_feat
 
         if time_pos is not None and mask_angle is not None:
-            time_embedding_pos = self.time_embedding(time_pos).unsqueeze(1)
-            t0 = torch.zeros_like(time_pos).to(time_pos)
-            t0_emb = self.time_embedding(t0).unsqueeze(1)
+            time_pos = time_pos.unsqueeze(-1).unsqueeze(-1).repeat(1, nnode, 3)
+            t0 = torch.zeros_like(
+                time_pos, dtype=time_pos.dtype, device=time_pos.device
+            )
+
+            time_pos = time_pos.masked_fill(~angle_mask, 1.0).view(-1)
+            t0 = t0.masked_fill(~angle_mask, 1.0).view(-1)
+
+            time_embedding_pos = self.time_embedding(time_pos).view(
+                bs, -1, self.time_embedding_dim
+            )
+            t0_emb = self.time_embedding(t0).view(bs, -1, self.time_embedding_dim)
+            mask_angle = mask_angle.repeat(1, 3, 1)
             time_embedding_pos = torch.where(
                 mask_angle.bool(), time_embedding_pos, t0_emb
             )
+
             node6dfeature = node6dfeature + time_embedding_pos
+
+        node6dfeature = self.feature_proj(node6dfeature.view(bs, nnode, -1))
 
         node6dfeature = node6dfeature.masked_fill(
             padding_mask.unsqueeze(-1).to(torch.bool), 0.0
@@ -644,6 +606,22 @@ class NonLinear(nn.Module):
     # def print_grad(self, grad):
     #     print(torch.max(grad))
     #     return grad
+
+    def forward(self, x):
+        x = self.layer1(x)
+        x = F.gelu(x)
+        x = self.layer2(x)
+        return x
+
+
+class AngleEmb(nn.Module):
+    def __init__(self, input, output_size, hidden=None):
+        super(AngleEmb, self).__init__()
+
+        if hidden is None:
+            hidden = output_size // 4
+        self.layer1 = nn.Linear(input, hidden, bias=False)
+        self.layer2 = nn.Linear(hidden, output_size, bias=False)
 
     def forward(self, x):
         x = self.layer1(x)
