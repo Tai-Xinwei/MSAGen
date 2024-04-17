@@ -2,11 +2,11 @@
 
 if [ "$#" -ne 2 ]; then
     echo "Usage: $0 <image-name> <tag>"
+    echo "Note: this script is supposed to run from the root of this repo"
     exit 1
 fi
 IMAGE_NAME=$1
 TAG=$2
-
 
 RED='\033[0;31m'
 GREEN='\033[1;32m'
@@ -17,8 +17,8 @@ registry="singularitybase"
 base_image_repo="base/job/pytorch/acpt-2.2.1-py3.10-cuda12.1"
 validator_image_repo="validations/base/singularity-tests"
 
-
-az acr login -n $registry 2>/dev/null 1>&2
+# print logs if failed
+az acr login -n $registry
 
 if [ $? -ne 0 ]; then
     echo -e "Failed to login to ACR, exiting..."
@@ -51,7 +51,7 @@ validator_image="$registry.azurecr.io/$validator_image_repo:$validator_image_tag
 echo "validator_image: $validator_image"
 
 echo "Building image..."
-docker build . -f Dockerfile \
+docker build . -f docker/Dockerfile \
     --build-arg BASE_IMAGE=$base_image \
     --build-arg VALIDATOR_IMAGE=$validator_image \
     --progress=plain \
