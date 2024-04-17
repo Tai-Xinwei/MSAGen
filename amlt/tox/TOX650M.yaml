@@ -24,7 +24,7 @@ target:
     # name: sfm-nc96-westus3
 
 environment:
-  image: yaosen/sfm-cuda:py39-torch2.2.2-cuda12.1
+  image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
   registry: msroctocr.azurecr.io
   username: msroctocr
 

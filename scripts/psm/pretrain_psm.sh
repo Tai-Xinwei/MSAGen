@@ -50,7 +50,7 @@ export MKL_THREADING_LAYER='GNU'
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
 [ -z "${data_path}" ] && data_path='/data/peiran/'
-[ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb,AFDB50-plddt70.lmdb,matter-sim-3M'
+[ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,AFDB50-plddt70.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.2,0.4'
 
@@ -62,9 +62,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=tox
+[ -z "${wandb_group}" ] && wandb_group=psm
 [ -z "${wandb_team}" ] && wandb_team=peiranjin
-[ -z "${wandb_project}" ] && wandb_project=SFM_tox
+[ -z "${wandb_project}" ] && wandb_project=psm
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -164,7 +164,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --save_dir $save_dir \
           --seed 666666 \
           --add_3d \
-          --dynamic_loader --max_tokens $max_tokens \
+          --ifresume \
           --diffmode $diffmode \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
@@ -182,6 +182,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+
+          # --dynamic_loader --max_tokens $max_tokens \
 
 sleep inf
 sleep inf
