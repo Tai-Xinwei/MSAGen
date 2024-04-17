@@ -44,6 +44,9 @@ class PSMConfig(GraphormerConfig):
     train_data_path: str = ""
     valid_data_path: str = ""
 
+    data_path_list: str = ""
+    dataset_name_list: str = ""
+
     lamb_pde: float = 0.01
 
     mode: str = "score"

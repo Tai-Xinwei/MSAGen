@@ -22,6 +22,7 @@ from torch_geometric.data import Data, InMemoryDataset
 from tqdm import tqdm
 
 from sfm.data.dataset import FoundationModelDataset
+from sfm.data.mol_data import algos
 from sfm.data.prot_data.dataset import LMDBDataset
 from sfm.data.prot_data.sequence_masking import masking_registry
 from sfm.data.prot_data.spatial_noise import noise_registry
@@ -50,7 +51,7 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         )
         self._txn = self.env.begin(write=False)
         metadata = bstr2obj(self.txn.get("metadata".encode()))
-        self._sizes, self._keys = metadata["sizes"], metadata["keys"]
+        self._sizes, self._keys = metadata["size"], metadata["keys"]
 
     @property
     def env(self):
@@ -83,7 +84,7 @@ class PM6FullLMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
 
-        x = data["x"].to(torch.int64)
+        x = data["node_feat"].to(torch.int64)[:, 0]
         coords = data["coords"].to(torch.float32)
 
         x = convert_to_single_emb(x)
@@ -94,14 +95,46 @@ class PM6FullLMDBDataset(FoundationModelDataset):
 
         coords = coords - coords.mean(dim=0, keepdim=True)
         data["coords"] = coords
+        data["num_atoms"] = x.size()[0]
 
         data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
-        data["pbc"] = torch.zeros(3, dtype=torch.float64)
+        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
         data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
         data["forces"] = torch.zeros(
             (x.size()[0], 3), dtype=torch.float64, device=x.device
         )
         data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+
+        data = self.generate_2dgraphfeat(data)
+
+        return data
+
+    def generate_2dgraphfeat(self, data):
+        N = data["num_atoms"]
+        adj = torch.zeros([N, N], dtype=torch.bool)
+
+        edge_index = torch.tensor(data["edge_index"], dtype=torch.long)
+        edge_attr = torch.tensor(data["edge_feat"], dtype=torch.long)
+        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+        attn_edge_type[edge_index[0, :], edge_index[1, :]] = (
+            convert_to_single_emb(edge_attr) + 1
+        )
+        adj[edge_index[0, :], edge_index[1, :]] = True
+        shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+        max_dist = np.amax(shortest_path_result)
+        edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+        spatial_pos = torch.from_numpy((shortest_path_result)).long()
+        indgree = adj.long().sum(dim=1).view(-1)
+
+        data["edge_index"] = edge_index
+        data["edge_attr"] = edge_attr
+        data["node_attr"] = torch.tensor(data["node_feat"], dtype=torch.long)
+
+        data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
+        data["attn_edge_type"] = attn_edge_type
+        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        data["in_degree"] = torch.tensor(indgree, dtype=torch.long)
+        data["spatial_pos"] = torch.tensor(spatial_pos, dtype=torch.long)
 
         return data
 
@@ -125,7 +158,7 @@ class MatterSimDataset:
                 self.data_name_to_txn[path_name] = self.data_name_to_lmdb[
                     path_name
                 ].begin(write=False)
-                for key, _ in tqdm(self.data_name_to_txn[path_name].cursor()):
+                for key, _ in self.data_name_to_txn[path_name].cursor():
                     self.index_to_dataset_name.append([path_name, key.decode()])
 
     @lru_cache(maxsize=16)
@@ -143,9 +176,73 @@ class MatterSimDataset:
 
         data["cell"] = torch.tensor(data["cell"], dtype=torch.float64)
         data["pbc"] = torch.tensor(data["pbc"], dtype=torch.bool)
-        data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
-        data["forces"] = torch.tensor(data["forces"], dtype=torch.float64)
+
+        cell_corner_pos_matrix = torch.tensor(
+            [
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 1.0, 1.0],
+                [1.0, 0.0, 0.0],
+                [1.0, 0.0, 1.0],
+                [1.0, 1.0, 0.0],
+                [1.0, 1.0, 1.0],
+            ],
+            dtype=torch.float64,
+        )
+
+        cell_corner_pos = torch.matmul(cell_corner_pos_matrix, data["cell"])
+        data["coords"] = torch.cat(
+            [data["coords"], cell_corner_pos], dim=0
+        )  # expand pos with cell corners
+        data["num_atoms"] = int(x.size()[0] - 8)
+        data["forces"] = torch.cat(
+            [
+                torch.tensor(data["forces"], dtype=torch.float64),
+                torch.zeros([8, 3], dtype=torch.float64),
+            ],
+            dim=0,
+        )  # expand forces for cell corners
         data["energy"] = torch.tensor([data["info"]["energy"] / x.size()[0]])
+        data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
+
+        data = self.generate_2dgraphfeat(data)
+
+        return data
+
+    def generate_2dgraphfeat(self, data):
+        N = data["num_atoms"]
+        adj = torch.zeros([N, N], dtype=torch.bool)
+
+        edge_index = torch.zeros([2, 0], dtype=torch.long)
+        edge_attr = torch.zeros([0, 3], dtype=torch.long)
+        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+        attn_edge_type[edge_index[0, :], edge_index[1, :]] = (
+            convert_to_single_emb(edge_attr) + 1
+        )
+        adj[edge_index[0, :], edge_index[1, :]] = True
+        shortest_path_result = (
+            torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+        )
+        edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
+
+        spatial_pos = torch.from_numpy((shortest_path_result)).long()
+        indgree = adj.long().sum(dim=1).view(-1)
+
+        data["edge_index"] = edge_index
+        data["edge_attr"] = edge_attr
+        data["node_attr"] = torch.cat(
+            [
+                data["token_type"],
+                torch.zeros([data["token_type"].size()[0], 8], dtype=torch.long),
+            ],
+            dim=-1,
+        )
+        data["edge_input"] = edge_input
+        data["attn_edge_type"] = attn_edge_type
+        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        data["in_degree"] = torch.tensor(indgree, dtype=torch.long)
+        data["spatial_pos"] = torch.tensor(spatial_pos, dtype=torch.long)
 
         return data
 
@@ -175,7 +272,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
             meminit=False,
         )
         self._txn = self.env.begin(write=False)
-        metadata = bstr2obj(self.txn.get("metadata".encode()))
+        metadata = bstr2obj(self.txn.get("__metadata__".encode()))
         self._sizes, self._keys = metadata["sizes"], metadata["keys"]
 
     @property
@@ -214,22 +311,58 @@ class AFDBLMDBDataset(FoundationModelDataset):
         )
         # CA atom positions, assume all values are valid.
         coords = data["coords"][:, 1, :].to(torch.float32)
-        x = convert_to_single_emb(x)
 
-        data["sample_type"] = 0
+        data["sample_type"] = 2
         data["token_type"] = x
         data["idx"] = idx
 
         coords = coords - coords.mean(dim=0, keepdim=True)
         data["coords"] = coords
+        data["num_atoms"] = x.size()[0]
 
         data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
-        data["pbc"] = torch.zeros(3, dtype=torch.float64)
+        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
         data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
         data["forces"] = torch.zeros(
             (x.size()[0], 3), dtype=torch.float64, device=x.device
         )
         data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+
+        return data
+
+    # protein does not have 2dgraph, create one for mixing data
+    def generate_2dgraphfeat(self, data):
+        N = data["num_atoms"]
+        adj = torch.zeros([N, N], dtype=torch.bool)
+
+        edge_index = torch.zeros([2, 0], dtype=torch.long)
+        edge_attr = torch.zeros([0, 3], dtype=torch.long)
+        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+        attn_edge_type[edge_index[0, :], edge_index[1, :]] = (
+            convert_to_single_emb(edge_attr) + 1
+        )
+        adj[edge_index[0, :], edge_index[1, :]] = True
+        shortest_path_result = (
+            torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+        )
+        edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long).cpu().numpy()
+        spatial_pos = torch.from_numpy((shortest_path_result)).long()
+        indgree = adj.long().sum(dim=1).view(-1)
+
+        data["edge_index"] = edge_index
+        data["edge_attr"] = edge_attr
+        data["node_attr"] = torch.cat(
+            [
+                data["token_type"],
+                torch.zeros([data["token_type"].size()[0], 8], dtype=torch.long),
+            ],
+            dim=-1,
+        )
+        data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
+        data["attn_edge_type"] = attn_edge_type
+        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        data["in_degree"] = torch.tensor(indgree, dtype=torch.long)
+        data["spatial_pos"] = torch.tensor(spatial_pos, dtype=torch.long)
 
         return data
 

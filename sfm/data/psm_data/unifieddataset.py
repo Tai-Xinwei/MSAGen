@@ -1,40 +1,52 @@
 # -*- coding: utf-8 -*-
-import copy
-import itertools
+
+import os
 import random
-from functools import lru_cache
-from multiprocessing import Pool
-from typing import List
 
 from sfm.data.dataset import FoundationModelDataset
 from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import (
+    AFDBLMDBDataset,
     MatterSimDataset,
     PM6FullLMDBDataset,
-    ProteinLMDBDataset,
 )
+from sfm.logging import logger
 
 
 class UnifiedPSMDataset(FoundationModelDataset):
-    def __init__(self, args, data_path_list: List, dataset_name_list: List, **kwargs):
+    def __init__(
+        self,
+        data_dir: str,
+        data_path_list: str,
+        dataset_name_list: str,
+        args=None,
+        **kwargs,
+    ):
         super().__init__()
-        self.data_path_list = data_path_list
-        self.dataset_name_list = dataset_name_list
+        data_path_list = data_path_list.split(",")
+        dataset_name_list = dataset_name_list.split(",")
+
+        self.data_path_list = []
+
+        for data_path in data_path_list:
+            self.data_path_list.append(os.path.join(data_dir, data_path))
 
         self.dataset_list = []
         self.len = 0
 
-        for data_path, dataset_name in zip(data_path_list, dataset_name_list):
-            if dataset_name == "mattersim":
-                self.dataset_list.append(MatterSimDataset(data_path, **kwargs))
-            elif dataset_name == "pm6":
-                self.dataset_list.append(PM6FullLMDBDataset(data_path, **kwargs))
+        for data_path, dataset_name in zip(self.data_path_list, dataset_name_list):
+            if dataset_name == "pm6":
+                dataset = PM6FullLMDBDataset(data_path, **kwargs)
             elif dataset_name == "afdb":
-                self.dataset_list.append(ProteinLMDBDataset(data_path, **kwargs))
+                dataset = AFDBLMDBDataset(data_path, **kwargs)
+            elif dataset_name == "mattersim":
+                dataset = MatterSimDataset(data_path, split="train", **kwargs)
             else:
                 raise ValueError(f"Invalid dataset name: {dataset_name}")
 
-            self.len += len(self.dataset_list[-1])
+            self.dataset_list.append(dataset)
+            self.len += len(dataset)
+            logger.info(f"Loaded dataset {dataset_name} with {len(dataset)} samples")
 
         self.num_datasets = len(self.dataset_list)
 
@@ -52,4 +64,7 @@ class UnifiedPSMDataset(FoundationModelDataset):
 
 
 if __name__ == "__main__":
-    pass
+    data_dir = "/data/peiran/"
+    data_path_list = "pm6_10M_refined4.lmdb,AFDB50-plddt70.lmdb,matter-sim-3M"
+    dataset_name_list = "pm6,afdb,mattersim"
+    train_data = UnifiedPSMDataset(data_dir, data_path_list, dataset_name_list)

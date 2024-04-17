@@ -534,6 +534,7 @@ class TOX(nn.Module):
             mask_choice.unsqueeze(1).unsqueeze(-1).repeat(1, n_node, 1)
         )  # [ngraph, nnode+1]
 
+        # print("mask_pos", mask_pos)
         # # 0:  mask_aa and mask_pos are the same, 2d3d -> 2d3d, both 2d3d masked with mask_ratio
         mask_pos = torch.where(mask == 0, mask_aa, mask_pos)
 

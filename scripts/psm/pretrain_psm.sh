@@ -31,26 +31,28 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${seq_masking_method}" ] && seq_masking_method=continuousMask
 [ -z "${seq_masking_method}" ] && seq_masking_method=transformerM
 
-# [ -z "${mask_ratio}" ] && mask_ratio=0.5
-[ -z "${mask_ratio}" ] && mask_ratio=0.0
+[ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=2e-4
 [ -z "${total_num_steps}" ] && total_num_steps=200000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
-[ -z "${train_batch_size}" ] && train_batch_size=4
-[ -z "${val_batch_size}" ] && val_batch_size=4
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${train_batch_size}" ] && train_batch_size=1024
+[ -z "${val_batch_size}" ] && val_batch_size=1024
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=1
+[ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 
-# [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-[ -z "${mode_prob}" ] && mode_prob='0.0,0.0,1.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+# [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
-[ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/AFDB50-plddt70.lmdb/'
+[ -z "${data_path}" ] && data_path='/data/peiran/'
+[ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb,AFDB50-plddt70.lmdb,matter-sim-3M'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
+
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq512_x0_dist/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq512_x0_dist/'
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
@@ -145,7 +147,7 @@ fi
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
           --encoder_ffn_embed_dim $ffn_size \
@@ -156,10 +158,10 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
           --sandwich_ln \
           --dataset_names $dataset_name \
           --data_path $data_path \
+          --data_path_list $data_path_list --dataset_name_list $dataset_name_list \
           --save_dir $save_dir \
           --seed 666666 \
           --add_3d \
-          --ifresume \
           --dynamic_loader --max_tokens $max_tokens \
           --diffmode $diffmode \
           --mask_ratio $mask_ratio \
