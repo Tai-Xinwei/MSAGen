@@ -109,12 +109,12 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 nvidia-smi topo -m
 ifconfig -s
 
-set -x
-for i in $(seq 0 7); do
-    echo "ib${i}"
-    ifconfig ib${i}
-    ip addr show ib${i}
-done
+# set -x
+# for i in $(seq 0 7); do
+#     echo "ib${i}"
+#     ifconfig ib${i}
+#     ip addr show ib${i}
+# done
 
 # Debug IB
 # sudo apt-get update && sudo apt-get install infiniband-diags -y
@@ -123,11 +123,13 @@ done
 # ibv_devinfo
 
 
+
+export PYTORCH_CUDA_ALLOC_CONF='expandable_segments:True'
 set -x
 torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_sfm_nlm_moe.py \
       --model_type "$model_type" \
-      --vocab_size 32001 \
-      --pad_token_id 32000 --eos_token_id 2 \
+      --vocab_size 32000 \
+      --pad_token_id 1 --eos_token_id 2 \
       --max_position_embeddings 8192 \
       --train_data_path "$train_data_path" \
       --valid_data_path "$valid_data_path" \
@@ -151,8 +153,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_sfm_nlm_moe.py \
       --pipeline_model_parallel_size "$pipeline_model_parallel_size" \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --load_ckpt --pretrained_ckpt_path "$loadcheck_path" \
-      --moe_impl "sparse" \
-      --moe_memory_optimized_mlp
+      --moe_impl "vanilla"
+
+#--moe_impl "grouped" --moe_memory_optimized_mlp
 
 
 sleep infinity

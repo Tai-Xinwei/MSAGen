@@ -5,14 +5,19 @@ env_defaults:
   GPUS: 8
   WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
 
-target:
-    service: aml
-    name: sfm-nd96amsra100v4-uksouth
+# target:
+#     service: aml
+#     name: sfm-nd96amsra100v4-uksouth
 
 # target:
 #   service: aml
 #   name: townsend1
 
+
+target:
+  service: sing
+  name: baltic02
+  workspace_name: msrresrchws
 
 environment:
   image: yaosen/sfm-cuda:py310-torch2.2.2-cuda12.1-20240412

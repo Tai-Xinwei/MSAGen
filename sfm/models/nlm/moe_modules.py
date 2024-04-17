@@ -3,6 +3,7 @@
 import torch
 from megablocks.layers import common, dmoe, moe
 from megablocks.layers.arguments import Arguments as MegablocksArguments
+from megablocks.layers.moe import mlp
 from torch import nn
 from transformers.activations import ACT2FN
 from transformers.models.mixtral.modeling_mixtral import (
@@ -22,6 +23,10 @@ try:
 except ImportError:
     logger.info("using MixtralRMSNorm")
     RMSNorm = MixtralRMSNorm
+
+# see https://github.com/databricks/megablocks/issues/83
+# reduce memory usage
+mlp.MLP = lambda a: None
 
 
 def to_magablocks_config(config: MoeModelConfig) -> MegablocksArguments:
@@ -54,6 +59,7 @@ def to_magablocks_config(config: MoeModelConfig) -> MegablocksArguments:
         # Initialization arguments.
         fp16=config.fp16,
         bf16=config.bf16,
+        device=torch.tensor([]).device,  # the default device
     )
 
 
@@ -299,7 +305,7 @@ class MoeNormPP(nn.Module):
     def __init__(self, config: MoeModelConfig):
         super().__init__()
         self.config = config
-        self.norm = MixtralRMSNorm(config.hidden_size)
+        self.norm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
         self.param_dict = {
             "hidden_states": torch.Tensor,
