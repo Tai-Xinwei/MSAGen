@@ -33,3 +33,6 @@ class ProGPTConfig:
     use_global_padding: bool = False
     max_num_mol_per_sample: int = 8
     protein_max_size: int = 1024
+
+    train_data_path: str = ""
+    valid_data_path: str = ""

@@ -3,11 +3,10 @@ import os
 import sys
 from typing import Dict
 
-import wandb  # isort:skip
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
+import torch
 from transformers import AutoTokenizer
 
 # from megatron.arguments import parse_megatron_args
@@ -42,23 +41,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     args.pad_token_id = tokenizer.pad_token_id
 
     """ Make dataset and collator for supervised fine-tuning. """
-    train_dataset = ProteinTextDataset(
-        data_path=args.train_data_path,
-        model_max_length=args.model_max_length,
-        protein_max_size=args.protein_max_size,
-        pad_token_id=tokenizer.pad_token_id,
-        pool_mode=args.pool_mode,
-        embedding_length=args.embedding_length,
-        num_token_id=tokenizer.encode("<num>", add_special_tokens=False)[0],
-        protein_pad_id=1,
-        pp_mode=(
-            args.strategy == TrainStrategy.Pipeline
-            or args.strategy == TrainStrategy.ThreeD
-        ),
-        local_rank=args.local_rank,
-    )
-
-    valid_dataset = ProteinTextDataset(
+    dataset = ProteinTextDataset(
         data_path=args.valid_data_path,
         model_max_length=args.model_max_length,
         protein_max_size=args.protein_max_size,
@@ -75,8 +58,8 @@ def make_supervised_data_module(args, mode="train") -> Dict:
     )
 
     return dict(
-        train_dataset=train_dataset,
-        eval_dataset=valid_dataset,
+        train_dataset=None,
+        eval_dataset=dataset,
         vocab_size=len(tokenizer),
         tokenizer=tokenizer,
     )
@@ -95,27 +78,24 @@ def main(args) -> None:
     # if args.strategy == TrainStrategy.ThreeD:
     # initialize_megatron(args, tokenizer=data_module["tokenizer"])
 
-    logger.info(f"length of dataset: {len(data_module['train_dataset'])}")
+    logger.info(f"length of dataset: {len(data_module['eval_dataset'])}")
     logger.info(f"vocab size: {data_module['vocab_size']}")
 
+    args.val_batch_log_interval = 100
     model = ProGPTModel(args, data_module["vocab_size"])
 
     trainer = Trainer(
         args,
-        train_data=data_module["train_dataset"],
+        train_data=data_module["eval_dataset"],
         valid_data=data_module["eval_dataset"],
         model=model,
-        loss_log_dict={"lm_loss": 0.0, "lm_loss_text": 0.0, "lm_loss_special": 0.0},
+        loss_log_dict={"lm_loss": 0.0},
     )
-    trainer.train()
+
+    trainer.finetune_from_checkpoint()
+
+    trainer.validate()
 
 
 if __name__ == "__main__":
-    try:
-        os.environ["WANDB_RUN_ID"] = wandb.util.generate_id()
-        main()
-    except KeyboardInterrupt:
-        logger.info("KeyboardInterrupt!")
-    finally:
-        wandb.finish()  # support to finish wandb logging
-        logger.info("wandb finish logging!")
+    main()

@@ -33,17 +33,17 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_lr}" ] && max_lr=2e-4
 [ -z "${total_num_steps}" ] && total_num_steps=5000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=30000
-[ -z "${train_batch_size}" ] && train_batch_size=16
-[ -z "${val_batch_size}" ] && val_batch_size=16
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${train_batch_size}" ] && train_batch_size=32
+[ -z "${val_batch_size}" ] && val_batch_size=32
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${save_batch_interval}" ] && save_batch_interval=20000
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=100
 
-[ -z "${data_path}" ] && data_path='/mnt/shiyu/dataset/matter-sim'
-[ -z "${loadcheck_path}" ] && loadcheck_path="/mntd/mattersim/checkpoints/checkpoint_E5_B1899.pt"
-[ -z "${save_dir}" ] && save_dir='/mnt/shiyu/checkpoints/matbench-11/'
+[ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/matter-sim-15M' #pubchem-pm6-small'
+[ -z "${loadcheck_path}" ] && loadcheck_path="" #"/mntd/mattersim/checkpoints/checkpoint_E5_B1899.pt"
+[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/matter-sim-debug/'
 [ -z "${dataset_names}" ] && dataset_names="PM6-Full-3D"
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
@@ -156,10 +156,13 @@ torchrun ${DISTRIBUTED_ARGS} sfm/tasks/graphormer/ft_mattersim.py \
           --save_batch_interval $save_batch_interval \
           --log_interval $log_interval \
           --use_pbc \
-          --ifresume \
           --num_edges 16384 \
           --pbc_cutoff ${pbc_cutoff} \
           --pbc_expanded_num_cell_per_direction ${pbc_expanded_num_cell_per_direction} \
           --pbc_expanded_token_cutoff ${pbc_expanded_token_cutoff} \
           --no_2d \
-          --force_loss_factor ${force_loss_factor}
+          --force_loss_factor ${force_loss_factor} \
+          --use_2d_atom_features \
+          --use_2d_bond_features \
+          --diffusion_training_loss L1 \
+          --clean_sample_ratio 0.5

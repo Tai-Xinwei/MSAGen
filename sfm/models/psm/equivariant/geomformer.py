@@ -972,10 +972,6 @@ class GeomFormer(nn.Module):
 
         self.unified_final_feature_ln = nn.LayerNorm(embedding_dim)
 
-        self.unified_output_layer = nn.Linear(embedding_dim, 1, bias=False)
-
-        self.unified_score_output_layer = nn.Linear(embedding_dim, 1, bias=False)
-
     def forward(
         self,
         batched_data,
@@ -988,7 +984,7 @@ class GeomFormer(nn.Module):
         if pbc_expand_batched is not None:
             # use pbc and multi-graph
             node_type_edge = pbc_expand_batched["expand_node_type_edge"]
-            node_type = batched_data["x"][:, :, 0]
+            node_type = batched_data["token_id"]
             expand_pos = torch.cat([pos, pbc_expand_batched["expand_pos"]], dim=1)
             uni_delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
             n_expand_node = expand_pos.size()[-2]
@@ -998,10 +994,10 @@ class GeomFormer(nn.Module):
         else:
             node_type_edge, node_type = (
                 batched_data["node_type_edge"],
-                batched_data["x"][:, :, 0],
+                batched_data["token_id"],
             )
             if node_type_edge is None:
-                atomic_numbers = batched_data["x"][:, :, 0]
+                atomic_numbers = batched_data["token_id"]
                 node_type_edge = torch.cat(
                     [
                         atomic_numbers.unsqueeze(-1).repeat(1, 1, n_node).unsqueeze(-1),
@@ -1087,7 +1083,7 @@ class GeomFormer(nn.Module):
 
         output = x.contiguous().transpose(0, 1)
         output = output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
-        for layer in self.unified_encoder_layers:
+        for layer_index, layer in enumerate(self.unified_encoder_layers):
             output, vec = layer(
                 output,
                 vec,
@@ -1104,10 +1100,4 @@ class GeomFormer(nn.Module):
         node_output = self.unified_final_equivariant_ln(vec)
         output = self.unified_final_invariant_ln(output)
 
-        force_output = self.unified_output_layer(node_output).squeeze(-1)
-        force_output = force_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
-
-        score_output = self.unified_score_output_layer(node_output).squeeze(-1)
-        score_output = score_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
-
-        return output, force_output, score_output
+        return output, node_output

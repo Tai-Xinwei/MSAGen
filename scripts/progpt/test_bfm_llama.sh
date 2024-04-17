@@ -20,9 +20,9 @@
 [ -z "${total_num_steps}" ] && total_num_steps=100000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 # training parameters for generalist
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
-[ -z "${train_batch_size}" ] && train_batch_size=256
-[ -z "${val_batch_size}" ] && val_batch_size=256
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${train_batch_size}" ] && train_batch_size=128
+[ -z "${val_batch_size}" ] && val_batch_size=128
 
 [ -z "${train_data_path}" ] && train_data_path='/fastdata/peiran/nlm/progpt_train_bpe.lmdb/'
 [ -z "${valid_data_path}" ] && valid_data_path='/fastdata/peiran/nlm/progpt_valid_bpe.lmdb/'
@@ -31,12 +31,11 @@
 [ -z "${model_max_length}" ] && model_max_length=2048
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
-[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/nlm/checkpoints/stageB.prot/'
+[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/nlm/checkpoints/'
+[ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir='/fastdata/peiran/nlm/checkpoints/'
 [ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/fastdata/peiran/bfm/checkpoints/bfm650m_data3_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2/checkpoint_E144_new.pt'
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/llama-2-7b"
-# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/scigpt/ckpt/7bv3/global_step29999"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/scigpt/ckpt/stageB.prot/global_step224655"
-
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/scigpt/ckpt/7bv3/global_step29999"
 [ -z "${tokenizer_path}" ] && tokenizer_path="/fastdata/peiran/scigpt"
 
 [ -z "${save_batch_interval}"] && save_batch_interval=500
@@ -57,7 +56,7 @@
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 # [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=-1
 
-[ -z "${wandb_group}" ] && wandb_group=progpt
+[ -z "${wandb_group}" ] && wandb_group=NLM
 [ -z "${wandb_team}" ] && wandb_team=peiranjin
 [ -z "${wandb_project}" ] && wandb_project=NLM
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
@@ -126,7 +125,7 @@ else
   fi
 fi
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/test_bfm_llama.py \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
           --encoder_ffn_embed_dim $ffn_size \
@@ -144,12 +143,10 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --seed 6666 \
           --ft \
-          --bf16 \
+          --fp16 \
           --d_tilde $d_tilde \
           --max_lr $max_lr \
-          --save_dir $save_dir \
-          --total_num_steps $total_num_steps \
-          --warmup_num_steps $warmup_num_steps \
+          --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
           --loadcheck_path $loadcheck_path \
           --llm_model_name_or_path $llm_model_name_or_path \
           --tokenizer_path $tokenizer_path \
@@ -159,10 +156,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --model_max_length $model_max_length \
           --pp_partition_layer_name $pp_partition_layer_name \
           --pp_part_list $part_list \
-          --loadbfmckpt_path $loadbfmckpt_path \
-          --log_interval $log_interval --load_ckpt \
-          --save_batch_interval $save_batch_interval \
-          --unfreeze_param_list "mol_adaptor,mol_rep_layernorm" \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
           # --ifresume \

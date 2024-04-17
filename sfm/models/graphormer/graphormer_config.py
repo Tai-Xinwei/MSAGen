@@ -46,6 +46,7 @@ class GraphormerConfig:
     ddpm_schedule: str = "linear"
     noise_mode: str = "const"
     num_edges: int = 1536
+    num_atom_features: int = 5120
 
     def __init__(
         self,

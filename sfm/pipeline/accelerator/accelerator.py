@@ -812,7 +812,7 @@ class DeepSpeedAccelerator(Accelerator):
 
             model_parameters = (
                 unfreeze_params
-                if unfreeze_params is not None
+                if len(unfreeze_params) > 0
                 else self.ppmodel.parameters()
             )
 

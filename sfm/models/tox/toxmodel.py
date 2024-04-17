@@ -417,7 +417,7 @@ class TOX(nn.Module):
             else:
                 raise NotImplementedError
 
-        self.t_timesteps = args.t_timesteps
+        self.num_timesteps = args.num_timesteps
 
         self.diffnoise = DiffNoise(pfm_config)
 
@@ -455,7 +455,7 @@ class TOX(nn.Module):
         elif self.pfm_config.noise_mode == "diff":  # diff means diffusion
             if infer:
                 if time_step is None:
-                    time_step = self.t_timesteps - 1
+                    time_step = self.num_timesteps - 1
 
                 time_pos = (
                     torch.ones((ori_pos.shape[0],), device=ori_pos.device) * time_step
