@@ -119,7 +119,7 @@ class SafeMixtralSparseMoeBlock(MixtralSparseMoeBlock):
             router_logits, dim=1, dtype=torch.float
         )
 
-        routing_scores = routing_weights
+        routing_scores = routing_weights.reshape(batch_size, sequence_length, -1)
 
         routing_weights, selected_experts = torch.topk(
             routing_weights, self.top_k, dim=-1

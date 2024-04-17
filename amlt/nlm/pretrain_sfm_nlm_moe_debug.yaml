@@ -20,7 +20,7 @@ target:
   workspace_name: msrresrchws
 
 environment:
-  image: yaosen/sfm-cuda:py310-torch2.2.2-cuda12.1-20240412
+  image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
   registry: msroctocr.azurecr.io
   username: msroctocr
 
