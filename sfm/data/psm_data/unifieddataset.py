@@ -75,11 +75,11 @@ class UnifiedPSMDataset(FoundationModelDataset):
 class BatchedDataDataset(FoundationModelDataset):
     def __init__(
         self,
+        args,
         dataset_list,
         len_data,
         multi_hop_max_dist=5,
         spatial_pos_max=1024,
-        args=None,
         ft=False,
         infer=False,
     ):
@@ -87,6 +87,13 @@ class BatchedDataDataset(FoundationModelDataset):
         self.dataset_list = dataset_list
         self.num_datasets = len(dataset_list)
         self.len = len_data
+        self.dataset_split_raito = [
+            float(i) for i in args.dataset_split_raito.split(",")
+        ]
+        assert (
+            len(self.dataset_split_raito) == self.num_datasets
+        ), "split ratio mismatch with number of datasets"
+        assert sum(self.dataset_split_raito) == 1.0, "split ratio should sum to 1.0"
 
         self.multi_hop_max_dist = multi_hop_max_dist
         self.spatial_pos_max = spatial_pos_max
@@ -95,8 +102,10 @@ class BatchedDataDataset(FoundationModelDataset):
         self.infer = infer
 
     def __getitem__(self, idx):
-        # randomly select a dataset
-        dataset_idx = random.randint(0, self.num_datasets - 1)
+        # select dataset_idx based on split ratio
+        dataset_idx = random.choices(
+            range(self.num_datasets), p=self.dataset_split_raito
+        )
         pick_idx = idx % len(self.dataset_list[dataset_idx])
         return self.dataset_list[dataset_idx][pick_idx]
 

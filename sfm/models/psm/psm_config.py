@@ -46,6 +46,7 @@ class PSMConfig(GraphormerConfig):
 
     data_path_list: str = ""
     dataset_name_list: str = ""
+    dataset_split_raito: str = ""
 
     lamb_pde: float = 0.01
 

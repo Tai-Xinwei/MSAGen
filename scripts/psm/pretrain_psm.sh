@@ -52,6 +52,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path}" ] && data_path='/data/peiran/'
 [ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb,AFDB50-plddt70.lmdb,matter-sim-3M'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.2,0.4'
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq512_x0_dist/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq512_x0_dist/'
@@ -159,6 +160,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --dataset_names $dataset_name \
           --data_path $data_path \
           --data_path_list $data_path_list --dataset_name_list $dataset_name_list \
+          --dataset_split_raito $dataset_split_raito \
           --save_dir $save_dir \
           --seed 666666 \
           --add_3d \
