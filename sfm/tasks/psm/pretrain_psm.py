@@ -31,7 +31,7 @@ def main(args) -> None:
     valid_data = BatchedDataDataset(args, valid_data, dataset.valid_len)
 
     ### define psm models here, define the diff loss in DiffMAE3dCriterions
-    model = PSMModel(args)  # , loss_fn=DiffMAE3dCriterions)
+    model = PSMModel(args, loss_fn=DiffMAE3dCriterions)
 
     trainer = Trainer(
         args,
