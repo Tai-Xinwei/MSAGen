@@ -32,6 +32,7 @@ class ScigptConfig(LlamaConfig, DistributedTrainConfig):
     rope_theta: float = 10000.0
     rope_scaling: Optional[Dict[str, str]] = None
     attention_bias: bool = False
+    attention_dropout: float = 0.0
 
     dict_path: str = ""
     prot_spm_path: str = "/blob/shufxi/data/scigpt/ur50bpe/bpe"

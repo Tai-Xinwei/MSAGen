@@ -110,8 +110,6 @@ class ScigptModel(SFMPipelineModelMixin):
         if model is None:
             model = self
 
-        # return (None, None)
-
         # unfreeze_list = []
 
         # if self.config.tune_new_emb:
@@ -119,31 +117,40 @@ class ScigptModel(SFMPipelineModelMixin):
         #         "lm_head.weight",
         #         "embed_tokens.weight"
         #     ]
-
-        # optimizer, _ = myAdam(
-        #     model,
-        #     lr=self.config.max_lr,
-        #     betas=(self.config.beta1, self.config.beta2),
-        #     weight_decay=self.config.weight_decay,
-        #     eps=1e-8,
-        # )
-
-        if self.config.ft:
-            optimizer, _ = myAdam(
-                model,
-                lr=self.config.max_lr,
-                betas=(self.config.beta1, self.config.beta2),
-                weight_decay=self.config.weight_decay,
-                eps=1e-8,
-            )
+        if self.config.unfreeze_param_list:
+            unfreeze_list = [
+                ckpt.strip() for ckpt in self.config.unfreeze_param_list.split(",")
+            ]
         else:
-            optimizer = AdamW(
-                model.parameters(),
-                lr=self.config.max_lr,
-                betas=(self.config.beta1, self.config.beta2),
-                weight_decay=self.config.weight_decay,
-                eps=1e-8,
-            )
+            unfreeze_list = None
+        logger.info(f"unfreeze_list: {unfreeze_list}")
+
+        optimizer, _ = myAdam(
+            model,
+            unfreeze_list=unfreeze_list,
+            lr=self.config.max_lr,
+            betas=(self.config.beta1, self.config.beta2),
+            weight_decay=self.config.weight_decay,
+            eps=1e-8,
+        )
+
+        # if self.config.ft:
+        #     optimizer, _ = myAdam(
+        #         model,
+        #         unfreeze_list=self.args.unfreeze_list,
+        #         lr=self.config.max_lr,
+        #         betas=(self.config.beta1, self.config.beta2),
+        #         weight_decay=self.config.weight_decay,
+        #         eps=1e-8,
+        #     )
+        # else:
+        #     optimizer = AdamW(
+        #         model.parameters(),
+        #         lr=self.config.max_lr,
+        #         betas=(self.config.beta1, self.config.beta2),
+        #         weight_decay=self.config.weight_decay,
+        #         eps=1e-8,
+        #     )
 
         lr_scheduler = groupWarmupDecayLR(
             optimizer,
