@@ -7,6 +7,8 @@ from typing import Callable, Dict, Optional, Tuple
 import torch
 import torch.nn as nn
 
+from sfm.models.psm.invariant.graphormer_2d_bias import GraphAttnBias
+
 from ..modules.pbc import CellExpander
 from ..psm_config import PSMConfig
 from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
@@ -49,6 +51,9 @@ class PSMEncoder(nn.Module):
             psm_config.pbc_expanded_num_cell_per_direction,
             psm_config.pbc_multigraph_cutoff,
         )
+
+        if psm_config.use_2d_bond_features:
+            self.graph_2d_attention_bias = GraphAttnBias(psm_config)
 
         self.psm_config = psm_config
 
@@ -98,7 +103,7 @@ class PSMEncoder(nn.Module):
         self,
         x: torch.Tensor,
         padding_mask: torch.Tensor,
-        batch_data: Dict,
+        batched_data: Dict,
         masked_token_type: torch.Tensor,
     ) -> torch.Tensor:
         """
@@ -106,35 +111,41 @@ class PSMEncoder(nn.Module):
         Args:
             x (torch.Tensor): Input tensor, [B, L, H].
             padding_mask (torch.Tensor): Padding mask, [B, L].
-            batch_data (Dict): Input data for the forward pass.
+            batched_data (Dict): Input data for the forward pass.
             masked_token_type (torch.Tensor): The masked token type, [B, L].
         Returns:
             torch.Tensor: Encoded tensor, [B, L, H].
         """
         attn_mask = None
         if (
-            "pbc" in batch_data
-            and batch_data["pbc"] is not None
-            and torch.any(batch_data["pbc"])
+            "pbc" in batched_data
+            and batched_data["pbc"] is not None
+            and torch.any(batched_data["pbc"])
         ):
-            pos = batch_data["pos"]
-            pbc = batch_data["pbc"]
-            atoms = batch_data["token_id"]
-            cell = batch_data["cell"]
+            pos = batched_data["pos"]
+            pbc = batched_data["pbc"]
+            atoms = batched_data["token_id"]
+            cell = batched_data["cell"]
             pbc_expand_batched = self.cell_expander.expand(
                 pos, pbc, atoms, cell, self.psm_config.pbc_use_local_attention
             )
         else:
             pbc_expand_batched = None
 
-        for nl, layer in enumerate(self.layers):
+        if self.psm_config.use_2d_bond_features:
+            graph_2d_attention_bias = self.graph_2d_attention_bias(batched_data)
+
+        for layer_index, layer in enumerate(self.layers):
             x, _ = layer(
                 x,
-                batch_data,
+                batched_data,
                 masked_token_type,
                 self_attn_padding_mask=padding_mask,
                 self_attn_mask=attn_mask,
                 pbc_expand_batched=pbc_expand_batched,
+                graph_2d_attention_bias=graph_2d_attention_bias[layer_index]
+                if self.psm_config.use_2d_bond_features
+                else None,
             )
 
         return x, pbc_expand_batched

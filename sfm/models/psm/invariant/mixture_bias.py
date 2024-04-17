@@ -16,7 +16,7 @@ class PSMBias(nn.Module):
     Class for the invariant encoder bias in the PSM model.
     """
 
-    def __init__(self, psm_config: PSMConfig):
+    def __init__(self, psm_config: PSMConfig, key_prefix: str = ""):
         """
         Initialize the PSMBias class.
         """
@@ -31,6 +31,7 @@ class PSMBias(nn.Module):
         )
 
         self.psm_config = psm_config
+        self.key_prefix = key_prefix
 
     def forward(
         self,
@@ -48,11 +49,13 @@ class PSMBias(nn.Module):
             pbc_expand_batched: PBC expanded information
         """
 
-        pos = batch_data["pos"]
+        pos = batch_data[f"{self.key_prefix}pos"]
         n_graph, n_node = pos.size()[:2]
 
         if pbc_expand_batched is not None:
-            expand_pos = torch.cat([pos, pbc_expand_batched["expand_pos"]], dim=1)
+            expand_pos = torch.cat(
+                [pos, pbc_expand_batched[f"{self.key_prefix}expand_pos"]], dim=1
+            )
             n_expand_node = expand_pos.size()[1]
             delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
             dist = delta_pos.norm(dim=-1).view(-1, n_node, n_expand_node)

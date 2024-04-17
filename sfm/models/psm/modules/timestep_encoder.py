@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from sfm.logging import logger
+from sfm.models.psm.psm_config import DiffusionTimeStepEncoderType
 
 
 class SinusoidalPositionEmbeddings(nn.Module):
@@ -37,13 +37,19 @@ class SinusoidalPositionEmbeddings(nn.Module):
 
 
 class TimeStepEncoder(nn.Module):
-    def __init__(self, n_timesteps, timestep_emb_dim, timestep_emb_type, mlp=True):
+    def __init__(
+        self,
+        n_timesteps,
+        timestep_emb_dim,
+        timestep_emb_type: DiffusionTimeStepEncoderType,
+        mlp=True,
+    ):
         super(TimeStepEncoder, self).__init__()
 
-        if timestep_emb_type == "positional":
+        if timestep_emb_type == DiffusionTimeStepEncoderType.POSITIONAL:
             self.time_proj = SinusoidalPositionEmbeddings(timestep_emb_dim)
-        elif timestep_emb_type == "learnable":
-            self.time_proj = nn.Embedding(n_timesteps, timestep_emb_dim)
+        elif timestep_emb_type == DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE:
+            self.time_proj = nn.Embedding(n_timesteps + 1, timestep_emb_dim)
         else:
             raise NotImplementedError
 
@@ -56,8 +62,25 @@ class TimeStepEncoder(nn.Module):
         else:
             self.time_embedding = None
 
-    def forward(self, timesteps):
-        t_emb = self.time_proj(timesteps)
+        self.n_timesteps = n_timesteps
+        self.timestep_emb_type = timestep_emb_type
+
+    def forward(self, timesteps, clean_mask):
+        if self.timestep_emb_type == DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE:
+            discretized_time_steps = (
+                timesteps * self.n_timesteps
+            ).long()  # in range [0, n_timesteps - 1]
+            discretized_time_steps[
+                clean_mask
+            ] = self.n_timesteps  # use last time step embedding for clean samples
+            t_emb = self.time_proj(discretized_time_steps)
+        elif self.timestep_emb_type == DiffusionTimeStepEncoderType.POSITIONAL:
+            timesteps = timesteps.masked_fill(
+                clean_mask, 0.0
+            )  # use t = 0 for clean samples with positional time embedding (which is continuous time embedding)
+            t_emb = self.time_proj(timesteps)
+        else:
+            raise ValueError(f"Unkown timestep_emb_type {self.timestep_emb_type}")
         if self.time_embedding is not None:
             t_emb = self.time_embedding(t_emb)
         return t_emb
@@ -67,25 +90,15 @@ class TimeStepSampler:
     def __init__(self, num_timesteps):
         self.num_timesteps = num_timesteps
 
-    def sample(self, n_graph, device, dtype, noise_ratio: float = 0.0):
-        time_step = torch.randint(
-            0, self.num_timesteps, size=(n_graph // 2 + 1,), device=device
+    def sample(self, n_graph, device, dtype, clean_sample_ratio: float = 0.0):
+        time_step = torch.rand(size=(n_graph // 2 + 1,), device=device)
+        time_step = torch.cat([time_step, 1.0 - time_step], dim=0)[:n_graph]
+        time_step = time_step.to(dtype=dtype)
+        clean_mask = torch.tensor(
+            np.random.rand(n_graph) <= clean_sample_ratio,
+            dtype=torch.bool,
+            device=device,
         )
-        time_step = torch.cat([time_step, self.num_timesteps - time_step - 1], dim=0)[
-            :n_graph
-        ]
-        time_step = time_step.to(dtype=dtype) / self.num_timesteps
-        if noise_ratio > 0.0:
-            clean_mask_index = np.random.choice(
-                n_graph, min(int(noise_ratio * n_graph), n_graph), replace=False
-            )
-            clean_mask_index = torch.tensor(
-                clean_mask_index, device=device, dtype=torch.long
-            )
-            clean_mask = torch.zeros(n_graph, dtype=torch.bool, device=device)
-            clean_mask[clean_mask_index] = True
-        else:
-            clean_mask = None
         return time_step, clean_mask
 
     def get_continuous_time_step(self, t, n_graph, device, dtype):

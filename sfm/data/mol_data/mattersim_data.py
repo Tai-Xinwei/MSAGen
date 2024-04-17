@@ -20,6 +20,8 @@ import torch
 from torch_geometric.data import Data
 from tqdm import tqdm
 
+from . import algos
+
 
 class MatterSimDataset:
     def __init__(self, data_path, split=None):
@@ -60,46 +62,77 @@ def convert_to_single_emb(x, offset: int = 512):
 
 
 def preprocess_item(item, idx):
-    numbers = item.pop("numbers")
+    numbers = item.pop("numbers") if "numbers" in item else item["node_feat"][:, 0]
     item["x"] = torch.tensor(numbers, dtype=torch.long)
-    item["x"] = torch.cat(
-        [item["x"], torch.full([8], 128)], dim=-1
-    )  # use 128 for unit cell corners
+    if "pbc" in item:
+        item["x"] = torch.cat(
+            [item["x"], torch.full([8], 128)], dim=-1
+        )  # use 128 for unit cell corners
     item["x"] = item["x"].unsqueeze(-1)
-    positions = item.pop("positions")
+    positions = item.pop("positions") if "positions" in item else item.pop("pos")
     item["pos"] = torch.tensor(positions, dtype=torch.float64)
 
-    item["cell"] = torch.tensor(item["cell"], dtype=torch.float64)
-    cell_corner_pos_matrix = torch.tensor(
-        [
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0],
-            [0.0, 1.0, 0.0],
-            [0.0, 1.0, 1.0],
-            [1.0, 0.0, 0.0],
-            [1.0, 0.0, 1.0],
-            [1.0, 1.0, 0.0],
-            [1.0, 1.0, 1.0],
-        ],
-        dtype=torch.float64,
+    item["cell"] = (
+        torch.tensor(item["cell"], dtype=torch.float64)
+        if "cell" in item
+        else torch.zeros([3, 3], dtype=torch.float64)
     )
 
-    cell_corner_pos = torch.matmul(cell_corner_pos_matrix, item["cell"])
-    item["pos"] = torch.cat(
-        [item["pos"], cell_corner_pos], dim=0
-    )  # expand pos with cell corners
-    item["num_atoms_in_cell"] = int(item["x"].size()[0] - 8)
+    if "pbc" in item:
+        cell_corner_pos_matrix = torch.tensor(
+            [
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 1.0, 1.0],
+                [1.0, 0.0, 0.0],
+                [1.0, 0.0, 1.0],
+                [1.0, 1.0, 0.0],
+                [1.0, 1.0, 1.0],
+            ],
+            dtype=torch.float64,
+        )
 
-    item["edge_attr"] = torch.zeros([0, 3], dtype=torch.long)
-    item["edge_index"] = torch.zeros([2, 0], dtype=torch.long)
-    item["pbc"] = torch.tensor(item["pbc"], dtype=torch.bool)
+        cell_corner_pos = torch.matmul(cell_corner_pos_matrix, item["cell"])
+        item["pos"] = torch.cat(
+            [item["pos"], cell_corner_pos], dim=0
+        )  # expand pos with cell corners
+        item["num_atoms"] = int(item["x"].size()[0] - 8)
+        item["forces"] = torch.cat(
+            [
+                torch.tensor(item["forces"], dtype=torch.float64),
+                torch.zeros([8, 3], dtype=torch.float64),
+            ],
+            dim=0,
+        )  # expand forces for cell corners
+        item["y"] = torch.tensor([item["info"]["energy"] / item["x"].size()[0]])
+        item["stress"] = torch.tensor(item["info"]["stress"], dtype=torch.float64)
+    else:
+        item["num_atoms"] = int(item["x"].size()[0])
+        item["y"] = torch.tensor([item["alpha_gap"]])
+        item["stress"] = torch.zeros([3, 3], dtype=torch.float64)
+        item["forces"] = torch.zeros_like(item["pos"])
+
+    item["node_attr"] = (
+        torch.tensor(item.pop("node_feat"), dtype=torch.long)
+        if "node_feat" in item
+        else torch.cat(
+            [item["x"], torch.zeros([item["x"].size()[0], 8], dtype=torch.long)], dim=-1
+        )
+    )
+    item["edge_attr"] = (
+        torch.tensor(item.pop("edge_feat"), dtype=torch.long)
+        if "edge_feat" in item
+        else torch.zeros([0, 3], dtype=torch.long)
+    )
+    item["edge_index"] = (
+        torch.zeros([2, 0], dtype=torch.long)
+        if "edge_index" not in item
+        else torch.tensor(item["edge_index"], dtype=torch.long)
+    )
     item["idx"] = idx
-    item["y"] = torch.tensor([item["info"]["energy"] / item["x"].size()[0]])
-    item["stress"] = torch.tensor(item["info"]["stress"], dtype=torch.float64)
-    item["forces"] = torch.tensor(item["forces"], dtype=torch.float64)
-    item["forces"] = torch.cat(
-        [item["forces"], torch.zeros([8, 3], dtype=torch.float64)], dim=0
-    )  # expand forces for cell corners
+    item["protein_masked_pos"] = torch.zeros([item["x"].size()[0], 3], dtype=torch.bool)
+    item["protein_masked_aa"] = torch.zeros([item["x"].size()[0], 1], dtype=torch.bool)
 
     item = Data(**item)
 
@@ -116,13 +149,24 @@ def preprocess_item(item, idx):
     attn_edge_type[edge_index[0, :], edge_index[1, :]] = (
         convert_to_single_emb(edge_attr) + 1
     )
-    shortest_path_result = (
-        torch.full(adj.size(), 511, dtype=torch.long, device=x.device).cpu().numpy()
-    )
-    edge_input = (
-        torch.zeros([N, N, 0, 3], dtype=torch.long, device=x.device).cpu().numpy()
-    )
+    if "pbc" in item:
+        shortest_path_result = (
+            torch.full(adj.size(), 511, dtype=torch.long, device=x.device).cpu().numpy()
+        )
+        edge_input = (
+            torch.zeros([N, N, 0, 3], dtype=torch.long, device=x.device).cpu().numpy()
+        )
+    else:
+        adj[edge_index[0, :], edge_index[1, :]] = True
+        shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+        max_dist = np.amax(shortest_path_result)
+        edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
     spatial_pos = torch.from_numpy((shortest_path_result)).long()
+    item["pbc"] = (
+        torch.tensor(item["pbc"], dtype=torch.bool)
+        if "pbc" in item
+        else torch.zeros([3], dtype=torch.bool)
+    )
 
     attn_bias = torch.zeros([N + 1, N + 1], dtype=torch.float)
 

@@ -2,9 +2,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import copy
-
-import numpy as np
 import torch
 
 
@@ -481,12 +478,6 @@ def collator_3d_pp(
 def collator_ft(
     items, max_node=512, multi_hop_max_dist=20, spatial_pos_max=20, use_pbc=False
 ):
-    original_len = len(items)
-    items = [item for item in items if item is not None and item.x.size(0) <= max_node]
-    filtered_len = len(items)
-    if filtered_len < original_len:
-        pass
-        # print("warning: molecules with atoms more than %d are filtered" % max_node)
     pos = None
     head = None
     cofeat = None
@@ -555,16 +546,19 @@ def collator_ft(
             item.in_degree,
             item.out_degree,
             item.x,
+            item.node_attr,
             item.edge_input[:, :, :multi_hop_max_dist, :],
             item.y,
             (item.pbc if hasattr(item, "pbc") else torch.tensor([False, False, False]))
             if use_pbc
             else None,
+            item.protein_masked_pos,
+            item.protein_masked_aa,
             (item.cell if hasattr(item, "cell") else torch.zeros([3, 3]))
             if use_pbc
             else None,
             (int(item.num_atoms) if hasattr(item, "num_atoms") else item.x.size()[0]),
-            (int(item.num_atoms_in_cell) if use_pbc else None),
+            (int(item.num_atoms) if use_pbc else None),
         )
         for item in items
     ]
@@ -576,12 +570,15 @@ def collator_ft(
         in_degrees,
         out_degrees,
         xs,
+        node_attrs,
         edge_inputs,
         ys,
         pbcs,
+        protein_masked_poss,
+        protein_masked_aas,
         cells,
         natoms,
-        num_atoms_in_cells,
+        num_atomss,
     ) = zip(*items)
 
     for idx, _ in enumerate(attn_biases):
@@ -589,6 +586,7 @@ def collator_ft(
     max_dist = max(i.size(-2) for i in edge_inputs)
     y = torch.cat(ys)
     x = torch.cat([pad_2d_unsqueeze(i, max_node_num) for i in xs])
+    node_attr = torch.cat([pad_2d_unsqueeze(i, max_node_num) for i in node_attrs])
     edge_input = torch.cat(
         [pad_3d_unsqueeze(i, max_node_num, max_node_num, max_dist) for i in edge_inputs]
     )
@@ -603,9 +601,15 @@ def collator_ft(
     )
     in_degree = torch.cat([pad_1d_unsqueeze(i, max_node_num) for i in in_degrees])
     pbc = torch.cat([i.unsqueeze(0) for i in pbcs], dim=0) if use_pbc else None
+    protein_masked_pos = torch.cat(
+        [pad_pos_unsqueeze(i, max_node_num) for i in protein_masked_poss], dim=0
+    )
+    protein_masked_aa = torch.cat(
+        [pad_pos_unsqueeze(i, max_node_num) for i in protein_masked_aas], dim=0
+    )
     cell = torch.cat([i.unsqueeze(0) for i in cells], dim=0) if use_pbc else None
     natoms = torch.tensor(natoms) if use_pbc else None
-    num_atoms_in_cell = torch.tensor(num_atoms_in_cells) if use_pbc else None
+    num_atoms = torch.tensor(num_atomss) if use_pbc else None
 
     return dict(
         idx=torch.LongTensor(idxs),
@@ -615,10 +619,13 @@ def collator_ft(
         in_degree=in_degree,
         out_degree=in_degree,  # for undirected graph
         x=x,
+        node_attr=node_attr,
         token_id=x[:, :, 0],
         edge_input=edge_input,
         y=y,
         pos=pos,
+        protein_masked_pos=protein_masked_pos,
+        protein_masked_aa=protein_masked_aa,
         head=head,
         cofeat=cofeat,
         num_node=num_node,
@@ -626,7 +633,7 @@ def collator_ft(
         pbc=pbc,
         cell=cell,
         natoms=natoms,
-        num_atoms_in_cell=num_atoms_in_cell,
+        num_atoms=num_atoms,
         forces=forces,
     )
 
