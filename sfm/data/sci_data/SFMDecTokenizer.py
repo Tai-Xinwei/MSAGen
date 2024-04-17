@@ -177,8 +177,8 @@ class SFMDecTokenizer(LlamaTokenizer):
                 if tag not in known_tags:
                     continue
 
-                if tag != cur_tag:
-                    raise ValueError(f"Tag mismatch: {tag} != {cur_tag} in '{text}'")
+                # if tag != cur_tag:
+                # raise ValueError(f"Tag mismatch: {tag} != {cur_tag} in '{text}'")
 
                 span = text[last_idx:start].strip()
                 tokens = self._tokenize_by_tag(span, tag, **kwargs)

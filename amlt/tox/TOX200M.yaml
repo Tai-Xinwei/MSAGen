@@ -7,30 +7,26 @@
 description: diffP
 
 # target:
-#     service: amlk8s
-#     name: itphyperdgx2cl2
-#     vc: hcrr08
+    # service: sing
+    # name: msrresrchvc
+    # vc: hcrr08
 
-target:
-    service: amlk8s
-    name: itphyperdgx2cl1
-    vc: hai1
 
 # target:
 #     service: amlk8s
 #     name: itplabrr1cl1
 #     vc: mprr3
 
-# target:
-#     service: aml
-#     # name: gcrarca100cl1
-#     name: sfm-nd96amsra100v4-uksouth
-#     # name: sfm-nc96-westus3
+target:
+    service: aml
+    # name: gcrarca100cl1
+    name: sfm-nd96amsra100v4-uksouth
+    # name: sfm-nc96-westus3
 
 environment:
-  image: pj/mfmds:20230207_b
-  registry: msrmoldyn.azurecr.io
-  username: msrmoldyn
+  image: yaosen/sfm-cuda:py39-torch2.2.2-cuda12.1
+  registry: msroctocr.azurecr.io
+  username: msroctocr
 
 
 storage:
@@ -46,18 +42,18 @@ jobs:
 - name: pfmtest
   tags:
   - 'ProjectID: PRJ-0209-A40'
-  sku: 2xG16
+  sku: G8
   mpi: true
   process_count_per_node: 1
   command:
   - mkdir /blob/pfmexp/output
   # - mkdir /blob/pfmexp/output/pfmdiff200M_prob433_diff2_angl1
   # - mkdir /blob/pfmexp/output/pfmdiff200M_prob262_diff2_angl1
-  - mkdir /blob/pfmexp/output/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_pair_x0
-  - mkdir /blob/pfmexp/output/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_pair_x0/checkpoints
+  - mkdir /blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs1024_epsilon_pair
+  - mkdir /blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs1024_epsilon_pair/checkpoints
   - mkdir ./output
   - export path=run.sh
-  - export layers=12
+  - export layers=24
   - export num_pred_attn_layer=2
   - export hidden_size=1024
   - export ffn_size=4096
@@ -76,26 +72,25 @@ jobs:
   - export mask_ratio=0.5
   - export mode_prob=0.1,0.2,0.6,0.1
   - export d_tilde=1.0
-  - export max_lr=1e-4
+  - export max_lr=2e-4
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=2000000
   - export warmup_num_steps=1000
   - export train_batch_size=1024
   - export val_batch_size=1024
-  - export max_tokens=4000
-  - export max_length=256
-  - export gradient_accumulation_steps=1
-  - export wandb_group=bfmdiff
-  - export wandb_project=ds_mfmpre
+  - export max_tokens=16000
+  - export max_length=512
+  - export gradient_accumulation_steps=2
+  - export wandb_group=toxdiff
+  - export wandb_project=SFM_tox
   - export log_interval=100
-  - export loadcheck_path=/blob/pfmexp/output/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_pair_x0/checkpoints
-  - mkdir /tmp/data/pm6-86m-3d-filter
-  - export data_path=/blob/data/afdb/48organism1m.lmdb/
-  - export save_dir=/blob/pfmexp/output/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_pair_x0/checkpoints
-  - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
-  - bash ./install/install.sh
-  # - bash ./install/install_megatron.sh
+  - export loadcheck_path=/blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs1024_epsilon_pair/checkpoints
+  # - export data_path=/blob/data/afdb/48organisms-fullatom.lmdb/
+  - export data_path=/blob/data/afdb/AFDB50-plddt70.lmdb/
+  - export save_dir=/blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs1024_epsilon_pair/checkpoints
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
   - bash ./scripts/tox/pretrain_tox.sh
   submit_args:
     container_args:

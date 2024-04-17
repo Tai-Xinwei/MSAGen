@@ -50,9 +50,25 @@ class CopilotCriterionsPP(CopilotCriterions):
         # Enable model parallelism
         shift_labels = shift_labels.to(shift_logits.device)
 
-        loss = self.l1(shift_logits, shift_labels)
+        special_mask = shift_labels > 32001
+        loss_text = self.l1(shift_logits[~special_mask], shift_labels[~special_mask])
 
-        loss_log = {"lm_loss": loss}
+        if special_mask.any():
+            loss_special = self.l1(
+                shift_logits[special_mask], shift_labels[special_mask]
+            )
+        else:
+            loss_special = torch.tensor(
+                [0.0], device=loss_text.device, requires_grad=True
+            )
+
+        loss = loss_text + loss_special
+
+        loss_log = {
+            "lm_loss": loss,
+            "lm_loss_text": loss_text,
+            "lm_loss_special": loss_special,
+        }
         return (loss, loss_log)
 
 

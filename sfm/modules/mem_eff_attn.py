@@ -235,7 +235,7 @@ class MemEffAttn(nn.Module):
                 v,
                 dropout_p=self.dropout,
                 attn_mask=attn_mask,
-                is_casual=False,
+                is_causal=False,
             )
 
         attn = (

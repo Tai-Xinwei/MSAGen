@@ -42,6 +42,7 @@ environment:
 - eval "$$(conda shell.bash hook)" && conda activate sfm
 # install packages (check tools/docker_image/conda_install.sh for pre-installed packages)
 - pip install torcheval
+- python setup_cython.py build_ext --inplace
 # model running script, refer to Usage section.
 - bash ./scripts/xxx/xxxx.sh
 ```

@@ -29,6 +29,7 @@ def main(args) -> None:
     dataset = ProteinLMDBDataset(args)
 
     trainset, valset = dataset.split_dataset(sort=False)
+    logger.info(f"lenght of trainset: {len(trainset)}, lenght of valset: {len(valset)}")
 
     train_data = BatchedDataDataset(
         trainset,

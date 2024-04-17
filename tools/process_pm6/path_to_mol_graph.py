@@ -10,7 +10,8 @@ from rdkit.Chem import rdDetermineBonds
 from rdkit import Chem
 
 from ogb.utils.features import atom_to_feature_vector, bond_to_feature_vector
-
+from rdkit.Chem import rdmolops
+from rdkit.Chem.MolStandardize import rdMolStandardize
 
 bond_dict = {
     0: rdkit.Chem.rdchem.BondType.UNSPECIFIED,
@@ -46,10 +47,18 @@ def mol2graph(mol):
 
     # atoms
     atom_features_list = []
-    pos = []
+    # pos = []
+    # for i, atom in enumerate(mol.GetAtoms()):
+    #     pos.append(list(mol.GetConformer().GetAtomPosition(i)))
+
+    pos = mol.GetConformer().GetPositions()
+    # assert type(pos) == np.ndarray, "pos is not np.ndarray"
+
+    # remove conformation in mol
+    mol.RemoveConformer(0)
     for i, atom in enumerate(mol.GetAtoms()):
         atom_features_list.append(atom_to_feature_vector(atom))
-        pos.append(list(mol.GetConformer().GetAtomPosition(i)))
+
     x = np.array(atom_features_list, dtype = np.int64)
 
     # bonds
@@ -84,7 +93,8 @@ def mol2graph(mol):
     graph['edge_feat'] = edge_attr
     graph['node_feat'] = x
     graph['num_nodes'] = len(x)
-    graph['pos'] = np.array(pos)
+    # graph['pos'] = np.array(pos)
+    graph['pos'] = pos
 
     return graph
 
@@ -97,6 +107,34 @@ def compress(graph):
     assert np.all(graph['node_feat'] < 256)
     graph['node_feat'] = np.array(graph['node_feat'], dtype=np.int8)
     return graph
+
+
+def setAtomicCharge(mol, charge):
+    mol = Chem.Mol(mol)
+    molCharge = 0
+    charges = []
+    Chem.SanitizeMol(mol, sanitizeOps=Chem.SANITIZE_ALL^Chem.SANITIZE_PROPERTIES)
+
+    for i, atom in enumerate(mol.GetAtoms()):
+        # print(i, atom.GetTotalValence())
+        atomCharge = atom.GetFormalCharge()
+        molCharge += atomCharge
+        if atom.GetAtomicNum() == 6:
+            if atom.GetTotalValence() == 2 and atom.GetTotalDegree() == 2:
+                molCharge += 1
+                atomCharge = 0
+            elif atom.GetTotalDegree() == 3 and (molCharge + 1 < charge):
+                molCharge += 2
+                atomCharge = 1
+        charges.append(atomCharge)
+
+    if molCharge != charge:
+        raise ValueError(f'The total charge of the molecule ({molCharge}) does not match the given charge ({charge}).')
+
+    for i, atom in enumerate(mol.GetAtoms()):
+        atom.SetFormalCharge(charges[i])
+
+    return mol
 
 
 def path_to_mol_graph(dirname):
@@ -113,12 +151,25 @@ def path_to_mol_graph(dirname):
         charge = int(json_obj["pubchem"]["B3LYP@PM6"]["properties"]["charge"])
         connection_index = np.array(connection_index).reshape(-1, 2)
         mol = rdkit.Chem.rdmolfiles.MolFromXYZFile(xyz_fname)
-        # rdDetermineBonds.DetermineBonds(mol, charge=charge)
+
         editable_mol = RWMol(mol)
+        # print(connection_index)
         for connection, order in zip(connection_index, connection_order):
+            # if int(connection[0]) == 15 or int(connection[1]) == 15:
+                # print(f"connection is {connection}, order is {order}")
             editable_mol.AddBond(int(connection[0]) - 1, int(connection[1]) - 1, bond_dict[order])
-        # no_h_mol = RemoveHs(emolditable_mol)
+
+        # no_h_mol = RemoveHs(editable_mol)
+        num_fragments = len(rdmolops.GetMolFrags(editable_mol))
+        if num_fragments > 1:
+            return f"Failed {dirname}: f'Number of fragments: {num_fragments}'"
+
+        # editable_mol = setAtomicCharge(editable_mol, charge)
         Chem.SanitizeMol(editable_mol)
+        no_h_mol = RemoveHs(editable_mol)
+        mol_smile = Chem.MolToSmiles(no_h_mol, isomericSmiles=False)
+        # Chem.SanitizeMol(editable_mol, sanitizeOps=Chem.SANITIZE_ALL^Chem.SANITIZE_PROPERTIES)
+
         graph = mol2graph(editable_mol)
         graph['alpha_homo'] = json_obj['pubchem']['B3LYP@PM6']['properties']['energy']['alpha']['homo']
         graph['alpha_lumo'] = json_obj['pubchem']['B3LYP@PM6']['properties']['energy']['alpha']['lumo']
@@ -129,9 +180,16 @@ def path_to_mol_graph(dirname):
         graph['total_energy'] = json_obj['pubchem']['B3LYP@PM6']['properties']['energy']['total']
         graph['charge'] = charge
         graph['smiles'] = json_obj['pubchem']['Isomeric SMILES']
+        graph['mol_smile'] = mol_smile
         graph = compress(graph)
     except Exception as e:
         print(f"Failed {dirname}: {e}")
+        # print(f"smile is {json_obj['pubchem']['Isomeric SMILES']}")
+        # exit()
         return str(e)
 
     return graph
+
+
+if __name__ == '__main__':
+    path_to_mol_graph("/home/peiran/data/pm6_unzip/output/Compound_018125001_018150000/018147221")

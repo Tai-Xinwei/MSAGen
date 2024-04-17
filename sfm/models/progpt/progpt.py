@@ -190,6 +190,8 @@ class ProGPTModel(SFMPipelineModelMixin):
             batched_data is not None or input_ids is not None
         ), "You should supply a batched_data or input_ids or both"
 
+        input_ids = batched_data["input_ids"]
+        attention_mask = batched_data["llm_mask"]
         # generate text_emb
         text_embeds = self.decoder.get_input_embeddings()(
             torch.where(input_ids > 0, input_ids, 0)
@@ -198,6 +200,11 @@ class ProGPTModel(SFMPipelineModelMixin):
         residue_seq = batched_data["proteins"]
         if residue_seq.shape[1] > 2:
             batched_data["x"] = residue_seq
+            masked_aa = torch.zeros_like(residue_seq).unsqueeze(-1).bool()
+
+            masked_pos = masked_aa
+            batched_data["masked_aa"] = masked_aa
+            batched_data["mask_pos"] = masked_pos
             (
                 prot_emb,
                 _,
