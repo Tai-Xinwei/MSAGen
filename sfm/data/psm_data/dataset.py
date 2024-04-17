@@ -77,6 +77,29 @@ class PM6FullLMDBDataset(FoundationModelDataset):
             self._init_db()
         return self._keys
 
+    def split_dataset(self, validation_ratio=0.03, sort=False):
+        num_samples = len(self.keys)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(666).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(self.lmdb_path)
+        dataset_train._keys = [self._keys[idx] for idx in training_indices]
+        dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
+
+        dataset_val = self.__class__(self.lmdb_path)
+        dataset_val._keys = [self._keys[idx] for idx in validation_indices]
+        dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
+
+        return dataset_train, dataset_val
+
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
         value = self.txn.get(key.encode())
@@ -329,6 +352,29 @@ class AFDBLMDBDataset(FoundationModelDataset):
         data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
 
         return data
+
+    def split_dataset(self, validation_ratio=0.03, sort=False):
+        num_samples = len(self.keys)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(666).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(self.lmdb_path)
+        dataset_train._keys = [self._keys[idx] for idx in training_indices]
+        dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
+
+        dataset_val = self.__class__(self.lmdb_path)
+        dataset_val._keys = [self._keys[idx] for idx in validation_indices]
+        dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
+
+        return dataset_train, dataset_val
 
     # protein does not have 2dgraph, create one for mixing data
     def generate_2dgraphfeat(self, data):

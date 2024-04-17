@@ -84,7 +84,7 @@ def convert_to_single_emb(x, offset: int = 512):
     return x
 
 
-def collator(
+def collate_fn(
     items,
     min_node=-1,
     max_node=512,

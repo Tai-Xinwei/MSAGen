@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 from argparse import ArgumentParser
 
-from sfm.data.psm_data.unifieddataset import UnifiedPSMDataset
+from sfm.data.psm_data.unifieddataset import BatchedDataDataset, UnifiedPSMDataset
 from sfm.logging import logger
 from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions
 from sfm.models.psm.psm_config import PSMConfig
@@ -22,12 +22,13 @@ from sfm.utils.cli_utils import cli
 @cli(DistributedTrainConfig, PSMConfig)
 def main(args) -> None:
     ### define psm dataset here
-    train_data = UnifiedPSMDataset(
+    dataset = UnifiedPSMDataset(
         args.data_path, args.data_path_list, args.dataset_name_list
     )
-    valid_data = UnifiedPSMDataset(
-        args.data_path, args.data_path_list, args.dataset_name_list
-    )
+    train_data, valid_data = dataset.split_dataset()
+
+    train_data = BatchedDataDataset(train_data, dataset.train_len, args=args)
+    valid_data = BatchedDataDataset(valid_data, dataset.train_len, args=args)
 
     ### define psm models here, define the diff loss in DiffMAE3dCriterions
     model = PSMModel(args)  # , loss_fn=DiffMAE3dCriterions)
