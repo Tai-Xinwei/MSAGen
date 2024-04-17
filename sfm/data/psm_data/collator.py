@@ -173,7 +173,8 @@ def collate_fn(
         spatial_pos=spatial_pos,
         in_degree=in_degree,
         out_degree=in_degree,  # for undirected graph
-        x=x,
+        token_id=x[:, :, 0],
+        node_attr=x,
         edge_input=edge_input,
         energy=energy,
         pos=pos,
