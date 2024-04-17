@@ -19,13 +19,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=80000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=8000
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
-[ -z "${train_batch_size}" ] && train_batch_size=4
-[ -z "${val_batch_size}" ] && val_batch_size=4
+[ -z "${train_batch_size}" ] && train_batch_size=512
+[ -z "${val_batch_size}" ] && val_batch_size=8
 # [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,embed_tokens.weight"
 # [ -z "${learnable_cutoff}" ] && learnable_cutoff=32000
 
 # In this stage, the grad is too large to use grad accumulation
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=64
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1000000
 [ -z "${save_batch_interval}" ] && save_batch_interval=4000000
 [ -z "${log_interval}" ] && log_interval=1

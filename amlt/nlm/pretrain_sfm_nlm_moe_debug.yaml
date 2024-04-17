@@ -54,3 +54,5 @@ jobs:
   submit_args:
     container_args:
       shm_size: 1024g
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
