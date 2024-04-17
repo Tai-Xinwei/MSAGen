@@ -6,8 +6,24 @@ from sfm.models.graphormer.graphormer_config import GraphormerConfig
 
 
 class VecInitApproach(Enum):
-    ZERO_CENTERED_POS: str = "ZEEO_CENTERED_POS"
+    ZERO_CENTERED_POS: str = "ZERO_CENTERED_POS"
     RELATIVE_POS: str = "RELATIVE_POS"
+
+    def __str__(self):
+        return self.value
+
+
+class DiffusionTrainingLoss(Enum):
+    L1: str = "L1"
+    MSE: str = "MSE"
+
+    def __str__(self):
+        return self.value
+
+
+class DiffusionTimeStepEncoderType(Enum):
+    DISCRETE_LEARNABLE: str = "DISCRETE_LEARNABLE"
+    POSITIONAL: str = "POSITIONAL"
 
     def __str__(self):
         return self.value
@@ -50,9 +66,17 @@ class PSMConfig(GraphormerConfig):
     ddim_eta: float = 0.0
     ddim_steps: int = 50
     clean_sample_ratio: float = 0.5
+    diffusion_training_loss: DiffusionTrainingLoss = DiffusionTrainingLoss.L1
+    diffusion_time_step_encoder_type: DiffusionTimeStepEncoderType = (
+        DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE
+    )
 
     # for equivariant part
     equivar_vec_init: VecInitApproach = VecInitApproach.ZERO_CENTERED_POS
+
+    # for 2D information
+    use_2d_atom_features: bool = False
+    use_2d_bond_features: bool = False
 
     def __init__(
         self,

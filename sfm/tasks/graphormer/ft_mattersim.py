@@ -2,11 +2,19 @@
 from dataclasses import dataclass  # isort:skip
 
 from apex.optimizers import FusedAdam as Adam  # isort:skip
+
+import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.extend([".", ".."])
+
 from sfm.data.mol_data.dataset import BatchedDataDataset
 from sfm.data.mol_data.mattersim_data import MatterSimDataset
 from sfm.logging import logger
-from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.models.graphormer.graphormer_mattersim import GraphormerMatterSim
+from sfm.models.psm.psm_config import PSMConfig
+from sfm.models.psm.psmmodel import PSMModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils.cli_utils import cli
@@ -20,7 +28,7 @@ class MatbenchFinetuneConfig:
     force_loss_factor: float = 1.0
 
 
-@cli(DistributedTrainConfig, GraphormerConfig, MatbenchFinetuneConfig)
+@cli(DistributedTrainConfig, PSMConfig, MatbenchFinetuneConfig)
 def main(args):
     train_data = MatterSimDataset(args.data_path, split="train")
     valid_data = MatterSimDataset(args.data_path, split="valid")
@@ -53,13 +61,13 @@ def main(args):
         ft=True,
     )
 
-    model = GraphormerMatterSim(
+    model = PSMModel(
         args,
-        energy_mean=-4.708115539360253,
-        energy_std=3.7354437106542777,
-        force_mean=0.0,
-        force_std=2.6599926818734785,
-        force_loss_factor=args.force_loss_factor,
+        # energy_mean=-4.708115539360253,
+        # energy_std=3.7354437106542777,
+        # force_mean=0.0,
+        # force_std=2.6599926818734785,
+        # force_loss_factor=args.force_loss_factor,
     )
     optimizer = Adam(model.parameters(), lr=args.max_lr)
 

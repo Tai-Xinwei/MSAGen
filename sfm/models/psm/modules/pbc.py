@@ -65,7 +65,7 @@ class CellExpander:
         return torch.clamp(result, min=0.0)
 
     def expand(self, pos, pbc, atoms, cell, use_local_attention=True):
-        with torch.no_grad():
+        with torch.no_grad():  # CL: make this an option?
             device = pos.device
             batch_size, max_num_atoms = pos.size()[:2]
             cell_tensor = (
@@ -81,7 +81,8 @@ class CellExpander:
                 pos.unsqueeze(2) - expand_pos.unsqueeze(1), p=2, dim=-1
             )  # B x T x (8 x T)
             expand_mask = (expand_dist < self.cutoff) & (
-                expand_dist > 1e-5
+                expand_dist
+                > 1e-5  # CL: this cannot mask out colocated nodes in `expand_pos`
             )  # B x T x (8 x T)
             # multi_ragph_mask = expand_dist < self.pbc_multigraph_cutoff
             expand_mask = torch.masked_fill(
