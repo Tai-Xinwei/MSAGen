@@ -28,14 +28,10 @@ def main(args) -> None:
     train_data, valid_data = dataset.split_dataset()
 
     train_data = BatchedDataDataset(train_data, dataset.train_len, args=args)
-    valid_data = BatchedDataDataset(valid_data, dataset.train_len, args=args)
+    valid_data = BatchedDataDataset(valid_data, dataset.valid_len, args=args)
 
     ### define psm models here, define the diff loss in DiffMAE3dCriterions
     model = PSMModel(args)  # , loss_fn=DiffMAE3dCriterions)
-
-    logger.info(
-        f"finetune: {args.ft}, add_3d: {args.add_3d}, infer: {args.infer}, no_2d: {args.no_2d}"
-    )
 
     trainer = Trainer(
         args,

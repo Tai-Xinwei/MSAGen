@@ -77,8 +77,6 @@ class BatchedDataDataset(FoundationModelDataset):
         self,
         dataset_list,
         len_data,
-        min_node=32,
-        max_node=128,
         multi_hop_max_dist=5,
         spatial_pos_max=1024,
         args=None,
@@ -89,8 +87,7 @@ class BatchedDataDataset(FoundationModelDataset):
         self.dataset_list = dataset_list
         self.num_datasets = len(dataset_list)
         self.len = len_data
-        self.min_node = min_node
-        self.max_node = max_node
+
         self.multi_hop_max_dist = multi_hop_max_dist
         self.spatial_pos_max = spatial_pos_max
         self.args = args
@@ -107,7 +104,12 @@ class BatchedDataDataset(FoundationModelDataset):
         return self.len
 
     def collate(self, samples):
-        return collate_fn(samples)
+        return collate_fn(
+            samples,
+            max_node=self.args.max_length,
+            multi_hop_max_dist=self.multi_hop_max_dist,
+            spatial_pos_max=self.spatial_pos_max,
+        )
 
 
 if __name__ == "__main__":
