@@ -26,39 +26,64 @@ pre-commit run --all-files
 
 ## Installation
 
-For submitting jobs on clusters, there is no additional installation steps since the `sfm` conda envrionment is already in the docker image. In amlt yaml file, an exemplary job command section can be:
+For submitting jobs on clusters, there is no additional installation steps since the `sfm` conda envrionment is already in the docker image. In amlt yaml file, an exemplary job YAML can be:
 
 ```yaml
-# ......
+# ...... target information .....
 
 environment:
-  image: yaosen/sfm-cuda:py39-torch2.2.2-cuda12.1
-  registry: msroctocr.azurecr.io
-  username: msroctocr
+  image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
+  registry: msroctocr.azurecr.io  # or msrresrchcr.azurecr.io
+  username: msroctocr  # or msrresrchcr
 
-# ......
+# ...... storage & code section ......
+jobs:
+  tags:
+  - 'ProjectID: xxxxxx'
+  # Singularity specific parameters
+  priority: high      # may spend more time in the queue, default: medium
+  sla_tier: premium   # may be paused any time, but more capacity available
+  mpi: true
+  # Since Amulet v9.4, Amulet no longer tells AML to use mpirun to spawn processes by default
+  # Setting "mpi: True" will ask AML to spawn processes with mpirun. Requires openmpi installed in the image.
+  process_count_per_node: 1
+  command:
+  # activate sfm environment and build cython extention
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
 
-# activate sfm environment
-- eval "$$(conda shell.bash hook)" && conda activate sfm
-# install packages (check tools/docker_image/conda_install.sh for pre-installed packages)
-- pip install torcheval
-- python setup_cython.py build_ext --inplace
-# model running script, refer to Usage section.
-- bash ./scripts/xxx/xxxx.sh
+  # Optional: install custom packages that not in the docker image
+  # - pip install torcheval
+
+  # model running script, refer to Usage section.
+  - bash ./scripts/xxx/xxxx.sh
+  submit_args:
+    env:
+      {SHARED_MEMORY_PERCENT: 1.0}
+      # singularity version shm_size
 ```
 
 
-For development / debug, create conda environment from the YAML files in `./install` folder:
+For **local** development, create a conda environment from the YAML files in `./install` folder and install other packages that need compilation:
 
 ```bash
+# from project root
 conda env remove -n sfm
 conda env create -f ./install/py39-torch2.2.2-cuda12.1.yaml -n sfm
-# conda env create -f ./install/py310-torch2.2.2-cuda12.1.yaml -n sfm
 
 # build cython extention
 python setup_cython.py build_ext --inplace
 
-# if you want to install NVIDIA apex, run the following scripts
+# Optional: flash-attn
+# flash-atten v2 are supported with PyTorch > 2.2 but have a different API Ref: https://pytorch.org/blog/pytorch2-2/
+# if some legacy code still needs flash-atten, uncomment the following lines and rebuild the image or add it to job commands.
+NVCC_THREADS=0 pip install flash-attn --no-build-isolation
+
+# Optional: megablocks[gg]
+pip install megablocks[gg]
+
+# Optional: apex
+# if you want to install NVIDIA apex locally, run the following scripts
 # NOTE: it can take over 20 min for compilation
 cwd=$(pwd)
 git clone https://github.com/NVIDIA/apex /tmp/apex && cd /tmp/apex
@@ -69,6 +94,7 @@ MAX_JOBS=0 pip install -v --disable-pip-version-check \
 cd $cwd
 rm -rf /tmp/apex
 ```
+
 
 ## Usage
 
@@ -90,14 +116,12 @@ More details can be found in the documentation page.
 CUDA 11.7 docker image:
 - `itpeus4cr.azurecr.io/pj/mfmds:20230207_b`
 
-> Call for volunteers: help submit tasks to test the compatibility of the CUDA 12.1 images, especially for python 3.10 image.
-
 CUDA 12.1 docker image:
 
- - `msroctocr.azurecr.io/yaosen/sfm-cuda:py39-torch2.2.2-cuda12.1`
- - `msroctocr.azurecr.io/yaosen/sfm-cuda:py310-torch2.2.2-cuda12.1`
+ - `msroctocr.azurecr.io/yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a`
+ - `msrresrchcr.azurecr.io/yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a`
 
-For CUDA 12.1 docker images, they are Singularity compatible and have built-in `sfm` conda environment with pre-installed packages (check `tools/docker_image/conda_install.sh` for details). For special needs, refer to `tools/docker_image/build.sh` to build another image. Note: currently, Python 3.11 is not supported because `apex` failed to compile.
+For CUDA 12.1 docker images, they are Singularity compatible and have built-in `sfm` conda environment with pre-installed packages (check `tools/docker_image/conda_install.sh` for details). For special needs, refer to `tools/docker_image/build.sh` to build another image. Note: currently, Python 3.10 and 3.11 is not supported because some packages failed to compile.
 
 
 ## Data
