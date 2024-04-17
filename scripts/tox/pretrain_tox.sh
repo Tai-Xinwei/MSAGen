@@ -158,7 +158,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
           --save_dir $save_dir \
           --seed 666666 \
           --add_3d \
-          --ifresume \
           --dynamic_loader --max_tokens $max_tokens \
           --diffmode $diffmode \
           --mask_ratio $mask_ratio \
