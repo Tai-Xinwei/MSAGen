@@ -45,6 +45,7 @@ class PSMMixEmbedding(nn.Module):
         batched_data: Dict,
         time_step: Optional[Tensor] = None,
         clean_mask: Optional[Tensor] = None,
+        aa_mask: Optional[Tensor] = None,
         pbc_expand_batched: Optional[Dict] = None,
     ) -> Tensor:
         """
@@ -59,7 +60,7 @@ class PSMMixEmbedding(nn.Module):
         padding_mask = token_id.eq(0)  # B x T x 1
 
         # TODO: need to implement the masked token type here or in the encoder
-        mask_token_type = batched_data["token_id"]
+        mask_token_type = token_id.masked_fill(aa_mask, 156)  # 156 is the mask token
 
         x = self.embed(token_id)
 

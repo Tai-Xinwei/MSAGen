@@ -279,7 +279,39 @@ class AFDBLMDBDataset(FoundationModelDataset):
         lmdb_path: Optional[str],
     ):
         self.lmdb_path = lmdb_path
-        self.vocab = Alphabet()
+        self.vocab = {
+            "L": 129,
+            "A": 130,
+            "G": 131,
+            "V": 132,
+            "S": 133,
+            "E": 134,
+            "R": 135,
+            "T": 136,
+            "I": 137,
+            "D": 138,
+            "P": 139,
+            "K": 140,
+            "Q": 141,
+            "N": 142,
+            "F": 143,
+            "Y": 144,
+            "M": 145,
+            "H": 146,
+            "W": 147,
+            "C": 148,
+            "X": 149,
+            "B": 150,
+            "U": 151,
+            "Z": 152,
+            "O": 153,
+            "-": 154,
+            ".": 155,
+            "<mask>": 156,
+            "<cls>": 157,
+            "<eos>": 158,
+            "<unk>": 159,
+        }
 
         # for dataloader with num_workers > 1
         self._env, self._txn = None, None
@@ -350,6 +382,8 @@ class AFDBLMDBDataset(FoundationModelDataset):
             (x.size()[0], 3), dtype=torch.float64, device=x.device
         )
         data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+
+        data = self.generate_2dgraphfeat(data)
 
         return data
 

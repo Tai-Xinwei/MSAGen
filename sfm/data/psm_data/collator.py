@@ -144,7 +144,7 @@ def collate_fn(
         [pad_1d_unsqueeze(i["in_degree"], max_node_num) for i in items]
     )
 
-    pos = torch.cat([pad_pos_unsqueeze(i["pos"], max_node_num) for i in items])
+    pos = torch.cat([pad_pos_unsqueeze(i["coords"], max_node_num) for i in items])
     node_mask = torch.cat(
         [pad_pos_unsqueeze(i["node_mask"], max_node_num) for i in items]
     )

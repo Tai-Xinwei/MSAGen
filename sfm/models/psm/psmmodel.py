@@ -110,11 +110,19 @@ class PSMModel(Model):
         batched_data["init_pos"][periodic_mask] = init_cell_pos
 
     def _create_protein_mask(self, batched_data):
-        token_id = batched_data["token_id"]
+        token_id = batched_data["token_id"]  # B x T
+        # create protein aa mask with mask ratio
+        batched_data["protein_masked_pos"] = (
+            torch.rand_like(token_id, dtype=torch.float) < self.psm_config.mask_ratio
+        )
+        batched_data["protein_masked_aa"] = (
+            torch.rand_like(token_id, dtype=torch.float) < self.psm_config.mask_ratio
+        )
+
         masked_pos = batched_data["protein_masked_pos"]
         masked_aa = batched_data["protein_masked_aa"].expand_as(masked_pos)
         masked_protein = (
-            ((token_id > 130) & (token_id < 160))
+            ((token_id > 128) & (token_id < 155))
             .any(dim=-1, keepdim=True)
             .unsqueeze(-1)
             .expand_as(masked_pos)
@@ -130,8 +138,8 @@ class PSMModel(Model):
     def _create_system_tags(self, batched_data):
         token_id = batched_data["token_id"]
         is_periodic = batched_data["pbc"].any(dim=-1)
-        is_molecule = (~is_periodic) & (token_id <= 130).all(dim=-1)
-        is_protein = (~is_periodic) & (token_id > 130).any(dim=-1)
+        is_molecule = (~is_periodic) & (token_id <= 128).all(dim=-1)
+        is_protein = (~is_periodic) & (token_id > 128).any(dim=-1)
         batched_data["is_periodic"] = is_periodic
         batched_data["is_molecule"] = is_molecule
         batched_data["is_protein"] = is_protein
@@ -241,6 +249,7 @@ class PSMModel(Model):
         clean_mask &= ~batched_data[
             "is_protein"
         ]  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
+        aa_mask = batched_data["protein_masked_aa"] & batched_data["is_protein"]
 
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
@@ -253,7 +262,11 @@ class PSMModel(Model):
         )
         batched_data["pos"] = pos
         result_dict = self.net(
-            batched_data, time_step=time_step, clean_mask=clean_mask, **kwargs
+            batched_data,
+            time_step=time_step,
+            clean_mask=clean_mask,
+            aa_mask=aa_mask,
+            **kwargs,
         )
         result_dict["noise"] = noise
         result_dict["clean_mask"] = clean_mask
@@ -679,6 +692,7 @@ class PSM(nn.Module):
         perturb=None,
         time_step=None,
         clean_mask=None,
+        aa_mask=None,
         q=None,  # for computing the score model on the q
         q_0=None,
         delta_tq=None,  # for computing the score model on the q at time_pos + delta_tq
@@ -709,7 +723,7 @@ class PSM(nn.Module):
         is_protein = batched_data["is_protein"]
 
         token_embedding, padding_mask, token_type = self.embedding(
-            batched_data, time_step, clean_mask
+            batched_data, time_step, clean_mask, aa_mask
         )
 
         (
