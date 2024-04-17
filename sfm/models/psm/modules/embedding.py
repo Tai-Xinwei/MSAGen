@@ -22,7 +22,7 @@ class PSMMixEmbedding(nn.Module):
         """
         super(PSMMixEmbedding, self).__init__()
 
-        ## [1, 130]: atom type; [131, 159] amino acid type
+        ## [1, 128]: atom type; [129, 154] amino acid type
         self.embed = nn.Embedding(160, psm_config.encoder_embed_dim)
 
         # embedding for 2D
@@ -59,10 +59,9 @@ class PSMMixEmbedding(nn.Module):
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
 
-        # TODO: need to implement the masked token type here or in the encoder
         mask_token_type = token_id.masked_fill(aa_mask, 156)  # 156 is the mask token
 
-        x = self.embed(token_id)
+        x = self.embed(mask_token_type)
 
         if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
             atom_feature_embedding = self.atom_feature_embed(
