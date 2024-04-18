@@ -77,7 +77,7 @@ jobs:
   - export warmup_num_steps=1000
   - export train_batch_size=1024
   - export val_batch_size=1024
-  - export max_tokens=14000
+  - export max_tokens=12000
   - export max_length=512
   - export gradient_accumulation_steps=2
   - export wandb_group=toxdiff

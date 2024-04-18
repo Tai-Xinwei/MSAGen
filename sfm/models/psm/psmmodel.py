@@ -109,7 +109,7 @@ class PSMModel(Model):
         # create protein aa mask with mask ratio
         batched_data["protein_masked_pos"] = (
             torch.rand_like(token_id, dtype=torch.float) < self.psm_config.mask_ratio
-        )
+        ).expand_as(batched_data["pos"])
         batched_data["protein_masked_aa"] = (
             torch.rand_like(token_id, dtype=torch.float) < self.psm_config.mask_ratio
         )
