@@ -21,6 +21,13 @@ from sfm.models.progpt.progpt_config import ProGPTConfig
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig, TrainStrategy
 from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils.cli_utils import cli
+from sfm.utils.science_tokens import SCIENCE_TAG_TOKENS
+
+IGNORE_INDEX = -100
+DEFAULT_PAD_TOKEN = "[PAD]"
+DEFAULT_EOS_TOKEN = "</s>"
+DEFAULT_BOS_TOKEN = "<s>"
+DEFAULT_UNK_TOKEN = "<unk>"
 
 
 def make_supervised_data_module(args, mode="train") -> Dict:
@@ -30,15 +37,37 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         "test",
     ], f"Invalid mode: {mode}, must be train, eval, or test."
 
-    tokenizer = SFMDecTokenizer.from_pretrained(
-        args.llm_model_name_or_path,
-        prot_spm_path=os.path.join(args.tokenizer_path, "ur50bpe/bpe"),
-        dna_spm_path=os.path.join(args.tokenizer_path, "dnabpe/bpe"),
-        rna_spm_path=os.path.join(args.tokenizer_path, "rnabpe/bpe"),
-    )
+    if args.use_llama_tokenizer:
+        tokenizer = AutoTokenizer.from_pretrained(
+            args.llm_model_name_or_path,
+            model_max_length=args.model_max_length,
+            padding_side="right",
+            use_fast=False,
+        )
 
-    args.vocab_size = len(tokenizer)  # now we have new tokens
-    args.pad_token_id = tokenizer.pad_token_id
+        special_tokens_dict = dict()
+        if tokenizer.pad_token is None:
+            special_tokens_dict["pad_token"] = DEFAULT_PAD_TOKEN
+        if tokenizer.eos_token is None:
+            special_tokens_dict["eos_token"] = DEFAULT_EOS_TOKEN
+        if tokenizer.bos_token is None:
+            special_tokens_dict["bos_token"] = DEFAULT_BOS_TOKEN
+        if tokenizer.unk_token is None:
+            special_tokens_dict["unk_token"] = DEFAULT_UNK_TOKEN
+
+        special_tokens_dict["additional_special_tokens"] = SCIENCE_TAG_TOKENS
+        tokenizer.add_special_tokens(special_tokens_dict)
+
+    else:
+        tokenizer = SFMDecTokenizer.from_pretrained(
+            args.llm_model_name_or_path,
+            prot_spm_path=os.path.join(args.tokenizer_path, "ur50bpe/bpe"),
+            dna_spm_path=os.path.join(args.tokenizer_path, "dnabpe/bpe"),
+            rna_spm_path=os.path.join(args.tokenizer_path, "rnabpe/bpe"),
+        )
+
+        args.vocab_size = len(tokenizer)  # now we have new tokens
+        args.pad_token_id = tokenizer.pad_token_id
 
     """ Make dataset and collator for supervised fine-tuning. """
     dataset = ProteinTextDataset(
@@ -55,6 +84,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
             or args.strategy == TrainStrategy.ThreeD
         ),
         local_rank=args.local_rank,
+        use_llama_tokenizer=args.use_llama_tokenizer,
     )
 
     return dict(
@@ -89,7 +119,7 @@ def main(args) -> None:
         train_data=data_module["eval_dataset"],
         valid_data=data_module["eval_dataset"],
         model=model,
-        loss_log_dict={"lm_loss": 0.0},
+        loss_log_dict={"lm_loss": 0.0, "lm_loss_text": 0.0, "lm_loss_special": 0.0},
     )
 
     trainer.finetune_from_checkpoint()

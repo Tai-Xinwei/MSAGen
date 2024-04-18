@@ -110,6 +110,7 @@ class ProteinTextDataset(Dataset):
         protein_pad_id: int = 1,
         pp_mode: bool = True,
         local_rank: int = 0,
+        use_llama_tokenizer: bool = False,
     ) -> None:
         super().__init__()
         self.data_path = data_path
@@ -144,6 +145,8 @@ class ProteinTextDataset(Dataset):
 
         logger.info(f"Dataset size: {self.len}, Filtered size: {self.len_filter}")
         self.len = self.len_filter
+
+        self.use_llama_tokenizer = use_llama_tokenizer
 
     def filter_dataset(self):
         filter_keys = []
@@ -234,8 +237,10 @@ class ProteinTextDataset(Dataset):
         error = input_ids[mask] - labels[mask]
         assert torch.sum(error) == 0, f"Error in input_ids and labels: {error}"
 
-        # labels = input_ids.clone()
-        # labels[labels < 0] = IGNORE_INDEX
+        if self.use_llama_tokenizer:
+            labels = input_ids.clone()
+            # labels[:input_ids_len] = IGNORE_INDEX
+            labels[labels < 0] = IGNORE_INDEX
 
         return dict(
             input_ids=input_ids,

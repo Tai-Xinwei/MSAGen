@@ -34,5 +34,8 @@ class ProGPTConfig:
     max_num_mol_per_sample: int = 8
     protein_max_size: int = 1024
 
+    # add use llama tokenizer
+    use_llama_tokenizer: bool = False
+
     train_data_path: str = ""
     valid_data_path: str = ""
