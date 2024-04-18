@@ -20,9 +20,10 @@
 [ -z "${total_num_steps}" ] && total_num_steps=100000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 # training parameters for generalist
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
-[ -z "${train_batch_size}" ] && train_batch_size=128
-[ -z "${val_batch_size}" ] && val_batch_size=128
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
+[ -z "${train_batch_size}" ] && train_batch_size=256
+[ -z "${val_batch_size}" ] && val_batch_size=256
+# [ -z "${train_batch_size}" ] && train_batch_size=32
 
 [ -z "${train_data_path}" ] && train_data_path='/hai1.sfm/nlm/progpt_train_bpe.lmdb/'
 [ -z "${valid_data_path}" ] && valid_data_path='/hai1.sfm/nlm/progpt_valid_bpe.lmdb/'
@@ -32,10 +33,10 @@
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${save_dir}" ] && save_dir='/blob/v-kehanwu/nlm/checkpoints/'
-[ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir='/blob/v-kehanwu/nlm/checkpoints/'
 [ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/hai1.sfm/nlm/output/checkpoint_E144_new.pt'
-# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/llama2/llama-2-7b"
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/hai1/ds_dataset/llama2/llama-2-7b"
 [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/scigpt/stageB.prot/global_step224655"
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/scigpt/stageB/global_step32999"
 [ -z "${tokenizer_path}" ] && tokenizer_path="/blob/shufxi/data/scigpt"
 
 [ -z "${save_batch_interval}"] && save_batch_interval=500
@@ -125,7 +126,7 @@ else
   fi
 fi
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/test_bfm_llama.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
           --encoder_ffn_embed_dim $ffn_size \
@@ -143,10 +144,12 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/test_bfm_llama.py \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --seed 6666 \
           --ft \
-          --fp16 \
+          --bf16 \
           --d_tilde $d_tilde \
           --max_lr $max_lr \
-          --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
+          --save_dir $save_dir \
+          --total_num_steps $total_num_steps \
+          --warmup_num_steps $warmup_num_steps \
           --loadcheck_path $loadcheck_path \
           --llm_model_name_or_path $llm_model_name_or_path \
           --tokenizer_path $tokenizer_path \
@@ -156,9 +159,12 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/test_bfm_llama.py \
           --model_max_length $model_max_length \
           --pp_partition_layer_name $pp_partition_layer_name \
           --pp_part_list $part_list \
-          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
-
-          # --ifresume \
+          --loadbfmckpt_path $loadbfmckpt_path \
+          --log_interval $log_interval --load_ckpt \
+          --save_batch_interval $save_batch_interval \
+          --unfreeze_param_list "mol_adaptor,mol_rep_layernorm" \
+          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
+          --ifresume
 
 
 sleep inf

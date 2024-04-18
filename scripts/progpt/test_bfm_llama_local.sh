@@ -21,22 +21,22 @@
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=600
 # training parameters for generalist
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
-[ -z "${train_batch_size}" ] && train_batch_size=128
-[ -z "${val_batch_size}" ] && val_batch_size=128
+[ -z "${train_batch_size}" ] && train_batch_size=32
+[ -z "${val_batch_size}" ] && val_batch_size=32
 
-[ -z "${train_data_path}" ] && train_data_path='/hai1.sfm/nlm/progpt_train_bpe.lmdb/'
-[ -z "${valid_data_path}" ] && valid_data_path='/hai1.sfm/nlm/progpt_valid_bpe.lmdb/'
+[ -z "${train_data_path}" ] && train_data_path='/home/v-wukehan/hai1.sfm/nlm/progpt_train_bpe.lmdb/'
+[ -z "${valid_data_path}" ] && valid_data_path='/home/v-wukehan/hai1.sfm/nlm/progpt_valid_bpe.lmdb/'
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
 [ -z "${model_max_length}" ] && model_max_length=2048
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
-[ -z "${save_dir}" ] && save_dir='/blob/v-kehanwu/nlm/checkpoints/'
-[ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir='/blob/v-kehanwu/nlm/checkpoints/'
-[ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/hai1.sfm/nlm/output/checkpoint_E144_new.pt'
-# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/llama2/llama-2-7b"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/scigpt/stageB.prot/global_step224655"
-[ -z "${tokenizer_path}" ] && tokenizer_path="/blob/shufxi/data/scigpt"
+[ -z "${save_dir}" ] && save_dir='/home/v-wukehan/blob1.v2/v-kehanwu/nlm/checkpoints/'
+[ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir='/home/v-wukehan/blob1.v2/v-kehanwu/nlm/checkpoints/'
+[ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/home/v-wukehan/hai1.sfm/nlm/output/checkpoint_E144_new.pt'
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/v-wukehan/blob1.v2/v-kehanwu/SFM/llama2/llama-2-7b"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/home/v-wukehan/blob1.v2/v-kehanwu/SFM/scigpt/stageB.prot/global_step224655"
+[ -z "${tokenizer_path}" ] && tokenizer_path="/home/v-wukehan/blob1.v2/shufxi/data/scigpt"
 
 [ -z "${save_batch_interval}"] && save_batch_interval=500
 [ -z "${log_interval}" ] && log_interval=20
@@ -124,7 +124,7 @@ else
                       --master_addr $MASTER_ADDR"
   fi
 fi
-
+set -x
 torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/test_bfm_llama.py \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
@@ -159,7 +159,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/test_bfm_llama.py \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
           # --ifresume \
-
+set +x
 
 sleep inf
 sleep inf

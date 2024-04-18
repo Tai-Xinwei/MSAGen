@@ -34,8 +34,8 @@
 [ -z "${save_dir}" ] && save_dir='/blob/v-kehanwu/nlm/checkpoints/'
 [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir='/blob/v-kehanwu/nlm/checkpoints/'
 [ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/hai1.sfm/nlm/output/checkpoint_E144_new.pt'
-# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/llama2/llama-2-7b"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/scigpt/stageB.prot/global_step224655"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/llama2/llama-2-7b"
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/scigpt/stageB.prot/global_step224655"
 [ -z "${tokenizer_path}" ] && tokenizer_path="/blob/shufxi/data/scigpt"
 
 [ -z "${save_batch_interval}"] && save_batch_interval=500
@@ -156,8 +156,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/test_bfm_llama.py \
           --model_max_length $model_max_length \
           --pp_partition_layer_name $pp_partition_layer_name \
           --pp_part_list $part_list \
-          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
-
+          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
+          --use_llama_tokenizer
           # --ifresume \
 
 
