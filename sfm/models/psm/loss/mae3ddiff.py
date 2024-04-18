@@ -90,14 +90,24 @@ class DiffMAE3dCriterions(nn.Module):
 
         if aa_mask.any():
             aa_mask = aa_mask & ~padding_mask
+            logits = model_output["aa_logits"][aa_mask]
             aa_mlm_loss = self.aa_mlm_loss(
-                model_output["aa_logits"][aa_mask],
+                logits,
                 atomic_numbers[aa_mask],
+            )
+            aa_acc = (
+                (
+                    logits.view(-1, logits.size(-1)).argmax(dim=-1)
+                    == atomic_numbers[aa_mask]
+                )
+                .to(torch.float32)
+                .mean()
             )
         else:
             aa_mlm_loss = torch.tensor(
                 [0.0], device=atomic_numbers.device, requires_grad=True
             )
+            aa_acc = 0.0
 
         loss = energy_loss + force_loss + noise_loss + aa_mlm_loss
 
@@ -108,6 +118,7 @@ class DiffMAE3dCriterions(nn.Module):
             "force_loss": force_loss,
             "noise_loss": noise_loss,
             "aa_mlm_loss": aa_mlm_loss,
+            "aa_acc": aa_acc,
         }
 
         return loss, logging_output

@@ -120,7 +120,7 @@ class PSMModel(Model):
             batched_data["protein_masked_aa"].unsqueeze(-1).expand_as(masked_pos)
         )
         masked_protein = (
-            ((token_id > 128) & (token_id < 155))
+            ((token_id > 129) & (token_id < 156))
             .any(dim=-1, keepdim=True)
             .unsqueeze(-1)
             .expand_as(masked_pos)
@@ -130,14 +130,19 @@ class PSMModel(Model):
             .any(dim=-1, keepdim=True)
             .expand_as(masked_pos)
         )  # mask_nan: B x T x 3
-        mask = masked_protein & (masked_pos | masked_aa | masked_nan)
+        masked_inf = (
+            torch.isinf(batched_data["pos"])
+            .any(dim=-1, keepdim=True)
+            .expand_as(masked_pos)
+        )  # mask_nan: B x T x 3
+        mask = masked_protein & (masked_pos | masked_aa | masked_nan | masked_inf)
         batched_data["protein_mask"] = mask
 
     def _create_system_tags(self, batched_data):
         token_id = batched_data["token_id"]
         is_periodic = batched_data["pbc"].any(dim=-1)
-        is_molecule = (~is_periodic) & (token_id <= 128).all(dim=-1)
-        is_protein = (~is_periodic) & (token_id > 128).any(dim=-1)
+        is_molecule = (~is_periodic) & (token_id <= 129).all(dim=-1)
+        is_protein = (~is_periodic) & (token_id > 129).any(dim=-1)
         batched_data["is_periodic"] = is_periodic
         batched_data["is_molecule"] = is_molecule
         batched_data["is_protein"] = is_protein
@@ -665,16 +670,32 @@ class PSM(nn.Module):
         is_molecule = batched_data["is_molecule"]
         is_protein = batched_data["is_protein"]
 
+        for k, v in batched_data.items():
+            if k == "attn_bias":
+                continue
+
+            if torch.isinf(v).any():
+                print(f"inf: batched_data[{k}]", torch.isinf(v).any())
+                exit()
+            if torch.isnan(v).any():
+                print(f"nan: batched_data[{k}]", torch.isnan(v).any())
+                exit()
         token_embedding, padding_mask, token_type = self.embedding(
             batched_data, time_step, clean_mask, aa_mask
         )
-
+        if torch.isnan(token_embedding).any():
+            print("token_embedding", torch.isnan(token_embedding).any())
+            exit()
         (
             encoder_output,
             pbc_expand_batched,
         ) = self.encoder(  # CL: expand cell outside encoder?
             token_embedding.transpose(0, 1), padding_mask, batched_data, token_type
         )
+        if torch.isnan(encoder_output).any():
+            print("encoder_output", torch.isnan(encoder_output).any())
+            exit()
+
         decoder_x_output, decoder_vec_output = self.decoder(
             batched_data,
             encoder_output,
@@ -682,6 +703,9 @@ class PSM(nn.Module):
             padding_mask,
             pbc_expand_batched,
         )
+        if torch.isnan(decoder_x_output).any():
+            print("decoder_x_output", torch.isnan(decoder_x_output).any())
+            exit()
 
         # atom-wise energy prediction
         molecule_energy = self.molecule_energy_head(decoder_x_output).squeeze(-1)

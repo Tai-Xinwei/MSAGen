@@ -83,6 +83,7 @@ class TimeStepEncoder(nn.Module):
             raise ValueError(f"Unkown timestep_emb_type {self.timestep_emb_type}")
         if self.time_embedding is not None:
             t_emb = self.time_embedding(t_emb)
+
         return t_emb
 
 

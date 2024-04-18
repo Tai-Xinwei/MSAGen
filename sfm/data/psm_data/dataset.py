@@ -122,7 +122,7 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         elif "coords" in data:
             coords = torch.tensor(data["coords"], dtype=torch.float64)
 
-        x = convert_to_single_emb(x)
+        # x = convert_to_single_emb(x)
 
         data["sample_type"] = 0
         data["token_type"] = x
@@ -240,7 +240,7 @@ class MatterSimDataset:
 
         data["sample_type"] = 1
         data["coords"] = torch.tensor(positions, dtype=torch.float64)
-        data["token_type"] = convert_to_single_emb(x)
+        data["token_type"] = x  # convert_to_single_emb(x)
         data["idx"] = idx
 
         data["cell"] = torch.tensor(data["cell"], dtype=torch.float64)
@@ -332,37 +332,37 @@ class AFDBLMDBDataset(FoundationModelDataset):
             # "<pad>": 0,  # padding
             # "1"-"127": 1-127, # atom type
             # "<cell_corner>": 128, use for pbc material
-            "L": 129,
-            "A": 130,
-            "G": 131,
-            "V": 132,
-            "S": 133,
-            "E": 134,
-            "R": 135,
-            "T": 136,
-            "I": 137,
-            "D": 138,
-            "P": 139,
-            "K": 140,
-            "Q": 141,
-            "N": 142,
-            "F": 143,
-            "Y": 144,
-            "M": 145,
-            "H": 146,
-            "W": 147,
-            "C": 148,
-            "X": 149,
-            "B": 150,
-            "U": 151,
-            "Z": 152,
-            "O": 153,
-            "-": 154,
-            ".": 155,
-            "<mask>": 156,
-            "<cls>": 157,
-            "<eos>": 158,
-            "<unk>": 159,
+            "L": 130,
+            "A": 131,
+            "G": 132,
+            "V": 133,
+            "S": 134,
+            "E": 135,
+            "R": 136,
+            "T": 137,
+            "I": 138,
+            "D": 139,
+            "P": 140,
+            "K": 141,
+            "Q": 142,
+            "N": 143,
+            "F": 144,
+            "Y": 145,
+            "M": 146,
+            "H": 147,
+            "W": 148,
+            "C": 149,
+            "X": 150,
+            "B": 151,
+            "U": 152,
+            "Z": 153,
+            "O": 154,
+            "-": 155,
+            ".": 156,
+            "<mask>": 157,
+            "<cls>": 158,
+            "<eos>": 159,
+            # "<unk>": 160,
         }
 
         # for dataloader with num_workers > 1

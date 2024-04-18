@@ -7,8 +7,8 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${layers}" ] && layers=12
-[ -z "${hidden_size}" ] && hidden_size=1024
-[ -z "${ffn_size}" ] && ffn_size=4096
+[ -z "${hidden_size}" ] && hidden_size=256
+[ -z "${ffn_size}" ] && ffn_size=1024
 [ -z "${num_head}" ] && num_head=8
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -25,7 +25,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
-[ -z "${seq_masking_method}" ] && seq_masking_method=transformerM
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
@@ -34,7 +33,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=32
 [ -z "${val_batch_size}" ] && val_batch_size=32
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
@@ -48,7 +47,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path}" ] && data_path='/data/peiran/'
 [ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,AFDB50-plddt70.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.2,0.4'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.3,0.3'
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
@@ -59,7 +58,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
 [ -z "${wandb_group}" ] && wandb_group=psm
-[ -z "${wandb_team}" ] && wandb_team=peiranjin
+[ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
@@ -123,8 +122,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-export WANDB_API_KEY=$wandb_key
+# wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+# export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -168,7 +167,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --strategy $strategy \
           --max_lr $max_lr \
           --num_timesteps 1000 \
-          --seq_masking_method $seq_masking_method \
           --mode_prob $mode_prob --noise_mode $noise_mode\
           --total_num_steps $total_num_steps \
           --warmup_num_steps $warmup_num_steps \

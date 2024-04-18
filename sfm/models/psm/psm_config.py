@@ -72,7 +72,7 @@ class PSMConfig(GraphormerConfig):
     clean_sample_ratio: float = 0.5
     diffusion_training_loss: DiffusionTrainingLoss = DiffusionTrainingLoss.L1
     diffusion_time_step_encoder_type: DiffusionTimeStepEncoderType = (
-        DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE
+        DiffusionTimeStepEncoderType.POSITIONAL
     )
 
     # for equivariant part

@@ -18,7 +18,7 @@ class PSMMixEmbedding(nn.Module):
     def __init__(self, psm_config: PSMConfig):
         """
         Initialize the PSMMixEmbedding class.
-        ## [1, 130]: atom type; [131, 159] amino acid type
+        ## [1, 128]: atom type; [129, 159] amino acid type
         """
         super(PSMMixEmbedding, self).__init__()
 
@@ -59,7 +59,8 @@ class PSMMixEmbedding(nn.Module):
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
 
-        mask_token_type = token_id.masked_fill(aa_mask, 156)  # 156 is the mask token
+        mask_token_type = token_id.masked_fill(aa_mask, 157)  # 157 is the mask token
+        # print("token_id", token_id, "pbc", batched_data["pbc"])
 
         x = self.embed(mask_token_type)
 
