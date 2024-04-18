@@ -36,6 +36,8 @@ jobs:
   tags:
   - 'ProjectID: PRJ-0209-A40'
   sku: 2x80G8
+  priority: high
+  sla_tier: premium
   mpi: true
   process_count_per_node: 1
   command:
@@ -88,4 +90,4 @@ jobs:
   - bash ./scripts/psm/pretrain_psm.sh
   submit_args:
     container_args:
-      shm_size: 1024g
+      SHARED_MEMORY_PERCENT: 0.5

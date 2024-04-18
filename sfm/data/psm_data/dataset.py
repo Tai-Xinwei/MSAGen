@@ -206,7 +206,7 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         self._keys = [self._keys[idx] for idx in indices]
 
     def __len__(self) -> int:
-        return len(self._keys)
+        return len(self.keys)
 
 
 class MatterSimDataset:
@@ -534,7 +534,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
         return data
 
     def __len__(self) -> int:
-        return len(self._keys)
+        return len(self.keys)
 
 
 @torch.jit.script
