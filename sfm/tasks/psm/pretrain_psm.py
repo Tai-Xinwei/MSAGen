@@ -2,12 +2,8 @@
 import os
 import sys
 
-import deepspeed
-import torch
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
-from argparse import ArgumentParser
 
 from sfm.data.psm_data.unifieddataset import BatchedDataDataset, UnifiedPSMDataset
 from sfm.logging import logger
@@ -23,7 +19,7 @@ from sfm.utils.cli_utils import cli
 def main(args) -> None:
     ### define psm dataset here
     dataset = UnifiedPSMDataset(
-        args.data_path, args.data_path_list, args.dataset_name_list
+        args.data_path, args.data_path_list, args.dataset_name_list, args
     )
     train_data, valid_data = dataset.split_dataset()
 

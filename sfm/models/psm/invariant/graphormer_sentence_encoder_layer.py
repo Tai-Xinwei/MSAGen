@@ -15,6 +15,7 @@ from sfm.modules.droppath import DropPath
 from sfm.modules.FairseqDropout import FairseqDropout
 from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.layer_norm import Fp32LayerNorm, LayerNorm
+from sfm.modules.mem_eff_attn import MemEffAttn
 from sfm.modules.multihead_attention import MultiheadAttention
 from sfm.modules.quant_noise import quant_noise
 

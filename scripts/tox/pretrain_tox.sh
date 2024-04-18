@@ -3,7 +3,6 @@
 # Licensed under the MIT License.
 ulimit -c unlimited
 
-echo 'Solving MKL done!'
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 

@@ -43,11 +43,11 @@ class UnifiedPSMDataset(FoundationModelDataset):
 
         for data_path, dataset_name in zip(file_list, dataset_name_list):
             if dataset_name == "pm6":
-                dataset = PM6FullLMDBDataset(data_path, **kwargs)
+                dataset = PM6FullLMDBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
             elif dataset_name == "afdb":
-                dataset = AFDBLMDBDataset(data_path, **kwargs)
+                dataset = AFDBLMDBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
             elif dataset_name == "mattersim":
@@ -104,8 +104,8 @@ class BatchedDataDataset(FoundationModelDataset):
     def __getitem__(self, idx):
         # select dataset_idx based on split ratio
         dataset_idx = random.choices(
-            range(self.num_datasets), p=self.dataset_split_raito
-        )
+            range(self.num_datasets), weights=self.dataset_split_raito
+        )[0]
         pick_idx = idx % len(self.dataset_list[dataset_idx])
         return self.dataset_list[dataset_idx][pick_idx]
 

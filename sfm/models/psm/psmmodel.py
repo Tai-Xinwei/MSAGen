@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) Facebook, Inc. and its affiliates.
+# Copyright (c) Mircrosoft.
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
@@ -66,7 +66,7 @@ class PSMModel(Model):
 
         self.time_step_sampler = TimeStepSampler(self.psm_config.num_timesteps)
 
-        self.loss_fn = loss_fn
+        self.loss_fn = loss_fn(args)
 
     def _create_initial_pos_for_diffusion(self, batched_data):
         periodic_mask = torch.any(batched_data["pbc"], dim=-1)
@@ -108,14 +108,17 @@ class PSMModel(Model):
         token_id = batched_data["token_id"]  # B x T
         # create protein aa mask with mask ratio
         batched_data["protein_masked_pos"] = (
-            torch.rand_like(token_id, dtype=torch.float) < self.psm_config.mask_ratio
+            torch.rand_like(token_id.unsqueeze(-1), dtype=torch.float)
+            < self.psm_config.mask_ratio
         ).expand_as(batched_data["pos"])
         batched_data["protein_masked_aa"] = (
             torch.rand_like(token_id, dtype=torch.float) < self.psm_config.mask_ratio
         )
 
         masked_pos = batched_data["protein_masked_pos"]
-        masked_aa = batched_data["protein_masked_aa"].expand_as(masked_pos)
+        masked_aa = (
+            batched_data["protein_masked_aa"].unsqueeze(-1).expand_as(masked_pos)
+        )
         masked_protein = (
             ((token_id > 128) & (token_id < 155))
             .any(dim=-1, keepdim=True)
@@ -244,7 +247,9 @@ class PSMModel(Model):
         clean_mask &= ~batched_data[
             "is_protein"
         ]  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
-        aa_mask = batched_data["protein_masked_aa"] & batched_data["is_protein"]
+        aa_mask = batched_data["protein_masked_aa"] & batched_data[
+            "is_protein"
+        ].unsqueeze(-1)
 
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
@@ -291,7 +296,7 @@ class PSMModel(Model):
             ModelOutput: The model output which includes loss, log_output, num_examples.
         """
         bs = batched_data["pos"].size(0)
-        loss, logging_output = self.loss_fm(model_output, batched_data)
+        loss, logging_output = self.loss_fn(model_output, batched_data)
         return ModelOutput(loss=loss, num_examples=bs, log_output=logging_output)
 
     def config_optimizer(self):
@@ -301,7 +306,7 @@ class PSMModel(Model):
         Returns:
             tuple[Optimizer, LRScheduler]:
         """
-        pass
+        return (None, None)
 
     @torch.no_grad()
     def sample(
@@ -613,6 +618,9 @@ class PSM(nn.Module):
         self.periodic_noise_head = nn.Linear(psm_config.embedding_dim, 1, bias=False)
         self.protein_noise_head = nn.Linear(psm_config.embedding_dim, 1, bias=False)
 
+        # aa mask predict head
+        self.aa_mask_head = nn.Linear(psm_config.embedding_dim, 160, bias=False)
+
         self.psm_config = psm_config
 
     def _set_mask(self, mask_aa, mask_pos, residue_seq):
@@ -710,9 +718,13 @@ class PSM(nn.Module):
             molecule_energy.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
             / batched_data["num_atoms"]
         )
+
+        aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
+
         return {
             "energy": energy,
             "forces": forces,
+            "aa_logits": aa_logits,
             "time_step": time_step,
             "noise_pred": noise_pred,
             "non_atom_mask": non_atom_mask,

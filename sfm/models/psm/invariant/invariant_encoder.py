@@ -109,7 +109,7 @@ class PSMEncoder(nn.Module):
         """
         Forward pass of the PSMEncoder class.
         Args:
-            x (torch.Tensor): Input tensor, [B, L, H].
+            x (torch.Tensor): Input tensor, [L, B, H].
             padding_mask (torch.Tensor): Padding mask, [B, L].
             batched_data (Dict): Input data for the forward pass.
             masked_token_type (torch.Tensor): The masked token type, [B, L].

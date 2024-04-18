@@ -90,18 +90,10 @@ def collate_fn(
     max_node=512,
     multi_hop_max_dist=20,
     spatial_pos_max=20,
-    use_pbc=False,
+    use_pbc=True,
 ):  # unify the data format
     # include the following fields: sample_type, token_type, idx, coords, cell, pbc, stress, forces, energy
     # need to add: node_type_edge, edge_input, in_degree, attn_edge_type, attn_bias, spatial_pos
-
-    items = [
-        item
-        for item in items
-        if item is not None
-        and item["num_atoms"] <= max_node
-        and item["num_atoms"] > min_node
-    ]
 
     for item in items:
         if "pbc" not in item:
@@ -118,9 +110,10 @@ def collate_fn(
             "-inf"
         )
 
-    max_node_num = max(i["num_atoms"] for i in items)
+    max_node_num = max(i["node_attr"].shape[0] for i in items)
     max_dist = max(i["edge_input"].size(-2) for i in items)
     energy = [i["energy"] for i in items]
+    forces = torch.cat([pad_pos_unsqueeze(i["forces"], max_node_num) for i in items])
 
     energy = torch.cat(energy)
     x = torch.cat([pad_2d_unsqueeze(i["node_attr"], max_node_num) for i in items])
@@ -145,9 +138,7 @@ def collate_fn(
     )
 
     pos = torch.cat([pad_pos_unsqueeze(i["coords"], max_node_num) for i in items])
-    node_mask = torch.cat(
-        [pad_pos_unsqueeze(i["node_mask"], max_node_num) for i in items]
-    )
+
     pbc = torch.cat([i["pbc"].unsqueeze(0) for i in items], dim=0) if use_pbc else None
     cell = (
         torch.cat([i["cell"].unsqueeze(0) for i in items], dim=0) if use_pbc else None
@@ -157,7 +148,7 @@ def collate_fn(
     node_type_edges = []
     for item in items:
         node_atom_type = item["token_type"]
-        n_nodes = item["num_atoms"]
+        n_nodes = node_atom_type.shape[0]
         node_atom_i = node_atom_type.unsqueeze(-1).repeat(1, n_nodes)
         node_atom_i = pad_spatial_pos_unsqueeze(node_atom_i, max_node_num).unsqueeze(-1)
         node_atom_j = node_atom_type.unsqueeze(0).repeat(n_nodes, 1)
@@ -177,9 +168,9 @@ def collate_fn(
         node_attr=x,
         edge_input=edge_input,
         energy=energy,
+        forces=forces,
         pos=pos,
         node_type_edge=node_type_edge,
-        node_mask=node_mask,
         pbc=pbc,
         cell=cell,
         num_atoms=num_atoms,
