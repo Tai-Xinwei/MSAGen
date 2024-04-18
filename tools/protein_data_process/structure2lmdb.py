@@ -16,6 +16,9 @@ import gzip
 import json
 import numpy as np
 
+from process_pdb_complex import process_pdb_complex
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -50,6 +53,62 @@ def list_keys(env: lmdb.Environment):
 @click.group()
 def cli():
     pass
+
+
+@cli.command()
+@click.argument("mmcifdir", type=click.Path(exists=True))
+@click.argument("chemcompdir", type=click.Path(exists=True))
+@click.argument("inplist", type=click.Path(readable=True))
+@click.argument("outfile", type=click.Path(writable=True))
+@click.option("--num-workers", type=int, default=-1, help="Number of workers.")
+@click.option("--comment", type=str, default="", help="Comments for output.")
+def processpdb(mmcifdir: str, chemcompdir: str, inplist: str, outfile: str,
+               num_workers: int, comment: str):
+    """Process training data from mmCIF files and save to lmdb."""
+    logger.warning(f"Processing struture for list {inplist}.")
+    pdbids = []
+    with open(inplist, 'r') as fp:
+        for line in fp:
+            pdbids.append(line.strip())
+    assert all(4==len(_) for _ in pdbids), (
+        f"ERROR: PDBID should be 4 characters long in {inplist}.")
+    logger.warning(f"Found {len(pdbids)} structures in {mmcifdir}.")
+
+    if Path(outfile).exists():
+        logger.warning(f"Output file {outfile} exists. Stop.")
+        return
+    logger.warning(f"Save to {outfile}")
+
+    def _process_one(pdbid: str, mmcif_dir: str, chem_comp_dir: str):
+        mmcif_path = str( Path(mmcif_dir) / f"{pdbid}.cif" )
+        data = process_pdb_complex(mmcif_path, chem_comp_dir)
+        if not data:
+            return pdbid, None
+        return pdbid, obj2bstr(data)
+
+    env = lmdb.open(outfile, map_size=1024**4)
+    metadata = {'keys': [],
+                'comment': (f'Created time: {datetime.datetime.now()}\n'
+                            f'Structure directory: {mmcifdir}\n'
+                            f'Chem_comp directory: {chemcompdir}\n'
+                            f'Input list: {inplist}\n'
+                            f'Comments: {comment}\n')}
+    pbar = tqdm(total=len(pdbids)//1000+1, desc='Processing chunks (1k)')
+    for path_chunk in chunks(pdbids, 1000):
+        res_chunk = Parallel(n_jobs=num_workers)(
+            delayed(_process_one)(i, str(mmcifdir), str(chemcompdir))
+            for i in tqdm(path_chunk, leave=False, desc="Processing...")
+        )
+        with env.begin(write=True) as txn:
+            for name, res in res_chunk:
+                if not res:
+                    txn.put(name.encode(), res)
+                    metadata['keys'].append(name)
+        pbar.update(1)
+    pbar.close()
+    with env.begin(write=True) as txn:
+        txn.put('__metadata__'.encode(), obj2bstr(metadata))
+    env.close()
 
 
 @cli.command()
