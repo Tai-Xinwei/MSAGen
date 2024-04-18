@@ -26,9 +26,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
-[ -z "${diffmode}" ] && diffmode=epsilon
-[ -z "${lamb_pde}" ] && lamb_pde=0.01
-# [ -z "${seq_masking_method}" ] && seq_masking_method=continuousMask
 [ -z "${seq_masking_method}" ] && seq_masking_method=transformerM
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
@@ -127,8 +124,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-export WANDB_API_KEY=$wandb_key
+# wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+# export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -165,7 +162,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --seed 666666 \
           --add_3d \
           --ifresume \
-          --diffmode $diffmode \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
