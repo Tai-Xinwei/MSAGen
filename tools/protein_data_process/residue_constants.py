@@ -368,6 +368,39 @@ residue_atoms = {
     # Yaosen added this
     'UNK': ['C', 'CA', 'N', 'O']
 }
+# Jianwei extract from the standard chemical component dictionary
+RESIDUEATOMS = {
+    "ALA": {'N', 'CA', 'C', 'O', 'CB', 'OXT'},
+    "ARG": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'CD', 'NE', 'CZ', 'NH1', 'NH2', 'OXT'},
+    "ASN": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'OD1', 'ND2', 'OXT'},
+    "ASP": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'OD1', 'OD2', 'OXT'},
+    "CYS": {'N', 'CA', 'C', 'O', 'CB', 'SG', 'OXT'},
+    "GLN": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'CD', 'OE1', 'NE2', 'OXT'},
+    "GLU": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'CD', 'OE1', 'OE2', 'OXT'},
+    "GLY": {'N', 'CA', 'C', 'O', 'OXT'},
+    "HIS": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'ND1', 'CD2', 'CE1', 'NE2', 'OXT'},
+    "ILE": {'N', 'CA', 'C', 'O', 'CB', 'CG1', 'CG2', 'CD1', 'OXT'},
+    "LEU": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'CD1', 'CD2', 'OXT'},
+    "LYS": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'CD', 'CE', 'NZ', 'OXT'},
+    "MET": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'SD', 'CE', 'OXT'},
+    "PHE": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'CD1', 'CD2', 'CE1', 'CE2', 'CZ', 'OXT'},
+    "PRO": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'CD', 'OXT'},
+    "SER": {'N', 'CA', 'C', 'O', 'CB', 'OG', 'OXT'},
+    "THR": {'N', 'CA', 'C', 'O', 'CB', 'OG1', 'CG2', 'OXT'},
+    "TRP": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'CD1', 'CD2', 'NE1', 'CE2', 'CE3', 'CZ2', 'CZ3', 'CH2', 'OXT'},
+    "TYR": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'CD1', 'CD2', 'CE1', 'CE2', 'CZ', 'OH', 'OXT'},
+    "VAL": {'N', 'CA', 'C', 'O', 'CB', 'CG1', 'CG2', 'OXT'},
+    "UNK": {'N', 'CA', 'C', 'O', 'CB', 'CG', 'OXT'},
+    "A": {'OP3', 'P', 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C3'", "O3'", "C2'", "O2'", "C1'", 'N9', 'C8', 'N7', 'C5', 'C6', 'N6', 'N1', 'C2', 'N3', 'C4'},
+    "C": {'OP3', 'P', 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C3'", "O3'", "C2'", "O2'", "C1'", 'N1', 'C2', 'O2', 'N3', 'C4', 'N4', 'C5', 'C6'},
+    "G": {'OP3', 'P', 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C3'", "O3'", "C2'", "O2'", "C1'", 'N9', 'C8', 'N7', 'C5', 'C6', 'O6', 'N1', 'C2', 'N2', 'N3', 'C4'},
+    "U": {'OP3', 'P', 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C3'", "O3'", "C2'", "O2'", "C1'", 'N1', 'C2', 'O2', 'N3', 'C4', 'O4', 'C5', 'C6'},
+    "DA": {'OP3', 'P', 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C3'", "O3'", "C2'", "C1'", 'N9', 'C8', 'N7', 'C5', 'C6', 'N6', 'N1', 'C2', 'N3', 'C4'},
+    "DC": {'OP3', 'P', 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C3'", "O3'", "C2'", "C1'", 'N1', 'C2', 'O2', 'N3', 'C4', 'N4', 'C5', 'C6'},
+    "DG": {'OP3', 'P', 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C3'", "O3'", "C2'", "C1'", 'N9', 'C8', 'N7', 'C5', 'C6', 'O6', 'N1', 'C2', 'N2', 'N3', 'C4'},
+    "DT": {'OP3', 'P', 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C3'", "O3'", "C2'", "C1'", 'N1', 'C2', 'O2', 'N3', 'C4', 'O4', 'C5', 'C7', 'C6'},
+    "N": {'OP3', 'P', 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C3'", "O3'", "C2'", "O2'", "C1'"},
+}
 
 # Naming swaps for ambiguous atom names.
 # Due to symmetries in the amino acids the naming of atoms is ambiguous in
@@ -507,6 +540,12 @@ atom_types = [
 ]
 atom_order = {atom_type: i for i, atom_type in enumerate(atom_types)}
 atom_type_num = len(atom_types)  # := 37.
+# Extended by Jianwei Zhu
+ATOMORDER = {atom_type: i for i, atom_type in enumerate(atom_types + [
+    "OP3", "P", "OP1", "OP2", "O5'", "C5'", "C4'", "O4'", "C3'", "O3'",
+    "C2'", "O2'", "C1'", "N9", "C8", "N7", "C5", "C6", "N6", "N1",
+    "C2", "N3", "C4", "O2", "N4", "O6", "N2", "O4", "C7",
+])}
 
 
 # A compact atom encoding with 14 columns

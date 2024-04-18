@@ -1,0 +1,54 @@
+
+description: train bfm plus llama
+
+env_defaults:
+  NODES: 1
+  GPUS: 8
+  WANDB_API_KEY:  "140f5ace0c8e16afe6efe3921fa0d90d1c7a3e61"
+
+
+target:
+  service: aml
+  name: sfm-nd96amsra100v4-uksouth
+  # name: sfm-nc96-westus3
+
+environment:
+  image: pj/mfmds:20230207_b
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+storage:
+  hai1:
+    storage_account_name: hai1data # Storage account
+    container_name: mfm # Container name
+    mount_dir: /hai1
+  hai1sfm:
+    storage_account_name: hai1data # Storage account
+    container_name: sfm # Container name
+    mount_dir: /hai1.sfm
+  blob:
+    storage_account_name: msralaphilly2
+    container_name: ml-la
+    mount_dir: /blob
+
+code:
+  local_dir: .
+
+jobs:
+- name: ft_bfm_llama
+  tags:
+  - 'ProjectID: HKW-0411-A40'
+  sku: ${NODES}xG${GPUS}
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - mkdir -p /blob/v-kehanwu/nlm/checkpoints/bfm_llama/
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=sfm
+  - export save_dir=/blob/v-kehanwu/nlm/checkpoints/bfm_llama/
+  - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 -y && conda activate sfm
+  - pip install -e .
+  - bash scripts/progpt/ft_bfm_llama_plain.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g
