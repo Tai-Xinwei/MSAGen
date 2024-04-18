@@ -55,7 +55,7 @@ class PSMConfig(GraphormerConfig):
     ode_mode: bool = False
 
     # for PBC
-    pbc_expanded_token_cutoff: int = 256
+    pbc_expanded_token_cutoff: int = 512
     pbc_expanded_num_cell_per_direction: int = 5
     pbc_expanded_distance_cutoff: float = 20.0
     pbc_use_local_attention: bool = True
