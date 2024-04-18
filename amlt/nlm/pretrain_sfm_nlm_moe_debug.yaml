@@ -1,7 +1,7 @@
 description: train_sfm_nlmmoe_debug
 
 env_defaults:
-  NODES: 4
+  NODES: 32
   GPUS: 8
   WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
 
@@ -29,9 +29,13 @@ storage:
     storage_account_name: hai1data # Storage account
     container_name: mfm # Container name
     mount_dir: /hai1
+  # blob:
+  #   storage_account_name: msralaphilly2
+  #   container_name: ml-la
+  #   mount_dir: /blob
   blob:
-    storage_account_name: msralaphilly2
-    container_name: ml-la
+    storage_account_name: hai1data
+    container_name: sfm
     mount_dir: /blob
 
 code:
