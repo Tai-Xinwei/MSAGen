@@ -1,7 +1,7 @@
 description: train_sfm_nlmmoe_debug
 
 env_defaults:
-  NODES: 4
+  NODES: 32
   GPUS: 8
   WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
 
@@ -50,9 +50,11 @@ jobs:
   - export NCCL_DEBUG=INFO
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - pip install -e . --no-deps
+  - export train_batch_size=256
+  - export gradient_accumulation_steps=4
+  - epport pipeline_model_parallel_size=8
   - bash scripts/nlm/pretrain_sfm_nlm_moe_debug.sh
   submit_args:
-    container_args:
-      shm_size: 1024g
     env:
       SHARED_MEMORY_PERCENT: 1.0
+      CUDA_LAUNCH_BLOCKING: 1
