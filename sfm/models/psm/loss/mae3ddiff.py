@@ -39,6 +39,9 @@ class DiffMAE3dCriterions(nn.Module):
         non_atom_mask = model_output["non_atom_mask"]
         clean_mask = model_output["clean_mask"]
         aa_mask = model_output["aa_mask"]
+        is_protein = model_output["is_protein"]
+        # is_molecule = model_output["is_molecule"]
+        is_periodic = model_output["is_periodic"]
 
         n_graphs = energy_label.size()[0]
         if clean_mask is None:
@@ -48,16 +51,18 @@ class DiffMAE3dCriterions(nn.Module):
         n_clean_graphs = torch.sum(clean_mask.to(dtype=torch.long))
         n_corrupted_graphs = n_graphs - n_clean_graphs
         padding_mask = atomic_numbers.eq(0)
+        energy_mask = clean_mask & ~is_protein
+        force_mask = clean_mask & is_periodic
         if n_clean_graphs > 0:
             energy_loss = self.energy_loss(
-                energy_pred[clean_mask], energy_label[clean_mask]
+                energy_pred[energy_mask], energy_label[energy_mask]
             )
             force_loss = (
                 self.force_loss(force_pred.to(dtype=force_label.dtype), force_label)
                 .masked_fill(non_atom_mask.unsqueeze(-1), 0.0)
                 .sum(dim=[1, 2])
                 / (batched_data["num_atoms"] * 3)
-            )[clean_mask].mean()
+            )[force_mask].mean()
         else:
             energy_loss = torch.tensor(
                 [0.0], device=atomic_numbers.device, requires_grad=True

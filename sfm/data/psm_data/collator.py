@@ -110,7 +110,7 @@ def collate_fn(
             "-inf"
         )
 
-    max_node_num = max(i["node_attr"].shape[0] for i in items)
+    max_node_num = max(i["token_type"].shape[0] for i in items)
     max_dist = max(i["edge_input"].size(-2) for i in items)
     energy = [i["energy"] for i in items]
     forces = torch.cat([pad_pos_unsqueeze(i["forces"], max_node_num) for i in items])

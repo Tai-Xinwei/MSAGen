@@ -417,7 +417,8 @@ class AFDBLMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
 
-        x = torch.tensor([self.vocab[tok] for tok in data["aa"]], dtype=torch.int64)
+        # minus 1 due to add padding index=0 in collator
+        x = torch.tensor([self.vocab[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
         # CA atom positions, assume all values are valid.
         coords = data["pos"][:, 1, :]
 
@@ -499,7 +500,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
     # protein does not have 2dgraph, create one for mixing data
     def generate_2dgraphfeat(self, data):
-        N = data["num_atoms"]
+        N = data["token_type"].shape[0]
         adj = torch.zeros([N, N], dtype=torch.bool)
 
         edge_index = torch.zeros([2, 0], dtype=torch.long)

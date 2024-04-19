@@ -31,9 +31,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_lr}" ] && max_lr=2e-4
 [ -z "${total_num_steps}" ] && total_num_steps=200000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
-[ -z "${train_batch_size}" ] && train_batch_size=32
-[ -z "${val_batch_size}" ] && val_batch_size=32
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${train_batch_size}" ] && train_batch_size=64
+[ -z "${val_batch_size}" ] && val_batch_size=64
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
@@ -47,7 +47,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path}" ] && data_path='/data/peiran/'
 [ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,AFDB50-plddt70.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.0,0.5'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.3,0.3'
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
@@ -122,8 +122,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-# wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-# export WANDB_API_KEY=$wandb_key
+wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -167,8 +167,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --strategy $strategy \
           --max_lr $max_lr \
           --num_timesteps 1000 \
-          --use_2d_atom_features --use_2d_bond_features \
           --mode_prob $mode_prob --noise_mode $noise_mode\
+          --use_2d_atom_features \
           --total_num_steps $total_num_steps \
           --warmup_num_steps $warmup_num_steps \
           --train_batch_size $train_batch_size --val_batch_size $val_batch_size --max_length $max_length \
@@ -178,6 +178,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
           # --dynamic_loader --max_tokens $max_tokens \
+          # --use_2d_atom_features --use_2d_bond_features \
 
 sleep inf
 sleep inf
