@@ -77,7 +77,7 @@ class PSMMixEmbedding(nn.Module):
             x += time_embed.unsqueeze(1)
 
         _, pos_embedding = self.pos_embedding_bias(
-            batched_data, token_id, padding_mask, pbc_expand_batched
+            batched_data, mask_token_type, padding_mask, pbc_expand_batched
         )
         x += pos_embedding
 
@@ -104,7 +104,7 @@ class PSMMixEmbedding(nn.Module):
                 )
                 batched_data["init_expand_pos"] = init_expand_pos
             _, init_pos_embedding = self.init_pos_embedding_bias(
-                batched_data, token_id, padding_mask, pbc_expand_batched
+                batched_data, mask_token_type, padding_mask, pbc_expand_batched
             )
             init_pos_mask = (
                 (init_pos != 0.0).any(dim=-1, keepdim=False).any(dim=-1, keepdim=False)

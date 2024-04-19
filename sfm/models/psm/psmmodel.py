@@ -116,9 +116,9 @@ class PSMModel(Model):
         )
 
         masked_pos = batched_data["protein_masked_pos"]
-        masked_aa = (
-            batched_data["protein_masked_aa"].unsqueeze(-1).expand_as(masked_pos)
-        )
+        # masked_aa = (
+        #     batched_data["protein_masked_aa"].unsqueeze(-1).expand_as(masked_pos)
+        # )
         masked_protein = (
             ((token_id > 129) & (token_id < 156))
             .any(dim=-1, keepdim=True)
@@ -135,7 +135,7 @@ class PSMModel(Model):
             .any(dim=-1, keepdim=True)
             .expand_as(masked_pos)
         )  # mask_nan: B x T x 3
-        mask = masked_protein & (masked_pos | masked_aa | masked_nan | masked_inf)
+        mask = masked_protein & (masked_pos | masked_nan | masked_inf)
         batched_data["protein_mask"] = mask
 
     def _create_system_tags(self, batched_data):
@@ -252,12 +252,13 @@ class PSMModel(Model):
         clean_mask &= ~batched_data[
             "is_protein"
         ]  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
-        aa_mask = batched_data["protein_masked_aa"] & batched_data[
-            "is_protein"
-        ].unsqueeze(-1)
 
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
+        aa_mask = batched_data["protein_masked_aa"] & batched_data[
+            "is_protein"
+        ].unsqueeze(-1)
+        aa_mask = aa_mask & ~padding_mask
 
         pos, noise = self._set_noise(
             padding_mask=padding_mask,
