@@ -216,13 +216,7 @@ class ProGPTModel(SFMPipelineModelMixin):
                 _,
                 _,
             ) = self.pfm_encoder(batched_data)
-            print(
-                prot_emb.shape,
-                prot_padding_mask.shape,
-                text_embeds.shape,
-                attention_mask.shape,
-                input_ids.shape,
-            )
+
             # mix embeddings
             inputs_embeds, _ = self.adaptor(
                 prot_emb,
@@ -231,7 +225,6 @@ class ProGPTModel(SFMPipelineModelMixin):
                 attention_mask,
                 input_ids,
             )
-            print(inputs_embeds.shape)
 
             outputs = self.decoder.generate(
                 inputs_embeds=inputs_embeds,
