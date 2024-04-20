@@ -54,7 +54,7 @@ jobs:
   - mkdir /blob/experiment/psm/psmpsmV0testV0/checkpoints
   - mkdir ./output
   - export path=run.sh
-  - export layers=24
+  - export layers=12
   - export hidden_size=1024
   - export ffn_size=4096
   - export num_head=32
@@ -89,7 +89,7 @@ jobs:
   - export data_path=/blob/psm/
   - export data_path_list='pm6_10M_refined4.lmdb,matter-sim-15M,AFDB50-plddt70.lmdb'
   - export dataset_name_list='pm6,mattersim,afdb'
-  - export dataset_split_raito='0.4,0.0,0.4'
+  - export dataset_split_raito='0.4,0.2,0.4'
   - export loadcheck_path=/blob/experiment/psm/psmV0test/checkpoints
   - export save_dir=/blob/pfmexp/output/psmV0test/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm

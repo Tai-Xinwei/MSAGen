@@ -33,13 +33,13 @@
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/nlm/checkpoints/stageB.prot/'
 [ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/fastdata/peiran/bfm/checkpoints/bfm650m_data3_maskspan3_ddp4e5d16mask020drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2/checkpoint_E144_new.pt'
-# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/llama-2-7b"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/data/peiran/llama-2-7b"
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/scigpt/ckpt/7bv3/global_step29999"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/scigpt/ckpt/stageB.prot/global_step224655"
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/fastdata/peiran/scigpt/ckpt/stageB.prot/global_step224655"
 
 [ -z "${tokenizer_path}" ] && tokenizer_path="/fastdata/peiran/scigpt"
 
-[ -z "${save_batch_interval}"] && save_batch_interval=500
+[ -z "${save_batch_interval}"] && save_batch_interval=1
 [ -z "${log_interval}" ] && log_interval=20
 
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
@@ -107,8 +107,8 @@ echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 echo "embedding_length: ${embedding_length}"
 echo "pool_mode: ${pool_mode}"
 
-wandb login --relogin $wandb_key
-export WANDB_API_KEY=$wandb_key
+# wandb login --relogin $wandb_key
+# export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -153,6 +153,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --loadcheck_path $loadcheck_path \
           --llm_model_name_or_path $llm_model_name_or_path \
           --tokenizer_path $tokenizer_path \
+          --use_llama_tokenizer \
           --pool_mode $pool_mode \
           --strategy $strategy \
           --embedding_length $embedding_length \

@@ -132,9 +132,10 @@ class ProGPTModel(SFMPipelineModelMixin):
                     new_num_tokens=vocab_size,
                     load_ckpt=args.load_ckpt,
                     pretrained_ckpt_path=os.path.join(
-                        # args.llm_model_name_or_path, "model.hybrid_emb.pt"
                         args.llm_model_name_or_path,
-                        "layer_{}-model_states.pt".format(str(0).zfill(2)),
+                        "model.hybrid_emb.pt"
+                        # args.llm_model_name_or_path,
+                        # "layer_{}-model_states.pt".format(str(0).zfill(2)),
                     ),
                     lora_mode="full",
                 )
@@ -215,7 +216,13 @@ class ProGPTModel(SFMPipelineModelMixin):
                 _,
                 _,
             ) = self.pfm_encoder(batched_data)
-
+            print(
+                prot_emb.shape,
+                prot_padding_mask.shape,
+                text_embeds.shape,
+                attention_mask.shape,
+                input_ids.shape,
+            )
             # mix embeddings
             inputs_embeds, _ = self.adaptor(
                 prot_emb,
@@ -224,6 +231,7 @@ class ProGPTModel(SFMPipelineModelMixin):
                 attention_mask,
                 input_ids,
             )
+            print(inputs_embeds.shape)
 
             outputs = self.decoder.generate(
                 inputs_embeds=inputs_embeds,
