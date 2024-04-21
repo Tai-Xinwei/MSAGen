@@ -42,7 +42,6 @@ def main(args) -> None:
 
 if __name__ == "__main__":
     try:
-        os.environ["WANDB_RUN_ID"] = wandb.util.generate_id()
         main()
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt!")

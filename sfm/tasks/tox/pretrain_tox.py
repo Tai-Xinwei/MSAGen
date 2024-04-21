@@ -8,16 +8,19 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
 from sfm.criterions.mae3ddiff import ProteinMAE3dCriterions
-from sfm.data.prot_data.dataset import BatchedDataDataset, ProteinLMDBDataset
+from sfm.data.prot_data.dataset import (
+    BatchedDataDataset,
+    ProteinLMDBDataset,
+    StackedSequenceIterableDataset,
+)
 from sfm.logging import logger
 from sfm.models.tox.modules.mae3ddiff import ProteinMAEDistCriterions
 from sfm.models.tox.tox_config import TOXConfig
+from sfm.models.tox.tox_optimizer import groupWarmupDecayLR, myAdam
 from sfm.models.tox.toxmodel import TOXModel, TOXPDEModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils.cli_utils import cli
-from sfm.utils.optim.optimizer import myAdam
-from sfm.utils.optim.set_lr import groupWarmupDecayLR
 
 
 @cli(DistributedTrainConfig, TOXConfig)
@@ -31,11 +34,15 @@ def main(args) -> None:
     trainset, valset = dataset.split_dataset(sort=False)
     logger.info(f"lenght of trainset: {len(trainset)}, lenght of valset: {len(valset)}")
 
-    train_data = BatchedDataDataset(
-        trainset,
-        args=args,
-        vocab=dataset.vocab,
-    )
+    if args.ifstack:
+        train_data = StackedSequenceIterableDataset(trainset, args)
+    else:
+        train_data = BatchedDataDataset(
+            trainset,
+            args=args,
+            vocab=dataset.vocab,
+        )
+
     val_data = BatchedDataDataset(
         valset,
         args=args,
@@ -76,7 +83,6 @@ def main(args) -> None:
 
 if __name__ == "__main__":
     try:
-        os.environ["WANDB_RUN_ID"] = wandb.util.generate_id()
         main()
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt!")

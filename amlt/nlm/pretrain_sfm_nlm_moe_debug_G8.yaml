@@ -1,0 +1,101 @@
+description: train_sfm_nlmmoe_debug
+
+env_defaults:
+  NODES: 1
+  GPUS: 8
+  WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
+
+target:
+    service: aml
+    name: sfm-nd96amsra100v4-uksouth
+
+# target:
+#   service: aml
+#   name: townsend1
+
+
+# target:
+#   service: sing
+#   name: baltic02
+#   workspace_name: msrresrchws
+
+environment:
+  image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
+  registry: msroctocr.azurecr.io
+  username: msroctocr
+
+storage:
+  hai1:
+    storage_account_name: hai1data # Storage account
+    container_name: sfm # Container name
+    mount_dir: /sfm
+  # blob:
+    # storage_account_name: msralaphilly2
+    # container_name: ml-la
+    # mount_dir: /blob
+
+code:
+  local_dir: ../SFM_framework
+
+# jobs:
+# - name: train_sfm_nlm_moe_debug
+#   sku: ${NODES}xG${GPUS}
+#   tags:
+#     - 'ProjectID: PRJ-0209-A40'
+#   mpi: true
+#   process_count_per_node: 1
+#   command:
+#   - export WANDB_API_KEY=${WANDB_API_KEY}
+#   - export WANDB_PROJECT=scigptmoe
+#   - export NCCL_DEBUG=INFO
+#   - eval "$$(conda shell.bash hook)" && conda activate sfm
+#   - pip install -e . --no-deps
+#   - export gradient_accumulation_steps=16
+#   - export train_batch_size=16
+#   - export valid_batch_size=16
+#   - export pipeline_model_parallel_size=8
+#   - export train_data_path=/sfm/nlm/mix_pretrain/c4.npy
+#   - export valid_data_path=/sfm/nlm/mix_pretrain/c4.npy
+#   - export dict_path=/sfm/Mixtral-8x7B-v0.1
+#   - export loadcheck_path=/sfm/Mixtral-8x7B-v0.1
+#   - export save_dir=/sfm/pfmexp/output
+#   - bash scripts/nlm/pretrain_sfm_nlm_moe_debug.sh
+#   submit_args:
+#     env:
+#       SHARED_MEMORY_PERCENT: 1.0
+#       CUDA_LAUNCH_BLOCKING: 1
+
+search:
+    job_template:
+        name: "train_sfm_nlm_moe_debug-{batchsize:s}"
+        tags:
+        - 'ProjectID: PRJ-0209-A40'
+        sku: G8
+        mpi: true
+        process_count_per_node: 1
+        command:
+        - export WANDB_API_KEY=${WANDB_API_KEY}
+        - export WANDB_PROJECT=scigptmoe
+        - export NCCL_DEBUG=INFO
+        - eval "$$(conda shell.bash hook)" && conda activate sfm
+        - pip install -e . --no-deps
+        - export gradient_accumulation_steps={batchsize}
+        - export train_batch_size={batchsize}
+        - export valid_batch_size={batchsize}
+        - export pipeline_model_parallel_size=8
+        - export train_data_path=/sfm/nlm/mix_pretrain/c4.npy
+        - export val_data_path=/sfm/nlm/mix_pretrain/c4.npy
+        - export dict_path=/sfm/Mixtral-8x7B-v0.1
+        - export loadcheck_path=/sfm/Mixtral-8x7B-v0.1
+        - export save_dir=/sfm/pfmexp/output
+        - bash scripts/nlm/pretrain_sfm_nlm_moe_debug.sh
+        submit_args:
+            container_args:
+                shm_size: 1024g
+    type: grid
+    max_trials: 999
+    parallel_trials: 4
+    params:
+        - name: batchsize
+          spec: discrete
+          values: ["32", "64", "128"]

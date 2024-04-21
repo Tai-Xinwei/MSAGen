@@ -106,6 +106,7 @@ class Model(SFMPipelineModelMixin):
     def config_optimizer(self, model):
         if model is None:
             model = self
+        return (None, None)
 
         if self.config.freeze_param_list or self.config.unfreeze_param_list:
             optimizer, _ = myAdamW(
