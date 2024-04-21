@@ -164,6 +164,7 @@ dmypy.json
 .amltconfig
 /models
 
+tmp
 tmp_data
 tmp_codes
 # .vscode
