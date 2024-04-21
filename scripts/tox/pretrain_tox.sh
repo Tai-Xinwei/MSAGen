@@ -41,7 +41,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=100
+[ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full

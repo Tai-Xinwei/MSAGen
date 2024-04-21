@@ -676,12 +676,15 @@ class UR50LMDBDataset(FoundationModelDataset):
         """
         - convert string sequence to int index
         """
-
+        # if self.vocab.prepend_bos:
+        #     tokens.insert(0, self.vocab.cls_idx)
+        # if self.vocab.append_eos:
+        #     tokens.append(self.vocab.eos_idx)
         tokens = [self.vocab.tok_to_idx[tok] for tok in item["aa"]]
-        if self.vocab.prepend_bos:
+        if self.args.ifstack:
             tokens.insert(0, self.vocab.cls_idx)
-        if self.vocab.append_eos:
             tokens.append(self.vocab.eos_idx)
+
         item["aa"] = np.array(tokens, dtype=np.int64)
 
         """
@@ -723,10 +726,12 @@ class UR50LMDBDataset(FoundationModelDataset):
 
     def size(self, index: int) -> int:
         sz = self.sizes[index]
-        if self.vocab.prepend_bos:
-            sz += 1
-        if self.vocab.append_eos:
-            sz += 1
+        # if self.vocab.prepend_bos:
+        #     sz += 1
+        # if self.vocab.append_eos:
+        #     sz += 1
+        if self.args.ifstack:
+            sz += 2
         return sz
 
     def num_tokens(self, index: int) -> int:

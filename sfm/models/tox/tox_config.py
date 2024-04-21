@@ -25,8 +25,6 @@ class TOXConfig(GraphormerConfig):
     diffmode: str = "score"
 
     ode_mode: bool = False
-    ifstack: bool = False
-    stack_size: int = 512
 
     def __init__(
         self,

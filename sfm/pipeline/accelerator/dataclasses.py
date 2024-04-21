@@ -155,6 +155,8 @@ class TrainerConfig:
     # dataloader strategy
     daliLoader: bool = False
     dynamic_loader: bool = False
+    ifstack: bool = False
+    stack_size: int = 512
 
     gradient_clipping: float = 1.0
     total_num_steps: int = 1000
