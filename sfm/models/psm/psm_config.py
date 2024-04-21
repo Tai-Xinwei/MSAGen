@@ -44,6 +44,10 @@ class PSMConfig(GraphormerConfig):
     train_data_path: str = ""
     valid_data_path: str = ""
 
+    data_path_list: str = ""
+    dataset_name_list: str = ""
+    dataset_split_raito: str = ""
+
     lamb_pde: float = 0.01
 
     mode: str = "score"
@@ -51,7 +55,7 @@ class PSMConfig(GraphormerConfig):
     ode_mode: bool = False
 
     # for PBC
-    pbc_expanded_token_cutoff: int = 256
+    pbc_expanded_token_cutoff: int = 512
     pbc_expanded_num_cell_per_direction: int = 5
     pbc_expanded_distance_cutoff: float = 20.0
     pbc_use_local_attention: bool = True
@@ -68,7 +72,7 @@ class PSMConfig(GraphormerConfig):
     clean_sample_ratio: float = 0.5
     diffusion_training_loss: DiffusionTrainingLoss = DiffusionTrainingLoss.L1
     diffusion_time_step_encoder_type: DiffusionTimeStepEncoderType = (
-        DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE
+        DiffusionTimeStepEncoderType.POSITIONAL
     )
 
     # for equivariant part

@@ -233,7 +233,7 @@ def transformerM_masking(
     mask_pos = np.full(size, False)
 
     # at least mask one element or one span, do not mask cls and eos
-    num_mask = int(mask_prob * (size - 2) / float(mask_multiple_length) + 1)
+    num_mask = int(mask_prob * (size - 2) / float(mask_multiple_length))
     # FIXME: mask_multiple_length is not used
     assert (
         mask_multiple_length == 1

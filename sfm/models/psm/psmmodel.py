@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) Facebook, Inc. and its affiliates.
+# Copyright (c) Mircrosoft.
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
@@ -30,6 +30,7 @@ class PSMModel(Model):
         args,
         data_mean=0.0,
         data_std=1.0,
+        loss_fn=None,
         not_init=False,
         load_ckpt=False,
     ):
@@ -65,13 +66,7 @@ class PSMModel(Model):
 
         self.time_step_sampler = TimeStepSampler(self.psm_config.num_timesteps)
 
-        self.energy_loss = nn.L1Loss(reduction="mean")
-        self.force_loss = nn.L1Loss(reduction="none")
-        self.noise_loss = (
-            nn.L1Loss(reduction="none")
-            if self.psm_config.diffusion_training_loss == DiffusionTrainingLoss.L1
-            else nn.MSELoss(reduction="none")
-        )
+        self.loss_fn = loss_fn(args)
 
     def _create_initial_pos_for_diffusion(self, batched_data):
         periodic_mask = torch.any(batched_data["pbc"], dim=-1)
@@ -110,11 +105,22 @@ class PSMModel(Model):
         batched_data["init_pos"][periodic_mask] = init_cell_pos
 
     def _create_protein_mask(self, batched_data):
-        token_id = batched_data["token_id"]
+        token_id = batched_data["token_id"]  # B x T
+        # create protein aa mask with mask ratio
+        batched_data["protein_masked_pos"] = (
+            torch.rand_like(token_id.unsqueeze(-1), dtype=torch.float)
+            < self.psm_config.mask_ratio
+        ).expand_as(batched_data["pos"])
+        batched_data["protein_masked_aa"] = (
+            torch.rand_like(token_id, dtype=torch.float) < self.psm_config.mask_ratio
+        )
+
         masked_pos = batched_data["protein_masked_pos"]
-        masked_aa = batched_data["protein_masked_aa"].expand_as(masked_pos)
+        # masked_aa = (
+        #     batched_data["protein_masked_aa"].unsqueeze(-1).expand_as(masked_pos)
+        # )
         masked_protein = (
-            ((token_id > 130) & (token_id < 160))
+            ((token_id > 129) & (token_id < 156))
             .any(dim=-1, keepdim=True)
             .unsqueeze(-1)
             .expand_as(masked_pos)
@@ -124,14 +130,19 @@ class PSMModel(Model):
             .any(dim=-1, keepdim=True)
             .expand_as(masked_pos)
         )  # mask_nan: B x T x 3
-        mask = masked_protein & (masked_pos | masked_aa | masked_nan)
+        masked_inf = (
+            torch.isinf(batched_data["pos"])
+            .any(dim=-1, keepdim=True)
+            .expand_as(masked_pos)
+        )  # mask_nan: B x T x 3
+        mask = masked_protein & (masked_pos | masked_nan | masked_inf)
         batched_data["protein_mask"] = mask
 
     def _create_system_tags(self, batched_data):
         token_id = batched_data["token_id"]
         is_periodic = batched_data["pbc"].any(dim=-1)
-        is_molecule = (~is_periodic) & (token_id <= 130).all(dim=-1)
-        is_protein = (~is_periodic) & (token_id > 130).any(dim=-1)
+        is_molecule = (~is_periodic) & (token_id <= 129).all(dim=-1)
+        is_protein = (~is_periodic) & (token_id > 129).any(dim=-1)
         batched_data["is_periodic"] = is_periodic
         batched_data["is_molecule"] = is_molecule
         batched_data["is_protein"] = is_protein
@@ -244,6 +255,10 @@ class PSMModel(Model):
 
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
+        aa_mask = batched_data["protein_masked_aa"] & batched_data[
+            "is_protein"
+        ].unsqueeze(-1)
+        aa_mask = aa_mask & ~padding_mask
 
         pos, noise = self._set_noise(
             padding_mask=padding_mask,
@@ -253,10 +268,15 @@ class PSMModel(Model):
         )
         batched_data["pos"] = pos
         result_dict = self.net(
-            batched_data, time_step=time_step, clean_mask=clean_mask, **kwargs
+            batched_data,
+            time_step=time_step,
+            clean_mask=clean_mask,
+            aa_mask=aa_mask,
+            **kwargs,
         )
         result_dict["noise"] = noise
         result_dict["clean_mask"] = clean_mask
+        result_dict["aa_mask"] = aa_mask
 
         return result_dict
 
@@ -281,70 +301,9 @@ class PSMModel(Model):
         Returns:
             ModelOutput: The model output which includes loss, log_output, num_examples.
         """
-        force_label = batched_data["forces"]
-        energy_label = batched_data["y"]
-        atomic_numbers = batched_data["token_id"]
-        noise_label = model_output["noise"]
-        force_pred = model_output["forces"]
-        energy_pred = model_output["energy"]
-        noise_pred = model_output["noise_pred"]
-        non_atom_mask = model_output["non_atom_mask"]
-        clean_mask = model_output["clean_mask"]
-
-        n_graphs = energy_label.size()[0]
-        if clean_mask is None:
-            clean_mask = torch.zeros(
-                n_graphs, dtype=torch.bool, device=energy_label.device
-            )
-        n_clean_graphs = torch.sum(clean_mask.to(dtype=torch.long))
-        n_corrupted_graphs = n_graphs - n_clean_graphs
-        padding_mask = atomic_numbers.eq(0)
-        if n_clean_graphs > 0:
-            energy_loss = self.energy_loss(
-                energy_pred[clean_mask], energy_label[clean_mask]
-            )
-            force_loss = (
-                self.force_loss(force_pred.to(dtype=force_label.dtype), force_label)
-                .masked_fill(non_atom_mask.unsqueeze(-1), 0.0)
-                .sum(dim=[1, 2])
-                / (batched_data["num_atoms"] * 3)
-            )[clean_mask].mean()
-        else:
-            energy_loss = 0.0
-            force_loss = 0.0
-
-        if n_corrupted_graphs > 0:
-            protein_mask = model_output["protein_mask"]
-            noise_loss = (
-                self.noise_loss(noise_pred.to(dtype=noise_label.dtype), noise_label)
-                .masked_fill(padding_mask.unsqueeze(-1) | protein_mask, 0.0)
-                .sum(dim=[1, 2])
-                / (
-                    torch.sum(
-                        (~(padding_mask | protein_mask.any(dim=-1))).to(
-                            dtype=noise_label.dtype
-                        ),
-                        dim=-1,
-                        keepdim=True,
-                    )
-                    * 3
-                )
-            )[~clean_mask].mean()
-        else:
-            noise_loss = 0.0
-
-        loss = energy_loss + force_loss + noise_loss
-
-        # TODO: log losses by periodic, molecule and protein systems, respectively
-        logging_output = {
-            "loss": loss,
-            "energy_loss": energy_loss,
-            "force_loss": force_loss,
-            "noise_loss": noise_loss,
-        }
-        return ModelOutput(
-            loss=loss, num_examples=energy_label.size()[0], log_output=logging_output
-        )
+        bs = batched_data["pos"].size(0)
+        loss, logging_output = self.loss_fn(model_output, batched_data)
+        return ModelOutput(loss=loss, num_examples=bs, log_output=logging_output)
 
     def config_optimizer(self):
         """
@@ -353,7 +312,7 @@ class PSMModel(Model):
         Returns:
             tuple[Optimizer, LRScheduler]:
         """
-        pass
+        return (None, None)
 
     @torch.no_grad()
     def sample(
@@ -665,6 +624,9 @@ class PSM(nn.Module):
         self.periodic_noise_head = nn.Linear(psm_config.embedding_dim, 1, bias=False)
         self.protein_noise_head = nn.Linear(psm_config.embedding_dim, 1, bias=False)
 
+        # aa mask predict head
+        self.aa_mask_head = nn.Linear(psm_config.embedding_dim, 160, bias=False)
+
         self.psm_config = psm_config
 
     def _set_mask(self, mask_aa, mask_pos, residue_seq):
@@ -679,6 +641,7 @@ class PSM(nn.Module):
         perturb=None,
         time_step=None,
         clean_mask=None,
+        aa_mask=None,
         q=None,  # for computing the score model on the q
         q_0=None,
         delta_tq=None,  # for computing the score model on the q at time_pos + delta_tq
@@ -709,7 +672,7 @@ class PSM(nn.Module):
         is_protein = batched_data["is_protein"]
 
         token_embedding, padding_mask, token_type = self.embedding(
-            batched_data, time_step, clean_mask
+            batched_data, time_step, clean_mask, aa_mask
         )
 
         (
@@ -718,6 +681,7 @@ class PSM(nn.Module):
         ) = self.encoder(  # CL: expand cell outside encoder?
             token_embedding.transpose(0, 1), padding_mask, batched_data, token_type
         )
+
         decoder_x_output, decoder_vec_output = self.decoder(
             batched_data,
             encoder_output,
@@ -761,9 +725,13 @@ class PSM(nn.Module):
             molecule_energy.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
             / batched_data["num_atoms"]
         )
+
+        aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
+
         return {
             "energy": energy,
             "forces": forces,
+            "aa_logits": aa_logits,
             "time_step": time_step,
             "noise_pred": noise_pred,
             "non_atom_mask": non_atom_mask,

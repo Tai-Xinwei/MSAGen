@@ -25,42 +25,41 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
-[ -z "${diffmode}" ] && diffmode=epsilon
-[ -z "${lamb_pde}" ] && lamb_pde=0.01
-# [ -z "${seq_masking_method}" ] && seq_masking_method=continuousMask
-[ -z "${seq_masking_method}" ] && seq_masking_method=transformerM
 
-# [ -z "${mask_ratio}" ] && mask_ratio=0.5
-[ -z "${mask_ratio}" ] && mask_ratio=0.0
+[ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=2e-4
 [ -z "${total_num_steps}" ] && total_num_steps=200000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
-[ -z "${train_batch_size}" ] && train_batch_size=4
-[ -z "${val_batch_size}" ] && val_batch_size=4
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${train_batch_size}" ] && train_batch_size=64
+[ -z "${val_batch_size}" ] && val_batch_size=64
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=1
+[ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 
-# [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-[ -z "${mode_prob}" ] && mode_prob='0.0,0.0,1.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+# [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
-[ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/AFDB50-plddt70.lmdb/'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq512_x0_dist/'
-[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq512_x0_dist/'
+[ -z "${data_path}" ] && data_path='/data/peiran/'
+[ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,AFDB50-plddt70.lmdb'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.3,0.3'
+
+[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
+[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=tox
-[ -z "${wandb_team}" ] && wandb_team=peiranjin
-[ -z "${wandb_project}" ] && wandb_project=SFM_tox
+[ -z "${wandb_group}" ] && wandb_group=psm
+[ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
+[ -z "${wandb_project}" ] && wandb_project=psm
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -144,7 +143,7 @@ fi
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --encoder_attention_heads $num_head \
           --encoder_layers $layers \
           --encoder_ffn_embed_dim $ffn_size \
@@ -155,12 +154,12 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
           --sandwich_ln \
           --dataset_names $dataset_name \
           --data_path $data_path \
+          --data_path_list $data_path_list --dataset_name_list $dataset_name_list \
+          --dataset_split_raito $dataset_split_raito \
           --save_dir $save_dir \
           --seed 666666 \
           --add_3d \
           --ifresume \
-          --dynamic_loader --max_tokens $max_tokens \
-          --diffmode $diffmode \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
@@ -168,8 +167,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
           --strategy $strategy \
           --max_lr $max_lr \
           --num_timesteps 1000 \
-          --seq_masking_method $seq_masking_method \
           --mode_prob $mode_prob --noise_mode $noise_mode\
+          --use_2d_atom_features \
           --total_num_steps $total_num_steps \
           --warmup_num_steps $warmup_num_steps \
           --train_batch_size $train_batch_size --val_batch_size $val_batch_size --max_length $max_length \
@@ -177,6 +176,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+
+          # --dynamic_loader --max_tokens $max_tokens \
+          # --use_2d_atom_features --use_2d_bond_features \
 
 sleep inf
 sleep inf

@@ -15,6 +15,7 @@ from sfm.modules.droppath import DropPath
 from sfm.modules.FairseqDropout import FairseqDropout
 from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.layer_norm import Fp32LayerNorm, LayerNorm
+from sfm.modules.mem_eff_attn import MemEffAttn
 from sfm.modules.multihead_attention import MultiheadAttention
 from sfm.modules.quant_noise import quant_noise
 
@@ -168,7 +169,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             pbc_expand_batched: The pbc expand batched data.
             graph_2d_attention_bias: 2D attention bias, if use bond features in molecules
         """
-        # TODO: graphormer stype attn bias
+        # # TODO: graphormer stype attn bias
         self_attn_bias, _ = self.attn_bias(
             batched_data,
             masked_token_type,
@@ -183,7 +184,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             expanded_graph_2d_attention_bias = torch.zeros_like(self_attn_bias)
             token_id = batched_data["token_id"]
             pbc = batched_data["pbc"]
-            molecule_mask = torch.all(token_id <= 130, dim=-1) & ~torch.any(pbc, dim=-1)
+            molecule_mask = torch.all(token_id <= 128, dim=-1) & ~torch.any(pbc, dim=-1)
             n_node = graph_2d_attention_bias.size()[-1] - 1
             expanded_graph_2d_attention_bias[
                 :, :, :n_node, :n_node
