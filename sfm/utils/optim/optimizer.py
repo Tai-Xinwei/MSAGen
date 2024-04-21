@@ -93,12 +93,17 @@ def process_param(
 
 
 def process_parm_list(param_list):
-    if param_list is None:
+    if not param_list:
         return []
+
+    ret = []
     if isinstance(param_list, str):
         param_list = param_list.strip()
-        param_list = param_list.split(",") if param_list != "" else []
-    return param_list
+        for name in param_list.split(","):
+            name = name.strip()
+            if name:
+                ret.append(name)
+    return ret
 
 
 def myAdam(
@@ -110,11 +115,15 @@ def myAdam(
     **kwargs,
 ):
     freeze_list = process_parm_list(freeze_list)
-    unfreeze_list = process_parm_list(unfreeze_list)
+    unfreeze_list = process_parm_list(unfreeze_list) + ["dummy"]
 
     assert (
         len(freeze_list) == 0 or len(unfreeze_list) == 0
-    ), "freeze_list and unfreeze_list cannot be set at the same time"
+    ), f"freeze_list and unfreeze_list cannot be set at the same time, got {freeze_list=}, {unfreeze_list=}"
+
+    # When using unfreeze_list, we always want to unfreeze the dummy layer
+    if len(unfreeze_list) > 0 and "dummy" not in unfreeze_list:
+        unfreeze_list.append("dummy")
 
     new_param_groups = []
     param_groups = process_param(
@@ -143,6 +152,10 @@ def myAdamW(
     assert (
         len(freeze_list) == 0 or len(unfreeze_list) == 0
     ), f"freeze_list and unfreeze_list cannot be set at the same time, got {freeze_list=}, {unfreeze_list=}"
+
+    # When using unfreeze_list, we always want to unfreeze the dummy layer
+    if len(unfreeze_list) > 0 and "dummy" not in unfreeze_list:
+        unfreeze_list.append("dummy")
 
     new_param_groups = []
     param_groups = process_param(

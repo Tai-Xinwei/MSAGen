@@ -68,6 +68,7 @@ class MoeEmbeddingsPP(nn.Module):
         super().__init__()
         self.config = config
         self.learnable_cutoff = config.learnable_cutoff
+        self.dummy = torch.nn.Linear(1, 1)  # Make DeepSpeed happy
 
         self.embed_tokens = nn.Embedding(
             config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id
@@ -83,9 +84,11 @@ class MoeEmbeddingsPP(nn.Module):
     def forward(self, input_ids):
         bsz, seq_len = input_ids.shape
         text_embeds = self.embed_tokens(input_ids)
-        position_ids = torch.arange(
-            0, seq_len, dtype=torch.long, device=input_ids.device
-        ).expand(bsz, -1)
+        position_ids = (
+            torch.arange(0, seq_len, dtype=torch.long, device=input_ids.device)
+            .expand(bsz, -1)
+            .contiguous()
+        )
 
         gate_scores = torch.zeros(
             self.config.num_hidden_layers, bsz, seq_len, self.config.num_local_experts
@@ -262,6 +265,8 @@ class MoeDecoderLayerPP(nn.Module):
         self.config = config
         self.layer_idx = layer_idx
 
+        self.dummy = torch.nn.Linear(1, 1)  # Make DeepSpeed happy
+
         self.self_attn = MixtralFlashAttention2(config, layer_idx=layer_idx)
         if config.moe_impl == "vanilla":
             self.block_sparse_moe = SafeMixtralSparseMoeBlock(config)
@@ -306,6 +311,7 @@ class MoeNormPP(nn.Module):
         super().__init__()
         self.config = config
         self.norm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.dummy = torch.nn.Linear(1, 1)  # Make DeepSpeed happy
 
         self.param_dict = {
             "hidden_states": torch.Tensor,
@@ -325,6 +331,7 @@ class MoeHeadPP(nn.Module):
         self.learnable_cutoff = config.learnable_cutoff
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.lm_head.weight.register_hook(self.freeze_parital_weight_hook)
+        self.dummy = torch.nn.Linear(1, 1)  # Make DeepSpeed happy
 
         self.param_dict = {
             "hidden_states": torch.Tensor,

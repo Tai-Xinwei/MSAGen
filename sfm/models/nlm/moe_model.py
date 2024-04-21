@@ -2,6 +2,8 @@
 
 import os
 
+from torch.optim import AdamW
+
 from sfm.criterions.lm_moe import LmMoeCriterion
 from sfm.models.nlm.moe_config import MoeModelConfig
 from sfm.models.nlm.moe_modules import (
@@ -105,15 +107,25 @@ class Model(SFMPipelineModelMixin):
         if model is None:
             model = self
 
-        optimizer, _ = myAdamW(
-            model,
-            lr=self.config.max_lr,
-            betas=(self.config.beta1, self.config.beta2),
-            weight_decay=self.config.weight_decay,
-            eps=1e-8,
-            freeze_list=self.config.freeze_param_list,
-            unfreeze_list=self.config.unfreeze_param_list,
-        )
+        if self.config.freeze_param_list or self.config.unfreeze_param_list:
+            optimizer, _ = myAdamW(
+                model,
+                lr=self.config.max_lr,
+                betas=(self.config.beta1, self.config.beta2),
+                weight_decay=self.config.weight_decay,
+                eps=1e-8,
+                freeze_list=self.config.freeze_param_list,
+                unfreeze_list=self.config.unfreeze_param_list,
+            )
+        else:
+            optimizer = AdamW(
+                model.parameters(),
+                lr=self.config.max_lr,
+                betas=(self.config.beta1, self.config.beta2),
+                weight_decay=self.config.weight_decay,
+                eps=1e-8,
+                fused=True,
+            )
 
         lr_scheduler = groupWarmupDecayLR(
             optimizer,

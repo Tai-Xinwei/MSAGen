@@ -13,32 +13,32 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${model_type}" ] && model_type="scigptmoe_8x7b"
 [ -z "${weight_decay}" ] && weight_decay=0.1 # same as LLAMA2
 # TODO: we need grad clip
-[ -z "${max_lr}" ] && max_lr=1e-4
+[ -z "${max_lr}" ] && max_lr=3e-5
 [ -z "${beta1}" ] && beta1=0.9 # same as LLAMA2
 [ -z "${beta2}" ] && beta2=0.95 # same as LLAMA2
 [ -z "${total_num_steps}" ] && total_num_steps=80000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=8000
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
-[ -z "${train_batch_size}" ] && train_batch_size=512
+[ -z "${train_batch_size}" ] && train_batch_size=8
 [ -z "${val_batch_size}" ] && val_batch_size=8
-# [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,embed_tokens.weight"
-# [ -z "${learnable_cutoff}" ] && learnable_cutoff=32000
+[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,embed_tokens.weight"
+[ -z "${learnable_cutoff}" ] && learnable_cutoff=32000
 
 # In this stage, the grad is too large to use grad accumulation
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=128
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1000000
-[ -z "${save_batch_interval}" ] && save_batch_interval=4000000
-[ -z "${log_interval}" ] && log_interval=1
+[ -z "${save_batch_interval}" ] && save_batch_interval=4000
+[ -z "${log_interval}" ] && log_interval=10
 [ -z "${epochs}" ] && epochs=1
 
 [ -z "${strategy}" ] && strategy=Pipeline
 
 [ -z "${dict_path}" ] && dict_path='/hai1/shufxi/Mixtral-8x7B-v0.1'
-[ -z "${train_data_path}" ] && train_data_path='/blob/nlm/mix_pretrain/c4.npy'
-[ -z "${valid_data_path}" ] && valid_data_path='/blob/nlm/mix_pretrain/c4.npy'
+[ -z "${train_data_path}" ] && train_data_path='/hai1/shufxi/data/scigpt/v4/train_emb.npy'
+[ -z "${valid_data_path}" ] && valid_data_path='/hai1/shufxi/data/scigpt/v4/train_emb.npy'
 [ -z "${loadcheck_path}" ] && loadcheck_path='/hai1/shufxi/Mixtral-8x7B-v0.1'
-[ -z "${save_dir}" ] && save_dir='/mnt/output/'
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=8
+[ -z "${save_dir}" ] && save_dir='/hai1/shufxi/nlm/8x7b/stageA'
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="MoeDecoderLayerPP"
 
 
@@ -109,27 +109,10 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 nvidia-smi topo -m
 ifconfig -s
 
-# set -x
-# for i in $(seq 0 7); do
-#     echo "ib${i}"
-#     ifconfig ib${i}
-#     ip addr show ib${i}
-# done
-
-# Debug IB
-# sudo apt-get update && sudo apt-get install infiniband-diags -y
-# ibdev2netdev -v
-# ibstatus
-# ibv_devinfo
-
-
-
-export PYTORCH_CUDA_ALLOC_CONF='expandable_segments:True'
 set -x
 torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_sfm_nlm_moe.py \
       --model_type "$model_type" \
-      --vocab_size 32000 \
-      --pad_token_id 1 --eos_token_id 2 \
+      --vocab_size 33982 --pad_token_id 32000 --eos_token_id 2 \
       --max_position_embeddings 8192 \
       --train_data_path "$train_data_path" \
       --valid_data_path "$valid_data_path" \
@@ -153,7 +136,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_sfm_nlm_moe.py \
       --pipeline_model_parallel_size "$pipeline_model_parallel_size" \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --load_ckpt --pretrained_ckpt_path "$loadcheck_path" \
-      --moe_impl "vanilla"
+      --moe_impl "vanilla" \
+      --unfreeze_param_list "$unfreeze_param_list"
 
 #--moe_impl "grouped" --moe_memory_optimized_mlp
 
