@@ -7,16 +7,18 @@ from sfm.logging.loggers import logger
 try:
     from apex.optimizers import FusedAdam as Adam  # isort:skip
 
+    def AdamW(*args, **kwargs):
+        return Adam(*args, **kwargs, adam_w_mode=True)
+
     logger.info("apex is installed, using FusedAdam with fp16 optimizer states")
     # from torch.optim import Adam
     # logger.info("using torch adam")
 except:
     logger.info("apex is not installed, using pytorch AdamW with fp32 optimizer states")
+    from sfm.utils.optim.adam import AdamW
     from sfm.utils.optim.mem_eff_adam import (
         MemoryEfficientFP16Adam as Adam,  # isort:skip
     )
-
-from sfm.utils.optim.adam import AdamW
 
 
 def split_param_and_layer_name(name_list: List[str]) -> Tuple[List[str], List[int]]:
@@ -92,14 +94,26 @@ def process_param(
     return param_groups
 
 
+def process_parm_list(param_list):
+    if param_list is None:
+        return []
+    if isinstance(param_list, str):
+        param_list = param_list.strip()
+        param_list = param_list.split(",") if param_list != "" else []
+    return param_list
+
+
 def myAdam(
     net,
     impl=Adam,
-    freeze_list: List = [],
-    unfreeze_list: List = [],
+    freeze_list=None,
+    unfreeze_list=None,
     mfm_lora=False,
     **kwargs,
 ):
+    freeze_list = process_parm_list(freeze_list)
+    unfreeze_list = process_parm_list(unfreeze_list)
+
     assert (
         len(freeze_list) == 0 or len(unfreeze_list) == 0
     ), "freeze_list and unfreeze_list cannot be set at the same time"
@@ -120,14 +134,17 @@ def myAdam(
 def myAdamW(
     net,
     impl=AdamW,
-    freeze_list: List = [],
-    unfreeze_list: List = [],
+    freeze_list=None,
+    unfreeze_list=None,
     mfm_lora=False,
     **kwargs,
 ):
+    freeze_list = process_parm_list(freeze_list)
+    unfreeze_list = process_parm_list(unfreeze_list)
+
     assert (
         len(freeze_list) == 0 or len(unfreeze_list) == 0
-    ), "freeze_list and unfreeze_list cannot be set at the same time"
+    ), f"freeze_list and unfreeze_list cannot be set at the same time, got {freeze_list=}, {unfreeze_list=}"
 
     new_param_groups = []
     param_groups = process_param(

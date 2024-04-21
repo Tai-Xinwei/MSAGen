@@ -2,6 +2,9 @@
 import unittest
 from unittest.mock import Mock, patch
 
+import numpy as np
+
+from sfm.data.sci_data.dataset import shuffle_sub_sequences
 from sfm.data.sci_data.SFMDecTokenizer import SFMDecTokenizer
 
 
@@ -84,6 +87,46 @@ class TestSFMDecTokenizer(unittest.TestCase):
         self.check_tokenizer("AA <mol>", ["AA", "<mol>"])
 
         self.check_tokenizer("AA <mol> BB", ["AA", "<mol>", "<m>B", "<m>B"])
+
+
+class TestShuffleSubseq(unittest.TestCase):
+    def test_no_eos(self):
+        seq = np.array([1, 2, 3])
+        eos = 0
+        expected = np.array([1, 2, 3])
+        self.assertTrue((shuffle_sub_sequences(seq, eos) == expected).all())
+
+    def test_one_eos(self):
+        seq = np.array([1, 2, 0, 3])
+        eos = 0
+        expected = np.array([1, 2, 0, 3])
+        self.assertTrue((shuffle_sub_sequences(seq, eos) == expected).all())
+
+    def test_two_eos(self):
+        seq = np.array(
+            [
+                1,
+                2,
+                0,
+                3,
+                0,
+            ]
+        )
+        eos = 0
+        expected = np.array([3, 0, 1, 2, 0])
+        np.random.seed(0)
+        result = shuffle_sub_sequences(seq, eos)
+        match = (result == expected).all()
+        self.assertTrue(match)
+
+    def test_two_eos_with_imcomplete_seq(self):
+        seq = np.array([1, 2, 0, 3, 0, 4])
+        eos = 0
+        expected = np.array([3, 0, 1, 2, 0, 4])
+        np.random.seed(42)
+        result = shuffle_sub_sequences(seq, eos)
+        match = (result == expected).all()
+        self.assertTrue(match)
 
 
 if __name__ == "__main__":

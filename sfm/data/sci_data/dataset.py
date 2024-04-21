@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from collections import namedtuple
+
 import numpy as np
 import torch
 
@@ -6,9 +8,44 @@ from sfm.data.prot_data.dataset import DownstreamLMDBDataset
 from sfm.data.sci_data import SFMDecTokenizer
 from sfm.logging import logger
 
+# we have to use named tuple to avoid being convreted to list by pytorch,
+# but also compatible with DeepSpeed PP
+SciTokenIdxAndMask = namedtuple("SciTokenIdxAndMask", ["input_ids", "padding_mask"])
+SciDataTuple = namedtuple("SciDataTuple", ["input", "labels"])
+
+
+def shuffle_sub_sequences(seq, eos_idx):
+    """
+    For a science_token sequence like [a, a, eos, b, eos, c]
+    shuffle the sub sequences to [b, eos, a, a, eos, c]
+    Note the last sequence is not shuffled if it's not complete.
+    """
+    only_contains_sci_tokens = np.all(seq <= 32000)
+    if not only_contains_sci_tokens:
+        # don't shuffle text or mixed sequences
+        return seq
+
+    indices = np.where(seq == eos_idx)[0] + 1
+    split_arrays = np.split(seq, indices)
+    last_seq_complete = seq[-1] == eos_idx
+    if last_seq_complete:
+        np.random.shuffle(split_arrays)
+    else:
+        to_shuffle, end = split_arrays[:-1], split_arrays[-1]
+        np.random.shuffle(to_shuffle)
+        split_arrays = to_shuffle + [end]
+    return np.concatenate(split_arrays)
+
 
 class ProcessedSciDataset(torch.utils.data.Dataset):
-    def __init__(self, path: str, padding_idx, max_len: int):
+    def __init__(
+        self,
+        path: str,
+        padding_idx,
+        max_len: int,
+        eos_idx: int = -1,
+        shuffle_subseq: bool = False,
+    ):
         super().__init__()
         self.data = np.load(path, mmap_mode="r")
         processed_seq_len = self.data.shape[1]
@@ -19,6 +56,11 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
         self.replicate = processed_seq_len // max_len
         self.max_len = max_len
         self.padding_idx = padding_idx
+        self.eos_idx = eos_idx
+        self.shuffle_subseq = shuffle_subseq
+
+        if self.shuffle_subseq:
+            assert self.eos_idx != -1, "eos_idx must be set if shuffle_subseq is True"
 
         logger.info(
             f"Loaded {path} with shape {self.data.shape}, max_len {max_len}, replicate {self.replicate}"
@@ -27,6 +69,8 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         index, offset = divmod(index, self.replicate)
         data = self.data[index][offset * self.max_len : (offset + 1) * self.max_len]
+        if self.shuffle_subseq:
+            data = shuffle_sub_sequences(data, self.eos_idx)
         return torch.from_numpy(data.astype(np.int64))
 
     def __len__(self):
@@ -35,9 +79,9 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
     def collate(self, samples):
         input_ids = torch.stack(samples, dim=0)
         padding_mask = input_ids.ne(self.padding_idx)
-        input = tuple([input_ids, padding_mask])
+        input = SciTokenIdxAndMask(input_ids, padding_mask)
         labels = input
-        return (input, labels)
+        return SciDataTuple(input, labels)
 
 
 class RawTextSciDataset(torch.utils.data.Dataset):

@@ -1,0 +1,53 @@
+description: train_sci_gpt_moe
+
+env_defaults:
+  NODES: 2
+  GPUS: 8
+  WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+
+
+
+target:
+    service: aml
+    name: sfm-nd96amsra100v4-uksouth
+
+environment:
+  image: shufxi/mfmds:20230807
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+
+storage:
+  hai1:
+    storage_account_name: hai1data # Storage account
+    container_name: mfm # Container name
+    mount_dir: /hai1
+  blob:
+    storage_account_name: msralaphilly2
+    container_name: ml-la
+    mount_dir: /blob
+
+code:
+  local_dir: .
+
+jobs:
+- name: train_scigpt_moe_debug_dual
+  sku: ${NODES}xG${GPUS}
+  tags:
+    - 'ProjectID: PRJ-0209-A40'
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=scigptmoe
+  - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 -y && conda activate sfm
+  - conda install nvidia/label/cuda-11.8.0::cuda-toolkit -y
+  - bash ./install/install.sh
+  - pip install -e .
+  - export model_type='scigptmoe_tiny'
+  - export train_batch_size=4
+  - export pipeline_model_parallel_size=4
+  - bash scripts/scigptmoe/pretrain_scigptmoe_debug.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g
