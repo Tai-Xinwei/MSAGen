@@ -12,8 +12,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_head}" ] && num_head=8
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${max_length}" ] && max_length=1024
-# [ -z "${max_tokens}" ] && max_tokens=24000
+[ -z "${max_length}" ] && max_length=64
 [ -z "${max_tokens}" ] && max_tokens=36000
 
 [ -z "${dropout}" ] && dropout=0.1
@@ -36,9 +35,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=200000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 
-[ -z "${train_batch_size}" ] && train_batch_size=1024
-[ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${train_batch_size}" ] && train_batch_size=2048
+[ -z "${val_batch_size}" ] && val_batch_size=2048
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=20
@@ -121,8 +121,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-export WANDB_API_KEY=$wandb_key
+# wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+# export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
