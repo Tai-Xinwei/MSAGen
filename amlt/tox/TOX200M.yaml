@@ -80,8 +80,6 @@ jobs:
   - export max_tokens=16000
   - export max_length=1024
   - export gradient_accumulation_steps=4
-  - export wandb_group=toxdiff
-  - export wandb_project=SFM_tox
   - export log_interval=100
   - export loadcheck_path=/blob/pfmexp/output/tox150M_stack1024/checkpoints
   # - export data_path=/blob/data/afdb/48organisms-fullatom.lmdb/
