@@ -31,7 +31,7 @@ def pad_2d_unsqueeze(x, padlen):
 def pad_attn_bias_unsqueeze(x, padlen):
     xlen = x.size(0)
     if xlen < padlen:
-        new_x = x.new_zeros([padlen, padlen], dtype=x.dtype).fill_(float("-inf"))
+        new_x = x.new_zeros([padlen, padlen], dtype=x.dtype).fill_(0.0)
         new_x[:xlen, :xlen] = x
         new_x[xlen:, :xlen] = 0
         x = new_x
@@ -105,10 +105,10 @@ def collate_fn(
 
         item["edge_input"] = item["edge_input"][:, :, :multi_hop_max_dist, :]
 
-    for idx, item in enumerate(items):
-        item["attn_bias"][1:, 1:][item["spatial_pos"] >= spatial_pos_max] = float(
-            "-inf"
-        )
+    # for idx, item in enumerate(items):
+    #     item["attn_bias"][1:, 1:][item["spatial_pos"] >= spatial_pos_max] = float(
+    #         "-inf"
+    #     )
 
     max_node_num = max(i["token_type"].shape[0] for i in items)
     max_dist = max(i["edge_input"].size(-2) for i in items)

@@ -57,9 +57,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=psm
+[ -z "${wandb_group}" ] && wandb_group=psm_dev
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
-[ -z "${wandb_project}" ] && wandb_project=psm
+[ -z "${wandb_project}" ] && wandb_project=psm_dev
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -168,7 +168,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --max_lr $max_lr \
           --num_timesteps 1000 \
           --mode_prob $mode_prob --noise_mode $noise_mode\
-          --use_2d_atom_features \
+          --use_2d_atom_features --use_2d_bond_features \
           --total_num_steps $total_num_steps \
           --warmup_num_steps $warmup_num_steps \
           --train_batch_size $train_batch_size --val_batch_size $val_batch_size --max_length $max_length \
