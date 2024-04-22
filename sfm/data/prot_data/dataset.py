@@ -1332,19 +1332,19 @@ class StackedSequenceIterableDataset(IterableDataset):
 
         # Split blocks among workers for DDP
         self.num_blocks = len(blocks)
-        logger.info(
-            f"number of stacked block in epoch {self.epoch-1} is {self.num_blocks}"
+        logger.success(
+            f"number of stacked block in epoch {self.epoch-1} of rank {self.rank} is {self.num_blocks}"
         )
 
-        blocks_per_worker = self.num_blocks // self.world_size
-        my_start = self.rank * blocks_per_worker
-        my_end = (
-            my_start + blocks_per_worker
-            if self.rank != self.world_size - 1
-            else self.num_blocks
-        )
+        # blocks_per_worker = self.num_blocks // self.world_size
+        # my_start = self.rank * blocks_per_worker
+        # my_end = (
+        #     my_start + blocks_per_worker
+        #     if self.rank != self.world_size - 1
+        #     else self.num_blocks
+        # )
 
-        for block in blocks[my_start:my_end]:
+        for block in blocks:
             start, start_offset, end = block
             for idx in range(start, end + 1):
                 yield self.dataset[idx]
