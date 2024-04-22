@@ -45,14 +45,14 @@ jobs:
   mpi: true
   process_count_per_node: 1
   command:
+  - export wandb_group=tox
+  - export wandb_project=tox
   - mkdir /blob/pfmexp/output
-  # - mkdir /blob/pfmexp/output/pfmdiff200M_prob433_diff2_angl1
-  # - mkdir /blob/pfmexp/output/pfmdiff200M_prob262_diff2_angl1
-  - mkdir /blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs1024_epsilon_pair
-  - mkdir /blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs1024_epsilon_pair/checkpoints
+  - mkdir /blob/pfmexp/output/tox150M_stack1024
+  - mkdir /blob/pfmexp/output/tox150M_stack1024/checkpoints
   - mkdir ./output
   - export path=run.sh
-  - export layers=24
+  - export layers=12
   - export hidden_size=1024
   - export ffn_size=4096
   - export num_head=32
@@ -78,15 +78,15 @@ jobs:
   - export train_batch_size=1024
   - export val_batch_size=1024
   - export max_tokens=16000
-  - export max_length=512
-  - export gradient_accumulation_steps=2
+  - export max_length=1024
+  - export gradient_accumulation_steps=4
   - export wandb_group=toxdiff
   - export wandb_project=SFM_tox
   - export log_interval=100
-  - export loadcheck_path=/blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs1024_epsilon_pair/checkpoints
+  - export loadcheck_path=/blob/pfmexp/output/tox150M_stack1024/checkpoints
   # - export data_path=/blob/data/afdb/48organisms-fullatom.lmdb/
   - export data_path=/blob/data/afdb/AFDB50-plddt70.lmdb/
-  - export save_dir=/blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs1024_epsilon_pair/checkpoints
+  - export save_dir=/blob/pfmexp/output/tox150M_stack1024/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - bash ./scripts/tox/pretrain_tox.sh

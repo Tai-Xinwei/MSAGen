@@ -5,7 +5,7 @@ import os
 import pickle as pkl
 import random
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Tuple, Union
 
 import lmdb
 import numpy as np
@@ -15,12 +15,25 @@ from torch.utils.data import IterableDataset
 from torch.utils.data.distributed import DistributedSampler
 
 from sfm.data.data_utils import _filter_by_size_dynamic
+
+try:
+    from sfm.data.prot_data.token_block_utils_fast import (
+        _get_block_to_dataset_index_fast,
+        _get_slice_indices_fast,
+    )
+except ImportError:
+    raise ImportError(
+        "Please build Cython components with: `pip install --editable .` "
+        "or `python setup.py build_ext --inplace`"
+    )
+
 from sfm.data.dataset import FoundationModelDataset
 from sfm.data.prot_data.collater import (
     collate_downstream_fn,
     collate_fn,
     collate_multiseq_downstream_fn,
     collate_secondary_structure_fn,
+    collate_stack_fn,
     collate_ur50_fn,
 )
 from sfm.data.prot_data.sequence_masking import masking_registry
@@ -48,9 +61,15 @@ class LMDBDataset(FoundationModelDataset):
         metadata = bstr2obj(self.txn.get("__metadata__".encode()))
         self.sizes, self.keys = metadata["sizes"], metadata["keys"]
         self.comment = metadata["comment"]
-        self.filter_indices_by_size(
-            indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
-        )
+        if args.ifstack:
+            self.filter_indices_by_size(
+                indices=np.array(range(len(self.keys))),
+                max_sizes=self.args.max_length - 2,
+            )
+        else:
+            self.filter_indices_by_size(
+                indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
+            )
 
     def __sort__(self):
         sorted_names_sizes = sorted(zip(self.keys, self.sizes), key=lambda x: x[1])
@@ -463,10 +482,10 @@ class ProteinLMDBDataset(LMDBDataset):
         #     tokens = tokens[start : start + self.args.max_length - 2]
         # assert len(tokens) <= self.args.max_length - 2, f"len(tokens) = {len(tokens)} > {self.args.max_length - 2} = max_length - 2"
 
-        # if self.vocab.prepend_bos:
-        #     tokens.insert(0, self.vocab.cls_idx)
-        # if self.vocab.append_eos:
-        #     tokens.append(self.vocab.eos_idx)
+        if self.vocab.prepend_bos:
+            tokens.insert(0, self.vocab.cls_idx)
+        if self.vocab.append_eos:
+            tokens.append(self.vocab.eos_idx)
         item["aa"] = np.array(tokens, dtype=np.int64)
         item["seq_length"] = len(tokens)
 
@@ -498,15 +517,28 @@ class ProteinLMDBDataset(LMDBDataset):
         )
         item["pos_noise"] = pos_noise
         item["ang_noise"] = ang_noise
-        item["ang"] = item["ang"] / 180.0 * torch.pi  # + torch.pi
 
-        # item["pos"] = item["pos"] + pos_noise
-        item["ang"] = item["ang"] + ang_noise
-
-        # TODO: considering mask the pos and ang, not used in the current version
-        # set first position to zero
-        # item["pos"] = (item["pos"] - item["pos"][0]) / 10.0
-        item["pos"] = item["pos"]  # / 10.0
+        if not self.args.ifstack:
+            item["ang"] = item["ang"] / 180.0 * torch.pi  # + torch.pi
+            # TODO: considering mask the pos and ang, not used in the current version
+            # set first position to zero
+            # item["pos"] = (item["pos"] - item["pos"][0]) / 10.0
+            # item["pos"] = item["pos"]  # / 10.0
+        else:
+            item["ang"] = item["ang"] / 180.0 * torch.pi
+            # insert inf to the first place and the end
+            item["ang"] = np.concatenate(
+                [np.zeros((1, 9)), item["ang"], np.zeros((1, 9))], axis=0
+            )
+            item["pos"] = np.concatenate(
+                [np.zeros((1, 37, 3)), item["pos"], np.zeros((1, 37, 3))], axis=0
+            )
+            item["ang_mask"] = np.concatenate(
+                [np.zeros((1, 9)), item["ang_mask"], np.zeros((1, 9))], axis=0
+            )
+            item["pos_mask"] = np.concatenate(
+                [np.zeros((1, 37)), item["pos_mask"], np.zeros((1, 37))], axis=0
+            )
 
         return item
 
@@ -650,12 +682,15 @@ class UR50LMDBDataset(FoundationModelDataset):
         """
         - convert string sequence to int index
         """
-
+        # if self.vocab.prepend_bos:
+        #     tokens.insert(0, self.vocab.cls_idx)
+        # if self.vocab.append_eos:
+        #     tokens.append(self.vocab.eos_idx)
         tokens = [self.vocab.tok_to_idx[tok] for tok in item["aa"]]
-        if self.vocab.prepend_bos:
+        if self.args.ifstack:
             tokens.insert(0, self.vocab.cls_idx)
-        if self.vocab.append_eos:
             tokens.append(self.vocab.eos_idx)
+
         item["aa"] = np.array(tokens, dtype=np.int64)
 
         """
@@ -697,10 +732,12 @@ class UR50LMDBDataset(FoundationModelDataset):
 
     def size(self, index: int) -> int:
         sz = self.sizes[index]
-        if self.vocab.prepend_bos:
-            sz += 1
-        if self.vocab.append_eos:
-            sz += 1
+        # if self.vocab.prepend_bos:
+        #     sz += 1
+        # if self.vocab.append_eos:
+        #     sz += 1
+        if self.args.ifstack:
+            sz += 2
         return sz
 
     def num_tokens(self, index: int) -> int:
@@ -1244,13 +1281,17 @@ class StackedSequenceDataset(torch.utils.data.Dataset):
 class StackedSequenceIterableDataset(IterableDataset):
     def __init__(self, dataset, args, shuffle=True):
         self.dataset = dataset  # An iterable source
-        self.collate_fn = dataset.collate
+        self.collate_fn = collate_stack_fn
         self.sequence_length = args.max_length
         self.args = args
         self.buffer_len = 0
         self.buffers = {}
         self.shuffle = shuffle
         self.epoch = 0
+        self.break_mode = "complete_doc"
+        self.document_sep_len = 1
+        self.sizes = dataset.sizes
+        self.num_blocks = 0
 
         # DDP-related attributes
         self.rank = args.rank
@@ -1261,6 +1302,7 @@ class StackedSequenceIterableDataset(IterableDataset):
             num_replicas=self.world_size,
             rank=self.rank,
         )
+        self._create_subset_iterator()
 
     def __iter__(self):
         # Reset the buffers when creating a new iterator
@@ -1277,10 +1319,33 @@ class StackedSequenceIterableDataset(IterableDataset):
         return self
 
     def _create_subset_iterator(self):
-        # Get the list of indices from the sampler and iterate through them
-        indices = iter(self.sampler)
-        for idx in indices:
-            yield self.dataset[idx]
+        # # Get the list of indices from the sampler and iterate through them
+        indices = list(iter(self.sampler))
+        # for idx in indices:
+        #     yield self.dataset[idx]
+        sizes = [self.sizes[i] for i in indices]
+        slice_indices = _get_slice_indices_fast(
+            np.array(sizes),
+            self.break_mode,
+            self.sequence_length,
+            self.document_sep_len,
+        )
+        blocks = _get_block_to_dataset_index_fast(np.array(sizes), slice_indices)
+
+        # Split blocks among workers for DDP
+        self.num_blocks = len(blocks)
+        blocks_per_worker = self.num_blocks // self.world_size
+        my_start = self.rank * blocks_per_worker
+        my_end = (
+            my_start + blocks_per_worker
+            if self.rank != self.world_size - 1
+            else self.num_blocks
+        )
+
+        for block in blocks[my_start:my_end]:
+            start, start_offset, end = block
+            for idx in range(start, end + 1):
+                yield self.dataset[idx]
 
     def __next__(self):
         # Continue to read from the subset iterator and fill the buffers until we have enough data
@@ -1304,18 +1369,21 @@ class StackedSequenceIterableDataset(IterableDataset):
                     self.buffers = {}
                     self.buffers_len = 0
                     raise
-                    # not support yet
-                    # result = {
-                    #     key: np.concatenate(buf)[: self.sequence_length]
-                    #     for key, buf in self.buffers.items()
-                    # }
-                    # self.buffers = {}
-                    # self.buffers_len = 0
-                    # return result
 
         # Extract a sequence of exactly `sequence_length` from the buffers for each key
         result = {}
         for key, buf in self.buffers.items():
+            if key not in [
+                "aa",
+                "masked_aa",
+                "mask_pos",
+                "ang",
+                "pos",
+                "ang_mask",
+                "pos_mask",
+            ]:
+                continue
+
             result[key] = np.concatenate(buf)[: self.sequence_length]
             if self.buffer_len == self.sequence_length:
                 self.buffers[key] = []
@@ -1334,10 +1402,10 @@ class StackedSequenceIterableDataset(IterableDataset):
         return result
 
     def collate(self, samples):
-        return self.collate_fn(samples)
+        return self.collate_fn(samples, self.dataset.vocab)
 
     def __len__(self):
-        return len(self.dataset)
+        return self.num_blocks
 
 
 if __name__ == "__main__":
@@ -1389,45 +1457,3 @@ if __name__ == "__main__":
             Path(args.data_basepath) / f"{args.task_name}_{name}.fasta",
             "fasta",
         )
-
-    # print("=================")
-    # print("Test DownstreamLMDBDataset")
-    # new_args = Namespace()
-    # new_args.max_length = 1024
-    # for name in list(DownstreamLMDBDataset.TASKINFO.keys()):
-    #     new_args.data_basepath = "/mnta/yaosen/data/bfm_benchmark"
-    #     new_args.task_name = name
-    #     dsets = DownstreamLMDBDataset.load_dataset(new_args)
-    #     for dset in dsets.values():
-    #         print(len(dset))
-    #         print(len(set(dset.keys)))
-    #         data = dset[17]
-    #         for k, v in data.items():
-    #             print(
-    #                 f"'{k}': {v.shape if isinstance(v, np.ndarray) else v} of type {type(v)}"
-    #             )
-    #         break
-    #     print("=================")
-
-    # print("Test BatchedDataDataset(DownstreamLMDBDataset)")
-    # for name in list(DownstreamLMDBDataset.TASKINFO.keys()):
-    #     new_args.data_basepath = "/mnta/yaosen/data/bfm_benchmark"
-    #     new_args.task_name = name
-    #     dsets = DownstreamLMDBDataset.load_dataset(new_args)
-    #     for dset in dsets.values():
-    #         print(len(dset))
-    #         print(len(set(dset.keys)))
-    #         loader = DataLoader(
-    #             dset,
-    #             sampler=RandomSampler(dset),
-    #             batch_size=17,
-    #             collate_fn=dset.collate,
-    #             drop_last=True,
-    #         )
-    #         batch = next(iter(loader))
-    #         for k, v in batch.items():
-    #             print(
-    #                 f"'{k}': {v.shape if isinstance(v, (np.ndarray, torch.Tensor)) else v} of type {type(v)}"
-    #             )
-    #         break
-    #     print("=================")

@@ -59,6 +59,7 @@ def cli(*cfg_classes_and_funcs):
                         project=wandb_project,
                         group=wandb_group,
                         name=wandb_run_name,
+                        entity=wandb_team,
                         config=args,
                     )
 
@@ -134,6 +135,7 @@ def hydracli(*cfg_classes_and_funcs, conifg_path):
                         project=wandb_project,
                         group=wandb_group,
                         name=wandb_run_name,
+                        wandb_team=wandb_team,
                         config=args,
                     )
 

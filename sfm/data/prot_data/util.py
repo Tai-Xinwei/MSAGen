@@ -4,7 +4,7 @@ import os
 import pickle
 import zlib
 
-logger = logging.getLogger(__name__)
+from sfm.logging import logger
 
 
 def add_to_env(toadd: dict):

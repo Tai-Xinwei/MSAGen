@@ -953,7 +953,26 @@ class DeepSpeedAccelerator(Accelerator):
                 collate_fn=self.train_data.collate,
                 batch_sampler=dynamic_sampler,
             )
+        elif self.args.ifstack:
+            assert (
+                self.args.strategy is not TrainStrategy.Pipeline
+            ), "stack loader is not supported in pipeline mode"
 
+            train_batch_size_per_gpu = self.args.train_batch_size // (
+                self.model_engine.dp_world_size * self.args.gradient_accumulation_steps
+            )
+            assert (
+                train_batch_size_per_gpu > 0
+            ), "train_batch_size_per_gpu should be greater than 0"
+
+            self.train_sampler = None
+            self.train_data_loader = DataLoader(
+                train_data,
+                batch_size=train_batch_size_per_gpu,
+                collate_fn=train_data.collate,
+                drop_last=True,
+                num_workers=os.cpu_count(),
+            )
         elif self.args.daliLoader:
             raise NotImplementedError
 

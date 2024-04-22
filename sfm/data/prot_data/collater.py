@@ -481,3 +481,76 @@ def collate_secondary_structure_fn(samples: List[dict], vocab: Alphabet):
     )
     # batch["target_offset"] = torch.tensor([len(s['target']) for s in samples], dtype=torch.long)
     return batch
+
+
+def collate_stack_fn(samples: List[dict], vocab: Alphabet, offset=0):
+    """
+    Overload BaseWrapperDataset.collater
+    May be future changes need config
+
+    By default, the collater pads and batch all torch.Tensors (np.array will be converted) in the sample dicts
+    """
+    # max_tokens = Nres+2 (<cls> and <eos>)
+    max_tokens = max(len(s["aa"]) for s in samples)
+
+    offset = offset
+    batch = dict()
+
+    # naa = [Nres+2, ...] for each sample
+    batch["naa"] = torch.tensor([len(s["aa"]) for s in samples], dtype=torch.long)
+
+    # (Nres+2,) -> (B, Nres+2)
+    batch["x"] = torch.cat(
+        [
+            pad_1d_unsqueeze(
+                torch.from_numpy(s["aa"]), max_tokens, 0, vocab.padding_idx
+            )
+            for s in samples
+        ]
+    )
+
+    batch["masked_aa"] = torch.cat(
+        [
+            pad_1d_unsqueeze(
+                torch.from_numpy(s["masked_aa"]), max_tokens, 0, vocab.padding_idx
+            )
+            for s in samples
+        ]
+    ).unsqueeze(-1)
+
+    batch["mask_pos"] = torch.cat(
+        [
+            pad_1d_unsqueeze(
+                torch.from_numpy(s["mask_pos"]), max_tokens, 0, vocab.padding_idx
+            )
+            for s in samples
+        ]
+    ).unsqueeze(-1)
+
+    # (Nres+2, 3) -> (B, Nres+2, 3)
+    batch["pos"] = torch.cat(
+        [
+            pad_3d_unsqueeze(torch.from_numpy(s["pos"]), max_tokens, offset, torch.inf)
+            for s in samples
+        ]
+    )
+    batch["pos_mask"] = torch.cat(
+        [
+            pad_2d_unsqueeze(torch.from_numpy(s["pos_mask"]), max_tokens, offset, 0)
+            for s in samples
+        ]
+    )
+    batch["ang"] = torch.cat(
+        [
+            pad_2d_unsqueeze(torch.from_numpy(s["ang"]), max_tokens, offset, torch.inf)
+            for s in samples
+        ]
+    )
+    batch["ang_mask"] = torch.cat(
+        [
+            pad_2d_unsqueeze(torch.from_numpy(s["ang_mask"]), max_tokens, offset, 0)
+            for s in samples
+        ]
+    )
+
+    return batch
