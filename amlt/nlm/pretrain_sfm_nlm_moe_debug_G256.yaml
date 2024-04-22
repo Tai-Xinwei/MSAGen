@@ -1,9 +1,10 @@
 description: train_sfm_nlmmoe_debug
 
 env_defaults:
-  NODES: 32
+  NODES: 4
   GPUS: 8
-  WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+  # WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+  WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
 # target:
 #     service: aml
@@ -27,32 +28,38 @@ environment:
 storage:
   hai1:
     storage_account_name: hai1data # Storage account
-    container_name: mfm # Container name
-    mount_dir: /hai1
-  blob:
-    storage_account_name: msralaphilly2
-    container_name: ml-la
-    mount_dir: /blob
+    container_name: sfm # Container name
+    mount_dir: /sfm
+  # blob:
+  #   storage_account_name: msralaphilly2
+  #   container_name: ml-la
+  #   mount_dir: /blob
 
 code:
-  local_dir: .
+  local_dir: ../SFM_framework
 
 jobs:
 - name: train_sfm_nlm_moe_debug
   sku: ${NODES}xG${GPUS}
-  tags:
-    - 'ProjectID: PRJ-0209-A40'
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
   mpi: true
   process_count_per_node: 1
   command:
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - export WANDB_PROJECT=scigptmoe
+  - export WANDB_TEAM=ai4s-sfm
+  - export wandb_group=nlm_dev
   - export NCCL_DEBUG=INFO
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - pip install -e . --no-deps
-  - export train_batch_size=256
+  - export train_batch_size=32
   - export gradient_accumulation_steps=8
   - export pipeline_model_parallel_size=16
+  - export train_data_path=/sfm/nlm/mix_pretrain/c4.npy
+  - export val_data_path=/sfm/nlm/mix_pretrain/c4.npy
+  - export dict_path=/sfm/Mixtral-8x7B-v0.1
+  - export loadcheck_path=/sfm/Mixtral-8x7B-v0.1
+  - export save_dir=/sfm/pfmexp/output
   - bash scripts/nlm/pretrain_sfm_nlm_moe_debug.sh
   submit_args:
     env:
