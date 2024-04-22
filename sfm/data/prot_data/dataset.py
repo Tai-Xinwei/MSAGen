@@ -1321,8 +1321,6 @@ class StackedSequenceIterableDataset(IterableDataset):
     def _create_subset_iterator(self):
         # # Get the list of indices from the sampler and iterate through them
         indices = list(iter(self.sampler))
-        # for idx in indices:
-        #     yield self.dataset[idx]
         sizes = [self.sizes[i] for i in indices]
         slice_indices = _get_slice_indices_fast(
             np.array(sizes),
@@ -1334,6 +1332,10 @@ class StackedSequenceIterableDataset(IterableDataset):
 
         # Split blocks among workers for DDP
         self.num_blocks = len(blocks)
+        logger.info(
+            f"number of stacked block in epoch {self.epoch-1} is {self.num_blocks}"
+        )
+
         blocks_per_worker = self.num_blocks // self.world_size
         my_start = self.rank * blocks_per_worker
         my_end = (

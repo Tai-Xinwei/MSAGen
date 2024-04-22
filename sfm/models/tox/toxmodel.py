@@ -475,7 +475,7 @@ class TOX(nn.Module):
 
             pos_scale_coeff = 1.0
             noisy_pos, _, _, _ = self.diffnoise._noise_sample(
-                ori_pos / pos_scale_coeff, time_pos, unit_noise_scale=1.0
+                ori_pos / pos_scale_coeff, time_pos
             )
 
             (

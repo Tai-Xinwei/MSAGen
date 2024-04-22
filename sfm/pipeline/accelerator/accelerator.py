@@ -459,7 +459,7 @@ class DdpAccelerator(SingleNodeAccelerator):
                     batch_size=train_batch_size_per_gpu,
                     collate_fn=train_data.collate,
                     drop_last=True,
-                    num_workers=os.cpu_count(),
+                    num_workers=1,
                 )
 
         if val_data:
@@ -971,7 +971,7 @@ class DeepSpeedAccelerator(Accelerator):
                 batch_size=train_batch_size_per_gpu,
                 collate_fn=train_data.collate,
                 drop_last=True,
-                num_workers=os.cpu_count(),
+                num_workers=1,
             )
         elif self.args.daliLoader:
             raise NotImplementedError
