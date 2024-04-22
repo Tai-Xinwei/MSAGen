@@ -37,6 +37,8 @@ class PretrainedLayerSpec(LayerSpec):
             # elif self.lora_mode == "freeze":
             # layer = self.create_peft_model(layer, lora=False)
 
+        print(layer)
+
         return layer
 
     def load_pretrained(self, layer, device="cpu"):

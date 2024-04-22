@@ -1,0 +1,49 @@
+description: train_sfm_nlm_moe
+
+env_defaults:
+  NODES: 4
+  GPUS: 8
+  WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+
+target:
+  service: sing
+  name: baltic02
+  workspace_name: msrresrchws
+
+environment:
+  image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
+  registry: msroctocr.azurecr.io
+  username: msroctocr
+
+storage:
+  hai1:
+    storage_account_name: hai1data # Storage account
+    container_name: mfm # Container name
+    mount_dir: /hai1
+  blob:
+    storage_account_name: msralaphilly2
+    container_name: ml-la
+    mount_dir: /blob
+
+code:
+  local_dir: .
+
+jobs:
+- name: train_sfm_nlm_moe_stageA
+  sku: ${NODES}xG${GPUS}
+  tags:
+    - 'ProjectID: PRJ-0209-A40'
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=NLM_MOE
+  - export NCCL_DEBUG=INFO
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install -e . --no-deps
+  - bash scripts/nlm/pretrain_sfm_nlm_moe_stageA.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g
+    env:
+      SHARED_MEMORY_PERCENT: 1.0

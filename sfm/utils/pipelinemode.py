@@ -113,6 +113,10 @@ def tuple2input(input_tuple, param_dict):
     return input_data
 
 
+def ensure_contiguous(tensors):
+    return tuple(t.contiguous() for t in tensors)
+
+
 def pipemode(forward_func):
     # Check the output tensor grad requirementså
     # TODO: auto convert tuple input to wrapped function's input
@@ -134,8 +138,8 @@ def pipemode(forward_func):
 
         # Convert input tuple to input of original forward function by matching parameter types
         input_data = tuple2input(*input_tuple, param_dict)
-        # Call original forward function with input dictionary
 
+        # Call original forward function with input dictionary
         output = forward_func(param_self, *input_data, **kwargs)
 
         # Convert output dictionary to tuple
@@ -143,7 +147,7 @@ def pipemode(forward_func):
 
         check_grad_requirements(output_list)
 
-        return output_list
+        return ensure_contiguous(output_list)
 
     return wrapper
 
