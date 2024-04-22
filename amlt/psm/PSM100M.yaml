@@ -95,6 +95,4 @@ jobs:
   - python setup_cython.py build_ext --inplace
   - bash ./scripts/psm/pretrain_psm.sh
   submit_args:
-    container_args:
       # SHARED_MEMORY_PERCENT: 0.5
-      shm_size: 1024g

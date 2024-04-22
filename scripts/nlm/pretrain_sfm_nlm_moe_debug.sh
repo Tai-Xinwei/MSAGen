@@ -19,15 +19,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=80000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=8000
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
-[ -z "${train_batch_size}" ] && train_batch_size=64
-[ -z "${val_batch_size}" ] && val_batch_size=64
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=64
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
-
-[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,embed_tokens.weight"
+[ -z "${train_batch_size}" ] && train_batch_size=512
+[ -z "${val_batch_size}" ] && val_batch_size=8
+# [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,embed_tokens.weight"
 # [ -z "${learnable_cutoff}" ] && learnable_cutoff=32000
 
 # In this stage, the grad is too large to use grad accumulation
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=128
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1000000
 [ -z "${save_batch_interval}" ] && save_batch_interval=4000000
 [ -z "${log_interval}" ] && log_interval=1
@@ -86,7 +84,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin --host=https://microsoft-research.wandb.io "$WANDB_API_KEY"
+wandb login --relogin "$WANDB_API_KEY"
+
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -129,7 +128,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_sfm_nlm_moe.py \
       --model_type "$model_type" \
       --vocab_size 32000 \
       --pad_token_id 1 --eos_token_id 2 \
-      --max_position_embeddings 8196 \
+      --max_position_embeddings 8192 \
       --train_data_path "$train_data_path" \
       --valid_data_path "$valid_data_path" \
       --weight_decay "$weight_decay" \
@@ -151,7 +150,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_sfm_nlm_moe.py \
       --strategy "$strategy" \
       --pipeline_model_parallel_size "$pipeline_model_parallel_size" \
       --pp_partition_layer_name "$pp_partition_layer_name" \
-      --unfreeze_param_list "$unfreeze_param_list" \
       --load_ckpt --pretrained_ckpt_path "$loadcheck_path" \
       --moe_impl "vanilla"
 

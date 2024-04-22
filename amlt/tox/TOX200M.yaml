@@ -41,7 +41,7 @@ jobs:
 - name: pfmtest
   tags:
   - 'ProjectID: PRJ-0209-A40'
-  sku: G8
+  sku: 2x80G8
   mpi: true
   process_count_per_node: 1
   command:

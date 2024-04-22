@@ -106,27 +106,16 @@ class Model(SFMPipelineModelMixin):
     def config_optimizer(self, model):
         if model is None:
             model = self
-        return (None, None)
 
-        if self.config.freeze_param_list or self.config.unfreeze_param_list:
-            optimizer, _ = myAdamW(
-                model,
-                lr=self.config.max_lr,
-                betas=(self.config.beta1, self.config.beta2),
-                weight_decay=self.config.weight_decay,
-                eps=1e-8,
-                freeze_list=self.config.freeze_param_list,
-                unfreeze_list=self.config.unfreeze_param_list,
-            )
-        else:
-            optimizer = AdamW(
-                model.parameters(),
-                lr=self.config.max_lr,
-                betas=(self.config.beta1, self.config.beta2),
-                weight_decay=self.config.weight_decay,
-                eps=1e-8,
-                fused=True,
-            )
+        optimizer, _ = myAdamW(
+            model,
+            lr=self.config.max_lr,
+            betas=(self.config.beta1, self.config.beta2),
+            weight_decay=self.config.weight_decay,
+            eps=1e-8,
+            freeze_list=self.config.freeze_param_list,
+            unfreeze_list=self.config.unfreeze_param_list,
+        )
 
         lr_scheduler = groupWarmupDecayLR(
             optimizer,
