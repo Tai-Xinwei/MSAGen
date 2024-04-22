@@ -51,7 +51,11 @@ install_requires = [
     "pip==24.0",
     "sacremoses==0.1.1",
 ]
-cython_extensions = ["sfm/data/mol_data/algos.pyx", "sfm/data/data_utils_fast.pyx"]
+cython_extensions = [
+    "sfm/data/mol_data/algos.pyx",
+    "sfm/data/data_utils_fast.pyx",
+    "sfm/data/prot_data/token_block_utils_fast.pyx",
+]
 # cython_extensions = [
 #     Extension("sfm.data.mol_data.algos", ["sfm/data/mol_data/algos.pyx"]),
 #     Extension("sfm.data.data_utils_fast", ["sfm/data/data_utils_fast.pyx"]),

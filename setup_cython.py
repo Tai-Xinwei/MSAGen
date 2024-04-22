@@ -10,7 +10,11 @@ import numpy
 from setuptools import Extension, setup
 from Cython.Build import cythonize
 
-extensions = ["sfm/data/mol_data/algos.pyx", "sfm/data/data_utils_fast.pyx"]
+extensions = [
+    "sfm/data/mol_data/algos.pyx",
+    "sfm/data/data_utils_fast.pyx",
+    "sfm/data/prot_data/token_block_utils_fast.pyx",
+]
 
 setup(
     ext_modules=cythonize(extensions, language_level="3"),

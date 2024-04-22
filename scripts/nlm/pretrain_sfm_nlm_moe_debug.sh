@@ -33,12 +33,11 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${strategy}" ] && strategy=Pipeline
 
-[ -z "${dict_path}" ] && dict_path='/hai1/shufxi/Mixtral-8x7B-v0.1'
-[ -z "${train_data_path}" ] && train_data_path='/blob/v-zequnliu/mix_pretrain/c4.npy'
-[ -z "${valid_data_path}" ] && valid_data_path='/blob/v-zequnliu/mix_pretrain/c4.npy'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/hai1/shufxi/Mixtral-8x7B-v0.1'
-[ -z "${save_dir}" ] && save_dir='/mnt/output/'
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=8
+[ -z "${dict_path}" ] && dict_path='/data/peiran/blob/hai1data/sfm/Mixtral-8x7B-v0.1'
+[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/mix_pretrain/c4.npy'
+[ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/hai1data/sfm/nlm/mix_pretrain/c4.npy'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/hai1data/sfm/Mixtral-8x7B-v0.1'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/'
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="MoeDecoderLayerPP"
 
 
@@ -121,7 +120,6 @@ ifconfig -s
 # ibdev2netdev -v
 # ibstatus
 # ibv_devinfo
-
 
 
 export PYTORCH_CUDA_ALLOC_CONF='expandable_segments:True'

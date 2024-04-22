@@ -10,10 +10,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=8
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${max_length}" ] && max_length=512
+[ -z "${max_length}" ] && max_length=1024
 # [ -z "${max_tokens}" ] && max_tokens=24000
 [ -z "${max_tokens}" ] && max_tokens=36000
 
@@ -31,26 +30,26 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${seq_masking_method}" ] && seq_masking_method=transformerM
 
 # [ -z "${mask_ratio}" ] && mask_ratio=0.5
-[ -z "${mask_ratio}" ] && mask_ratio=0.0
+[ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=2e-4
 [ -z "${total_num_steps}" ] && total_num_steps=200000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
+<<<<<<< HEAD
+[ -z "${train_batch_size}" ] && train_batch_size=1024
+[ -z "${val_batch_size}" ] && val_batch_size=1024
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${save_epoch_interval}" ] && save_epoch_interval=1
+[ -z "${save_batch_interval}" ] && save_batch_interval=10000000
+[ -z "${log_interval}" ] && log_interval=20
+[ -z "${epochs}" ] && epochs=1000
+
+[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+# [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,1.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+=======
 [ -z "${train_batch_size}" ] && train_batch_size=4
 [ -z "${val_batch_size}" ] && val_batch_size=4
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
-[ -z "${strategy}" ] && strategy=Zero1
-[ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=1
-[ -z "${epochs}" ] && epochs=1000
-
-# [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-[ -z "${mode_prob}" ] && mode_prob='0.0,0.0,1.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-
-# [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
-[ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/AFDB50-plddt70.lmdb/'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq512_x0_dist/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq512_x0_dist/'
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
@@ -59,7 +58,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
 [ -z "${wandb_group}" ] && wandb_group=tox
-[ -z "${wandb_team}" ] && wandb_team=peiranjin
+[ -z "${wandb_team}" ] && wandb_team=large-scale-pde
 [ -z "${wandb_project}" ] && wandb_project=SFM_tox
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
@@ -87,7 +86,6 @@ echo "OMPI_COMM_WORLD_LOCAL_RANK: ${OMPI_COMM_WORLD_LOCAL_RANK}"
 echo -e "\n\n"
 echo "=====================================ARGS======================================"
 echo "n_layers: ${layers}"
-echo "num_pred_attn_layer: ${num_pred_attn_layer}"
 echo "hidden_size: ${hidden_size}"
 echo "ffn_size: ${ffn_size}"
 echo "num_head: ${num_head}"
@@ -159,11 +157,10 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
           --seed 666666 \
           --add_3d \
           --ifresume \
-          --dynamic_loader --max_tokens $max_tokens \
+          --ifstack \
           --diffmode $diffmode \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
-          --num_pred_attn_layer $num_pred_attn_layer \
           --d_tilde $d_tilde \
           --strategy $strategy \
           --max_lr $max_lr \

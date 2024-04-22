@@ -120,9 +120,9 @@ class DiffNoise(nn.Module):
         out = a.gather(-1, t.cpu().long())
         return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
 
-    def _noise_sample(self, x_start, t, unit_noise_scale=1.0):
+    def _noise_sample(self, x_start, t):
         t = (t * self.args.num_timesteps).long()
-        noise = torch.randn_like(x_start) * unit_noise_scale
+        epsilon = torch.randn_like(x_start)
 
         sqrt_alphas_cumprod_t = self._extract(
             self.sqrt_alphas_cumprod, t, x_start.shape
@@ -131,10 +131,12 @@ class DiffNoise(nn.Module):
             self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
         )
 
-        x_t = sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
+        x_t = (
+            sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * epsilon
+        )
         noise = x_t - x_start
 
-        return x_t, noise, sqrt_one_minus_alphas_cumprod_t
+        return x_t, noise, sqrt_one_minus_alphas_cumprod_t, epsilon
 
     # Here, t is time point in (0, 1]
     def _angle_noise_sample(self, x_start, t):
