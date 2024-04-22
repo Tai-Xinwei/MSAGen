@@ -129,7 +129,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_sfm_nlm_moe.py \
       --model_type "$model_type" \
       --vocab_size 32000 \
       --pad_token_id 1 --eos_token_id 2 \
-      --max_position_embeddings 2048 \
+      --max_position_embeddings 8196 \
       --train_data_path "$train_data_path" \
       --valid_data_path "$valid_data_path" \
       --weight_decay "$weight_decay" \

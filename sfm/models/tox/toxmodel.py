@@ -470,11 +470,11 @@ class TOX(nn.Module):
                     time_pos = 1.0 - torch.rand(
                         (ori_pos.shape[0],), device=ori_pos.device
                     )  # (0, 1]
-                time_pos = torch.where((mode_mask == 1), 1, time_pos)
+                # time_pos = torch.where((mode_mask == 1), 1, time_pos)
                 time_ang = time_pos
 
             pos_scale_coeff = 1.0
-            noisy_pos, _, _ = self.diffnoise._noise_sample(
+            noisy_pos, _, _, _ = self.diffnoise._noise_sample(
                 ori_pos / pos_scale_coeff, time_pos, unit_noise_scale=1.0
             )
 

@@ -61,9 +61,15 @@ class LMDBDataset(FoundationModelDataset):
         metadata = bstr2obj(self.txn.get("__metadata__".encode()))
         self.sizes, self.keys = metadata["sizes"], metadata["keys"]
         self.comment = metadata["comment"]
-        self.filter_indices_by_size(
-            indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
-        )
+        if args.ifstack:
+            self.filter_indices_by_size(
+                indices=np.array(range(len(self.keys))),
+                max_sizes=self.args.max_length - 2,
+            )
+        else:
+            self.filter_indices_by_size(
+                indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
+            )
 
     def __sort__(self):
         sorted_names_sizes = sorted(zip(self.keys, self.sizes), key=lambda x: x[1])
