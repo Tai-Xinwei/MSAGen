@@ -23,6 +23,7 @@ def init_tokenizer(tokenizer_path):
 def tokenize(line):
     global tokenizer
     try:
+        line = line.replace('\\n', '\n')
         tokens = tokenizer.tokenize(line)
         tokens = (
             [tokenizer.bos_token_id]
