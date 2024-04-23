@@ -1,21 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os
+import gzip
+import io
 import sys
-from typing import Any, Mapping, Optional, Sequence, Tuple
+from pathlib import Path
+from typing import Sequence
 
 import numpy as np
-
 from absl import logging
 from Bio.Data import PDBData
 from Bio.PDB import MMCIF2Dict
-from pathlib import Path
+from ogb.utils.features import atom_to_feature_vector
+from ogb.utils.features import bond_to_feature_vector
 from rdkit import Chem
 
-from mmcif_parsing import ResidueAtPosition, AtomCartn, MmcifObject
-from mmcif_parsing import parse_structure, mmcif_loop_to_list, mmcif_loop_to_dict
-from ogb.utils.features import atom_to_feature_vector, bond_to_feature_vector
-from residue_constants import RESIDUEATOMS, ATOMORDER
+from mmcif_parsing import AtomCartn
+from mmcif_parsing import mmcif_loop_to_dict
+from mmcif_parsing import mmcif_loop_to_list
+from mmcif_parsing import MmcifObject
+from mmcif_parsing import parse_structure
+from mmcif_parsing import ResidueAtPosition
+from residue_constants import ATOMORDER
+from residue_constants import RESIDUEATOMS
 
 
 STDRESIDUES = {'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK', 'A', 'C', 'G', 'U', 'DA', 'DC', 'DG', 'DT', 'N'}
@@ -116,6 +122,17 @@ def check_chem_comps(parsed_info: MMCIF2Dict) -> bool:
     return  atom_comps.issubset(chem_comps) and polyseq_comps == pdbx_polyseq
 
 
+def split_chem_comp(chem_comp_full_string: str) -> dict:
+    chem_comp_strings = {}
+    if chem_comp_full_string.startswith('data_'):
+        strings = chem_comp_full_string.split('data_')
+        del strings[0] # empty string for first element
+        for s in strings:
+            lines = s.split('\n')
+            chem_comp_strings[lines[0]] = 'data_' + s
+    return chem_comp_strings
+
+
 def process_standard_residue(residue: ResidueAtPosition,
                              atoms: Sequence[AtomCartn]):
     """
@@ -148,7 +165,7 @@ def process_standard_residue(residue: ResidueAtPosition,
 
 def process_nonstandard_residue(residue: ResidueAtPosition,
                                 atoms: Sequence[AtomCartn],
-                                chem_comp_dir: str,
+                                chem_comp_string: str,
                                 removeHs: bool = True):
     try:
         # convert atom name to index
@@ -157,15 +174,14 @@ def process_nonstandard_residue(residue: ResidueAtPosition,
             if atom.name in name_to_index:
                 raise ValueError(f"Duplicated atom name {atom.name} in {atoms}")
             name_to_index[atom.name] = idx + 1
-        # read chemical component file and get chem_comp_atom dictionary
-        chem_comp_path = Path(chem_comp_dir) / f"{residue.name}.cif"
-        with open(chem_comp_path, 'r') as fp:
-            mmcifdict = MMCIF2Dict.MMCIF2Dict(fp)
+        # read chemical component information
+        handle = io.StringIO(chem_comp_string)
+        mmcifdict = MMCIF2Dict.MMCIF2Dict(handle)
         chem_comp_atoms = mmcif_loop_to_dict('_chem_comp_atom.',
                                              '_chem_comp_atom.atom_id',
                                              mmcifdict)
         if not all(_ in chem_comp_atoms for _ in name_to_index):
-            raise ValueError(f"Cannot find atom in {chem_comp_path}")
+            raise ValueError(f"Cannot find atom in chem_comp file")
         # Get the bond type from _chem_comp_bond
         bonds = []
         for bond in mmcif_loop_to_list('_chem_comp_bond.', mmcifdict):
@@ -203,18 +219,38 @@ def process_nonstandard_residue(residue: ResidueAtPosition,
         return {}
 
 
-def process_pdb_complex(mmcif_path: str, chem_comp_dir: str):
+def process_pdb_complex(mmcif_path: str, chem_comp_path: str):
     try:
-        # parse pdbid from reference fasta filename
-        pdbid = Path(mmcif_path).stem
-        assert len(pdbid) == 4 and mmcif_path.endswith('.cif'), (
-            f"Invalid input mmcif file.")
-        # parse mmcif file by modified mmcif_parsing.py
-        with open(mmcif_path, 'r') as fp:
-            cif_string = fp.read()
-        res = parse_structure(file_id=pdbid, mmcif_string=cif_string)
+        # parse pdbid from input mmcif file
+        pdbid = ''
+        mmcif_string = ''
+        if mmcif_path.endswith('.cif'):
+            pdbid = Path(mmcif_path).stem
+            with open(mmcif_path, 'r') as fp:
+                mmcif_string = fp.read()
+        elif mmcif_path.endswith('.cif.gz'):
+            pdbid = Path( Path(mmcif_path).stem ).stem
+            with gzip.open(mmcif_path, 'rt') as fp:
+                mmcif_string = fp.read()
+        else:
+            raise ValueError(f"{mmcif_path} must endswith .cif or .cif.gz.")
+        assert len(pdbid) == 4, f"Invalid 4 characters pdbid for {mmcif_path}."
+        # parse mmcif file by modified AlphaFold mmcif_parsing.py
+        res = parse_structure(file_id=pdbid, mmcif_string=mmcif_string)
         assert res.mmcif_object and check_mmcif_parsing(res.mmcif_object), (
             f"Wrong parsing result for pdb {pdbid}")
+        # parse chem_comp information from input chem_comp file
+        chem_comp_full_string = ''
+        if chem_comp_path.endswith('.cif'):
+            with open(chem_comp_path, 'r') as fp:
+                chem_comp_full_string = fp.read()
+        elif chem_comp_path.endswith('.cif.gz'):
+            with gzip.open(chem_comp_path, 'rt') as fp:
+                chem_comp_full_string = fp.read()
+        else:
+            raise ValueError(f"{chem_comp_path} must endswith .cif or .cif.gz.")
+        chem_comp_strings = split_chem_comp(chem_comp_full_string)
+        assert chem_comp_strings, f"Failed to parse {chem_comp_path}."
         # process all chains in complex one by one
         processed_data = {}
         for chain_id in sorted(res.mmcif_object.chain_to_seqres.keys()):
@@ -250,7 +286,7 @@ def process_pdb_complex(mmcif_path: str, chem_comp_dir: str):
                     # Do not process exception and standard residues
                     continue
                 graph = process_nonstandard_residue(
-                    residue, atoms, chem_comp_dir, removeHs=False)
+                    residue, atoms, chem_comp_strings[residue.name], removeHs=False)
                 if not graph:
                     logging.warning(f"Failed for {residue.name} in {mmcif_path}.")
                 else:
@@ -299,8 +335,8 @@ def show_one_complex(processed_data: dict):
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:
-        sys.exit(f"Usage: {sys.argv[0]} <input_mmcif_path> <chem_comp_directory>")
-    mmcif_path, chem_comp_dir = sys.argv[1:3]
+        sys.exit(f"Usage: {sys.argv[0]} <input_mmcif_path> <chem_comp_path>")
+    mmcif_path, chem_comp_path = sys.argv[1:3]
 
-    parsing_result = process_pdb_complex(mmcif_path, chem_comp_dir)
+    parsing_result = process_pdb_complex(mmcif_path, chem_comp_path)
     show_one_complex(parsing_result)
