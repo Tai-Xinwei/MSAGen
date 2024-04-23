@@ -1336,14 +1336,6 @@ class StackedSequenceIterableDataset(IterableDataset):
             f"number of stacked block in epoch {self.epoch-1} of rank {self.rank} is {self.num_blocks}"
         )
 
-        # blocks_per_worker = self.num_blocks // self.world_size
-        # my_start = self.rank * blocks_per_worker
-        # my_end = (
-        #     my_start + blocks_per_worker
-        #     if self.rank != self.world_size - 1
-        #     else self.num_blocks
-        # )
-
         for block in blocks:
             start, start_offset, end = block
             for idx in range(start, end + 1):
@@ -1363,14 +1355,11 @@ class StackedSequenceIterableDataset(IterableDataset):
                 self.buffer_len += len(item["aa"])
             except StopIteration:
                 # If there's no more data and the buffer is partially filled, return what's left
-                if not self.buffers:
-                    self.buffers = {}
-                    self.buffers_len = 0
-                    raise
-                else:
-                    self.buffers = {}
-                    self.buffers_len = 0
-                    raise
+                if self.buffers:
+                    for key in self.buffers.keys():
+                        self.buffers[key].clear()
+                self.buffer_len = 0
+                raise
 
         # Extract a sequence of exactly `sequence_length` from the buffers for each key
         result = {}
@@ -1396,6 +1385,8 @@ class StackedSequenceIterableDataset(IterableDataset):
 
         if self.buffer_len == self.sequence_length:
             self.buffer_len = 0
+            for key in self.buffers.keys():
+                self.buffers[key].clear()
         elif len(self.buffers["aa"]) == 0:
             self.buffer_len = 0
         else:

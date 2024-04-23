@@ -31,7 +31,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=2e-4
+[ -z "${max_lr}" ] && max_lr=1e-4
 [ -z "${total_num_steps}" ] && total_num_steps=200000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 
@@ -126,54 +126,54 @@ export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
-  DISTRIBUTED_ARGS=""
+DISTRIBUTED_ARGS=""
 else
-  if (( $OMPI_COMM_WORLD_SIZE == 1))
-  then
-    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
-                      --master_port $MASTER_PORT"
-  else
-    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
-                      --nnodes $OMPI_COMM_WORLD_SIZE \
-                      --node_rank $OMPI_COMM_WORLD_RANK \
-                      --master_addr $MASTER_ADDR"
-  fi
+if (( $OMPI_COMM_WORLD_SIZE == 1))
+then
+  DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
+                    --master_port $MASTER_PORT"
+else
+  DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
+                    --nnodes $OMPI_COMM_WORLD_SIZE \
+                    --node_rank $OMPI_COMM_WORLD_RANK \
+                    --master_addr $MASTER_ADDR"
+fi
 fi
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
-          --encoder_attention_heads $num_head \
-          --encoder_layers $layers \
-          --encoder_ffn_embed_dim $ffn_size \
-          --encoder_embed_dim $hidden_size \
-          --droppath_prob $droppath_prob \
-          --attn_dropout $attn_dropout \
-          --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
-          --sandwich_ln \
-          --dataset_names $dataset_name \
-          --data_path $data_path \
-          --save_dir $save_dir \
-          --seed 666666 \
-          --add_3d \
-          --ifstack \
-          --ifresume \
-          --diffmode $diffmode \
-          --mask_ratio $mask_ratio \
-          --noise_scale $noise_scale \
-          --d_tilde $d_tilde \
-          --strategy $strategy \
-          --max_lr $max_lr \
-          --num_timesteps 1000 \
-          --seq_masking_method $seq_masking_method \
-          --mode_prob $mode_prob --noise_mode $noise_mode\
-          --total_num_steps $total_num_steps \
-          --warmup_num_steps $warmup_num_steps \
-          --train_batch_size $train_batch_size --val_batch_size $val_batch_size --max_length $max_length \
-          --gradient_accumulation_steps $gradient_accumulation_steps \
-          --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
-          --save_batch_interval $save_batch_interval --log_interval $log_interval \
-          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+        --encoder_attention_heads $num_head \
+        --encoder_layers $layers \
+        --encoder_ffn_embed_dim $ffn_size \
+        --encoder_embed_dim $hidden_size \
+        --droppath_prob $droppath_prob \
+        --attn_dropout $attn_dropout \
+        --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
+        --sandwich_ln \
+        --dataset_names $dataset_name \
+        --data_path $data_path \
+        --save_dir $save_dir \
+        --seed 666666 \
+        --add_3d \
+        --ifstack \
+        --ifresume \
+        --diffmode $diffmode \
+        --mask_ratio $mask_ratio \
+        --noise_scale $noise_scale \
+        --d_tilde $d_tilde \
+        --strategy $strategy \
+        --max_lr $max_lr \
+        --num_timesteps 1000 \
+        --seq_masking_method $seq_masking_method \
+        --mode_prob $mode_prob --noise_mode $noise_mode\
+        --total_num_steps $total_num_steps \
+        --warmup_num_steps $warmup_num_steps \
+        --train_batch_size $train_batch_size --val_batch_size $val_batch_size --max_length $max_length \
+        --gradient_accumulation_steps $gradient_accumulation_steps \
+        --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
+        --save_batch_interval $save_batch_interval --log_interval $log_interval \
+        --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
 sleep inf
 sleep inf

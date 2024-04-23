@@ -483,7 +483,7 @@ class TOX(nn.Module):
                 ang_noise,
                 ang_sigma,
                 ang_epsilon,
-            ) = self.diffnoise._angle_noise_sample(ori_angle, time_ang)
+            ) = self.diffnoise._noise_sample(ori_angle, time_ang)
 
             # FIXME: ang_score is hard to identify if it is correct or not
             # ang_score = ts.score(
