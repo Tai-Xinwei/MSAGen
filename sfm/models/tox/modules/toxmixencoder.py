@@ -80,7 +80,7 @@ class TOXMixEncoder(nn.Module):
             self.quant_noise = None
 
         if pfm_config.encoder_normalize_before:
-            self.emb_layer_norm = LayerNorm(self.embedding_dim, export=export)
+            self.emb_layer_norm = torch.nn.LayerNorm(self.embedding_dim)
         else:
             self.emb_layer_norm = None
 
@@ -162,6 +162,7 @@ class TOXMixEncoder(nn.Module):
             pfm_config=pfm_config,
         )
 
+    @torch.compile
     def forward(
         self,
         batched_data,

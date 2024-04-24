@@ -4,7 +4,12 @@
 # 3. Specify the Azure storage account and container to use
 # 4. Submit the job with this yaml file
 
-description: diffP
+description: psm
+
+env_defaults:
+  NODES: 4
+  GPUS: 8
+  WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
 target:
   service: sing
@@ -39,18 +44,19 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: pfmtest
-  tags:
-  - 'ProjectID: PRJ-0209-A40'
-  sku: 4x80G8
+- name: psm
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
+  sku: ${NODES}xG${GPUS}
   mpi: true
   process_count_per_node: 1
   command:
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=psmpdm_dev
+  - export WANDB_TEAM=ai4s-sfm
+  - export wandb_group=pdm_dev
   - mkdir /blob/pfmexp/output
-  # - mkdir /blob/pfmexp/output/pfmdiff200M_prob433_diff2_angl1
-  # - mkdir /blob/pfmexp/output/pfmdiff200M_prob262_diff2_angl1
-  - mkdir /blob/pfmexp/output/pfmdiff650M_prob1261_m5_bs1024_epsilon_pair
-  - mkdir /blob/pfmexp/output/pfmdiff650M_prob1261_m5_bs1024_epsilon_pair/checkpoints
+  - mkdir /blob/pfmexp/output/pfmdiff650M_prob1261_m5_bs2048_ddpm_pair
+  - mkdir /blob/pfmexp/output/pfmdiff650M_prob1261_m5_bs2048_ddpm_pair/checkpoints
   - mkdir ./output
   - export path=run.sh
   - export layers=33
@@ -70,7 +76,7 @@ jobs:
   - export mask_ratio=0.5
   - export mode_prob=0.1,0.2,0.6,0.1
   - export d_tilde=1.0
-  - export max_lr=2e-4
+  - export max_lr=4e-5
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=2000000
@@ -78,14 +84,12 @@ jobs:
   - export train_batch_size=1024
   - export val_batch_size=1024
   - export max_tokens=12000
-  - export max_length=512
-  - export gradient_accumulation_steps=2
-  - export wandb_group=toxdiff
-  - export wandb_project=SFM_tox
+  - export max_length=1024
+  - export gradient_accumulation_steps=4
   - export log_interval=100
-  - export loadcheck_path=/blob/pfmexp/output/pfmdiff650M_prob1261_m5_bs1024_epsilon_pair/checkpoints
+  - export loadcheck_path=/blob/pfmexp/output/pfmdiff650M_prob1261_m5_bs2048_ddpm_pair/checkpoints
   - export data_path=/blob/data/afdb/AFDB50-plddt70.lmdb/
-  - export save_dir=/blob/pfmexp/output/pfmdiff650M_prob1261_m5_bs1024_epsilon_pair/checkpoints
+  - export save_dir=/blob/pfmexp/output/pfmdiff650M_prob1261_m5_bs2048_ddpm_pair/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - bash ./scripts/tox/pretrain_tox.sh

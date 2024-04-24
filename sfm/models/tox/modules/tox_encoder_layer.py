@@ -63,9 +63,9 @@ class TOXEncoderLayer(nn.Module):
                 dropout, module_name=self.__class__.__name__
             )
 
-        self.activation_dropout_module = FairseqDropout(
-            activation_dropout, module_name=self.__class__.__name__
-        )
+        # self.activation_dropout_module = FairseqDropout(
+        #     activation_dropout, module_name=self.__class__.__name__
+        # )
 
         # Initialize blocks
         self.activation_fn = get_activation_fn(activation_fn)
@@ -94,9 +94,8 @@ class TOXEncoderLayer(nn.Module):
 
         # sandwitch layernorm
         self.sandwich_ln = sandwich_ln
-        self.top_layer_norm = LayerNorm(self.embedding_dim, export=export)
-        self.mid_layer_norm = LayerNorm(self.embedding_dim, export=export)
-        self.final_layer_norm = LayerNorm(ffn_embedding_dim, export=export)
+        self.top_layer_norm = nn.LayerNorm(self.embedding_dim)
+        self.mid_layer_norm = nn.LayerNorm(self.embedding_dim)
 
         self.nl = nl
         self.args = args
@@ -125,13 +124,12 @@ class TOXEncoderLayer(nn.Module):
         self.fc2.reset_parameters()
         self.top_layer_norm.reset_parameters()
         self.mid_layer_norm.reset_parameters()
-        self.final_layer_norm.reset_parameters()
 
     def build_fc1(self, input_dim, output_dim, q_noise, qn_block_size):
-        return quant_noise(nn.Linear(input_dim, output_dim), q_noise, qn_block_size)
+        return nn.Linear(input_dim, output_dim, bias=False)
 
     def build_fc2(self, input_dim, output_dim, q_noise, qn_block_size):
-        return quant_noise(nn.Linear(input_dim, output_dim), q_noise, qn_block_size)
+        return nn.Linear(input_dim, output_dim, bias=False)
 
     def build_self_attention(
         self,
@@ -203,8 +201,6 @@ class TOXEncoderLayer(nn.Module):
         residual = x
         x = self.mid_layer_norm(x)
         x = self.activation_fn(self.fc1(x))
-        x = self.activation_dropout_module(x)
-        x = self.final_layer_norm(x)
         x = self.fc2(x)
         x = self.dropout_module(x)
         x = residual + x
