@@ -40,10 +40,10 @@ class GraphormerConfig:
     # TM and ddpm params
     transformer_m_pretrain: bool = True
     mode_prob: str = "0.6,0.2,0.2"
-    num_timesteps: int = 1000
-    ddpm_beta_start: float = 0.0001
-    ddpm_beta_end: float = 0.02
-    ddpm_schedule: str = "linear"
+    num_timesteps: int = 5000
+    ddpm_beta_start: float = 1e-7
+    ddpm_beta_end: float = 0.002
+    ddpm_schedule: str = "sigmoid"
     noise_mode: str = "const"
     num_edges: int = 1536
     num_atom_features: int = 5120
