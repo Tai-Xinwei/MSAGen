@@ -84,7 +84,6 @@ class TOXModel(Model):
                 checkpoints_state = checkpoints_state["model"]
             elif "module" in checkpoints_state:
                 checkpoints_state = checkpoints_state["module"]
-
             IncompatibleKeys = self.load_state_dict(checkpoints_state, strict=False)
             IncompatibleKeys = IncompatibleKeys._asdict()
 
@@ -861,19 +860,17 @@ class TOX(nn.Module):
                   this is specified in the input arguments.
         """
         residue_seq = batched_data["x"]
-        ori_pos = batched_data["pos"]
-        ori_angle = batched_data["ang"]
+        pos = batched_data["pos"]
+        angle = batched_data["ang"]
 
+        # mask pos and angle
+        pos_mask = batched_data["pos_mask"].bool().unsqueeze(-1)
+        pos = pos.masked_fill(~pos_mask, 0.0)
         angle_mask = batched_data["ang_mask"].bool()
-        ori_angle = ori_angle.masked_fill(~angle_mask, 100.0).to(ori_pos.dtype)
 
-        pos = ori_pos
-        angle = ori_angle
-        # ang_score, ang_score_norm = None, None
-
+        # time pos and angle is time_step
         time_pos = (
-            torch.ones((ori_pos.shape[0],), device=ori_pos.device, dtype=torch.long)
-            * time_step
+            torch.ones((pos.shape[0],), device=pos.device, dtype=torch.long) * time_step
         )
         time_angle = time_pos
 
@@ -895,6 +892,7 @@ class TOX(nn.Module):
             mask_aa=mask_aa,
             mask_pos=mask_pos,
             mask_angle=mask_angle,
+            angle_mask=angle_mask,
             time_pos=time_pos,
             time_angle=time_angle,
             time_aa=time_aa,
@@ -905,8 +903,8 @@ class TOX(nn.Module):
         )
 
         eos_mask = (residue_seq[:, :]).eq(2)
-        padding_mask = padding_mask | eos_mask
-        padding_mask[:, 0] = True
+        cls_mask = (residue_seq[:, :]).eq(0)
+        padding_mask = padding_mask | eos_mask | cls_mask
 
         x = x.transpose(0, 1)
         x = self.layer_norm(x)

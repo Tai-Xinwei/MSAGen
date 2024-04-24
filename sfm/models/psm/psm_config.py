@@ -52,8 +52,6 @@ class PSMConfig(GraphormerConfig):
 
     mode: str = "score"
 
-    ode_mode: bool = False
-
     # for PBC
     pbc_expanded_token_cutoff: int = 512
     pbc_expanded_num_cell_per_direction: int = 5

@@ -1,11 +1,19 @@
 # -*- coding: utf-8 -*-
+import json
+import math
 import os
 import sys
+from typing import Callable
 
 import numpy as np
 import torch
-from spyrmsd import molecule, rmsd
+from torch import distributed as dist
+from torch.autograd import grad
+
+# from spyrmsd import molecule, rmsd
 from tqdm import tqdm
+
+import wandb  # isort:skip
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
@@ -13,49 +21,34 @@ sys.path.extend([".", ".."])
 from sfm.criterions.mae3d import ProteinMAE3dCriterions
 from sfm.data.prot_data.dataset import BatchedDataDataset, ProteinLMDBDataset
 from sfm.logging import logger
+from sfm.models.tox.modules.physics import VESDE
 from sfm.models.tox.tox_config import TOXConfig
-from sfm.models.tox.toxmodel import TOXModel
+from sfm.models.tox.toxmodel import TOXModel, TOXPDEModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
-from sfm.pipeline.accelerator.trainer import Trainer
 from sfm.utils.cli_utils import cli
 from sfm.utils.move_to_device import move_to_device
 
 
 def linear_molecule_adjacency(n_atoms):
+    """
+    Args:
+        - n_atoms: number of atoms
+    Returns:
+        - neighbourhood matrix of a linear molecule
+    """
     adjacency_matrix = np.zeros((n_atoms, n_atoms))
     np.fill_diagonal(adjacency_matrix[1:], 1)
     np.fill_diagonal(adjacency_matrix[:, 1:], 1)
     return adjacency_matrix
 
 
-# def calculate_rmsd(actual_values, predicted_values):
-#     # Make sure the arrays have the same size
-#     assert len(actual_values) == len(predicted_values)
-
-#     # Calculate the square differences
-#     square_diffs = (actual_values - predicted_values) ** 2
-
-#     # Sum the square differences for each point
-#     sum_square_diffs = np.sum(square_diffs, axis=1)``
-
-#     # Calculate the mean of square differences
-#     mean_square_diff = np.mean(sum_square_diffs)
-
-#     # Take the square root of the mean
-#     rmsd = np.sqrt(mean_square_diff)
-
-#     return rmsd
-
-
-@cli(DistributedTrainConfig, TOXConfig)
-def main(args) -> None:
-    torch.distributed.init_process_group()
-
+def load_data(args):
     assert (
         args.data_path is not None and len(args.data_path) > 0
     ), f"lmdb_path is {args.data_path} it should not be None or empty"
 
     dataset = ProteinLMDBDataset(args)
+    logger.info(f"load data from {args.data_path}")
 
     trainset, valset = dataset.split_dataset(sort=False)
 
@@ -65,15 +58,6 @@ def main(args) -> None:
         vocab=dataset.vocab,
     )
 
-    model = TOXModel(args, loss_fn=ProteinMAE3dCriterions).cuda()
-    model.load_state_dict(
-        torch.load(args.loadcheck_path + "/mp_rank_00_model_states.pt")["module"]
-    )
-    logger.info(f"load model from {args.loadcheck_path}")
-
-    model.eval()
-
-    logger.info(f"world size is {args.world_size}, local rank: {args.local_rank}")
     sampler = torch.utils.data.distributed.DistributedSampler(
         val_data,
         num_replicas=args.world_size,
@@ -87,66 +71,178 @@ def main(args) -> None:
         sampler=sampler,
     )
 
-    loss_pos = torch.nn.MSELoss(reduction="mean")
-    batch_RMSD = 0.0
-    good_RMSD = 0.0
+    return dataloader
+
+
+def load_model(args):
+    model = TOXModel(args, loss_fn=ProteinMAE3dCriterions, load_ckpt=True).cuda()
+    logger.info(f"load model from {args.loadcheck_path}")
+
+    model.eval()
+
+    return model
+
+
+def get_VP(model: TOXPDEModel, t_total_steps=1000):
+    """
+    return the coefficient of mean and sigma^2 in VP
+    """
+    beta_list = model.net.diffnoise.beta_list.cuda()
+    alpha_cumprod = model.net.diffnoise.alphas_cumprod.cuda()
+
+    return alpha_cumprod, beta_list
+
+
+def get_VE(t_total_steps=1000):
+    """
+    return the coefficient of mean and sigma^2 in VE
+    """
+    ve_sde = VESDE()
+    # t : 0/(N-1), 1/(N-1), 2/(N-1) ... (N-1)/(N-1)
+    t = torch.linspace(0, 1, t_total_steps)
+
+    beta = ve_sde.sigma_term(t) ** 2
+    alpha = torch.ones_like(beta)
+
+    beta = beta.cuda()
+    alpha = alpha.cuda()
+
+    return alpha, beta
+
+
+def compute_angle_loss(loss, label, pred, mask):
+    # compute angle data loss only use the first 3 dimensions
+    ori_angle = label.masked_fill(~mask, 0.0)
+    angle_pred = pred.masked_fill(~mask, 0.0)
+    angle_loss = loss(
+        angle_pred.to(torch.float32),
+        ori_angle.to(torch.float32),
+    )
+
+    return angle_loss
+
+
+def compute_mae(label, pred, mask):
+    label_masked = label.masked_fill(~mask, 0.0)
+    pred_masked = pred.masked_fill(~mask, 0.0)
+    mae = torch.mean(torch.abs(label_masked - pred_masked), dim=(-1, -2))
+    mae_mean = torch.mean(mae)
+
+    return mae, mae_mean
+
+
+def compute_angle_rmsd(label, pred, mask, good_thresh=0.5):
+    good_angle_RMSD = 0
+    batch_angle_RMSD = 0.0
+    ori_angle = label.masked_fill(~mask, 0.0).cpu().numpy()
+    angle_pred = pred.masked_fill(~mask, 0.0).cpu().numpy()
+    for i in range(label.shape[0]):
+        ori_angle_i = ori_angle[i].reshape(-1, 3)
+        angle_pred_i = angle_pred[i].reshape(-1, 3)
+        RMSD_ANG = np.sqrt(np.mean(np.sum((ori_angle_i - angle_pred_i) ** 2, axis=-1)))
+        if RMSD_ANG <= good_thresh:
+            good_angle_RMSD += 1
+        batch_angle_RMSD += RMSD_ANG
+
+    return batch_angle_RMSD, good_angle_RMSD
+
+
+def derivative(t: torch.Tensor, func: Callable):
+    with torch.enable_grad():
+        t.requires_grad_(True)
+        derivative = grad(func(t).sum(), t, create_graph=False)[0].detach()
+        t.requires_grad_(False)
+    return derivative
+
+
+def export_json(file, tensor_dict):
+    with open(file, "w") as f:
+        for key, value in tensor_dict.items():
+            tensor_dict[key] = value.cpu().numpy().tolist()
+        json.dump(tensor_dict, f)
+
+
+@cli(DistributedTrainConfig, TOXConfig)
+def main(args) -> None:
+    # init distributed
+    torch.distributed.init_process_group()
+    torch.cuda.set_device(args.local_rank)
+
+    # load_data
+    dataloader = load_data(args)
+
+    # load model
+    model = load_model(args)
+
+    # X~N[alpha * X_0, beta * I]
+    t_total_steps = args.num_timesteps
+    alpha, beta = get_VE(t_total_steps)
+
+    loss_angle = torch.nn.MSELoss(reduction="mean")
+    batch_angle_RMSD = 0.0
+    good_angle_RMSD = 0.0
     sample_num = 0
     batch_num = 0
-    pos_loss = 0
-    ang_loss = 0
-    total_res = 0
-    right_num = 0
+    angle_loss = 0
 
-    beta_list = model.net.diffnoise.beta_list
-    alphas_cumprod_list = model.net.diffnoise.alphas_cumprod
-
+    # sample
     pbar = tqdm(dataloader)
     for batch in pbar:
         batch = move_to_device(batch, args.local_rank)
         with torch.no_grad():
-            ori_pos = batch["pos"].clone()
-            ori_angle = batch["ang"].clone()
-
-            angle_mask = ori_angle == float("inf")
-            ori_angle = ori_angle.masked_fill(angle_mask, 0.0).to(ori_pos.dtype)
-
-            pos_mask = ori_pos == float("inf")
-            ori_pos = ori_pos.masked_fill(pos_mask, 0.0)
-
+            """--------------------------------Mask--------------------------------"""
             residue_seq = batch["x"]
             mask_aa = batch["masked_aa"]
-            mask_aa = mask_aa.masked_fill(mask_aa, False)
             mask_pos = batch["mask_pos"]
             (
                 mask_aa,
                 mask_pos,
                 padding_mask,
                 _,
+                _,
                 mode_mask,
                 mask_angle,
             ) = model.net._set_mask(mask_aa, mask_pos, residue_seq)
-            pos, angle, time_pos, time_aa, _, _ = model.net._set_noise(
-                ori_pos,
-                ori_angle,
-                mask_pos,
-                mask_angle,
-                mode_mask,
-                time_step=100,
-                infer=True,
+
+            angle_mask = batch["ang_mask"].bool()
+            mask_angle = mask_pos.squeeze(-1)
+            unified_angle_mask = angle_mask[:,] & mask_angle
+            unified_angle_mask = unified_angle_mask[:, :, :3]
+
+            """--------------------------------Save ground truth x_0--------------------------------"""
+            ori_pos = batch["pos"].clone()
+            ori_angle = batch["ang"].clone()
+
+            """--------------------------------Sample X_T from Gaussion--------------------------------"""
+            ve_sde = VESDE()
+            sigma_max = ve_sde.sigma_max
+
+            batch["ang"] = torch.normal(
+                mean=0.0,
+                std=sigma_max,
+                size=batch["ang"].shape,
+                device=batch["ang"].device,
+                dtype=batch["ang"].dtype,
             )
 
-            angle = torch.remainder(angle, 2 * 3.1415926) - 3.1415926
+            const_filled = ori_angle[:, :, 3:]
 
-            batch["pos"] = pos
-            batch["ang"] = angle
+            time_pos = torch.tensor([1.0], device=ori_pos.device)
+            time_aa = torch.tensor([1.0], device=ori_pos.device)
 
-            for t in range(0, 1000)[::-999]:
-                last_step_coords = batch["pos"]
-                last_step_ang = batch["ang"]
+            """--------------------------------Solve Reverse SDE--------------------------------"""
 
-                logits, node_output, angle_output, _, _, _, _ = model.net.sample(
+            # iterate over time steps to compute the x0 with weighted sum xt
+            for i in range(0, t_total_steps - 1)[::-1]:
+                # We will compute X_i this time:
+                i / (t_total_steps - 1)
+                t1 = (i + 1) / (t_total_steps - 1)
+                last_angle = batch["ang"]
+
+                # Now the output is epsilon
+                logits, node_output, epsilon_output, _, _, _, _ = model.net.sample(
                     batch,
-                    time_step=t,
+                    time_step=t1,
                     mask_aa=mask_aa,
                     mask_pos=mask_pos,
                     mask_angle=mask_angle,
@@ -155,140 +251,165 @@ def main(args) -> None:
                     time_pos=time_pos,
                     time_aa=time_aa,
                 )
-                angle_output = angle_output.masked_fill(angle_mask.bool(), 0.0)
 
-                if t != 0:
-                    noisy_pos = (
-                        torch.sqrt(1 - beta_list[t])
-                        * (1 - alphas_cumprod_list[t - 1])
-                        * last_step_coords
-                        + beta_list[t]
-                        * torch.sqrt(alphas_cumprod_list[t - 1])
-                        * node_output
-                    ) / (1 - alphas_cumprod_list[t])
+                # TODO:whether there is -1 or 1
+                last_score = -epsilon_output / torch.sqrt(beta[i + 1])
 
-                    noisy_ang = (
-                        torch.sqrt(1 - beta_list[t])
-                        * (1 - alphas_cumprod_list[t - 1])
-                        * last_step_ang
-                        + beta_list[t]
-                        * torch.sqrt(alphas_cumprod_list[t - 1])
-                        * angle_output
-                    ) / (1 - alphas_cumprod_list[t])
+                if args.ode_mode:
+                    # noisy_angle = (
+                    #     last_angle[:, :, :3]
+                    #     + 1 / 2 * (beta[i + 1] - beta[i]) * last_score
+                    # )
+                    noisy_angle = (
+                        last_angle[:, :, :3] + (beta[i + 1] - beta[i]) * last_score
+                    )
                 else:
-                    noisy_pos = (beta_list[t] * node_output) / (
-                        1 - alphas_cumprod_list[t]
+                    z = torch.normal(
+                        mean=0.0,
+                        std=1.0,
+                        size=last_angle[:, :, :3].shape,
+                        device=last_angle.device,
+                        dtype=last_angle.dtype,
                     )
 
-                    noisy_ang = (beta_list[t] * angle_output) / (
-                        1 - alphas_cumprod_list[t]
+                    # # predictor without corrector
+                    # noisy_angle = (
+                    #     last_angle[:, :, :3]
+                    #     + 25 * (beta[i + 1] - beta[i]) * last_score
+                    #     + torch.sqrt(beta[i + 1] - beta[i]) * standard_gs
+                    # )
+
+                    # # auto-diff
+                    # dt = t1 - t0
+                    # noisy_angle = (
+                    #     last_angle[:, :, :3]
+                    #     + 3 / 2 * (beta[i + 1] - beta[i]) * last_score
+                    #     + derivative(
+                    #         torch.tensor(t1).cuda(), lambda x: ve_sde.sigma_term(x) ** 2
+                    #     )
+                    #     * dt
+                    #     * z
+                    # )
+
+                    # ancestral sampling
+                    noisy_angle = (
+                        last_angle[:, :, :3]
+                        + 25 * (beta[i + 1] - beta[i]) * last_score
+                        + torch.sqrt((beta[i] / beta[i + 1]) * (beta[i + 1] - beta[i]))
+                        * z
                     )
 
-                noisy_pos = noisy_pos.masked_fill(~mask_pos.bool(), 0.0)
-                noisy_ang = noisy_ang.masked_fill(~mask_angle.bool(), 0.0)
+                noisy_angle = noisy_angle.masked_fill(~mask_angle.bool(), 0.0)
+                noisy_angle = torch.cat([noisy_angle, const_filled], dim=-1)
 
-                noisy_ang = torch.remainder(noisy_ang, 2 * 3.1415926) - 3.1415926
+                batch["ang"] = noisy_angle
 
-                batch["pos"] = noisy_pos  # + visible_pos
-                batch["ang"] = noisy_ang  # + visible_pos
+                if i % 50 == 0:
+                    mae, mae_mean = compute_mae(
+                        label=ori_angle[:, :, :3],
+                        pred=batch["ang"][:, :, :3],
+                        mask=unified_angle_mask,
+                    )
 
-            node_output = batch["pos"]
-            angle_output = batch["ang"]
+                    angle_loss_curr = compute_angle_loss(
+                        loss=loss_angle,
+                        label=ori_angle[:, :, :3],
+                        pred=batch["ang"][:, :, :3],
+                        mask=unified_angle_mask,
+                    )
 
-            label_pos = ori_pos[mask_pos.squeeze(-1)]
-            pos_loss += (
-                loss_pos(
-                    node_output[mask_pos.squeeze(-1)].to(torch.float32),
-                    label_pos.to(torch.float32),
-                )
-                .sum(dim=-1)
-                .item()
+                    if args.local_rank == 0:
+                        logger.info(
+                            f"t_step: {i} rank: {args.local_rank} mae: {mae} mae_mean: {mae_mean} mse_mean: {angle_loss_curr}"
+                        )
+
+            """--------------------------------exsport json--------------------------------"""
+            tensor_dict = {
+                "ori_aa": batch["x"],
+                "ori_angle": ori_angle,
+                "pred_angle": batch["ang"],
+                "pos": ori_pos,
+                "ori_psi": ori_angle[:, :-1, 0],
+                "ori_phi": ori_angle[:, 1:, 1],
+                "ori_omg": ori_angle[:, 1:, 2],
+                "mae": mae,
+                "mae_mean": mae_mean,
+                "mse_mean": angle_loss_curr,
+            }
+            export_json(
+                f"output_protein_{args.local_rank}_batch_{batch_num}.json", tensor_dict
+            )
+            """--------------------------------compute loss--------------------------------"""
+            angle_loss_curr = compute_angle_loss(
+                loss=loss_angle,
+                label=ori_angle[:, :, :3],
+                pred=batch["ang"][:, :, :3],
+                mask=unified_angle_mask,
+            ).item()
+            angle_loss += angle_loss_curr
+
+            """--------------------------------compute rmsd--------------------------------"""
+            batch_angle_RMSD_curr, good_angle_RMSD_curr = compute_angle_rmsd(
+                label=ori_angle[:, :, :3],
+                pred=batch["ang"][:, :, :3],
+                mask=unified_angle_mask,
+                good_thresh=1.0,
             )
 
-            for i in range(batch["pos"].shape[0]):
-                coords1 = ori_pos[i][mask_pos[i].squeeze(-1)].view(-1, 3)
-                coords2 = node_output[i][mask_pos[i].squeeze(-1)].view(-1, 3)
-                natom = coords1.shape[0]
-                assert coords1.shape == coords2.shape and natom > 0
-                adj_matrx = linear_molecule_adjacency(natom)
+            batch_angle_RMSD += batch_angle_RMSD_curr
+            good_angle_RMSD += good_angle_RMSD_curr
 
-                coords1 = coords1.cpu().numpy()
-                coords2 = coords2.cpu().numpy()
-
-                RMSD = rmsd.symmrmsd(
-                    coords1,
-                    coords2,
-                    batch["x"][i, ...].cpu().numpy(),
-                    batch["x"][i, ...].cpu().numpy(),
-                    adj_matrx,
-                    adj_matrx,
-                    center=True,
-                    minimize=True,
-                )
-
-                if RMSD <= 2.0:
-                    good_RMSD += 1
-
-                batch_RMSD += RMSD
-
-            sample_num += batch["pos"].shape[0]
+            ## sum up
+            sample_num += batch["ang"].shape[0]
             batch_num += 1
-            running_rmsd = batch_RMSD / sample_num
-            running_pos_loss = pos_loss / batch_num
-
-            aa_seq = batch["x"][mask_aa.squeeze(-1).bool()]
-
-            logits = logits[:, :, :][mask_aa.squeeze(-1).bool()]
-
-            right_num += (
-                (logits.view(-1, logits.size(-1)).argmax(dim=-1) == aa_seq)
-                .sum()
-                .to(torch.float32)
-            )
-            total_res += aa_seq.view(-1).size(0)
-
-            angle_output = angle_output.masked_fill(angle_mask.bool(), 0.0)
-            label_angle = ori_angle[mask_angle.squeeze(-1)]
-            ang_loss += (
-                loss_pos(
-                    angle_output[mask_angle.squeeze(-1)].to(torch.float32),
-                    label_angle.to(torch.float32),
-                )
-                .sum(dim=-1)
-                .item()
-            )
-            running_ang_loss = ang_loss / batch_num
 
             pbar.set_postfix(
-                Running_rmsd=running_rmsd,
-                rmsd_2=good_RMSD / sample_num,
-                running_pos_loss=running_pos_loss,
-                running_ang_loss=running_ang_loss,
-                type_acc=right_num / total_res,
+                running_angle_loss=angle_loss / batch_num,
+                running_angle_rmsd=good_angle_RMSD / sample_num,
+                good_angle_RMSD=good_angle_RMSD / sample_num,
             )
 
-    # print(f"type acc: {right_num / total_res}, total residue num: {total_res}")
+            if args.local_rank == 0:
+                wandb.log(
+                    {
+                        "angle_loss": angle_loss / batch_num,
+                        "angle_rmsd": batch_angle_RMSD / sample_num,
+                        "good_angle_rmsd": good_angle_RMSD / sample_num,
+                        "total_sample_num": sample_num,
+                        "batch_num": batch_num,
+                    }
+                )
 
-    # all reduce rmsd, sample num, and type_acc
-    RMSD = torch.tensor(RMSD).cuda()
+    # all reduce the result
+    angle_loss = torch.tensor(angle_loss).cuda()
+    batch_angle_RMSD = torch.tensor(batch_angle_RMSD).cuda()
+    good_angle_RMSD = torch.tensor(good_angle_RMSD).cuda()
     sample_num = torch.tensor(sample_num).cuda()
-    total_res = torch.tensor(total_res).cuda()
-    right_num = torch.tensor(right_num).cuda()
+    batch_num = torch.tensor(batch_num).cuda()
 
-    torch.distributed.all_reduce(RMSD)
-    torch.distributed.all_reduce(sample_num)
-    torch.distributed.all_reduce(total_res)
-    torch.distributed.all_reduce(right_num)
+    dist.all_reduce(angle_loss)
+    dist.all_reduce(batch_angle_RMSD)
+    dist.all_reduce(good_angle_RMSD)
+    dist.all_reduce(sample_num)
+    dist.all_reduce(batch_num)
 
-    RMSD = RMSD.item()
+    angle_loss = angle_loss.item()
+    batch_angle_RMSD = batch_angle_RMSD.item()
+    good_angle_RMSD = good_angle_RMSD.item()
     sample_num = sample_num.item()
-    total_res = total_res.item()
-    right_num = right_num.item()
+    batch_num = batch_num.item()
 
     logger.info(
-        f"RMSD: {RMSD / sample_num}, total sample num: {sample_num}, residue acc: {right_num/total_res}"
+        f"angle_loss: {angle_loss / batch_num}, total sample num: {sample_num}, angle_rmsd: {batch_angle_RMSD / sample_num}, good_rmsd: {good_angle_RMSD / sample_num}"
     )
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        os.environ["WANDB_RUN_ID"] = wandb.util.generate_id()
+        main()
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt!")
+    finally:
+        wandb.finish()  # support to finish wandb logging
+        logger.info("wandb finish logging!")

@@ -583,9 +583,8 @@ class ProteinMAEDistPDECriterions(nn.Module):
 
         """----------------------type loss----------------------"""
         mask_aa = output_dict["mask_aa"]
+        logits = output_dict["x"]
         if mask_aa.any():
-            logits = output_dict["x"]
-
             with torch.no_grad():
                 aa_seq = batch_data["x"][mask_aa.squeeze(-1).bool()]
 
