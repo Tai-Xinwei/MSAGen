@@ -43,6 +43,7 @@ class MemEffAttn(nn.Module):
         d_tilde=1,
         add_rope=False,
         layer_norm=False,
+        add_quant_noise=False,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -69,22 +70,28 @@ class MemEffAttn(nn.Module):
             "Self-attention requires query, key and " "value to be of the same size"
         )
 
-        self.k_proj = quant_noise(
-            nn.Linear(self.kdim, embed_dim, bias=k_bias), q_noise, qn_block_size
-        )
-        self.v_proj = quant_noise(
-            nn.Linear(self.vdim, embed_dim, bias=v_bias), q_noise, qn_block_size
-        )
-        self.q_proj = quant_noise(
-            nn.Linear(embed_dim, embed_dim, bias=q_bias), q_noise, qn_block_size
-        )
+        if add_quant_noise:
+            self.k_proj = quant_noise(
+                nn.Linear(self.kdim, embed_dim, bias=k_bias), q_noise, qn_block_size
+            )
+            self.v_proj = quant_noise(
+                nn.Linear(self.vdim, embed_dim, bias=v_bias), q_noise, qn_block_size
+            )
+            self.q_proj = quant_noise(
+                nn.Linear(embed_dim, embed_dim, bias=q_bias), q_noise, qn_block_size
+            )
 
-        self.out_proj = quant_noise(
-            nn.Linear(embed_dim, embed_dim, bias=o_bias), q_noise, qn_block_size
-        )
+            self.out_proj = quant_noise(
+                nn.Linear(embed_dim, embed_dim, bias=o_bias), q_noise, qn_block_size
+            )
+        else:
+            self.k_proj = nn.Linear(self.kdim, embed_dim, bias=k_bias)
+            self.v_proj = nn.Linear(self.vdim, embed_dim, bias=v_bias)
+            self.q_proj = nn.Linear(embed_dim, embed_dim, bias=q_bias)
+            self.out_proj = nn.Linear(embed_dim, embed_dim, bias=o_bias)
 
         if layer_norm:
-            self.layer_norm = LayerNorm(embed_dim)
+            self.layer_norm = nn.LayerNorm(embed_dim)
         else:
             self.layer_norm = None
 

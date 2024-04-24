@@ -84,7 +84,7 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin "$WANDB_API_KEY"
+wandb login --relogin --host=https://microsoft-research.wandb.io "$WANDB_API_KEY"
 
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]

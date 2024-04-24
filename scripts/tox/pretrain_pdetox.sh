@@ -161,7 +161,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_pdetox.py \
           --diffmode $diffmode \
           --strategy $strategy \
           --max_lr $max_lr \
-          --t_timesteps 1000 \
+          --num_timesteps 1000 \
           --seq_masking_method $seq_masking_method \
           --mode_prob $mode_prob --noise_mode $noise_mode\
           --total_num_steps $total_num_steps \
@@ -171,6 +171,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_pdetox.py \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
+          --ifresume
 
 
 sleep inf

@@ -556,7 +556,7 @@ class Trainer(object):
                 self.state.batch = 0
 
                 log_output = self.build_log_output(loss_accumulator.averge_loss)
-                metric_logger.log(log_output, "train", self.state.epoch)
+                metric_logger.log(log_output, "train", self.state.global_step)
 
                 if self.should_do_epoch_validate():
                     valid_log = self.validate()
@@ -707,7 +707,7 @@ class Trainer(object):
             epoch=self.state.epoch,
             extra_output={**interval_loss_accumulator.averge_log, **metric_results},
         )
-        metric_logger.log(valid_log, "valid", self.state.epoch)
+        metric_logger.log(valid_log, "valid", self.state.global_step)
         return valid_log
 
     def _save_rng_and_iter_state(self, checkpoint):

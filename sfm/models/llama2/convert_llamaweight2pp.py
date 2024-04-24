@@ -11,9 +11,7 @@ from tqdm import tqdm
 # from transformers import AutoTokenizer
 
 
-def convert():
-    ckpdir = "/home/peiran/FMproj/llama2/llama-2-70b/"
-
+def convert(ckpdir="/home/peiran/FMproj/llama2/llama-2-70b/"):
     files = [file for file in os.listdir(ckpdir) if file.endswith(".pth")]
     files.sort()
 
@@ -34,13 +32,16 @@ def convert():
     # inv_freq = 1.0 / (base ** (torch.arange(0, dims_per_head, 2).float() / dims_per_head))
 
     if "n_kv_heads" in params:
+        print(
+            f"Using {params['n_kv_heads']} key-value heads, {n_heads} total heads, {encoder_dim} total dim"
+        )
         num_key_value_heads = params["n_kv_heads"]  # for GQA / MQA
-        key_value_dim = encoder_dim // num_key_value_heads
+        key_value_dim = encoder_dim // (n_heads // num_key_value_heads)
     else:  # compatibility with other checkpoints
         num_key_value_heads = n_heads
         key_value_dim = encoder_dim
 
-    vocab_size = 32000
+    vocab_size = params["vocab_size"]
 
     for file in files:
         if not file.endswith(".pth"):
@@ -50,7 +51,7 @@ def convert():
         print(file, ckp.keys())
         # print(ckp['rope.freqs'].shape)
         if "rope.freqs" in ckp.keys():
-            rope_freqs = ckp["rope.freqs"]
+            ckp["rope.freqs"]
 
         # # print(ckp.keys())
         for key in ckp.keys():
@@ -72,7 +73,8 @@ def convert():
             elif key == "norm.weight":
                 if "norm.weight" not in normckp.keys():
                     normckp["norm.weight"] = ckp[key]
-                    torch.save(normckp, ckpdir + "/model.norm.pt")
+                    # torch.save(normckp, ckpdir + "/model.norm.pt")
+                    torch.save(normckp, ckpdir + "/layer_33-model_states.pt")
             elif key == "output.weight":
                 if "lm_head.weight" not in lmheadckp.keys():
                     lmheadckp["lm_head.weight"] = ckp[key]
@@ -91,8 +93,9 @@ def convert():
             elif key == "rope.freqs":
                 pass
             else:
-                nl = key.split(".")[1]
-                ckpname = "/model.layers." + nl + ".pt"
+                nl = int(key.split(".")[1])
+                # ckpname = "/model.layers." + nl + ".pt"
+                ckpname = f"layer_{str(nl+1).zfill(2)}-model_states.pt"
                 if ckpname not in layerckp.keys():
                     layerckp[ckpname] = {}
 
@@ -139,7 +142,7 @@ def convert():
         )
 
     for layer in layerckp.keys():
-        layerckp[layer]["self_attn.rotary_emb.inv_freq"] = rope_freqs
+        # layerckp[layer]["self_attn.rotary_emb.inv_freq"] = rope_freqs
         for name in layerckp[layer].keys():
             if name.find("q_proj") != -1 or name.find("k_proj") != -1:
                 if layerckp[layer][name].shape[0] == layerckp[layer][name].shape[1]:
@@ -154,9 +157,9 @@ def convert():
 
         torch.save(layerckp[layer], ckpdir + layer)
 
-    torch.save(embckp, ckpdir + "/model.hybrid_emb.pt")
-    torch.save(lmheadckp, ckpdir + "/model.lm_head.pt")
+    torch.save(embckp, ckpdir + "/layer_00-model_states.pt")
+    torch.save(lmheadckp, ckpdir + "/layer_34-model_states.pt")
 
 
 if __name__ == "__main__":
-    pass
+    convert(ckpdir="/data/peiran/blob/hai1data/sfm/llama/Meta-Llama-3-8B/original/")
