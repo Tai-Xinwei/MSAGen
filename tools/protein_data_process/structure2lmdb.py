@@ -1,21 +1,24 @@
 # -*- coding: utf-8 -*-
 import datetime
+import gzip
+import json
+import logging
+from io import StringIO
 from pathlib import Path
-from typing import List, Union
+from typing import List
+from typing import Union
 
 import click
 import lmdb
-from joblib import Parallel, delayed
+import numpy as np
+from joblib import delayed
+from joblib import Parallel
 from tqdm import tqdm
 
-from commons import bstr2obj, obj2bstr, Protein
-import logging
-import commons
-from io import StringIO
-import gzip
-import json
-import numpy as np
-
+from commons import bstr2obj
+from commons import fix_structure
+from commons import obj2bstr
+from commons import Protein
 from process_pdb_complex import process_pdb_complex
 
 
@@ -56,52 +59,77 @@ def cli():
 
 
 @cli.command()
-@click.argument("mmcifdir", type=click.Path(exists=True))
-@click.argument("chemcompdir", type=click.Path(exists=True))
-@click.argument("inplist", type=click.Path(readable=True))
-@click.argument("outfile", type=click.Path(writable=True))
-@click.option("--num-workers", type=int, default=-1, help="Number of workers.")
-@click.option("--comment", type=str, default="", help="Comments for output.")
-def processpdb(mmcifdir: str, chemcompdir: str, inplist: str, outfile: str,
-               num_workers: int, comment: str):
+@click.option("--mmcif-dir",
+              type=click.Path(exists=True),
+              help="Input directory of mmCIF files rsync from RCSB.")
+@click.option("--input-list",
+              type=click.Path(exists=True),
+              help="Input list of 4 character long PDBID.")
+@click.option("--chem-comp",
+              type=click.Path(exists=True),
+              default="components.cif",
+              help="Input mmCIF file of all chemical components.")
+@click.option("--output-lmdb",
+              type=click.Path(exists=False),
+              default="output.lmdb",
+              help="Output lmdb file.")
+@click.option("--num-workers",
+              type=int,
+              default=-1,
+              help="Number of workers.")
+@click.option("--data-comment",
+              type=str,
+              default="PDB datetime cutoff 20200430",
+              help="Comments for output.")
+def processpdb(mmcif_dir: str, input_list: str, chem_comp: str,
+               output_lmdb: str, num_workers: int, data_comment: str):
     """Process training data from mmCIF files and save to lmdb."""
-    logger.warning(f"Processing struture for list {inplist}.")
+    logger.warning(f"Processing struture for list {input_list}.")
     pdbids = []
-    with open(inplist, 'r') as fp:
+    with open(input_list, 'r') as fp:
         for line in fp:
             pdbids.append(line.strip())
-    assert all(4==len(_) for _ in pdbids), (
-        f"ERROR: PDBID should be 4 characters long in {inplist}.")
-    logger.warning(f"Found {len(pdbids)} structures in {mmcifdir}.")
+    assert pdbids and all(4==len(_) for _ in pdbids), (
+        f"ERROR: PDBID should be 4 characters long in {input_list}.")
+    logger.warning(f"Will process {len(pdbids)} structures in {mmcif_dir}.")
 
-    if Path(outfile).exists():
-        logger.warning(f"Output file {outfile} exists. Stop.")
+    if Path(output_lmdb).exists():
+        logger.warning(f"Output file {output_lmdb} exists. Stop.")
         return
-    logger.warning(f"Save to {outfile}")
+    logger.warning(f"Save to {output_lmdb}")
 
-    def _process_one(pdbid: str, mmcif_dir: str, chem_comp_dir: str):
-        mmcif_path = str( Path(mmcif_dir) / f"{pdbid}.cif" )
-        data = process_pdb_complex(mmcif_path, chem_comp_dir)
+    def _process_one_pdb(pdbid: str, mmcif_dir: str, chem_comp_path: str):
+        cifgzpath = Path(mmcif_dir) / f'{pdbid[1:3]}' / f'{pdbid}.cif.gz'
+        cifpath = Path(mmcif_dir) / f'{pdbid}.cif'
+        if cifgzpath.exists():
+            mmcif_path = str( cifgzpath )
+        elif cifpath.exists():
+            mmcif_path = str( cifpath )
+        else:
+            mmcif_path = ''
+        data = process_pdb_complex(mmcif_path, chem_comp_path)
         if not data:
             return pdbid, None
         return pdbid, obj2bstr(data)
 
-    env = lmdb.open(outfile, map_size=1024**4)
+    env = lmdb.open(output_lmdb, map_size=1024**4)
     metadata = {'keys': [],
                 'comment': (f'Created time: {datetime.datetime.now()}\n'
-                            f'Structure directory: {mmcifdir}\n'
-                            f'Chem_comp directory: {chemcompdir}\n'
-                            f'Input list: {inplist}\n'
-                            f'Comments: {comment}\n')}
+                            f'Structure directory: {mmcif_dir}\n'
+                            f'Input pdbid list: {input_list}\n'
+                            f'Chemical components: {chem_comp}\n'
+                            f'Output lmdb: {output_lmdb}\n'
+                            f'Number of workers: {num_workers}\n'
+                            f'Comments: {data_comment}\n')}
     pbar = tqdm(total=len(pdbids)//1000+1, desc='Processing chunks (1k)')
     for path_chunk in chunks(pdbids, 1000):
         res_chunk = Parallel(n_jobs=num_workers)(
-            delayed(_process_one)(i, str(mmcifdir), str(chemcompdir))
+            delayed(_process_one_pdb)(i, str(mmcif_dir), str(chem_comp))
             for i in tqdm(path_chunk, leave=False, desc="Processing...")
         )
         with env.begin(write=True) as txn:
             for name, res in res_chunk:
-                if not res:
+                if res:
                     txn.put(name.encode(), res)
                     metadata['keys'].append(name)
         pbar.update(1)
@@ -211,7 +239,7 @@ def fix_item(pdb_file: Path, format: str, indir: Path, outdir: Path):
         with open(pdb_file, "r") as f:
             pdb_str = f.read()
     try:
-        fixed_str = commons.fix_structure(StringIO(pdb_str), format=format).getvalue()
+        fixed_str = fix_structure(StringIO(pdb_str), format=format).getvalue()
     except Exception as e:
         print(f"Error in {pdb_file}: {e} {e.args}, skipping.")
         return False
