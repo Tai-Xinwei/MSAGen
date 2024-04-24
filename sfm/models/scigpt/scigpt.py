@@ -5,6 +5,8 @@ from typing import Optional, Tuple
 import torch
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LRScheduler
+from transformers import LlamaForCausalLM
+from transformers.models.llama.configuration_llama import LlamaConfig
 
 from sfm.criterions.autoregressive import AutoregressiveCriterion
 from sfm.logging import logger
@@ -23,6 +25,9 @@ class ScigptModel(SFMPipelineModelMixin):
         super().__init__()
         self.config = config
         self.loss = AutoregressiveCriterion(config)
+        if config.infer:
+            llama_config = LlamaConfig.from_pretrained(config.llm_model_name_or_path)
+            self.decoder = LlamaForCausalLM(llama_config)
 
     def to_layers(self):
         layers = []
