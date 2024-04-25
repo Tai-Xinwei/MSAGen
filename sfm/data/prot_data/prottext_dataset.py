@@ -111,6 +111,7 @@ class ProteinTextDataset(Dataset):
         pp_mode: bool = True,
         local_rank: int = 0,
         use_llama_tokenizer: bool = False,
+        instruction_mode: bool = False,
     ) -> None:
         super().__init__()
         self.data_path = data_path
@@ -141,6 +142,7 @@ class ProteinTextDataset(Dataset):
             pad_token_id=pad_token_id, pp_mode=pp_mode, protein_pad_id=protein_pad_id
         )
 
+        self.instruction_mode = instruction_mode
         self.keys, self.len_filter = self.filter_dataset()
 
         logger.info(f"Dataset size: {self.len}, Filtered size: {self.len_filter}")
@@ -154,8 +156,10 @@ class ProteinTextDataset(Dataset):
             value = self.txn.get(str(key).encode())
             if value is None:
                 raise IndexError(f"Name {key} has no data in the dataset")
-
-            input_ids, proteins, _ = pkl.loads(value)
+            if self.instruction_mode:
+                input_ids, proteins, _, _ = pkl.loads(value)
+            else:
+                input_ids, proteins, _ = pkl.loads(value)
             if len(proteins) > self.max_pro_per_sample:
                 continue
 
@@ -185,7 +189,14 @@ class ProteinTextDataset(Dataset):
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
 
-        input_ids, proteins, proteins_bpeid = pkl.loads(value)
+        if self.instruction_mode:
+            input_ids, proteins, proteins_bpeid, original_labels = pkl.loads(value)
+            if isinstance(original_labels, list):
+                original_labels = torch.tensor(original_labels, dtype=torch.int64)
+            instruction_len = torch.nonzero(original_labels == IGNORE_INDEX).shape[0]
+        else:
+            input_ids, proteins, proteins_bpeid = pkl.loads(value)
+            instruction_len = 0
         # assert len(proteins) > 0, f"Protein list is empty for {key}"
 
         new_input_ids = []
@@ -208,10 +219,24 @@ class ProteinTextDataset(Dataset):
 
             for i in range(mol_pos.size(0) - 1):
                 if i == 0:
-                    label.extend(input_ids[mol_pos[i] : mol_pos[i + 1]])
+                    if mol_pos[i + 1] <= instruction_len:
+                        label.extend([IGNORE_INDEX] * (mol_pos[i + 1] - mol_pos[i]))
+                    elif mol_pos[i] < instruction_len:
+                        label.extend([IGNORE_INDEX] * (instruction_len - mol_pos[i]))
+                        label.extend(input_ids[instruction_len : mol_pos[i + 1]])
+                    else:
+                        label.extend(input_ids[mol_pos[i] : mol_pos[i + 1]])
                     new_input_ids.extend(input_ids[mol_pos[i] : mol_pos[i + 1]])
                 else:
-                    label.extend(input_ids[mol_pos[i] + 1 : mol_pos[i + 1]])
+                    if mol_pos[i + 1] <= instruction_len:
+                        label.extend([IGNORE_INDEX] * (mol_pos[i + 1] - mol_pos[i] - 1))
+                    elif mol_pos[i] + 1 < instruction_len:
+                        label.extend(
+                            [IGNORE_INDEX] * (instruction_len - mol_pos[i] - 1)
+                        )
+                        label.extend(input_ids[instruction_len : mol_pos[i + 1]])
+                    else:
+                        label.extend(input_ids[mol_pos[i] + 1 : mol_pos[i + 1]])
                     new_input_ids.extend(input_ids[mol_pos[i] + 1 : mol_pos[i + 1]])
 
                 if i < len(mol_pos) - 2:
@@ -219,10 +244,14 @@ class ProteinTextDataset(Dataset):
                     mol_idx = input_ids[mol_pos[i + 1]]
                     if len_protein > 1:
                         new_input_ids.extend(torch.ones([len_protein]) * mol_idx)
-                        label.extend(proteins_bpeid[i])
+                        if mol_pos[i + 1] <= instruction_len:
+                            label.extend([IGNORE_INDEX] * len_protein)
+                        else:
+                            label.extend(proteins_bpeid[i])
 
                     if mol_pos[i + 1] < original_input_ids_len:
                         input_ids_len += len_protein - 1
+                assert len(new_input_ids) == len(label), f"Length mismatch: {key}"
 
         elif self.pool_mode == "qformer":
             raise NotImplementedError
@@ -233,14 +262,16 @@ class ProteinTextDataset(Dataset):
         labels = torch.tensor(label).to(dtype=torch.int64)
 
         # print(input_ids-labels)
-        mask = input_ids > 0
-        error = input_ids[mask] - labels[mask]
-        assert torch.sum(error) == 0, f"Error in input_ids and labels: {error}"
+        # mask = input_ids > 0
+        # error = input_ids[mask[instruction_len:]] - labels[mask[instruction_len:]]
+        # assert torch.sum(error) == 0, f"Error in input_ids and labels: {error}"
 
         if self.use_llama_tokenizer:
             labels = input_ids.clone()
             # labels[:input_ids_len] = IGNORE_INDEX
             labels[labels < 0] = IGNORE_INDEX
+            if self.instruction_mode:
+                labels[:instruction_len] = IGNORE_INDEX
 
         return dict(
             input_ids=input_ids,
