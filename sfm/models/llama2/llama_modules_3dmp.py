@@ -352,7 +352,7 @@ class ParallelLlamaAttention(SFMModule):
     def forward(
         self,
         hidden_states,
-        attention_mask,
+        attention_mask=None,
         rotary_pos_emb_func=None,
         rotary_pos_emb=None,
         position_ids=None,
@@ -376,8 +376,8 @@ class ParallelLlamaAttention(SFMModule):
         xk = xk.transpose(1, 2)
         xv = xv.transpose(1, 2)
 
-        kv_seq_len = xk.shape[-2]
-        cos, sin = self.rotary_emb(xv, seq_len=kv_seq_len)
+        # kv_seq_len = xk.shape[-2]
+        cos, sin = self.rotary_emb(xv, position_ids)
         xq, xk = apply_rotary_pos_emb(xq, xk, cos, sin, position_ids)
 
         # repeat k/v heads if n_kv_heads < n_heads
@@ -390,11 +390,16 @@ class ParallelLlamaAttention(SFMModule):
 
         bs, nh, Slen, Hidden = xq.shape
 
+        if attention_mask is not None:
+            attention_mask = attention_mask.view(
+                bs, 1, 1, Slen
+            )  # .expand(bs, nh, Slen, Slen)
+
         with torch.backends.cuda.sdp_kernel(
-            enable_math=True, enable_mem_efficient=True, enable_flash=False
+            enable_math=False, enable_mem_efficient=True, enable_flash=True
         ):
             context_layer = F.scaled_dot_product_attention(
-                xq, xk, xv, attn_mask=attention_mask
+                xq, xk, xv, is_causal=True, attn_mask=attention_mask
             )
         context_layer = (
             context_layer.transpose(1, 2).contiguous().reshape(bs, Slen, nh * Hidden)
@@ -524,12 +529,17 @@ class LlamaDecoderLayerMP(SFMModule):
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
 
-        attention_mask = torch.zeros_like(
-            attention_mask_bool, dtype=hidden_states.dtype, device=hidden_states.device
-        )
-        attention_mask.masked_fill_(
-            ~attention_mask_bool, torch.finfo(hidden_states.dtype).min
-        )
+        if (~attention_mask_bool).any():
+            attention_mask = None
+        else:
+            attention_mask = torch.zeros_like(
+                attention_mask_bool,
+                dtype=hidden_states.dtype,
+                device=hidden_states.device,
+            )
+            attention_mask.masked_fill_(
+                ~attention_mask_bool, torch.finfo(hidden_states.dtype).min
+            )
 
         hidden_states = self.self_attn(
             hidden_states=hidden_states,
@@ -539,16 +549,13 @@ class LlamaDecoderLayerMP(SFMModule):
             position_ids=position_ids,
         )[0]
         hidden_states = residual + hidden_states
-        # torch.save({f"hidden_states": hidden_states}, f"/home/peiran/mnt/mntsfm2/output/hidden_states_mid_mp_0.pt")
 
         # Fully Connected
         residual = hidden_states
         hidden_states = self.post_attention_layernorm(hidden_states)
-        # torch.save({f"hidden_states_postln{self.no_layer}": hidden_states}, f"/home/peiran/mnt/mntsfm2/output/hidden_states_postln_mp_{self.no_layer}.pt")
         hidden_states = self.mlp(hidden_states)
         hidden_states = residual + hidden_states
 
-        # torch.save({f"hidden_states{self.no_layer}": hidden_states}, f"/home/peiran/mnt/mntsfm2/output/hidden_states_mp_{self.no_layer}.pt")
         outputs = (
             hidden_states.contiguous(),
             attention_mask_bool.contiguous(),
@@ -569,8 +576,6 @@ class FusedLlamaNorm(SFMModule):
         hidden_states, _, _ = input_tuple
 
         hidden_states = self.norm(hidden_states)
-        # logger.info(f"hidden_states -1: {hidden_states}")
-        # torch.save({"hidden_states-1": hidden_states}, "/home/peiran/mnt/mntsfm2/output/hidden_states_mp.pt")
 
         return (hidden_states,)
 
@@ -663,6 +668,101 @@ class LlamaEmbeddingsMP(Embedding, SFMModule):
         text_embeds = text_embeds.transpose(0, 1)
 
         return mol_emb, mol_padding_mask, text_embeds, llm_mask, input_ids
+
+
+class LlamaLLMEmbeddingsMP(Embedding, SFMModule):
+    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
+        super().__init__(
+            config.hidden_size,
+            config.vocab_size,
+            max_sequence_length=config.max_position_embeddings,
+            embedding_dropout_prob=0.0,
+            config=config,
+            num_tokentypes=0,
+            embedding_weights_in_fp32=False,
+        )
+        self.config = config
+        self.learnable_cutoff = learnable_cutoff
+        self.word_embeddings.weight.register_hook(self.freeze_parital_weight_hook)
+
+    @property
+    def emb_weight(self):
+        return self.word_embeddings.weight
+
+    def auto_partition_load_state_dict(
+        self,
+        state_dict: Mapping[str, Any],
+        tp_model_size: int,
+        tp_rank: int,
+        strict: bool = True,
+    ):
+        keys = list(state_dict.keys())
+        new_state_dict = {}
+        for key in keys:
+            param = state_dict[key]
+            if key == "embed_tokens.weight":
+                if param.size()[0] < self.config.vocab_size:
+                    mean_embedding = torch.mean(param, dim=0, keepdim=True).expand(
+                        [self.config.vocab_size - param.size()[0], param.size()[1]]
+                    )
+                    std_embedding = torch.std(param, dim=0, keepdim=True).expand(
+                        [self.config.vocab_size - param.size()[0], param.size()[1]]
+                    )
+                    param = torch.cat(
+                        [param, torch.normal(mean=mean_embedding, std=std_embedding)],
+                        dim=0,
+                    )
+                new_state_dict["word_embeddings.weight"] = param
+
+        del state_dict
+
+        return super().auto_partition_load_state_dict(
+            new_state_dict, tp_model_size, tp_rank, strict
+        )
+
+    def freeze_parital_weight_hook(self, grad):
+        # offset the learnable cutoff by vocabulary partitioning in tensor parallel
+        if self.learnable_cutoff >= self.word_embeddings.vocab_end_index:
+            grad[:, :] = 0
+        elif self.learnable_cutoff > self.word_embeddings.vocab_start_index:
+            grad[
+                : self.learnable_cutoff - self.word_embeddings.vocab_start_index, :
+            ] = 0
+        return grad
+
+    def forward(
+        self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+    ):
+        input_ids, llm_mask = input_tuple
+
+        # Get text embeddings from language model
+        ## set position_ids, it's not used.
+        if input_ids is not None:
+            batch_size, seq_length = input_ids.shape
+        else:
+            raise ValueError("decoder_input_ids cannot be None")
+
+        past_key_values_length = 0
+        device = input_ids.device
+        position_ids = torch.arange(
+            past_key_values_length,
+            seq_length + past_key_values_length,
+            dtype=torch.long,
+            device=device,
+        )
+        position_ids = position_ids.unsqueeze(0).view(-1, seq_length)
+
+        # export demension of text embeddings [seq_len, batch_size, hidden_size]
+        # Get text embeddings from language model
+        mol_idx_mask = input_ids < 0  # B, T
+
+        text_embeds = super().forward(
+            input_ids.masked_fill(mol_idx_mask, 0), position_ids
+        )
+        # transpose to [batch_size, seq_len, hidden_size] for hybrid embedding
+        text_embeds = text_embeds.transpose(0, 1)
+
+        return text_embeds, llm_mask, position_ids
 
 
 class NumMLPMP(nn.Module):

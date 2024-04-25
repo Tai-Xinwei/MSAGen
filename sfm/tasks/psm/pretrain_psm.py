@@ -11,6 +11,7 @@ from sfm.data.psm_data.unifieddataset import BatchedDataDataset, UnifiedPSMDatas
 from sfm.logging import logger
 from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions
 from sfm.models.psm.psm_config import PSMConfig
+from sfm.models.psm.psm_optimizer import DECAY_COSINE_RATE, groupWarmupDecayLR, myAdam
 from sfm.models.psm.psmmodel import PSMModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 from sfm.pipeline.accelerator.trainer import Trainer
@@ -31,9 +32,27 @@ def main(args) -> None:
     ### define psm models here, define the diff loss in DiffMAE3dCriterions
     model = PSMModel(args, loss_fn=DiffMAE3dCriterions)
 
+    # define optimizer here
+    optimizer = myAdam(
+        model,
+        lr=args.max_lr,
+        betas=[0.9, 0.999],
+        weight_decay=args.weight_decay,
+        eps=1e-8,
+    )
+    lr_scheduler = groupWarmupDecayLR(
+        optimizer,
+        total_num_steps=args.total_num_steps,
+        warmup_max_lr=args.max_lr,
+        warmup_num_steps=args.warmup_num_steps,
+        decay_type=DECAY_COSINE_RATE,
+    )
+
     trainer = Trainer(
         args,
         model,
+        optimizer=optimizer,
+        lr_scheduler=lr_scheduler,
         train_data=train_data,
         valid_data=valid_data,
     )

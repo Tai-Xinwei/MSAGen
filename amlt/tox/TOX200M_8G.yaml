@@ -7,7 +7,7 @@
 description: psm
 
 env_defaults:
-  NODES: 4
+  NODES: 1
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -49,8 +49,8 @@ jobs:
   - export WANDB_TEAM=ai4s-sfm
   - export wandb_group=pdm_dev
   - mkdir /blob/pfmexp/output
-  - mkdir /blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair
-  - mkdir /blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair/checkpoints
+  - mkdir /blob/pfmexp/output/pfmdiff150M_8G_prob1261_m5_bs2048_ddpm_pair
+  - mkdir /blob/pfmexp/output/pfmdiff150M_8G_prob1261_m5_bs2048_ddpm_pair/checkpoints
   - mkdir ./output
   - export path=run.sh
   - export layers=12
@@ -80,12 +80,12 @@ jobs:
   - export val_batch_size=2048
   - export max_tokens=16000
   - export max_length=1024
-  - export gradient_accumulation_steps=2
+  - export gradient_accumulation_steps=8
   - export log_interval=100
-  - export loadcheck_path=/blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair/checkpoints
+  - export loadcheck_path=/blob/pfmexp/output/pfmdiff150M_8G_prob1261_m5_bs2048_ddpm_pair/checkpoints
   # - export data_path=/blob/data/afdb/48organisms-fullatom.lmdb/
   - export data_path=/blob/data/afdb/AFDB50-plddt70.lmdb/
-  - export save_dir=/blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair/checkpoints
+  - export save_dir=/blob/pfmexp/output/pfmdiff150M_8G_prob1261_m5_bs2048_ddpm_pair/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - bash ./scripts/tox/pretrain_tox.sh

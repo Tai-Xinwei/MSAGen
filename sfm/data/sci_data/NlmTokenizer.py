@@ -2,12 +2,13 @@
 import re
 
 from transformers import LlamaTokenizer
+from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
 from sfm.logging import logger
 from sfm.utils.science_tokens import SCIENCE_TAG_TOKENS, SCIENCE_TOKENS
 
 
-class NlmTokenizer(LlamaTokenizer):
+class NlmTokenizer(PreTrainedTokenizerFast):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

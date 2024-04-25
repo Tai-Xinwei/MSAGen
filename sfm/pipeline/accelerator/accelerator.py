@@ -625,6 +625,7 @@ class DeepSpeedAccelerator(Accelerator):
             elif (
                 self.args.strategy == TrainStrategy.Zero1
                 or self.args.strategy == TrainStrategy.Pipeline
+                or self.args.strategy == TrainStrategy.ThreeD
             ):
                 self.args.deepspeed_config["zero_optimization"]["stage"] = 1
             elif self.args.strategy == TrainStrategy.Zero2:
