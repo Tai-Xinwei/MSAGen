@@ -27,16 +27,9 @@ from transformers.models.llama.modeling_llama import (
 from megatron.core import parallel_state, tensor_parallel
 from megatron.model.enums import AttnMaskType, AttnType, LayerType
 from megatron.model.language_model import Embedding
-from megatron.model.rotary_pos_embedding import RotaryEmbedding
-from megatron.model.transformer import (
-    ParallelAttention,
-    ParallelMLP,
-    ParallelTransformerLayer,
-)
 from sfm.logging import logger
-from sfm.models.llama2.llama_modules import LlamaDecoderLayerPP, LlamaHead, LlamaNorm
 from sfm.modules.sfmmodule import SFMModule
-from sfm.utils import PretrainedLayerSpec, TiedPretrainedLayerSpec
+from sfm.utils import PretrainedLayerSpec
 
 try:
     from apex.normalization import MixedFusedRMSNorm
@@ -344,13 +337,6 @@ class ParallelLlamaAttention(SFMModule):
             base=config.rope_theta,
         )
 
-        # self.freqs_cis = precompute_freqs_cis(
-        #     # Note that self.params.max_seq_len is multiplied by 2 because the token limit for the Llama 2 generation of models is 4096.
-        #     # Adding this multiplier instead of using 4096 directly allows for dynamism of token lengths while training or fine-tuning.
-        #     config.hidden_size // config.num_attention_heads,
-        #     config.max_position_embeddings * 2,
-        # ).cuda()
-
     def forward(
         self,
         hidden_states,
@@ -469,30 +455,7 @@ class LlamaDecoderLayerMP(SFMModule):
         new_state_dict = {}
         for key in keys:
             param = state_dict[key]
-            # if key == "self_attn.rotary_emb.inv_freq":
-            #     self.self_attn.rotary_emb.inv_freq[:] = param[:]
-            # elif key == "self_attn.o_proj.weight":
-            #     new_state_dict["self_attn.dense.weight"] = param
-            # elif key == "self_attn.q_proj.weight":
-            #     q_proj_weight = param
-            # elif key == "self_attn.k_proj.weight":
-            #     k_proj_weight = param
-            # elif key == "self_attn.v_proj.weight":
-            #     v_proj_weight = param
-            # else:
             new_state_dict[key] = param
-
-        # new_state_dict["self_attn.query_key_value.weight"] = (
-        #     torch.cat([q_proj_weight, k_proj_weight, v_proj_weight], dim=0)
-        #     .reshape(
-        #         3,
-        #         self.config.num_attention_heads,
-        #         self.config.hidden_size // self.config.num_attention_heads,
-        #         self.config.hidden_size,
-        #     )
-        #     .transpose(0, 1)
-        #     .reshape(3 * self.config.hidden_size, self.config.hidden_size)
-        # )
 
         del state_dict
 
@@ -810,7 +773,7 @@ class NumMLPMP(nn.Module):
 
 
 class LlamaHeadMP(SFMModule):
-    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
+    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 0):
         super().__init__()
         self.config = config
 

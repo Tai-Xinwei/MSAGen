@@ -150,6 +150,8 @@ class ScigptModel3d(SFMPipelineModelMixin):
     def config_optimizer(
         self, model=None
     ) -> Tuple[Optional[Optimizer], Optional[LRScheduler]]:
+        # return (None, None)
+
         if model is None:
             model = self
 
@@ -159,7 +161,6 @@ class ScigptModel3d(SFMPipelineModelMixin):
             ]
         else:
             unfreeze_list = None
-        logger.info(f"unfreeze_list: {unfreeze_list}")
 
         optimizer, _ = myAdam(
             model,

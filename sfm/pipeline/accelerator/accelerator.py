@@ -852,12 +852,6 @@ class DeepSpeedAccelerator(Accelerator):
             if self.lr_scheduler is not None:
                 # When using custom scheduler, we need to set the scheduler type to None
                 # Otherwise, deepspeed will use that scheduler instead of the custom one
-                logger.info("custom scheduler is set, DS scheduler is disabled")
-                self.args.deepspeed_config["scheduler"]["type"] = None
-
-            if self.lr_scheduler is not None:
-                # When using custom scheduler, we need to set the scheduler type to None
-                # Otherwise, deepspeed will use that scheduler instead of the custom one
                 logger.info("lr scheduler is set, remove the ds default scheduler")
                 self.args.deepspeed_config["scheduler"]["type"] = None
 

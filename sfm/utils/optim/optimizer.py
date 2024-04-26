@@ -5,14 +5,16 @@ from typing import Callable, List, Optional, Tuple
 from sfm.logging.loggers import logger
 
 try:
-    from apex.optimizers import FusedAdam as Adam  # isort:skip
+    from torch.optim import Adam
+
+    logger.info("using torch adam")
+    # from apex.optimizers import FusedAdam as Adam  # isort:skip
+    # logger.info("apex is installed, using FusedAdam with fp16 optimizer states")
 
     def AdamW(*args, **kwargs):
         return Adam(*args, **kwargs, adam_w_mode=True)
 
-    logger.info("apex is installed, using FusedAdam with fp16 optimizer states")
     # from torch.optim import Adam
-    # logger.info("using torch adam")
 except:
     logger.info("apex is not installed, using pytorch AdamW with fp32 optimizer states")
     from sfm.utils.optim.adam import AdamW
@@ -35,6 +37,10 @@ def split_param_and_layer_name(name_list: List[str]) -> Tuple[List[str], List[in
     return param_list, layer_name_list
 
 
+def count_parameters(param_group):
+    return sum(p.numel() for p in param_group)
+
+
 def process_param(
     net,
     freeze_list: List = [],
@@ -47,7 +53,7 @@ def process_param(
     param_groups[0]["lr"] = lr
     param_groups[0]["params"] = []
 
-    if len(unfreeze_list) > 0:
+    if len(unfreeze_list) > 1:
         unfreeze_list, unfreeze_layer_name_list = split_param_and_layer_name(
             unfreeze_list
         )
@@ -117,11 +123,11 @@ def myAdam(
     **kwargs,
 ):
     freeze_list = process_parm_list(freeze_list)
-    unfreeze_list = process_parm_list(unfreeze_list) + ["dummy"]
+    unfreeze_list = process_parm_list(unfreeze_list)
 
     assert (
         len(freeze_list) == 0 or len(unfreeze_list) == 0
-    ), f"freeze_list and unfreeze_list cannot be set at the same time, got {freeze_list=}, {unfreeze_list=}"
+    ), f"freeze_list and unfreeze_list cannot be set at the same time, got {freeze_list}, {unfreeze_list}"
 
     # When using unfreeze_list, we always want to unfreeze the dummy layer
     if len(unfreeze_list) > 0 and "dummy" not in unfreeze_list:
@@ -135,8 +141,12 @@ def myAdam(
         mfm_lora=mfm_lora,
         **kwargs,
     )
+    total_param = 0
     for param_group in param_groups:
         new_param_groups.extend([param_group])
+        total_param += count_parameters(param_group["params"])
+    logger.info(f"number of parameter in optimizer: {total_param/(1024**3):03f}B")
+
     return impl(new_param_groups, **kwargs), param_groups
 
 

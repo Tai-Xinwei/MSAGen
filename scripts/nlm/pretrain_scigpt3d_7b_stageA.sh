@@ -13,7 +13,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${beta1}" ] && beta1=0.9 # same as LLAMA2
 [ -z "${beta2}" ] && beta2=0.95 # same as LLAMA2
 [ -z "${total_num_steps}" ] && total_num_steps=80000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=8000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=100
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
 [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,embed_tokens.weight"
 [ -z "${learnable_cutoff}" ] && learnable_cutoff=128256
@@ -24,12 +24,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${val_batch_size}" ] && val_batch_size=$train_batch_size
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=2
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=4
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerMP"
 
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=100
 [ -z "${save_batch_interval}" ] && save_batch_interval=4000
-[ -z "${log_interval}" ] && log_interval=1
+[ -z "${log_interval}" ] && log_interval=10
 [ -z "${epochs}" ] && epochs=100
 
 
@@ -155,12 +155,12 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/scigpt/pretrain_scigpt3d.py \
       --tensor_model_parallel_size "$tensor_model_parallel_size" \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --pretrained_ckpt_path "$loadcheck_path" \
+      --load_ckpt \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
+      --learnable_cutoff "$learnable_cutoff" \
+      --unfreeze_param_list "$unfreeze_param_list" \
       ${MEGATRON_ARGS}
 
-      # --load_ckpt \
-      # --learnable_cutoff "$learnable_cutoff" \
-      # --unfreeze_param_list "$unfreeze_param_list" \
 
 sleep inf
 sleep inf
