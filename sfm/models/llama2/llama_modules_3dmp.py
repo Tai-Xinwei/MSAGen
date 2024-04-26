@@ -359,7 +359,7 @@ class ParallelLlamaAttention(SFMModule):
         rotary_pos_emb=None,
         position_ids=None,
     ):
-        # hidden_states: (seq_len, batch_size, hidden_size)
+        # hidden_states: (batch_size, seq_len, hidden_size)
         xq = self.q_proj(hidden_states)[0]
         xk = self.k_proj(hidden_states)[0]
         xv = self.v_proj(hidden_states)[0]
@@ -531,7 +531,7 @@ class LlamaDecoderLayerMP(SFMModule):
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
 
-        if (~attention_mask_bool).any():
+        if ~((~attention_mask_bool).any()):
             attention_mask = None
         else:
             attention_mask = torch.zeros_like(
