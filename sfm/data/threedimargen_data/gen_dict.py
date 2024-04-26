@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import os
 
-import mendeleev
+from pymatgen.core.periodic_table import Element
 
 
 def get_all_elements():
-    return mendeleev.get_all_elements()
+    return [e for e in Element]
 
 
 def get_all_elements_symbols():
@@ -16,8 +16,8 @@ def get_all_digits():
     return [str(i) for i in range(10)]
 
 
-def get_all_space_groups():
-    return [str(i) for i in range(1, 231)]
+def get_all_space_groups(token="<sgn>"):
+    return [f"{token}" + str(i) for i in range(1, 231)]
 
 
 def get_dict():

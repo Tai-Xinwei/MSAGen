@@ -4,6 +4,7 @@ import statistics
 
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import tqdm
 
 
@@ -82,5 +83,37 @@ def distribution():
     )
 
 
-def duplicate():
-    return
+def energy_distribution(data_path):
+    energies = []
+    with open(data_path, "r") as f:
+        for line in tqdm.tqdm(f):
+            data = json.loads(line)
+            energies.append(data["energy"])
+    # Calculate the histogram using numpy
+    hist, bin_edges = np.histogram(energies, bins=20)
+
+    # Print the histogram values
+    print("Histogram values:", hist)
+
+    print(
+        f"max energy: {max(energies)}\tmin energy: {min(energies)}\tmean: {statistics.mean(energies)}\tmedian: {statistics.median(energies)}"
+    )
+
+    # # Visualize the histogram using matplotlib
+    # plt.plot(energies, bins=20, edgecolor="black")
+    # plt.xlabel("Value")
+    # plt.ylabel("Frequency")
+    # plt.title("Energy Distribution")
+    # plt.savefig("energy_histogram.png")
+    # plt.clf()
+
+    sns.displot(energies)
+    plt.savefig("energy_histogram.png")
+    plt.clf()
+
+
+if __name__ == "__main__":
+    # distribution()
+    energy_distribution(
+        "/hai1/SFM/threedimargen/data/materials_data/coredataset-v20230731_train.jsonl"
+    )

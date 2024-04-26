@@ -75,13 +75,19 @@ class SingleSequenceModel(Model):
             torch.nn.Dropout(args.head_dropout),
             torch.nn.Linear(args.encoder_embed_dim, n_classes),
         )
+        self.return_residue_emb = (
+            True if args.task_name == "secondary_structure" else False
+        )
 
-    def forward(self, batch_data, residue_emb=False):
+    def forward(self, batch_data):
         if self.n_sequence == 1:
             # x: (B, L, C)
             x = self.model.ft_forward(batch_data)
-            if not residue_emb:
+            if not self.return_residue_emb:
                 x = x[:, 0, :].squeeze(1)
+            else:
+                # (B, L, C)
+                x = x
         else:
             xs = []
             for i in range(self.n_sequence):
@@ -135,9 +141,22 @@ class SingleSequenceModel(Model):
             DownstreamLMDBDataset.TASKINFO[self.args.task_name]["type"]
             == "residue_classification"
         ):
-            target = batch_data["target"]
-            batch_data["target_mask"]
+            # (B, L, C)
+            model_output = model_output[:, 1:-1, :]
+            # they are padded to the same length with cls and bos
+            # (B, L)
+            target = batch_data["target"][:, :-2].to(torch.long)
+            # (B, L)
+            target_mask = batch_data["target_mask"][:, :-2].to(torch.bool)
             lossfn = torch.nn.CrossEntropyLoss()
+            loss = lossfn(
+                model_output[target_mask],  # (Nvalid, C)
+                target[target_mask],  # (Nvalid, )
+            )
+            logits = model_output
+            return ModelOutput(loss=loss, num_examples=bs, logits=logits, label=target)
+        else:
+            raise NotImplementedError()
 
         # (B x n_classes)
         logits = model_output
@@ -168,11 +187,8 @@ class SingleSequenceModel(Model):
         return optimizer, lr_scheduler
 
     def calculate_metric(self, label, logits) -> dict:
-        if label is None or logits is None:
-            logger.info("No label or logits, skip metric calculation")
-            return {}
-
-        pred, true = logits.cpu().to(torch.float32), label.cpu().to(torch.float32)
+        pred = logits.cpu().squeeze().to(torch.float32)
+        true = label.cpu().squeeze().to(torch.float32)
         if DownstreamLMDBDataset.TASKINFO[self.args.task_name]["type"] == "regression":
             mean, std = DownstreamLMDBDataset.TASKINFO[self.args.task_name]["mean_std"]
             if self.args.label_normalize:
@@ -190,6 +206,18 @@ class SingleSequenceModel(Model):
             == "multi_classification"
         ):
             test_fn = [f1_max, area_under_prc]
+        elif (
+            DownstreamLMDBDataset.TASKINFO[self.args.task_name]["type"]
+            == "residue_classification"
+        ):
+
+            def ssp_accuracy(pred, true):
+                mask = true < 0
+                pred = pred[mask]
+                true = true[mask]
+                return accuracy(pred, true)
+
+            test_fn = [ssp_accuracy]
         else:
             raise NotImplementedError()
         metric_result = {fn.__name__: fn(pred, true).item() for fn in test_fn}

@@ -1,0 +1,861 @@
+description: get slices
+
+env_defaults:
+  WANDB_API_KEY:  "604802c05447cb0421d710ee349b71f8bf38f89c"
+
+target:
+    #service: amlk8s
+    #name: itphyperdgx2cl1
+    #vc: hai1
+    #name: itphyperdgx2cl2
+    #vc: hcrr08
+    service: sing
+    name: msroctovc
+
+environment:
+  image: pj/mfmds:20230207_b
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+storage:
+  blob:
+    storage_account_name: hai1data # Storage account
+    container_name: renqian # Container name
+    mount_dir: /hai1
+
+code:
+  local_dir: ~/SFM_framework
+
+jobs:
+- name: slices-0
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train00
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices00
+- name: slices-1
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train01
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices01
+- name: slices-2
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train02
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices02
+- name: slices-3
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train03
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices03
+- name: slices-4
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train04
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices04
+- name: slices-5
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train05
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices05
+- name: slices-6
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train06
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices06
+- name: slices-7
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train07
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices07
+- name: slices-8
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train08
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices08
+- name: slices-9
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train09
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices09
+- name: slices-10
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train10
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices10
+- name: slices-11
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train11
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices11
+- name: slices-12
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train12
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices12
+- name: slices-13
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train13
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices13
+- name: slices-14
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train14
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices14
+- name: slices-15
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train15
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices15
+- name: slices-16
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train16
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices16
+- name: slices-17
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train17
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices17
+- name: slices-18
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train18
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices18
+- name: slices-19
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train19
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices19
+- name: slices-20
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train20
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices20
+- name: slices-21
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train21
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices21
+- name: slices-22
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train22
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices22
+- name: slices-23
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train23
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices23
+- name: slices-24
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train24
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices24
+- name: slices-25
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train25
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices25
+- name: slices-26
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train26
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices26
+- name: slices-27
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train27
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices27
+- name: slices-28
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train28
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices28
+- name: slices-29
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train29
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices29
+- name: slices-30
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train30
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices30
+- name: slices-31
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train31
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices31
+- name: slices-32
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train32
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices32
+- name: slices-33
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train33
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices33
+- name: slices-34
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train34
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices34
+- name: slices-35
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train35
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices35
+- name: slices-36
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train36
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices36
+- name: slices-37
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train37
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices37
+- name: slices-38
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train38
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices38
+- name: slices-39
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train39
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices39
+- name: slices-40
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train40
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices40
+- name: slices-41
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train41
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices41
+- name: slices-42
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train42
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices42
+- name: slices-43
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train43
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices43
+- name: slices-44
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train44
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices44
+- name: slices-45
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train45
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices45
+- name: slices-46
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train46
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices46
+- name: slices-47
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train47
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices47
+- name: slices-48
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train48
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices48
+- name: slices-49
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train49
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices49
+- name: slices-50
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train50
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices50
+- name: slices-51
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train51
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices51
+- name: slices-52
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train52
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices52
+- name: slices-53
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train53
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices53
+- name: slices-54
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train54
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices54
+- name: slices-55
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train55
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices55
+- name: slices-56
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train56
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices56
+- name: slices-57
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train57
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices57
+- name: slices-58
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train58
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices58
+- name: slices-59
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train59
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices59
+- name: slices-60
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train60
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices60
+- name: slices-61
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train61
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices61
+- name: slices-62
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train62
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices62
+- name: slices-63
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: 1xG1
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda create -n slices python=3.9 && conda activate slices
+  - pip install tensorflow==2.14.0
+  - pip install slices
+  - python scripts/threedimargen/preprocess_mp_nomad_qmdb_slices.py
+    --data_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train63
+    --output_path /hai1/SFM/threedimargen/data/materials_data/mp_nomad_qmdb_train_slices63
