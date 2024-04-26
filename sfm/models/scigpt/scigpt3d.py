@@ -155,16 +155,9 @@ class ScigptModel3d(SFMPipelineModelMixin):
         if model is None:
             model = self
 
-        if self.args.unfreeze_param_list:
-            unfreeze_list = [
-                ckpt.strip() for ckpt in self.args.unfreeze_param_list.split(",")
-            ]
-        else:
-            unfreeze_list = None
-
         optimizer, _ = myAdam(
             model,
-            unfreeze_list=unfreeze_list,
+            unfreeze_list=self.args.unfreeze_param_list,
             lr=self.args.max_lr,
             betas=(self.args.beta1, self.args.beta2),
             weight_decay=self.args.weight_decay,

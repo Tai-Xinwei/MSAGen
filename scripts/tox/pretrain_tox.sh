@@ -157,6 +157,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
         --seed 666666 \
         --add_3d \
         --ifstack \
+        --ifresume \
         --diffmode $diffmode \
         --mask_ratio $mask_ratio \
         --noise_scale $noise_scale \
