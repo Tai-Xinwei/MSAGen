@@ -1,0 +1,50 @@
+description: train 3d ar generator
+
+env_defaults:
+  NODES: 4
+  GPUS: 16
+  WANDB_API_KEY:  "604802c05447cb0421d710ee349b71f8bf38f89c"
+  NAME: 3dargenlan_v0.1_base_ft_mp_20_ddp_noniggli_base_epoch10_warmup4000_lr1e-4_wd0.1_bs256
+
+target:
+    service: amlk8s
+    name: itphyperdgx2cl1
+    vc: hai1
+    #name: itphyperdgx2cl2
+    #vc: hcrr08
+    #service: sing
+    #name: msroctovc
+
+environment:
+  image: pj/mfmds:20230207_b
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+storage:
+  blob:
+    storage_account_name: hai1data # Storage account
+    container_name: renqian # Container name
+    mount_dir: /hai1
+
+code:
+  local_dir: ~/SFM_framework
+
+jobs:
+- name: ${NAME}
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: ${NODES}xG${GPUS}
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=${NAME}
+  - export NAME=${NAME}
+  - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
+  - bash ./install/install.sh && bash ./install/install_megatron.sh
+  - pip install -e .
+  - wandb login --relogin $${WANDB_API_KEY}
+  - bash scripts/threedimargen/finetune_mp20.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g

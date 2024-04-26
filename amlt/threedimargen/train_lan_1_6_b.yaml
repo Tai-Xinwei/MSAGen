@@ -1,0 +1,53 @@
+description: train 3d ar generator
+
+env_defaults:
+  NODES: 4
+  GPUS: 8
+  WANDB_API_KEY: "2ff6f7b6ac42d86aed79dac8b0c10cc9a5a50b5d"
+  NAME: 3dargenlan_v0.1_1_6_b_mp_nomad_qmdb_ddp_noniggli_epoch50_warmup8000_lr5e-5_wd0.1_bs256
+
+target:
+    service: aml
+    subscription_id: 3f2ab3f5-468d-4ba7-bc14-9d3a9da4bcc5
+    resource_group: TownsendAML1
+    workspace_name: townsendws1
+    cluster: townsend1
+    # service: aml
+    # subscription_id: 3eaeebff-de6e-4e20-9473-24de9ca067dc
+    # resource_group: sfm-ws-rg
+    # workspace_name: sfm-ws
+    # cluster: sfm-prem-nd96amsr100-westeurope
+
+environment:
+  image: shufxi/mfmds:20230807
+  registry: itpeus4cr.azurecr.io
+  username: itpeus4cr
+
+storage:
+  blob:
+    storage_account_name: hai1data # Storage account
+    container_name: renqian # Container name
+    mount_dir: /hai1
+
+code:
+  local_dir: ~/SFM_framework
+
+jobs:
+- name: ${NAME}
+  tags:
+  - "ProjectID: PRJ-0209-A40"
+  sku: ${NODES}xG${GPUS}
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=${NAME}
+  - export NAME=${NAME}
+  - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
+  - bash ./install/install.sh && bash ./install/install_megatron.sh
+  - pip install -e .
+  - wandb login --relogin $${WANDB_API_KEY}
+  - bash scripts/threedimargen/train_lan_1_6_b.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g
