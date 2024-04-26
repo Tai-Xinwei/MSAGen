@@ -147,7 +147,7 @@ class ThreeDimARGenModelPP(LlamaPreTrainedModel):
 
 
 @dataclass
-class ThreeDimARGenOutputWithPast(ModelOutput):
+class ThreeDimARGenNumOutputWithPast(ModelOutput):
     loss: Optional[torch.FloatTensor] = None
     loss_log: Optional[dict] = None
     logits: Optional[torch.FloatTensor] = None
@@ -158,7 +158,7 @@ class ThreeDimARGenOutputWithPast(ModelOutput):
 
 
 @dataclass
-class ThreeDimARGenGreedySearchOutput(ModelOutput):
+class ThreeDimARGenNumGreedySearchOutput(ModelOutput):
     sequences: torch.LongTensor = None
     coordinates: torch.FloatTensor = None
     attentions: Optional[Tuple[torch.FloatTensor]] = None
@@ -191,9 +191,9 @@ class NumMLP(nn.Module):
         return x
 
 
-class ThreeDimARGen(LlamaForCausalLM):
+class ThreeDimARGenNum(LlamaForCausalLM):
     """
-    3D Auto-regressive generator.
+    3D Auto-regressive generator with numeric head.
     """
 
     _tied_weights_keys = ["lm_head.weight"]
@@ -217,15 +217,13 @@ class ThreeDimARGen(LlamaForCausalLM):
         position_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[torch.FloatTensor]] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
-        label_ids: Optional[torch.LongTensor] = None,
-        label_coordinates: Optional[torch.FloatTensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         ntokens: Optional[torch.Tensor] = None,
         **kwargs,
-    ) -> Union[Tuple, ThreeDimARGenOutputWithPast]:
+    ) -> Union[Tuple, ThreeDimARGenNumOutputWithPast]:
         r"""
         Args:
             label_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -277,72 +275,19 @@ class ThreeDimARGen(LlamaForCausalLM):
 
         hidden_states = outputs[0]
 
-        loss = None
-        loss_log = None
-
         # pass the hidden states to lm_head and coordinate_decoder to get logits and coordinates
-        if label_ids is not None:
-            # calculate loss if label_ids is given in training / validation
-            # get word logits using lm head
-            word_logits = self.lm_head(hidden_states)
-            # get coordinates using coordinate decoder
-            coordinates = self.coordinate_decoder(hidden_states)
-            word_logits = word_logits.float()
-            coordinates = coordinates.float()
-
-            # shift so that tokens < n predict n
-            shift_label_ids = label_ids[..., 1:].contiguous()
-            shift_coordinates_mask = coordinates_mask[..., 1:].contiguous()
-            shift_word_logits = word_logits[:, :-1, :].contiguous()
-            shift_coordinates = coordinates[:, :-1, :].contiguous()
-            shift_word_logits = shift_word_logits[~shift_coordinates_mask.bool()]
-            shift_coordinates = shift_coordinates[shift_coordinates_mask.bool()]
-            # shift_hidden_states = hidden_states[..., :-1, :]
-            # get word hidden states
-            # word_hidden_states = shift_hidden_states[~shift_coordinates_mask.bool()]
-
-            # get coordinates hidden states
-            # coordinates_hidden_states = shift_hidden_states[
-            #    shift_coordinates_mask.bool()
-            # ]
-
-            # word_logits is [batch_size * seq_length, vocab_size], coordinates is [batch_size * seq_length, 3]
-            # Calculate loss on word tokens
-            loss_words_fct = CrossEntropyLoss()
-            shift_words_labels = shift_label_ids[~shift_coordinates_mask.bool()]
-            loss_words = loss_words_fct(
-                shift_word_logits.view(-1, self.config.vocab_size),
-                shift_words_labels.view(-1),
-            )
-
-            # Calculate loss on coordinate tokens
-            loss_coord_fct = MSELoss()
-            if label_coordinates.dtype != shift_coordinates.dtype:
-                label_coordinates = label_coordinates.to(coordinates.dtype)
-            loss_coord = loss_coord_fct(shift_coordinates, label_coordinates)
-
-            # Combine losses
-            loss = loss_words + loss_coord
-            loss_log = {
-                "loss": loss.item() if loss is not None else None,
-                "loss_words": loss_words.item() if loss_words is not None else None,
-                "loss_coord": loss_coord.item() if loss_coord is not None else None,
-            }
-        else:
-            # in inference mode
-            word_logits = self.lm_head(hidden_states)
-            coordinates = self.coordinate_decoder(hidden_states)
-            # word_logits is [batch_size, seq_length, vocab_size], coordinates is [batch_size, seq_length, 3]
-            word_logits = word_logits.float()
-            coordinates = coordinates.float()
+        # get word logits using lm head
+        word_logits = self.lm_head(hidden_states)
+        # get coordinates using coordinate decoder
+        coordinates = self.coordinate_decoder(hidden_states)
+        word_logits = word_logits.float()
+        coordinates = coordinates.float()
 
         if not return_dict:
             output = (word_logits, coordinates) + outputs[1:]
-            return (loss, loss_log) + output if loss is not None else output
+            return output
 
-        return ThreeDimARGenOutputWithPast(
-            loss=loss,
-            loss_log=loss_log,
+        return ThreeDimARGenNumOutputWithPast(
             logits=word_logits,
             coordinates=coordinates,
             past_key_values=outputs.past_key_values,
@@ -422,8 +367,24 @@ class ThreeDimARGen(LlamaForCausalLM):
 
         # init input coordinates
         input_coordinates = torch.empty(
-            (0, 3), dtype=torch.float32, device=input_ids.device
+            (input_ids.shape[0], input_ids.shape[1], 3),
+            dtype=torch.float32,
+            device=input_ids.device,
         )
+        if model_kwargs.get("input_coordinates", None) is not None:
+            input_coordinates_mask = model_kwargs["coordinates_mask"][
+                :, : input_ids.shape[1]
+            ]
+            input_coordinates[input_coordinates_mask.bool()] = model_kwargs[
+                "input_coordinates"
+            ]
+            del model_kwargs["input_coordinates"]
+        original_coordinates_mask = model_kwargs["coordinates_mask"].clone()
+
+        # init output coordinates
+        # output_coordinates = torch.empty(
+        #     (input_ids.shape[0], 0, 3), dtype=torch.float32, device=input_ids.device
+        # )
 
         # init attention / hidden states / scores tuples
         scores = None
@@ -513,12 +474,18 @@ class ThreeDimARGen(LlamaForCausalLM):
 
             # update generated ids, model inputs, and length for next step
             next_tokens = (
-                next_word * (1 - next_coordinates_mask)
-                + mask_token_id * next_coordinates_mask
+                next_word * (1 - next_coordinates_mask.bool().long())
+                + mask_token_id * next_coordinates_mask.bool().long()
             )
-            next_coordinates = next_coordinates[next_coordinates_mask.bool()]
+
+            # output_coordinates = torch.cat(
+            #     [output_coordinates, next_coordinates[:, None]], dim=1
+            # )
+            # next_coordinates = next_coordinates[next_coordinates_mask.bool()]
             input_ids = torch.cat([input_ids, next_tokens[:, None]], dim=-1)
-            input_coordinates = torch.cat([input_coordinates, next_coordinates], dim=0)
+            input_coordinates = torch.cat(
+                [input_coordinates, next_coordinates[:, None]], dim=1
+            )
 
             if streamer is not None:
                 streamer.put(next_tokens.cpu())
@@ -549,8 +516,10 @@ class ThreeDimARGen(LlamaForCausalLM):
         if streamer is not None:
             streamer.end()
 
+        input_coordinates = input_coordinates[original_coordinates_mask.bool()]
+
         if return_dict_in_generate:
-            return ThreeDimARGenGreedySearchOutput(
+            return ThreeDimARGenNumGreedySearchOutput(
                 sequences=input_ids,
                 coordinates=input_coordinates,
                 attentions=decoder_attentions,
@@ -569,19 +538,16 @@ class ThreeDimARGen(LlamaForCausalLM):
         inputs_embeds=None,
         **kwargs,
     ):
-        output_coordinates_mask = coordinates_mask[:, 1:]
         seq_length = input_ids.shape[1]
-        coordinates_mask = coordinates_mask[:, :seq_length]
-        output_coordinates_mask = output_coordinates_mask[:, :seq_length]
+        input_coordinates_mask = coordinates_mask[:, :seq_length]
+        output_coordinates_mask = coordinates_mask[:, 1 : seq_length + 1]
         if past_key_values:
             input_ids = input_ids[:, -1:]
-            coordinates_mask = coordinates_mask[:, -1:]
+            input_coordinates_mask = input_coordinates_mask[:, -1:]
             output_coordinates_mask = output_coordinates_mask[:, -1:]
-            coordinates_count = coordinates_mask.sum().item()
-            if coordinates_count > 0:
-                input_coordinates = input_coordinates[-coordinates_count:]
-            else:
-                input_coordinates = None
+            input_coordinates = input_coordinates[:, -1:][input_coordinates_mask.bool()]
+        else:
+            input_coordinates = input_coordinates[input_coordinates_mask.bool()]
         position_ids = kwargs.get("position_ids", None)
         if attention_mask is not None and position_ids is None:
             # create position_ids on the fly for batch generation
@@ -599,7 +565,7 @@ class ThreeDimARGen(LlamaForCausalLM):
         model_inputs.update(
             {
                 "input_coordinates": input_coordinates,
-                "coordinates_mask": coordinates_mask,
+                "coordinates_mask": input_coordinates_mask,
                 "output_coordinates_mask": output_coordinates_mask,
                 "position_ids": position_ids,
                 "past_key_values": past_key_values,

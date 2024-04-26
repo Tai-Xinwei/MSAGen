@@ -1762,7 +1762,7 @@ class SFMPipeEngine(DeepSpeedEngine):
             )
         if not self.load_universal_checkpoint():
             self.load_module_state_dict(
-                state_dict=checkpoint["module"],
+                checkpoint,
                 strict=load_module_strict,
                 custom_load_fn=custom_load_fn,
             )

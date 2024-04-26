@@ -181,7 +181,10 @@ class LogAccumulator(object):
         self.extra_log_num["total_acc_sample"] = 1.0 / self.world_size
 
         if self.world_size == 1 or self.allreduce_fn is None:
-            return {k: v / self.extra_log_num[k] for k, v in self.extra_log.items()}
+            return {
+                k: (v / self.extra_log_num[k]) if self.extra_log[k] else 0
+                for k, v in self.extra_log.items()
+            }
         else:
             return self._allreducelog(self.extra_log, self.extra_log_num)
 

@@ -36,6 +36,7 @@ class ProGPTConfig:
 
     # add use llama tokenizer
     use_llama_tokenizer: bool = False
+    instruction_mode: bool = False
 
     train_data_path: str = ""
     valid_data_path: str = ""

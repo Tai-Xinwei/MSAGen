@@ -115,7 +115,10 @@ def from_args(args, config):
     kwargs = {}
     for field in fields(config):
         name = field.name.replace("-", "_")
-        value = getattr(args, name, None)
+        if isinstance(args, dict):
+            value = args.get(name, None)
+        else:
+            value = getattr(args, name, None)
         if value is not None:
             kwargs[name] = value
     return config(**kwargs)

@@ -86,6 +86,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         ),
         local_rank=args.local_rank,
         use_llama_tokenizer=args.use_llama_tokenizer,
+        instruction_mode=args.instruction_mode,
     )
 
     valid_dataset = ProteinTextDataset(
@@ -103,6 +104,7 @@ def make_supervised_data_module(args, mode="train") -> Dict:
         ),
         local_rank=args.local_rank,
         use_llama_tokenizer=args.use_llama_tokenizer,
+        instruction_mode=args.instruction_mode,
     )
 
     return dict(

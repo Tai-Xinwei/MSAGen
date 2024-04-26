@@ -4,12 +4,15 @@ from dataclasses import asdict, dataclass
 
 from transformers.models.llama.configuration_llama import LlamaConfig
 
+from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
+
 
 @dataclass
-class ThreeDimARGenConfig(LlamaConfig):
-    model_type = "threedimargen"
+class ThreeDimARGenConfig(LlamaConfig, DistributedTrainConfig):
+    model_type: str = "threedimargen"
+    tokenizer: str = "num"
 
-    vocab_size: int = 358 + 6
+    vocab_size: int = 100
     hidden_size: int = 1024
     intermediate_size: int = 4096
     num_hidden_layers: int = 24
@@ -26,11 +29,17 @@ class ThreeDimARGenConfig(LlamaConfig):
     eos_token_id: int = 2
     mask_token_id: int = None
     pretraining_tp: int = 1
-    tie_word_embeddings: bool = True
+    tie_word_embeddings: bool = False
     rope_theta: float = 10000.0
     rope_scaling = None
-    max_sites: int = 500
-    scale_digit: int = None
+    attention_bias: bool = False
+    attention_dropout: float = 0.0
+
+    max_sites: int = None
+    scale_coords: float = None
+    scale_energy: float = None
+    reorder: bool = False
+    niggli_reduced: bool = False
 
     dict_path: str = os.path.join(
         os.path.dirname(__file__), "../../data/threedimargen_data/dict.txt"
@@ -44,95 +53,73 @@ class ThreeDimARGenConfig(LlamaConfig):
 
     def __init__(
         self,
-        args,
         **kwargs,
     ):
-        super().__init__(kwargs)
-        threedimargen_base_architecture(args)
-
-        # set attributes of args to self
-        for k, v in asdict(self).items():
-            if hasattr(args, k):
-                setattr(self, k, getattr(args, k))
-
-        self.vocab_size = args.vocab_size
-        self.hidden_size = args.hidden_size
-        self.intermediate_size = args.intermediate_size
-        self.num_hidden_layers = args.num_hidden_layers
-        self.num_attention_heads = args.num_attention_heads
-
-        self.num_key_value_heads = args.num_key_value_heads
-        self.hidden_act = args.hidden_act
-        self.max_position_embeddings = args.max_position_embeddings
-        self.initializer_range = args.initializer_range
-        self.rms_norm_eps = args.rms_norm_eps
-        self.use_cache = args.use_cache
-        self.pad_token_id = args.pad_token_id
-        self.bos_token_id = args.bos_token_id
-        self.eos_token_id = args.eos_token_id
-        self.mask_token_id = args.mask_token_id
-        self.max_sites = args.max_sites
-        self.scale_digit = args.scale_digit
-
-        self.pretraining_tp = args.pretraining_tp
-        self.tie_word_embeddings = args.tie_word_embeddings
-        self.rope_theta = args.rope_theta
-        self.rope_scaling = args.rope_scaling
-
-        self.dict_path = args.dict_path
-        self.train_data_path = args.train_data_path
-        self.valid_data_path = args.valid_data_path
-        self.loadcheck_path = args.loadcheck_path
-
-        self.ft = args.ft
-        self.pretraining_tp = args.pretraining_tp
-
-        self.args = args
+        super().__init__(**kwargs)
 
 
 @dataclass
 class ThreeDimARGenInferenceConfig:
-    ckpt_folder: str = ""
-    input_file: str = ""
-    output_file: str = ""
-    decoder_batch_size: int = 1
-    max_length: int = 2048
-    max_new_tokens: int = 2048
-    pad_token_id: int = None
-    bos_token_id: int = 1
-    eos_token_id: int = 2
-    mask_token_id: int = None
+    input_file: str = None
+    output_file: str = None
+    infer_batch_size: int = 128
+    max_length: int = None
+    max_new_tokens: int = None
+    verbose: bool = False
+    space_group: bool = True
+    sample: bool = False
 
 
-def threedimargen_base_architecture(args):
-    args.model_type = getattr(args, "model_type", "threedimargen")
-    args.vocab_size = getattr(args, "vocab_size", 358 + 6)
-    args.hidden_size = getattr(args, "hidden_size", 4096)
-    args.intermediate_size = getattr(args, "intermediate_size", args.hidden_size * 4)
-    args.num_hidden_layers = getattr(args, "num_hidden_layers", 12)
-    args.num_attention_heads = getattr(args, "num_attention_heads", 12)
-    args.num_key_value_heads = getattr(args, "num_key_value_heads", 12)
-    args.hidden_act = getattr(args, "hidden_act", "silu")
-    args.max_position_embeddings = getattr(args, "max_position_embeddings", "2048")
-    args.tokens_per_sample = getattr(args, "tokens_per_sample", "2048")
-    args.initializer_range = getattr(args, "initializer_range", 0.02)
-    args.rms_norm_eps = getattr(args, "rms_norm_eps", 1e-6)
-    args.use_cache = getattr(args, "use_cache", True)
-    args.pad_token_id = getattr(args, "pad_token_id", None)
-    args.bos_token_id = getattr(args, "bos_token_id", 1)
-    args.eos_token_id = getattr(args, "eos_token_id", 2)
-    args.mask_token_id = getattr(args, "mask_token_id", None)
-    args.pretraining_tp = getattr(args, "pretraining_tp", 1)
-    args.tie_word_embeddings = getattr(args, "tie_word_embeddings", False)
-    args.rope_theta = getattr(args, "rope_theta", 10000.0)
-    args.rope_scaling = getattr(args, "rope_scaling", None)
-    args.max_sites = getattr(args, "max_sites", 500)
-    args.scale_digit = getattr(args, "scale_digit", None)
+def threedimargen_tiny_config(config: ThreeDimARGenConfig):
+    # just for debug
+    config.hidden_size = 1024
+    config.intermediate_size = 4096
+    config.num_hidden_layers = 2
+    config.num_attention_heads = 16
+    config.num_key_value_heads = 16
+    return config
 
-    args.dict_path = getattr(args, "dict_path", "")
-    args.train_data_path = getattr(args, "train_data_path", "")
-    args.valid_data_path = getattr(args, "valid_data_path", "")
-    args.loadcheck_path = getattr(args, "loadcheck_path", "")
 
-    args.ft = getattr(args, "ft", False)
-    args.infer = getattr(args, "infer", False)
+def threedimargen_base_config(config: ThreeDimARGenConfig):
+    config.hidden_size = 1024
+    config.intermediate_size = 4096
+    config.num_hidden_layers = 24
+    config.num_attention_heads = 16
+    config.num_key_value_heads = 16
+    return config
+
+
+def threedimargen_200m_config(config: ThreeDimARGenConfig):
+    config.hidden_size = 1024
+    config.intermediate_size = 4096
+    config.num_hidden_layers = 12
+    config.num_attention_heads = 16
+    config.num_key_value_heads = 16
+    return config
+
+
+def threedimargen_100m_config(config: ThreeDimARGenConfig):
+    config.hidden_size = 1024
+    config.intermediate_size = 4096
+    config.num_hidden_layers = 6
+    config.num_attention_heads = 16
+    config.num_key_value_heads = 16
+    return config
+
+
+def threedimargen_1_6_b_config(config: ThreeDimARGenConfig):
+    config.hidden_size = 2048
+    config.intermediate_size = 8192
+    config.num_hidden_layers = 24
+    config.num_attention_heads = 32
+    config.num_key_value_heads = 32
+    return config
+
+
+def threedimargen_3_3_b_config(config: ThreeDimARGenConfig):
+    config.hidden_size = 2560
+    config.intermediate_size = 10240
+    config.num_hidden_layers = 32
+    config.num_attention_heads = 32
+    config.num_key_value_heads = 32
+    return config

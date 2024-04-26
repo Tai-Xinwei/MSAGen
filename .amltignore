@@ -175,3 +175,7 @@ checkmol
 *.pt
 *.txt.*
 cube/
+
+docs
+/blob
+/hai1

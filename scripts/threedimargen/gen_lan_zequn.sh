@@ -1,0 +1,32 @@
+CKPT=/hai1/SFM/threedimargen/outputs/3dargenlan_v0.1_base_mp_nomad_qmdb_ddp_noniggli_layer24_head16_epoch50_warmup8000_lr1e-4_wd0.1_bs256/checkpoint_E40.pt
+CKPT_FOLDER=$(dirname $CKPT)
+CKPT_NAME=$(basename $CKPT)
+INPUT=/hai1/SFM/threedimargen/data/materials_data/mtgen_hit_correct_full.jsonl
+INPUT_FNAME=$(basename $INPUT)
+
+for i in {0..1}; do
+SG_FLAG=$i
+if [ $SG_FLAG -eq 1 ]; then
+    OUTPUT=${CKPT_FOLDER}/${CKPT_NAME%.*}_${INPUT_FNAME%.*}.jsonl
+    SG=""
+else
+    OUTPUT=${CKPT_FOLDER}/${CKPT_NAME%.*}_${INPUT_FNAME%.*}_nosg.jsonl
+    SG="--no_space_group"
+fi
+
+#rm ${OUTPUT}
+
+# if the output file already exists, ignore
+if [ -f ${OUTPUT} ]; then
+    echo "Output file ${OUTPUT} already exists. Skipping."
+else
+    python sfm/tasks/threedimargen/gen_threedimargenlan.py \
+    --dict_path sfm/data/threedimargen_data/dict_lan.txt \
+    --loadcheck_path ${CKPT} \
+    --tokenizer lan \
+    --infer --infer_batch_size 64 \
+    --input_file ${INPUT} \
+    --output_file ${OUTPUT} \
+    ${SG}
+fi
+done
