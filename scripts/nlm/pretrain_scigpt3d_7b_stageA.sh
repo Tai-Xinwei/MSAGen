@@ -27,10 +27,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=2
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerMP"
 
-[ -z "${save_epoch_interval}" ] && save_epoch_interval=1
+[ -z "${save_epoch_interval}" ] && save_epoch_interval=100
 [ -z "${save_batch_interval}" ] && save_batch_interval=4000
 [ -z "${log_interval}" ] && log_interval=1
-[ -z "${epochs}" ] && epochs=1
+[ -z "${epochs}" ] && epochs=100
 
 
 [ -z "${dict_path}" ] && dict_path='/data/peiran/blob/hai1data/sfm/llama/Meta-Llama-3-8B/original'

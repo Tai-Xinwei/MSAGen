@@ -183,7 +183,9 @@ class LogAccumulator(object):
         if self.world_size == 1 or self.allreduce_fn is None:
             return {k: v / self.extra_log_num[k] for k, v in self.extra_log.items()}
         else:
-            return self._allreducelog(self.extra_log, self.extra_log_num)
+            reduced_log = self._allreducelog(self.extra_log, self.extra_log_num)
+            self.extra_log["total_acc_sample"] = reduced_log["total_acc_sample"]
+            return reduced_log
 
 
 class EarlyStopping:

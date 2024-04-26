@@ -339,7 +339,9 @@ class ParallelLlamaAttention(SFMModule):
         )
 
         self.rotary_emb = LlamaRotaryEmbedding(
-            rotary_dim, config.max_position_embeddings
+            rotary_dim,
+            config.max_position_embeddings,
+            base=config.rope_theta,
         )
 
         # self.freqs_cis = precompute_freqs_cis(
@@ -378,7 +380,7 @@ class ParallelLlamaAttention(SFMModule):
 
         # kv_seq_len = xk.shape[-2]
         cos, sin = self.rotary_emb(xv, position_ids)
-        xq, xk = apply_rotary_pos_emb(xq, xk, cos, sin, position_ids)
+        xq, xk = apply_rotary_pos_emb(xq, xk, cos, sin)
 
         # repeat k/v heads if n_kv_heads < n_heads
         xk = repeat_kv(
