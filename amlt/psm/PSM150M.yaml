@@ -27,7 +27,6 @@ environment:
   registry: msroctocr.azurecr.io
   username: msroctocr
 
-
 storage:
   blob:
     storage_account_name: hai1data # Storage account
@@ -39,11 +38,8 @@ code:
 
 jobs:
 - name: psmv0
-  tags:
-  - 'ProjectID: PRJ-0209-A40'
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}
-  # priority: high
-  # sla_tier: premium
   mpi: true
   process_count_per_node: 1
   command:
@@ -86,7 +82,7 @@ jobs:
   - export gradient_accumulation_steps=8
   - export log_interval=100
   - export data_path=/blob/psm/
-  - export data_path_list='pm6_10M_refined4.lmdb,matter-sim-15M,AFDB50-plddt70.lmdb'
+  - export data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,48organisms-fullatom.lmdb'
   - export dataset_name_list='pm6,mattersim,afdb'
   - export dataset_split_raito='0.4,0.2,0.4'
   - export loadcheck_path=/blob/experiment/psm/psmV0test/checkpoints
@@ -95,4 +91,5 @@ jobs:
   - python setup_cython.py build_ext --inplace
   - bash ./scripts/psm/pretrain_psm.sh
   submit_args:
-      # SHARED_MEMORY_PERCENT: 0.5
+    container_args:
+      shm_size: 1024g
