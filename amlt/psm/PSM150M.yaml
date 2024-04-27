@@ -79,7 +79,7 @@ jobs:
   - export val_batch_size=1024
   - export max_tokens=16000
   - export max_length=512
-  - export gradient_accumulation_steps=8
+  - export gradient_accumulation_steps=4
   - export log_interval=100
   - export data_path=/blob/psm/
   - export data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,48organisms-fullatom.lmdb'

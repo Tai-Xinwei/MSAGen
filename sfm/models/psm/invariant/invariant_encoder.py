@@ -11,7 +11,9 @@ from sfm.models.psm.invariant.graphormer_2d_bias import GraphAttnBias
 
 from ..modules.pbc import CellExpander
 from ..psm_config import PSMConfig
-from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
+
+# from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
+from .graphormer_sentence_encoder_layer_v2 import GraphormerSentenceEncoderLayer
 
 
 class PSMEncoder(nn.Module):

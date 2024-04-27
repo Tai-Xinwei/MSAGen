@@ -137,7 +137,7 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         data["forces"] = torch.zeros(
             (x.size()[0], 3), dtype=torch.float64, device=x.device
         )
-        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+        data["energy"] = torch.tensor([data["total_energy"]]) / 1000.0
 
         data = self.generate_2dgraphfeat(data)
 
