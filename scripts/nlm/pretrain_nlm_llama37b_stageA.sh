@@ -129,7 +129,7 @@ wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 export WANDB_API_KEY=$wandb_key
 
 set -x
-torchrun $DISTRIBUTED_ARGS sfm/tasks/scigpt/pretrain_scigpt3d.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --model_type "$model_type" \
       --dict_path "$dict_path" \
       --train_data_path "$train_data_path" \
