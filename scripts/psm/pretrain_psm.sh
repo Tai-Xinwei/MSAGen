@@ -159,7 +159,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --save_dir $save_dir \
           --seed 666666 \
           --add_3d \
-          --ifresume \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \

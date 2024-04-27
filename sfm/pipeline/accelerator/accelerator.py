@@ -625,6 +625,7 @@ class DeepSpeedAccelerator(Accelerator):
             elif (
                 self.args.strategy == TrainStrategy.Zero1
                 or self.args.strategy == TrainStrategy.Pipeline
+                or self.args.strategy == TrainStrategy.ThreeD
             ):
                 self.args.deepspeed_config["zero_optimization"]["stage"] = 1
             elif self.args.strategy == TrainStrategy.Zero2:
@@ -847,12 +848,6 @@ class DeepSpeedAccelerator(Accelerator):
                 # When using custom scheduler, it is a good idea to set the optimizer type to None
                 logger.info("custom optimizer is set, DS optimizer is disabled")
                 self.args.deepspeed_config["optimizer"]["type"] = None
-
-            if self.lr_scheduler is not None:
-                # When using custom scheduler, we need to set the scheduler type to None
-                # Otherwise, deepspeed will use that scheduler instead of the custom one
-                logger.info("custom scheduler is set, DS scheduler is disabled")
-                self.args.deepspeed_config["scheduler"]["type"] = None
 
             if self.lr_scheduler is not None:
                 # When using custom scheduler, we need to set the scheduler type to None

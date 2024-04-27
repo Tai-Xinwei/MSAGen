@@ -68,7 +68,7 @@ def myAdam(
     )
     for param_group in param_groups:
         new_param_groups.extend([param_group])
-    return impl(new_param_groups, **kwargs), param_groups
+    return impl(new_param_groups, **kwargs)
 
 
 WARMUP_LOG_RATE = "log"

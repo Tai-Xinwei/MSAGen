@@ -186,7 +186,9 @@ class LogAccumulator(object):
                 for k, v in self.extra_log.items()
             }
         else:
-            return self._allreducelog(self.extra_log, self.extra_log_num)
+            reduced_log = self._allreducelog(self.extra_log, self.extra_log_num)
+            self.extra_log["total_acc_sample"] = reduced_log["total_acc_sample"]
+            return reduced_log
 
 
 class EarlyStopping:
@@ -467,6 +469,24 @@ class Trainer(object):
     def valid_data_loader(self) -> DataLoader:
         return self.accelerator.valid_data_loader
 
+    def count_parameters(self):
+        if self.args.strategy in [
+            TrainStrategy.Pipeline,
+            TrainStrategy.ThreeD,
+        ]:
+            total_num = sum(p.numel() for p in self.accelerator.ppmodel.parameters())
+            trainable_num = sum(
+                p.numel()
+                for p in self.accelerator.ppmodel.parameters()
+                if p.requires_grad
+            )
+        else:
+            total_num = sum(p.numel() for p in self.model.parameters())
+            trainable_num = sum(
+                p.numel() for p in self.model.parameters() if p.requires_grad
+            )
+        return total_num, trainable_num
+
     def train(self):
         """
         Train the model on the training data loader.
@@ -482,12 +502,9 @@ class Trainer(object):
         elif self.args.finetune_from_checkpoint_dir is not None:
             self.finetune_from_checkpoint()
 
-        total_num = sum(p.numel() for p in self.model.parameters())
-        trainable_num = sum(
-            p.numel() for p in self.model.parameters() if p.requires_grad
-        )
+        total_num, trainable_num = self.count_parameters()
         logger.info(
-            "Total number of parameters: {:,}, trainable: {:,}",
+            "Total number of parameters: {:,}, trainable: {:,}, trainable param may not in optimzier",
             total_num,
             trainable_num,
         )
