@@ -84,7 +84,7 @@ jobs:
   - export data_path=/blob/psm/
   - export data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,48organisms-fullatom.lmdb'
   - export dataset_name_list='pm6,mattersim,afdb'
-  - export dataset_split_raito='0.6,0.2,0.2'
+  - export dataset_split_raito='0.7,0.2,0.1'
   - export loadcheck_path=/blob/experiment/psm/psmV0test/checkpoints
   - export save_dir=/blob/pfmexp/output/psmV0test/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
