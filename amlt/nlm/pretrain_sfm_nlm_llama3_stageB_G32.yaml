@@ -52,7 +52,7 @@ jobs:
   - export dict_path=/sfm/llama/Meta-Llama-3-8B/original
   - export loadcheck_path=/sfm/llama/Meta-Llama-3-8B/original
   - export save_dir=/sfm/nlm/output/llama3_stageA/
-  - bash scripts/nlm/pretrain_nlm_llama3_7b_stageA.sh
+  - bash scripts/nlm/pretrain_nlm_llama3_7b_stageB.sh
   submit_args:
     env:
       SHARED_MEMORY_PERCENT: 1.0
