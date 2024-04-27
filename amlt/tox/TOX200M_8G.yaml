@@ -7,7 +7,11 @@
 description: psm
 
 env_defaults:
+<<<<<<< HEAD
   NODES: 2
+=======
+  NODES: 1
+>>>>>>> main
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -16,6 +20,7 @@ env_defaults:
 #   name: baltic02
 #   workspace_name: msrresrchws
 
+<<<<<<< HEAD
 # target:
 #     service: aml
 #     # name: gcrarca100cl1
@@ -26,6 +31,13 @@ target:
   service: singularity
   name: msrresrchvc
   workspace_name: msrresrchws
+=======
+target:
+    service: aml
+    # name: gcrarca100cl1
+    name: sfm-nd96amsra100v4-uksouth
+    # name: sfm-nc96-westus3
+>>>>>>> main
 
 environment:
   image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
