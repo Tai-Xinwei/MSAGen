@@ -9,8 +9,6 @@ import torch
 from deepspeed import comm as dist
 from deepspeed.accelerator import get_accelerator
 from deepspeed.runtime import zero
-from deepspeed.runtime.activation_checkpointing import checkpointing as ds_checkpointing
-from deepspeed.runtime.bf16_optimizer import BF16_Optimizer
 from deepspeed.runtime.config import DeepSpeedConfig
 from deepspeed.runtime.dataloader import RepeatingLoader
 from deepspeed.runtime.engine import (
@@ -19,23 +17,14 @@ from deepspeed.runtime.engine import (
     DeepSpeedOptimizerCallable,
     DeepSpeedSchedulerCallable,
 )
+
+# from deepspeed.runtime.pipe.module import PipelineModule, PipelineError
+# from deepspeed.runtime.pipe.engine import PipelineEngine
 from deepspeed.runtime.pipe import p2p, schedule
 from deepspeed.runtime.utils import PartitionedTensor
 from deepspeed.runtime.zero.config import ZeroStageEnum
 from deepspeed.utils import instrument_w_nvtx, log_dist
-from deepspeed.utils.timer import (
-    BACKWARD_GLOBAL_TIMER,
-    BACKWARD_INNER_GLOBAL_TIMER,
-    BACKWARD_INNER_MICRO_TIMER,
-    BACKWARD_MICRO_TIMER,
-    BACKWARD_REDUCE_GLOBAL_TIMER,
-    BACKWARD_REDUCE_MICRO_TIMER,
-    FORWARD_GLOBAL_TIMER,
-    FORWARD_MICRO_TIMER,
-    STEP_GLOBAL_TIMER,
-    STEP_MICRO_TIMER,
-    ThroughputTimer,
-)
+from deepspeed.utils.timer import ThroughputTimer
 from packaging import version as pkg_version
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
@@ -49,13 +38,6 @@ from .mypp_module import PipelineError, PipelineModule
 TARGET_ID = -2
 LOG_STAGE = -2
 DATA_PARALLEL_ID = -2
-
-BATCH_INPUT_TIMER = "batch_input"
-TRAIN_BATCH_TIMER = "train_batch"
-PIPE_SEND_OUTPUT_TIMER = "pipe_send_output"
-PIPE_SEND_GRAD_TIMER = "pipe_send_grad"
-PIPE_RECV_INPUT_TIMER = "pipe_recv_input"
-PIPE_RECV_GRAD_TIMER = "pipe_recv_grad"
 
 
 def is_even(number):
@@ -117,9 +99,6 @@ class SFMPipeEngine(DeepSpeedEngine):
         self.outputs = None
         self.labels = None
         self.model_ckpt_list = model_ckpt_list
-        # BF16 Optimizer is hardcoded for fp32 gradient accumulation
-        self.using_bf16_optimizer = type(self.optimizer) == BF16_Optimizer
-
         # used to disable the pipeline all-reduce when used with 1-bit Adam/1-bit LAMB
         self.pipeline_enable_backward_allreduce = True
 
@@ -186,18 +165,11 @@ class SFMPipeEngine(DeepSpeedEngine):
         self.is_pipe_partitioned = self.is_model_parallel
         self.is_grad_partitioned = self.is_model_parallel
 
-        assert isinstance(self._config.pipeline["pipe_partitioned"], bool)
-        assert isinstance(self._config.pipeline["grad_partitioned"], bool)
-        self.is_pipe_partitioned = (
-            self.is_model_parallel and self._config.pipeline["pipe_partitioned"]
-        )
-        self.is_grad_partitioned = (
-            self.is_model_parallel and self._config.pipeline["grad_partitioned"]
-        )
-        logger.info(
-            f"is_pipe_partitioned= {self.is_pipe_partitioned} "
-            f"is_grad_partitioned= {self.is_grad_partitioned}"
-        )
+        # if self.bfloat16_enabled():
+        # self.optimizer = self._configure_zero_optimizer(optimizer=optimizer)
+        # elif self.zero_optimization():
+        #     # no optim selected but zero is enabled
+        #     self.optimizer = self._configure_zero_optimizer(optimizer=None)
 
         model_parameters = filter(lambda p: p.requires_grad, self.module.parameters())
         num_params = sum([p.numel() for p in model_parameters])
@@ -219,7 +191,7 @@ class SFMPipeEngine(DeepSpeedEngine):
         total_params = params_tensor[0]
         unique_params = params_tensor[1]
         if self.grid.data_parallel_id == 0:
-            logger.warning(
+            logger.info(
                 f"RANK={self.global_rank} "
                 f"STAGE={self.stage_id} "
                 f"LAYERS={self.module._local_stop - self.module._local_start} "
@@ -248,10 +220,6 @@ class SFMPipeEngine(DeepSpeedEngine):
 
         self.first_output_send = True
         self.first_gradient_send = True
-        self.pipe_partition_input_meta_cache = None
-        self.pipe_partition_output_meta_cache = None
-        self.pipe_partition_grad_meta_cache = None
-        self.grad_partition_grad_layer_meta_cache = None
 
         # stores the loss for the current micro batch being processed
         self.loss = torch.tensor(0.0, dtype=torch.float32).to(self.device)
@@ -265,18 +233,6 @@ class SFMPipeEngine(DeepSpeedEngine):
             self.module.activation_checkpoint_interval = self._config.pipeline[
                 "activation_checkpoint_interval"
             ]
-            # set use_reentrant default to True.
-            if self._config.pipeline.get("use_reentrant") is None:
-                self._config.pipeline["use_reentrant"] = True
-            if self._config.pipeline["use_reentrant"] is False:
-                # set activation_checkpoint_func to non_reentrant_checkpoint func.
-                self.module.activation_checkpoint_func = (
-                    ds_checkpointing.non_reentrant_checkpoint
-                )
-                if self.grid.get_global_rank() == 0:
-                    logger.info(
-                        "CONFIG: activation_checkpoint_func=non_reentrant_checkpoint"
-                    )
 
         self.module.checkpoint_parallel_write_pipeline = (
             self._config.checkpoint_parallel_write_pipeline
@@ -301,18 +257,18 @@ class SFMPipeEngine(DeepSpeedEngine):
         # XXX look into timer reporting timing
         # Initialize some timers because of early weirdness.
         if self.wall_clock_breakdown():
-            self.timers(FORWARD_MICRO_TIMER).start()
-            self.timers(FORWARD_MICRO_TIMER).stop()
-            self.timers(BACKWARD_MICRO_TIMER).start()
-            self.timers(BACKWARD_MICRO_TIMER).stop()
-            self.timers(BACKWARD_INNER_MICRO_TIMER).start()
-            self.timers(BACKWARD_INNER_MICRO_TIMER).stop()
-            self.timers(BACKWARD_REDUCE_MICRO_TIMER).start()
-            self.timers(BACKWARD_REDUCE_MICRO_TIMER).stop()
-            self.timers(BACKWARD_REDUCE_GLOBAL_TIMER).start()
-            self.timers(BACKWARD_REDUCE_GLOBAL_TIMER).stop()
-            self.timers(STEP_MICRO_TIMER).start()
-            self.timers(STEP_MICRO_TIMER).stop()
+            self.timers("forward_microstep").start()
+            self.timers("forward_microstep").stop()
+            self.timers("backward_microstep").start()
+            self.timers("backward_microstep").stop()
+            self.timers("backward_inner_microstep").start()
+            self.timers("backward_inner_microstep").stop()
+            self.timers("backward_allreduce_microstep").start()
+            self.timers("backward_allreduce_microstep").stop()
+            self.timers("backward_allreduce").start()
+            self.timers("backward_allreduce").stop()
+            self.timers("step_microstep").start()
+            self.timers("step_microstep").stop()
 
         # build parameters mapping index
         self.para_dict = {}
@@ -359,7 +315,7 @@ class SFMPipeEngine(DeepSpeedEngine):
         weight_group_list = self.module.get_tied_weights_and_groups()
         for weight, group in weight_group_list:
             # print("weight", weight, weight.grad)
-            grad = weight._hp_grad if self.using_bf16_optimizer else weight.grad
+            grad = weight._hp_grad if self.bfloat16_enabled() else weight.grad
             # set part of elements in tensor grad to zero
             # # customized for Llama special token training
             # grad[:, :32001] = 0.0
@@ -368,9 +324,15 @@ class SFMPipeEngine(DeepSpeedEngine):
     def _exec_reduce_grads(self):
         self._force_grad_boundary = True
         if self.pipeline_enable_backward_allreduce:
-            if self.using_bf16_optimizer:
-                # PP+BF16 work for ZeRO Stage 1
-                self._bf16_reduce_grads()
+            if self.bfloat16_enabled():
+                if self.zero_optimization_stage() == 0:
+                    self._bf16_reduce_grads()
+                else:
+                    assert (
+                        self.zero_optimization_stage() == 1
+                    ), "only bf16 + z1 are supported"
+                    self.allreduce_gradients(bucket_size=MEMORY_OPT_ALLREDUCE_SIZE)
+                    # raise NotImplementedError()
             else:
                 self.allreduce_gradients(bucket_size=MEMORY_OPT_ALLREDUCE_SIZE)
         self._force_grad_boundary = False
@@ -407,11 +369,6 @@ class SFMPipeEngine(DeepSpeedEngine):
         self.pipe_recv_buf = None
         self.grad_layer = None
         self.meta_buffer = None
-
-        self.pipe_partition_input_meta_cache = None
-        self.pipe_partition_output_meta_cache = None
-        self.pipe_partition_grad_meta_cache = None
-        self.grad_partition_grad_layer_meta_cache = None
 
     def train_batch(self, data_iter=None):
         """Progress the pipeline to train the next batch of data. The engine will ingest
@@ -491,8 +448,6 @@ class SFMPipeEngine(DeepSpeedEngine):
                     f"samples/sec: {tput:0.3f}"
                 )
                 metric_logger.log(self.agg_loss_log, "train_inner")
-            else:
-                self.timers(TRAIN_BATCH_TIMER).elapsed(reset=True)
 
         # Monitoring
         if self.global_rank == 0 and self.monitor.enabled:
@@ -519,10 +474,10 @@ class SFMPipeEngine(DeepSpeedEngine):
         ):
             self.timers.log(
                 [
-                    PIPE_SEND_OUTPUT_TIMER,
-                    PIPE_SEND_GRAD_TIMER,
-                    PIPE_RECV_INPUT_TIMER,
-                    PIPE_RECV_GRAD_TIMER,
+                    "pipe_send_output",
+                    "pipe_send_grad",
+                    "pipe_recv_input",
+                    "pipe_recv_grad",
                 ]
             )
 
@@ -591,7 +546,7 @@ class SFMPipeEngine(DeepSpeedEngine):
         )
 
         # prevent dead-lock with multiple evals sequence
-        dist.barrier()
+        # dist.barrier()
 
         self.reset_activation_shape()
 
@@ -841,10 +796,8 @@ class SFMPipeEngine(DeepSpeedEngine):
 
         # collect the partitioned input from the previous stage
         if self.is_pipe_partitioned and not self.is_first_stage():
-            if self.pipe_partition_input_meta_cache is None:
-                self.pipe_partition_input_meta_cache = inputs[0].to("cpu")
             part_input = PartitionedTensor.from_meta(
-                meta=self.pipe_partition_input_meta_cache,
+                meta=inputs[0],
                 local_part=inputs[1],
                 group=self.grid.get_slice_parallel_group(),
             )
@@ -857,16 +810,11 @@ class SFMPipeEngine(DeepSpeedEngine):
             inputs = inputs[0] if len(inputs) == 1 else inputs
             self.pipe_buffers["inputs"][buffer_id] = inputs
 
-        # # Zero out the gradients each time we use the tensor because only the data in
-        # # tensor changes across batches
-        # self._zero_grads(inputs)
+        # Zero out the gradients each time we use the tensor because only the data in
+        # tensor changes across batches
+        self._zero_grads(inputs)
 
         outputs = super().forward(inputs)
-
-        # Reset activation checkpointing buffers.
-        # Need to call this between evaluation iterations
-        if not self.module.training:
-            ds_checkpointing.reset()
 
         # Partition the outputs if we are not the last stage
         if self.is_pipe_partitioned and not self.is_last_stage():
@@ -959,19 +907,17 @@ class SFMPipeEngine(DeepSpeedEngine):
         outputs = self.pipe_buffers["outputs"][buffer_id]
 
         if self.wall_clock_breakdown():
-            self.timers(BACKWARD_MICRO_TIMER).start()
-            self.timers(BACKWARD_GLOBAL_TIMER).start()
-            self.timers(BACKWARD_INNER_MICRO_TIMER).start()
-            self.timers(BACKWARD_INNER_GLOBAL_TIMER).start()
+            self.timers("backward_microstep").start()
+            self.timers("backward").start()
+            self.timers("backward_inner_microstep").start()
+            self.timers("backward_inner").start()
 
         # Reconstruct if we previously partitioned the output. We must be
         # careful to also restore the computational graph of the tensors we partitioned.
         if self.is_pipe_partitioned:
             if self.is_grad_partitioned:
-                if self.pipe_partition_output_meta_cache is None:
-                    self.pipe_partition_output_meta_cache = outputs[0].to("cpu")
                 part_output = PartitionedTensor.from_meta(
-                    meta=self.pipe_partition_output_meta_cache,
+                    meta=outputs[0],
                     local_part=outputs[1],
                     group=self.grid.get_slice_parallel_group(),
                 )
@@ -985,10 +931,8 @@ class SFMPipeEngine(DeepSpeedEngine):
         grad_tensors = self.grad_layer
         if self.is_grad_partitioned:
             # print(f'RANK={self.global_rank} BEFORE-BWD restoring grad={self.grad_layer[0].size()} {self.grad_layer[1].size()}')
-            if self.grad_partition_grad_layer_meta_cache is None:
-                self.grad_partition_grad_layer_meta_cache = self.grad_layer[0].to("cpu")
             part_grad = PartitionedTensor.from_meta(
-                meta=self.grad_partition_grad_layer_meta_cache,
+                meta=self.grad_layer[0],
                 local_part=self.grad_layer[1],
                 group=self.grid.get_slice_parallel_group(),
             )
@@ -996,7 +940,11 @@ class SFMPipeEngine(DeepSpeedEngine):
             part_grad = None
             # print(f'RANK={self.global_rank} BEFORE-BWD restored grad={self.grad_layer[0].size()} {self.grad_layer[1].size()}')
 
-        if self.using_bf16_optimizer and not self.is_last_stage():
+        if (
+            self.bfloat16_enabled()
+            and not self.is_last_stage()
+            and self.zero_optimization_stage() == 0
+        ):
             # manually call because we don't call optimizer.backward()
             self.optimizer.clear_lp_grads()
 
@@ -1013,7 +961,11 @@ class SFMPipeEngine(DeepSpeedEngine):
         else:
             torch.autograd.backward(tensors=(outputs,), grad_tensors=(grad_tensors,))
 
-        if self.using_bf16_optimizer and not self.is_last_stage():
+        if (
+            self.bfloat16_enabled()
+            and not self.is_last_stage()
+            and self.zero_optimization_stage() == 0
+        ):
             # manually call because we don't call optimizer.backward()
             self.optimizer.update_hp_grads(clear_lp_grads=False)
 
@@ -1023,10 +975,10 @@ class SFMPipeEngine(DeepSpeedEngine):
         grad_tensors = None
 
         if self.wall_clock_breakdown():
-            self.timers(BACKWARD_INNER_MICRO_TIMER).stop()
-            self.timers(BACKWARD_INNER_GLOBAL_TIMER).stop()
-            self.timers(BACKWARD_MICRO_TIMER).stop()
-            self.timers(BACKWARD_GLOBAL_TIMER).stop()
+            self.timers("backward_inner").stop()
+            self.timers("backward_inner_microstep").stop()
+            self.timers("backward").stop()
+            self.timers("backward_microstep").stop()
 
         self.mem_status("AFTER BWD")
 
@@ -1057,11 +1009,8 @@ class SFMPipeEngine(DeepSpeedEngine):
         if self.is_first_stage():
             loaded = None
             if torch.is_tensor(batch[0]):
-                if (
-                    self._config.pipeline["activation_checkpoint_interval"] > 0
-                    and self._config.pipeline["use_reentrant"]
-                ):
-                    loaded.requires_grad = loaded.is_floating_point()
+                loaded = batch[0].clone().to(self.device).detach()
+                loaded.requires_grad = loaded.is_floating_point()
             else:
                 assert isinstance(batch[0], (tuple, list))
                 # Assume list or tuple
@@ -1071,11 +1020,7 @@ class SFMPipeEngine(DeepSpeedEngine):
                     mine = x.clone().detach().to(self.device)
                     if self.fp16_auto_cast():
                         mine = self._cast_inputs_half(mine)
-                    if (
-                        self._config.pipeline["activation_checkpoint_interval"] > 0
-                        and self._config.pipeline["use_reentrant"]
-                    ):
-                        mine.requires_grad = mine.is_floating_point()
+                    mine.requires_grad = mine.is_floating_point()
                     loaded.append(mine)
                 loaded = tuple(loaded)
 
@@ -1096,7 +1041,7 @@ class SFMPipeEngine(DeepSpeedEngine):
             self.pipe_buffers["labels"][buffer_id] = loaded
 
         if self.wall_clock_breakdown():
-            self.timers(BATCH_INPUT_TIMER).stop()
+            self.timers("batch_input").stop()
 
     def _send_tensor_meta(self, buffer, recv_stage):
         """Communicate metadata about upcoming p2p transfers.
@@ -1224,7 +1169,7 @@ class SFMPipeEngine(DeepSpeedEngine):
 
     def _exec_send_activations(self, buffer_id):
         if self.wall_clock_breakdown():
-            self.timers(PIPE_SEND_OUTPUT_TIMER).start()
+            self.timers("pipe_send_output").start()
 
         outputs = self.pipe_buffers["outputs"][buffer_id]
 
@@ -1258,11 +1203,11 @@ class SFMPipeEngine(DeepSpeedEngine):
             outputs = tuple(outputs)
 
         if self.wall_clock_breakdown():
-            self.timers(PIPE_SEND_OUTPUT_TIMER).stop()
+            self.timers("pipe_send_output").stop()
 
     def _exec_send_grads(self, buffer_id):
         if self.wall_clock_breakdown():
-            self.timers(PIPE_SEND_GRAD_TIMER).start()
+            self.timers("pipe_send_grad").start()
 
         inputs = self.pipe_buffers["inputs"][buffer_id]
 
@@ -1271,7 +1216,9 @@ class SFMPipeEngine(DeepSpeedEngine):
             if isinstance(inputs, tuple):
                 first_input = inputs[0]
                 assert all([torch.is_tensor(elt) for elt in inputs[1:]])
-                inputs_grad_tail = [elt.grad for elt in inputs[1:]]
+                inputs_grad_tail = [
+                    elt.grad for elt in inputs[1:] if elt.grad is not None
+                ]
             elif torch.is_tensor(inputs):
                 first_input = inputs
                 inputs_grad_tail = []
@@ -1317,11 +1264,11 @@ class SFMPipeEngine(DeepSpeedEngine):
         self.pipe_buffers["inputs"][buffer_id] = None
 
         if self.wall_clock_breakdown():
-            self.timers(PIPE_SEND_GRAD_TIMER).stop()
+            self.timers("pipe_send_grad").stop()
 
     def _exec_recv_activations(self, buffer_id):
         if self.wall_clock_breakdown():
-            self.timers(PIPE_RECV_INPUT_TIMER).start()
+            self.timers("pipe_recv_input").start()
 
         recvd = None
 
@@ -1363,11 +1310,11 @@ class SFMPipeEngine(DeepSpeedEngine):
         # self.meta_buffer = None
 
         if self.wall_clock_breakdown():
-            self.timers(PIPE_RECV_INPUT_TIMER).stop()
+            self.timers("pipe_recv_input").stop()
 
     def _exec_recv_grads(self, buffer_id):
         if self.wall_clock_breakdown():
-            self.timers(PIPE_RECV_GRAD_TIMER).start()
+            self.timers("pipe_recv_grad").start()
 
         outputs = self.pipe_buffers["outputs"][buffer_id]
         # XXX these shapes are hardcoded for Megatron
@@ -1437,12 +1384,12 @@ class SFMPipeEngine(DeepSpeedEngine):
                 p2p.recv(buffer, self.next_stage)
 
         if self.wall_clock_breakdown():
-            self.timers(PIPE_RECV_GRAD_TIMER).stop()
+            self.timers("pipe_recv_grad").stop()
 
     def _exec_optimizer_step(self, lr_kwargs=None):
         if self.wall_clock_breakdown():
-            self.timers(STEP_MICRO_TIMER).start()
-            self.timers(STEP_GLOBAL_TIMER).start()
+            self.timers("step_microstep").start()
+            self.timers("step").start()
         self.mem_status("BEFORE STEP", reset_max=True)
 
         self._force_grad_boundary = True
@@ -1466,27 +1413,28 @@ class SFMPipeEngine(DeepSpeedEngine):
             self.monitor.write_events(self.summary_events)
 
         if self.wall_clock_breakdown():
-            self.timers(STEP_MICRO_TIMER).stop()
-            self.timers(STEP_GLOBAL_TIMER).stop()
+            self.timers("step_microstep").stop()
+            self.timers("step").stop()
             if self.global_steps % self.steps_per_print() == 0:
                 self.timers.log(
                     [
-                        BATCH_INPUT_TIMER,
-                        FORWARD_MICRO_TIMER,
-                        BACKWARD_MICRO_TIMER,
-                        BACKWARD_INNER_MICRO_TIMER,
-                        BACKWARD_REDUCE_MICRO_TIMER,
-                        STEP_MICRO_TIMER,
+                        "batch_input",
+                        "forward_microstep",
+                        "backward_microstep",
+                        "backward_inner_microstep",
+                        "backward_allreduce_microstep",
+                        "backward_tied_allreduce_microstep",
+                        "step_microstep",
                     ]
                 )
             if self.global_steps % self.steps_per_print() == 0:
                 self.timers.log(
                     [
-                        FORWARD_GLOBAL_TIMER,
-                        BACKWARD_GLOBAL_TIMER,
-                        BACKWARD_INNER_GLOBAL_TIMER,
-                        BACKWARD_REDUCE_GLOBAL_TIMER,
-                        STEP_GLOBAL_TIMER,
+                        "forward",
+                        "backward",
+                        "backward_inner",
+                        "backward_allreduce",
+                        "step",
                     ]
                 )
 
@@ -1880,9 +1828,7 @@ class SFMPipeEngine(DeepSpeedEngine):
 
         return load_path, client_state
 
-    def load_module_state_dict(
-        self, checkpoint, strict=True, custom_load_fn=None, fetch_z3_params=False
-    ):
+    def load_module_state_dict(self, state_dict, strict=True, custom_load_fn=None):
         """Override hack to instead use a directory path.
 
         This is important because pipeline models checkpoint by layer instead of rank.
@@ -1896,7 +1842,6 @@ class SFMPipeEngine(DeepSpeedEngine):
         assert (
             custom_load_fn is None
         ), "custom_load_fn not supported w. pipeline parallelism"
-        state_dict = checkpoint["module"]
         if (state_dict is not None) and (not isinstance(state_dict, (str, list))):
             super().load_module_state_dict(state_dict, strict)
             return
