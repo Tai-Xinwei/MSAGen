@@ -203,9 +203,42 @@ class PretrainedLayerSpec(LayerSpec):
                 raise ValueError(
                     f"new embedding size {self.new_num_tokens} must be larger than the current one {old_embed_size}"
                 )
+        elif "word_embeddings.weight" in checkpoints_state:
+            old_embed_size = checkpoints_state["word_embeddings.weight"].size(0)
+            if old_embed_size == self.new_num_tokens:
+                return checkpoints_state
+            elif old_embed_size < self.new_num_tokens:
+                old_embed_weight = checkpoints_state["word_embeddings.weight"]
+                new_embed = torch.nn.Embedding(
+                    self.new_num_tokens,
+                    old_embed_weight.size(1),
+                    dtype=old_embed_weight.dtype,
+                    device=old_embed_weight.device,
+                )
+
+                # mean = old_embed_weight.mean(dim=0, keepdim=True).expand_as(
+                #     new_embed.weight
+                # )
+                # std = old_embed_weight.std(dim=0, keepdim=True).expand_as(
+                #     new_embed.weight
+                # )
+                # new_embed.weight.data = torch.normal(mean=mean, std=std)
+                # new_embed.weight.data.zero_()
+
+                new_embed.weight.data[
+                    : old_embed_weight.size(0), :
+                ] = old_embed_weight.data
+
+                checkpoints_state["word_embeddings.weight"] = new_embed.weight
+
+                return checkpoints_state
+            else:
+                raise ValueError(
+                    f"new embedding size {self.new_num_tokens} must be larger than the current one {old_embed_size}"
+                )
 
         raise ValueError(
-            "lm_head.weight and embed_tokens.weight are not found in checkpoints_state"
+            "lm_head.weight, embed_tokens.weight, word_embeddings.weight are not found in checkpoints_state"
         )
 
     def create_peft_model(self, model, lora=True):

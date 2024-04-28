@@ -26,25 +26,26 @@
 # [ -z "${train_batch_size}" ] && train_batch_size=32
 
 
-[ -z "${train_data_path}" ] && train_data_path='/blob/v-kehanwu/data/progpt_data/progpt_instructions_train_bpe.lmdb'
-[ -z "${valid_data_path}" ] && valid_data_path='/blob/v-kehanwu/data/progpt_data/progpt_instructions_test_bpe.lmdb'
+[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/progpt_valid_bpe.lmdb'
+[ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/hai1data/sfm/nlm/progpt_valid_bpe.lmdb'
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
 [ -z "${model_max_length}" ] && model_max_length=2048
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
-[ -z "${save_dir}" ] && save_dir='/blob/v-kehanwu/nlm/checkpoints/'
-[ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/hai1.sfm/nlm/output/checkpoint_E144_new.pt'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/'
+# [ -z "${save_dir}" ] && save_dir='/data/peiran/blob/hai1data/sfm/pfmexp/output/stageB/'
+[ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/data/peiran/blob/hai1data/sfm/nlm/output/checkpoint_E144_new.pt'
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/hai1/ds_dataset/llama2/llama-2-7b"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/scigpt/stageB.prot/global_step224655"
-[ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir="/blob/v-kehanwu/nlm/checkpoints/bfm_scigpt_prot"
-[ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step20499"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/data/peiran/blob/msralaphilly2/ml-la/v-kehanwu/SFM/scigpt/stageB.prot/global_step224655"
+[ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir="/data/peiran/blob/hai1data/sfm/pfmexp/output/stageB/"
+[ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step12386"
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/nlm/checkpoints/bfm_scigpt_prot/global_step20499"
-# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/scigpt/stageB/global_step32999"
-[ -z "${tokenizer_path}" ] && tokenizer_path="/blob/shufxi/data/scigpt"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/scigpt/stageB/global_step32999"
+[ -z "${tokenizer_path}" ] && tokenizer_path="/data/peiran/blob/msralaphilly2/ml-la/shufxi/data/scigpt"
 
 [ -z "${save_batch_interval}"] && save_batch_interval=500
-[ -z "${log_interval}" ] && log_interval=20
+[ -z "${log_interval}" ] && log_interval=1
 
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
@@ -111,8 +112,8 @@ echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 echo "embedding_length: ${embedding_length}"
 echo "pool_mode: ${pool_mode}"
 
-wandb login --relogin $wandb_key
-export WANDB_API_KEY=$wandb_key
+# wandb login --relogin $wandb_key
+# export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -169,9 +170,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --unfreeze_param_list "mol_adaptor,mol_rep_layernorm" \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
           --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
-          --finetune_from_checkpoint_id $finetune_from_checkpoint_id \
-          --instruction_mode
-          # --ifresume
+          --finetune_from_checkpoint_id $finetune_from_checkpoint_id
 
 
 sleep inf
