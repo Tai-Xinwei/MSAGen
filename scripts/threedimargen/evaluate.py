@@ -9,7 +9,6 @@ from multiprocessing import Pool, TimeoutError
 
 import numpy as np
 import smact
-from invcryrep.invcryrep import InvCryRep
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.core.lattice import Lattice
 from pymatgen.core.structure import Structure
@@ -248,9 +247,13 @@ def evaluate(fname):
     valids = []
     smact_valids = []
     struct_valids = []
-    backend = InvCryRep()
+    backend = None
     with open(fname, "r") as f:
         lines = f.readlines()
+        if "slices" in json.loads(lines[0])["prediction"]:
+            from invcryrep.invcryrep import InvCryRep
+
+            backend = InvCryRep()
         for line in tqdm(lines):
             data = json.loads(line)
             sites = [site["element"] for site in data["sites"]]

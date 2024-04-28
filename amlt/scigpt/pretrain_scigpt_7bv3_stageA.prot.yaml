@@ -7,22 +7,22 @@ env_defaults:
   #WANDB_API_KEY:  "2ff6f7b6ac42d86aed79dac8b0c10cc9a5a50b5d"
   WANDB_API_KEY:  "local-8904f1b2b7174cdb7c0bf0b8a2c3195c1889c537"
 
+target:
+    service: aml
+    subscription_id: 3f2ab3f5-468d-4ba7-bc14-9d3a9da4bcc5
+    resource_group: TownsendAML1
+    workspace_name: townsendws1
+    cluster: townsend1
 # target:
-#     # service: aml
-#     # subscription_id: 3f2ab3f5-468d-4ba7-bc14-9d3a9da4bcc5
-#     # resource_group: TownsendAML1
-#     # workspace_name: townsendws1
-#     # cluster: townsend1
 #     service: aml
 #     subscription_id: 3eaeebff-de6e-4e20-9473-24de9ca067dc
 #     resource_group: sfm-ws-rg
 #     workspace_name: sfm-ws
 #     cluster: sfm-prem-nd96amsr100-westeurope
-
-target:
-  service: sing
-  name: baltic02
-  workspace_name: msrresrchws
+# target:
+#   service: sing
+#   name: baltic02
+#   workspace_name: msrresrchws
 
 environment:
   image: yaosen/sfm-cuda:py39-torch2.2.2-cuda12.1-20240412
@@ -61,8 +61,8 @@ jobs:
   - export epochs=10
   - export learnable_cutoff=32000
   - export train_batch_size=256
-  - export gradient_accumulation_steps=4
-  - export save_dir=/hai1/shufxi/scigpt/7bv3/stageA_prot_e10_bs256_emb_bugfix
+  - export gradient_accumulation_steps=8
+  - export save_dir=/hai1/shufxi/scigpt/7bv3/stageA_prot_e10_bs256_emb_bugfix_a100
   - export save_batch_interval=5000
   - export train_data_path=/hai1/shufxi/data/scigpt/v3/train.prot.npy
   - bash scripts/scigpt/pretrain_scigpt_7bv3_stageA_prot.sh
