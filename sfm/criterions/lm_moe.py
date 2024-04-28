@@ -56,7 +56,6 @@ class LmMoeCriterion(nn.Module):
         self.config = config
         self.lm_loss_func = AutoregressiveCriterion(config, reduction)
 
-    @torch.compile
     def forward(self, output, label, gate_scores):
         lm_loss, _ = self.lm_loss_func(output, label)
 

@@ -29,7 +29,7 @@ class Model(SFMPipelineModelMixin):
         layers = []
         ckpt_folder = self.config.pretrained_ckpt_path
 
-        pretrained_ckpt_path = os.path.join(ckpt_folder, "model.wte.pt")
+        pretrained_ckpt_path = os.path.join(ckpt_folder, "model.hybrid_emb.pt")
         if not os.path.exists(pretrained_ckpt_path):
             pretrained_ckpt_path = os.path.join(ckpt_folder, "layer_00-model_states.pt")
 

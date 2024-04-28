@@ -7,7 +7,11 @@
 description: psm
 
 env_defaults:
+<<<<<<< HEAD
+  NODES: 2
+=======
   NODES: 1
+>>>>>>> main
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -16,11 +20,16 @@ env_defaults:
 #   name: baltic02
 #   workspace_name: msrresrchws
 
+# target:
+#     service: aml
+#     # name: gcrarca100cl1
+#     name: sfm-nd96amsra100v4-uksouth
+#     # name: sfm-nc96-westus3
+
 target:
-    service: aml
-    # name: gcrarca100cl1
-    name: sfm-nd96amsra100v4-uksouth
-    # name: sfm-nc96-westus3
+  service: singularity
+  name: msrresrchvc
+  workspace_name: msrresrchws
 
 environment:
   image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
@@ -40,7 +49,8 @@ code:
 jobs:
 - name: psm
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
-  sku: ${NODES}xG${GPUS}
+  sku: ${NODES}xG${GPUS}-A100
+  sla_tier: premium
   mpi: true
   process_count_per_node: 1
   command:
@@ -49,8 +59,8 @@ jobs:
   - export WANDB_TEAM=ai4s-sfm
   - export wandb_group=pdm_dev
   - mkdir /blob/pfmexp/output
-  - mkdir /blob/pfmexp/output/pfmdiff150M_8G_prob1261_m5_bs2048_ddpm_pair
-  - mkdir /blob/pfmexp/output/pfmdiff150M_8G_prob1261_m5_bs2048_ddpm_pair/checkpoints
+  - mkdir /blob/pfmexp/output/pfmdiff150M_16G_prob1261_m5_bs2048_ddpm_pair
+  - mkdir /blob/pfmexp/output/pfmdiff150M_16G_prob1261_m5_bs2048_ddpm_pair/checkpoints
   - mkdir ./output
   - export path=run.sh
   - export layers=12
@@ -80,15 +90,14 @@ jobs:
   - export val_batch_size=2048
   - export max_tokens=16000
   - export max_length=1024
-  - export gradient_accumulation_steps=8
+  - export gradient_accumulation_steps=4
   - export log_interval=100
-  - export loadcheck_path=/blob/pfmexp/output/pfmdiff150M_8G_prob1261_m5_bs2048_ddpm_pair/checkpoints
+  - export loadcheck_path=/blob/pfmexp/output/pfmdiff150M_16G_prob1261_m5_bs2048_ddpm_pair/checkpoints
   # - export data_path=/blob/data/afdb/48organisms-fullatom.lmdb/
   - export data_path=/blob/data/afdb/AFDB50-plddt70.lmdb/
-  - export save_dir=/blob/pfmexp/output/pfmdiff150M_8G_prob1261_m5_bs2048_ddpm_pair/checkpoints
+  - export save_dir=/blob/pfmexp/output/pfmdiff150M_16G_prob1261_m5_bs2048_ddpm_pair/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - bash ./scripts/tox/pretrain_tox.sh
   submit_args:
-    container_args:
-      shm_size: 1024g
+    max_run_duration_seconds: 1209500

@@ -1,7 +1,7 @@
 description: train_sfm_nlm_moe
 
 env_defaults:
-  NODES: 4
+  NODES: 32
   GPUS: 8
 
 target:
@@ -24,16 +24,14 @@ code:
   local_dir: .
 
 jobs:
-- name: train_sfm_nlm_moe_stageA
+- name: train_sfm_nlm_moe_stageB
   sku: ${NODES}xG${GPUS}
   tags:
     - 'ProjectID: PRJ-0209-A40'
+    - 'Project_Name: Science_Foundation_Model'
+    - 'Experiment: SFM_NLM_MOE_Model_Training'
   mpi: true
   process_count_per_node: 1
-  command:
-  - eval "$$(conda shell.bash hook)" && conda activate sfm
-  - pip install -e . --no-deps
-  - bash scripts/nlm/pretrain_sfm_nlm_moe_stageA.sh
   submit_args:
     env:
       SHARED_MEMORY_PERCENT: 1.0
@@ -41,3 +39,15 @@ jobs:
       WANDB_PROJECT: NLM_MOE
       WANDB_TEAM: ai4s-sfm
       WANDB_BASE_URL: https://microsoft-research.wandb.io
+      NCCL_DEBUG: INFO
+      train_batch_size: 128 # 512
+      gradient_accumulation_steps: 4 # 16
+      pipeline_model_parallel_size: 8
+      epochs: 1
+      total_num_steps: 140000 # ~ 17913508 / 128
+      save_batch_interval: 5000
+      log_interval: 20
+  command:
+    - eval "$$(conda shell.bash hook)" && conda activate sfm
+    - pip install -e . --no-deps
+    - bash scripts/nlm/pretrain_sfm_nlm_moe_stageB.sh

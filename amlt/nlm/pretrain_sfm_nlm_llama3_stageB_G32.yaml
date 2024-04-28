@@ -1,0 +1,59 @@
+description: train_sfm_nlmmoe_debug
+
+env_defaults:
+  NODES: 4
+  GPUS: 8
+  # WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+  WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
+
+
+target:
+  service: sing
+  name: baltic02
+  workspace_name: msrresrchws
+
+environment:
+  image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
+  registry: msroctocr.azurecr.io
+  username: msroctocr
+
+storage:
+  hai1:
+    storage_account_name: hai1data # Storage account
+    container_name: sfm # Container name
+    mount_dir: /sfm
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: train_sfm_nlm_moe_debug
+  sku: ${NODES}xG${GPUS}
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=nlm_llama3
+  - export WANDB_TEAM=ai4s-sfm
+  - export wandb_group=nlm_llama3_stageB
+  - export NCCL_DEBUG=INFO
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install -e . --no-deps
+  - pip install pybind11
+  - pip install transformers --upgrade
+  - export train_batch_size=512
+  - export val_batch_size=512
+  - export gradient_accumulation_steps=32
+  - export tensor_model_parallel_size=4
+  - export pipeline_model_parallel_size=1
+  - export train_data_path=/sfm/nlm/llama3_processed_data/v5_train/train.npy
+  - export valid_data_path=/sfm/nlm/llama3_processed_data/v5_validation/valid.npy
+  - export dict_path=/sfm/llama/Meta-Llama-3-8B/original
+  - export loadcheck_path=/sfm/llama/Meta-Llama-3-8B/original
+  - export save_dir=/sfm/nlm/output/llama3_stageA/
+  - bash scripts/nlm/pretrain_nlm_llama3_7b_stageB.sh
+  submit_args:
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
+      CUDA_LAUNCH_BLOCKING: 1

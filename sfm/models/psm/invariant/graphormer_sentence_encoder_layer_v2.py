@@ -14,7 +14,6 @@ from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.droppath import DropPath
 from sfm.modules.FairseqDropout import FairseqDropout
 from sfm.modules.get_activation_fn import get_activation_fn
-from sfm.modules.layer_norm import Fp32LayerNorm, LayerNorm
 from sfm.modules.mem_eff_attn import MemEffAttn
 from sfm.modules.multihead_attention import MultiheadAttention
 from sfm.modules.quant_noise import quant_noise
@@ -64,12 +63,8 @@ class GraphormerSentenceEncoderLayer(nn.Module):
                 dropout, module_name=self.__class__.__name__
             )
 
-        self.activation_dropout_module = FairseqDropout(
-            activation_dropout, module_name=self.__class__.__name__
-        )
-
-        self.pre_attn_norm = LayerNorm(self.embedding_dim, export=export)
-        self.pre_mlp_norm = LayerNorm(self.embedding_dim, export=export)
+        self.pre_attn_norm = nn.LayerNorm(self.embedding_dim)
+        self.pre_mlp_norm = nn.LayerNorm(self.embedding_dim)
 
         # Initialize blocks
         self.activation_fn = get_activation_fn(activation_fn)
@@ -86,14 +81,10 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         self.fc1 = self.build_fc1(
             self.embedding_dim,
             ffn_embedding_dim,
-            q_noise=q_noise,
-            qn_block_size=qn_block_size,
         )
         self.fc2 = self.build_fc2(
             ffn_embedding_dim,
             self.embedding_dim,
-            q_noise=q_noise,
-            qn_block_size=qn_block_size,
         )
 
         self.attn_bias = self.build_attn_bias(psm_config)
@@ -113,11 +104,11 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         self.pre_attn_norm.reset_parameters()
         self.pre_mlp_norm.reset_parameters()
 
-    def build_fc1(self, input_dim, output_dim, q_noise, qn_block_size):
-        return quant_noise(nn.Linear(input_dim, output_dim), q_noise, qn_block_size)
+    def build_fc1(self, input_dim, output_dim):
+        return nn.Linear(input_dim, output_dim, bias=False)
 
-    def build_fc2(self, input_dim, output_dim, q_noise, qn_block_size):
-        return quant_noise(nn.Linear(input_dim, output_dim), q_noise, qn_block_size)
+    def build_fc2(self, input_dim, output_dim):
+        return nn.Linear(input_dim, output_dim, bias=False)
 
     def build_self_attention(
         self,
@@ -147,6 +138,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
     def build_attn_bias(self, psm_config):
         return PSMBias(psm_config)
 
+    @torch.compile(dynamic=True)
     def forward(
         self,
         x: torch.Tensor,
@@ -177,24 +169,24 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             pbc_expand_batched=pbc_expand_batched,
         )
 
-        # expand graph_2d_attention_bias according to PBC, just to match the shape of 3D attention bias
-        # for periodic systems graph_2d_attention_bias should be all zero
-        # here we use pbc and token id together to differentiate molecules from periodic systems and proteins
-        if graph_2d_attention_bias is not None:
-            expanded_graph_2d_attention_bias = torch.zeros_like(self_attn_bias)
-            token_id = batched_data["token_id"]
-            pbc = batched_data["pbc"]
-            molecule_mask = torch.all(token_id <= 128, dim=-1) & ~torch.any(pbc, dim=-1)
-            n_node = graph_2d_attention_bias.size()[-1] - 1
-            expanded_graph_2d_attention_bias[
-                :, :, :n_node, :n_node
-            ] = graph_2d_attention_bias[
-                :, :, 1:, 1:
-            ]  # leave out virtual node in 2D attention bias
-            expanded_graph_2d_attention_bias.masked_fill(
-                ~molecule_mask.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), 0.0
-            )
-            self_attn_bias += expanded_graph_2d_attention_bias
+        # # expand graph_2d_attention_bias according to PBC, just to match the shape of 3D attention bias
+        # # for periodic systems graph_2d_attention_bias should be all zero
+        # # here we use pbc and token id together to differentiate molecules from periodic systems and proteins
+        # if graph_2d_attention_bias is not None:
+        #     expanded_graph_2d_attention_bias = torch.zeros_like(self_attn_bias)
+        #     token_id = batched_data["token_id"]
+        #     pbc = batched_data["pbc"]
+        #     molecule_mask = torch.all(token_id <= 128, dim=-1) & ~torch.any(pbc, dim=-1)
+        #     n_node = graph_2d_attention_bias.size()[-1] - 1
+        #     expanded_graph_2d_attention_bias[
+        #         :, :, :n_node, :n_node
+        #     ] = graph_2d_attention_bias[
+        #         :, :, 1:, 1:
+        #     ]  # leave out virtual node in 2D attention bias
+        #     expanded_graph_2d_attention_bias.masked_fill(
+        #         ~molecule_mask.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), 0.0
+        #     )
+        #     self_attn_bias += expanded_graph_2d_attention_bias
 
         # x: T x B x C
         residual = x

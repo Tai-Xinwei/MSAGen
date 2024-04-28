@@ -85,6 +85,14 @@ class PM6FullLMDBDataset(FoundationModelDataset):
             self._init_db()
         return self._keys
 
+    @property
+    def energy_mean(self):
+        return -43590.75390625
+
+    @property
+    def energy_std(self):
+        return 25539.1640625
+
     def split_dataset(self, validation_ratio=0.03, sort=False):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
@@ -137,7 +145,9 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         data["forces"] = torch.zeros(
             (x.size()[0], 3), dtype=torch.float64, device=x.device
         )
-        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+        data["energy"] = torch.tensor(
+            [(data["total_energy"] - self.energy_mean) / self.energy_std]
+        )
 
         data = self.generate_2dgraphfeat(data)
 
@@ -272,7 +282,8 @@ class MatterSimDataset:
             ],
             dim=0,
         )  # expand forces for cell corners
-        data["energy"] = torch.tensor([data["info"]["energy"] / x.size()[0]])
+        # data["energy"] = torch.tensor([data["info"]["energy"] / x.size()[0]])
+        data["energy"] = torch.tensor([data["info"]["energy"]])
         data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
 
         data = self.generate_2dgraphfeat(data)
