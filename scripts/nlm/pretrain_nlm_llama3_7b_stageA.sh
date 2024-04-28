@@ -155,8 +155,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --pretrained_ckpt_path "$loadcheck_path" \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
       --learnable_cutoff "$learnable_cutoff" \
-      --profiling \
+      --load_ckpt \
       --unfreeze_param_list "$unfreeze_param_list" \
       ${MEGATRON_ARGS}
-
-      # --load_ckpt \
