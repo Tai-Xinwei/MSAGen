@@ -26,15 +26,15 @@
 # [ -z "${train_batch_size}" ] && train_batch_size=32
 
 
-[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/progpt_valid_bpe.lmdb'
+[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/progpt_train_bpe.lmdb'
 [ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/hai1data/sfm/nlm/progpt_valid_bpe.lmdb'
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
 [ -z "${model_max_length}" ] && model_max_length=2048
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
-[ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/'
-# [ -z "${save_dir}" ] && save_dir='/data/peiran/blob/hai1data/sfm/pfmexp/output/stageB/'
+# [ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/blob/hai1data/sfm/pfmexp/output/stageB/'
 [ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/data/peiran/blob/hai1data/sfm/nlm/output/checkpoint_E144_new.pt'
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/hai1/ds_dataset/llama2/llama-2-7b"
 [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/data/peiran/blob/msralaphilly2/ml-la/v-kehanwu/SFM/scigpt/stageB.prot/global_step224655"
@@ -62,10 +62,10 @@
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 # [ -z "${OMPI_COMM_WORLD_LOCAL_RANK}" ] && OMPI_COMM_WORLD_LOCAL_RANK=-1
 
-[ -z "${wandb_group}" ] && wandb_group=NLM
-[ -z "${wandb_team}" ] && wandb_team=HankerWu
-[ -z "${wandb_project}" ] && wandb_project=sfm
-[ -z "${wandb_key}" ] && wandb_key=140f5ace0c8e16afe6efe3921fa0d90d1c7a3e61
+[ -z "${wandb_group}" ] && wandb_group=llama3bfm_stageB
+[ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
+[ -z "${wandb_project}" ] && wandb_project=llama3bfm_stageB
+[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -112,8 +112,8 @@ echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 echo "embedding_length: ${embedding_length}"
 echo "pool_mode: ${pool_mode}"
 
-# wandb login --relogin $wandb_key
-# export WANDB_API_KEY=$wandb_key
+wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -149,7 +149,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --seed 6666 \
           --ft \
-          --bf16 \
+          --fp16 \
           --d_tilde $d_tilde \
           --max_lr $max_lr \
           --save_dir $save_dir \
@@ -167,7 +167,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --loadbfmckpt_path $loadbfmckpt_path \
           --log_interval $log_interval \
           --save_batch_interval $save_batch_interval \
-          --unfreeze_param_list "mol_adaptor,mol_rep_layernorm" \
+          --unfreeze_param_list "mol_adaptor,mol_rep_layernorm,0.layers" \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
           --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
           --finetune_from_checkpoint_id $finetune_from_checkpoint_id
