@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from sfm.data.sci_data.dataset import ProcessedSciDataset
-from sfm.data.sci_data.SFMDecTokenizer import SFMDecTokenizer
+from sfm.data.sci_data.NlmTokenizer import NlmTokenizer
 from sfm.logging import logger
 from sfm.models.nlm.moe_config import (
     MoeModelConfig,
@@ -30,7 +30,7 @@ def main(args) -> None:
     ), f"valid_dataset is {args.valid_data_path} it should not be None or empty"
 
     if not args.vocab_size:
-        tokenizer = SFMDecTokenizer.from_pretrained(args.dict_path)
+        tokenizer = NlmTokenizer.from_pretrained(args.dict_path)
         args.vocab_size = len(tokenizer)  # now we have new tokens
         args.pad_token_id = tokenizer.pad_token_id
 
@@ -46,11 +46,13 @@ def main(args) -> None:
         args.pad_token_id,
         config.max_position_embeddings,
         eos_idx=config.eos_token_id,
-        shuffle_subseq=True,
     )
 
     valid_dataset = ProcessedSciDataset(
-        config.valid_data_path, args.pad_token_id, config.max_position_embeddings
+        config.valid_data_path,
+        args.pad_token_id,
+        config.max_position_embeddings,
+        eos_idx=config.eos_token_id,
     )
 
     trainer = Trainer(

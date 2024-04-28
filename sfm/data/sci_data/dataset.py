@@ -14,13 +14,13 @@ SciTokenIdxAndMask = namedtuple("SciTokenIdxAndMask", ["input_ids", "padding_mas
 SciDataTuple = namedtuple("SciDataTuple", ["input", "labels"])
 
 
-def shuffle_sub_sequences(seq, eos_idx):
+def shuffle_sub_sequences(seq, eos_idx, sci_idx_cutoff=32000):
     """
     For a science_token sequence like [a, a, eos, b, eos, c]
     shuffle the sub sequences to [b, eos, a, a, eos, c]
     Note the last sequence is not shuffled if it's not complete.
     """
-    only_contains_sci_tokens = np.all(seq <= 32000)
+    only_contains_sci_tokens = np.all(seq >= sci_idx_cutoff)
     if not only_contains_sci_tokens:
         # don't shuffle text or mixed sequences
         return seq

@@ -94,13 +94,13 @@ class TestShuffleSubseq(unittest.TestCase):
         seq = np.array([1, 2, 3])
         eos = 0
         expected = np.array([1, 2, 3])
-        self.assertTrue((shuffle_sub_sequences(seq, eos) == expected).all())
+        self.assertTrue((shuffle_sub_sequences(seq, eos, -1) == expected).all())
 
     def test_one_eos(self):
         seq = np.array([1, 2, 0, 3])
         eos = 0
         expected = np.array([1, 2, 0, 3])
-        self.assertTrue((shuffle_sub_sequences(seq, eos) == expected).all())
+        self.assertTrue((shuffle_sub_sequences(seq, eos, -1) == expected).all())
 
     def test_two_eos(self):
         seq = np.array(
@@ -115,7 +115,7 @@ class TestShuffleSubseq(unittest.TestCase):
         eos = 0
         expected = np.array([3, 0, 1, 2, 0])
         np.random.seed(0)
-        result = shuffle_sub_sequences(seq, eos)
+        result = shuffle_sub_sequences(seq, eos, -1)
         match = (result == expected).all()
         self.assertTrue(match)
 
@@ -124,7 +124,7 @@ class TestShuffleSubseq(unittest.TestCase):
         eos = 0
         expected = np.array([3, 0, 1, 2, 0, 4])
         np.random.seed(42)
-        result = shuffle_sub_sequences(seq, eos)
+        result = shuffle_sub_sequences(seq, eos, -1)
         match = (result == expected).all()
         self.assertTrue(match)
 
