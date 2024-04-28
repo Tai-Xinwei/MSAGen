@@ -52,11 +52,13 @@ def process_param(
     param_groups = [{}]
     param_groups[0]["lr"] = lr
     param_groups[0]["params"] = []
-
+    logger.info(f"freeze list: {freeze_list})")
+    logger.info(f"unfreeze list: {unfreeze_list})")
     if len(unfreeze_list) > 1:
         unfreeze_list, unfreeze_layer_name_list = split_param_and_layer_name(
             unfreeze_list
         )
+        logger.info(f"unfreeze layer name list: {unfreeze_list}")
         for name, param in net.named_parameters():
             nl = int(name.split(".")[0])
             if nl in unfreeze_layer_name_list:
@@ -88,6 +90,7 @@ def process_param(
                 param_groups[0]["params"].append(param)
 
     else:
+        logger.info("unfreeze all layers")
         for name, param in net.named_parameters():
             param_groups[0]["params"].append(param)
 
@@ -100,7 +103,7 @@ def process_param(
     return param_groups
 
 
-def process_parm_list(param_list):
+def process_parm_list(param_list: str = None):
     if not param_list:
         return []
 

@@ -122,17 +122,10 @@ class ScigptModel(SFMPipelineModelMixin):
         #         "lm_head.weight",
         #         "embed_tokens.weight"
         #     ]
-        if self.config.unfreeze_param_list:
-            unfreeze_list = [
-                ckpt.strip() for ckpt in self.config.unfreeze_param_list.split(",")
-            ]
-        else:
-            unfreeze_list = None
-        logger.info(f"unfreeze_list: {unfreeze_list}")
 
         optimizer, _ = myAdam(
             model,
-            unfreeze_list=unfreeze_list,
+            unfreeze_list=self.config.unfreeze_param_list,
             lr=self.config.max_lr,
             betas=(self.config.beta1, self.config.beta2),
             weight_decay=self.config.weight_decay,
