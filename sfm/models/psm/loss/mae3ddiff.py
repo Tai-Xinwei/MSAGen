@@ -53,16 +53,23 @@ class DiffMAE3dCriterions(nn.Module):
         padding_mask = atomic_numbers.eq(0)
         energy_mask = clean_mask & ~is_protein
         force_mask = clean_mask & is_periodic
+
         if n_clean_graphs > 0:
             energy_loss = self.energy_loss(
-                energy_pred[energy_mask], energy_label[energy_mask]
+                energy_pred[energy_mask].to(torch.float32),
+                energy_label[energy_mask].to(torch.float32),
             )
-            force_loss = (
-                self.force_loss(force_pred.to(dtype=force_label.dtype), force_label)
-                .masked_fill(non_atom_mask.unsqueeze(-1), 0.0)
-                .sum(dim=[1, 2])
-                / (batched_data["num_atoms"] * 3)
-            )[force_mask].mean()
+            if force_mask.any():
+                force_loss = (
+                    self.force_loss(force_pred.to(dtype=force_label.dtype), force_label)
+                    .masked_fill(non_atom_mask.unsqueeze(-1), 0.0)
+                    .sum(dim=[1, 2])
+                    / (batched_data["num_atoms"] * 3)
+                )[force_mask].mean()
+            else:
+                force_loss = torch.tensor(
+                    [0.0], device=atomic_numbers.device, requires_grad=True
+                )
         else:
             energy_loss = torch.tensor(
                 [0.0], device=atomic_numbers.device, requires_grad=True
@@ -115,6 +122,7 @@ class DiffMAE3dCriterions(nn.Module):
             aa_acc = 0.0
 
         loss = energy_loss + force_loss + noise_loss + aa_mlm_loss
+        # print(f"loss: {loss}, energy_loss: {energy_loss}, force_loss: {force_loss}, noise_loss: {noise_loss}, aa_mlm_loss: {aa_mlm_loss}, aa_acc: {aa_acc}")
 
         # TODO: log losses by periodic, molecule and protein systems, respectively
         logging_output = {

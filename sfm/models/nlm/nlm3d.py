@@ -5,12 +5,10 @@ from typing import Optional, Tuple
 import torch
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LRScheduler
-from transformers import LlamaForCausalLM
 from transformers.models.llama.configuration_llama import LlamaConfig
 
 from megatron.core import parallel_state, tensor_parallel
-from megatron.model.enums import AttnMaskType, AttnType, LayerType
-from sfm.criterions.autoregressive import AutoregressiveCriterion
+from megatron.model.enums import AttnMaskType
 from sfm.logging import logger
 from sfm.models.llama2.llama2mp_config import MPLlamaConfig
 from sfm.models.llama2.llama_modules_3dmp import (
@@ -19,9 +17,6 @@ from sfm.models.llama2.llama_modules_3dmp import (
     LlamaHeadMP,
     LlamaLLMEmbeddingsMP,
 )
-from sfm.models.scigpt.config import ScigptConfig
-from sfm.models.scigpt.modules import SciGPTEmbeddingsPP
-from sfm.models.scigpt.scigpt import ScigptModel
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
@@ -29,7 +24,7 @@ from sfm.utils.optim.optimizer import myAdam, myAdamW
 from sfm.utils.optim.set_lr import DECAY_COSINE_RATE, groupWarmupDecayLR
 
 
-class ScigptModel3d(SFMPipelineModelMixin):
+class NLM3dModel(SFMPipelineModelMixin):
     def __init__(self, args, vocab_size: int):
         super().__init__()
 

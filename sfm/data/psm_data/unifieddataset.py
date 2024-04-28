@@ -93,7 +93,11 @@ class BatchedDataDataset(FoundationModelDataset):
         assert (
             len(self.dataset_split_raito) == self.num_datasets
         ), "split ratio mismatch with number of datasets"
-        assert sum(self.dataset_split_raito) == 1.0, "split ratio should sum to 1.0"
+        if sum(self.dataset_split_raito) != 1.0:
+            logger.info(
+                f"sum of split ratio {self.dataset_split_raito} is not 1.0, use default ratio"
+            )
+            self.dataset_split_raito = [0.7, 0.2, 0.1]
 
         self.multi_hop_max_dist = multi_hop_max_dist
         self.spatial_pos_max = spatial_pos_max

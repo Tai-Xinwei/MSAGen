@@ -13,32 +13,14 @@ from megatron.initialize import initialize_megatron
 from sfm.data.sci_data.dataset import ProcessedSciDataset
 from sfm.data.sci_data.NlmTokenizer import NlmTokenizer
 from sfm.logging import logger
-from sfm.models.scigpt.config import (
-    ScigptConfig,
-    scigpt_7b_config,
-    scigpt_13b_config,
-    scigpt_350m_config,
-    scigpt_shallow_config,
-    scigpt_tiny_config,
-)
-from sfm.models.scigpt.scigpt import ScigptModel
-from sfm.models.scigpt.scigpt3d import ScigptModel3d
+from sfm.models.nlm.moe_config import MoeModelConfig
+from sfm.models.nlm.nlm3d import NLM3dModel
 from sfm.pipeline.accelerator.dataclasses import TrainStrategy
 from sfm.pipeline.accelerator.trainer import Trainer
-from sfm.utils import arg_utils
 from sfm.utils.cli_utils import cli
 
-config_registry = {
-    "scigpt_tiny": scigpt_tiny_config,
-    "scigpt_shallow": scigpt_shallow_config,
-    "scigpt_350m": scigpt_350m_config,
-    "scigpt": scigpt_shallow_config,
-    "scigpt_7b": scigpt_7b_config,
-    "scigpt_13b": scigpt_13b_config,
-}
 
-
-@cli(ScigptConfig, TransformerConfig, parse_megatron_args)
+@cli(MoeModelConfig, TransformerConfig, parse_megatron_args)
 def main(args) -> None:
     assert (
         args.train_data_path is not None and len(args.train_data_path) > 0
@@ -53,28 +35,25 @@ def main(args) -> None:
     args.vocab_size = len(tokenizer)  # now we have new tokens
     args.pad_token_id = tokenizer.pad_token_id
 
-    config = arg_utils.from_args(args, ScigptConfig)
-    config = config_registry.get(config.model_type, scigpt_tiny_config)(config)
-
-    logger.info(f"config: {config}")
-
-    if args.strategy == TrainStrategy.Pipeline:
-        model = ScigptModel(config)
-    elif args.strategy == TrainStrategy.ThreeD:
+    if args.strategy == TrainStrategy.ThreeD:
         initialize_megatron(args, tokenizer=tokenizer)
         logger.info("Initializing megatron for 3D training.")
-        model = ScigptModel3d(args, len(tokenizer))
+        model = NLM3dModel(args, len(tokenizer))
+    else:
+        raise Exception(
+            f"stratey {args.strategy} is not supported, only ThreeD is supported in this task"
+        )
 
     train_dataset = ProcessedSciDataset(
-        config.train_data_path, args.pad_token_id, config.max_position_embeddings
+        args.train_data_path, args.pad_token_id, args.max_position_embeddings
     )
     valid_dataset = ProcessedSciDataset(
-        config.valid_data_path, args.pad_token_id, config.max_position_embeddings
+        args.valid_data_path, args.pad_token_id, args.max_position_embeddings
     )
     logger.info("datasets loaded")
 
     trainer = Trainer(
-        config,
+        args,
         model=model,
         train_data=train_dataset,
         valid_data=valid_dataset,

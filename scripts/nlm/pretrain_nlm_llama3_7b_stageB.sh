@@ -15,16 +15,16 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=80000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=100
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
-[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,embed_tokens.weight"
-[ -z "${learnable_cutoff}" ] && learnable_cutoff=128256
+# [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,word_embeddings.weight"
+# [ -z "${learnable_cutoff}" ] && learnable_cutoff=128256
 
 # In this stage, the grad is too large to use grad accumulation
 [ -z "${strategy}" ] && strategy=ThreeD
-[ -z "${train_batch_size}" ] && train_batch_size=64
+[ -z "${train_batch_size}" ] && train_batch_size=2
 [ -z "${val_batch_size}" ] && val_batch_size=$train_batch_size
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=64
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=4
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=2
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerMP"
 
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
@@ -34,11 +34,12 @@ export MKL_THREADING_LAYER='GNU'
 
 
 [ -z "${dict_path}" ] && dict_path='/data/peiran/blob/hai1data/sfm/llama/Meta-Llama-3-8B/original'
-[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_train/train.npy'
-# [ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_validation/valid.npy'
+# [ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_train/train.npy'
+[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_validation/valid.npy'
 [ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_validation/valid.npy'
 [ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/hai1data/sfm/llama/Meta-Llama-3-8B/original'
-[ -z "${save_dir}" ] && save_dir='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageA/'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageB/'
+[ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageA/'
 
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -129,7 +130,7 @@ wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 export WANDB_API_KEY=$wandb_key
 
 set -x
-torchrun $DISTRIBUTED_ARGS sfm/tasks/scigpt/pretrain_scigpt3d.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --model_type "$model_type" \
       --dict_path "$dict_path" \
       --train_data_path "$train_data_path" \
@@ -155,13 +156,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/scigpt/pretrain_scigpt3d.py \
       --tensor_model_parallel_size "$tensor_model_parallel_size" \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --pretrained_ckpt_path "$loadcheck_path" \
-      --load_ckpt \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
-      --learnable_cutoff "$learnable_cutoff" \
-      --unfreeze_param_list "$unfreeze_param_list" \
       ${MEGATRON_ARGS}
 
-
-sleep inf
-sleep inf
-sleep inf
+      # --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
