@@ -1,8 +1,8 @@
 #CKPT=/hai1/SFM/threedimargen/outputs/3dargenlan_v0.1_100m_mp_nomad_qmdb_ddp_noniggli_layer6_head16_epoch50_warmup8000_lr1e-4_wd0.1_bs256/checkpoint_E49.pt
-CKPT=/hai1/renqian/SFM/threedimargen/outputs/3dargenlan_v0.1_base_mp_nomad_qmdb_ddp_noniggli_layer24_head16_epoch50_warmup8000_lr1e-4_wd0.1_bs256/checkpoint_E40.pt
+#CKPT=/hai1/renqian/SFM/threedimargen/outputs/3dargenlan_v0.1_base_mp_nomad_qmdb_ddp_noniggli_layer24_head16_epoch50_warmup8000_lr1e-4_wd0.1_bs256/checkpoint_E40.pt
 #CKPT=/hai1/SFM/threedimargen/outputs/3dargenlan_v0.1_base_ft_mp_52_ddp_noniggli_base_epoch10_warmup1_lr1e-5_wd0.1_bs16/checkpoint_E9.pt
 #CKPT=/hai1/SFM/threedimargen/outputs/3dargenlan_v0.1_base_ft_perov5_ddp_noniggli_base_epoch10_warmup1_lr1e-5_wd0.1_bs16/checkpoint_E9.pt
-#CKPT=/hai1/SFM/threedimargen/outputs/3dargenlan_v0.1_1_6_b_mp_nomad_qmdb_ddp_noniggli_epoch50_warmup8000_lr1e-5_wd0.1_bs256/checkpoint_E5.pt
+CKPT=/hai1/renqian/SFM/threedimargen/outputs/3dargenlan_v0.1_1_6_b_mp_nomad_qmdb_ddp_noniggli_epoch50_warmup8000_lr1e-5_wd0.1_bs256/checkpoint_E9.pt
 CKPT_FOLDER=$(dirname $CKPT)
 CKPT_NAME=$(basename $CKPT)
 INPUT=/hai1/renqian/SFM/threedimargen/data/materials_data/mp_20_test.jsonl
