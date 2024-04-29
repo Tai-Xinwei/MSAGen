@@ -20,7 +20,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
 [ -z "${train_batch_size}" ] && train_batch_size=4
 [ -z "${val_batch_size}" ] && val_batch_size=4
-[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,embed_tokens.weight"
+[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,embed_tokens.weight,head_adapters,emb_adapters"
 [ -z "${learnable_cutoff}" ] && learnable_cutoff=32000
 
 # In this stage, the grad is too large to use grad accumulation

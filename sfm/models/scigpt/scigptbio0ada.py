@@ -8,11 +8,11 @@ from torch.optim.lr_scheduler import LRScheduler
 from transformers import LlamaForCausalLM
 from transformers.models.llama.configuration_llama import LlamaConfig
 
-from sfm.criterions.autoregressive import AutoregressiveCriterion
+from sfm.criterions.autoregressive import Bio0AutoregressiveCriterion
 from sfm.logging import logger
-from sfm.models.llama2.llama_modules import LlamaDecoderLayerPP, LlamaHead, LlamaNorm
+from sfm.models.llama2.llama_modules import LlamaDecoderLayerPP, LlamaNorm
 from sfm.models.scigpt.config import ScigptConfig
-from sfm.models.scigpt.modules import SciGPTBioEmbeddingsPP
+from sfm.models.scigpt.modules import AdaLlamaHead, SciGPTBioEmbeddingsPP
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
@@ -24,7 +24,7 @@ class Scigptbio0adaModel(SFMPipelineModelMixin):
     def __init__(self, config: ScigptConfig):
         super().__init__()
         self.config = config
-        self.loss = AutoregressiveCriterion(config)
+        self.loss = Bio0AutoregressiveCriterion(config)
         if config.infer:
             llama_config = LlamaConfig.from_pretrained(config.llm_model_name_or_path)
             self.decoder = LlamaForCausalLM(llama_config)
@@ -85,7 +85,7 @@ class Scigptbio0adaModel(SFMPipelineModelMixin):
 
         layers.append(
             PretrainedLayerSpec(
-                LlamaHead,
+                AdaLlamaHead,
                 self.config,
                 new_num_tokens=self.config.vocab_size,
                 learnable_cutoff=self.config.learnable_cutoff,

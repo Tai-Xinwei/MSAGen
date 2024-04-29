@@ -166,8 +166,6 @@ class AdaLlamaHead(torch.nn.Module):
         ada_logits = self.lm_head(ada_emb)
         lm_logits = self.lm_head(hidden_states)
 
-        torch.argmax(input_tuple[1], dim=-1) > 32000
-
         return (lm_logits, ada_logits)
 
 
