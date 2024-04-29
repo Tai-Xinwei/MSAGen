@@ -8,7 +8,7 @@ from sfm.logging import logger
 from sfm.utils.science_tokens import SCIENCE_TAG_TOKENS, SCIENCE_TOKENS
 
 
-class NlmTokenizer(PreTrainedTokenizerFast):
+class NlmTokenizer(LlamaTokenizer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
