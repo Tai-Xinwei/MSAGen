@@ -57,7 +57,9 @@ class Bio0AutoregressiveCriterion(nn.Module):
 
         lm_logits, special_logits = output
         special_logits_mask = labels > 32000
-        lm_logits = torch.where(special_logits_mask, special_logits, lm_logits)
+        lm_logits = torch.where(
+            special_logits_mask.unsqueeze(-1), special_logits, lm_logits
+        )
 
         shift_logits = lm_logits[..., :-1, :].contiguous()
         shift_labels = labels[..., 1:].contiguous()

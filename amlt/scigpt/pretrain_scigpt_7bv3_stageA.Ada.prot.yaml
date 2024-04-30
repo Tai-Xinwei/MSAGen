@@ -1,34 +1,25 @@
 description: train_sci_gpt_7b
 
 env_defaults:
-  NODES: 4
+  NODES: 8
   GPUS: 8
-  #WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
-  #WANDB_API_KEY:  "2ff6f7b6ac42d86aed79dac8b0c10cc9a5a50b5d"
-  WANDB_API_KEY:  "local-8904f1b2b7174cdb7c0bf0b8a2c3195c1889c537"
+  WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
 target:
-    service: aml
-    subscription_id: 3f2ab3f5-468d-4ba7-bc14-9d3a9da4bcc5
-    resource_group: TownsendAML1
-    workspace_name: townsendws1
-    cluster: townsend1
+  service: sing
+  name: baltic02
+  workspace_name: msrresrchws
+
 # target:
 #     service: aml
-#     subscription_id: 3eaeebff-de6e-4e20-9473-24de9ca067dc
-#     resource_group: sfm-ws-rg
-#     workspace_name: sfm-ws
-#     cluster: sfm-prem-nd96amsr100-westeurope
-# target:
-#   service: sing
-#   name: baltic02
-#   workspace_name: msrresrchws
+#     name: townsend1
+#     # name: sfm-nd96amsra100v4-uksouth
+#     # name: sfm-nc96-westus3
 
 environment:
-  image: yaosen/sfm-cuda:py39-torch2.2.2-cuda12.1-20240412
+  image: ai4s-sfm:20240429.081857
   registry: msroctocr.azurecr.io
   username: msroctocr
-
 
 storage:
   blob:
@@ -40,7 +31,7 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: train_sci_gpt_7bv3_stageA_Ada_prot_bs256_emb_bugfix
+- name: train_sci_gpt_7bv3_stageA_prot_bs512_emb_8xG8H100
   sku: ${NODES}xG${GPUS}
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_NLM_PROTEIN]
   mpi: true
@@ -60,15 +51,13 @@ jobs:
   - export total_num_steps=200000
   - export epochs=10
   - export learnable_cutoff=32000
-  - export train_batch_size=256
+  - export train_batch_size=512
   - export gradient_accumulation_steps=8
-  - export save_dir=/hai1/shufxi/scigpt/7bv3/stageA_Ada_prot_e10_bs256_emb_bugfix_a100
-  - export save_batch_interval=5000
+  - export save_dir=/hai1/shufxi/scigpt/7bv3/stageA_prot_e10_bs512_ada_emb_8xG8H100
+  - export save_batch_interval=0
   - export train_data_path=/hai1/shufxi/data/scigpt/v3/train.prot.npy
   - bash scripts/scigpt/pretrain_scigpt_7bv3_stageA_Ada_prot.sh
   submit_args:
     env:
       SHARED_MEMORY_PERCENT: 1.0
       CUDA_LAUNCH_BLOCKING: 1
-    container_args:
-      shm_size: 1024g

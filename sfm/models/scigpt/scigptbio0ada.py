@@ -98,9 +98,8 @@ class Scigptbio0adaModel(SFMPipelineModelMixin):
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
         logits = model_output[0]
-
         bs = logits.shape[0]
-        output = self.loss(logits, batch_data)
+        output = self.loss(model_output, batch_data)
         loss = output[0]
 
         if len(output) > 1:
@@ -115,14 +114,6 @@ class Scigptbio0adaModel(SFMPipelineModelMixin):
         if model is None:
             model = self
 
-        # unfreeze_list = []
-
-        # if self.config.tune_new_emb:
-        #     unfreeze_list = [
-        #         "lm_head.weight",
-        #         "embed_tokens.weight"
-        #     ]
-
         optimizer, _ = myAdam(
             model,
             unfreeze_list=self.config.unfreeze_param_list,
@@ -131,24 +122,6 @@ class Scigptbio0adaModel(SFMPipelineModelMixin):
             weight_decay=self.config.weight_decay,
             eps=1e-8,
         )
-
-        # if self.config.ft:
-        #     optimizer, _ = myAdam(
-        #         model,
-        #         unfreeze_list=self.args.unfreeze_list,
-        #         lr=self.config.max_lr,
-        #         betas=(self.config.beta1, self.config.beta2),
-        #         weight_decay=self.config.weight_decay,
-        #         eps=1e-8,
-        #     )
-        # else:
-        #     optimizer = AdamW(
-        #         model.parameters(),
-        #         lr=self.config.max_lr,
-        #         betas=(self.config.beta1, self.config.beta2),
-        #         weight_decay=self.config.weight_decay,
-        #         eps=1e-8,
-        #     )
 
         lr_scheduler = groupWarmupDecayLR(
             optimizer,

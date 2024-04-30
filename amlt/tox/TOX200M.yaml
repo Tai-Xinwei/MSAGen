@@ -25,8 +25,8 @@ target:
 
 
 environment:
-  # image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
-  image: ai4s-sfm:20240429.081857
+  image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
+  # image: ai4s-sfm:20240429.081857
   registry: msroctocr.azurecr.io
   username: msroctocr
 
