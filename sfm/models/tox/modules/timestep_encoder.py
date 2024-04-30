@@ -138,6 +138,17 @@ class DiffNoise(nn.Module):
 
         return x_t, noise, sqrt_one_minus_alphas_cumprod_t, epsilon
 
+    def _T_noise(self, x_start, angle_mask):
+        t = torch.tensor(
+            [self.args.num_timesteps], device=x_start.device, dtype=torch.long
+        )
+        sqrt_one_minus_alphas_cumprod_t = self._extract(
+            self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
+        )
+        T_noise = torch.randn_like(x_start) * sqrt_one_minus_alphas_cumprod_t
+        x_start = torch.where(angle_mask, x_start, T_noise)
+        return x_start
+
     # Here, t is time point in (0, 1]
     def _angle_noise_sample(self, x_start, t):
         T = t.unsqueeze(-1).unsqueeze(-1)

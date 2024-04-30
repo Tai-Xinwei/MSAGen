@@ -90,12 +90,6 @@ class ProGPTModel(SFMPipelineModelMixin):
         adaptor_config = self.init_adaptor_config(args, llama_config)
 
         self.llama_config = llama_config
-        # if args.strategy == TrainStrategy.ThreeD:
-        #     args.padded_vocab_size = max(args.padded_vocab_size, vocab_size)
-        #     vocab_size = args.padded_vocab_size
-        #     llama_config.vocab_size = vocab_size
-        #     mp_config = self.init_mp_config(args, llama_config)
-        #     self.llama_config = mp_config
 
         self.pipe_layers = []
         if (
@@ -132,8 +126,6 @@ class ProGPTModel(SFMPipelineModelMixin):
                     new_num_tokens=vocab_size,
                     load_ckpt=args.load_ckpt,
                     pretrained_ckpt_path=os.path.join(
-                        # args.llm_model_name_or_path,
-                        # "model.hybrid_emb.pt"
                         args.llm_model_name_or_path,
                         "layer_{}-model_states.pt".format(str(0).zfill(2)),
                     ),

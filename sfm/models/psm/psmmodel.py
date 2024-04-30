@@ -722,7 +722,7 @@ class PSM(nn.Module):
 
         # per-atom energy prediction
         energy = (
-            molecule_energy.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
+            energy.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
             # / batched_data["num_atoms"]
         )
 

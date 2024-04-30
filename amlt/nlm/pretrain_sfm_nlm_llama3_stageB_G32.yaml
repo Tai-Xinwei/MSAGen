@@ -7,13 +7,17 @@ env_defaults:
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
 
+# target:
+  # service: sing
+  # name: baltic02
+  # workspace_name: msrresrchws
+
 target:
-  service: sing
-  name: baltic02
-  workspace_name: msrresrchws
+    service: aml
+    name: townsend1
 
 environment:
-  image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
+  image: ai4s-sfm:20240429.081857
   registry: msroctocr.azurecr.io
   username: msroctocr
 
@@ -27,7 +31,7 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: train_sfm_nlm_moe_debug
+- name: sfm_nlm_llama3_stageB
   sku: ${NODES}xG${GPUS}
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
   mpi: true
@@ -45,8 +49,8 @@ jobs:
   - export train_batch_size=512
   - export val_batch_size=512
   - export gradient_accumulation_steps=32
-  - export tensor_model_parallel_size=4
-  - export pipeline_model_parallel_size=1
+  - export tensor_model_parallel_size=1
+  - export pipeline_model_parallel_size=2
   - export train_data_path=/sfm/nlm/llama3_processed_data/v5_train/train.npy
   - export valid_data_path=/sfm/nlm/llama3_processed_data/v5_validation/valid.npy
   - export dict_path=/sfm/llama/Meta-Llama-3-8B/original

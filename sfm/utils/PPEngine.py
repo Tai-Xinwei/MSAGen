@@ -1674,7 +1674,7 @@ class SFMPipeEngine(DeepSpeedEngine):
         from deepspeed.runtime.state_dict_factory import SDLoaderFactory
 
         ckpt_list = self._get_all_ckpt_names(load_dir, tag)
-
+        print(f"ckpt_list={ckpt_list}")
         sd_loader = SDLoaderFactory.get_sd_loader(
             ckpt_list, checkpoint_engine=self.checkpoint_engine
         )
@@ -1828,7 +1828,9 @@ class SFMPipeEngine(DeepSpeedEngine):
 
         return load_path, client_state
 
-    def load_module_state_dict(self, state_dict, strict=True, custom_load_fn=None):
+    def load_module_state_dict(
+        self, checkpoint, strict=True, custom_load_fn=None, fetch_z3_params=False
+    ):
         """Override hack to instead use a directory path.
 
         This is important because pipeline models checkpoint by layer instead of rank.
@@ -1842,6 +1844,7 @@ class SFMPipeEngine(DeepSpeedEngine):
         assert (
             custom_load_fn is None
         ), "custom_load_fn not supported w. pipeline parallelism"
+        state_dict = checkpoint["module"]
         if (state_dict is not None) and (not isinstance(state_dict, (str, list))):
             super().load_module_state_dict(state_dict, strict)
             return

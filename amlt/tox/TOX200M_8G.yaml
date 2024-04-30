@@ -7,7 +7,7 @@
 description: psm
 
 env_defaults:
-  NODES: 1
+  NODES: 2
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
