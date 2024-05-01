@@ -174,6 +174,4 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
         --save_batch_interval $save_batch_interval --log_interval $log_interval \
         --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
-sleep inf
-sleep inf
-sleep inf
+        # --finetune_from_checkpoint_dir $save_dir \
