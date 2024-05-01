@@ -11,7 +11,7 @@ from megatron.arguments import parse_megatron_args
 from megatron.core.transformer.transformer_config import TransformerConfig
 from megatron.initialize import initialize_megatron
 from sfm.data.sci_data.dataset import ProcessedSciDataset
-from sfm.data.sci_data.NlmTokenizer import NlmTokenizer
+from sfm.data.sci_data.NlmTokenizer import NlmLlama3Tokenizer
 from sfm.logging import logger
 from sfm.models.nlm.moe_config import MoeModelConfig
 from sfm.models.nlm.nlm3d import NLM3dModel
@@ -31,7 +31,7 @@ def main(args) -> None:
     ), f"valid_dataset is {args.valid_data_path} it should not be None or empty"
 
     # if not args.vocab_size:
-    tokenizer = NlmTokenizer.from_pretrained(args.dict_path)
+    tokenizer = NlmLlama3Tokenizer.from_pretrained(args.dict_path)
     args.vocab_size = len(tokenizer)  # now we have new tokens
     args.pad_token_id = tokenizer.pad_token_id
 

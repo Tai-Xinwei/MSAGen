@@ -37,6 +37,12 @@ from sfm.utils.PPEngine import initialize as initialize_pp_engine
 
 from .pipeline_module import SFMPipelineModule
 
+try:
+    import transformer_engine.pytorch as transformer_engine
+    from transformer_engine.common import recipe
+except:
+    logger.info("Transformer Engine package is not installed.")
+
 
 def safe_div(a, b):
     if b == 0:
@@ -757,6 +763,14 @@ class DeepSpeedAccelerator(Accelerator):
         deepspeed.init_distributed(dist_backend=self.args.dist_backend)
         self.set_ds_config()
 
+        if self.args.fp8:
+            # Create FP8 recipe. Note: All input args are optional.
+            self.fp8_recipe = recipe.DelayedScaling(
+                fp8_format=recipe.Format.HYBRID,
+                amax_history_len=8192,
+                amax_compute_algo="max",
+            )
+
         if (
             self.args.strategy == TrainStrategy.Pipeline
             or self.args.strategy == TrainStrategy.ThreeD
@@ -1021,6 +1035,7 @@ class DeepSpeedAccelerator(Accelerator):
             self.args.strategy == TrainStrategy.Pipeline
             or self.args.strategy == TrainStrategy.ThreeD
         ):
+            # with transformer_engine.fp8_autocast(enabled=True, fp8_recipe=self.fp8_recipe) if self.args.fp8 else nullcontext():
             loss = self.model_engine.train_batch(iter(grouped_batch_data))
             model_output = ModelOutput(
                 loss=loss,
@@ -1036,6 +1051,7 @@ class DeepSpeedAccelerator(Accelerator):
                     batch_data, device=self.args.local_rank, non_blocking=True
                 )
                 self.model.before_batch()
+                # with transformer_engine.fp8_autocast(enabled=True, fp8_recipe=self.fp8_recipe) if self.args.fp8 else nullcontext():
                 pred = self.model_engine(batch_data)
 
                 model_output = self.model.compute_loss(pred, batch_data)
@@ -1049,7 +1065,6 @@ class DeepSpeedAccelerator(Accelerator):
 
             model_output.num_examples = sample_count
 
-        torch.cuda.empty_cache()
         return model_output
 
     def valid_step(

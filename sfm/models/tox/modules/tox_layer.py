@@ -353,6 +353,8 @@ class Mix3DEmbeddingV2(nn.Module):
         )
 
         self.feature_proj = nn.Linear(3 * self.time_embedding_dim, embed_dim)
+        self.cls_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
+        self.eos_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
 
     def forward(
         self,
@@ -365,16 +367,25 @@ class Mix3DEmbeddingV2(nn.Module):
         angle_mask,
         time_pos,
         time_angle,
+        aa_seq,
     ):
         bs, nnode, _ = angle.shape
         angle = angle.to(self.angle_emb.layer1.weight.dtype)
         angle = angle[:, :, :3].reshape(bs, -1, 1)
         angle_mask = angle_mask[:, :, :3]
+
+        cls_mask = (aa_seq == 0).unsqueeze(-1)
+        eos_mask = (aa_seq == 2).unsqueeze(-1)
         angle_feat = self.angle_emb(angle)
+
         node6dfeature = angle_feat
 
         if time_pos is not None and mask_angle is not None:
-            time_pos = time_pos.unsqueeze(-1).unsqueeze(-1).repeat(1, nnode, 3)
+            if time_pos.dim() == 2:
+                time_pos = time_pos.unsqueeze(-1).repeat(1, 1, 3)
+            elif time_pos.dim() == 1:
+                time_pos = time_pos.unsqueeze(-1).unsqueeze(-1).repeat(1, nnode, 3)
+
             t0 = torch.zeros_like(
                 time_pos, dtype=time_pos.dtype, device=time_pos.device
             )
@@ -386,15 +397,19 @@ class Mix3DEmbeddingV2(nn.Module):
                 bs, -1, self.time_embedding_dim
             )
             t0_emb = self.time_embedding(t0).view(bs, -1, self.time_embedding_dim)
-            mask_angle = mask_angle.repeat(1, 3, 1)
+            t_mask = mask_angle.bool() & (~cls_mask) & (~eos_mask)
             time_embedding_pos = torch.where(
-                mask_angle.bool(), time_embedding_pos, t0_emb
+                t_mask.repeat(1, 3, 1), time_embedding_pos, t0_emb
             )
 
             node6dfeature = node6dfeature + time_embedding_pos
 
         node6dfeature = self.feature_proj(node6dfeature.view(bs, nnode, -1))
 
+        # node6dfeature = node6dfeature.masked_fill(cls_mask, self.cls_embedding.weight)
+        # node6dfeature = node6dfeature.masked_fill(eos_mask, self.eos_embedding.weight)
+        node6dfeature = torch.where(cls_mask, self.cls_embedding.weight, node6dfeature)
+        node6dfeature = torch.where(eos_mask, self.eos_embedding.weight, node6dfeature)
         node6dfeature = node6dfeature.masked_fill(
             padding_mask.unsqueeze(-1).to(torch.bool), 0.0
         )

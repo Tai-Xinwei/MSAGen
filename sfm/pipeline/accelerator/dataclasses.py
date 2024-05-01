@@ -127,6 +127,7 @@ class TrainerConfig:
 
     seed: int = 46
     fp16: bool = False
+    fp8: bool = False
     auto_cast: bool = False
     bf16: bool = False
     grad_scaler_init: float = 1.0
