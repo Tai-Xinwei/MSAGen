@@ -133,22 +133,34 @@ class LogAccumulator(object):
 
         if extra_log is not None:
             for k, v in extra_log.items():
-                if k not in self.extra_log and isinstance(v, (torch.Tensor, float)):
+                if k not in self.extra_log and isinstance(
+                    v, (torch.Tensor, float, tuple)
+                ):
                     if k == "total_acc_sample":
                         continue
                     elif isinstance(v, torch.Tensor):
                         self.extra_log[k] = v.item() * num_examples
+                        self.extra_log_num[k] = 1 * num_examples
+                    elif isinstance(v, tuple):
+                        self.extra_log[k] = v[0] * v[1]
+                        self.extra_log_num[k] = v[1]
                     else:
                         self.extra_log[k] = v * num_examples
-                    self.extra_log_num[k] = 1 * num_examples
-                elif k in self.extra_log and isinstance(v, (torch.Tensor, float)):
+                        self.extra_log_num[k] = 1 * num_examples
+                elif k in self.extra_log and isinstance(
+                    v, (torch.Tensor, float, tuple)
+                ):
                     if k == "total_acc_sample":
                         continue
                     elif isinstance(v, torch.Tensor):
                         self.extra_log[k] += v.item() * num_examples
+                        self.extra_log_num[k] += 1 * num_examples
+                    elif isinstance(v, tuple):
+                        self.extra_log[k] += v[0] * v[1]
+                        self.extra_log_num[k] += v[1]
                     else:
                         self.extra_log[k] += v * num_examples
-                    self.extra_log_num[k] += 1 * num_examples
+                        self.extra_log_num[k] += 1 * num_examples
 
     def reset(self):
         self.sum = 0.0
@@ -164,7 +176,13 @@ class LogAccumulator(object):
     def averge_loss(self):
         if self.num_examples == 0:
             return 0
-        return self.sum / self.num_examples
+        if self.allreduce_fn is not None:
+            log_dict = {"loss": self.sum}
+            log_num_dict = {"loss": self.num_examples}
+            reduced_loss_dict = self.allreduce_fn(log_dict, log_num_dict)
+            return reduced_loss_dict["loss"]
+        else:
+            return self.sum / self.num_examples
 
     def _allreducelog(self, log_dict: dict = {}, log_num_dict: dict = {}):
         return self.allreduce_fn(log_dict, log_num_dict)

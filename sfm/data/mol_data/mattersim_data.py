@@ -117,7 +117,11 @@ def preprocess_item(item, idx):
         torch.tensor(item.pop("node_feat"), dtype=torch.long)
         if "node_feat" in item
         else torch.cat(
-            [item["x"], torch.zeros([item["x"].size()[0], 8], dtype=torch.long)], dim=-1
+            [
+                convert_to_single_emb(item["x"]),
+                torch.zeros([item["x"].size()[0], 8], dtype=torch.long),
+            ],
+            dim=-1,
         )
     )
     item["edge_attr"] = (
