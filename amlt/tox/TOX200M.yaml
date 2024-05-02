@@ -7,7 +7,7 @@
 description: psm
 
 env_defaults:
-  NODES: 4
+  NODES: 8
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -53,11 +53,6 @@ jobs:
   - mkdir /blob/pfmexp/output
   - mkdir /blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair_G64_test
   - mkdir /blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair_G64_test/checkpoints
-  - mkdir ./output
-  - export path=run.sh
-  - export layers=12
-  - export hidden_size=1024
-  - export ffn_size=4096
   - export num_head=32
   - export sandwich_ln="true"
   - export dropout=0.0
@@ -78,7 +73,7 @@ jobs:
   - export val_batch_size=2048
   - export max_tokens=16000
   - export max_length=1024
-  - export gradient_accumulation_steps=2
+  - export gradient_accumulation_steps=1
   - export log_interval=100
   - export loadcheck_path=/blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair_G64_test/checkpoints
   - export data_path=/blob/data/afdb/48organisms-fullatom.lmdb/

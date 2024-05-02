@@ -32,7 +32,7 @@ For submitting jobs on clusters, there is no additional installation steps since
 # ...... target information .....
 
 environment:
-  image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
+  image: ai4s-sfm:20240429.081857
   registry: msroctocr.azurecr.io  # or msrresrchcr.azurecr.io
   username: msroctocr  # or msrresrchcr
 
@@ -67,32 +67,16 @@ jobs:
 For **local** development, create a conda environment from the YAML files in `./install` folder and install other packages that need compilation:
 
 ```bash
-# from project root
+# create and activate conda environment
 conda env remove -n sfm
-conda env create -f ./install/py39-torch2.2.2-cuda12.1.yaml -n sfm
+conda env create -f ./install/environment.yaml -n sfm
+conda activate sfm
 
 # build cython extention
 python setup_cython.py build_ext --inplace
 
-# Optional: flash-attn
-# flash-atten v2 are supported with PyTorch > 2.2 but have a different API Ref: https://pytorch.org/blog/pytorch2-2/
-# if some legacy code still needs flash-atten, uncomment the following lines and rebuild the image or add it to job commands.
-NVCC_THREADS=0 pip install flash-attn --no-build-isolation
-
-# Optional: megablocks[gg]
-pip install megablocks[gg]
-
-# Optional: apex
-# if you want to install NVIDIA apex locally, run the following scripts
-# NOTE: it can take over 20 min for compilation
-cwd=$(pwd)
-git clone https://github.com/NVIDIA/apex /tmp/apex && cd /tmp/apex
-MAX_JOBS=0 pip install -v --disable-pip-version-check \
-    --no-cache-dir --no-build-isolation \
-    --config-settings "--build-option=--cpp_ext" \
-    --config-settings "--build-option=--cuda_ext" ./
-cd $cwd
-rm -rf /tmp/apex
+# optional: install NVIDIA apex locally, which may take 20 minutes
+bash install/install_third_party.sh
 ```
 
 
@@ -113,15 +97,13 @@ amlt run ./amlt/pfm/BFM3B.yaml BFM3B
 More details can be found in the documentation page.
 
 ## Docker Image
-CUDA 11.7 docker image:
+CUDA 11.7:
 - `itpeus4cr.azurecr.io/pj/mfmds:20230207_b`
 
-CUDA 12.1 docker image:
+CUDA 12.1, Python 3.11.9:
+ - `msroctocr.azurecr.io/ai4s-sfm:20240429.081857`
 
- - `msroctocr.azurecr.io/yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a`
- - `msrresrchcr.azurecr.io/yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a`
-
-For CUDA 12.1 docker images, they are Singularity compatible and have built-in `sfm` conda environment with pre-installed packages (check `tools/docker_image/conda_install.sh` for details). For special needs, refer to `tools/docker_image/build.sh` to build another image. Note: currently, Python 3.10 and 3.11 is not supported because some packages failed to compile.
+For CUDA 12.1 docker images, they are Singularity compatible and have built-in `sfm` conda environment with pre-installed packages.
 
 
 ## Data

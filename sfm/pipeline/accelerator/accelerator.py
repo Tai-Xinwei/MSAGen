@@ -126,6 +126,58 @@ class Accelerator(ABC):
     def before_epoch(self, epoch: int):
         pass
 
+    def _accumulate_log_output(
+        self, total_log_output, log_output, current_sample_count, num_new_samples
+    ):
+        for key in log_output:
+            value = log_output[key]
+            if key not in total_log_output:
+                if isinstance(value, torch.Tensor):
+                    total_log_output[key] = value.item()
+                elif isinstance(value, tuple):
+                    if isinstance(value[0], torch.Tensor):
+                        v0 = value[0].item()
+                    else:
+                        v0 = value[0]
+                    if isinstance(value[1], torch.Tensor):
+                        v1 = value[1].item()
+                    else:
+                        v1 = value[1]
+                    total_log_output[key] = (v0, v1)
+                else:
+                    total_log_output[key] = value
+            else:
+                if isinstance(value, torch.Tensor):
+                    total_log_output[key] = safe_div(
+                        (
+                            total_log_output[key] * current_sample_count
+                            + value.item() * num_new_samples
+                        ),
+                        (current_sample_count + num_new_samples),
+                    )
+                elif isinstance(value, tuple):
+                    if isinstance(value[0], torch.Tensor):
+                        v0 = value[0].item()
+                    else:
+                        v0 = value[0]
+                    if isinstance(value[1], torch.Tensor):
+                        v1 = value[1].item()
+                    else:
+                        v1 = value[1]
+                    v0_sum = total_log_output[key][0] * total_log_output[key][1]
+                    v0_sum += v0 * v1
+                    v1 += total_log_output[key][1]
+                    v0 = safe_div(v0_sum, v1)
+                    total_log_output[key] = (v0, v1)
+                else:
+                    total_log_output[key] = safe_div(
+                        (
+                            total_log_output[key] * current_sample_count
+                            + value * num_new_samples
+                        ),
+                        (current_sample_count + num_new_samples),
+                    )
+
 
 class SingleNodeAccelerator(Accelerator):
     def __init__(self, args, model, optimizer, lr_scheduler, device: str) -> None:
@@ -206,6 +258,8 @@ class SingleNodeAccelerator(Accelerator):
         self.optimizer.zero_grad()
         success_batch_count = 0
         sample_count = 0
+        total_loss = 0.0
+        total_log_output = {}
         for batch_data in grouped_batch_data:
             self.model.before_batch()
             batch_data = move_to_device(batch_data, self.device)
@@ -223,7 +277,14 @@ class SingleNodeAccelerator(Accelerator):
             self.scaler.backward(loss)
 
             if model_output.num_examples is not None:
+                self._accumulate_log_output(
+                    total_log_output,
+                    model_output.log_output,
+                    sample_count,
+                    model_output.num_examples,
+                )
                 sample_count += model_output.num_examples
+                total_loss += model_output.loss * model_output.num_examples
 
             self.model.after_batch()
 
@@ -233,6 +294,8 @@ class SingleNodeAccelerator(Accelerator):
         self.lr_scheduler.step()
 
         model_output.num_examples = sample_count
+        model_output.loss = safe_div(total_loss, sample_count)
+        model_output.log_output = total_log_output
         return model_output
 
     def valid_step(self, batch_data: Batch, epoch: int = 0) -> ValidLogOutput:
@@ -382,6 +445,8 @@ class DdpAccelerator(SingleNodeAccelerator):
 
         success_batch_count = 0
         sample_count = 0
+        total_loss = 0.0
+        total_log_output = {}
         for idx, batch_data in enumerate(grouped_batch_data):
             self.model.before_batch()
             batch_data = move_to_device(batch_data, self.device)
@@ -409,7 +474,14 @@ class DdpAccelerator(SingleNodeAccelerator):
                     success_batch_count += 1
                     self.scaler.backward(loss)
 
+            self._accumulate_log_output(
+                total_log_output,
+                model_output.log_output,
+                sample_count,
+                model_output.num_examples,
+            )
             sample_count += model_output.num_examples
+            total_loss += model_output.loss * model_output.num_examples
             self.model.after_batch()
 
         if success_batch_count > 0:
@@ -417,6 +489,8 @@ class DdpAccelerator(SingleNodeAccelerator):
 
         self.lr_scheduler.step()
         model_output.num_examples = sample_count
+        model_output.loss = safe_div(total_loss, sample_count)
+        model_output.log_output = total_log_output
         return model_output
 
     def build_data_loader(
@@ -1063,6 +1137,8 @@ class DeepSpeedAccelerator(Accelerator):
             )
         else:
             sample_count = 0
+            total_loss = 0.0
+            total_log_output = {}
             for idx, batch_data in enumerate(grouped_batch_data):
                 self.model_engine.tput_timer.start()
                 batch_data = move_to_device(
@@ -1076,7 +1152,14 @@ class DeepSpeedAccelerator(Accelerator):
 
                 model_output = self.model.compute_loss(pred, batch_data)
                 loss = model_output.loss
+                self._accumulate_log_output(
+                    total_log_output,
+                    model_output.log_output,
+                    sample_count,
+                    model_output.num_examples,
+                )
                 sample_count += model_output.num_examples
+                total_loss += model_output.loss * model_output.num_examples
 
                 self.model.after_batch()
 
@@ -1084,6 +1167,8 @@ class DeepSpeedAccelerator(Accelerator):
                 self.model_engine.step()
 
             model_output.num_examples = sample_count
+            model_output.loss = safe_div(total_loss, sample_count)
+            model_output.log_output = total_log_output
 
         return model_output
 

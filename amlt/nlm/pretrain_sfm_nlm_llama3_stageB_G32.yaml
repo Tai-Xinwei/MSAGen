@@ -7,10 +7,14 @@ env_defaults:
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
 
+# target:
+  # service: sing
+  # name: baltic02
+  # workspace_name: msrresrchws
+
 target:
-  service: sing
-  name: baltic02
-  workspace_name: msrresrchws
+    service: aml
+    name: townsend1
 
 # target:
     # service: aml

@@ -16,6 +16,7 @@ from sfm.models.psm.psm_config import DiffusionTrainingLoss, PSMConfig
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
+from .modules.diffusion import DIFFUSION_PROCESS_REGISTER
 from .modules.timestep_encoder import DiffNoise, TimeStepSampler
 
 
@@ -61,8 +62,10 @@ class PSMModel(Model):
         else:
             logger.info("No checkpoint is loaded")
 
-        # Implement the Diffusion noise
         self.diffnoise = DiffNoise(self.psm_config)
+        self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
+            self.psm_config.diffusion_sampling
+        ](self.diffnoise.alphas_cumprod)
 
         self.time_step_sampler = TimeStepSampler(self.psm_config.num_timesteps)
 
@@ -146,6 +149,29 @@ class PSMModel(Model):
         batched_data["is_periodic"] = is_periodic
         batched_data["is_molecule"] = is_molecule
         batched_data["is_protein"] = is_protein
+        # atom mask to leave out unit cell corners for periodic systems
+        pos = batched_data["pos"]
+        n_graphs, n_nodes = pos.size()[:2]
+        non_atom_mask = torch.arange(
+            n_nodes, dtype=torch.long, device=pos.device
+        ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(-1)
+        batched_data["non_atom_mask"] = non_atom_mask
+        # create diff loss mask so that only diffusion loss of 4 out of 8 cell corners are calculated
+        diff_loss_mask = torch.arange(
+            n_nodes, dtype=torch.long, device=pos.device
+        ).unsqueeze(0).repeat(n_graphs, 1) < batched_data["num_atoms"].unsqueeze(-1)
+        periodic_index = torch.nonzero(is_periodic)[:, 0]
+        diff_loss_mask[periodic_index, batched_data["num_atoms"][is_periodic]] = True
+        diff_loss_mask[
+            periodic_index, batched_data["num_atoms"][is_periodic] + 1
+        ] = True
+        diff_loss_mask[
+            periodic_index, batched_data["num_atoms"][is_periodic] + 2
+        ] = True
+        diff_loss_mask[
+            periodic_index, batched_data["num_atoms"][is_periodic] + 4
+        ] = True
+        batched_data["diff_loss_mask"] = diff_loss_mask
 
     def _set_noise(
         self,
@@ -169,11 +195,12 @@ class PSMModel(Model):
         self._create_initial_pos_for_diffusion(batched_data)
 
         noise_pos, noise, _ = self.diffnoise.noise_sample(
-            ori_pos,
-            time_step,
+            x_start=ori_pos,
+            t=time_step,
+            non_atom_mask=batched_data["non_atom_mask"],
+            is_periodic=batched_data["is_periodic"],
             x_init=batched_data["init_pos"],
             clean_mask=clean_mask,
-            unit_noise_scale=self.psm_config.diffusion_noise_std,
         )
         noise_pos = complete_cell(noise_pos, batched_data)
 
@@ -277,6 +304,7 @@ class PSMModel(Model):
         result_dict["noise"] = noise
         result_dict["clean_mask"] = clean_mask
         result_dict["aa_mask"] = aa_mask
+        result_dict["diff_loss_mask"] = batched_data["diff_loss_mask"]
 
         return result_dict
 
@@ -349,172 +377,43 @@ class PSMModel(Model):
 
         self._create_initial_pos_for_diffusion(batched_data)
 
-        pos_noise = torch.zeros(size=orig_pos.size(), device=device)
-        pos_noise = pos_noise.normal_() * self.psm_config.diffusion_noise_std
-
-        batched_data["pos"] = pos_noise + batched_data["init_pos"]
-        batched_data["pos"] = batched_data["pos"].masked_fill(
-            padding_mask.unsqueeze(-1), 0.0
+        batched_data["pos"] = self.diffnoise.get_sampling_start(
+            batched_data["init_pos"],
+            batched_data["non_atom_mask"],
+            batched_data["is_periodic"],
         )
-        batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
+        batched_data["pos"] = complete_cell(
+            batched_data["pos"], batched_data, is_sampling=True
+        )
+        batched_data["pos"] = center_pos(
+            batched_data, padding_mask=padding_mask
+        )  # centering to remove noise translation
 
-        if self.psm_config.diffusion_sampling == "ddpm":
-            # Sampling from Step T-1 to Step 0
-            for t in tqdm(range(self.psm_config.num_timesteps - 1, -1, -1)):
-                hat_alpha_t = self.diffnoise.alphas_cumprod[t]
-                hat_alpha_t_1 = 1.0 if t == 0 else self.diffnoise.alphas_cumprod[t - 1]
-                alpha_t = (
-                    hat_alpha_t / hat_alpha_t_1
-                )  # CL: can we get the following three from `diffnoise`?
-                beta_t = 1 - alpha_t
-                sigma_t = (
-                    0.0
-                    if t == 0
-                    else (
-                        (1.0 - hat_alpha_t_1) / (1.0 - hat_alpha_t) * beta_t
-                    ).sqrt()  # CL: I suggest calling it `beta_tilde_t`, and spare `sigma_t` for `(1 - hat_alpha_t).sqrt()`
-                )
-
-                # forward
-                time_step = self.time_step_sampler.get_continuous_time_step(
-                    t, n_graphs, device=device, dtype=batched_data["pos"].dtype
-                )
-                noise = self.net(batched_data, time_step=time_step)[
-                    "noise_pred"
-                ]  # CL: use `no_grad`?
-                noise = noise.detach()
-
-                epsilon = (
-                    torch.zeros_like(batched_data["pos"]).normal_()
-                    * self.psm_config.diffusion_noise_std
-                )
-
-                ext_pos = (
-                    batched_data["pos"]
-                    - batched_data["init_pos"]
-                    - (1 - alpha_t) / (1 - hat_alpha_t).sqrt() * noise
-                ) / alpha_t.sqrt() + sigma_t * epsilon
-
-                batched_data["pos"] = ext_pos + batched_data["init_pos"]
-
-                batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
-                batched_data["pos"] = batched_data["pos"].detach()
-                batched_data["pos"] = batched_data["pos"].masked_fill(
-                    ~padding_mask.unsqueeze(-1), 0.0
-                )
-        elif self.psm_config.diffusion_sampling == "ddim":
-            sampled_steps, _ = torch.sort(
-                (
-                    torch.randperm(
-                        self.psm_config.num_timesteps - 2,
-                        dtype=torch.long,
-                        device=device,
-                    )
-                    + 1
-                )[
-                    : self.psm_config.ddim_steps - 1
-                ]  # CL: be careful if using a different number of steps `psm_config.ddim_steps`!
-            )
-            sampled_steps = torch.cat(
-                [
-                    sampled_steps,
-                    torch.tensor(
-                        [self.psm_config.num_timesteps - 1], device=device
-                    ).long(),
-                ]
-            )
-            for i in tqdm(range(sampled_steps.shape[0] - 1, 0, -1)):
-                t = sampled_steps[i]
-                t_1 = sampled_steps[i - 1]
-                hat_alpha_t = self.diffnoise.alphas_cumprod[
-                    t
-                ]  # CL: these quantities should be re-calculated.
-                hat_alpha_t_1 = self.diffnoise.alphas_cumprod[t_1]
-                alpha_t = hat_alpha_t / hat_alpha_t_1
-                beta_t = 1.0 - alpha_t
-                sigma_t = (  # CL: for DDIM, this sigma_t can be set to zero.
-                    self.psm_config.ddim_eta
-                    * ((1.0 - hat_alpha_t_1) / (1.0 - hat_alpha_t) * beta_t).sqrt()
-                )
-
-                # forward
-                time_step = self.time_step_sampler.get_continuous_time_step(
-                    t, n_graphs, device=device, dtype=batched_data["pos"].dtype
-                )
-                noise = self.net(batched_data, time_step=time_step)["noise_pred"]
-                ext_pos = batched_data["pos"] - batched_data["init_cell"]
-                x_0_pred = (
-                    ext_pos - (1.0 - hat_alpha_t).sqrt() * noise
-                ) / hat_alpha_t.sqrt()
-                epsilon = (
-                    torch.zeros_like(ext_pos).normal_()
-                    * self.psm_config.diffusion_noise_std
-                )
-                ext_pos = (
-                    hat_alpha_t_1.sqrt() * x_0_pred
-                    + (1.0 - hat_alpha_t_1 - sigma_t**2).sqrt() * noise
-                    + sigma_t * epsilon
-                )
-                batched_data["pos"] = ext_pos + batched_data["init_pos"]
-                batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
-                batched_data["pos"] = batched_data["pos"].detach()
-                batched_data["pos"] = batched_data["pos"].masked_fill(
-                    ~padding_mask.unsqueeze(-1), 0.0
-                )
-
-            # forward for last step
-            t = sampled_steps[0]
-            hat_alpha_t = self.diffnoise.alphas_cumprod[t]
-
+        for t in tqdm(range(self.psm_config.num_timesteps - 1, -1, -1)):
             # forward
             time_step = self.time_step_sampler.get_continuous_time_step(
                 t, n_graphs, device=device, dtype=batched_data["pos"].dtype
             )
-            noise = self.net(batched_data, time_step=time_step)[
-                "noise_pred"
-            ]  # CL: why additional forward?
-            ext_pos = batched_data["pos"] - batched_data["init_pos"]
-            x_0_pred = (
-                ext_pos - (1.0 - hat_alpha_t).sqrt() * noise
-            ) / hat_alpha_t.sqrt()
-            batched_data["pos"] = x_0_pred + batched_data["init_pos"]
-            batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
+            predicted_noise = self.net(batched_data, time_step=time_step)["noise_pred"]
+            epsilon = self.diffnoise.get_noise(
+                batched_data["pos"],
+                batched_data["non_atom_mask"],
+                batched_data["is_periodic"],
+            )
+            batched_data["pos"] = self.diffusion_process.sample_step(
+                batched_data["pos"],
+                batched_data["init_pos"],
+                predicted_noise,
+                epsilon,
+                t,
+            )
+            batched_data["pos"] = complete_cell(
+                batched_data["pos"], batched_data, is_sampling=True
+            )
+            batched_data["pos"] = center_pos(
+                batched_data, padding_mask=padding_mask
+            )  # centering to remove noise translation
             batched_data["pos"] = batched_data["pos"].detach()
-            batched_data["pos"] = batched_data["pos"].masked_fill(
-                ~padding_mask.unsqueeze(-1), 0.0
-            )
-        elif self.psm_config.diffusion_sampling == "ode":
-            lattice_scatter_index = torch.tensor(
-                [[[4], [2], [1]]], device=device, dtype=torch.long
-            ).repeat([n_graphs, 1, 3])
-            lattice_scatter_index += (
-                batched_data["num_atoms"].unsqueeze(-1).unsqueeze(-1)
-            )  # CL: remove these?
-            for t in tqdm(range(self.psm_config.num_timesteps - 1, -1, -1)):
-                time_step = self.time_step_sampler.get_continuous_time_step(
-                    t, n_graphs, device=device, dtype=batched_data["pos"].dtype
-                )
-                beta_t = self.diffnoise.beta_list[t]
-                noise = self.net(batched_data, time_step=time_step)["noise_pred"]
-                score = -noise / (1.0 - self.diffnoise.alphas_cumprod[t]).sqrt()
-                score = score.masked_fill(~padding_mask.unsqueeze(-1), 0.0)
-                ext_pos = batched_data["pos"].clone() - batched_data["init_pos"]
-                epsilon = torch.zeros_like(ext_pos).normal_()
-
-                batched_data["pos"] = (
-                    (2 - (1.0 - beta_t).sqrt()) * ext_pos
-                    + 0.5 * beta_t * (score)
-                    + batched_data["init_pos"]
-                )
-                batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
-                batched_data["pos"] = batched_data["pos"].detach()
-                batched_data["pos"] = batched_data["pos"].masked_fill(
-                    ~padding_mask.unsqueeze(-1), 0.0
-                )
-        else:
-            raise ValueError(
-                f"Unknown diffusion sampling strategy {self.psm_config.diffusion_sampling}. Support only ddim and ddpm."
-            )
 
         pred_pos = batched_data["pos"].clone()
 
@@ -525,24 +424,41 @@ class PSMModel(Model):
 
 def center_pos(batched_data, padding_mask):
     # get center of system positions
-    periodic_mask = torch.any(batched_data["pbc"], dim=-1)  # B x 3 -> B
-    periodic_center = torch.sum(batched_data["cell"], dim=1) / 2.0
+    is_periodic = batched_data["is_periodic"]  # B x 3 -> B
+    periodic_center = (
+        torch.gather(
+            batched_data["pos"][is_periodic],
+            index=batched_data["num_atoms"][is_periodic]
+            .unsqueeze(-1)
+            .unsqueeze(-1)
+            .repeat(1, 1, 3),
+            dim=1,
+        )
+        + torch.gather(
+            batched_data["pos"][is_periodic],
+            index=batched_data["num_atoms"][is_periodic]
+            .unsqueeze(-1)
+            .unsqueeze(-1)
+            .repeat(1, 1, 3)
+            + 7,
+            dim=1,
+        )
+    ) / 2.0
     protein_mask = batched_data["protein_mask"]
     non_periodic_center = torch.sum(
         batched_data["pos"].masked_fill(padding_mask.unsqueeze(-1) | protein_mask, 0.0),
         dim=1,
     ) / batched_data["num_atoms"].unsqueeze(-1)
-    center = torch.where(
-        periodic_mask.unsqueeze(-1), periodic_center, non_periodic_center
-    )
-    batched_data["pos"] -= center.unsqueeze(1)
+    center = non_periodic_center.unsqueeze(1)
+    center[is_periodic] = periodic_center
+    batched_data["pos"] -= center
     batched_data["pos"] = batched_data["pos"].masked_fill(
         padding_mask.unsqueeze(-1), 0.0
     )
     return batched_data["pos"]
 
 
-def complete_cell(pos, batched_data):
+def complete_cell(pos, batched_data, is_sampling=False):
     periodic_mask = torch.any(batched_data["pbc"], dim=-1)
     periodic_pos = pos[periodic_mask]
     device = periodic_pos.device
@@ -579,8 +495,24 @@ def complete_cell(pos, batched_data):
     scatter_index = torch.arange(8, device=device).unsqueeze(0).unsqueeze(-1).repeat(
         [n_graphs, 1, 3]
     ) + batched_data["num_atoms"][periodic_mask].unsqueeze(-1).unsqueeze(-1)
+    cell -= ((cell[:, 0, :] + cell[:, 7, :]) / 2.0).unsqueeze(1)
     periodic_pos = periodic_pos.scatter(1, scatter_index, cell)
     pos[periodic_mask] = periodic_pos
+
+    if is_sampling:
+        corner = torch.gather(periodic_pos, 1, index=gather_index)[:, 0, :].unsqueeze(1)
+        inverse_lattice = torch.inverse(batched_data["cell"][periodic_mask])
+        frac_coords = torch.matmul(pos[periodic_mask] - corner, inverse_lattice) % 1.0
+        pos[periodic_mask] = torch.where(
+            batched_data["non_atom_mask"][periodic_mask].unsqueeze(-1),
+            pos[periodic_mask],
+            torch.matmul(frac_coords, batched_data["cell"][periodic_mask]) + corner,
+        )
+
+    token_id = batched_data["token_id"]
+    padding_mask = token_id.eq(0)  # B x T x 1
+    pos = pos.masked_fill(padding_mask.unsqueeze(-1), 0.0)
+
     return pos
 
 
@@ -720,11 +652,9 @@ class PSM(nn.Module):
             n_nodes, dtype=torch.long, device=energy.device
         ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(-1)
 
-        # per-atom energy prediction
-        energy = (
-            energy.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
-            # / batched_data["num_atoms"]
-        )
+        # all-atom energy prediction, instead of per-atom
+        # so use sum reduce
+        energy = energy.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
 
         aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
 

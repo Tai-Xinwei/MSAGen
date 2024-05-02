@@ -980,6 +980,7 @@ class GeomFormer(nn.Module):
         padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
     ):
+        pos = pos.float()
         n_node = pos.shape[1]
         if pbc_expand_batched is not None:
             # use pbc and multi-graph
