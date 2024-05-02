@@ -38,15 +38,6 @@ def pad_attn_bias_unsqueeze(x, padlen):
     return x.unsqueeze(0)
 
 
-def pad_edge_type_unsqueeze(x, padlen):
-    xlen = x.size(0)
-    if xlen < padlen:
-        new_x = x.new_zeros([padlen, padlen, x.size(-1)], dtype=x.dtype)
-        new_x[:xlen, :xlen, :] = x
-        x = new_x
-    return x.unsqueeze(0)
-
-
 def pad_spatial_pos_unsqueeze(x, padlen):
     x = x + 1
     xlen = x.size(0)
@@ -93,7 +84,7 @@ def collate_fn(
     use_pbc=True,
 ):  # unify the data format
     # include the following fields: sample_type, token_type, idx, coords, cell, pbc, stress, forces, energy
-    # need to add: node_type_edge, edge_input, in_degree, attn_edge_type, attn_bias, spatial_pos
+    # need to add: node_type_edge, edge_input, in_degree, attn_bias, spatial_pos
 
     for item in items:
         if "pbc" not in item:
@@ -127,9 +118,6 @@ def collate_fn(
     attn_bias = torch.cat(
         [pad_attn_bias_unsqueeze(i["attn_bias"], max_node_num + 1) for i in items]
     )
-    attn_edge_type = torch.cat(
-        [pad_edge_type_unsqueeze(i["attn_edge_type"], max_node_num) for i in items]
-    )
     spatial_pos = torch.cat(
         [pad_spatial_pos_unsqueeze(i["spatial_pos"], max_node_num) for i in items]
     )
@@ -160,7 +148,6 @@ def collate_fn(
 
     return dict(
         attn_bias=attn_bias,
-        attn_edge_type=attn_edge_type,
         spatial_pos=spatial_pos,
         in_degree=in_degree,
         out_degree=in_degree,  # for undirected graph

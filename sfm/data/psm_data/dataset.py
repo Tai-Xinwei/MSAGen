@@ -17,7 +17,10 @@ from typing import Any, Callable, List, Optional, Tuple, Union
 import lmdb
 import numpy as np
 import torch
+from numpy import dot
+from numpy.linalg import norm
 from ogb.utils.torch_util import replace_numpy_with_torchtensor
+from sympy.utilities.iterables import multiset_permutations
 from torch_geometric.data import Data, InMemoryDataset
 from tqdm import tqdm
 
@@ -123,17 +126,21 @@ class PM6FullLMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = pkl.loads(value)
 
-        data["node_feat"] = torch.tensor(data["node_feat"], dtype=torch.long)
-        x = data["node_feat"][:, 0]
+        # node features conversion for embedding, [0, 1, 0, 2] -> [0, 1 + 512, 0 + 512 x 2, 2 + 512 x 3]
+        data["node_feat"] = convert_to_single_emb(
+            torch.tensor(data["node_feat"], dtype=torch.long)
+        )
         if "pos" in data:
             coords = torch.tensor(data["pos"], dtype=torch.float64)
         elif "coords" in data:
             coords = torch.tensor(data["coords"], dtype=torch.float64)
 
-        # x = convert_to_single_emb(x)
+        x = data["node_feat"]
 
         data["sample_type"] = 0
-        data["token_type"] = x
+        data["token_type"] = data["node_feat"][
+            :, 0
+        ]  # token type only records the atomic numbers
         data["idx"] = idx
 
         data["coords"] = coords
@@ -160,8 +167,8 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         edge_index = torch.tensor(data["edge_index"], dtype=torch.long)
         edge_attr = torch.tensor(data["edge_feat"], dtype=torch.long)
         attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
-        attn_edge_type[edge_index[0, :], edge_index[1, :]] = (
-            convert_to_single_emb(edge_attr) + 1
+        attn_edge_type[edge_index[0, :], edge_index[1, :]] = convert_to_single_emb(
+            edge_attr
         )
         adj[edge_index[0, :], edge_index[1, :]] = True
         shortest_path_result, path = algos.floyd_warshall(adj.numpy())
@@ -175,7 +182,6 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         data["node_attr"] = data["node_feat"]
 
         data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
-        data["attn_edge_type"] = attn_edge_type
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
         data["spatial_pos"] = spatial_pos
@@ -238,6 +244,50 @@ class MatterSimDataset:
                 for key, _ in self.data_name_to_txn[path_name].cursor():
                     self.index_to_dataset_name.append([path_name, key.decode()])
 
+    def switch_lattice_vectors(self, pbc, cell):
+        # simple algorithm to switch lattice vectors so that they are more aligned with the initial lattice vectors
+        initial_lattice_vectors = np.array(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64
+        )
+        best_permutation = None
+        best_lattice_flip_sign = None
+        max_cosine_sum = 0.0
+        for permutation in multiset_permutations(np.arange(3)):
+            cosine = 0.0
+            lattice_flip_sign = []
+            for i in range(3):
+                index = permutation[i]
+                original_lattice_vector = cell[index]
+                initial_lattice_vector = initial_lattice_vectors[i]
+                cosine_similarity = dot(
+                    original_lattice_vector, initial_lattice_vector
+                ) / (norm(original_lattice_vector) * norm(initial_lattice_vector))
+                cosine += np.abs(cosine_similarity)
+                lattice_flip_sign.append(-1.0 if cosine_similarity < 0.0 else 1.0)
+            if cosine > max_cosine_sum:
+                best_permutation = permutation
+                max_cosine_sum = cosine
+                best_lattice_flip_sign = lattice_flip_sign
+        pbc = pbc[best_permutation]
+        cell = cell[best_permutation] * np.array(best_lattice_flip_sign)[:, None]
+        return pbc, cell
+
+    @property
+    def energy_mean(self):
+        return -66.0996156928496
+
+    @property
+    def energy_std(self):
+        return 102.91694201560776
+
+    @property
+    def force_mean(self):  # force mean should always be 0.0 to keep equivariance
+        return 0.0
+
+    @property
+    def force_std(self):
+        return 2.155674863803223
+
     @lru_cache(maxsize=16)
     def __getitem__(self, idx):
         data_name, key = self.index_to_dataset_name[idx]
@@ -253,6 +303,9 @@ class MatterSimDataset:
         data["token_type"] = x  # convert_to_single_emb(x)
         data["idx"] = idx
 
+        data["pbc"], data["cell"] = self.switch_lattice_vectors(
+            data["pbc"], data["cell"]
+        )
         data["cell"] = torch.tensor(data["cell"], dtype=torch.float64)
         data["pbc"] = torch.tensor(data["pbc"], dtype=torch.bool)
 
@@ -277,13 +330,15 @@ class MatterSimDataset:
         data["num_atoms"] = int(x.size()[0] - 8)
         data["forces"] = torch.cat(
             [
-                torch.tensor(data["forces"], dtype=torch.float64),
+                (torch.tensor(data["forces"], dtype=torch.float64) - self.force_mean)
+                / self.force_std,
                 torch.zeros([8, 3], dtype=torch.float64),
             ],
             dim=0,
         )  # expand forces for cell corners
-        # data["energy"] = torch.tensor([data["info"]["energy"] / x.size()[0]])
-        data["energy"] = torch.tensor([data["info"]["energy"]])
+        data["energy"] = torch.tensor(
+            [(data["info"]["energy"] - self.energy_mean) / self.energy_std]
+        )
         data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
 
         data = self.generate_2dgraphfeat(data)
@@ -296,10 +351,6 @@ class MatterSimDataset:
 
         edge_index = torch.zeros([2, 0], dtype=torch.long)
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
-        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
-        attn_edge_type[edge_index[0, :], edge_index[1, :]] = (
-            convert_to_single_emb(edge_attr) + 1
-        )
         adj[edge_index[0, :], edge_index[1, :]] = True
         shortest_path_result = (
             torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
@@ -319,7 +370,6 @@ class MatterSimDataset:
             dim=-1,
         )
         data["edge_input"] = edge_input
-        data["attn_edge_type"] = attn_edge_type
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
         data["spatial_pos"] = spatial_pos
@@ -516,10 +566,6 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
         edge_index = torch.zeros([2, 0], dtype=torch.long)
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
-        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
-        attn_edge_type[edge_index[0, :], edge_index[1, :]] = (
-            convert_to_single_emb(edge_attr) + 1
-        )
         adj[edge_index[0, :], edge_index[1, :]] = True
         shortest_path_result = (
             torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
@@ -538,7 +584,6 @@ class AFDBLMDBDataset(FoundationModelDataset):
             dim=-1,
         )
         data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
-        data["attn_edge_type"] = attn_edge_type
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
         data["spatial_pos"] = spatial_pos
@@ -552,6 +597,6 @@ class AFDBLMDBDataset(FoundationModelDataset):
 @torch.jit.script
 def convert_to_single_emb(x, offset: int = 512):
     feature_num = x.size(1) if len(x.size()) > 1 else 1
-    feature_offset = 1 + torch.arange(0, feature_num * offset, offset, dtype=torch.long)
+    feature_offset = torch.arange(0, feature_num * offset, offset, dtype=torch.long)
     x = x + feature_offset
     return x
