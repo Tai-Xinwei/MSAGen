@@ -406,8 +406,6 @@ class Mix3DEmbeddingV2(nn.Module):
 
         node6dfeature = self.feature_proj(node6dfeature.view(bs, nnode, -1))
 
-        # node6dfeature = node6dfeature.masked_fill(cls_mask, self.cls_embedding.weight)
-        # node6dfeature = node6dfeature.masked_fill(eos_mask, self.eos_embedding.weight)
         node6dfeature = torch.where(cls_mask, self.cls_embedding.weight, node6dfeature)
         node6dfeature = torch.where(eos_mask, self.eos_embedding.weight, node6dfeature)
         node6dfeature = node6dfeature.masked_fill(

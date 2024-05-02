@@ -233,6 +233,9 @@ class MemEffAttn(nn.Module):
         # FutureWarning: torch.backends.cuda.sdp_kernel() is deprecated. In the future, this context manager will be removed.
         # Please see, torch.nn.attention.sdpa_kernel() for the new context manager, with updated signature.
         # with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
+        # with sdpa_kernel(
+        #     [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
+        # ):
         with torch.backends.cuda.sdp_kernel(
             enable_math=False, enable_mem_efficient=True, enable_flash=True
         ):
