@@ -5,11 +5,11 @@ from typing import Callable, List, Optional, Tuple
 from sfm.logging.loggers import logger
 
 try:
-    from torch.optim import Adam
+    # from torch.optim import Adam
+    # logger.info("using torch adam")
+    from apex.optimizers import FusedAdam as Adam  # isort:skip
 
-    logger.info("using torch adam")
-    # from apex.optimizers import FusedAdam as Adam  # isort:skip
-    # logger.info("apex is installed, using FusedAdam with fp16 optimizer states")
+    logger.info("apex is installed, using FusedAdam with fp16 optimizer states")
 
     def AdamW(*args, **kwargs):
         return Adam(*args, **kwargs, adam_w_mode=True)

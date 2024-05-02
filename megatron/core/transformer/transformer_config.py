@@ -146,6 +146,63 @@ class TransformerConfig(ModelParallelConfig):
     recompute_num_layers: int = None
     distribute_saved_activations: bool = None
 
+    ####################
+    # MoE related
+    ####################
+    moe_router_load_balancing_type: str = "aux_loss"
+    """Determines the load balancing strategy for the router. "aux_loss" corresponds to the load
+    balancing loss used in GShard and SwitchTransformer, "sinkhorn" corresponds to the balancing
+    algorithm used in S-BASE, and "none" implies no load balancing."""
+
+    moe_router_topk: int = 2
+    """Number of experts to route to for each token."""
+
+    moe_grouped_gemm: bool = False
+    """When there are multiple experts per rank, compress multiple local (potentially small) gemms
+    in a single kernel launch to improve the utilization and performance by leveraging the Grouped
+    GEMM feature introduced since CUTLASS 2.8 (https://github.com/fanshiqing/grouped_gemm).
+
+    """
+
+    moe_aux_loss_coeff: float = 0  # 1e-2 would be a good start value for load balance loss.
+    """Scaling coefficient for the aux loss. A starting value of 1e-2 is recommended."""
+
+    moe_z_loss_coeff: float = None  # 1e-3 would be a good start value for z-loss
+    """Scaling coefficient for the z-loss. A starting value of 1e-3 is recommended."""
+
+    moe_input_jitter_eps: float = None
+    """Add noise to the input tensor by applying jitter with a specified epsilon value."""
+
+    moe_token_dropping: bool = False  # TODO: Support token dropping.
+    """This feature involves selectively dropping and padding tokens for each expert to achieve a
+    specified capacity, similar to GShard, Switch-Transformer, and DeepSpeed-MoE. Note that this is
+    currently unsupported so should remain False."""
+
+    moe_token_dispatcher_type: str = "allgather"
+    """The type of token dispatcher to use. The default is 'allgather'. Options are 'allgather' and 'alltoall'."""
+    moe_per_layer_logging: bool = False
+    """Enable per-layer logging for MoE, currently supports auxiliary loss and z loss."""
+
+    ####################
+    # miscellaneous
+    ####################
+    clone_scatter_output_in_embedding: bool = True
+    """When set to True, clone the output of scatter_to_sequence_parallel_region in embedding layer
+    to facilitate garbage collection of input."""
+
+    disable_parameter_transpose_cache: bool = False
+    """When set to true, the parameter transposes are not cached for subsequent iterations."""
+
+    enable_cuda_graph: bool = False
+    """When set to true, TransformerLayer blocks are wrapped with CUDA graph."""
+
+    # These 2 attributes are WAR for TRTLLM export. DO NOT USE!! WILL BE DEPRECATED SOON!!
+    max_position_embeddings: int = 0
+    """Deprecated. Do not use."""
+
+    rotary_percent: float = 0
+    """Deprecated. Do not use."""
+
     def __post_init__(self):
         """Python dataclass method that is used to modify attributes after initialization.
         See https://docs.python.org/3/library/dataclasses.html#post-init-processing for more details.

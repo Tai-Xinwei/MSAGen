@@ -5,8 +5,7 @@ from typing import Dict, Optional
 import torch
 from deepspeed.pipe import LayerSpec, TiedLayerSpec
 from deepspeed.utils import logger as ds_logger
-
-# from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, get_peft_model
 
 
 class PretrainedLayerSpec(LayerSpec):
@@ -33,8 +32,8 @@ class PretrainedLayerSpec(LayerSpec):
                 ds_logger.warn(f"Checkpoint {self.pretrained_ckpt_path} is not found.")
 
             # # TODO: LORA
-            # if self.lora_mode == "lora":
-            # layer = self.create_peft_model(layer, lora=True)
+            if self.lora_mode == "lora":
+                layer = self.create_peft_model(layer, lora=True)
             # elif self.lora_mode == "freeze":
             # layer = self.create_peft_model(layer, lora=False)
 
@@ -242,34 +241,34 @@ class PretrainedLayerSpec(LayerSpec):
             "lm_head.weight, embed_tokens.weight, word_embeddings.weight are not found in checkpoints_state"
         )
 
-    # def create_peft_model(self, model, lora=True):
-    #     LORA_R = 8
-    #     LORA_ALPHA = 16
-    #     LORA_DROPOUT = 0.1
-    #     if lora:
-    #         TARGET_MODULES = [
-    #             "q_proj",
-    #             "k_proj",
-    #             "v_proj",
-    #             # "down_proj",
-    #             # "gate_proj",
-    #             # "up_proj",
-    #         ]
-    #     else:
-    #         TARGET_MODULES = ["dummy"]
+    def create_peft_model(self, model, lora=True):
+        LORA_R = 8
+        LORA_ALPHA = 16
+        LORA_DROPOUT = 0.1
+        if lora:
+            TARGET_MODULES = [
+                "q_proj",
+                "k_proj",
+                "v_proj",
+                # "down_proj",
+                # "gate_proj",
+                # "up_proj",
+            ]
+        else:
+            TARGET_MODULES = ["dummy"]
 
-    #     lora_config = LoraConfig(
-    #         r=LORA_R,
-    #         lora_alpha=LORA_ALPHA,
-    #         target_modules=TARGET_MODULES,
-    #         lora_dropout=LORA_DROPOUT,
-    #         bias="none",
-    #         # task_type="CAUSAL_LM",
-    #     )
+        lora_config = LoraConfig(
+            r=LORA_R,
+            lora_alpha=LORA_ALPHA,
+            target_modules=TARGET_MODULES,
+            lora_dropout=LORA_DROPOUT,
+            bias="none",
+            # task_type="CAUSAL_LM",
+        )
 
-    #     model = get_peft_model(model, lora_config)
+        model = get_peft_model(model, lora_config)
 
-    #     return model
+        return model
 
 
 class TiedPretrainedLayerSpec(PretrainedLayerSpec):

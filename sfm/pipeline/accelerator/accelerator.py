@@ -38,7 +38,7 @@ from sfm.utils.PPEngine import initialize as initialize_pp_engine
 from .pipeline_module import SFMPipelineModule
 
 try:
-    import transformer_engine.pytorch as transformer_engine
+    import transformer_engine.pytorch as te
     from transformer_engine.common import recipe
 except:
     logger.info("Transformer Engine package is not installed.")
@@ -767,7 +767,7 @@ class DeepSpeedAccelerator(Accelerator):
             # Create FP8 recipe. Note: All input args are optional.
             self.fp8_recipe = recipe.DelayedScaling(
                 fp8_format=recipe.Format.HYBRID,
-                amax_history_len=1,
+                amax_history_len=16,
                 amax_compute_algo="max",
             )
 
@@ -1035,10 +1035,10 @@ class DeepSpeedAccelerator(Accelerator):
             self.args.strategy == TrainStrategy.Pipeline
             or self.args.strategy == TrainStrategy.ThreeD
         ):
-            with transformer_engine.fp8_autocast(
-                enabled=True, fp8_recipe=self.fp8_recipe
-            ):
-                loss = self.model_engine.train_batch(iter(grouped_batch_data))
+            # with te.fp8_autocast(
+            #     enabled=True, fp8_recipe=self.fp8_recipe
+            # ) if self.args.fp8 else nullcontext():
+            loss = self.model_engine.train_batch(iter(grouped_batch_data))
             model_output = ModelOutput(
                 loss=loss,
                 num_examples=self.args.deepspeed_config["train_batch_size"]
@@ -1053,10 +1053,10 @@ class DeepSpeedAccelerator(Accelerator):
                     batch_data, device=self.args.local_rank, non_blocking=True
                 )
                 self.model.before_batch()
-                with transformer_engine.fp8_autocast(
-                    enabled=True, fp8_recipe=self.fp8_recipe
-                ) if self.args.fp8 else nullcontext():
-                    pred = self.model_engine(batch_data)
+                # with te.fp8_autocast(
+                #     enabled=True, fp8_recipe=self.fp8_recipe
+                # ) if self.args.fp8 else nullcontext():
+                pred = self.model_engine(batch_data)
 
                 model_output = self.model.compute_loss(pred, batch_data)
                 loss = model_output.loss

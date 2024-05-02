@@ -25,6 +25,7 @@ from .utils import gather_split_1d_tensor, split_tensor_into_1d_equal_chunks
 
 # Default name for the model parallel rng tracker.
 _MODEL_PARALLEL_RNG_TRACKER_NAME = "model-parallel-rng"
+_DATA_PARALLEL_RNG_TRACKER_NAME = 'data-parallel-rng'
 
 # Whether apply model parallelsim to checkpointed hidden states.
 _CHECKPOINTED_ACTIVATIONS_MEMORY_BUFFER = None
@@ -98,6 +99,10 @@ def _set_cuda_rng_state(new_state, device=-1):
     get_accelerator().lazy_call(cb)
 
 
+def get_data_parallel_rng_tracker_name():
+    global _DATA_PARALLEL_RNG_TRACKER_NAME
+    return _DATA_PARALLEL_RNG_TRACKER_NAME
+
 class CudaRNGStatesTracker:
     """Tracker for the cuda RNG states.
 
@@ -108,14 +113,21 @@ class CudaRNGStatesTracker:
     """
 
     def __init__(self):
-        # Map from a string name to the cuda rng state.
-        self.states_ = {}
-        # Seeds are just for book keeping and ensure no seed is set twice.
-        self.seeds_ = set()
+        self.reset()
+
+    def is_initialized(self):
+        return self._is_initialized
 
     def reset(self):
         """Set to the initial state (no tracker)."""
+
+        # Track if initialized.
+        self._is_initialized = False
+
+        # Map from a string name to the cuda rng state.
         self.states_ = {}
+
+        # Seeds are just for book keeping and ensure no seed is set twice.
         self.seeds_ = set()
 
     def get_states(self):
@@ -129,22 +141,24 @@ class CudaRNGStatesTracker:
     def set_states(self, states):
         """Set the rng states. For efficiency purposes, we do not check
         the size of seed for compatibility."""
+        self._is_initialized = True
         self.states_ = states
 
     def add(self, name, seed):
         """Track the rng state."""
+        self._is_initialized = True
         # Check seed is not already used.
         if seed in self.seeds_:
-            raise Exception("seed {} already exists".format(seed))
+            raise Exception('seed {} already exists'.format(seed))
         self.seeds_.add(seed)
         # Check that state is not already defined.
         if name in self.states_:
-            raise Exception("cuda rng state {} already exists".format(name))
+            raise Exception('cuda rng state {} already exists'.format(name))
         # Get the current rng state.
-        orig_rng_state = get_accelerator().get_rng_state()
+        orig_rng_state = torch.cuda.get_rng_state()
         # Set the new state and store it.
-        get_accelerator().manual_seed(seed)
-        self.states_[name] = get_accelerator().get_rng_state()
+        torch.cuda.manual_seed(seed)
+        self.states_[name] = torch.cuda.get_rng_state()
         # Reset rng state to what it was.
         _set_cuda_rng_state(orig_rng_state)
 
@@ -154,10 +168,9 @@ class CudaRNGStatesTracker:
         the original state."""
         # Check if we have added the state
         if name not in self.states_:
-            print(name, self.states_)
-            raise Exception("cuda rng state {} is not added".format(name))
+            raise Exception('cuda rng state {} is not added'.format(name))
         # Store current rng state.
-        orig_cuda_rng_state = get_accelerator().get_rng_state()
+        orig_cuda_rng_state = torch.cuda.get_rng_state()
         # Set rng state to the desired one
         _set_cuda_rng_state(self.states_[name])
         # Do the stuff we wanted to do.
@@ -165,17 +178,35 @@ class CudaRNGStatesTracker:
             yield
         finally:
             # Update the current rng state for later use.
-            self.states_[name] = get_accelerator().get_rng_state()
+            self.states_[name] = torch.cuda.get_rng_state()
             # And set the state to the original state we started with.
             _set_cuda_rng_state(orig_cuda_rng_state)
 
 
 # RNG tracker object.
 _CUDA_RNG_STATE_TRACKER = CudaRNGStatesTracker()
+_CUDA_RNG_STATE_TRACKER_INITIALIZED = True
 
+
+def initialize_rng_tracker(use_te_rng_tracker: bool = False):
+    global _CUDA_RNG_STATE_TRACKER
+    global _CUDA_RNG_STATE_TRACKER_INITIALIZED
+    if _CUDA_RNG_STATE_TRACKER_INITIALIZED:
+        return
+    if use_te_rng_tracker:
+        try:
+            import transformer_engine.pytorch as te
+        except:
+            raise RuntimeError("use_te_rng_tracker requires TransformerEngine, but not installed")
+    if use_te_rng_tracker:
+        _CUDA_RNG_STATE_TRACKER = te.distributed.CudaRNGStatesTracker()
+    else:
+        _CUDA_RNG_STATE_TRACKER = CudaRNGStatesTracker()
+    _CUDA_RNG_STATE_TRACKER_INITIALIZED = True
 
 def get_cuda_rng_tracker():
     """Get cuda rng tracker."""
+    initialize_rng_tracker()
     return _CUDA_RNG_STATE_TRACKER
 
 
@@ -218,6 +249,7 @@ def model_parallel_cuda_manual_seed(seed):
     _CUDA_RNG_STATE_TRACKER.reset()
     # Set the default state.
     get_accelerator().manual_seed(data_parallel_seed)
+    _CUDA_RNG_STATE_TRACKER.add(_DATA_PARALLEL_RNG_TRACKER_NAME, data_parallel_seed)
     # and model parallel state.
     _CUDA_RNG_STATE_TRACKER.add(
         _MODEL_PARALLEL_RNG_TRACKER_NAME, tensor_model_parallel_seed

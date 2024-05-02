@@ -123,8 +123,8 @@ echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-export WANDB_API_KEY=$wandb_key
+# wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+# export WANDB_API_KEY=$wandb_key
 
 set -x
 torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
