@@ -44,6 +44,7 @@ class NLM3dModel(SFMPipelineModelMixin):
                 PretrainedLayerSpec(
                     LlamaLLMEmbeddingsMP,
                     self.mp_config,
+                    learnable_cutoff=self.mp_config.learnable_cutoff,
                     new_num_tokens=self.mp_config.vocab_size,
                     load_ckpt=self.args.load_ckpt,
                     pretrained_ckpt_path=os.path.join(
@@ -90,6 +91,7 @@ class NLM3dModel(SFMPipelineModelMixin):
             PretrainedLayerSpec(
                 LlamaHeadMP,
                 self.mp_config,
+                learnable_cutoff=self.mp_config.learnable_cutoff,
                 new_num_tokens=self.mp_config.vocab_size,
                 load_ckpt=self.args.load_ckpt,
                 pretrained_ckpt_path=os.path.join(

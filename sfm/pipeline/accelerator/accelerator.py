@@ -1128,7 +1128,10 @@ class DeepSpeedAccelerator(Accelerator):
             with te.fp8_autocast(
                 enabled=True, fp8_recipe=self.fp8_recipe
             ) if self.args.fp8 else nullcontext():
-                loss = self.model_engine.train_batch(iter(grouped_batch_data))
+                loss = self.model_engine.train_batch(
+                    iter(grouped_batch_data),
+                    reset_act_each_step=self.args.reset_act_each_step,
+                )
             model_output = ModelOutput(
                 loss=loss,
                 num_examples=self.args.deepspeed_config["train_batch_size"]

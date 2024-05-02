@@ -123,8 +123,8 @@ echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-# wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-# export WANDB_API_KEY=$wandb_key
+wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+export WANDB_API_KEY=$wandb_key
 
 set -x
 torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
@@ -136,7 +136,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --save_dir "$save_dir" \
       --seed 666666 \
       --bf16 \
-      --fp8 \
       --grad_scaler_init "$grad_scaler_init" \
       --max_lr "$max_lr" \
       --beta1 "$beta1" --beta2 "$beta2" \
@@ -157,4 +156,4 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
       --learnable_cutoff "$learnable_cutoff" \
       --unfreeze_param_list "$unfreeze_param_list" \
-      ${MEGATRON_ARGS} # --load_ckpt \
+      ${MEGATRON_ARGS}  --load_ckpt

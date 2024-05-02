@@ -9,7 +9,7 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${weight_decay}" ] && weight_decay=0.1 # same as LLAMA2
-[ -z "${max_lr}" ] && max_lr=3e-4  # LLAMA2 use 3e-4, let's use smaller lr
+[ -z "${max_lr}" ] && max_lr=3e-5  # LLAMA2 use 3e-4, let's use smaller lr
 [ -z "${beta1}" ] && beta1=0.9 # same as LLAMA2
 [ -z "${beta2}" ] && beta2=0.95 # same as LLAMA2
 [ -z "${total_num_steps}" ] && total_num_steps=80000
@@ -20,11 +20,11 @@ export MKL_THREADING_LAYER='GNU'
 
 # In this stage, the grad is too large to use grad accumulation
 [ -z "${strategy}" ] && strategy=ThreeD
-[ -z "${train_batch_size}" ] && train_batch_size=32
+[ -z "${train_batch_size}" ] && train_batch_size=2
 [ -z "${val_batch_size}" ] && val_batch_size=$train_batch_size
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=16
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=2
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=2
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerMP"
 
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1

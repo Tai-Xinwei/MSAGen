@@ -152,6 +152,7 @@ class TrainerConfig:
     unfreeze_param_list: str = ""
     finetune_from_checkpoint_dir: Optional[str] = None
     finetune_from_checkpoint_id: Optional[str] = None
+    reset_act_each_step: bool = False
 
     # dataloader strategy
     daliLoader: bool = False
