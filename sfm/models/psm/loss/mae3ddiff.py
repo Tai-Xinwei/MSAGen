@@ -33,7 +33,7 @@ class DiffMAE3dCriterions(nn.Module):
             energy_loss = torch.mean(energy_loss[loss_mask])
         else:
             energy_loss = torch.tensor(
-                [0.0], device=energy_loss.device, requires_grad=True
+                0.0, device=energy_loss.device, requires_grad=True
             )
         return energy_loss, num_samples
 
@@ -50,7 +50,7 @@ class DiffMAE3dCriterions(nn.Module):
             force_or_noise_loss = force_or_noise_loss.mean()
         else:
             force_or_noise_loss = torch.tensor(
-                [0.0], device=force_or_noise_loss.device, requires_grad=True
+                0.0, device=force_or_noise_loss.device, requires_grad=True
             )
         return force_or_noise_loss, num_samples
 
@@ -161,7 +161,7 @@ class DiffMAE3dCriterions(nn.Module):
             num_aa_mask_token = torch.sum(aa_mask.to(dtype=aa_mlm_loss.dtype))
         else:
             aa_mlm_loss = torch.tensor(
-                [0.0], device=atomic_numbers.device, requires_grad=True
+                0.0, device=atomic_numbers.device, requires_grad=True
             )
             aa_acc = 0.0
             num_aa_mask_token = 0.0
