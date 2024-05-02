@@ -439,6 +439,22 @@ class DdpAccelerator(SingleNodeAccelerator):
                 collate_fn=train_data.collate,
                 batch_sampler=self.train_sampler,
             )
+        elif self.args.ifstack:
+            train_batch_size_per_gpu = self.args.train_batch_size // (
+                self.world_size * self.args.gradient_accumulation_steps
+            )
+            assert (
+                train_batch_size_per_gpu > 0
+            ), "train_batch_size_per_gpu should be greater than 0"
+
+            self.train_sampler = None
+            self.train_data_loader = DataLoader(
+                train_data,
+                batch_size=train_batch_size_per_gpu,
+                collate_fn=train_data.collate,
+                drop_last=True,
+                num_workers=0,
+            )
         else:
             train_batch_size_per_gpu = self.args.train_batch_size // (
                 self.world_size * self.args.gradient_accumulation_steps
@@ -1035,10 +1051,10 @@ class DeepSpeedAccelerator(Accelerator):
             self.args.strategy == TrainStrategy.Pipeline
             or self.args.strategy == TrainStrategy.ThreeD
         ):
-            # with te.fp8_autocast(
-            #     enabled=True, fp8_recipe=self.fp8_recipe
-            # ) if self.args.fp8 else nullcontext():
-            loss = self.model_engine.train_batch(iter(grouped_batch_data))
+            with te.fp8_autocast(
+                enabled=True, fp8_recipe=self.fp8_recipe
+            ) if self.args.fp8 else nullcontext():
+                loss = self.model_engine.train_batch(iter(grouped_batch_data))
             model_output = ModelOutput(
                 loss=loss,
                 num_examples=self.args.deepspeed_config["train_batch_size"]

@@ -13,43 +13,43 @@ from transformers import (
     LlamaTokenizerFast,
 )
 from transformers.activations import ACT2FN
+
+#     logger.info(
+#         "Using TEColumnParallelLinear and TERowParallelLinear in tensor parallel"
+#     )
+# except:
 from transformers.models.llama.modeling_llama import (
     LlamaAttention,
     LlamaDecoderLayer,
     LlamaForCausalLM,
     LlamaMLP,
+    LlamaRMSNorm,
     LlamaRotaryEmbedding,
     apply_rotary_pos_emb,
     repeat_kv,
 )
 
 from megatron.core import parallel_state, tensor_parallel
+from megatron.core.tensor_parallel import ColumnParallelLinear, RowParallelLinear
 from megatron.model.enums import AttnMaskType, AttnType, LayerType
 from megatron.model.language_model import Embedding
 from sfm.logging import logger
 from sfm.modules.sfmmodule import SFMModule
 from sfm.utils import PretrainedLayerSpec
 
-try:
-    from sfm.modules.te_modules.te_tensor import (
-        TEColumnParallelLinear as ColumnParallelLinear,
-    )
-    from sfm.modules.te_modules.te_tensor import TERMSNorm as LlamaRMSNorm
-    from sfm.modules.te_modules.te_tensor import (
-        TERowParallelLinear as RowParallelLinear,
-    )
+# try:
+#     from sfm.modules.te_modules.te_tensor import (
+#         TEColumnParallelLinear as ColumnParallelLinear,
+#     )
+#     from sfm.modules.te_modules.te_tensor import TERMSNorm as LlamaRMSNorm
+#     from sfm.modules.te_modules.te_tensor import (
+#         TERowParallelLinear as RowParallelLinear,
+#     )
 
-    logger.info(
-        "Using TEColumnParallelLinear and TERowParallelLinear in tensor parallel"
-    )
-except:
-    from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
-    from megatron.core.tensor_parallel import ColumnParallelLinear, RowParallelLinear
-
-    logger.info(
-        "Using Megatron ColumnParallelLinear and RowParallelLinear in tensor parallel"
-    )
+logger.info(
+    "Using Megatron ColumnParallelLinear and RowParallelLinear in tensor parallel"
+)
 
 try:
     from apex.normalization import MixedFusedRMSNorm
@@ -373,10 +373,6 @@ class ParallelLlamaAttention(SFMModule):
         xv = self.v_proj(hidden_states)[0]
 
         bsz, seqlen, _ = xq.shape
-        # seqlen, bsz, _ = xq.shape
-        # xq = xq.transpose(0, 1)
-        # xk = xk.transpose(0, 1)
-        # xv = xv.transpose(0, 1)
 
         xq = xq.view(bsz, seqlen, self.num_attention_heads_per_tp, self.head_dim)
         xk = xk.view(bsz, seqlen, self.num_key_value_heads_per_tp, self.head_dim)
@@ -687,7 +683,7 @@ class LlamaLLMEmbeddingsMP(Embedding, SFMModule):
         new_state_dict = {}
         for key in keys:
             param = state_dict[key]
-            if key == "embed_tokens.weight":
+            if key == "embed_tokens.weight" or key == "word_embeddings.weight":
                 if param.size()[0] < self.config.vocab_size:
                     mean_embedding = torch.mean(param, dim=0, keepdim=True).expand(
                         [self.config.vocab_size - param.size()[0], param.size()[1]]
@@ -802,9 +798,9 @@ class LlamaHeadMP(SFMModule):
         self.config = config
 
         self.vocab_size = config.vocab_size
-        self.lm_head = ColumnParallelLinear(
-            input_size=config.hidden_size,
-            output_size=config.vocab_size,
+        self.lm_head = tensor_parallel.ColumnParallelLinear(
+            config.hidden_size,
+            config.vocab_size,
             bias=False,
             config=config,
             init_method=config.init_method,
@@ -873,7 +869,8 @@ class LlamaHeadMP(SFMModule):
 
         lm_logits = self.lm_head(hidden_states)[0]  # .transpose(0, 1)
 
-        num_logits = self.num_head(hidden_states)
+        # num_logits = self.num_head(hidden_states)
+        num_logits = None
 
         return lm_logits, num_logits
 

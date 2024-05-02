@@ -28,7 +28,7 @@ class NLM3dModel(SFMPipelineModelMixin):
     def __init__(self, args, vocab_size: int):
         super().__init__()
 
-        llama_config = LlamaConfig.from_pretrained(args.pretrained_ckpt_path)
+        llama_config = LlamaConfig.from_pretrained(args.dict_path)
         args.padded_vocab_size = max(args.padded_vocab_size, vocab_size)
         vocab_size = args.padded_vocab_size
         llama_config.vocab_size = vocab_size

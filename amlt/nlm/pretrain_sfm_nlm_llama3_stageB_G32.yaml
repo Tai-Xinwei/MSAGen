@@ -7,14 +7,14 @@ env_defaults:
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
 
-# target:
-  # service: sing
-  # name: baltic02
-  # workspace_name: msrresrchws
-
 target:
-    service: aml
-    name: townsend1
+  service: sing
+  name: baltic02
+  workspace_name: msrresrchws
+
+# target:
+    # service: aml
+    # name: townsend1
 
 environment:
   image: ai4s-sfm:20240429.081857
@@ -55,7 +55,8 @@ jobs:
   - export valid_data_path=/sfm/nlm/llama3_processed_data/v5_validation/valid.npy
   - export dict_path=/sfm/llama/Meta-Llama-3-8B/original
   - export loadcheck_path=/sfm/llama/Meta-Llama-3-8B/original
-  - export save_dir=/sfm/nlm/output/llama3_stageA/
+  - export finetune_from_checkpoint_dir=/sfm/nlm/output/llama3_stageA/
+  - export save_dir=/sfm/nlm/output/llama3_stageB/
   - bash scripts/nlm/pretrain_nlm_llama3_7b_stageB.sh
   submit_args:
     env:

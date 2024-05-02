@@ -20,9 +20,9 @@ export MKL_THREADING_LAYER='GNU'
 
 # In this stage, the grad is too large to use grad accumulation
 [ -z "${strategy}" ] && strategy=ThreeD
-[ -z "${train_batch_size}" ] && train_batch_size=32
+[ -z "${train_batch_size}" ] && train_batch_size=4
 [ -z "${val_batch_size}" ] && val_batch_size=$train_batch_size
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=16
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=2
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerMP"

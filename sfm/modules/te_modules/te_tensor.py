@@ -120,7 +120,7 @@ class TELinear(te.pytorch.Linear):
             in_features=input_size,
             out_features=output_size,
             sequence_parallel=self.config.sequence_parallel,
-            fuse_wgrad_accumulation=self.config.gradient_accumulation_fusion,
+            # fuse_wgrad_accumulation=self.config.gradient_accumulation_fusion,
             tp_group=get_tensor_model_parallel_group(check_initialized=False),
             tp_size=self.config.tensor_model_parallel_size,
             get_rng_state_tracker=get_cuda_rng_tracker
@@ -145,7 +145,7 @@ class TELinear(te.pytorch.Linear):
         # it returns a single Tensor, we always want to return two
         # values regardless of the arguments.
         if self.te_return_bias:
-            return out
+            return out, None
         return out, None
 
 
