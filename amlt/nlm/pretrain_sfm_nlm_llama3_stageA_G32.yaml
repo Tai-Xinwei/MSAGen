@@ -58,7 +58,7 @@ jobs:
   - export valid_data_path=/sfm/nlm/llama3_processed_data/v5_validation/valid.npy
   - export dict_path=/sfm/llama/Meta-Llama-3-8B/original
   - export loadcheck_path=/sfm/llama/Meta-Llama-3-8B/original
-  - export save_dir=/sfm/nlm/output/llama3_stageA_tp2pp1/
+  - export save_dir=/sfm/nlm/output/llama3_stageA_tp2/
   - bash scripts/nlm/pretrain_nlm_llama3_7b_stageA.sh
   submit_args:
     env:

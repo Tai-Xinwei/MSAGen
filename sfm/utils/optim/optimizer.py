@@ -60,7 +60,7 @@ def process_param(
         )
         logger.info(f"unfreeze layer name list: {unfreeze_list}")
         for name, param in net.named_parameters():
-            nl = int(name.split(".")[0])
+            nl = int(name.split(".")[0]) if name.split(".")[0].isdigit() else -1
             if nl in unfreeze_layer_name_list:
                 param_groups[0]["params"].append(param)
                 if name.find("dummy") == -1:
@@ -75,7 +75,7 @@ def process_param(
     elif len(freeze_list) > 0:
         freeze_list, freeze_layer_name_list = split_param_and_layer_name(freeze_list)
         for name, param in net.named_parameters():
-            nl = int(name.split(".")[0])
+            nl = int(name.split(".")[0]) if name.split(".")[0].isdigit() else -1
             if nl in freeze_layer_name_list:
                 flag = True
                 logger.info(f"freeze layer: {name}")

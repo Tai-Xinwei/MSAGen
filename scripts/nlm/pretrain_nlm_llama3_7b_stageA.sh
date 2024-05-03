@@ -15,15 +15,15 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=80000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=100
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
-[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,word_embeddings.weight"
+[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,word_embeddings.weight,token_emb.weight"
 [ -z "${learnable_cutoff}" ] && learnable_cutoff=128256
 
 # In this stage, the grad is too large to use grad accumulation
-[ -z "${strategy}" ] && strategy=ThreeD
+[ -z "${strategy}" ] && strategy=Zero3
 [ -z "${train_batch_size}" ] && train_batch_size=4
 [ -z "${val_batch_size}" ] && val_batch_size=$train_batch_size
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=2
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerMP"
 
@@ -74,23 +74,23 @@ else
   fi
 fi
 
-if [[ "${strategy}" == "ThreeD" ]]; then
-  dp_worldsize=$(($world_size/$pipeline_model_parallel_size/$tensor_model_parallel_size))
-  [ -z "${micro_batch_size}" ] && micro_batch_size=$(($train_batch_size/$gradient_accumulation_steps/$dp_worldsize))
-  [ -z "${num_head}" ] && num_head=32
-  [ -z "${global_batch_size}" ] && global_batch_size=$train_batch_size
-  [ -z "${max_position_embeddings}" ] && max_position_embeddings=8192
-  [ -z "${llm_hidden_size}" ] && llm_hidden_size=4096
-  [ -z "${layers}" ] && layers=24
-  [ -z "${num_head}" ] && num_head=32
+# if [[ "${strategy}" == "ThreeD" ]]; then
+dp_worldsize=$(($world_size/$pipeline_model_parallel_size/$tensor_model_parallel_size))
+[ -z "${micro_batch_size}" ] && micro_batch_size=$(($train_batch_size/$gradient_accumulation_steps/$dp_worldsize))
+[ -z "${num_head}" ] && num_head=32
+[ -z "${global_batch_size}" ] && global_batch_size=$train_batch_size
+[ -z "${max_position_embeddings}" ] && max_position_embeddings=8192
+[ -z "${llm_hidden_size}" ] && llm_hidden_size=4096
+[ -z "${layers}" ] && layers=24
+[ -z "${num_head}" ] && num_head=32
 
-  MEGATRON_ARGS="--micro-batch-size $micro_batch_size --global-batch-size $global_batch_size \
-    --num-layers $layers --hidden-size $llm_hidden_size --seq-length $max_position_embeddings \
-    --max-position-embeddings $max_position_embeddings --num-attention-heads $num_head \
-    --seq-length $max_position_embeddings --disable-bias-linear --no-position-embedding --no-query-key-layer-scaling"
-else
-  MEGATRON_ARGS=""
-fi
+MEGATRON_ARGS="--micro-batch-size $micro_batch_size --global-batch-size $global_batch_size \
+  --num-layers $layers --hidden-size $llm_hidden_size --seq-length $max_position_embeddings \
+  --max-position-embeddings $max_position_embeddings --num-attention-heads $num_head \
+  --seq-length $max_position_embeddings --disable-bias-linear --no-position-embedding --no-query-key-layer-scaling"
+# else
+#   MEGATRON_ARGS=""
+# fi
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -123,8 +123,8 @@ echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-export WANDB_API_KEY=$wandb_key
+# wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+# export WANDB_API_KEY=$wandb_key
 
 set -x
 torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
@@ -135,7 +135,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --weight_decay "$weight_decay" \
       --save_dir "$save_dir" \
       --seed 666666 \
-      --bf16 \
+      --bf16 --fp8 \
       --grad_scaler_init "$grad_scaler_init" \
       --max_lr "$max_lr" \
       --beta1 "$beta1" --beta2 "$beta2" \

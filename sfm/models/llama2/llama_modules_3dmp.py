@@ -654,7 +654,7 @@ class LlamaEmbeddingsMP(Embedding, SFMModule):
 
 
 class LlamaLLMEmbeddingsMP(Embedding, SFMModule):
-    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
+    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 0):
         super().__init__(
             config.hidden_size,
             config.vocab_size,

@@ -1148,10 +1148,10 @@ class DeepSpeedAccelerator(Accelerator):
                     batch_data, device=self.args.local_rank, non_blocking=True
                 )
                 self.model.before_batch()
-                # with te.fp8_autocast(
-                #     enabled=True, fp8_recipe=self.fp8_recipe
-                # ) if self.args.fp8 else nullcontext():
-                pred = self.model_engine(batch_data)
+                with te.fp8_autocast(
+                    enabled=True, fp8_recipe=self.fp8_recipe
+                ) if self.args.fp8 else nullcontext():
+                    pred = self.model_engine(batch_data)
 
                 model_output = self.model.compute_loss(pred, batch_data)
                 loss = model_output.loss

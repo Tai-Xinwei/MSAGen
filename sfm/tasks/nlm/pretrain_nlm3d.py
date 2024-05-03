@@ -38,11 +38,7 @@ def main(args) -> None:
     if args.strategy == TrainStrategy.ThreeD:
         initialize_megatron(args, tokenizer=tokenizer)
         logger.info("Initializing megatron for 3D training.")
-        model = NLM3dModel(args, len(tokenizer))
-    else:
-        raise Exception(
-            f"stratey {args.strategy} is not supported, only ThreeD is supported in this task"
-        )
+    model = NLM3dModel(args, len(tokenizer))
 
     train_dataset = ProcessedSciDataset(
         args.train_data_path, args.pad_token_id, args.max_position_embeddings

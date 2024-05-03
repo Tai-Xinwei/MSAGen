@@ -279,7 +279,7 @@ def lm_logits(embedding, input_tuple):
 
 
 class LlamaEmbeddingsBase(nn.Module):
-    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
+    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 0):
         super().__init__()
         self.embed_tokens = torch.nn.Embedding(
             config.vocab_size, config.hidden_size, config.pad_token_id
