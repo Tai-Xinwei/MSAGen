@@ -155,6 +155,7 @@ class TOXmixEmbedding(nn.Module):
                 angle_mask,
                 time_pos,
                 time_angle,
+                batched_data["x"],
             )
 
             # add 3d edge feature in node feature

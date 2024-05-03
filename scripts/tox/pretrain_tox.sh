@@ -47,8 +47,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,1.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-# [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
-[ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/AFDB50-plddt70.lmdb/'
+[ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
+# [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/AFDB50-plddt70.lmdb/'
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq512_x0_dist/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq512_x0_dist/'
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
@@ -174,6 +174,4 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
         --save_batch_interval $save_batch_interval --log_interval $log_interval \
         --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
-sleep inf
-sleep inf
-sleep inf
+        # --finetune_from_checkpoint_dir $save_dir \

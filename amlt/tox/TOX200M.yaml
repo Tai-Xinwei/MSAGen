@@ -25,7 +25,6 @@ target:
 
 
 environment:
-  # image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
   image: ai4s-sfm:20240429.081857
   registry: msroctocr.azurecr.io
   username: msroctocr
@@ -52,17 +51,9 @@ jobs:
   - export WANDB_TEAM=large-scale-pde
   - export wandb_group=pdm_dev
   - mkdir /blob/pfmexp/output
-  - mkdir /blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair_G64
-  - mkdir /blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair_G64/checkpoints
-  - mkdir ./output
-  - export path=run.sh
-  - export layers=12
-  - export hidden_size=1024
-  - export ffn_size=4096
+  - mkdir /blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair_G64_test
+  - mkdir /blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair_G64_test/checkpoints
   - export num_head=32
-  - export num_3d_bias_kernel=8
-  - export atom_loss_coeff=1.0
-  - export pos_loss_coeff=1.0
   - export sandwich_ln="true"
   - export dropout=0.0
   - export attn_dropout=0.1
@@ -70,7 +61,6 @@ jobs:
   - export weight_decay=0.0
   - export droppath_prob=0.0
   - export noise_mode=diff
-  - export noise_scale=0.2
   - export mask_ratio=0.5
   - export mode_prob=0.1,0.2,0.6,0.1
   - export d_tilde=1.0
@@ -85,10 +75,10 @@ jobs:
   - export max_length=1024
   - export gradient_accumulation_steps=1
   - export log_interval=100
-  - export loadcheck_path=/blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair_G64/checkpoints
+  - export loadcheck_path=/blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair_G64_test/checkpoints
   # - export data_path=/blob/data/afdb/48organisms-fullatom.lmdb/
   - export data_path=/blob/data/afdb/AFDB50-plddt70.lmdb/
-  - export save_dir=/blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair_G64/checkpoints
+  - export save_dir=/blob/pfmexp/output/pfmdiff150M_prob1261_m5_bs2048_ddpm_pair_G64_test/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - bash ./scripts/tox/pretrain_tox.sh

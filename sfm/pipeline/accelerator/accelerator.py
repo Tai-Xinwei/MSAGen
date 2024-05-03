@@ -37,6 +37,12 @@ from sfm.utils.PPEngine import initialize as initialize_pp_engine
 
 from .pipeline_module import SFMPipelineModule
 
+try:
+    import transformer_engine.pytorch as te
+    from transformer_engine.common import recipe
+except:
+    logger.info("Transformer Engine package is not installed.")
+
 
 def safe_div(a, b):
     if b == 0:
@@ -507,6 +513,22 @@ class DdpAccelerator(SingleNodeAccelerator):
                 collate_fn=train_data.collate,
                 batch_sampler=self.train_sampler,
             )
+        elif self.args.ifstack:
+            train_batch_size_per_gpu = self.args.train_batch_size // (
+                self.world_size * self.args.gradient_accumulation_steps
+            )
+            assert (
+                train_batch_size_per_gpu > 0
+            ), "train_batch_size_per_gpu should be greater than 0"
+
+            self.train_sampler = None
+            self.train_data_loader = DataLoader(
+                train_data,
+                batch_size=train_batch_size_per_gpu,
+                collate_fn=train_data.collate,
+                drop_last=True,
+                num_workers=0,
+            )
         else:
             train_batch_size_per_gpu = self.args.train_batch_size // (
                 self.world_size * self.args.gradient_accumulation_steps
@@ -831,6 +853,14 @@ class DeepSpeedAccelerator(Accelerator):
         deepspeed.init_distributed(dist_backend=self.args.dist_backend)
         self.set_ds_config()
 
+        if self.args.fp8:
+            # Create FP8 recipe. Note: All input args are optional.
+            self.fp8_recipe = recipe.DelayedScaling(
+                fp8_format=recipe.Format.HYBRID,
+                amax_history_len=16,
+                amax_compute_algo="max",
+            )
+
         if (
             self.args.strategy == TrainStrategy.Pipeline
             or self.args.strategy == TrainStrategy.ThreeD
@@ -1095,7 +1125,13 @@ class DeepSpeedAccelerator(Accelerator):
             self.args.strategy == TrainStrategy.Pipeline
             or self.args.strategy == TrainStrategy.ThreeD
         ):
-            loss = self.model_engine.train_batch(iter(grouped_batch_data))
+            with te.fp8_autocast(
+                enabled=True, fp8_recipe=self.fp8_recipe
+            ) if self.args.fp8 else nullcontext():
+                loss = self.model_engine.train_batch(
+                    iter(grouped_batch_data),
+                    reset_act_each_step=self.args.reset_act_each_step,
+                )
             model_output = ModelOutput(
                 loss=loss,
                 num_examples=self.args.deepspeed_config["train_batch_size"]
@@ -1112,7 +1148,10 @@ class DeepSpeedAccelerator(Accelerator):
                     batch_data, device=self.args.local_rank, non_blocking=True
                 )
                 self.model.before_batch()
-                pred = self.model_engine(batch_data)
+                with te.fp8_autocast(
+                    enabled=True, fp8_recipe=self.fp8_recipe
+                ) if self.args.fp8 else nullcontext():
+                    pred = self.model_engine(batch_data)
 
                 model_output = self.model.compute_loss(pred, batch_data)
                 loss = model_output.loss
@@ -1134,7 +1173,6 @@ class DeepSpeedAccelerator(Accelerator):
             model_output.loss = safe_div(total_loss, sample_count)
             model_output.log_output = total_log_output
 
-        torch.cuda.empty_cache()
         return model_output
 
     def valid_step(

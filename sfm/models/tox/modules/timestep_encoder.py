@@ -116,21 +116,29 @@ class DiffNoise(nn.Module):
         )
 
     def _extract(self, a, t, x_shape):
-        batch_size = t.shape[0]
-        out = a.gather(-1, t.cpu().long())
-        return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
+        if len(t.shape) == 1:
+            batch_size = t.shape[0]
+            out = a.gather(-1, t.cpu().long())
+            return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
+        elif len(t.shape) == 2:
+            batch_size, L = t.shape
+            # a is in shape of [num_timesteps], t is in shape of [batch_size, L],
+            out = torch.gather(a.unsqueeze(0).expand(batch_size, -1), 1, t.cpu().long())
+            return out.reshape(batch_size, L, *((1,) * (len(x_shape) - 2))).to(t.device)
+        else:
+            raise Exception(f"t shape: {t.shape} not supported")
 
     def _noise_sample(self, x_start, t):
         t = (t * self.args.num_timesteps).long()
         epsilon = torch.randn_like(x_start)
 
+        # sqrt_alphas_cumprod is a list of tensors, each tensor is a scalar, t is in shape of [batch_size, L], get the corresponding scalar for each batch
         sqrt_alphas_cumprod_t = self._extract(
             self.sqrt_alphas_cumprod, t, x_start.shape
         )
         sqrt_one_minus_alphas_cumprod_t = self._extract(
             self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
         )
-
         x_t = (
             sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * epsilon
         )

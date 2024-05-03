@@ -540,6 +540,13 @@ class ProteinLMDBDataset(LMDBDataset):
                 [np.zeros((1, 37)), item["pos_mask"], np.zeros((1, 37))], axis=0
             )
 
+        # ang_time has same shape as aa, random number with scale of (0, 1]
+        ang_t = 1.0 - np.random.rand(1).astype(np.float32)
+        item["ang_time"] = ang_t * np.ones(len(item["aa"])).astype(np.float32)
+        # set cls and eos's time to 0
+        item["ang_time"][0] = 0.0
+        item["ang_time"][-1] = 0.0
+
         return item
 
     def __len__(self) -> int:
@@ -1372,6 +1379,7 @@ class StackedSequenceIterableDataset(IterableDataset):
                 "pos",
                 "ang_mask",
                 "pos_mask",
+                "ang_time",
             ]:
                 continue
 

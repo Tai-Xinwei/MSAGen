@@ -663,6 +663,7 @@ class Trainer(object):
                         )
 
                 self.state.epoch += 1
+                torch.cuda.empty_cache()
 
             self.model.after_training()
 
