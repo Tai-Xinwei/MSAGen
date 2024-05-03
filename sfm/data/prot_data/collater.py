@@ -527,6 +527,15 @@ def collate_stack_fn(samples: List[dict], vocab: Alphabet, offset=0):
         ]
     ).unsqueeze(-1)
 
+    batch["ang_time"] = torch.cat(
+        [
+            pad_1d_unsqueeze(
+                torch.from_numpy(s["ang_time"]), max_tokens, 0, vocab.padding_idx
+            )
+            for s in samples
+        ]
+    )
+
     # (Nres+2, 3) -> (B, Nres+2, 3)
     batch["pos"] = torch.cat(
         [

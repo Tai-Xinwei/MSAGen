@@ -680,6 +680,7 @@ class TOX(nn.Module):
         )  # mask_res=0
 
         if q is None and x0 is None:
+            time_ang = batched_data["ang_time"] if "ang_time" in batched_data else None
             (
                 pos,
                 angle,
@@ -695,7 +696,7 @@ class TOX(nn.Module):
                 mask_angle,
                 angle_mask,
                 mode_mask,
-                time_pos=time_pos,
+                time_pos=time_ang,
             )
 
             # random_number = torch.rand(1, device=time_pos.device) * 0.1

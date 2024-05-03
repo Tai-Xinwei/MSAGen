@@ -531,6 +531,7 @@ class ColumnParallelLinear(torch.nn.Module):
         skip_weight_param_allocation: bool = False,
         moe=False,
         enable_expert_tensor_parallelism=False,
+        tp_comm_buffer_name=None
     ):
         super(ColumnParallelLinear, self).__init__()
 
@@ -750,6 +751,7 @@ class RowParallelLinear(torch.nn.Module):
         skip_bias_add: bool = False,
         moe=False,
         enable_expert_tensor_parallelism=False,
+        tp_comm_buffer_name=None,
     ):
         super(RowParallelLinear, self).__init__()
 

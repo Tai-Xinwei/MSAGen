@@ -17,7 +17,20 @@ from sfm.models.llama2.llama_modules_3dmp import (
     LlamaHeadMP,
     LlamaLLMEmbeddingsMP,
 )
-from sfm.pipeline.accelerator.dataclasses import ModelOutput
+
+try:
+    from sfm.models.llama2.llama_modules_3dmp_te import (
+        TELlamaDecoderLayerMP,
+        TELlamaModel,
+    )
+except ImportError:
+    logger.info("TE not installed")
+
+from sfm.models.nlm.moduels.autoregressive3d import (
+    AutoregressiveCriterion,
+    AutoregressiveThreeDCriterion,
+)
+from sfm.pipeline.accelerator.dataclasses import ModelOutput, TrainStrategy
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
 from sfm.utils.optim.optimizer import myAdam, myAdamW
@@ -28,13 +41,24 @@ class NLM3dModel(SFMPipelineModelMixin):
     def __init__(self, args, vocab_size: int):
         super().__init__()
 
-        llama_config = LlamaConfig.from_pretrained(args.pretrained_ckpt_path)
-        args.padded_vocab_size = max(args.padded_vocab_size, vocab_size)
-        vocab_size = args.padded_vocab_size
+        llama_config = LlamaConfig.from_pretrained(args.dict_path)
+        self.args = args
+        vocab_size = (
+            max(args.padded_vocab_size, vocab_size)
+            if hasattr(args, "padded_vocab_size")
+            else vocab_size
+        )
         llama_config.vocab_size = vocab_size
         self.mp_config = self.init_mp_config(args, llama_config)
         self.llama_config = self.mp_config
-        self.args = args
+
+        if args.strategy == TrainStrategy.ThreeD:
+            self.loss_fn = AutoregressiveThreeDCriterion(self.mp_config)
+        elif args.strategy == TrainStrategy.Pipeline:
+            raise Exception("Use ThreeD strategy for pipeline training.")
+        else:
+            self.net = TELlamaModel(args, self.llama_config)
+            self.loss_fn = AutoregressiveCriterion(self.mp_config)
 
     def to_layers(self):
         pipe_layer = []
@@ -44,6 +68,7 @@ class NLM3dModel(SFMPipelineModelMixin):
                 PretrainedLayerSpec(
                     LlamaLLMEmbeddingsMP,
                     self.mp_config,
+                    learnable_cutoff=self.args.learnable_cutoff,
                     new_num_tokens=self.mp_config.vocab_size,
                     load_ckpt=self.args.load_ckpt,
                     pretrained_ckpt_path=os.path.join(
@@ -59,7 +84,7 @@ class NLM3dModel(SFMPipelineModelMixin):
         for i in range(self.mp_config.num_hidden_layers):
             pipe_layer.append(
                 PretrainedLayerSpec(
-                    LlamaDecoderLayerMP,
+                    TELlamaDecoderLayerMP,
                     self.mp_config,
                     i,
                     load_ckpt=self.args.load_ckpt,
@@ -90,6 +115,7 @@ class NLM3dModel(SFMPipelineModelMixin):
             PretrainedLayerSpec(
                 LlamaHeadMP,
                 self.mp_config,
+                learnable_cutoff=self.args.learnable_cutoff,
                 new_num_tokens=self.mp_config.vocab_size,
                 load_ckpt=self.args.load_ckpt,
                 pretrained_ckpt_path=os.path.join(
@@ -104,41 +130,8 @@ class NLM3dModel(SFMPipelineModelMixin):
         return pipe_layer
 
     def compute_loss(self, model_output, label) -> ModelOutput:
-        if type(label) == tuple:
-            labels = label[0]
-            loss_mask = label[1]
-        else:
-            labels = label
-            loss_mask = torch.ones_like(labels).bool()
-
-        loss_mask = loss_mask[..., 1:].contiguous().transpose(0, 1)
-
-        logits = model_output[0]
-        bs = logits.shape[0]
-
-        shift_logits = logits[..., :-1, :].contiguous()
-        shift_labels = labels[..., 1:].contiguous()
-
-        # transpose and contiguous to enable model parallelism
-        shift_logits = shift_logits.transpose(0, 1).contiguous()
-        shift_labels = shift_labels.transpose(0, 1).contiguous()
-        shift_labels = shift_labels.to(shift_logits.device)
-        loss = tensor_parallel.vocab_parallel_cross_entropy(shift_logits, shift_labels)
-
-        instruct_mask = shift_labels != -100
-
-        loss_mask = instruct_mask & loss_mask
-        # logger.info(f"{loss_mask}")
-        loss_mask = loss_mask.view(-1)
-
-        loss = loss.contiguous().view(-1)
-        if loss_mask.sum() == 0:
-            loss = torch.tensor(0.0).to(loss.device)
-        else:
-            loss = loss.masked_fill_(~loss_mask, 0.0)
-            loss = torch.sum(loss) / (loss_mask).sum()
-
-        log_loss = {"lm_loss": loss}
+        loss, log_loss = self.loss_fn(model_output, label)
+        bs = model_output[0].shape[0]
 
         return ModelOutput(loss=loss, log_output=log_loss, num_examples=bs)
 
@@ -193,3 +186,10 @@ class NLM3dModel(SFMPipelineModelMixin):
         )
 
         return config
+
+    def forward(self, input_tuple: Tuple[torch.Tensor, torch.Tensor]):
+        input_ids, attention_mask = input_tuple[0]
+        if self.args.strategy not in [TrainStrategy.ThreeD, TrainStrategy.Pipeline]:
+            return self.net(input_ids, attention_mask)
+        else:
+            raise NotImplementedError

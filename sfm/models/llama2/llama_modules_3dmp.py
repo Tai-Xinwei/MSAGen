@@ -13,6 +13,11 @@ from transformers import (
     LlamaTokenizerFast,
 )
 from transformers.activations import ACT2FN
+
+#     logger.info(
+#         "Using TEColumnParallelLinear and TERowParallelLinear in tensor parallel"
+#     )
+# except:
 from transformers.models.llama.modeling_llama import (
     LlamaAttention,
     LlamaDecoderLayer,
@@ -25,11 +30,26 @@ from transformers.models.llama.modeling_llama import (
 )
 
 from megatron.core import parallel_state, tensor_parallel
+from megatron.core.tensor_parallel import ColumnParallelLinear, RowParallelLinear
 from megatron.model.enums import AttnMaskType, AttnType, LayerType
 from megatron.model.language_model import Embedding
 from sfm.logging import logger
 from sfm.modules.sfmmodule import SFMModule
 from sfm.utils import PretrainedLayerSpec
+
+# try:
+#     from sfm.modules.te_modules.te_tensor import (
+#         TEColumnParallelLinear as ColumnParallelLinear,
+#     )
+#     from sfm.modules.te_modules.te_tensor import TERMSNorm as LlamaRMSNorm
+#     from sfm.modules.te_modules.te_tensor import (
+#         TERowParallelLinear as RowParallelLinear,
+#     )
+
+
+logger.info(
+    "Using Megatron ColumnParallelLinear and RowParallelLinear in tensor parallel"
+)
 
 try:
     from apex.normalization import MixedFusedRMSNorm
@@ -135,7 +155,7 @@ class ParallelLlamaMLPAdapter(SFMModule):
     ):
         super().__init__()
         # gated parallel mlp
-        self.gate_proj = tensor_parallel.ColumnParallelLinear(
+        self.gate_proj = ColumnParallelLinear(
             hidden_size,
             intermediate_size,
             config=config,
@@ -147,7 +167,7 @@ class ParallelLlamaMLPAdapter(SFMModule):
             enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
         )
 
-        self.down_proj = tensor_parallel.RowParallelLinear(
+        self.down_proj = RowParallelLinear(
             intermediate_size,
             output_size,
             config=config,
@@ -158,7 +178,7 @@ class ParallelLlamaMLPAdapter(SFMModule):
             enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
         )
 
-        self.up_proj = tensor_parallel.ColumnParallelLinear(
+        self.up_proj = ColumnParallelLinear(
             hidden_size,
             intermediate_size,
             config=config,
@@ -210,6 +230,7 @@ class ParallelLlamaMLP(SFMModule):
     def __init__(
         self,
         config: LlamaConfig,
+        layer_number: int = 0,
         enable_expert_tensor_parallelism=False,
         moe=False,
     ):
@@ -218,7 +239,7 @@ class ParallelLlamaMLP(SFMModule):
         self.hidden_act = config.hidden_act
 
         # gated parallel mlp
-        self.gate_proj = tensor_parallel.ColumnParallelLinear(
+        self.gate_proj = ColumnParallelLinear(
             config.hidden_size,
             config.intermediate_size,
             config=config,
@@ -226,22 +247,20 @@ class ParallelLlamaMLP(SFMModule):
             bias=False,
             gather_output=False,
             skip_bias_add=True,
-            moe=moe,
-            enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
+            tp_comm_buffer_name=f"gate_proj_{layer_number}",
         )
 
-        self.down_proj = tensor_parallel.RowParallelLinear(
+        self.down_proj = RowParallelLinear(
             config.intermediate_size,
             config.hidden_size,
             config=config,
             init_method=config.output_layer_init_method,
             bias=False,
             input_is_parallel=True,
-            moe=moe,
-            enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
+            tp_comm_buffer_name=f"down_proj_{layer_number}",
         )
 
-        self.up_proj = tensor_parallel.ColumnParallelLinear(
+        self.up_proj = ColumnParallelLinear(
             config.hidden_size,
             config.intermediate_size,
             config=config,
@@ -249,8 +268,7 @@ class ParallelLlamaMLP(SFMModule):
             bias=False,
             gather_output=False,
             skip_bias_add=True,
-            moe=moe,
-            enable_expert_tensor_parallelism=enable_expert_tensor_parallelism,
+            tp_comm_buffer_name=f"up_proj_{layer_number}",
         )
 
         self.act_fn = ACT2FN[self.hidden_act]
@@ -270,7 +288,7 @@ class ParallelLlamaAttention(SFMModule):
     def __init__(
         self,
         config,
-        layer_number,
+        layer_number: int = 0,
         attention_type=AttnType.self_attn,
         attn_mask_type=AttnMaskType.padding,
     ):
@@ -296,32 +314,35 @@ class ParallelLlamaAttention(SFMModule):
             self.num_key_value_heads // config.tensor_model_parallel_size
         )
 
-        self.q_proj = tensor_parallel.ColumnParallelLinear(
+        self.q_proj = ColumnParallelLinear(
             config.hidden_size,
             config.num_attention_heads * self.head_dim,
             config=config,
             init_method=config.init_method,
             bias=False,
             gather_output=False,
+            tp_comm_buffer_name=f"q_proj_{layer_number}",
         )
-        self.k_proj = tensor_parallel.ColumnParallelLinear(
+        self.k_proj = ColumnParallelLinear(
             config.hidden_size,
             config.num_key_value_heads * self.head_dim,
             config=config,
             init_method=config.init_method,
             bias=False,
             gather_output=False,
+            tp_comm_buffer_name=f"k_proj_{layer_number}",
         )
-        self.v_proj = tensor_parallel.ColumnParallelLinear(
+        self.v_proj = ColumnParallelLinear(
             config.hidden_size,
             config.num_key_value_heads * self.head_dim,
             config=config,
             init_method=config.init_method,
             bias=False,
             gather_output=False,
+            tp_comm_buffer_name=f"v_proj_{layer_number}",
         )
 
-        self.o_proj = tensor_parallel.RowParallelLinear(
+        self.o_proj = RowParallelLinear(
             config.num_attention_heads * self.head_dim,
             config.hidden_size,
             config=config,
@@ -329,6 +350,7 @@ class ParallelLlamaAttention(SFMModule):
             bias=False,
             input_is_parallel=True,
             skip_bias_add=True,
+            tp_comm_buffer_name=f"o_proj_{layer_number}",
         )
 
         self.rotary_emb = LlamaRotaryEmbedding(
@@ -351,10 +373,6 @@ class ParallelLlamaAttention(SFMModule):
         xv = self.v_proj(hidden_states)[0]
 
         bsz, seqlen, _ = xq.shape
-        # seqlen, bsz, _ = xq.shape
-        # xq = xq.transpose(0, 1)
-        # xk = xk.transpose(0, 1)
-        # xv = xv.transpose(0, 1)
 
         xq = xq.view(bsz, seqlen, self.num_attention_heads_per_tp, self.head_dim)
         xk = xk.view(bsz, seqlen, self.num_key_value_heads_per_tp, self.head_dim)
@@ -417,7 +435,7 @@ class LlamaDecoderLayerMP(SFMModule):
 
         self.self_attn = ParallelLlamaAttention(
             config,
-            layer_number=1,
+            layer_number=no_layer,
             attention_type=AttnType.self_attn,
             attn_mask_type=self_attn_mask_type,
         )
@@ -535,7 +553,7 @@ class FusedLlamaNorm(SFMModule):
         self.config = config
         # self.norm = MixedFusedRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.dummy = nn.Linear(1, 1)
+        self.dummy = torch.nn.Linear(1, 1)
 
     def forward(self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]):
         hidden_states, _, _ = input_tuple
@@ -636,7 +654,7 @@ class LlamaEmbeddingsMP(Embedding, SFMModule):
 
 
 class LlamaLLMEmbeddingsMP(Embedding, SFMModule):
-    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
+    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 0):
         super().__init__(
             config.hidden_size,
             config.vocab_size,
@@ -665,7 +683,7 @@ class LlamaLLMEmbeddingsMP(Embedding, SFMModule):
         new_state_dict = {}
         for key in keys:
             param = state_dict[key]
-            if key == "embed_tokens.weight":
+            if key == "embed_tokens.weight" or key == "word_embeddings.weight":
                 if param.size()[0] < self.config.vocab_size:
                     mean_embedding = torch.mean(param, dim=0, keepdim=True).expand(
                         [self.config.vocab_size - param.size()[0], param.size()[1]]
@@ -744,22 +762,24 @@ class NumMLPMP(nn.Module):
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
         self.hidden_features = hidden_features
-        self.fc1 = tensor_parallel.ColumnParallelLinear(
+        self.fc1 = ColumnParallelLinear(
             input_size=in_features,
             output_size=hidden_features,
             config=config,
             init_method=config.init_method,
             gather_output=False,
             bias=True,
+            tp_comm_buffer_name="num_mlp_fc1",
         )
         self.act = act_layer()
-        self.fc2 = tensor_parallel.RowParallelLinear(
+        self.fc2 = RowParallelLinear(
             input_size=hidden_features,
             output_size=1,
             config=config,
             init_method=config.output_layer_init_method,
             bias=True,
             input_is_parallel=True,
+            tp_comm_buffer_name="num_mlp_fc2",
         )
         self.drop = nn.Dropout(drop)
 
@@ -779,11 +799,13 @@ class LlamaHeadMP(SFMModule):
 
         self.vocab_size = config.vocab_size
         self.lm_head = tensor_parallel.ColumnParallelLinear(
-            input_size=config.hidden_size,
-            output_size=config.vocab_size,
+            config.hidden_size,
+            config.vocab_size,
             bias=False,
             config=config,
             init_method=config.init_method,
+            gather_output=False,
+            tp_comm_buffer_name="lm_head",
         )
 
         self.lm_head.weight.register_hook(self.freeze_parital_weight_hook)
@@ -847,7 +869,8 @@ class LlamaHeadMP(SFMModule):
 
         lm_logits = self.lm_head(hidden_states)[0]  # .transpose(0, 1)
 
-        num_logits = self.num_head(hidden_states)
+        # num_logits = self.num_head(hidden_states)
+        num_logits = None
 
         return lm_logits, num_logits
 

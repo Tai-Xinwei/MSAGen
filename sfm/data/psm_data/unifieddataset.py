@@ -97,7 +97,7 @@ class BatchedDataDataset(FoundationModelDataset):
             logger.info(
                 f"sum of split ratio {self.dataset_split_raito} is not 1.0, use default ratio"
             )
-            self.dataset_split_raito = [0.7, 0.2, 0.1]
+            self.dataset_split_raito = [0.9, 0.0, 0.1]
 
         self.multi_hop_max_dist = multi_hop_max_dist
         self.spatial_pos_max = spatial_pos_max

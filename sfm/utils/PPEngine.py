@@ -370,7 +370,7 @@ class SFMPipeEngine(DeepSpeedEngine):
         self.grad_layer = None
         self.meta_buffer = None
 
-    def train_batch(self, data_iter=None):
+    def train_batch(self, data_iter=None, reset_act_each_step=True):
         """Progress the pipeline to train the next batch of data. The engine will ingest
         ``self.train_batch_size()`` total samples collectively across all workers.
 
@@ -412,7 +412,8 @@ class SFMPipeEngine(DeepSpeedEngine):
             ):
                 self.reset_activation_shape()
 
-        self.reset_activation_shape()
+        if reset_act_each_step:
+            self.reset_activation_shape()
         if data_iter:
             self.set_dataiterator(data_iter)
 

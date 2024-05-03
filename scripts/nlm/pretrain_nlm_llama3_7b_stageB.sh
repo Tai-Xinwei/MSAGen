@@ -9,27 +9,27 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${weight_decay}" ] && weight_decay=0.1 # same as LLAMA2
-[ -z "${max_lr}" ] && max_lr=3e-4  # LLAMA2 use 3e-4, let's use smaller lr
+[ -z "${max_lr}" ] && max_lr=3e-5  # LLAMA2 use 3e-4, let's use smaller lr
 [ -z "${beta1}" ] && beta1=0.9 # same as LLAMA2
 [ -z "${beta2}" ] && beta2=0.95 # same as LLAMA2
-[ -z "${total_num_steps}" ] && total_num_steps=80000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=100
+[ -z "${total_num_steps}" ] && total_num_steps=140000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=8000
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
 # [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,word_embeddings.weight"
 # [ -z "${learnable_cutoff}" ] && learnable_cutoff=128256
 
 # In this stage, the grad is too large to use grad accumulation
 [ -z "${strategy}" ] && strategy=ThreeD
-[ -z "${train_batch_size}" ] && train_batch_size=32
+[ -z "${train_batch_size}" ] && train_batch_size=2
 [ -z "${val_batch_size}" ] && val_batch_size=$train_batch_size
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=16
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=2
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerMP"
 
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=4000
-[ -z "${log_interval}" ] && log_interval=1
+[ -z "${save_batch_interval}" ] && save_batch_interval=1000
+[ -z "${log_interval}" ] && log_interval=10
 [ -z "${epochs}" ] && epochs=10
 
 
@@ -37,7 +37,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_train/train.npy'
 [ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_validation/valid.npy'
 [ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_validation/valid.npy'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/hai1data/sfm/llama/Meta-Llama-3-8B/original'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageA/global_step3499'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageB/'
 [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageA/'
 
@@ -75,23 +75,23 @@ else
   fi
 fi
 
-if [[ "${strategy}" == "ThreeD" ]]; then
-  dp_worldsize=$(($world_size/$pipeline_model_parallel_size/$tensor_model_parallel_size))
-  [ -z "${micro_batch_size}" ] && micro_batch_size=$(($train_batch_size/$gradient_accumulation_steps/$dp_worldsize))
-  [ -z "${num_head}" ] && num_head=32
-  [ -z "${global_batch_size}" ] && global_batch_size=$train_batch_size
-  [ -z "${max_position_embeddings}" ] && max_position_embeddings=8192
-  [ -z "${llm_hidden_size}" ] && llm_hidden_size=4096
-  [ -z "${layers}" ] && layers=24
-  [ -z "${num_head}" ] && num_head=32
+# if [[ "${strategy}" == "ThreeD" ]]; then
+dp_worldsize=$(($world_size/$pipeline_model_parallel_size/$tensor_model_parallel_size))
+[ -z "${micro_batch_size}" ] && micro_batch_size=$(($train_batch_size/$gradient_accumulation_steps/$dp_worldsize))
+[ -z "${num_head}" ] && num_head=32
+[ -z "${global_batch_size}" ] && global_batch_size=$train_batch_size
+[ -z "${max_position_embeddings}" ] && max_position_embeddings=8192
+[ -z "${llm_hidden_size}" ] && llm_hidden_size=4096
+[ -z "${layers}" ] && layers=24
+[ -z "${num_head}" ] && num_head=32
 
-  MEGATRON_ARGS="--micro-batch-size $micro_batch_size --global-batch-size $global_batch_size \
-    --num-layers $layers --hidden-size $llm_hidden_size --seq-length $max_position_embeddings \
-    --max-position-embeddings $max_position_embeddings --num-attention-heads $num_head \
-    --seq-length $max_position_embeddings --disable-bias-linear --no-position-embedding --no-query-key-layer-scaling"
-else
-  MEGATRON_ARGS=""
-fi
+MEGATRON_ARGS="--micro-batch-size $micro_batch_size --global-batch-size $global_batch_size \
+  --num-layers $layers --hidden-size $llm_hidden_size --seq-length $max_position_embeddings \
+  --max-position-embeddings $max_position_embeddings --num-attention-heads $num_head \
+  --seq-length $max_position_embeddings --disable-bias-linear --no-position-embedding --no-query-key-layer-scaling"
+# else
+#   MEGATRON_ARGS=""
+# fi
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -156,7 +156,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --tensor_model_parallel_size "$tensor_model_parallel_size" \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --pretrained_ckpt_path "$loadcheck_path" \
+      --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
       ${MEGATRON_ARGS}
-
-      # --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
