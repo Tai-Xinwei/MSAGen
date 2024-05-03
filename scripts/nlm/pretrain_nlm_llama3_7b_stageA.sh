@@ -19,12 +19,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${learnable_cutoff}" ] && learnable_cutoff=128256
 
 # In this stage, the grad is too large to use grad accumulation
-[ -z "${strategy}" ] && strategy=Zero3
-[ -z "${train_batch_size}" ] && train_batch_size=4
+[ -z "${strategy}" ] && strategy=ThreeD
+[ -z "${train_batch_size}" ] && train_batch_size=2
 [ -z "${val_batch_size}" ] && val_batch_size=$train_batch_size
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=2
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerMP"
 
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
@@ -123,8 +123,8 @@ echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-# wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-# export WANDB_API_KEY=$wandb_key
+wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+export WANDB_API_KEY=$wandb_key
 
 set -x
 torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
@@ -135,7 +135,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --weight_decay "$weight_decay" \
       --save_dir "$save_dir" \
       --seed 666666 \
-      --bf16 --fp8 \
+      --bf16 \
       --grad_scaler_init "$grad_scaler_init" \
       --max_lr "$max_lr" \
       --beta1 "$beta1" --beta2 "$beta2" \
