@@ -47,8 +47,7 @@ jobs:
   - export NCCL_DEBUG=INFO
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - pip install -e . --no-deps
-  # - pip install git+https://github.com/NVIDIA/TransformerEngine.git@stable
-  # - pip install flash-attn --upgrade
+  - pip install git+https://github.com/NVIDIA/TransformerEngine.git@stable
   - export train_batch_size=512
   - export val_batch_size=512
   - export gradient_accumulation_steps=32

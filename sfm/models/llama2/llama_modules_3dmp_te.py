@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import math
 import os
+import re
 from contextlib import contextmanager, nullcontext
 from typing import Any, List, Mapping, Optional, Tuple
 
@@ -31,8 +32,6 @@ from transformers.models.llama.modeling_llama import (
 )
 
 from megatron.core import parallel_state, tensor_parallel
-from megatron.model.enums import AttnMaskType, AttnType, LayerType
-from megatron.model.language_model import Embedding
 from sfm.logging import logger
 from sfm.modules.sfmmodule import SFMModule
 from sfm.modules.te_modules.te_tensor import (
@@ -46,7 +45,12 @@ logger.info("Using TEColumnParallelLinear and TERowParallelLinear in tensor para
 
 
 class TELlamaDecoderLayer(te.pytorch.TransformerLayer):
-    def __init__(self, args, config):
+    def __init__(
+        self,
+        args,
+        layer_idx: int = 0,
+        **kwargs,
+    ):
         if args.fp16:
             logger.info("Using fp16 in transformer layer")
             params_dtype = torch.float16
@@ -54,27 +58,31 @@ class TELlamaDecoderLayer(te.pytorch.TransformerLayer):
             logger.info("Using bf16 in transformer layer")
             params_dtype = torch.bfloat16
 
+        if args.tensor_model_parallel_size > 1:
+            tp_group = parallel_state.get_tensor_model_parallel_group()
+        else:
+            tp_group = None
+
         super().__init__(
-            config.hidden_size,
-            config.intermediate_size,
-            config.num_attention_heads,
+            args.hidden_size,
+            args.intermediate_size,
+            args.num_attention_heads,
             bias=False,
-            layernorm_epsilon=config.rms_norm_eps,
+            layernorm_epsilon=args.rms_norm_eps,
             hidden_dropout=0,
             attention_dropout=0,
             fuse_qkv_params=False,
             normalization="RMSNorm",
             activation="swiglu",
             attn_input_format="bshd",
-            num_gqa_groups=config.num_key_value_heads,
+            num_gqa_groups=args.num_key_value_heads,
             params_dtype=params_dtype,
             tp_size=args.tensor_model_parallel_size,
             set_parallel_mode=True if args.tensor_model_parallel_size > 1 else False,
+            tp_group=tp_group,
         )
-        te_rope = RotaryPositionEmbedding(
-            config.hidden_size // config.num_attention_heads
-        )
-        self.te_rope_emb = te_rope(max_seq_len=config.max_position_embeddings).cuda()
+        te_rope = RotaryPositionEmbedding(args.hidden_size // args.num_attention_heads)
+        self.te_rope_emb = te_rope(max_seq_len=args.max_position_embeddings).cuda()
 
     def forward(self, hidden_states, attention_mask, **kwargs):
         """
@@ -82,12 +90,76 @@ class TELlamaDecoderLayer(te.pytorch.TransformerLayer):
         forward pass of the `TransformerLayer`. Also, make sure the output
         format matches the output of the HF's `LlamaDecoderLayer`.
         """
+        return super().forward(
+            hidden_states,
+            attention_mask=attention_mask,
+            rotary_pos_emb=self.te_rope_emb,
+        )
+
+
+class TELlamaDecoderLayerMP(TELlamaDecoderLayer, SFMModule):
+    def forward(
+        self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor], **kwargs
+    ):
+        hidden_states, attention_mask_bool, position_ids = input_tuple
         return (
-            super().forward(
+            super()
+            .forward(
                 hidden_states,
-                attention_mask=attention_mask,
+                attention_mask=None,
                 rotary_pos_emb=self.te_rope_emb,
+            )
+            .contiguous(),
+            attention_mask_bool.contiguous(),
+            position_ids.contiguous(),
+        )
+
+    def auto_partition_load_state_dict(
+        self,
+        state_dict: Mapping[str, Any],
+        tp_model_size: int,
+        tp_rank: int,
+        strict: bool = True,
+    ):
+        keys = list(state_dict.keys())
+        new_state_dict = {}
+        temp_state_dict = {}
+        for key in keys:
+            param = state_dict[key]
+            if key == "input_layernorm.weight":
+                new_state_dict["self_attention.layernorm_qkv.layer_norm_weight"] = param
+            elif key == "self_attn.q_proj.weight":
+                new_state_dict["self_attention.layernorm_qkv.query_weight"] = param
+            elif key == "self_attn.k_proj.weight":
+                new_state_dict["self_attention.layernorm_qkv.key_weight"] = param
+            elif key == "self_attn.v_proj.weight":
+                new_state_dict["self_attention.layernorm_qkv.value_weight"] = param
+            elif key == "self_attn.o_proj.weight":
+                new_state_dict["self_attention.proj.weight"] = param
+            elif key == "post_attention_layernorm.weight":
+                new_state_dict["layernorm_mlp.layer_norm_weight"] = param
+            elif key == "mlp.gate_proj.weight":
+                temp_state_dict["layernorm_mlp.fc1_weight.1"] = param
+            elif key == "mlp.up_proj.weight":
+                temp_state_dict["layernorm_mlp.fc1_weight.2"] = param
+            elif key == "mlp.down_proj.weight":
+                new_state_dict["layernorm_mlp.fc2_weight"] = param
+            else:
+                raise ValueError(f"Unexpected key: {key}")
+
+        # concat layernorm_mlp.fc1_weight.1 and layernorm_mlp.fc1_weight.2
+        new_state_dict["layernorm_mlp.fc1_weight"] = torch.cat(
+            (
+                temp_state_dict["layernorm_mlp.fc1_weight.1"],
+                temp_state_dict["layernorm_mlp.fc1_weight.2"],
             ),
+            dim=0,
+        )
+
+        del state_dict
+
+        return super().auto_partition_load_state_dict(
+            new_state_dict, tp_model_size, tp_rank, strict
         )
 
 
@@ -101,7 +173,7 @@ class TELlamaModel(LlamaPreTrainedModel):
         self.layers = []
         for layer_id in range(config.num_hidden_layers):
             self.layers.append(
-                TELlamaDecoderLayer(args, config),
+                TELlamaDecoderLayer(args),
             )
         self.embed_tokens = torch.nn.Embedding(
             config.vocab_size, config.hidden_size, config.pad_token_id
@@ -129,7 +201,7 @@ class TELlamaModel(LlamaPreTrainedModel):
             enabled=True, fp8_recipe=self.fp8_recipe
         ) if self.args.fp8 else nullcontext():
             for layer in self.layers:
-                hidden_states = layer(hidden_states, attention_mask=attention_mask)[0]
+                hidden_states = layer(hidden_states, attention_mask=attention_mask)
         hidden_states = self.norm(hidden_states)
         lm_logits = self.lm_head(hidden_states)
         return (lm_logits.transpose(0, 1),)

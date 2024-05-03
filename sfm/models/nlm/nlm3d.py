@@ -19,7 +19,10 @@ from sfm.models.llama2.llama_modules_3dmp import (
 )
 
 try:
-    from sfm.models.llama2.llama_modules_3dmp_te import TELlamaModel
+    from sfm.models.llama2.llama_modules_3dmp_te import (
+        TELlamaDecoderLayerMP,
+        TELlamaModel,
+    )
 except ImportError:
     logger.info("TE not installed")
 
@@ -81,7 +84,7 @@ class NLM3dModel(SFMPipelineModelMixin):
         for i in range(self.mp_config.num_hidden_layers):
             pipe_layer.append(
                 PretrainedLayerSpec(
-                    LlamaDecoderLayerMP,
+                    TELlamaDecoderLayerMP,
                     self.mp_config,
                     i,
                     load_ckpt=self.args.load_ckpt,
