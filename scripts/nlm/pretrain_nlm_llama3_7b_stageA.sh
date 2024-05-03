@@ -4,6 +4,8 @@
 
 # In this stage, we only finetune new emb
 ulimit -c unlimited
+echo "path"
+pwd
 
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
@@ -155,4 +157,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
       --learnable_cutoff "$learnable_cutoff" \
       --unfreeze_param_list "$unfreeze_param_list" \
-      ${MEGATRON_ARGS}  #--load_ckpt
+      ${MEGATRON_ARGS}  --load_ckpt
+
+
+sleep inf

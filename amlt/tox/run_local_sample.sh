@@ -40,7 +40,9 @@ export total_num_steps=2000000
 export warmup_num_steps=1000
 export save_epoch_interval=1
 export save_batch_interval=10000000
-export data_path="/blob/data/afdb/48organisms-fullatom.lmdb/"
+# export data_path="/blob/data/afdb/48organisms-fullatom.lmdb/"
+export data_path="/fastdata/peiran/tox/48organisms-fullatom.lmdb/"
+
 export dataset_name="."
 export save_dir="~/SFM_framework/output/sample_result"
 export loadcheck_path="/blob/pfmexp/output/junzhe/checkpoints/pde_q_running_loss/pde_q_sample/epsilon_model_without_pde_v3/global_step147499/mp_rank_00_model_states.pt"

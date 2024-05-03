@@ -126,8 +126,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin 680f261d2b178f36d57f4644e235d9db1c207bc0
-export WANDB_API_KEY=680f261d2b178f36d57f4644e235d9db1c207bc0
+# wandb login --relogin 680f261d2b178f36d57f4644e235d9db1c207bc0
+# export WANDB_API_KEY=680f261d2b178f36d57f4644e235d9db1c207bc0
 
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
@@ -183,11 +183,11 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/sample_tox.py \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
-          --loadcheck_path $loadcheck_path \
           --sample_mode \
           --infer \
           $("$ode_mode" == "true" && echo "--ode_mode") \
 
+          # --loadcheck_path $loadcheck_path \
 
 # sleep inf
 # sleep inf

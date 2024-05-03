@@ -1,7 +1,7 @@
 description: train_sfm_nlmmoe_debug
 
 env_defaults:
-  NODES: 4
+  NODES: 1
   GPUS: 8
   # WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
@@ -11,14 +11,15 @@ target:
   service: sing
   name: baltic02
   workspace_name: msrresrchws
-  # workspace_name: sfm-ws
 
 # target:
 #     service: aml
-#     name: townsend1
+#     # name: townsend1
+#     name: sfm-nd96amsra100v4-uksouth
 
 environment:
-  image: ai4s-sfm:20240429.081857
+  # image: ai4s-sfm:20240429.081857
+  image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
   registry: msroctocr.azurecr.io
   username: msroctocr
 
@@ -46,8 +47,11 @@ jobs:
   - export wandb_group=nlm_llama3_stageA
   - export NCCL_DEBUG=INFO
   - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - conda env create -f ./install/environment.yaml -n sfm2
+  - conda activate sfm2
   - pip install -e . --no-deps
   - pip install git+https://github.com/NVIDIA/TransformerEngine.git
+  - pip install torch --upgrade
   - export train_batch_size=512
   - export val_batch_size=512
   - export gradient_accumulation_steps=32

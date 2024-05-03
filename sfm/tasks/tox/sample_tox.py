@@ -75,7 +75,7 @@ def load_data(args):
 
 
 def load_model(args):
-    model = TOXModel(args, loss_fn=ProteinMAE3dCriterions, load_ckpt=True).cuda()
+    model = TOXModel(args, loss_fn=ProteinMAE3dCriterions, load_ckpt=False).cuda()
     logger.info(f"load model from {args.loadcheck_path}")
 
     model.eval()
