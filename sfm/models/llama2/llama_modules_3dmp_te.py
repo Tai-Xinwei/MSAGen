@@ -102,11 +102,16 @@ class TELlamaDecoderLayerMP(TELlamaDecoderLayer, SFMModule):
         self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor], **kwargs
     ):
         hidden_states, attention_mask_bool, position_ids = input_tuple
+        if (~attention_mask_bool).any():
+            temp_attn_maks = (attention_mask_bool.unsqueeze(1).unsqueeze(2),)
+        else:
+            temp_attn_maks = None
+
         return (
             super()
             .forward(
                 hidden_states,
-                attention_mask=None,
+                attention_mask=temp_attn_maks,
                 rotary_pos_emb=self.te_rope_emb,
             )
             .contiguous(),
