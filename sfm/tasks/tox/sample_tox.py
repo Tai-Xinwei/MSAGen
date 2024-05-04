@@ -116,14 +116,13 @@ def get_VE(t_total_steps=1000):
 
 def compute_angle_loss(loss, label, pred, mask):
     # compute angle data loss only use the first 3 dimensions
-    ori_angle = label[mask]
-    angle_pred = pred[mask]
-    angle_loss = loss(
-        angle_pred.to(torch.float32),
-        ori_angle.to(torch.float32),
+    ori_angle = label.masked_fill(~mask, 0.0)
+    angle_pred = pred.masked_fill(~mask, 0.0)
+    angle_loss = torch.sum((ori_angle - angle_pred) ** 2, dim=(-1, -2)) / torch.sum(
+        mask
     )
-
-    return angle_loss
+    mse_mean = torch.mean(angle_loss)
+    return mse_mean
 
 
 def compute_mae(label, pred, mask):
