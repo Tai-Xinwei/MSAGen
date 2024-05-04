@@ -30,7 +30,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerMP"
 
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10
+[ -z "${save_batch_interval}" ] && save_batch_interval=1000
 [ -z "${log_interval}" ] && log_interval=10
 [ -z "${epochs}" ] && epochs=10
 
