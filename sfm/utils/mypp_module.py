@@ -708,7 +708,11 @@ class PipelineModule(nn.Module):
             # See https://pytorch.org/docs/stable/notes/serialization.html#preserve-storage-sharing
             orig_state_dict = layer.state_dict()
             final_state_dict = type(orig_state_dict)(
-                {k: v.clone() for k, v in orig_state_dict.items()}
+                {
+                    k: v.clone()
+                    for k, v in orig_state_dict.items()
+                    if k.find("_extra_state") == -1
+                }
             )
             checkpoint_engine.save(final_state_dict, model_ckpt_path)
 
