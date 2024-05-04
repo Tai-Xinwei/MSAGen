@@ -48,7 +48,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
 [ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,AFDB50-plddt70.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.0,0.5'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.9,0.0,0.1'
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
@@ -160,6 +160,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --save_dir $save_dir \
           --seed 666666 \
           --add_3d \
+          --ifstack \
           --ifresume \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \

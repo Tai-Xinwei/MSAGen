@@ -7,7 +7,11 @@ import wandb  # isort:skip
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
-from sfm.data.psm_data.unifieddataset import BatchedDataDataset, UnifiedPSMDataset
+from sfm.data.psm_data.unifieddataset import (
+    BatchedDataDataset,
+    StackedIterableDataset,
+    UnifiedPSMDataset,
+)
 from sfm.logging import logger
 from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions
 from sfm.models.psm.psm_config import PSMConfig
@@ -26,7 +30,14 @@ def main(args) -> None:
     )
     train_data, valid_data = dataset.split_dataset()
 
-    train_data = BatchedDataDataset(args, train_data, dataset.train_len)
+    if args.ifstack:
+        assert (
+            train_data.dataset_split_raito[1] == 0.0
+        ), "stacked dataset does not support pbc crystal right now"
+        train_data = StackedIterableDataset(train_data, args)
+    else:
+        train_data = BatchedDataDataset(args, train_data, dataset.train_len)
+
     valid_data = BatchedDataDataset(args, valid_data, dataset.valid_len)
 
     ### define psm models here, define the diff loss in DiffMAE3dCriterions
@@ -53,7 +64,7 @@ def main(args) -> None:
         model,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
-        train_data=train_data,
+        train_data=valid_data,
         valid_data=valid_data,
     )
     trainer.train()

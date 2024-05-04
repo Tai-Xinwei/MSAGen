@@ -3,6 +3,11 @@
 import os
 import random
 
+import numpy as np
+import torch
+from torch.utils.data import IterableDataset
+from torch.utils.data.distributed import DistributedSampler
+
 from sfm.data.dataset import FoundationModelDataset
 from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import (
@@ -11,6 +16,17 @@ from sfm.data.psm_data.dataset import (
     PM6FullLMDBDataset,
 )
 from sfm.logging import logger
+
+try:
+    from sfm.data.prot_data.token_block_utils_fast import (
+        _get_block_to_dataset_index_fast,
+        _get_slice_indices_fast,
+    )
+except ImportError:
+    raise ImportError(
+        "Please build Cython components with: `pip install --editable .` "
+        "or `python setup.py build_ext --inplace`"
+    )
 
 
 class UnifiedPSMDataset(FoundationModelDataset):
@@ -30,6 +46,8 @@ class UnifiedPSMDataset(FoundationModelDataset):
 
         data_path_list = data_path_list.split(",")
         dataset_name_list = dataset_name_list.split(",")
+
+        self.sizes = []
 
         file_list = []
 
@@ -123,6 +141,143 @@ class BatchedDataDataset(FoundationModelDataset):
             multi_hop_max_dist=self.multi_hop_max_dist,
             spatial_pos_max=self.spatial_pos_max,
         )
+
+
+class StackedIterableDataset(IterableDataset):
+    def __init__(self, dataset, args, shuffle=True):
+        self.dataset = dataset  # An iterable source
+        self.collate_fn = collate_fn
+        self.sequence_length = args.max_length
+        self.args = args
+        self.buffer_len = 0
+        self.buffers = {}
+        self.shuffle = shuffle
+        self.epoch = 0
+        self.break_mode = "complete_doc"
+        self.document_sep_len = 1
+        self.sizes = dataset.sizes
+        self.num_blocks = 0
+
+        logger.info(
+            "Dataset split ratio is disabled in stacked dataset, all data will be used equally"
+        )
+
+        # DDP-related attributes
+        self.rank = args.rank
+        self.world_size = args.world_size
+        self.sampler = DistributedSampler(
+            dataset,
+            shuffle=self.shuffle,
+            num_replicas=self.world_size,
+            rank=self.rank,
+        )
+        self._create_subset_iterator()
+
+    def __iter__(self):
+        # Reset the buffers when creating a new iterator
+        if self.shuffle:
+            self.sampler.set_epoch(self.epoch)
+            self.epoch += 1
+
+        # # Reset the buffers when creating a new iterator
+        self.buffer_len = 0
+        self.buffers = {}
+
+        self.subset_iterator = self._create_subset_iterator()
+
+        return self
+
+    def _create_subset_iterator(self):
+        # # Get the list of indices from the sampler and iterate through them
+        indices = list(iter(self.sampler))
+        sizes = [self.sizes[i] for i in indices]
+        slice_indices = _get_slice_indices_fast(
+            np.array(sizes),
+            self.break_mode,
+            self.sequence_length,
+            self.document_sep_len,
+        )
+        blocks = _get_block_to_dataset_index_fast(np.array(sizes), slice_indices)
+
+        # Split blocks among workers for DDP
+        self.num_blocks = len(blocks)
+        logger.success(
+            f"number of stacked block in epoch {self.epoch-1} of rank {self.rank} is {self.num_blocks}"
+        )
+
+        for block in blocks:
+            start, start_offset, end = block
+            for idx in range(start, end + 1):
+                yield self.dataset[idx]
+
+    def __next__(self):
+        # Continue to read from the subset iterator and fill the buffers until we have enough data
+        while self.buffer_len < self.sequence_length:
+            try:
+                item = next(self.subset_iterator)
+
+                for key, value in item.items():
+                    if key not in self.buffers:
+                        self.buffers[key] = []
+                    self.buffers[key].append(value)
+
+                self.buffer_len += len(item["aa"])
+            except StopIteration:
+                # If there's no more data and the buffer is partially filled, return what's left
+                if self.buffers:
+                    for key in self.buffers.keys():
+                        self.buffers[key].clear()
+                self.buffer_len = 0
+                raise
+
+        # Extract a sequence of exactly `sequence_length` from the buffers for each key
+        result = {}
+        for key, buf in self.buffers.items():
+            if key not in [
+                # "sample_type", # do not need in collate_fn
+                "coords",
+                "token_type",
+                # "pbc", # only use for pbc, do not support
+                # "cell", # only use for pbc, do not support
+                "coords",
+                # "num_atoms", # only use for pbc, do not support
+                "forces",
+                "energy",
+                "stress",
+                "edge_index",
+                "edge_attr",
+                "node_attr",
+                "edge_input",
+                "attn_bias",
+                "in_degree",
+                "spatial_pos",
+            ]:
+                continue
+
+            result[key] = torch.cat(buf)[: self.sequence_length]
+            if self.buffer_len == self.sequence_length:
+                self.buffers[key] = []
+            elif len(self.buffers[key][-1]) > self.sequence_length:
+                self.buffers[key] = []
+            else:
+                self.buffers[key] = buf[-1:]
+
+        if self.buffer_len == self.sequence_length:
+            self.buffer_len = 0
+            for key in self.buffers.keys():
+                self.buffers[key].clear()
+        elif len(self.buffers["aa"]) == 0:
+            self.buffer_len = 0
+        else:
+            self.buffer_len = len(self.buffers["aa"][0])
+
+        return result
+
+    def collate(self, samples):
+        return self.collate_fn(samples, use_pbc=False)
+
+    def __len__(self):
+        return self.num_blocks
 
 
 if __name__ == "__main__":
