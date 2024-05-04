@@ -64,10 +64,12 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 dataset = PM6FullLMDBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
+                self.sizes.append(train_dataset.sizes)
             elif dataset_name == "afdb":
                 dataset = AFDBLMDBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
+                self.sizes.append(train_dataset.sizes)
             elif dataset_name == "mattersim":
                 train_dataset = MatterSimDataset(data_path, split="train", **kwargs)
                 valid_dataset = MatterSimDataset(data_path, split="valid", **kwargs)
@@ -142,10 +144,13 @@ class BatchedDataDataset(FoundationModelDataset):
             spatial_pos_max=self.spatial_pos_max,
         )
 
+    def num_tokens(self, idx: int) -> int:
+        return super().num_tokens(idx)
+
 
 class StackedIterableDataset(IterableDataset):
-    def __init__(self, dataset, args, shuffle=True):
-        self.dataset = dataset  # An iterable source
+    def __init__(self, dataset_list, args, sizes, shuffle=True):
+        self.dataset_list = dataset_list  # An iterable source
         self.collate_fn = collate_fn
         self.sequence_length = args.max_length
         self.args = args
@@ -155,18 +160,43 @@ class StackedIterableDataset(IterableDataset):
         self.epoch = 0
         self.break_mode = "complete_doc"
         self.document_sep_len = 1
-        self.sizes = dataset.sizes
+        self.sizes_list = sizes
         self.num_blocks = 0
 
-        logger.info(
-            "Dataset split ratio is disabled in stacked dataset, all data will be used equally"
-        )
+        # logger.info(
+        #     "Dataset split ratio is disabled in stacked dataset, all data will be used equally"
+        # )
+        self.dataset_split_raito = [
+            float(i) for i in args.dataset_split_raito.split(",")
+        ]
+        assert (
+            self.dataset_split_raito[1] == 0.0
+        ), "stacked dataset does not support pbc crystal right now"
+        assert len(self.dataset_split_raito) == len(
+            self.dataset_list
+        ), f"split ratio mismatch len is {len(self.dataset_split_raito)} with number of datasets is {len(self.dataset_list)}"
+        if sum(self.dataset_split_raito) != 1.0:
+            logger.info(
+                f"sum of split ratio {self.dataset_split_raito} is not 1.0, use default ratio"
+            )
+            self.dataset_split_raito = [0.9, 0.0, 0.1]
+
+        self.dataset_split_raito = [
+            self.dataset_split_raito[0],
+            self.dataset_split_raito[1],
+        ]
 
         # DDP-related attributes
         self.rank = args.rank
         self.world_size = args.world_size
-        self.sampler = DistributedSampler(
-            dataset,
+        self.sampler0 = DistributedSampler(
+            dataset_list[0],
+            shuffle=self.shuffle,
+            num_replicas=self.world_size,
+            rank=self.rank,
+        )
+        self.sampler1 = DistributedSampler(
+            dataset_list[1],
             shuffle=self.shuffle,
             num_replicas=self.world_size,
             rank=self.rank,
@@ -176,7 +206,8 @@ class StackedIterableDataset(IterableDataset):
     def __iter__(self):
         # Reset the buffers when creating a new iterator
         if self.shuffle:
-            self.sampler.set_epoch(self.epoch)
+            self.sampler0.set_epoch(self.epoch)
+            self.sampler1.set_epoch(self.epoch)
             self.epoch += 1
 
         # # Reset the buffers when creating a new iterator
@@ -187,10 +218,7 @@ class StackedIterableDataset(IterableDataset):
 
         return self
 
-    def _create_subset_iterator(self):
-        # # Get the list of indices from the sampler and iterate through them
-        indices = list(iter(self.sampler))
-        sizes = [self.sizes[i] for i in indices]
+    def _get_blocks(self, sizes):
         slice_indices = _get_slice_indices_fast(
             np.array(sizes),
             self.break_mode,
@@ -198,17 +226,33 @@ class StackedIterableDataset(IterableDataset):
             self.document_sep_len,
         )
         blocks = _get_block_to_dataset_index_fast(np.array(sizes), slice_indices)
+        return blocks
+
+    def _create_subset_iterator(self):
+        # # Get the list of indices from the sampler and iterate through them
+        indices0 = list(iter(self.sampler0))
+        indices1 = list(iter(self.sampler1))
+        sizes0 = [self.sizes_list[0][i] for i in indices0]
+        sizes1 = [self.sizes_list[1][i] for i in indices1]
+        blocks0 = self._get_blocks(sizes0)
+        blocks1 = self._get_blocks(sizes1)
+        blocks = [blocks0, blocks1]
+        block_len = [len(blocks0), len(blocks1)]
 
         # Split blocks among workers for DDP
-        self.num_blocks = len(blocks)
+        self.num_blocks = len(blocks0) + len(blocks1)
         logger.success(
             f"number of stacked block in epoch {self.epoch-1} of rank {self.rank} is {self.num_blocks}"
         )
 
-        for block in blocks:
-            start, start_offset, end = block
+        # pick_idx = idx % len(self.dataset_list[dataset_idx])
+        # return self.dataset_list[dataset_idx][pick_idx]
+        for _ in range(self.num_blocks):
+            dataset_idx = random.choices(range(2), weights=self.dataset_split_raito)[0]
+            block_idx = random.choices(range(block_len[dataset_idx]))[0]
+            start, start_offset, end = blocks[dataset_idx][block_idx]
             for idx in range(start, end + 1):
-                yield self.dataset[idx]
+                yield self.dataset_list[dataset_idx][idx]
 
     def __next__(self):
         # Continue to read from the subset iterator and fill the buffers until we have enough data
@@ -221,7 +265,7 @@ class StackedIterableDataset(IterableDataset):
                         self.buffers[key] = []
                     self.buffers[key].append(value)
 
-                self.buffer_len += len(item["aa"])
+                self.buffer_len += len(item["token_type"])
             except StopIteration:
                 # If there's no more data and the buffer is partially filled, return what's left
                 if self.buffers:
@@ -239,11 +283,10 @@ class StackedIterableDataset(IterableDataset):
                 "token_type",
                 # "pbc", # only use for pbc, do not support
                 # "cell", # only use for pbc, do not support
-                "coords",
                 # "num_atoms", # only use for pbc, do not support
                 "forces",
                 "energy",
-                "stress",
+                # "stress", # only use for pbc, do not support
                 "edge_index",
                 "edge_attr",
                 "node_attr",
@@ -253,8 +296,13 @@ class StackedIterableDataset(IterableDataset):
                 "spatial_pos",
             ]:
                 continue
-
-            result[key] = torch.cat(buf)[: self.sequence_length]
+            try:
+                result[key] = torch.cat(buf)[: self.sequence_length]
+            except Exception as e:
+                logger.error(f"Error in stacking: {e}")
+                logger.error(f"key: {key}, buf: {buf}")
+                logger.error(f"len buf: {[len(b) for b in buf]}")
+                raise
             if self.buffer_len == self.sequence_length:
                 self.buffers[key] = []
             elif len(self.buffers[key][-1]) > self.sequence_length:
@@ -266,10 +314,10 @@ class StackedIterableDataset(IterableDataset):
             self.buffer_len = 0
             for key in self.buffers.keys():
                 self.buffers[key].clear()
-        elif len(self.buffers["aa"]) == 0:
+        elif len(self.buffers["token_type"]) == 0:
             self.buffer_len = 0
         else:
-            self.buffer_len = len(self.buffers["aa"][0])
+            self.buffer_len = len(self.buffers["token_type"][0])
 
         return result
 

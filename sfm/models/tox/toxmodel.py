@@ -903,8 +903,9 @@ class TOX(nn.Module):
             perturb=perturb,
         )
 
-        eos_mask = (residue_seq[:, :]).eq(2)
         cls_mask = (residue_seq[:, :]).eq(0)
+        padding_mask = (residue_seq[:, :]).eq(1)
+        eos_mask = (residue_seq[:, :]).eq(2)
         padding_mask = padding_mask | eos_mask | cls_mask
 
         x = x.transpose(0, 1)

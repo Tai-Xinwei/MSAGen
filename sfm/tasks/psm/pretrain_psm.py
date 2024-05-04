@@ -31,10 +31,8 @@ def main(args) -> None:
     train_data, valid_data = dataset.split_dataset()
 
     if args.ifstack:
-        assert (
-            train_data.dataset_split_raito[1] == 0.0
-        ), "stacked dataset does not support pbc crystal right now"
-        train_data = StackedIterableDataset(train_data, args)
+        raise NotImplementedError("ifstack is not finished yet!")
+        # train_data = StackedIterableDataset(train_data, args, dataset.sizes)
     else:
         train_data = BatchedDataDataset(args, train_data, dataset.train_len)
 
@@ -64,7 +62,7 @@ def main(args) -> None:
         model,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
-        train_data=valid_data,
+        train_data=train_data,
         valid_data=valid_data,
     )
     trainer.train()

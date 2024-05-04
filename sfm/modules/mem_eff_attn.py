@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch import Tensor, nn
@@ -141,6 +141,7 @@ class MemEffAttn(nn.Module):
         attn_mask: Optional[Tensor] = None,
         before_softmax: bool = False,
         need_head_weights: bool = False,
+        pbc_expand_batched: Optional[Dict[str, torch.Tensor]] = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """Input shape: Time x Batch x Channel
 
@@ -161,6 +162,10 @@ class MemEffAttn(nn.Module):
         """
         if need_head_weights:
             pass
+
+        assert (
+            pbc_expand_batched is None
+        ), "memory efficient attention not support pbc_expand_batched"
 
         tgt_len, bsz, embed_dim = query.size()
 
@@ -220,15 +225,23 @@ class MemEffAttn(nn.Module):
                     device=q.device,
                     dtype=q.dtype,
                 )
+                if attn_bias is not None:
+                    attn_mask += attn_bias.contiguous().view(
+                        bsz, self.num_heads, tgt_len, src_len
+                    )
                 attn_mask = attn_mask.masked_fill(
                     key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
                     float("-inf"),
                 )
             else:
                 attn_mask = None
+                if attn_bias is not None:
+                    attn_mask = attn_bias.contiguous().view(
+                        bsz, self.num_heads, tgt_len, src_len
+                    )
 
-        if attn_bias is not None:
-            raise NotImplementedError("mem efficient attn not support attn_bias")
+        # if attn_bias is not None:
+        # raise NotImplementedError("mem efficient attn not support attn_bias")
 
         # FutureWarning: torch.backends.cuda.sdp_kernel() is deprecated. In the future, this context manager will be removed.
         # Please see, torch.nn.attention.sdpa_kernel() for the new context manager, with updated signature.

@@ -39,7 +39,7 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         self._sizes, self._keys = None, None
 
         self.filter_indices_by_size(
-            indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
+            indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
         )
 
     def _init_db(self):
@@ -214,6 +214,9 @@ class PM6FullLMDBDataset(FoundationModelDataset):
 
     def __len__(self) -> int:
         return len(self.keys)
+
+    def num_tokens(self, index: int) -> int:
+        return self.sizes[index]
 
 
 class MatterSimDataset:
@@ -422,7 +425,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
         self._sizes, self._keys = None, None
 
         self.filter_indices_by_size(
-            indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
+            indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
         )
 
     def _init_db(self):
@@ -583,6 +586,9 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
     def __len__(self) -> int:
         return len(self.keys)
+
+    def num_tokens(self, index: int) -> int:
+        return self.sizes[index]
 
 
 @torch.jit.script

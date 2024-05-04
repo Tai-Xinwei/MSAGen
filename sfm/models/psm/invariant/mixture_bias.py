@@ -33,6 +33,13 @@ class PSMBias(nn.Module):
         self.psm_config = psm_config
         self.key_prefix = key_prefix
 
+    #     # # make sure attn_bias has gradient
+    #     self.pos_embedding_proj.weight.register_hook(self.print_grad)
+
+    # def print_grad(self, grad):
+    #     print(torch.max(grad))
+    #     return grad
+
     def forward(
         self,
         batch_data: Dict,

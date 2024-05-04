@@ -14,8 +14,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=512
-# [ -z "${max_tokens}" ] && max_tokens=24000
-[ -z "${max_tokens}" ] && max_tokens=36000
+[ -z "${max_tokens}" ] && max_tokens=2000
+# [ -z "${max_tokens}" ] && max_tokens=36000
 
 [ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -160,7 +160,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --save_dir $save_dir \
           --seed 666666 \
           --add_3d \
-          --ifstack \
           --ifresume \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
@@ -179,8 +178,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
-          # --dynamic_loader --max_tokens $max_tokens \
+          # --ifstack \
           # --use_2d_atom_features --use_2d_bond_features \
+          # --dynamic_loader --max_tokens $max_tokens \
 
 sleep inf
 sleep inf

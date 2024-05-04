@@ -55,6 +55,8 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_dist_score/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_dist_score/'
 [ -z "${loadcheck_path}" ] && loadcheck_path='.'
+[ -z "${diffmode}" ] && diffmode='ddpm'
+
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
@@ -185,9 +187,10 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/sample_tox.py \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
           --sample_mode \
           --infer \
+          --loadcheck_path $loadcheck_path \
+          --diffmode $diffmode \
           $("$ode_mode" == "true" && echo "--ode_mode") \
 
-          # --loadcheck_path $loadcheck_path \
 
 # sleep inf
 # sleep inf

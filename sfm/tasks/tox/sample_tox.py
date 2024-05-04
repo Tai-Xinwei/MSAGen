@@ -18,6 +18,8 @@ import wandb  # isort:skip
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
+import warnings
+
 from sfm.criterions.mae3d import ProteinMAE3dCriterions
 from sfm.data.prot_data.dataset import BatchedDataDataset, ProteinLMDBDataset
 from sfm.logging import logger
@@ -27,6 +29,8 @@ from sfm.models.tox.toxmodel import TOXModel, TOXPDEModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 from sfm.utils.cli_utils import cli
 from sfm.utils.move_to_device import move_to_device
+
+warnings.filterwarnings("ignore")
 
 
 def linear_molecule_adjacency(n_atoms):
@@ -112,8 +116,8 @@ def get_VE(t_total_steps=1000):
 
 def compute_angle_loss(loss, label, pred, mask):
     # compute angle data loss only use the first 3 dimensions
-    ori_angle = label.masked_fill(~mask, 0.0)
-    angle_pred = pred.masked_fill(~mask, 0.0)
+    ori_angle = label[mask]
+    angle_pred = pred[mask]
     angle_loss = loss(
         angle_pred.to(torch.float32),
         ori_angle.to(torch.float32),
@@ -125,7 +129,8 @@ def compute_angle_loss(loss, label, pred, mask):
 def compute_mae(label, pred, mask):
     label_masked = label.masked_fill(~mask, 0.0)
     pred_masked = pred.masked_fill(~mask, 0.0)
-    mae = torch.mean(torch.abs(label_masked - pred_masked), dim=(-1, -2))
+    mae = torch.sum(torch.abs(label_masked - pred_masked), dim=(-1, -2))
+    mae = mae / torch.sum(mask)
     mae_mean = torch.mean(mae)
 
     return mae, mae_mean
@@ -167,6 +172,8 @@ def main(args) -> None:
     # init distributed
     torch.distributed.init_process_group()
     torch.cuda.set_device(args.local_rank)
+    torch.set_float32_matmul_precision("high")
+    torch.set_printoptions(profile="full")
 
     # load_data
     dataloader = load_data(args)
@@ -176,7 +183,11 @@ def main(args) -> None:
 
     # X~N[alpha * X_0, beta * I]
     t_total_steps = args.num_timesteps
-    alpha, beta = get_VE(t_total_steps)
+
+    if args.diffmode == "VE":
+        alpha, beta = get_VE(t_total_steps)
+    else:
+        alpha, beta = get_VP(model, t_total_steps)
 
     loss_angle = torch.nn.MSELoss(reduction="mean")
     batch_angle_RMSD = 0.0
@@ -206,7 +217,12 @@ def main(args) -> None:
 
             angle_mask = batch["ang_mask"].bool()
             mask_angle = mask_pos.squeeze(-1)
-            unified_angle_mask = angle_mask[:,] & mask_angle
+
+            padding_mask = residue_seq.eq(1)
+
+            unified_angle_mask = (
+                angle_mask[:,] & mask_angle & (~padding_mask.unsqueeze(-1))
+            )
             unified_angle_mask = unified_angle_mask[:, :, :3]
 
             """--------------------------------Save ground truth x_0--------------------------------"""
@@ -214,12 +230,11 @@ def main(args) -> None:
             ori_angle = batch["ang"].clone()
 
             """--------------------------------Sample X_T from Gaussion--------------------------------"""
-            ve_sde = VESDE()
-            sigma_max = ve_sde.sigma_max
+            VESDE()
 
             batch["ang"] = torch.normal(
                 mean=0.0,
-                std=sigma_max,
+                std=1.0,
                 size=batch["ang"].shape,
                 device=batch["ang"].device,
                 dtype=batch["ang"].dtype,
@@ -228,15 +243,15 @@ def main(args) -> None:
             const_filled = ori_angle[:, :, 3:]
 
             time_pos = torch.tensor([1.0], device=ori_pos.device)
-            time_aa = torch.tensor([1.0], device=ori_pos.device)
+            time_aa = torch.tensor([0.0], device=ori_pos.device)
 
             """--------------------------------Solve Reverse SDE--------------------------------"""
 
             # iterate over time steps to compute the x0 with weighted sum xt
-            for i in range(0, t_total_steps - 1)[::-1]:
+            for i in range(0, t_total_steps)[::-1]:
                 # We will compute X_i this time:
-                i / (t_total_steps - 1)
-                t1 = (i + 1) / (t_total_steps - 1)
+                # i / (t_total_steps - 1)
+                t1 = (i + 1) / t_total_steps
                 last_angle = batch["ang"]
 
                 # Now the output is epsilon
@@ -252,52 +267,75 @@ def main(args) -> None:
                     time_aa=time_aa,
                 )
 
-                # TODO:whether there is -1 or 1
-                last_score = -epsilon_output / torch.sqrt(beta[i + 1])
-
-                if args.ode_mode:
-                    # noisy_angle = (
-                    #     last_angle[:, :, :3]
-                    #     + 1 / 2 * (beta[i + 1] - beta[i]) * last_score
-                    # )
-                    noisy_angle = (
-                        last_angle[:, :, :3] + (beta[i + 1] - beta[i]) * last_score
-                    )
-                else:
-                    z = torch.normal(
-                        mean=0.0,
-                        std=1.0,
-                        size=last_angle[:, :, :3].shape,
-                        device=last_angle.device,
-                        dtype=last_angle.dtype,
+                if args.diffmode == "epsilon":
+                    hat_alpha_t = alpha[i]
+                    hat_alpha_t_1 = 1.0 if i == 0 else alpha[i - 1]
+                    alpha_t = hat_alpha_t / hat_alpha_t_1
+                    beta_t = 1 - alpha_t
+                    beta_tilde_t = (
+                        0.0
+                        if i == 0
+                        else (
+                            (1.0 - hat_alpha_t_1) / (1.0 - hat_alpha_t) * beta_t
+                        ).sqrt()
                     )
 
-                    # # predictor without corrector
-                    # noisy_angle = (
-                    #     last_angle[:, :, :3]
-                    #     + 25 * (beta[i + 1] - beta[i]) * last_score
-                    #     + torch.sqrt(beta[i + 1] - beta[i]) * standard_gs
-                    # )
+                    epsilon = torch.randn_like(epsilon_output)
 
-                    # # auto-diff
-                    # dt = t1 - t0
-                    # noisy_angle = (
-                    #     last_angle[:, :, :3]
-                    #     + 3 / 2 * (beta[i + 1] - beta[i]) * last_score
-                    #     + derivative(
-                    #         torch.tensor(t1).cuda(), lambda x: ve_sde.sigma_term(x) ** 2
-                    #     )
-                    #     * dt
-                    #     * z
-                    # )
-
-                    # ancestral sampling
                     noisy_angle = (
                         last_angle[:, :, :3]
-                        + 25 * (beta[i + 1] - beta[i]) * last_score
-                        + torch.sqrt((beta[i] / beta[i + 1]) * (beta[i + 1] - beta[i]))
-                        * z
-                    )
+                        - (1 - alpha_t) / (1 - hat_alpha_t).sqrt() * epsilon_output
+                    ) / alpha_t.sqrt() + beta_tilde_t * epsilon
+
+                else:
+                    # TODO:whether there is -1 or 1
+                    last_score = -epsilon_output / torch.sqrt(beta[i + 1])
+
+                    if args.ode_mode:
+                        # noisy_angle = (
+                        #     last_angle[:, :, :3]
+                        #     + 1 / 2 * (beta[i + 1] - beta[i]) * last_score
+                        # )
+                        noisy_angle = (
+                            last_angle[:, :, :3] + (beta[i + 1] - beta[i]) * last_score
+                        )
+                    else:
+                        z = torch.normal(
+                            mean=0.0,
+                            std=1.0,
+                            size=last_angle[:, :, :3].shape,
+                            device=last_angle.device,
+                            dtype=last_angle.dtype,
+                        )
+
+                        # # predictor without corrector
+                        # noisy_angle = (
+                        #     last_angle[:, :, :3]
+                        #     + 25 * (beta[i + 1] - beta[i]) * last_score
+                        #     + torch.sqrt(beta[i + 1] - beta[i]) * standard_gs
+                        # )
+
+                        # # auto-diff
+                        # dt = t1 - t0
+                        # noisy_angle = (
+                        #     last_angle[:, :, :3]
+                        #     + 3 / 2 * (beta[i + 1] - beta[i]) * last_score
+                        #     + derivative(
+                        #         torch.tensor(t1).cuda(), lambda x: ve_sde.sigma_term(x) ** 2
+                        #     )
+                        #     * dt
+                        #     * z
+                        # )
+
+                        # ancestral sampling
+                        noisy_angle = (
+                            last_angle[:, :, :3]
+                            + 25 * (beta[i + 1] - beta[i]) * last_score
+                            + torch.sqrt(
+                                (beta[i] / beta[i + 1]) * (beta[i + 1] - beta[i])
+                            )
+                            * z
+                        )
 
                 noisy_angle = noisy_angle.masked_fill(~mask_angle.bool(), 0.0)
                 noisy_angle = torch.cat([noisy_angle, const_filled], dim=-1)
@@ -369,16 +407,16 @@ def main(args) -> None:
                 good_angle_RMSD=good_angle_RMSD / sample_num,
             )
 
-            if args.local_rank == 0:
-                wandb.log(
-                    {
-                        "angle_loss": angle_loss / batch_num,
-                        "angle_rmsd": batch_angle_RMSD / sample_num,
-                        "good_angle_rmsd": good_angle_RMSD / sample_num,
-                        "total_sample_num": sample_num,
-                        "batch_num": batch_num,
-                    }
-                )
+            # if args.local_rank == 0:
+            #     wandb.log(
+            #         {
+            #             "angle_loss": angle_loss / batch_num,
+            #             "angle_rmsd": batch_angle_RMSD / sample_num,
+            #             "good_angle_rmsd": good_angle_RMSD / sample_num,
+            #             "total_sample_num": sample_num,
+            #             "batch_num": batch_num,
+            #         }
+            #     )
 
     # all reduce the result
     angle_loss = torch.tensor(angle_loss).cuda()

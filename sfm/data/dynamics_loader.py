@@ -39,7 +39,13 @@ class DynamicDistributedSampler(Sampler):
 
     def __set_micro_batch_indices(self):
         indices = list(range(len(self.dataset)))
-        indices = self.sort_dataset(indices)
+        # shuffle the indices
+        if self.shuffle:
+            g = torch.Generator()
+            g.manual_seed(self.seed + self.epoch)
+            indices = torch.randperm(len(indices), generator=g).tolist()
+
+        # indices = self.sort_dataset(indices)
         self.batches = self.batch_by_size_fn(
             indices=indices,
             max_length=self.max_length,
@@ -109,6 +115,7 @@ class DynamicDistributedSampler(Sampler):
             self.epoch = epoch
 
     def __iter__(self):
+        self.__set_micro_batch_indices()
         local_batch_id = self.__set_dist_indices(len(self.batches))
         for batch_indices in local_batch_id:
             yield self.batches[batch_indices]

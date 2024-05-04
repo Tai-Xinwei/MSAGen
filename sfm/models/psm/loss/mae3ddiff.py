@@ -80,6 +80,7 @@ class DiffMAE3dCriterions(nn.Module):
         energy_mask = clean_mask & ~is_protein
         force_mask = clean_mask & is_periodic
 
+        # energy loss and force loss
         unreduced_energy_loss = self.energy_loss(
             energy_pred.to(torch.float32),
             energy_label.to(torch.float32),
@@ -113,6 +114,7 @@ class DiffMAE3dCriterions(nn.Module):
             unreduced_force_loss, force_mask & is_periodic, ~non_atom_mask
         )
 
+        # noise pred loss
         unreduced_noise_loss = self.noise_loss(
             noise_pred.to(noise_label.dtype), noise_label
         )
@@ -143,6 +145,7 @@ class DiffMAE3dCriterions(nn.Module):
             diff_loss_mask & ~protein_mask.any(dim=-1),
         )
 
+        # mlm loss
         if aa_mask.any():
             aa_mask = aa_mask & ~padding_mask
             logits = model_output["aa_logits"][aa_mask]

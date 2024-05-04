@@ -138,7 +138,9 @@ class PSMModel(Model):
             .any(dim=-1, keepdim=True)
             .expand_as(masked_pos)
         )  # mask_nan: B x T x 3
-        mask = masked_protein & (masked_pos | masked_nan | masked_inf)
+
+        # protein mask is used to mask out protein inf or nan during training
+        mask = masked_protein & (masked_nan | masked_inf)
         batched_data["protein_mask"] = mask
 
     def _create_system_tags(self, batched_data):
@@ -149,13 +151,17 @@ class PSMModel(Model):
         batched_data["is_periodic"] = is_periodic
         batched_data["is_molecule"] = is_molecule
         batched_data["is_protein"] = is_protein
+
         # atom mask to leave out unit cell corners for periodic systems
         pos = batched_data["pos"]
         n_graphs, n_nodes = pos.size()[:2]
+
+        # create non_atom_mask to mask out unit cell corners for pbc only
         non_atom_mask = torch.arange(
             n_nodes, dtype=torch.long, device=pos.device
         ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(-1)
         batched_data["non_atom_mask"] = non_atom_mask
+
         # create diff loss mask so that only diffusion loss of 4 out of 8 cell corners are calculated
         diff_loss_mask = torch.arange(
             n_nodes, dtype=torch.long, device=pos.device
@@ -329,6 +335,7 @@ class PSMModel(Model):
         Returns:
             ModelOutput: The model output which includes loss, log_output, num_examples.
         """
+        # bs = batched_data["token_id"].eq(158).sum().item()
         bs = batched_data["pos"].size(0)
         loss, logging_output = self.loss_fn(model_output, batched_data)
         return ModelOutput(loss=loss, num_examples=bs, log_output=logging_output)
