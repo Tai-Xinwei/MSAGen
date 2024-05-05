@@ -552,7 +552,7 @@ class ProteinLMDBDataset(LMDBDataset):
         return self.sizes[index]
 
     def collate(self, samples: List[dict]) -> dict:
-        return collate_fn(samples, self.vocab, offset=0)
+        return collate_stack_fn(samples, self.vocab, offset=0)
 
 
 class UR50LMDBDataset(FoundationModelDataset):

@@ -269,7 +269,7 @@ def main(args) -> None:
                     hat_alpha_t_1 = 1.0 if i == 0 else alpha_cumprod[i - 1]
                     alpha_t = hat_alpha_t / hat_alpha_t_1
                     beta_t = 1 - alpha_t
-                    beta_tilde_t = (
+                    (
                         0.0
                         if i == 0
                         else (
@@ -277,12 +277,12 @@ def main(args) -> None:
                         ).sqrt()
                     )
 
-                    epsilon = torch.randn_like(epsilon_output)
+                    torch.randn_like(epsilon_output)
 
                     noisy_angle = (
                         last_angle[:, :, :3]
                         - (1 - alpha_t) / (1 - hat_alpha_t).sqrt() * epsilon_output
-                    ) / alpha_t.sqrt() + beta_tilde_t * epsilon
+                    ) / alpha_t.sqrt()  # + beta_tilde_t * epsilon
 
                 # else:
                 #     # TODO:whether there is -1 or 1
@@ -348,8 +348,10 @@ def main(args) -> None:
 
                     if args.local_rank == 0:
                         logger.info(
-                            f"t_step: {i} rank: {args.local_rank} mae: {mae} mae_mean: {mae_mean} mse: {mse} mse_mean: {mse_mean}"
+                            f"t_step: {i} rank: {args.local_rank} mae_mean: {mae_mean} mse_mean: {mse_mean} "
                         )
+                        logger.info(f"mae: {mae} ")
+                        logger.info(f"mse: {mse}")
 
             # """--------------------------------exsport json--------------------------------"""
             # tensor_dict = {
