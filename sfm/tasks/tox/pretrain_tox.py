@@ -30,8 +30,6 @@ def main(args) -> None:
     assert (
         args.data_path is not None and len(args.data_path) > 0
     ), f"lmdb_path is {args.data_path} it should not be None or empty"
-    if not args.fp16 and not args.bf16:
-        torch.set_float32_matmul_precision("high")
 
     dataset = ProteinLMDBDataset(args)
 

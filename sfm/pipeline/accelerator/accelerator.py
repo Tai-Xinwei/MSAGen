@@ -1063,6 +1063,7 @@ class DeepSpeedAccelerator(Accelerator):
             assert (
                 train_batch_size_per_gpu > 0
             ), "train_batch_size_per_gpu should be greater than 0"
+            logger.info(f"Using stack mode with batch size {train_batch_size_per_gpu}")
 
             self.train_sampler = None
             self.train_data_loader = DataLoader(

@@ -120,7 +120,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         qn_block_size,
         d_tilde=1,
     ):
-        return MultiheadAttention(
+        return MemEffAttn(
             embed_dim,
             num_attention_heads,
             dropout=dropout,
@@ -138,7 +138,6 @@ class GraphormerSentenceEncoderLayer(nn.Module):
     def build_attn_bias(self, psm_config):
         return PSMBias(psm_config)
 
-    @torch.compile(dynamic=True)
     def forward(
         self,
         x: torch.Tensor,
@@ -169,24 +168,24 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             pbc_expand_batched=pbc_expand_batched,
         )
 
-        # # expand graph_2d_attention_bias according to PBC, just to match the shape of 3D attention bias
-        # # for periodic systems graph_2d_attention_bias should be all zero
-        # # here we use pbc and token id together to differentiate molecules from periodic systems and proteins
-        # if graph_2d_attention_bias is not None:
-        #     expanded_graph_2d_attention_bias = torch.zeros_like(self_attn_bias)
-        #     token_id = batched_data["token_id"]
-        #     pbc = batched_data["pbc"]
-        #     molecule_mask = torch.all(token_id <= 128, dim=-1) & ~torch.any(pbc, dim=-1)
-        #     n_node = graph_2d_attention_bias.size()[-1] - 1
-        #     expanded_graph_2d_attention_bias[
-        #         :, :, :n_node, :n_node
-        #     ] = graph_2d_attention_bias[
-        #         :, :, 1:, 1:
-        #     ]  # leave out virtual node in 2D attention bias
-        #     expanded_graph_2d_attention_bias.masked_fill(
-        #         ~molecule_mask.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), 0.0
-        #     )
-        #     self_attn_bias += expanded_graph_2d_attention_bias
+        # expand graph_2d_attention_bias according to PBC, just to match the shape of 3D attention bias
+        # for periodic systems graph_2d_attention_bias should be all zero
+        # here we use pbc and token id together to differentiate molecules from periodic systems and proteins
+        if graph_2d_attention_bias is not None:
+            expanded_graph_2d_attention_bias = torch.zeros_like(self_attn_bias)
+            token_id = batched_data["token_id"]
+            pbc = batched_data["pbc"]
+            molecule_mask = torch.all(token_id <= 128, dim=-1) & ~torch.any(pbc, dim=-1)
+            n_node = graph_2d_attention_bias.size()[-1] - 1
+            expanded_graph_2d_attention_bias[
+                :, :, :n_node, :n_node
+            ] = graph_2d_attention_bias[
+                :, :, 1:, 1:
+            ]  # leave out virtual node in 2D attention bias
+            expanded_graph_2d_attention_bias.masked_fill(
+                ~molecule_mask.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), 0.0
+            )
+            self_attn_bias += expanded_graph_2d_attention_bias
 
         # x: T x B x C
         residual = x
