@@ -3,19 +3,17 @@
 # Licensed under the MIT License.
 ulimit -c unlimited
 
-echo 'Solving MKL done!'
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${layers}" ] && layers=12
-[ -z "${hidden_size}" ] && hidden_size=768
-[ -z "${ffn_size}" ] && ffn_size=3072
+[ -z "${hidden_size}" ] && hidden_size=1024
+[ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=8
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${max_length}" ] && max_length=256
-[ -z "${max_tokens}" ] && max_tokens=3000
+[ -z "${max_length}" ] && max_length=1024
+[ -z "${max_tokens}" ] && max_tokens=36000
 
 [ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -25,9 +23,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
-[ -z "${lamb_pde_q}" ] && lamb_pde_q=0.001
+[ -z "${lamb_ism}" ] && lamb_ism=0.01
+[ -z "${lamb_pde_q}" ] && lamb_pde_q=0
 [ -z "${lamb_pde_control}" ] && lamb_pde_control=0.001
-[ -z "${diffmode}" ] && diffmode=score
+[ -z "${diffmode}" ] && diffmode=epsilon
 # [ -z "${seq_masking_method}" ] && seq_masking_method=continuousMask
 [ -z "${seq_masking_method}" ] && seq_masking_method=transformerM
 
@@ -88,7 +87,6 @@ echo "OMPI_COMM_WORLD_LOCAL_RANK: ${OMPI_COMM_WORLD_LOCAL_RANK}"
 echo -e "\n\n"
 echo "=====================================ARGS======================================"
 echo "n_layers: ${layers}"
-echo "num_pred_attn_layer: ${num_pred_attn_layer}"
 echo "hidden_size: ${hidden_size}"
 echo "ffn_size: ${ffn_size}"
 echo "num_head: ${num_head}"
@@ -153,16 +151,18 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_pdetox.py \
           --save_dir $save_dir \
           --seed 666666 \
           --add_3d \
+          --ifstack \
+          --ifresume \
+          --diffmode $diffmode \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
-          --num_pred_attn_layer $num_pred_attn_layer \
           --d_tilde $d_tilde \
+          --lamb_ism $lamb_ism \
           --lamb_pde_q $lamb_pde_q \
           --lamb_pde_control $lamb_pde_control \
           --diffmode $diffmode \
           --strategy $strategy \
           --max_lr $max_lr \
-          --num_timesteps 1000 \
           --seq_masking_method $seq_masking_method \
           --mode_prob $mode_prob --noise_mode $noise_mode\
           --total_num_steps $total_num_steps \
@@ -174,7 +174,4 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_pdetox.py \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
           --finetune_from_checkpoint_dir $save_dir
 
-
-sleep inf
-sleep inf
-sleep inf
+        # --finetune_from_checkpoint_dir $save_dir \

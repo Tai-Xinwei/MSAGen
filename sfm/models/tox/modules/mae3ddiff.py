@@ -12,6 +12,7 @@ from sfm.models.tox.modules.physics import (
     VESDE,
     compute_pde_control_loss,
     compute_PDE_q_loss,
+    compute_terminal_ism_loss,
 )
 
 
@@ -151,6 +152,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
         self.loss_angle = nn.MSELoss(reduction="mean")
         self.loss_dist = nn.L1Loss(reduction="mean")
         self.args = args
+        self.lamb_ism = args.lamb_ism
         self.lamb_pde_q = args.lamb_pde_q
         self.lamb_pde_control = args.lamb_pde_control
         self.diffmode = args.diffmode
@@ -163,6 +165,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
         output_dict,
     ):
         # whether to use the PDE loss
+        if_ism_loss = False if self.lamb_ism == 0 else True
         if_pde_q_loss = False if self.lamb_pde_q == 0 else True
         if_pde_control_loss = False if self.lamb_pde_control == 0 else True
 
@@ -241,6 +244,32 @@ class ProteinMAEDistPDECriterions(nn.Module):
         else:
             angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
+        """---------------------- terminal ism loss----------------------"""
+        if unified_angle_mask.any() and if_ism_loss:
+            sigma_1 = output_dict["sigma_1"]
+            dt = output_dict["dt"]
+            angle_output1 = output_dict["angle_output1"]
+            angle_output2 = output_dict["angle_output2"]
+
+            # nabla_phi and laplace_phi have been masked
+            angle_output1 = torch.where(
+                unified_angle_mask, angle_output1, torch.zeros_like(angle_output1)
+            )
+            angle_output2 = torch.where(
+                unified_angle_mask, angle_output2, torch.zeros_like(angle_output2)
+            )
+
+            terminal_ism_loss = compute_terminal_ism_loss(
+                angle_output1,
+                angle_output2,
+                sigma_t=sigma_1,
+                k=dt,
+            )
+        else:
+            terminal_ism_loss = torch.tensor(
+                [0.0], device=logits.device, requires_grad=True
+            )
+
         """----------------------pde q loss----------------------"""
         if unified_angle_mask.any() and if_pde_q_loss:
             nabla_phi_term = output_dict["nabla_phi_term"]
@@ -306,6 +335,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
         loss = (
             type_loss
             + angle_loss
+            + self.lamb_ism * terminal_ism_loss
             + self.lamb_pde_q * pde_q_loss
             + self.lamb_pde_control * pde_control_loss
             # + 10 * dist_loss
@@ -315,6 +345,7 @@ class ProteinMAEDistPDECriterions(nn.Module):
             "total_loss": loss,
             "loss_type": type_loss,
             "loss_angle": angle_loss,
+            "loss_ism": terminal_ism_loss,
             "pde_q_loss": pde_q_loss,
             "pde_control_loss": pde_control_loss,
             # "loss_dist": dist_loss,
