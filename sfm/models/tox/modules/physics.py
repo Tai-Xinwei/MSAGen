@@ -160,7 +160,7 @@ def t_finite_diff(q_output, q_output_m, q_output_p, hp, hm):
     # assert not torch.isnan(hm).any(), "hm should not contain nan"
 
     up = hm**2 * q_output_p + (hp**2 - hm**2) * q_output - hp**2 * q_output_m
-    low = hm * hp * (hp + hm)  # TODO: check this file
+    low = hm * hp * (hp + hm)
     return up / low
 
 
@@ -400,6 +400,39 @@ def compute_pde_control_penalty_loss(output, epsilon):
     """
     # First square and then Mean (expectation)
     loss = torch.mean(torch.sum((output * (output - epsilon)), dim=(1, 2)) ** 2)  # (53)
+    return loss
+
+
+# TODO: add terminal ISM loss
+
+# Terminal ISM loss for score model, first order approximation
+""" Formula: J_{ISM} = \|s\|^2 + 2\nabla\cdot s where \nabla\cdot s \approx \frac{1}{2k}\mathbb{E}[(s(x+kz)-s(x-kz))\cdot z]"""
+
+
+def compute_terminal_ism_loss(
+    output,
+    output_p,
+    sigma_t=None,
+    k=1e-4,
+):
+    """
+    Computes the partial differential equation (PDE) loss for the given inputs.
+
+    Args:
+        sde (SDE): The stochastic differential equation object.
+        output (torch.Tensor): The output tensor.
+        sigma_t (torch.Tensor, optional): The tensor representing the sigma term. Defaults to None.
+        is_clip (bool, optional): Whether to clip the RHS values. Defaults to False.
+
+    Returns:
+        torch.Tensor: The computed PDE ism loss.
+
+    """
+    vectors = torch.randn_like(output)
+    loss = 1 / k * torch.mean(
+        torch.sum((output_p - output) * vectors, dim=(1, 2))
+    ) * 2 * sigma_t[0] + torch.mean(torch.sum(output**2, dim=(1, 2)))
+
     return loss
 
 

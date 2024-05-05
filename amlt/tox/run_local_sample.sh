@@ -57,6 +57,7 @@ export sandwich_ln=true
 export droppath_prob=0.0
 export noise_scale=0.2
 export noise_mode=diff
+export lamb_ism=0.01
 export lamb_pde_q=0
 export lamb_pde_control=0.01
 export diffmode="epsilon"

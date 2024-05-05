@@ -19,6 +19,7 @@ class TOXConfig(GraphormerConfig):
     train_data_path: str = ""
     valid_data_path: str = ""
 
+    lamb_ism: float = 0
     lamb_pde_q: float = 0
     lamb_pde_control: float = 0
 

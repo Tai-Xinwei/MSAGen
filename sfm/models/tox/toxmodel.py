@@ -202,6 +202,7 @@ class TOXPDEModel(TOXModel):
         )
         self.mixture_gaussian = MixtureGaussian()
         self.sde = VESDE()
+        self.lamb_ism = args.lamb_ism
         self.lamb_pde_q = args.lamb_pde_q
         self.lamb_pde_control = args.lamb_pde_control
 
@@ -226,8 +227,52 @@ class TOXPDEModel(TOXModel):
         unified_angle_mask = angle_mask & mask_angle
 
         # whether to use the PDE q loss and control loss
+        if_lamb_ism = False if self.lamb_ism == 0 else True
         if_pde_q_loss = False if self.lamb_pde_q == 0 else True
         if_pde_control_loss = False if self.lamb_pde_control == 0 else True
+
+        if if_lamb_ism:
+            # Use the same time for different points in the batch
+            output_dict_1 = self.net(
+                batched_data,
+                time_pos=0.001  # set the terminal time to 0.001
+                * torch.ones([ori_angle.shape[0]], device=ori_angle.device),
+            )
+
+            angle_t = output_dict_1["ang_t"]
+            z = torch.randn_like(angle_t)
+            dt = 0.0001
+            ang_q = angle_t + dt * z
+
+            output_dict_2 = self.net(
+                batched_data,
+                q=ang_q,
+                time_pos=0.001  # set the terminal time to 0.001
+                * torch.ones([ori_angle.shape[0]], device=ori_angle.device),
+            )
+            # assert torch.allclose(
+            #     time_angle_single,
+            #     time_angle_single[0:1].expand_as(time_angle_single),
+            # ), "time_angle_single should have the same time in different points"
+
+            # angle_output_single_time = output_dict_single_time["angle_output"]
+
+            # angle_output_pt = output_dict["angle_output"]
+
+            sigma_1 = output_dict_1[
+                "ang_sigma"
+            ]  # "Single" means the same time, shape: [B]
+            angle_output1 = output_dict_1["angle_output"]
+            angle_output2 = output_dict_2["angle_output"]
+
+            output_dict.update(
+                {
+                    "sigma_1": sigma_1,
+                    "angle_output1": angle_output1,
+                    "angle_output2": angle_output2,
+                    "dt": dt,
+                }
+            )
 
         if if_pde_q_loss:
             self.mixture_gaussian.set_sigma(output_dict["ang_sigma"])
@@ -680,7 +725,12 @@ class TOX(nn.Module):
         )  # mask_res=0
 
         if q is None and x0 is None:
-            time_ang = batched_data["ang_time"] if "ang_time" in batched_data else None
+            if time_pos is None:
+                time_ang = (
+                    batched_data["ang_time"] if "ang_time" in batched_data else None
+                )
+            else:
+                time_ang = time_pos
             (
                 pos,
                 angle,
@@ -713,8 +763,9 @@ class TOX(nn.Module):
             # angle_mask = batched_data["ang_mask"].bool()
             # angle = angle.masked_fill(~angle_mask, 100.0).to(ori_pos.dtype)
 
-            assert delta_tq is not None, "delta_tq should be given"
-            time_pos = self.score_time + delta_tq
+            if time_pos is None:
+                assert delta_tq is not None, "delta_tq should be given"
+                time_pos = self.score_time + delta_tq
 
             pos = None
             # ang_score, ang_score_norm = None, None
@@ -817,6 +868,7 @@ class TOX(nn.Module):
             "backbone": backbone,
             "ang_sigma": ang_sigma,
             "ang_epsilon": ang_epsilon,
+            "ang_t": angle,
         }
 
         return output_dict

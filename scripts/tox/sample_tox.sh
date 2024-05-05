@@ -26,6 +26,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
+[ -z "${lamb_ism}" ] && lamb_ism=0.01
 [ -z "${lamb_pde_q}" ] && lamb_pde_q=0.001
 [ -z "${lamb_pde_control}" ] && lamb_pde_control=0.001
 [ -z "${diffmode}" ] && diffmode=score
@@ -170,6 +171,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/sample_tox.py \
           --noise_scale $noise_scale \
           --num_pred_attn_layer $num_pred_attn_layer \
           --d_tilde $d_tilde \
+          --lamb_ism $lamb_ism \
           --lamb_pde_q $lamb_pde_q \
           --lamb_pde_control $lamb_pde_control \
           --diffmode $diffmode \

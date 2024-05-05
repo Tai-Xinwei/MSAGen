@@ -3,19 +3,17 @@
 # Licensed under the MIT License.
 ulimit -c unlimited
 
-echo 'Solving MKL done!'
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${layers}" ] && layers=12
-[ -z "${hidden_size}" ] && hidden_size=768
-[ -z "${ffn_size}" ] && ffn_size=3072
+[ -z "${hidden_size}" ] && hidden_size=1024
+[ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=8
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${max_length}" ] && max_length=256
-[ -z "${max_tokens}" ] && max_tokens=3000
+[ -z "${max_length}" ] && max_length=1024
+[ -z "${max_tokens}" ] && max_tokens=36000
 
 [ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -25,9 +23,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
-[ -z "${lamb_pde_q}" ] && lamb_pde_q=0.001
+[ -z "${lamb_ism}" ] && lamb_ism=0.01
+[ -z "${lamb_pde_q}" ] && lamb_pde_q=0
 [ -z "${lamb_pde_control}" ] && lamb_pde_control=0.001
-[ -z "${diffmode}" ] && diffmode=score
+[ -z "${diffmode}" ] && diffmode=epsilon
 # [ -z "${seq_masking_method}" ] && seq_masking_method=continuousMask
 [ -z "${seq_masking_method}" ] && seq_masking_method=transformerM
 
@@ -60,9 +59,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=bfmdiff
-[ -z "${wandb_team}" ] && wandb_team=peiranjin
-[ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
+[ -z "${wandb_group}" ] && wandb_group=tox
+[ -z "${wandb_team}" ] && wandb_team=large-scale-pde
+[ -z "${wandb_project}" ] && wandb_project=SFM_tox
+[ -z "${wandb_key}" ] && wandb_key=local-6f348108426c848ab1138d3ac8cde62eebf503e3 # pisquare
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -87,7 +87,6 @@ echo "OMPI_COMM_WORLD_LOCAL_RANK: ${OMPI_COMM_WORLD_LOCAL_RANK}"
 echo -e "\n\n"
 echo "=====================================ARGS======================================"
 echo "n_layers: ${layers}"
-echo "num_pred_attn_layer: ${num_pred_attn_layer}"
 echo "hidden_size: ${hidden_size}"
 echo "ffn_size: ${ffn_size}"
 echo "num_head: ${num_head}"
@@ -117,8 +116,8 @@ echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 
-wandb login --relogin 680f261d2b178f36d57f4644e235d9db1c207bc0
-export WANDB_API_KEY=680f261d2b178f36d57f4644e235d9db1c207bc0
+wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -152,16 +151,18 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_pdetox.py \
           --save_dir $save_dir \
           --seed 666666 \
           --add_3d \
+          --ifstack \
+          --ifresume \
+          --diffmode $diffmode \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
-          --num_pred_attn_layer $num_pred_attn_layer \
           --d_tilde $d_tilde \
+          --lamb_ism $lamb_ism \
           --lamb_pde_q $lamb_pde_q \
           --lamb_pde_control $lamb_pde_control \
           --diffmode $diffmode \
           --strategy $strategy \
           --max_lr $max_lr \
-          --num_timesteps 1000 \
           --seq_masking_method $seq_masking_method \
           --mode_prob $mode_prob --noise_mode $noise_mode\
           --total_num_steps $total_num_steps \
@@ -170,10 +171,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_pdetox.py \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
-          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
-          --ifresume
+          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
 
-
-sleep inf
-sleep inf
-sleep inf
+        # --finetune_from_checkpoint_dir $save_dir \
