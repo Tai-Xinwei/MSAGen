@@ -162,7 +162,7 @@ class TOXMixEncoder(nn.Module):
             pfm_config=pfm_config,
         )
 
-    @torch.compile
+    # @torch.compile
     def forward(
         self,
         batched_data,

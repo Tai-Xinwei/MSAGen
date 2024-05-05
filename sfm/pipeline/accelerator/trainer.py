@@ -260,7 +260,6 @@ class Trainer(object):
     ):
         super().__init__()
         self.args = args
-
         logger.info("Trainer args: {}", args)
 
         self.model = model
@@ -272,6 +271,9 @@ class Trainer(object):
             metric=args.early_stopping_metric,
             mode=args.early_stopping_mode,
         )
+
+        if not args.fp16 and not args.bf16:
+            torch.set_float32_matmul_precision("high")
 
         if optimizer is not None and args.strategy in [
             TrainStrategy.Pipeline,

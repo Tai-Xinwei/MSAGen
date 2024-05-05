@@ -7,7 +7,11 @@ import wandb  # isort:skip
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
-from sfm.data.psm_data.unifieddataset import BatchedDataDataset, UnifiedPSMDataset
+from sfm.data.psm_data.unifieddataset import (
+    BatchedDataDataset,
+    StackedIterableDataset,
+    UnifiedPSMDataset,
+)
 from sfm.logging import logger
 from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions
 from sfm.models.psm.psm_config import PSMConfig
@@ -26,7 +30,12 @@ def main(args) -> None:
     )
     train_data, valid_data = dataset.split_dataset()
 
-    train_data = BatchedDataDataset(args, train_data, dataset.train_len)
+    if args.ifstack:
+        raise NotImplementedError("ifstack is not finished yet!")
+        # train_data = StackedIterableDataset(train_data, args, dataset.sizes)
+    else:
+        train_data = BatchedDataDataset(args, train_data, dataset.train_len)
+
     valid_data = BatchedDataDataset(args, valid_data, dataset.valid_len)
 
     ### define psm models here, define the diff loss in DiffMAE3dCriterions
