@@ -496,9 +496,6 @@ class ProteinLMDBDataset(LMDBDataset):
             item, self.args, seed, self.vocab.mask_idx, self.vocab.standard_toks
         )
 
-        item["masked_aa"] = mask_type
-        item["mask_pos"] = mask_pos
-
         """
         Add noise to the coordinate or angles, manupilate the item['pos']/item['ang']:
         - add noise to the coordinate
@@ -527,6 +524,8 @@ class ProteinLMDBDataset(LMDBDataset):
         item["pos_mask"] = np.concatenate(
             [np.zeros((1, 37)), item["pos_mask"], np.zeros((1, 37))], axis=0
         )
+        item["masked_aa"] = np.concatenate([False, mask_type, False], axis=0)
+        item["mask_pos"] = np.concatenate([False, mask_pos, False], axis=0)
 
         # ang_time has same shape as aa, random number with scale of (0, 1]
         ang_t = 1.0 - np.random.rand(1).astype(np.float32)

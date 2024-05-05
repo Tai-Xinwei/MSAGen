@@ -503,7 +503,7 @@ class TOX(nn.Module):
             )
             vis_ang = ori_angle.masked_fill(mask_angle.bool(), 0.0)
             angle = noisy_ang + vis_ang
-            angle = self.diffnoise._T_noise(angle, angle_mask)
+            # angle = self.diffnoise._T_noise(angle, angle_mask)
 
             return (
                 pos,

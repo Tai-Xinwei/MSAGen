@@ -4,62 +4,61 @@
 # 3. Specify the Azure storage account and container to use
 # 4. Submit the job with this yaml file
 
-description: PSMV0
+description: psm
 
 env_defaults:
-  NODES: 4
+  NODES: 12
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
 # target:
-#     service: sing
-#     name: baltic02
+#   service: sing
+#   name: baltic02
+#   workspace_name: msrresrchws
+
 
 target:
     service: aml
     name: townsend1
-#     # name: gcrarca100cl1
     # name: sfm-nd96amsra100v4-uksouth
-#     # name: sfm-nc96-westus3
+    # name: sfm-nc96-westus3
+
 
 environment:
-  # image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
   image: ai4s-sfm:20240429.081857
   registry: msroctocr.azurecr.io
   username: msroctocr
 
+
 storage:
   blob:
     storage_account_name: hai1data # Storage account
-    container_name: sfm # Container name
+    container_name: pfm # Container name
     mount_dir: /blob
 
 code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: psmV0test_0504
-  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+- name: psm
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
   sku: ${NODES}xG${GPUS}
   mpi: true
   process_count_per_node: 1
   command:
-  - export WANDB_TEAM=ai4s-sfm
-  - export wandb_group=psm
-  - export wandb_project=psm_baselines
   - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=psmpdm_dev
+  - export WANDB_TEAM=large-scale-pde
+  - export wandb_group=pdm_dev
   - mkdir /blob/pfmexp/output
-  - mkdir /blob/experiment/psm/psmV0test_0504
-  - mkdir /blob/experiment/psm/psmV0test_0504/checkpoints
+  - mkdir /blob/pfmexp/output/pfmdiff300M_prob1261_m5_bs1024_ddpm_pair_G96
+  - mkdir /blob/pfmexp/output/pfmdiff300M_prob1261_m5_bs1024_ddpm_pair_G96/checkpoints
   - mkdir ./output
   - export path=run.sh
-  - export layers=12
+  - export layers=24
   - export hidden_size=1024
   - export ffn_size=4096
   - export num_head=32
-  - export num_3d_bias_kernel=8
-  - export atom_loss_coeff=1.0
-  - export pos_loss_coeff=1.0
   - export sandwich_ln="true"
   - export dropout=0.0
   - export attn_dropout=0.1
@@ -67,30 +66,28 @@ jobs:
   - export weight_decay=0.0
   - export droppath_prob=0.0
   - export noise_mode=diff
-  - export noise_scale=0.2
   - export mask_ratio=0.5
-  - export mode_prob=0.1,0.2,0.6,0.1
+  - export mode_prob=0.1,0.4,0.4,0.1
   - export d_tilde=1.0
   - export max_lr=2e-4
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=2000000
   - export warmup_num_steps=1000
-  - export train_batch_size=1024
-  - export val_batch_size=1024
-  - export max_tokens=16000
+  - export train_batch_size=768
+  - export val_batch_size=768
   - export max_length=512
-  - export gradient_accumulation_steps=16
+  - export gradient_accumulation_steps=1
   - export log_interval=100
-  - export data_path=/blob/psm/
-  - export data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,48organisms-fullatom.lmdb'
-  - export dataset_name_list='pm6,mattersim,afdb'
-  - export dataset_split_raito='0.9,0.0,0.1'
-  - export loadcheck_path=/blob/experiment/psm/psmV0test_0504/checkpoints
-  - export save_dir=/blob/pfmexp/output/psmV0test_0504/checkpoints
+  - export loadcheck_path=/blob/pfmexp/output/pfmdiff300M_prob1261_m5_bs1024_ddpm_pair_G96/checkpoints
+  # - export data_path=/blob/data/afdb/48organisms-fullatom.lmdb/
+  # - export data_path=/mnt/amlt_code/AFDB50-plddt70.lmdb/
+  - export data_path=/nfs/psmdata/AFDB50-plddt70.lmdb/
+  - export save_dir=/blob/pfmexp/output/pfmdiff300M_prob1261_m5_bs1024_ddpm_pair_G96/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
-  - bash ./scripts/psm/pretrain_psm.sh
+  # - bash ./scripts/tox/copy_from_nfs.sh
+  - bash ./scripts/tox/pretrain_tox.sh
   submit_args:
     container_args:
       shm_size: 1024g

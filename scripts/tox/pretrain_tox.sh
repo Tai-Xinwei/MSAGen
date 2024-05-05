@@ -51,7 +51,8 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/AFDB50-plddt70.lmdb/'
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq1024_ddpm_dist/'
 # [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq1024_ddpm_dist/'
-[ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/pfmdiff150M1024_prob1261_m5_seq1024_ddpm_dist/'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/pfmdiff150M1024_prob1261_m5_seq1024_ddpm_dist_v3/'
+[ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir='/data/peiran/expresult/pfmdiff150M1024_prob1261_m5_seq1024_ddpm_dist_v3/'
 
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
@@ -158,7 +159,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
         --save_dir $save_dir \
         --seed 666666 \
         --add_3d \
-        --ifresume \
         --diffmode $diffmode \
         --mask_ratio $mask_ratio \
         --noise_scale $noise_scale \
@@ -173,7 +173,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
         --gradient_accumulation_steps $gradient_accumulation_steps \
         --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
         --save_batch_interval $save_batch_interval --log_interval $log_interval \
-        --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+        --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
+        --finetune_from_checkpoint_dir $save_dir
 
+        # --ifresume \
         # --ifstack \
         # --finetune_from_checkpoint_dir $save_dir \
