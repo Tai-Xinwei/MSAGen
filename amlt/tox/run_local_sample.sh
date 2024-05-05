@@ -13,7 +13,7 @@ export OMPI_COMM_WORLD_SIZE=1
 export max_tokens=4000
 export train_batch_size=256
 export val_batch_size=10
-export max_length=512
+export max_length=128
 
 # variables for log
 export log_interval=20
@@ -40,7 +40,7 @@ export data_path="/fastdata/peiran/tox/48organisms-fullatom.lmdb/"
 export dataset_name="."
 export save_dir="~/output/sample_result"
 # export loadcheck_path="/blob/pfmexp/output/junzhe/checkpoints/pde_q_running_loss/pde_q_sample/epsilon_model_without_pde_v3/global_step147499/mp_rank_00_model_states.pt"
-export loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmV0test/backup/global_step172316/mp_rank_00_model_states.pt"
+export loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmV0test/backup/global_step206030/mp_rank_00_model_states.pt"
 
 # variables for model
 export layers=24
@@ -73,7 +73,7 @@ export ode_mode=false
 export num_timesteps=5000
 
 # Create the output directory
-mkdir -p ${save_dir}
+# mkdir -p ${save_dir}
 
 # eval "$(conda shell.bash hook)"
 # conda activate sfm

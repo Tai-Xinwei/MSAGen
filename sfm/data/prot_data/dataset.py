@@ -61,15 +61,10 @@ class LMDBDataset(FoundationModelDataset):
         metadata = bstr2obj(self.txn.get("__metadata__".encode()))
         self.sizes, self.keys = metadata["sizes"], metadata["keys"]
         self.comment = metadata["comment"]
-        if args.ifstack:
-            self.filter_indices_by_size(
-                indices=np.array(range(len(self.keys))),
-                max_sizes=self.args.max_length - 2,
-            )
-        else:
-            self.filter_indices_by_size(
-                indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
-            )
+        self.filter_indices_by_size(
+            indices=np.array(range(len(self.keys))),
+            max_sizes=self.args.max_length - 2,
+        )
 
     def __sort__(self):
         sorted_names_sizes = sorted(zip(self.keys, self.sizes), key=lambda x: x[1])
@@ -518,27 +513,20 @@ class ProteinLMDBDataset(LMDBDataset):
         item["pos_noise"] = pos_noise
         item["ang_noise"] = ang_noise
 
-        if not self.args.ifstack:
-            item["ang"] = item["ang"] / 180.0 * torch.pi  # + torch.pi
-            # TODO: considering mask the pos and ang, not used in the current version
-            # set first position to zero
-            # item["pos"] = (item["pos"] - item["pos"][0]) / 10.0
-            # item["pos"] = item["pos"]  # / 10.0
-        else:
-            item["ang"] = item["ang"] / 180.0 * torch.pi
-            # insert inf to the first place and the end
-            item["ang"] = np.concatenate(
-                [np.zeros((1, 9)), item["ang"], np.zeros((1, 9))], axis=0
-            )
-            item["pos"] = np.concatenate(
-                [np.zeros((1, 37, 3)), item["pos"], np.zeros((1, 37, 3))], axis=0
-            )
-            item["ang_mask"] = np.concatenate(
-                [np.zeros((1, 9)), item["ang_mask"], np.zeros((1, 9))], axis=0
-            )
-            item["pos_mask"] = np.concatenate(
-                [np.zeros((1, 37)), item["pos_mask"], np.zeros((1, 37))], axis=0
-            )
+        item["ang"] = item["ang"] / 180.0 * torch.pi
+        # insert inf to the first place and the end
+        item["ang"] = np.concatenate(
+            [np.zeros((1, 9)), item["ang"], np.zeros((1, 9))], axis=0
+        )
+        item["pos"] = np.concatenate(
+            [np.zeros((1, 37, 3)), item["pos"], np.zeros((1, 37, 3))], axis=0
+        )
+        item["ang_mask"] = np.concatenate(
+            [np.zeros((1, 9)), item["ang_mask"], np.zeros((1, 9))], axis=0
+        )
+        item["pos_mask"] = np.concatenate(
+            [np.zeros((1, 37)), item["pos_mask"], np.zeros((1, 37))], axis=0
+        )
 
         # ang_time has same shape as aa, random number with scale of (0, 1]
         ang_t = 1.0 - np.random.rand(1).astype(np.float32)

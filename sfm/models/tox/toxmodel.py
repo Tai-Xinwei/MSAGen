@@ -871,7 +871,8 @@ class TOX(nn.Module):
 
         # time pos and angle is time_step
         time_pos = (
-            torch.ones((pos.shape[0],), device=pos.device, dtype=torch.long) * time_step
+            torch.ones((pos.shape[0],), device=pos.device, dtype=torch.float32)
+            * time_step
         )
         time_angle = time_pos
 
