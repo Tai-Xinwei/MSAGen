@@ -4,10 +4,12 @@
 
 from typing import Dict, Optional
 
+import torch
 import torch.nn as nn
 
 from sfm.models.psm.psm_config import PSMConfig
 
+from ..modules.pbc import CellExpander
 from .geomformer import GeomFormer
 
 
@@ -22,6 +24,8 @@ class EquivariantEncoder(nn.Module):
 class EquivariantDecoder(nn.Module):
     def __init__(self, psm_config: PSMConfig):
         super(EquivariantDecoder, self).__init__()
+        self.psm_config = psm_config
+
         # use GeoMFormer as equivariant decoder
         self.model = GeomFormer(
             psm_config=psm_config,
@@ -37,6 +41,13 @@ class EquivariantDecoder(nn.Module):
             num_atoms=psm_config.num_atoms,
         )
 
+        self.cell_expander = CellExpander(
+            psm_config.pbc_expanded_distance_cutoff,
+            psm_config.pbc_expanded_token_cutoff,
+            psm_config.pbc_expanded_num_cell_per_direction,
+            psm_config.pbc_multigraph_cutoff,
+        )
+
     def forward(
         self,
         batched_data,
@@ -45,4 +56,20 @@ class EquivariantDecoder(nn.Module):
         padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
     ):
+        if pbc_expand_batched is None:
+            if (
+                "pbc" in batched_data
+                and batched_data["pbc"] is not None
+                and torch.any(batched_data["pbc"])
+            ):
+                pos = batched_data["pos"]
+                pbc = batched_data["pbc"]
+                atoms = batched_data["token_id"]
+                cell = batched_data["cell"]
+                pbc_expand_batched = self.cell_expander.expand(
+                    pos, pbc, atoms, cell, self.psm_config.pbc_use_local_attention
+                )
+            else:
+                pbc_expand_batched = None
+
         return self.model(batched_data, x, pos, padding_mask, pbc_expand_batched)
