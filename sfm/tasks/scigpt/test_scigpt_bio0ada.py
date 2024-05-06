@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+from collections import namedtuple
+
+import torch
 
 from sfm.data.sci_data.dataset import ProcessedSciDataset
 from sfm.data.sci_data.SFMDecTokenizer import SFMDecTokenizer
@@ -25,6 +28,32 @@ config_registry = {
     "scigpt_13b": scigpt_13b_config,
 }
 
+SciTokenIdxAndMask = namedtuple("SciTokenIdxAndMask", ["input_ids", "padding_mask"])
+SciDataTuple = namedtuple("SciDataTuple", ["input", "labels"])
+
+
+class inferdataset(torch.utils.data.Dataset):
+    def __init__(self, args, tokenizer):
+        with open(args.train_data_path, "r") as f:
+            data = [line.strip() for line in f.readlines()]
+        self.data = data
+        self.tokenizer = tokenizer
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        encodings = self.tokenizer(self.data[idx], return_tensors="pt")
+        input_ids = encodings.input_ids
+        return input_ids
+
+    def collate(self, samples):
+        input_ids = torch.stack(samples, dim=0)[0]
+        padding_mask = input_ids.ne(self.tokenizer.pad_token_id)
+        input = SciTokenIdxAndMask(input_ids, padding_mask)
+        labels = input
+        return SciDataTuple(input, labels)
+
 
 @cli(ScigptConfig)
 def main(args) -> None:
@@ -36,10 +65,14 @@ def main(args) -> None:
         args.valid_data_path is not None and len(args.valid_data_path) > 0
     ), f"valid_dataset is {args.valid_data_path} it should not be None or empty"
 
-    if not args.vocab_size:
-        tokenizer = SFMDecTokenizer.from_pretrained(args.dict_path)
-        args.vocab_size = len(tokenizer)  # now we have new tokens
-        args.pad_token_id = tokenizer.pad_token_id
+    tokenizer = SFMDecTokenizer.from_pretrained(
+        args.dict_path,
+        prot_spm_path="/data/peiran/blob/msralaphilly2/ml-la/shufxi/data/scigpt/ur50bpe/bpe",
+        dna_spm_path="/data/peiran/blob/msralaphilly2/ml-la/shufxi/data/scigpt/dnabpe/bpe",
+        rna_spm_path="/data/peiran/blob/msralaphilly2/ml-la/shufxi/data/scigpt/rnabpe/bpe",
+    )
+    args.vocab_size = len(tokenizer)  # now we have new tokens
+    args.pad_token_id = tokenizer.pad_token_id
 
     config = arg_utils.from_args(args, ScigptConfig)
     config = config_registry.get(config.model_type, scigpt_tiny_config)(config)
@@ -48,12 +81,8 @@ def main(args) -> None:
 
     model = Scigptbio0adaModel(config)
 
-    train_dataset = ProcessedSciDataset(
-        config.train_data_path, args.pad_token_id, config.max_position_embeddings
-    )
-    valid_dataset = ProcessedSciDataset(
-        config.valid_data_path, args.pad_token_id, config.max_position_embeddings
-    )
+    train_dataset = inferdataset(args, tokenizer)
+    valid_dataset = train_dataset
 
     trainer = Trainer(
         config,

@@ -18,8 +18,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=200000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=8000
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
-[ -z "${train_batch_size}" ] && train_batch_size=4
-[ -z "${val_batch_size}" ] && val_batch_size=4
+[ -z "${train_batch_size}" ] && train_batch_size=1
+[ -z "${val_batch_size}" ] && val_batch_size=1
 [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,embed_tokens.weight,head_adapters,emb_adapters"
 [ -z "${learnable_cutoff}" ] && learnable_cutoff=32000
 
@@ -35,13 +35,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${vocab_size}" ] && vocab_size=40014
 [ -z "${pad_token_id}" ] && pad_token_id=32000
 [ -z "${max_position_embeddings}" ] && max_position_embeddings=4096
-[ -z "${train_data_path}" ] && train_data_path='/hai1/shufxi/data/scigpt/v3/train.prot.npy'
-[ -z "${valid_data_path}" ] && valid_data_path='/hai1/shufxi/data/scigpt/v1/valid_sample.npy'
-[ -z "${valid_data_path}" ] && valid_data_path='/hai1/shufxi/data/scigpt/v1/valid_sample.npy'
+[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/msralaphilly2/ml-la/renqian/data/sfm/ur90/valid.uniref90.shuf.10k'
+[ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/msralaphilly2/ml-la/renqian/data/sfm/ur90/valid.uniref90.shuf.10k'
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/hai1/ds_dataset/llama2/llama-2-7b/'
-[ -z "${save_dir}" ] && save_dir='/hai1/shufxi/scigpt/7bv3/stageA_prot'
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
+[ -z "${dict_path}" ] && dict_path='/data/peiran/blob/hai1data/sfm/llama/llama-2-7b/'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/hai1data/sfm/sfmexpresults/peiran/output/stageA_prot_e10_bs512_ada_emb_8xG8H100/global_step5781/'
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerPP"
 
 
@@ -88,16 +87,13 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin --host=${WANDB_BASE_URL} "$WANDB_API_KEY"
-
-
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
   DISTRIBUTED_ARGS=""
 else
   if (( $OMPI_COMM_WORLD_SIZE == 1))
   then
-    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
+    DISTRIBUTED_ARGS="--nproc_per_node 1 \
                       --master_port $MASTER_PORT"
   else
     DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
@@ -110,7 +106,7 @@ fi
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
 set -x
-torchrun $DISTRIBUTED_ARGS sfm/tasks/scigpt/pretrain_scigpt_bio0ada.py \
+CUDA_AVAILABLE_DEVICES=0 torchrun sfm/tasks/scigpt/test_scigpt_bio0ada.py \
       --model_type "$model_type" \
       --vocab_size "$vocab_size" --pad_token_id "$pad_token_id" \
       --max_position_embeddings "$max_position_embeddings" \
@@ -133,9 +129,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/scigpt/pretrain_scigpt_bio0ada.py \
       --save_batch_interval "$save_batch_interval" \
       --log_interval "$log_interval" \
       --strategy "$strategy" \
+      --val_batch_interval 10 \
+      --dict_path "$dict_path" \
       --pipeline_model_parallel_size "$pipeline_model_parallel_size" \
       --pp_partition_layer_name "$pp_partition_layer_name" \
-      --load_ckpt --pretrained_ckpt_path "$loadcheck_path" \
-      --unfreeze_param_list "$unfreeze_param_list" \
-      --learnable_cutoff "$learnable_cutoff" \
-      --ifresume
+      --pretrained_ckpt_path "$loadcheck_path" --load_ckpt

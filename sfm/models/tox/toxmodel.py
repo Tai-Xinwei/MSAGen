@@ -244,10 +244,16 @@ class TOXPDEModel(TOXModel):
             dt = 0.0001
             ang_q = angle_t + dt * z
 
+            # generate a random number for time_pos
+            eps = 1e-5
+            single_random_value = torch.rand(1, device=ang_q.device) * (0.1 - eps) + eps
+            # single_random_value = torch.tensor(0.001, device=device)
+            random_t = single_random_value.expand(ang_q.shape[0])
+
             output_dict_2 = self.net(
                 batched_data,
                 q=ang_q,
-                time_pos=0.001  # set the terminal time to 0.001
+                time_pos=random_t  # set the terminal time to 0.001
                 * torch.ones([ori_angle.shape[0]], device=ori_angle.device),
             )
             # assert torch.allclose(
@@ -271,6 +277,7 @@ class TOXPDEModel(TOXModel):
                     "angle_output1": angle_output1,
                     "angle_output2": angle_output2,
                     "dt": dt,
+                    "vector_z": z,
                 }
             )
 

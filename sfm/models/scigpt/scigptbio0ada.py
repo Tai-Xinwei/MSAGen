@@ -12,7 +12,11 @@ from sfm.criterions.autoregressive import Bio0AutoregressiveCriterion
 from sfm.logging import logger
 from sfm.models.llama2.llama_modules import LlamaDecoderLayerPP, LlamaNorm
 from sfm.models.scigpt.config import ScigptConfig
-from sfm.models.scigpt.modules import AdaLlamaHead, SciGPTBioEmbeddingsPP
+from sfm.models.scigpt.modules import (
+    AdaLlamaHead,
+    Bio0LlamaForCausalLM,
+    SciGPTBioEmbeddingsPP,
+)
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.pipeline_module import SFMPipelineModelMixin
 from sfm.utils import PretrainedLayerSpec
@@ -21,13 +25,16 @@ from sfm.utils.optim.set_lr import DECAY_COSINE_RATE, groupWarmupDecayLR
 
 
 class Scigptbio0adaModel(SFMPipelineModelMixin):
-    def __init__(self, config: ScigptConfig):
+    def __init__(self, config: ScigptConfig, vocab_size: int = 32000):
         super().__init__()
         self.config = config
-        self.loss = Bio0AutoregressiveCriterion(config)
+
         if config.infer:
-            llama_config = LlamaConfig.from_pretrained(config.llm_model_name_or_path)
-            self.decoder = LlamaForCausalLM(llama_config)
+            llama_config = LlamaConfig.from_pretrained(config.dict_path)
+            llama_config.vocab_size = vocab_size
+            self.model = Bio0LlamaForCausalLM(llama_config)
+        else:
+            self.loss = Bio0AutoregressiveCriterion(config)
 
     def to_layers(self):
         layers = []
@@ -131,3 +138,10 @@ class Scigptbio0adaModel(SFMPipelineModelMixin):
             decay_type=DECAY_COSINE_RATE,
         )
         return (optimizer, lr_scheduler)
+
+    def forward(self, input_ids: torch.Tensor, **kwargs):
+        # for infer only
+        if self.config.infer:
+            return self.model(input_ids)
+        else:
+            raise ValueError("forward not implemented for training")

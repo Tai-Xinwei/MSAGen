@@ -481,6 +481,7 @@ class ProteinLMDBDataset(LMDBDataset):
             tokens.insert(0, self.vocab.cls_idx)
         if self.vocab.append_eos:
             tokens.append(self.vocab.eos_idx)
+
         item["aa"] = np.array(tokens, dtype=np.int64)
         item["seq_length"] = len(tokens)
 
@@ -507,6 +508,9 @@ class ProteinLMDBDataset(LMDBDataset):
         pos_noise, ang_noise = noise_registry[self.noise_method](
             item, self.args, seed, self.pos_noise, self.ang_noise
         )
+        item["masked_aa"] = mask_type
+        item["mask_pos"] = mask_pos
+
         item["pos_noise"] = pos_noise
         item["ang_noise"] = ang_noise
 
@@ -524,8 +528,6 @@ class ProteinLMDBDataset(LMDBDataset):
         item["pos_mask"] = np.concatenate(
             [np.zeros((1, 37)), item["pos_mask"], np.zeros((1, 37))], axis=0
         )
-        item["masked_aa"] = np.concatenate([False, mask_type, False], axis=0)
-        item["mask_pos"] = np.concatenate([False, mask_pos, False], axis=0)
 
         # ang_time has same shape as aa, random number with scale of (0, 1]
         ang_t = 1.0 - np.random.rand(1).astype(np.float32)

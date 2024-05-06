@@ -409,12 +409,7 @@ def compute_pde_control_penalty_loss(output, epsilon):
 """ Formula: J_{ISM} = \|s\|^2 + 2\nabla\cdot s where \nabla\cdot s \approx \frac{1}{2k}\mathbb{E}[(s(x+kz)-s(x-kz))\cdot z]"""
 
 
-def compute_terminal_ism_loss(
-    output,
-    output_p,
-    sigma_t=None,
-    k=1e-4,
-):
+def compute_terminal_ism_loss(output, output_p, sigma_t=None, k=1e-4, vector_z=None):
     """
     Computes the partial differential equation (PDE) loss for the given inputs.
 
@@ -428,12 +423,15 @@ def compute_terminal_ism_loss(
         torch.Tensor: The computed PDE ism loss.
 
     """
-    vectors = torch.randn_like(output)
+    # if vector_z is None:
+    # vector_z = torch.randn_like(output)
+    assert vector_z is not None, "vector_z should not be None"
+
     loss = 1 / k * torch.mean(
-        torch.sum((output_p - output) * vectors, dim=(1, 2))
+        torch.sum((output_p - output) * vector_z, dim=(1, 2))
     ) * 2 * sigma_t[0] + torch.mean(torch.sum(output**2, dim=(1, 2)))
 
-    return loss
+    return loss.view(-1)
 
 
 ### Terminal loss for score model ###

@@ -45,8 +45,8 @@ jobs:
   process_count_per_node: 1
   command:
   - export WANDB_TEAM=ai4s-sfm
-  - export wandb_group=psm
-  - export wandb_project=psm_baselines
+  - export wandb_group=psm_dev
+  - export wandb_project=psm_dev
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - mkdir /blob/pfmexp/output
   - mkdir /blob/experiment/psm/psmV0test_0504
