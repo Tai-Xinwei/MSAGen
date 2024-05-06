@@ -481,6 +481,7 @@ class ProteinLMDBDataset(LMDBDataset):
             tokens.insert(0, self.vocab.cls_idx)
         if self.vocab.append_eos:
             tokens.append(self.vocab.eos_idx)
+
         item["aa"] = np.array(tokens, dtype=np.int64)
         item["seq_length"] = len(tokens)
 
@@ -496,9 +497,6 @@ class ProteinLMDBDataset(LMDBDataset):
             item, self.args, seed, self.vocab.mask_idx, self.vocab.standard_toks
         )
 
-        item["masked_aa"] = mask_type
-        item["mask_pos"] = mask_pos
-
         """
         Add noise to the coordinate or angles, manupilate the item['pos']/item['ang']:
         - add noise to the coordinate
@@ -510,6 +508,9 @@ class ProteinLMDBDataset(LMDBDataset):
         pos_noise, ang_noise = noise_registry[self.noise_method](
             item, self.args, seed, self.pos_noise, self.ang_noise
         )
+        item["masked_aa"] = mask_type
+        item["mask_pos"] = mask_pos
+
         item["pos_noise"] = pos_noise
         item["ang_noise"] = ang_noise
 

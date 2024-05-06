@@ -430,73 +430,83 @@ class Mix3DEmbeddingV3(nn.Module):
         self.num_edges = num_edges
         self.num_kernel = num_kernel
         self.embed_dim = embed_dim
+        self.time_embedding_dim = embed_dim
 
-        # inter_dim = embed_dim // 2
-        self.trans_pos = TransNet(3, embed_dim // 2)
-        self.trans_feat = TransNet(embed_dim // 2, embed_dim // 2)
-        self.pos_emb = NonLinear(3, embed_dim // 2)
-        self.angle_emb = NonLinear(3, embed_dim // 2)
+        self.angle_emb = AngleEmb(1, self.time_embedding_dim)
 
         self.time_embedding = TimeStepEncoder(
             t_timesteps,
-            embed_dim,
+            self.time_embedding_dim,
             timestep_emb_type=time_embedding_type,
             mlp=time_embedding_mlp,
+        )
+
+        self.feature_proj = nn.Linear(3 * self.time_embedding_dim, embed_dim)
+        self.cls_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
+        self.eos_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
+        self.unkangle_embedding = nn.Embedding(
+            1, self.time_embedding_dim, padding_idx=None
         )
 
     def forward(
         self,
         pos,
         angle,
-        node_type_edge,
         padding_mask,
         mask_aa,
         mask_pos,
         mask_angle,
+        angle_mask,
         time_pos,
         time_angle,
+        aa_seq,
     ):
-        angle = angle.to(self.trans_pos.layer1.weight.dtype)
-        pos = pos.to(self.trans_pos.layer1.weight.dtype)
+        bs, nnode, _ = angle.shape
+        angle = angle.masked_fill(~angle_mask, 0.0)
+        angle = angle.to(self.angle_emb.layer1.weight.dtype)
+        angle = angle[:, :, :3].reshape(bs, -1, 1)
+        angle_mask = angle_mask[:, :, :3]
 
-        T_mat = self.trans_pos(pos)
-        pos = pos + torch.bmm(pos, T_mat)
-        pos_feat = self.pos_emb(pos)
-        # T_feat = self.trans_feat(pos_feat)
-        # pos_feat = pos_feat + torch.bmm(pos_feat, T_feat)
-
-        # sin_ang = torch.sin(angle)
-        # cos_ang = torch.cos(angle)
-        # angle = torch.cat([sin_ang, cos_ang], dim=-1)
+        cls_mask = (aa_seq == 0).unsqueeze(-1)
+        eos_mask = (aa_seq == 2).unsqueeze(-1)
         angle_feat = self.angle_emb(angle)
+        angle_feat = torch.where(
+            angle_mask.reshape(bs, -1, 1), angle_feat, self.unkangle_embedding.weight
+        )
 
-        node6dfeature = torch.cat([pos_feat, angle_feat], dim=-1)
-        # node6dfeature = angle_feat
+        node6dfeature = angle_feat
 
-        if time_pos is not None and mask_pos is not None:
-            time_embedding_pos = self.time_embedding(time_pos).unsqueeze(1)
-            t0 = torch.zeros_like(time_pos).to(time_pos)
-            t0_emb = self.time_embedding(t0).unsqueeze(1)
-            time_embedding_pos = torch.where(
-                mask_pos.bool(), time_embedding_pos, t0_emb
+        if time_pos is not None and mask_angle is not None:
+            if time_pos.dim() == 2:
+                time_pos = time_pos.unsqueeze(-1).repeat(1, 1, 3)
+            elif time_pos.dim() == 1:
+                time_pos = time_pos.unsqueeze(-1).unsqueeze(-1).repeat(1, nnode, 3)
+
+            t0 = torch.zeros_like(
+                time_pos, dtype=time_pos.dtype, device=time_pos.device
             )
+
+            time_pos = time_pos.masked_fill(~angle_mask, 0.0).view(-1)
+            t0 = t0.masked_fill(~angle_mask, 0.0).view(-1)
+
+            time_embedding_pos = self.time_embedding(time_pos).view(
+                bs, -1, self.time_embedding_dim
+            )
+            t0_emb = self.time_embedding(t0).view(bs, -1, self.time_embedding_dim)
+            t_mask = mask_angle.bool() & (~cls_mask) & (~eos_mask)
+            time_embedding_pos = torch.where(
+                t_mask.repeat(1, 3, 1), time_embedding_pos, t0_emb
+            )
+
             node6dfeature = node6dfeature + time_embedding_pos
 
-        # if time_angle is not None and mask_angle is not None:
-        #     time_embedding_ang = self.time_embedding(time_angle).unsqueeze(1)
-        #     t0 = torch.zeros_like(time_pos).to(time_pos)
-        #     t0_emb = self.time_embedding(t0).unsqueeze(1)
-        #     time_embedding_ang = torch.where(
-        #         mask_angle.bool(), time_embedding_ang, t0_emb
-        #     )
-        #     angle_feat = angle_feat + time_embedding_ang
+        node6dfeature = self.feature_proj(node6dfeature.view(bs, nnode, -1))
 
+        node6dfeature = torch.where(cls_mask, self.cls_embedding.weight, node6dfeature)
+        node6dfeature = torch.where(eos_mask, self.eos_embedding.weight, node6dfeature)
         node6dfeature = node6dfeature.masked_fill(
             padding_mask.unsqueeze(-1).to(torch.bool), 0.0
         )
-
-        # T_mat = self.trans_feat(node6dfeature)
-        # node6dfeature = node6dfeature + torch.bmm(node6dfeature, T_mat)
 
         return node6dfeature, None, None
 

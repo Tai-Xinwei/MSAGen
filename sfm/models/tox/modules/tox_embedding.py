@@ -111,7 +111,7 @@ class TOXmixEmbedding(nn.Module):
         )
 
         self.edge_3d_emb = (
-            Mix3DEmbeddingV2(
+            Mix3DEmbeddingV3(
                 pfm_config,
                 num_edges=pfm_config.num_edges,
                 embed_dim=pfm_config.embedding_dim // 2,

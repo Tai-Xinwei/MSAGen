@@ -1002,12 +1002,12 @@ class DeepSpeedAccelerator(Accelerator):
         # set seed of data sampler
         if isinstance(self.train_data_loader, DeepSpeedDataLoader):
             if hasattr(self.train_data_loader.data_sampler, "seed"):
-                logger.info(f"Setting seed of data loader to {self.args.seed}.")
-                self.train_data_loader.data_sampler.seed = self.args.seed
+                logger.info(f"Setting seed of data loader to {self.args.seed + epoch}.")
+                self.train_data_loader.data_sampler.seed = self.args.seed + epoch
         elif isinstance(self.train_data_loader, DataLoader):
             if hasattr(self.train_data_loader.batch_sampler, "seed"):
-                logger.info(f"Setting seed of data loader to {self.args.seed}.")
-                self.train_data_loader.batch_sampler.seed = self.args.seed
+                logger.info(f"Setting seed of data loader to {self.args.seed + epoch}.")
+                self.train_data_loader.batch_sampler.seed = self.args.seed + epoch
         else:
             raise ValueError(
                 f"Unknown training data loader type {type(self.train_data_loader)}"

@@ -807,9 +807,27 @@ class Trainer(object):
                 return
 
         checkpoint_rng_state = torch.load(rng_file)
-        random.setstate(checkpoint_rng_state["python"])
-        np.random.set_state(checkpoint_rng_state["numpy"])
-        torch.random.set_rng_state(checkpoint_rng_state["cpu"])
+        try:
+            random.setstate(checkpoint_rng_state["python"])
+        except:
+            logger.warning(
+                "Didn't manage to set back the RNG states of the Python random module, this won't yield the same "
+                "results as if the training had not been interrupted."
+            )
+        try:
+            np.random.set_state(checkpoint_rng_state["numpy"])
+        except:
+            logger.warning(
+                "Didn't manage to set back the RNG states of the Numpy random module, this won't yield the same "
+                "results as if the training had not been interrupted."
+            )
+        try:
+            torch.random.set_rng_state(checkpoint_rng_state["cpu"])
+        except:
+            logger.warning(
+                "Didn't manage to set back the RNG states of the CPU, this won't yield the same results as if the "
+                "training had not been interrupted."
+            )
         if torch.cuda.is_available():
             if self.accelerator.world_size > 1:
                 try:
