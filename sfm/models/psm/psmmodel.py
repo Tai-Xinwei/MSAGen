@@ -533,14 +533,24 @@ class PSM(nn.Module):
         self.max_positions = args.max_positions
         self.args = args
 
+        self.psm_config = psm_config
+
         # Implement the embedding
         self.embedding = PSMMixEmbedding(psm_config)
 
-        # Implement the encoder
-        self.encoder = PSMEncoder(args, psm_config)
+        if self.psm_config.arch == "graphormer":
+            # Implement the encoder
+            self.encoder = PSMEncoder(args, psm_config)
 
-        # Implement the decoder
-        self.decoder = EquivariantDecoder(psm_config)
+            # Implement the decoder
+            self.decoder = EquivariantDecoder(psm_config)
+        elif self.psm_config.arch == "geomformer":
+            # Implement the decoder
+            self.decoder = EquivariantDecoder(psm_config)
+        elif self.psm_config.arch == "equiformer_v2":
+            raise NotImplementedError
+        else:
+            raise NotImplementedError
 
         # simple energy, force and noise prediction heads
         self.molecule_energy_head = nn.Sequential(
@@ -565,8 +575,6 @@ class PSM(nn.Module):
 
         # aa mask predict head
         self.aa_mask_head = nn.Linear(psm_config.embedding_dim, 160, bias=False)
-
-        self.psm_config = psm_config
 
     def _set_mask(self, mask_aa, mask_pos, residue_seq):
         """
@@ -614,20 +622,29 @@ class PSM(nn.Module):
             batched_data, time_step, clean_mask, aa_mask
         )
 
-        (
-            encoder_output,
-            pbc_expand_batched,
-        ) = self.encoder(  # CL: expand cell outside encoder?
-            token_embedding.transpose(0, 1), padding_mask, batched_data, token_type
-        )
+        if self.encoder is not None:
+            (
+                encoder_output,
+                pbc_expand_batched,
+            ) = self.encoder(  # CL: expand cell outside encoder?
+                token_embedding.transpose(0, 1), padding_mask, batched_data, token_type
+            )
 
-        decoder_x_output, decoder_vec_output = self.decoder(
-            batched_data,
-            encoder_output,
-            batched_data["pos"],
-            padding_mask,
-            pbc_expand_batched,
-        )
+            decoder_x_output, decoder_vec_output = self.decoder(
+                batched_data,
+                encoder_output,
+                batched_data["pos"],
+                padding_mask,
+                pbc_expand_batched,
+            )
+        else:
+            decoder_x_output, decoder_vec_output = self.decoder(
+                batched_data,
+                token_embedding.transpose(0, 1),
+                batched_data["pos"],
+                padding_mask,
+                pbc_expand_batched=None,
+            )
 
         # atom-wise energy prediction
         molecule_energy = self.molecule_energy_head(decoder_x_output).squeeze(-1)
@@ -663,7 +680,10 @@ class PSM(nn.Module):
         # so use sum reduce
         energy = energy.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
 
-        aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
+        if self.encoder is not None:
+            aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
+        else:
+            aa_logits = self.aa_mask_head(decoder_x_output)
 
         return {
             "energy": energy,
