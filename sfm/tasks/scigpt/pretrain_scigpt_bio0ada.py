@@ -61,7 +61,7 @@ def main(args) -> None:
         train_data=train_dataset,
         valid_data=valid_dataset,
     )
-    trainer.validate()
+    trainer.train()
 
 
 if __name__ == "__main__":
