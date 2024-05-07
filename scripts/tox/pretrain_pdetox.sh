@@ -9,10 +9,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${layers}" ] && layers=12
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
-[ -z "${num_head}" ] && num_head=8
+[ -z "${num_head}" ] && num_head=32
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${max_length}" ] && max_length=1024
+[ -z "${max_length}" ] && max_length=512
 [ -z "${max_tokens}" ] && max_tokens=36000
 
 [ -z "${dropout}" ] && dropout=0.1
@@ -25,7 +25,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_mode}" ] && noise_mode=diff
 [ -z "${lamb_ism}" ] && lamb_ism=0.01
 [ -z "${lamb_pde_q}" ] && lamb_pde_q=0
-[ -z "${lamb_pde_control}" ] && lamb_pde_control=0.001
+[ -z "${lamb_pde_control}" ] && lamb_pde_control=0.000
 [ -z "${diffmode}" ] && diffmode=epsilon
 # [ -z "${seq_masking_method}" ] && seq_masking_method=continuousMask
 [ -z "${seq_masking_method}" ] && seq_masking_method=transformerM
@@ -35,8 +35,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_lr}" ] && max_lr=1e-4
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
-[ -z "${train_batch_size}" ] && train_batch_size=1024
-[ -z "${val_batch_size}" ] && val_batch_size=1024
+[ -z "${train_batch_size}" ] && train_batch_size=256
+[ -z "${val_batch_size}" ] && val_batch_size=256
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
@@ -47,9 +47,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-# [ -z "${data_path}" ] && data_path='/fastdata/peiran/bfm/48organism1m.lmdb/'
+[ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
 # [ -z "${data_path}" ] && data_path='/mnt/protein/48organism1m.lmdb'
-[ -z "${data_path}" ] && data_path='/blob/hai1data/pfm/data/afdb/48organisms-fullatom.lmdb/'
+# [ -z "${data_path}" ] && data_path='/blob/hai1data/pfm/data/afdb/48organisms-fullatom.lmdb/'
 # [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_dist_score/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_dist_score/'
 [ -z "${loadcheck_path}" ] && loadcheck_path='.'
@@ -62,7 +62,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${wandb_group}" ] && wandb_group=tox
 [ -z "${wandb_team}" ] && wandb_team=large-scale-pde
 [ -z "${wandb_project}" ] && wandb_project=SFM_tox
-[ -z "${wandb_key}" ] && wandb_key=local-6f348108426c848ab1138d3ac8cde62eebf503e3 # pisquare
+[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -149,10 +149,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_pdetox.py \
           --dataset_names $dataset_name \
           --data_path $data_path \
           --save_dir $save_dir \
-          --seed 666666 \
+          --seed 666667 \
           --add_3d \
-          --ifstack \
-          --ifresume \
           --diffmode $diffmode \
           --mask_ratio $mask_ratio \
           --noise_scale $noise_scale \
@@ -171,6 +169,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_pdetox.py \
           --gradient_accumulation_steps $gradient_accumulation_steps \
           --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
           --save_batch_interval $save_batch_interval --log_interval $log_interval \
-          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+          --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
+          --finetune_from_checkpoint_dir $save_dir
 
-        # --finetune_from_checkpoint_dir $save_dir \
+          # --finetune_from_checkpoint_dir $save_dir \
+          # --ifstack \
+          # --ifresume \

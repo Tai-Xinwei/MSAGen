@@ -37,7 +37,10 @@ class PSMConfig(GraphormerConfig):
     add_rope: bool = True
     num_residues: int = 32
     max_num_aa: int = 1024
+
+    arch: str = "geomformer"
     encoder_pair_embed_dim: int = 64
+
     task: str = "mae"
     sample_mode: bool = False
 
@@ -75,6 +78,7 @@ class PSMConfig(GraphormerConfig):
 
     # for equivariant part
     equivar_vec_init: VecInitApproach = VecInitApproach.ZERO_CENTERED_POS
+    use_bias: bool = False
 
     # for 2D information
     use_2d_atom_features: bool = False

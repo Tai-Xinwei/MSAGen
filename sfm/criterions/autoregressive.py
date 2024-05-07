@@ -67,7 +67,6 @@ class Bio0AutoregressiveCriterion(nn.Module):
         # Flatten the tokens
         shift_logits = shift_logits.view(-1, self.vocab_size)
         shift_labels = shift_labels.view(-1)
-        # Enable model parallelism
         shift_labels = shift_labels.to(shift_logits.device)
 
         loss = self.cross_entropy(shift_logits, shift_labels)

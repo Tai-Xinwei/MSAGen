@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
+from transformers import LlamaForCausalLM
+from transformers.models.llama.configuration_llama import LlamaConfig
 
 from sfm.models.llama2.llama_modules import LlamaEmbeddingsBase
 from sfm.models.scigpt.config import ScigptConfig
+from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.utils.pipelinemode import pipemode
 
 
@@ -193,3 +196,75 @@ class AdaptorMLP(torch.nn.Module):
         x = self.fc2(x)
         x = self.drop(x)
         return x
+
+
+class Bio0LlamaForCausalLM(LlamaForCausalLM):
+    def __init__(self, config: LlamaConfig):
+        LlamaForCausalLM.__init__(self, config)
+        self.config = config
+        self.emb_adapters = AdaptorMLP(config.hidden_size, config.hidden_size * 3)
+        self.head_adapters = AdaptorMLP(config.hidden_size, config.hidden_size * 3)
+
+    def forward(self, input_ids, llm_mask=None, **kwargs):
+        if input_ids is not None:
+            batch_size, seq_length = input_ids.shape
+        else:
+            raise ValueError("decoder_input_ids cannot be None")
+
+        seq_length_with_past = seq_length
+
+        # device = input_ids.device
+        # position_ids = torch.arange(
+        #     past_key_values_length,
+        #     seq_length + past_key_values_length,
+        #     dtype=torch.long,
+        #     device=device,
+        # )
+        # position_ids = position_ids.unsqueeze(0).view(-1, seq_length)
+        position_ids = None
+
+        adaptor_mask = input_ids > 32000
+        # B, T, hidden_size
+        text_embeds = self.model.embed_tokens(input_ids)
+
+        ada_embeds = self.emb_adapters(text_embeds)
+        text_embeds = torch.where(adaptor_mask.unsqueeze(-1), ada_embeds, text_embeds)
+
+        # attention mask
+        if llm_mask is None:
+            llm_mask = torch.ones(
+                (batch_size, seq_length_with_past),
+                dtype=torch.bool,
+                device=text_embeds.device,
+            )
+
+        hidden_states = self.model(
+            inputs_embeds=text_embeds,
+            attention_mask=llm_mask,
+            position_ids=position_ids,
+            **kwargs,
+        )[0]
+
+        ada_emb = self.head_adapters(hidden_states)
+        special_logits = self.lm_head(ada_emb)
+        lm_logits = self.lm_head(hidden_states)
+
+        return self.compute_loss(lm_logits, special_logits, input_ids)
+
+    def compute_loss(self, lm_logits, special_logits, labels) -> ModelOutput:
+        special_logits_mask = labels > 32000
+        lm_logits = torch.where(
+            special_logits_mask.unsqueeze(-1), special_logits, lm_logits
+        )
+
+        shift_logits = lm_logits[..., :-1, :].contiguous()
+        shift_labels = labels[..., 1:].contiguous()
+
+        # Flatten the tokens
+        shift_logits = shift_logits.view(-1, self.vocab_size)
+        shift_labels = shift_labels.view(-1)
+        shift_labels = shift_labels.to(shift_logits.device)
+
+        loss = torch.nn.CrossEntropyLoss(reduction="mean")(shift_logits, shift_labels)
+
+        return ModelOutput(loss=loss, log_output={}, num_examples=0)

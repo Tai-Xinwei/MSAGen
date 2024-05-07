@@ -81,8 +81,8 @@ class NonLinear(nn.Module):
         super(NonLinear, self).__init__()
         if hidden is None:
             hidden = input
-        self.layer1 = nn.Linear(input, hidden)
-        self.layer2 = nn.Linear(hidden, output_size)
+        self.layer1 = nn.Linear(input, hidden, bias=False)
+        self.layer2 = nn.Linear(hidden, output_size, bias=False)
 
     def forward(self, x):
         x = F.gelu(self.layer1(x))
@@ -98,14 +98,26 @@ class NodeTaskHead(nn.Module):
     ):
         super().__init__()
         self.embed_dim = embed_dim
-        self.q_proj: Callable[[Tensor], Tensor] = nn.Linear(embed_dim, embed_dim)
-        self.k_proj: Callable[[Tensor], Tensor] = nn.Linear(embed_dim, embed_dim)
-        self.v_proj: Callable[[Tensor], Tensor] = nn.Linear(embed_dim, embed_dim)
+        self.q_proj: Callable[[Tensor], Tensor] = nn.Linear(
+            embed_dim, embed_dim, bias=False
+        )
+        self.k_proj: Callable[[Tensor], Tensor] = nn.Linear(
+            embed_dim, embed_dim, bias=False
+        )
+        self.v_proj: Callable[[Tensor], Tensor] = nn.Linear(
+            embed_dim, embed_dim, bias=False
+        )
         self.num_heads = num_heads
         self.scaling = (embed_dim // num_heads) ** -0.5
-        self.force_proj1: Callable[[Tensor], Tensor] = nn.Linear(embed_dim, 1)
-        self.force_proj2: Callable[[Tensor], Tensor] = nn.Linear(embed_dim, 1)
-        self.force_proj3: Callable[[Tensor], Tensor] = nn.Linear(embed_dim, 1)
+        self.force_proj1: Callable[[Tensor], Tensor] = nn.Linear(
+            embed_dim, 1, bias=False
+        )
+        self.force_proj2: Callable[[Tensor], Tensor] = nn.Linear(
+            embed_dim, 1, bias=False
+        )
+        self.force_proj3: Callable[[Tensor], Tensor] = nn.Linear(
+            embed_dim, 1, bias=False
+        )
 
     def forward(
         self,
@@ -167,9 +179,9 @@ class GatedEquivariantBlock(nn.Module):
 
         act_class = act_class_mapping[activation]
         self.update_net = nn.Sequential(
-            nn.Linear(hidden_channels * 2, intermediate_channels),
+            nn.Linear(hidden_channels * 2, intermediate_channels, bias=False),
             act_class(),
-            nn.Linear(intermediate_channels, out_channels * 2),
+            nn.Linear(intermediate_channels, out_channels * 2, bias=False),
         )
 
         self.act = act_class() if scalar_activation else None
@@ -315,7 +327,7 @@ class InvariantAttention(nn.Module):
         self.head_dim = head_dim
         self.num_heads = hidden_channels // head_dim
 
-        self.out_proj = nn.Linear(hidden_channels, hidden_channels, bias=True)
+        self.out_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
 
         self.dropout = dropout
         self.attn_ln = nn.LayerNorm(hidden_channels)
@@ -325,7 +337,7 @@ class InvariantAttention(nn.Module):
 
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        self.out_proj.bias.data.fill_(0)
+        # self.out_proj.bias.data.fill_(0)
 
     def forward(
         self,
@@ -528,9 +540,9 @@ class InvariantSelfAttention(nn.Module):
         super().__init__()
         self.head_dim = head_dim
         self.num_heads = num_heads
-        self.q_proj = nn.Linear(hidden_channels, hidden_channels, bias=True)
-        self.k_proj = nn.Linear(hidden_channels, hidden_channels, bias=True)
-        self.v_proj = nn.Linear(hidden_channels, hidden_channels, bias=True)
+        self.q_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
+        self.k_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
+        self.v_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.invariant_attention = InvariantAttention(
             hidden_channels, head_dim, dropout
         )
@@ -539,11 +551,11 @@ class InvariantSelfAttention(nn.Module):
 
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.q_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        self.q_proj.bias.data.fill_(0)
+        # self.q_proj.bias.data.fill_(0)
         nn.init.xavier_uniform_(self.k_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        self.k_proj.bias.data.fill_(0)
+        # self.k_proj.bias.data.fill_(0)
         nn.init.xavier_uniform_(self.v_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        self.v_proj.bias.data.fill_(0)
+        # self.v_proj.bias.data.fill_(0)
 
     def forward(self, x, attn_bias, mask, pbc_expand_batched: Optional[Dict] = None):
         q = self.q_proj(x)
@@ -593,7 +605,7 @@ class Invariant2EquivariantAttention(nn.Module):
         super().__init__()
         self.head_dim = head_dim
         self.num_heads = num_heads
-        self.q_proj = nn.Linear(hidden_channels, hidden_channels, bias=True)
+        self.q_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.k1_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.k2_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.v1_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
@@ -606,7 +618,7 @@ class Invariant2EquivariantAttention(nn.Module):
 
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.q_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        self.q_proj.bias.data.fill_(0)
+        # self.q_proj.bias.data.fill_(0)
         nn.init.xavier_uniform_(self.k1_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         nn.init.xavier_uniform_(self.k2_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         nn.init.xavier_uniform_(self.v1_proj.weight, gain=1.0 / math.sqrt(d_tilde))
@@ -648,14 +660,14 @@ class Equivariant2InvariantAttention(nn.Module):
         self.K = gbf_args[0]
         self.edge_types = gbf_args[1]
         self.q_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
-        self.k1_proj = nn.Linear(hidden_channels, hidden_channels, bias=True)
-        self.v1_proj = nn.Linear(hidden_channels, hidden_channels, bias=True)
+        self.k1_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
+        self.v1_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         if eQi_choice == "original":
             self.k2_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
             self.v2_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         elif "gbf" in eQi_choice:
             self.gbf = GaussianLayer(self.K, self.edge_types)
-            self.gbf_proj = nn.Linear(self.K, hidden_channels)
+            self.gbf_proj = nn.Linear(self.K, hidden_channels, bias=False)
 
         self.equiariant_attention = EquivariantAttention(
             hidden_channels, head_dim, dropout
@@ -666,10 +678,10 @@ class Equivariant2InvariantAttention(nn.Module):
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.q_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         nn.init.xavier_uniform_(self.k1_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        self.k1_proj.bias.data.fill_(0)
+        # self.k1_proj.bias.data.fill_(0)
         nn.init.xavier_uniform_(self.k2_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         nn.init.xavier_uniform_(self.v1_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        self.v1_proj.bias.data.fill_(0)
+        # self.v1_proj.bias.data.fill_(0)
         nn.init.xavier_uniform_(self.v2_proj.weight, gain=1.0 / math.sqrt(d_tilde))
 
     def forward(
@@ -805,9 +817,9 @@ class EncoderLayer(nn.Module):
         self.equivariant_attn_layer_norm = EquivariantLayerNorm(hidden_channels)
 
         self.activation_fn = gelu
-        self.invariant_fc1 = nn.Linear(hidden_channels, ffn_embedding_dim)
-        self.invariant_fc2 = nn.Linear(ffn_embedding_dim, hidden_channels)
-        self.equivariant_fc1 = nn.Linear(hidden_channels, ffn_embedding_dim)
+        self.invariant_fc1 = nn.Linear(hidden_channels, ffn_embedding_dim, bias=False)
+        self.invariant_fc2 = nn.Linear(ffn_embedding_dim, hidden_channels, bias=False)
+        self.equivariant_fc1 = nn.Linear(hidden_channels, ffn_embedding_dim, bias=False)
         self.equivariant_fc2 = nn.Linear(hidden_channels, ffn_embedding_dim, bias=False)
         self.equivariant_fc3 = nn.Linear(ffn_embedding_dim, hidden_channels, bias=False)
 
@@ -830,15 +842,15 @@ class EncoderLayer(nn.Module):
         nn.init.xavier_uniform_(
             self.invariant_fc1.weight, gain=1.0 / math.sqrt(d_tilde)
         )
-        self.invariant_fc1.bias.data.fill_(0)
+        # self.invariant_fc1.bias.data.fill_(0)
         nn.init.xavier_uniform_(
             self.invariant_fc2.weight, gain=1.0 / math.sqrt(d_tilde)
         )
-        self.invariant_fc2.bias.data.fill_(0)
+        # self.invariant_fc2.bias.data.fill_(0)
         nn.init.xavier_uniform_(
             self.equivariant_fc1.weight, gain=1.0 / math.sqrt(d_tilde)
         )
-        self.equivariant_fc1.bias.data.fill_(0)
+        # self.equivariant_fc1.bias.data.fill_(0)
         nn.init.xavier_uniform_(
             self.equivariant_fc2.weight, gain=1.0 / math.sqrt(d_tilde)
         )
@@ -956,15 +968,18 @@ class GeomFormer(nn.Module):
             )
             self.unified_encoder_layers.append(layer)
 
-        self.unified_gbf_attn_bias = GaussianLayer(num_3d_bias_kernel, num_edges)
-
         self.unified_gbf_pos = NodeGaussianLayer(num_3d_bias_kernel, num_atoms)
 
         self.unified_gbf_vec = GaussianLayer(num_3d_bias_kernel, num_edges)
 
-        self.unified_bias_proj = nn.Linear(num_3d_bias_kernel, num_attention_heads)
+        if self.psm_config.use_bias:
+            self.unified_gbf_attn_bias = GaussianLayer(num_3d_bias_kernel, num_edges)
 
-        self.unified_vec_proj = nn.Linear(num_3d_bias_kernel, embedding_dim)
+            self.unified_bias_proj = nn.Linear(
+                num_3d_bias_kernel, num_attention_heads, bias=False
+            )
+
+        self.unified_vec_proj = nn.Linear(num_3d_bias_kernel, embedding_dim, bias=False)
 
         self.unified_final_equivariant_ln = EquivariantLayerNorm(embedding_dim)
 
@@ -1062,25 +1077,28 @@ class GeomFormer(nn.Module):
         pos_mean_centered_dist = pos.norm(dim=-1)
         pos_mean_centered_unit = pos / (pos_mean_centered_dist.unsqueeze(-1) + 1e-5)
 
-        # attn_bias
-        uni_gbf_feature = self.unified_gbf_attn_bias(dist, node_type_edge)
-        uni_graph_attn_bias = (
-            self.unified_bias_proj(uni_gbf_feature).permute(0, 3, 1, 2).contiguous()
-        )
+        if self.psm_config.use_bias:
+            # attn_bias
+            uni_gbf_feature = self.unified_gbf_attn_bias(dist, node_type_edge)
+            uni_graph_attn_bias = (
+                self.unified_bias_proj(uni_gbf_feature).permute(0, 3, 1, 2).contiguous()
+            )
 
-        if pbc_expand_batched is not None:
-            expand_mask = pbc_expand_batched["expand_mask"]
-            full_mask = torch.cat([padding_mask, expand_mask], dim=-1)
+            if pbc_expand_batched is not None:
+                expand_mask = pbc_expand_batched["expand_mask"]
+                full_mask = torch.cat([padding_mask, expand_mask], dim=-1)
+                uni_graph_attn_bias = uni_graph_attn_bias.masked_fill(
+                    full_mask.unsqueeze(1).unsqueeze(2), float("-inf")
+                )
+            else:
+                uni_graph_attn_bias = uni_graph_attn_bias.masked_fill(
+                    padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
+                )
             uni_graph_attn_bias = uni_graph_attn_bias.masked_fill(
-                full_mask.unsqueeze(1).unsqueeze(2), float("-inf")
+                padding_mask.unsqueeze(1).unsqueeze(-1), 0.0
             )
         else:
-            uni_graph_attn_bias = uni_graph_attn_bias.masked_fill(
-                padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
-            )
-        uni_graph_attn_bias = uni_graph_attn_bias.masked_fill(
-            padding_mask.unsqueeze(1).unsqueeze(-1), 0.0
-        )
+            uni_graph_attn_bias = None
 
         output = x.contiguous().transpose(0, 1)
         output = output.masked_fill(padding_mask.unsqueeze(-1), 0.0)

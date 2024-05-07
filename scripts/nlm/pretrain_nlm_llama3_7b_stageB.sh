@@ -37,7 +37,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_train/train.npy'
 [ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_validation/valid.npy'
 [ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_validation/valid.npy'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageA/global_step3499'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageA/global_step11562'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageB/'
 [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageA/'
 
