@@ -123,7 +123,7 @@ class PSMModel(Model):
         #     batched_data["protein_masked_aa"].unsqueeze(-1).expand_as(masked_pos)
         # )
         masked_protein = (
-            ((token_id > 129) & (token_id < 156))
+            ((token_id > 129) & (token_id < 158))
             .any(dim=-1, keepdim=True)
             .unsqueeze(-1)
             .expand_as(masked_pos)
@@ -537,7 +537,7 @@ class PSM(nn.Module):
 
         # Implement the embedding
         self.embedding = PSMMixEmbedding(psm_config)
-
+        self.encoder = None
         if self.psm_config.arch == "graphormer":
             # Implement the encoder
             self.encoder = PSMEncoder(args, psm_config)
@@ -574,7 +574,11 @@ class PSM(nn.Module):
         self.protein_noise_head = nn.Linear(psm_config.embedding_dim, 1, bias=False)
 
         # aa mask predict head
-        self.aa_mask_head = nn.Linear(psm_config.embedding_dim, 160, bias=False)
+        self.aa_mask_head = nn.Sequential(
+            nn.Linear(psm_config.embedding_dim, psm_config.embedding_dim, bias=False),
+            nn.SiLU(),
+            nn.Linear(psm_config.embedding_dim, 160, bias=False),
+        )
 
     def _set_mask(self, mask_aa, mask_pos, residue_seq):
         """
@@ -621,6 +625,7 @@ class PSM(nn.Module):
         token_embedding, padding_mask, token_type = self.embedding(
             batched_data, time_step, clean_mask, aa_mask
         )
+        batched_data["masked_token_type"] = token_type
 
         if self.encoder is not None:
             (

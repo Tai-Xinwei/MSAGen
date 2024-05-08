@@ -1000,7 +1000,7 @@ class GeomFormer(nn.Module):
         if pbc_expand_batched is not None:
             # use pbc and multi-graph
             node_type_edge = pbc_expand_batched["expand_node_type_edge"]
-            node_type = batched_data["token_id"]
+            node_type = batched_data["masked_token_type"]
             expand_pos = torch.cat([pos, pbc_expand_batched["expand_pos"]], dim=1)
             uni_delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
             n_expand_node = expand_pos.size()[-2]
@@ -1010,10 +1010,10 @@ class GeomFormer(nn.Module):
         else:
             node_type_edge, node_type = (
                 batched_data["node_type_edge"],
-                batched_data["token_id"],
+                batched_data["masked_token_type"],
             )
             if node_type_edge is None:
-                atomic_numbers = batched_data["token_id"]
+                atomic_numbers = batched_data["masked_token_type"]
                 node_type_edge = torch.cat(
                     [
                         atomic_numbers.unsqueeze(-1).repeat(1, 1, n_node).unsqueeze(-1),

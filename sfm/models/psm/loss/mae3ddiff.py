@@ -7,6 +7,7 @@ import torch
 # from sklearn.metrics import roc_auc_score
 import torch.nn as nn
 
+from sfm.logging import logger
 from sfm.models.psm.psm_config import DiffusionTrainingLoss
 
 
@@ -38,7 +39,7 @@ class DiffMAE3dCriterions(nn.Module):
         return energy_loss, num_samples
 
     def _reduce_force_or_noise_loss(self, force_or_noise_loss, sample_mask, token_mask):
-        sample_mask &= token_mask.any(dim=-1)
+        sample_mask = sample_mask & token_mask.any(dim=-1)
         num_samples = torch.sum(sample_mask.long())
         if num_samples > 0:
             force_or_noise_loss = force_or_noise_loss.masked_fill(
@@ -76,7 +77,7 @@ class DiffMAE3dCriterions(nn.Module):
             clean_mask = torch.zeros(
                 n_graphs, dtype=torch.bool, device=energy_label.device
             )
-        padding_mask = atomic_numbers.eq(0)
+        # padding_mask = atomic_numbers.eq(0)
         energy_mask = clean_mask & ~is_protein
         force_mask = clean_mask & is_periodic
 
@@ -147,7 +148,6 @@ class DiffMAE3dCriterions(nn.Module):
 
         # mlm loss
         if aa_mask.any():
-            aa_mask = aa_mask & ~padding_mask
             logits = model_output["aa_logits"][aa_mask]
             aa_mlm_loss = self.aa_mlm_loss(
                 logits,
