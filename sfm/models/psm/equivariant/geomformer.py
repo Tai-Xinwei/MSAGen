@@ -1312,14 +1312,16 @@ class GeomFormer(nn.Module):
         padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
     ):
-        pos = pos.float()
+        pos = pos.to(dtype=x.dtype)
         n_node = pos.shape[1]
         if pbc_expand_batched is not None:
             # use pbc and multi-graph
             node_type_edge = pbc_expand_batched["expand_node_type_edge"]
             node_type = batched_data["masked_token_type"]
             expand_pos = torch.cat([pos, pbc_expand_batched["expand_pos"]], dim=1)
-            uni_delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
+            uni_delta_pos = (pos.unsqueeze(2) - expand_pos.unsqueeze(1)).to(
+                dtype=x.dtype
+            )
             n_expand_node = expand_pos.size()[-2]
             expand_mask = torch.cat(
                 [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
@@ -1342,7 +1344,9 @@ class GeomFormer(nn.Module):
             n_expand_node = n_node
             expand_mask = padding_mask
 
-        dist = uni_delta_pos.norm(dim=-1).view(-1, n_node, n_expand_node)
+        dist = (
+            uni_delta_pos.norm(dim=-1).view(-1, n_node, n_expand_node).to(dtype=x.dtype)
+        )
         uni_delta_pos /= dist.unsqueeze(-1) + 1e-5
 
         if self.psm_config.equivar_vec_init == VecInitApproach.ZERO_CENTERED_POS:
@@ -1370,7 +1374,9 @@ class GeomFormer(nn.Module):
                 -2
             )  # n_graph x n_node x n_expand_node x 3 x num_kernel
             if pbc_expand_batched is not None:
-                local_attention_weight = pbc_expand_batched["local_attention_weight"]
+                local_attention_weight = pbc_expand_batched[
+                    "local_attention_weight"
+                ].to(dtype=x.dtype)
                 if local_attention_weight is not None:
                     vec = (
                         uni_pos_feature
