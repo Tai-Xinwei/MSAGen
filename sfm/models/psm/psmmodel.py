@@ -125,7 +125,7 @@ class PSMModel(Model):
         #     batched_data["protein_masked_aa"].unsqueeze(-1).expand_as(masked_pos)
         # )
         masked_protein = (
-            ((token_id > 129) & (token_id < 156))
+            ((token_id > 129) & (token_id < 158))
             .any(dim=-1, keepdim=True)
             .unsqueeze(-1)
             .expand_as(masked_pos)
@@ -585,7 +585,11 @@ class PSM(nn.Module):
             )
 
         # aa mask predict head
-        self.aa_mask_head = nn.Linear(psm_config.embedding_dim, 160, bias=False)
+        self.aa_mask_head = nn.Sequential(
+            nn.Linear(psm_config.embedding_dim, psm_config.embedding_dim, bias=False),
+            nn.SiLU(),
+            nn.Linear(psm_config.embedding_dim, 160, bias=False),
+        )
 
     def _set_mask(self, mask_aa, mask_pos, residue_seq):
         """
@@ -596,17 +600,17 @@ class PSM(nn.Module):
     def forward(
         self,
         batched_data,
-        perturb=None,
         time_step=None,
         clean_mask=None,
         aa_mask=None,
+        padding_mask=None,
+        perturb=None,
         q=None,  # for computing the score model on the q
         q_0=None,
         delta_tq=None,  # for computing the score model on the q at time_pos + delta_tq
         mask_aa=None,
         mask_pos=None,
         mask_angle=None,
-        padding_mask=None,
         mode_mask=None,
         time_pos=None,
         time_aa=None,
@@ -694,7 +698,10 @@ class PSM(nn.Module):
             # / batched_data["num_atoms"]
         )
 
-        aa_logits = self.aa_mask_head(decoder_x_output.transpose(0, 1))  # @Peiran
+        if self.encoder is not None:
+            aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
+        else:
+            aa_logits = self.aa_mask_head(decoder_x_output)  # @Peiran
 
         return {
             "energy": energy,

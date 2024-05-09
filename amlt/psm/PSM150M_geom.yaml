@@ -7,7 +7,7 @@
 description: PSMV0
 
 env_defaults:
-  NODES: 4
+  NODES: 8
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -18,7 +18,6 @@ env_defaults:
 target:
     service: aml
     name: townsend1
-#     # name: gcrarca100cl1
     # name: sfm-nd96amsra100v4-uksouth
 #     # name: sfm-nc96-westus3
 
@@ -38,7 +37,7 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: psmV0test_0507
+- name: psmV0test_0509
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}
   mpi: true
@@ -49,8 +48,8 @@ jobs:
   - export wandb_project=psm_dev
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - mkdir /blob/pfmexp/output
-  - mkdir /blob/experiment/psm/psmV0test_0507
-  - mkdir /blob/experiment/psm/psmV0test_0507/checkpoints
+  - mkdir /blob/experiment/psm/psmV0test_0509
+  - mkdir /blob/experiment/psm/psmV0test_0509/checkpoints
   - mkdir ./output
   - export path=run.sh
   - export layers=12
@@ -80,17 +79,17 @@ jobs:
   - export val_batch_size=1024
   - export max_tokens=16000
   - export max_length=512
-  - export gradient_accumulation_steps=16
+  - export gradient_accumulation_steps=4
   - export log_interval=100
   - export data_path=/blob/psm/
   - export data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,48organisms-fullatom.lmdb'
   - export dataset_name_list='pm6,mattersim,afdb'
   - export dataset_split_raito='0.9,0.0,0.1'
-  - export loadcheck_path=/blob/experiment/psm/psmV0test_0507/checkpoints
-  - export save_dir=/blob/pfmexp/output/psmV0test_0507/checkpoints
+  - export loadcheck_path=/blob/experiment/psm/psmV0test_0509/checkpoints
+  - export save_dir=/blob/pfmexp/output/psmV0test_0509/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
-  - bash ./scripts/psm/pretrain_psm.sh
+  - bash ./scripts/psm/pretrain_psm_geom.sh
   submit_args:
     container_args:
       shm_size: 1024g

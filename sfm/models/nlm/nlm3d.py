@@ -63,6 +63,17 @@ class NLM3dModel(SFMPipelineModelMixin):
     def to_layers(self):
         pipe_layer = []
 
+        # determine whether checkpoint exit:
+        pretrained_ckpt_path = os.path.join(
+            self.args.pretrained_ckpt_path, "layer_00-model_00-model_states.pt"
+        )
+        if not os.path.exists(pretrained_ckpt_path):
+            prefix1 = "layer_"
+            frefix2 = "-model_00-model_states.pt"
+        else:
+            prefix1 = "layer_"
+            frefix2 = "-model_states.pt"
+
         pipe_layer.extend(
             [
                 PretrainedLayerSpec(
@@ -72,7 +83,7 @@ class NLM3dModel(SFMPipelineModelMixin):
                     new_num_tokens=self.mp_config.vocab_size,
                     load_ckpt=self.args.load_ckpt,
                     pretrained_ckpt_path=os.path.join(
-                        self.args.pretrained_ckpt_path, "layer_00-model_states.pt"
+                        self.args.pretrained_ckpt_path, f"{prefix1}00{frefix2}"
                     ),
                     lora_mode="full",
                     tp_model_size=self.args.tensor_model_parallel_size,
@@ -90,7 +101,7 @@ class NLM3dModel(SFMPipelineModelMixin):
                     load_ckpt=self.args.load_ckpt,
                     pretrained_ckpt_path=os.path.join(
                         self.args.pretrained_ckpt_path,
-                        f"layer_{str(i+1).zfill(2)}-model_states.pt",
+                        f"{prefix1}{str(i+1).zfill(2)}{frefix2}",
                     ),
                     lora_mode="full",
                     tp_model_size=self.args.tensor_model_parallel_size,
@@ -104,7 +115,7 @@ class NLM3dModel(SFMPipelineModelMixin):
                 self.mp_config,
                 load_ckpt=self.args.load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    self.args.pretrained_ckpt_path, "layer_33-model_states.pt"
+                    self.args.pretrained_ckpt_path, f"{prefix1}33{frefix2}"
                 ),
                 lora_mode="full",
                 tp_model_size=self.args.tensor_model_parallel_size,
@@ -119,7 +130,7 @@ class NLM3dModel(SFMPipelineModelMixin):
                 new_num_tokens=self.mp_config.vocab_size,
                 load_ckpt=self.args.load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    self.args.pretrained_ckpt_path, "layer_34-model_states.pt"
+                    self.args.pretrained_ckpt_path, f"{prefix1}34{frefix2}"
                 ),
                 lora_mode="full",
                 tp_model_size=self.args.tensor_model_parallel_size,

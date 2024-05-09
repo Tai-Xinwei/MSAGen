@@ -245,7 +245,7 @@ class TOXPDEModel(TOXModel):
             ang_q = angle_t + dt * z
 
             # generate a random number for time_pos
-            eps = 1e-5
+            eps = 1e-3
             single_random_value = torch.rand(1, device=ang_q.device) * (0.1 - eps) + eps
             # single_random_value = torch.tensor(0.001, device=device)
             random_t = single_random_value.expand(ang_q.shape[0])

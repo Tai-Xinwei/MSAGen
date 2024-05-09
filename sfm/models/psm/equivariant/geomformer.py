@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from sfm.models.psm.psm_config import PSMConfig, VecInitApproach
+from sfm.modules.rotary_embedding import RotaryEmbedding
 
 torch._C._jit_set_profiling_mode(False)
 torch._C._jit_set_profiling_executor(False)
@@ -320,8 +321,15 @@ class EquivariantLayerNorm(nn.Module):
         )
 
 
-class InvariantAttention(nn.Module):
-    def __init__(self, hidden_channels, head_dim, dropout, d_tilde=1):
+class MemEffInvariantAttention(nn.Module):
+    def __init__(
+        self,
+        hidden_channels,
+        head_dim,
+        dropout,
+        d_tilde=1,
+        add_rope=True,
+    ):
         super().__init__()
         self.hidden_channels = hidden_channels
         self.head_dim = head_dim
@@ -334,6 +342,246 @@ class InvariantAttention(nn.Module):
         self.scaling = ((self.head_dim / d_tilde) ** 0.5) / self.head_dim
 
         self.reset_parameters(1)
+
+        self.rot_emb = None
+        if add_rope:
+            self.rot_emb = RotaryEmbedding(dim=self.head_dim)
+
+    def reset_parameters(self, d_tilde):
+        nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+        # self.out_proj.bias.data.fill_(0)
+
+    def forward(
+        self,
+        q,
+        k,
+        v,
+        attn_bias,
+        key_padding_mask,
+        pbc_expand_batched: Optional[Dict] = None,
+    ):
+        if pbc_expand_batched is not None:
+            raise Exception("pbc is not supported in the mem efficient attention")
+        #     outcell_index = (
+        #         pbc_expand_batched["outcell_index"]
+        #         .unsqueeze(-1)
+        #         .repeat(1, 1, k.size()[-1])
+        #     )
+        #     local_attention_weight = pbc_expand_batched["local_attention_weight"]
+        #     expand_k = torch.gather(k, dim=1, index=outcell_index)
+        #     expand_v = torch.gather(v, dim=1, index=outcell_index)
+        #     k = torch.cat([k, expand_k], dim=1)
+        #     v = torch.cat([v, expand_v], dim=1)
+        # else:
+        #     local_attention_weight = None
+
+        bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
+
+        q = (
+            q.reshape(bsz, tgt_len, self.num_heads, self.head_dim)
+            .transpose(1, 2)
+            .reshape(bsz * self.num_heads, tgt_len, self.head_dim)
+        )
+        k = (
+            k.reshape(bsz, src_len, self.num_heads, self.head_dim)
+            .transpose(1, 2)
+            .reshape(bsz * self.num_heads, src_len, self.head_dim)
+        )
+        v = (
+            v.reshape(bsz, src_len, self.num_heads, self.head_dim)
+            .transpose(1, 2)
+            .reshape(bsz * self.num_heads, src_len, self.head_dim)
+        )
+
+        # add rope
+        if self.rot_emb:
+            q, k = self.rot_emb(q, k)
+
+        q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
+        k = k.view(bsz, self.num_heads, src_len, self.head_dim)
+        v = v.view(bsz, self.num_heads, src_len, self.head_dim)
+
+        if key_padding_mask is not None:
+            if key_padding_mask.bool().any():
+                attn_mask = torch.zeros(
+                    (bsz, self.num_heads, tgt_len, src_len),
+                    device=q.device,
+                    dtype=q.dtype,
+                )
+                if attn_bias is not None:
+                    attn_mask += attn_bias.contiguous().view(
+                        bsz, self.num_heads, tgt_len, src_len
+                    )
+                attn_mask = attn_mask.masked_fill(
+                    key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
+                    float("-inf"),
+                )
+            else:
+                attn_mask = None
+                if attn_bias is not None:
+                    attn_mask = attn_bias.contiguous().view(
+                        bsz, self.num_heads, tgt_len, src_len
+                    )
+
+        with torch.backends.cuda.sdp_kernel(
+            enable_math=False, enable_mem_efficient=True, enable_flash=True
+        ):
+            attn = torch.nn.functional.scaled_dot_product_attention(
+                q,
+                k,
+                v,
+                dropout_p=self.dropout,
+                attn_mask=attn_mask,
+                is_causal=False,
+            )
+
+        attn = attn.transpose(1, 2).reshape(bsz, tgt_len, self.hidden_channels)
+        attn = self.attn_ln(attn)
+        attn = self.out_proj(attn)
+
+        return attn
+
+
+class MemEffEquivariantAttention(nn.Module):
+    def __init__(
+        self,
+        hidden_channels,
+        head_dim,
+        dropout,
+        d_tilde=1,
+    ):
+        super().__init__()
+        self.hidden_channels = hidden_channels
+        self.head_dim = head_dim
+        self.num_heads = hidden_channels // head_dim
+        self.out_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
+        self.dropout = dropout
+        self.attn_ln = EquivariantLayerNorm(hidden_channels)
+        self.scaling = ((self.head_dim / (d_tilde * 3)) ** 0.5) / self.head_dim
+
+        self.reset_parameters(1)
+
+    def reset_parameters(self, d_tilde):
+        nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
+
+    def forward(
+        self,
+        q,
+        k,
+        v,
+        attn_bias,
+        key_padding_mask,
+        pbc_expand_batched: Optional[Dict] = None,
+    ):
+        if pbc_expand_batched is not None:
+            raise Exception("pbc is not supported in the mem efficient attention")
+        #     outcell_index = (
+        #         pbc_expand_batched["outcell_index"]
+        #         .unsqueeze(-1)
+        #         .unsqueeze(-1)
+        #         .repeat(1, 1, k.size()[-2], k.size()[-1])
+        #     )
+        #     local_attention_weight = pbc_expand_batched["local_attention_weight"]
+        #     expand_k = torch.gather(k, dim=1, index=outcell_index)
+        #     expand_v = torch.gather(v, dim=1, index=outcell_index)
+        #     k = torch.cat([k, expand_k], dim=1)
+        #     v = torch.cat([v, expand_v], dim=1)
+        # else:
+        #     local_attention_weight = None
+
+        bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
+        q = (
+            q.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
+            .permute(0, 3, 1, 2, 4)
+            .reshape(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
+        )
+        k = (
+            k.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
+            .permute(0, 3, 1, 2, 4)
+            .reshape(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
+        )
+        v = (
+            v.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
+            .permute(0, 3, 1, 2, 4)
+            .reshape(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
+        )
+
+        if key_padding_mask is not None:
+            if pbc_expand_batched is not None:
+                expand_mask = pbc_expand_batched["expand_mask"]
+                key_padding_mask = torch.cat([key_padding_mask, expand_mask], dim=-1)
+            if key_padding_mask.bool().any():
+                attn_mask = torch.zeros(
+                    (bsz, self.num_heads, tgt_len, src_len),
+                    device=q.device,
+                    dtype=q.dtype,
+                )
+                if attn_bias is not None:
+                    attn_mask += attn_bias.contiguous().view(
+                        bsz, self.num_heads, tgt_len, src_len
+                    )
+                attn_mask = attn_mask.masked_fill(
+                    key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
+                    float("-inf"),
+                )
+            else:
+                attn_mask = None
+                if attn_bias is not None:
+                    attn_mask = attn_bias.contiguous().view(
+                        bsz, self.num_heads, tgt_len, src_len
+                    )
+
+        with torch.backends.cuda.sdp_kernel(
+            enable_math=False, enable_mem_efficient=True, enable_flash=True
+        ):
+            attn = torch.nn.functional.scaled_dot_product_attention(
+                q,
+                k,
+                v,
+                dropout_p=self.dropout,
+                attn_mask=attn_mask,
+                is_causal=False,
+            )
+
+        attn = (
+            attn.transpose(1, 2)
+            .reshape(bsz, tgt_len, self.num_heads, 3, self.head_dim)
+            .transpose(2, 3)
+            .reshape(bsz, tgt_len, 3, self.hidden_channels)
+        )
+
+        attn = self.attn_ln(attn)
+
+        attn = self.out_proj(attn)
+
+        return attn
+
+
+class InvariantAttention(nn.Module):
+    def __init__(
+        self,
+        hidden_channels,
+        head_dim,
+        dropout,
+        d_tilde=1,
+        add_rope=True,
+    ):
+        super().__init__()
+        self.hidden_channels = hidden_channels
+        self.head_dim = head_dim
+        self.num_heads = hidden_channels // head_dim
+
+        self.out_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
+
+        self.dropout = dropout
+        self.attn_ln = nn.LayerNorm(hidden_channels)
+        self.scaling = ((self.head_dim / d_tilde) ** 0.5) / self.head_dim
+
+        self.reset_parameters(1)
+
+        self.rot_emb = None
+        if add_rope:
+            self.rot_emb = RotaryEmbedding(dim=self.head_dim)
 
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
@@ -366,9 +614,29 @@ class InvariantAttention(nn.Module):
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
 
-        q = q.reshape(bsz, tgt_len, self.num_heads, self.head_dim).transpose(1, 2)
-        k = k.reshape(bsz, src_len, self.num_heads, self.head_dim).transpose(1, 2)
-        v = v.reshape(bsz, src_len, self.num_heads, self.head_dim).transpose(1, 2)
+        q = (
+            q.reshape(bsz, tgt_len, self.num_heads, self.head_dim)
+            .transpose(1, 2)
+            .reshape(bsz * self.num_heads, tgt_len, self.head_dim)
+        )
+        k = (
+            k.reshape(bsz, src_len, self.num_heads, self.head_dim)
+            .transpose(1, 2)
+            .reshape(bsz * self.num_heads, src_len, self.head_dim)
+        )
+        v = (
+            v.reshape(bsz, src_len, self.num_heads, self.head_dim)
+            .transpose(1, 2)
+            .reshape(bsz * self.num_heads, src_len, self.head_dim)
+        )
+
+        # add rope
+        if self.rot_emb:
+            q, k = self.rot_emb(q, k)
+
+        q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
+        k = k.view(bsz, self.num_heads, src_len, self.head_dim)
+        v = v.view(bsz, self.num_heads, src_len, self.head_dim)
 
         # This is part of a workaround to get around fork/join parallelism
         # not supporting Optional types.
@@ -411,6 +679,7 @@ class InvariantAttention(nn.Module):
         )  # (bsz, num_heads, tgt_len, src_len)
 
         attn = attn_probs.matmul(v)  # (bsz, num_heads, tgt_len, head_dim)
+
         attn = attn.transpose(1, 2).reshape(bsz, tgt_len, self.hidden_channels)
         attn = self.attn_ln(attn)
         attn = self.out_proj(attn)
@@ -419,7 +688,13 @@ class InvariantAttention(nn.Module):
 
 
 class EquivariantAttention(nn.Module):
-    def __init__(self, hidden_channels, head_dim, dropout, d_tilde=1):
+    def __init__(
+        self,
+        hidden_channels,
+        head_dim,
+        dropout,
+        d_tilde=1,
+    ):
         super().__init__()
         self.hidden_channels = hidden_channels
         self.head_dim = head_dim
@@ -430,6 +705,8 @@ class EquivariantAttention(nn.Module):
         self.scaling = ((self.head_dim / (d_tilde * 3)) ** 0.5) / self.head_dim
 
         self.reset_parameters(1)
+
+        self.rot_emb = None
 
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
@@ -460,25 +737,21 @@ class EquivariantAttention(nn.Module):
         else:
             local_attention_weight = None
 
-        bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
-
+        bsz, tgt_len, _ = q.shape[0], q.shape[1], k.shape[1]
         q = (
             q.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
-            .transpose(2, 3)
-            .reshape(bsz, tgt_len, self.num_heads, 3 * self.head_dim)
-            .transpose(1, 2)
+            .permute(0, 3, 1, 2, 4)
+            .reshape(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
         )
         k = (
-            k.reshape(bsz, src_len, 3, self.num_heads, self.head_dim)
-            .transpose(2, 3)
-            .reshape(bsz, src_len, self.num_heads, 3 * self.head_dim)
-            .transpose(1, 2)
+            k.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
+            .permute(0, 3, 1, 2, 4)
+            .reshape(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
         )
         v = (
-            v.reshape(bsz, src_len, 3, self.num_heads, self.head_dim)
-            .transpose(2, 3)
-            .reshape(bsz, src_len, self.num_heads, 3 * self.head_dim)
-            .transpose(1, 2)
+            v.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
+            .permute(0, 3, 1, 2, 4)
+            .reshape(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
         )
 
         # This is part of a workaround to get around fork/join parallelism
@@ -522,12 +795,14 @@ class EquivariantAttention(nn.Module):
         )  # (bsz, num_heads, tgt_len, src_len)
 
         attn = attn_probs.matmul(v)  # (bsz, num_heads, tgt_len, 3 * head_dim)
+
         attn = (
             attn.transpose(1, 2)
             .reshape(bsz, tgt_len, self.num_heads, 3, self.head_dim)
             .transpose(2, 3)
             .reshape(bsz, tgt_len, 3, self.hidden_channels)
         )
+
         attn = self.attn_ln(attn)
 
         attn = self.out_proj(attn)
@@ -536,16 +811,23 @@ class EquivariantAttention(nn.Module):
 
 
 class InvariantSelfAttention(nn.Module):
-    def __init__(self, hidden_channels, head_dim, num_heads, dropout, d_tilde=1):
+    def __init__(
+        self, hidden_channels, head_dim, num_heads, dropout, d_tilde=1, memeffattn=True
+    ):
         super().__init__()
         self.head_dim = head_dim
         self.num_heads = num_heads
         self.q_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.k_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.v_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
-        self.invariant_attention = InvariantAttention(
-            hidden_channels, head_dim, dropout
-        )
+        if memeffattn:
+            self.invariant_attention = MemEffInvariantAttention(
+                hidden_channels, head_dim, dropout
+            )
+        else:
+            self.invariant_attention = InvariantAttention(
+                hidden_channels, head_dim, dropout
+            )
 
         self.reset_parameters(1)
 
@@ -570,16 +852,23 @@ class InvariantSelfAttention(nn.Module):
 
 
 class EquivariantSelfAttention(nn.Module):
-    def __init__(self, hidden_channels, head_dim, num_heads, dropout, d_tilde=1):
+    def __init__(
+        self, hidden_channels, head_dim, num_heads, dropout, d_tilde=1, memeffattn=True
+    ):
         super().__init__()
         self.head_dim = head_dim
         self.num_heads = num_heads
         self.q_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.k_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.v_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
-        self.equiariant_attention = EquivariantAttention(
-            hidden_channels, head_dim, dropout
-        )
+        if memeffattn:
+            self.equiariant_attention = EquivariantAttention(
+                hidden_channels, head_dim, dropout
+            )
+        else:
+            self.equiariant_attention = MemEffEquivariantAttention(
+                hidden_channels, head_dim, dropout
+            )
 
         self.reset_parameters(1)
 
@@ -601,7 +890,9 @@ class EquivariantSelfAttention(nn.Module):
 
 
 class Invariant2EquivariantAttention(nn.Module):
-    def __init__(self, hidden_channels, head_dim, num_heads, dropout, d_tilde=1):
+    def __init__(
+        self, hidden_channels, head_dim, num_heads, dropout, d_tilde=1, memeffattn=True
+    ):
         super().__init__()
         self.head_dim = head_dim
         self.num_heads = num_heads
@@ -610,9 +901,14 @@ class Invariant2EquivariantAttention(nn.Module):
         self.k2_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.v1_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.v2_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
-        self.invariant_attention = InvariantAttention(
-            hidden_channels, head_dim, dropout
-        )
+        if memeffattn:
+            self.invariant_attention = MemEffInvariantAttention(
+                hidden_channels, head_dim, dropout
+            )
+        else:
+            self.invariant_attention = InvariantAttention(
+                hidden_channels, head_dim, dropout
+            )
 
         self.reset_parameters(1)
 
@@ -652,6 +948,7 @@ class Equivariant2InvariantAttention(nn.Module):
         eQi_choice,
         gbf_args,
         d_tilde=1,
+        memeffattn=True,
     ):
         super().__init__()
         self.head_dim = head_dim
@@ -669,9 +966,14 @@ class Equivariant2InvariantAttention(nn.Module):
             self.gbf = GaussianLayer(self.K, self.edge_types)
             self.gbf_proj = nn.Linear(self.K, hidden_channels, bias=False)
 
-        self.equiariant_attention = EquivariantAttention(
-            hidden_channels, head_dim, dropout
-        )
+        if memeffattn:
+            self.equiariant_attention = EquivariantAttention(
+                hidden_channels, head_dim, dropout
+            )
+        else:
+            self.equiariant_attention = MemEffEquivariantAttention(
+                hidden_channels, head_dim, dropout
+            )
 
         self.reset_parameters(1)
 
@@ -786,6 +1088,7 @@ class EncoderLayer(nn.Module):
         gbf_args=None,
         layer_index=0,
         d_tilde=1,
+        memeffattn=False,
     ):
         super().__init__()
 
@@ -795,14 +1098,26 @@ class EncoderLayer(nn.Module):
 
         if self.layer_index % 2 == 0:
             self.invariant_self_attention = InvariantSelfAttention(
-                hidden_channels, head_dim, num_heads, dropout=attention_dropout
+                hidden_channels,
+                head_dim,
+                num_heads,
+                dropout=attention_dropout,
+                memeffattn=memeffattn,
             )
             self.equivariant_self_attention = EquivariantSelfAttention(
-                hidden_channels, head_dim, num_heads, dropout=attention_dropout
+                hidden_channels,
+                head_dim,
+                num_heads,
+                dropout=attention_dropout,
+                memeffattn=memeffattn,
             )
         else:
             self.invariant2equivariant_attention = Invariant2EquivariantAttention(
-                hidden_channels, head_dim, num_heads, dropout=attention_dropout
+                hidden_channels,
+                head_dim,
+                num_heads,
+                dropout=attention_dropout,
+                memeffattn=memeffattn,
             )
             self.equivaiant2invariant_attention = Equivariant2InvariantAttention(
                 hidden_channels,
@@ -811,6 +1126,7 @@ class EncoderLayer(nn.Module):
                 dropout=attention_dropout,
                 eQi_choice=eQi_choice,
                 gbf_args=gbf_args,
+                memeffattn=memeffattn,
             )
 
         self.invariant_attn_layer_norm = nn.LayerNorm(hidden_channels)
@@ -965,6 +1281,7 @@ class GeomFormer(nn.Module):
                 eQi_choice="original",
                 gbf_args=[num_3d_bias_kernel, num_edges],
                 layer_index=_,
+                memeffattn=False,
             )
             self.unified_encoder_layers.append(layer)
 
@@ -995,14 +1312,16 @@ class GeomFormer(nn.Module):
         padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
     ):
-        pos = pos.float()
+        pos = pos.to(dtype=x.dtype)
         n_node = pos.shape[1]
         if pbc_expand_batched is not None:
             # use pbc and multi-graph
             node_type_edge = pbc_expand_batched["expand_node_type_edge"]
-            node_type = batched_data["token_id"]
+            node_type = batched_data["masked_token_type"]
             expand_pos = torch.cat([pos, pbc_expand_batched["expand_pos"]], dim=1)
-            uni_delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
+            uni_delta_pos = (pos.unsqueeze(2) - expand_pos.unsqueeze(1)).to(
+                dtype=x.dtype
+            )
             n_expand_node = expand_pos.size()[-2]
             expand_mask = torch.cat(
                 [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
@@ -1010,10 +1329,10 @@ class GeomFormer(nn.Module):
         else:
             node_type_edge, node_type = (
                 batched_data["node_type_edge"],
-                batched_data["token_id"],
+                batched_data["masked_token_type"],
             )
             if node_type_edge is None:
-                atomic_numbers = batched_data["token_id"]
+                atomic_numbers = batched_data["masked_token_type"]
                 node_type_edge = torch.cat(
                     [
                         atomic_numbers.unsqueeze(-1).repeat(1, 1, n_node).unsqueeze(-1),
@@ -1025,7 +1344,9 @@ class GeomFormer(nn.Module):
             n_expand_node = n_node
             expand_mask = padding_mask
 
-        dist = uni_delta_pos.norm(dim=-1).view(-1, n_node, n_expand_node)
+        dist = (
+            uni_delta_pos.norm(dim=-1).view(-1, n_node, n_expand_node).to(dtype=x.dtype)
+        )
         uni_delta_pos /= dist.unsqueeze(-1) + 1e-5
 
         if self.psm_config.equivar_vec_init == VecInitApproach.ZERO_CENTERED_POS:
@@ -1053,7 +1374,9 @@ class GeomFormer(nn.Module):
                 -2
             )  # n_graph x n_node x n_expand_node x 3 x num_kernel
             if pbc_expand_batched is not None:
-                local_attention_weight = pbc_expand_batched["local_attention_weight"]
+                local_attention_weight = pbc_expand_batched[
+                    "local_attention_weight"
+                ].to(dtype=x.dtype)
                 if local_attention_weight is not None:
                     vec = (
                         uni_pos_feature
