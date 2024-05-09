@@ -600,17 +600,17 @@ class PSM(nn.Module):
     def forward(
         self,
         batched_data,
-        perturb=None,
         time_step=None,
         clean_mask=None,
         aa_mask=None,
+        padding_mask=None,
+        perturb=None,
         q=None,  # for computing the score model on the q
         q_0=None,
         delta_tq=None,  # for computing the score model on the q at time_pos + delta_tq
         mask_aa=None,
         mask_pos=None,
         mask_angle=None,
-        padding_mask=None,
         mode_mask=None,
         time_pos=None,
         time_aa=None,

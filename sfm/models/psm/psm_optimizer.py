@@ -1,12 +1,28 @@
 # -*- coding: utf-8 -*-
 # Copyright 2022 Microsoft Corporation.
 import math
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from deepspeed.runtime.lr_schedules import WarmupLR
 from torch.optim import Optimizer
 
+from sfm.logging import logger
+
+try:
+    from apex.optimizers import FusedAdam
+
+    logger.info("Using apex FusedAdam.")
+    USE_APEX_FUSED_ADAM = True
+except:
+    from torch.optim.adamw import AdamW
+
+    logger.info("Using torch AdamW.")
+    USE_APEX_FUSED_ADAM = False
+
+import torch
+
 from sfm.logging.loggers import logger
+from sfm.pipeline.accelerator.dataclasses import TrainStrategy
 
 from torch.optim import Adam  # isort:skip
 
@@ -169,3 +185,200 @@ class groupWarmupDecayLR(WarmupLR):
                         / float(max(1.0, self.total_num_steps - self.warmup_num_steps))
                     )
                 )
+
+
+class WarmupDecayLR(groupWarmupDecayLR):
+    def step(self, last_batch_iteration=None):
+        if last_batch_iteration is None:
+            last_batch_iteration = self.last_batch_iteration + 1
+        self.last_batch_iteration = last_batch_iteration
+        for param_group, lr in zip(self.optimizer.param_groups, self.get_lr()):
+            param_group["lr"] = lr
+
+        self._last_lr = [group["lr"] for group in self.optimizer.param_groups]
+
+
+if USE_APEX_FUSED_ADAM:
+
+    class AdamFP16(FusedAdam):
+        def __init__(
+            self,
+            params,
+            distributed_strategy: TrainStrategy,
+            lr=1e-3,
+            bias_correction=True,
+            betas=(0.9, 0.999),
+            eps=1e-8,
+            adam_w_mode=True,
+            weight_decay=0.0,
+            amsgrad=False,
+            set_grad_none=True,
+        ):
+            # we need a master copy of fp32 model weights for stability training with FP16
+            super().__init__(
+                params,
+                lr,
+                bias_correction,
+                betas,
+                eps,
+                adam_w_mode,
+                weight_decay,
+                amsgrad,
+                set_grad_none,
+                capturable=True,
+                master_weights=True,
+            )
+            self.moved_master_param = False
+            self.distributed_strategy = distributed_strategy
+            if self.distributed_strategy not in [
+                TrainStrategy.Zero1,
+                TrainStrategy.DDP,
+                TrainStrategy.Single,
+            ]:
+                raise ValueError(
+                    f"FP16 with FusedAdam is currently not supported with distributed_strategy {self.distributed_strategy}."
+                )
+
+        def step(
+            self,
+            closure=None,
+            grads=None,
+            output_params=None,
+            scale=None,
+            grad_norms=None,
+            grad_scaler=None,
+        ):
+            if not self.moved_master_param:
+                # re-create full precision master weights when using Zero
+                if self.distributed_strategy == TrainStrategy.Zero1:
+                    self.param_groups_master = []
+                    for i, pg in enumerate(self.param_groups):
+                        param_list = pg["params"]
+                        self.param_groups_master.append(
+                            {
+                                "params": [
+                                    p.clone().detach().float()
+                                    if self.master_weights
+                                    else None
+                                    for p in param_list
+                                ],
+                            }
+                        )
+
+                for group, group_master in zip(
+                    self.param_groups, self.param_groups_master
+                ):
+                    if len(group["params"]) == 0:
+                        continue
+                    for i, (p, p_master) in enumerate(
+                        zip(group["params"], group_master["params"])
+                    ):
+                        group_master["params"][i] = p_master.to(device=p.device)
+                torch.cuda.empty_cache()
+                self.moved_master_param = True
+
+            for group in self.param_groups:
+                if isinstance(group["lr"], float):
+                    device = group["params"][0].device
+                    group["lr"] = torch.tensor(
+                        group["lr"], dtype=torch.float32, device=device
+                    )
+
+            return super().step(
+                closure, grads, output_params, scale, grad_norms, grad_scaler
+            )
+
+        def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
+            super().load_state_dict(state_dict)
+            for group, group_master in zip(self.param_groups, self.param_groups_master):
+                if len(group["params"]) == 0:
+                    continue
+                for i, p in enumerate(group["params"]):
+                    group_master["params"][i] = p.clone().detach().float()
+
+else:
+
+    class AdamFP16(AdamW):
+        def __init__(
+            self,
+            params,
+            distributed_strategy: TrainStrategy,
+            lr=1e-3,
+            betas=(0.9, 0.999),
+            eps=1e-8,
+            weight_decay=1e-2,
+            amsgrad=False,
+            *,
+            maximize: bool = False,
+            foreach: Optional[bool] = None,
+            capturable: bool = False,
+            differentiable: bool = False,
+            fused: Optional[bool] = None,
+        ) -> None:
+            super().__init__(
+                params,
+                lr,
+                betas,
+                eps,
+                weight_decay,
+                amsgrad,
+                foreach=foreach,
+                maximize=maximize,
+                capturable=capturable,
+                differentiable=differentiable,
+                fused=fused,
+            )
+            self.distributed_strategy = distributed_strategy
+
+        def _init_group(
+            self,
+            group,
+            params_with_grad,
+            grads,
+            amsgrad,
+            exp_avgs,
+            exp_avg_sqs,
+            max_exp_avg_sqs,
+            state_steps,
+        ):
+            for p in group["params"]:
+                if p.grad is None:
+                    continue
+                params_with_grad.append(p)
+                if p.grad.is_sparse:
+                    raise RuntimeError("AdamW does not support sparse gradients")
+                grads.append(p.grad)
+
+                state = self.state[p]
+
+                # State initialization
+                if len(state) == 0:
+                    state["step"] = (
+                        torch.zeros((1,), dtype=torch.float, device=p.device)
+                        if group["capturable"] or group["fused"]
+                        else torch.tensor(0.0)
+                    )
+                    # Exponential moving average of gradient values
+                    # Use FP32 for optimizer states
+                    state["exp_avg"] = torch.zeros_like(
+                        p, memory_format=torch.preserve_format, dtype=torch.float
+                    )
+                    # Exponential moving average of squared gradient values
+                    # Use FP32 for optimizer states
+                    state["exp_avg_sq"] = torch.zeros_like(
+                        p, memory_format=torch.preserve_format, dtype=torch.float
+                    )
+                    if amsgrad:
+                        # Maintains max of all exp. moving avg. of sq. grad. values
+                        # Use FP32 for optimizer states
+                        state["max_exp_avg_sq"] = torch.zeros_like(
+                            p, memory_format=torch.preserve_format, dtype=torch.float
+                        )
+
+                exp_avgs.append(state["exp_avg"])
+                exp_avg_sqs.append(state["exp_avg_sq"])
+
+                if amsgrad:
+                    max_exp_avg_sqs.append(state["max_exp_avg_sq"])
+
+                state_steps.append(state["step"])

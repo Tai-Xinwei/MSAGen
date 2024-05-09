@@ -21,7 +21,14 @@ from sfm.data.psm_data.unifieddataset import (
 from sfm.logging import logger
 from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions
 from sfm.models.psm.psm_config import PSMConfig
-from sfm.models.psm.psm_optimizer import DECAY_COSINE_RATE, groupWarmupDecayLR, myAdam
+from sfm.models.psm.psm_optimizer import DECAY_COSINE_RATE, WarmupDecayLR
+
+try:
+    from apex.optimizers import FusedAdam as AdamW
+except:
+    from torch.optim.adamw import AdamW
+
+from sfm.models.psm.psm_optimizer import AdamFP16
 from sfm.models.psm.psmmodel import PSMModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 from sfm.pipeline.accelerator.trainer import Trainer
@@ -68,18 +75,28 @@ def main(args: DictConfig) -> None:
 
     valid_data = BatchedDataDataset(args, valid_data, dataset.valid_len)
 
-    ### define psm models here, define the diff loss in DiffMAE3dCriterions
+    # define psm models here, define the diff loss in DiffMAE3dCriterions
     model = PSMModel(args, loss_fn=DiffMAE3dCriterions)
 
     # define optimizer here
-    optimizer = myAdam(
-        model,
-        lr=args.max_lr,
-        betas=[0.9, 0.999],
-        weight_decay=args.weight_decay,
-        eps=1e-8,
-    )
-    lr_scheduler = groupWarmupDecayLR(
+    if args.fp16:
+        optimizer = AdamFP16(
+            model.parameters(),
+            distributed_strategy=args.strategy,
+            lr=args.max_lr,
+            betas=(0.9, 0.999),
+            eps=1e-8,
+            weight_decay=args.weight_decay,
+        )
+    else:
+        optimizer = AdamW(
+            model.parameters(),
+            lr=args.max_lr,
+            betas=(0.9, 0.999),
+            eps=1e-8,
+            weight_decay=args.weight_decay,
+        )
+    lr_scheduler = WarmupDecayLR(
         optimizer,
         total_num_steps=args.total_num_steps,
         warmup_max_lr=args.max_lr,
