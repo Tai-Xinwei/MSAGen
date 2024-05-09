@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from sfm.models.psm.psm_config import PSMConfig, VecInitApproach
+from sfm.modules.rotary_embedding import RotaryEmbedding
 
 torch._C._jit_set_profiling_mode(False)
 torch._C._jit_set_profiling_executor(False)
@@ -321,7 +322,14 @@ class EquivariantLayerNorm(nn.Module):
 
 
 class InvariantAttention(nn.Module):
-    def __init__(self, hidden_channels, head_dim, dropout, d_tilde=1):
+    def __init__(
+        self,
+        hidden_channels,
+        head_dim,
+        dropout,
+        d_tilde=1,
+        add_rope=True,
+    ):
         super().__init__()
         self.hidden_channels = hidden_channels
         self.head_dim = head_dim
@@ -330,10 +338,14 @@ class InvariantAttention(nn.Module):
         self.out_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
 
         self.dropout = dropout
-        self.attn_ln = nn.LayerNorm(hidden_channels)
+        # self.attn_ln = nn.LayerNorm(hidden_channels)
         self.scaling = ((self.head_dim / d_tilde) ** 0.5) / self.head_dim
 
         self.reset_parameters(1)
+
+        self.rot_emb = None
+        if add_rope:
+            self.rot_emb = RotaryEmbedding(dim=self.head_dim)
 
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
@@ -356,80 +368,150 @@ class InvariantAttention(nn.Module):
                 .unsqueeze(-1)
                 .repeat(1, 1, k.size()[-1])
             )
-            local_attention_weight = pbc_expand_batched["local_attention_weight"]
+            pbc_expand_batched["local_attention_weight"]
             expand_k = torch.gather(k, dim=1, index=outcell_index)
             expand_v = torch.gather(v, dim=1, index=outcell_index)
             k = torch.cat([k, expand_k], dim=1)
             v = torch.cat([v, expand_v], dim=1)
         else:
-            local_attention_weight = None
+            pass
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
 
-        q = q.reshape(bsz, tgt_len, self.num_heads, self.head_dim).transpose(1, 2)
-        k = k.reshape(bsz, src_len, self.num_heads, self.head_dim).transpose(1, 2)
-        v = v.reshape(bsz, src_len, self.num_heads, self.head_dim).transpose(1, 2)
-
-        # This is part of a workaround to get around fork/join parallelism
-        # not supporting Optional types.
-        if key_padding_mask is not None and key_padding_mask.dim() == 0:
-            key_padding_mask = None
-
-        attn_weights = q.matmul(
-            k.transpose(-1, -2)
-        )  # (bsz, num_heads, tgt_len, src_len)
-
-        if attn_bias is not None:
-            attn_weights = attn_weights + attn_bias
-
-        if key_padding_mask is not None:
-            if pbc_expand_batched is not None:
-                expand_mask = pbc_expand_batched["expand_mask"]
-                key_padding_mask = torch.cat([key_padding_mask, expand_mask], dim=-1)
-            # don't attend to padding symbols
-            attn_weights = attn_weights.masked_fill(
-                key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
-                float("-inf"),
-            )
-
-        if local_attention_weight is not None:
-            attn_weights = attn_weights.masked_fill(
-                (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
-            )
-
-        attn_probs_float = F.dropout(
-            F.softmax(attn_weights, dim=-1, dtype=torch.float32),
-            self.dropout,
-            training=self.training,
+        q = (
+            q.reshape(bsz, tgt_len, self.num_heads, self.head_dim)
+            .transpose(1, 2)
+            .reshape(bsz * self.num_heads, tgt_len, self.head_dim)
+        )
+        k = (
+            k.reshape(bsz, src_len, self.num_heads, self.head_dim)
+            .transpose(1, 2)
+            .reshape(bsz * self.num_heads, src_len, self.head_dim)
+        )
+        v = (
+            v.reshape(bsz, src_len, self.num_heads, self.head_dim)
+            .transpose(1, 2)
+            .reshape(bsz * self.num_heads, src_len, self.head_dim)
         )
 
-        if local_attention_weight is not None:
-            attn_probs_float = attn_probs_float * local_attention_weight.unsqueeze(1)
+        # add rope
+        if self.rot_emb:
+            q, k = self.rot_emb(q, k)
 
-        attn_probs = attn_probs_float.type_as(
-            attn_weights
-        )  # (bsz, num_heads, tgt_len, src_len)
+        q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
+        k = k.view(bsz, self.num_heads, src_len, self.head_dim)
+        v = v.view(bsz, self.num_heads, src_len, self.head_dim)
 
-        attn = attn_probs.matmul(v)  # (bsz, num_heads, tgt_len, head_dim)
+        # q = q.reshape(bsz, tgt_len, self.num_heads, self.head_dim).transpose(1, 2)
+        # k = k.reshape(bsz, src_len, self.num_heads, self.head_dim).transpose(1, 2)
+        # v = v.reshape(bsz, src_len, self.num_heads, self.head_dim).transpose(1, 2)
+
+        # # This is part of a workaround to get around fork/join parallelism
+        # # not supporting Optional types.
+        # if key_padding_mask is not None and key_padding_mask.dim() == 0:
+        #     key_padding_mask = None
+
+        # attn_weights = q.matmul(
+        #     k.transpose(-1, -2)
+        # )  # (bsz, num_heads, tgt_len, src_len)
+
+        # if attn_bias is not None:
+        #     attn_weights = attn_weights + attn_bias
+
+        # if key_padding_mask is not None:
+        #     if pbc_expand_batched is not None:
+        #         expand_mask = pbc_expand_batched["expand_mask"]
+        #         key_padding_mask = torch.cat([key_padding_mask, expand_mask], dim=-1)
+        #     # don't attend to padding symbols
+        #     attn_weights = attn_weights.masked_fill(
+        #         key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
+        #         float("-inf"),
+        #     )
+
+        # if local_attention_weight is not None:
+        #     attn_weights = attn_weights.masked_fill(
+        #         (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
+        #     )
+
+        # attn_probs_float = F.dropout(
+        #     F.softmax(attn_weights, dim=-1, dtype=torch.float32),
+        #     self.dropout,
+        #     training=self.training,
+        # )
+
+        # if local_attention_weight is not None:
+        #     attn_probs_float = attn_probs_float * local_attention_weight.unsqueeze(1)
+
+        # attn_probs = attn_probs_float.type_as(
+        #     attn_weights
+        # )  # (bsz, num_heads, tgt_len, src_len)
+
+        # attn = attn_probs.matmul(v)  # (bsz, num_heads, tgt_len, head_dim)
+
+        if key_padding_mask is not None:
+            if key_padding_mask.bool().any():
+                attn_mask = torch.zeros(
+                    (bsz, self.num_heads, tgt_len, src_len),
+                    device=q.device,
+                    dtype=q.dtype,
+                )
+                if attn_bias is not None:
+                    attn_mask += attn_bias.contiguous().view(
+                        bsz, self.num_heads, tgt_len, src_len
+                    )
+                attn_mask = attn_mask.masked_fill(
+                    key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
+                    float("-inf"),
+                )
+            else:
+                attn_mask = None
+                if attn_bias is not None:
+                    attn_mask = attn_bias.contiguous().view(
+                        bsz, self.num_heads, tgt_len, src_len
+                    )
+
+        with torch.backends.cuda.sdp_kernel(
+            enable_math=False, enable_mem_efficient=True, enable_flash=True
+        ):
+            attn = torch.nn.functional.scaled_dot_product_attention(
+                q,
+                k,
+                v,
+                dropout_p=self.dropout,
+                attn_mask=attn_mask,
+                is_causal=False,
+            )
+
         attn = attn.transpose(1, 2).reshape(bsz, tgt_len, self.hidden_channels)
-        attn = self.attn_ln(attn)
+        # attn = self.attn_ln(attn)
         attn = self.out_proj(attn)
 
         return attn
 
 
 class EquivariantAttention(nn.Module):
-    def __init__(self, hidden_channels, head_dim, dropout, d_tilde=1):
+    def __init__(
+        self,
+        hidden_channels,
+        head_dim,
+        dropout,
+        d_tilde=1,
+        add_rope=True,
+    ):
         super().__init__()
         self.hidden_channels = hidden_channels
         self.head_dim = head_dim
         self.num_heads = hidden_channels // head_dim
         self.out_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.dropout = dropout
-        self.attn_ln = EquivariantLayerNorm(hidden_channels)
+        # self.attn_ln = EquivariantLayerNorm(hidden_channels)
         self.scaling = ((self.head_dim / (d_tilde * 3)) ** 0.5) / self.head_dim
 
         self.reset_parameters(1)
+
+        self.rot_emb = None
+        if add_rope:
+            self.rot_emb = RotaryEmbedding(dim=self.head_dim * 3)
 
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
@@ -452,83 +534,141 @@ class EquivariantAttention(nn.Module):
                 .unsqueeze(-1)
                 .repeat(1, 1, k.size()[-2], k.size()[-1])
             )
-            local_attention_weight = pbc_expand_batched["local_attention_weight"]
+            pbc_expand_batched["local_attention_weight"]
             expand_k = torch.gather(k, dim=1, index=outcell_index)
             expand_v = torch.gather(v, dim=1, index=outcell_index)
             k = torch.cat([k, expand_k], dim=1)
             v = torch.cat([v, expand_v], dim=1)
         else:
-            local_attention_weight = None
+            pass
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
-
         q = (
             q.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
-            .transpose(2, 3)
-            .reshape(bsz, tgt_len, self.num_heads, 3 * self.head_dim)
-            .transpose(1, 2)
+            .permute(0, 3, 1, 2, 4)
+            .reshape(bsz * self.num_heads, tgt_len, 3 * self.head_dim)
         )
         k = (
-            k.reshape(bsz, src_len, 3, self.num_heads, self.head_dim)
-            .transpose(2, 3)
-            .reshape(bsz, src_len, self.num_heads, 3 * self.head_dim)
-            .transpose(1, 2)
+            k.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
+            .permute(0, 3, 1, 2, 4)
+            .reshape(bsz * self.num_heads, tgt_len, 3 * self.head_dim)
         )
         v = (
-            v.reshape(bsz, src_len, 3, self.num_heads, self.head_dim)
-            .transpose(2, 3)
-            .reshape(bsz, src_len, self.num_heads, 3 * self.head_dim)
-            .transpose(1, 2)
+            v.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
+            .permute(0, 3, 1, 2, 4)
+            .reshape(bsz * self.num_heads, tgt_len, 3 * self.head_dim)
         )
 
-        # This is part of a workaround to get around fork/join parallelism
-        # not supporting Optional types.
-        if key_padding_mask is not None and key_padding_mask.dim() == 0:
-            key_padding_mask = None
+        # add rope
+        if self.rot_emb:
+            q, k = self.rot_emb(q, k)
 
-        attn_weights = q.matmul(
-            k.transpose(-1, -2)
-        )  # (bsz, num_heads, tgt_len, src_len)
+        q = q.view(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
+        k = k.view(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
+        v = v.view(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
 
-        if attn_bias is not None:
-            attn_weights = attn_weights + attn_bias
+        # q = (
+        #     q.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
+        #     .transpose(2, 3)
+        #     .reshape(bsz, tgt_len, self.num_heads, 3 * self.head_dim)
+        #     .transpose(1, 2)
+        # )
+        # k = (
+        #     k.reshape(bsz, src_len, 3, self.num_heads, self.head_dim)
+        #     .transpose(2, 3)
+        #     .reshape(bsz, src_len, self.num_heads, 3 * self.head_dim)
+        #     .transpose(1, 2)
+        # )
+        # v = (
+        #     v.reshape(bsz, src_len, 3, self.num_heads, self.head_dim)
+        #     .transpose(2, 3)
+        #     .reshape(bsz, src_len, self.num_heads, 3 * self.head_dim)
+        #     .transpose(1, 2)
+        # )
+
+        # # This is part of a workaround to get around fork/join parallelism
+        # # not supporting Optional types.
+        # if key_padding_mask is not None and key_padding_mask.dim() == 0:
+        #     key_padding_mask = None
+
+        # attn_weights = q.matmul(
+        #     k.transpose(-1, -2)
+        # )  # (bsz, num_heads, tgt_len, src_len)
+
+        # if attn_bias is not None:
+        #     attn_weights = attn_weights + attn_bias
+
+        # if key_padding_mask is not None:
+        #     if pbc_expand_batched is not None:
+        #         expand_mask = pbc_expand_batched["expand_mask"]
+        #         key_padding_mask = torch.cat([key_padding_mask, expand_mask], dim=-1)
+        #     # don't attend to padding symbols
+        #     attn_weights = attn_weights.masked_fill(
+        #         key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
+        #         float("-inf"),
+        #     )
+
+        # if local_attention_weight is not None:
+        #     attn_weights = attn_weights.masked_fill(
+        #         (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
+        #     )
+
+        # attn_probs_float = F.dropout(
+        #     F.softmax(attn_weights, dim=-1, dtype=torch.float32),
+        #     self.dropout,
+        #     self.training,
+        # )
+
+        # if local_attention_weight is not None:
+        #     attn_probs_float = attn_probs_float * local_attention_weight.unsqueeze(1)
+
+        # attn_probs = attn_probs_float.type_as(
+        #     attn_weights
+        # )  # (bsz, num_heads, tgt_len, src_len)
+
+        # attn = attn_probs.matmul(v)  # (bsz, num_heads, tgt_len, 3 * head_dim)
 
         if key_padding_mask is not None:
-            if pbc_expand_batched is not None:
-                expand_mask = pbc_expand_batched["expand_mask"]
-                key_padding_mask = torch.cat([key_padding_mask, expand_mask], dim=-1)
-            # don't attend to padding symbols
-            attn_weights = attn_weights.masked_fill(
-                key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
-                float("-inf"),
+            if key_padding_mask.bool().any():
+                attn_mask = torch.zeros(
+                    (bsz, self.num_heads, tgt_len, src_len),
+                    device=q.device,
+                    dtype=q.dtype,
+                )
+                if attn_bias is not None:
+                    attn_mask += attn_bias.contiguous().view(
+                        bsz, self.num_heads, tgt_len, src_len
+                    )
+                attn_mask = attn_mask.masked_fill(
+                    key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
+                    float("-inf"),
+                )
+            else:
+                attn_mask = None
+                if attn_bias is not None:
+                    attn_mask = attn_bias.contiguous().view(
+                        bsz, self.num_heads, tgt_len, src_len
+                    )
+
+        with torch.backends.cuda.sdp_kernel(
+            enable_math=False, enable_mem_efficient=True, enable_flash=True
+        ):
+            attn = torch.nn.functional.scaled_dot_product_attention(
+                q,
+                k,
+                v,
+                dropout_p=self.dropout,
+                attn_mask=attn_mask,
+                is_causal=False,
             )
 
-        if local_attention_weight is not None:
-            attn_weights = attn_weights.masked_fill(
-                (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
-            )
-
-        attn_probs_float = F.dropout(
-            F.softmax(attn_weights, dim=-1, dtype=torch.float32),
-            self.dropout,
-            self.training,
-        )
-
-        if local_attention_weight is not None:
-            attn_probs_float = attn_probs_float * local_attention_weight.unsqueeze(1)
-
-        attn_probs = attn_probs_float.type_as(
-            attn_weights
-        )  # (bsz, num_heads, tgt_len, src_len)
-
-        attn = attn_probs.matmul(v)  # (bsz, num_heads, tgt_len, 3 * head_dim)
         attn = (
             attn.transpose(1, 2)
             .reshape(bsz, tgt_len, self.num_heads, 3, self.head_dim)
             .transpose(2, 3)
             .reshape(bsz, tgt_len, 3, self.hidden_channels)
         )
-        attn = self.attn_ln(attn)
+        # attn = self.attn_ln(attn)
 
         attn = self.out_proj(attn)
 
