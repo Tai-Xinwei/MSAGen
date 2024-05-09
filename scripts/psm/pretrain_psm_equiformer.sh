@@ -7,15 +7,15 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${layers}" ] && layers=12
-[ -z "${hidden_size}" ] && hidden_size=1024
+[ -z "${hidden_size}" ] && hidden_size=256
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=8
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=512
-[ -z "${max_tokens}" ] && max_tokens=2000
-# [ -z "${max_tokens}" ] && max_tokens=36000
+# [ -z "${max_tokens}" ] && max_tokens=24000
+[ -z "${max_tokens}" ] && max_tokens=36000
 
 [ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -33,26 +33,24 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${val_batch_size}" ] && val_batch_size=64
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=100
+[ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
-[ -z "${data_path}" ] && data_path='/data/peiran/'
-# [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,AFDB50-plddt70.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.9,0.0,0.1'
 
+[ -z "${data_path}" ] && data_path="/data/peiran/"
+[ -z "${data_path_list}" ] && data_path_list="pm6_10M_refined4.lmdb,matter-sim-3M,AFDB50-plddt70.lmdb"
+[ -z "${dataset_name_list}" ] && dataset_name_list="pm6,mattersim,afdb"
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.3,0.3'
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
-# [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
@@ -145,15 +143,56 @@ fi
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 #   num_attention_heads=$num_head \
 
+# torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
+#           --config-name=config_psm.yaml \
+#           backbone_config=graphormer \
+#           backbone=graphormer \
+#           encoder_attention_heads=$num_head \
+#           encoder_layers=$layers \
+#           encoder_ffn_embed_dim=$ffn_size \
+#           encoder_embed_dim=$hidden_size \
+#           droppath_prob=$droppath_prob \
+#           attn_dropout=$attn_dropout \
+#           act_dropout=$act_dropout \
+#           dropout=$dropout \
+#           weight_decay=$weight_decay \
+#           sandwich_ln=True \
+#           add_3d=True \
+#           data_path=$data_path \
+#           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
+#           dataset_split_raito=\"$dataset_split_raito\" \
+#           save_dir=$save_dir \
+#           seed=666666 \
+#           ifresume=True \
+#           mask_ratio=$mask_ratio \
+#           noise_scale=$noise_scale \
+#           num_pred_attn_layer=$num_pred_attn_layer \
+#           d_tilde=$d_tilde \
+#           strategy=$strategy \
+#           max_lr=$max_lr \
+#           num_timesteps=1000 \
+#           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
+#           use_2d_atom_features=True use_2d_bond_features=True \
+#           total_num_steps=$total_num_steps \
+#           warmup_num_steps=$warmup_num_steps \
+#           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
+#           gradient_accumulation_steps=$gradient_accumulation_steps \
+#           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
+#           save_batch_interval=$save_batch_interval log_interval=$log_interval \
+#           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
+
+
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
-          backbone_config=graphormer \
-          backbone=graphormer \
-          encoder_attention_heads=$num_head \
-          encoder_layers=$layers \
-          encoder_ffn_embed_dim=$ffn_size \
+          backbone_config=equiformerv2 \
+          backbone=equiformerv2 \
           encoder_embed_dim=$hidden_size \
+          backbone_config.embedding_dim=$hidden_size \
+          backbone_config.order=2 \
+          backbone_config.num_gnn_layers=$layers \
+          backbone_config.max_radius=5 \
           droppath_prob=$droppath_prob \
+          clean_sample_ratio=1.0 \
           attn_dropout=$attn_dropout \
           act_dropout=$act_dropout \
           dropout=$dropout \
@@ -165,7 +204,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
           seed=666666 \
-          ifresume=True \
+          ifresume=False \
           mask_ratio=$mask_ratio \
           noise_scale=$noise_scale \
           num_pred_attn_layer=$num_pred_attn_layer \
@@ -182,11 +221,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
           save_batch_interval=$save_batch_interval log_interval=$log_interval \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
-
-
-          # dynamic_loader --max_tokens=$max_tokens \
-          # --use_2d_atom_features --use_2d_bond_features \
-          # --dynamic_loader --max_tokens $max_tokens \
 
 sleep inf
 sleep inf

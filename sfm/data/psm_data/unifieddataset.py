@@ -14,6 +14,7 @@ from sfm.data.psm_data.dataset import (
     AFDBLMDBDataset,
     MatterSimDataset,
     PM6FullLMDBDataset,
+    SmallMolDataset,
 )
 from sfm.logging import logger
 
@@ -74,8 +75,23 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 train_dataset = MatterSimDataset(data_path, split="train", **kwargs)
                 valid_dataset = MatterSimDataset(data_path, split="valid", **kwargs)
                 len_total = len(train_dataset) + len(valid_dataset)
+            elif dataset_name in [
+                "pubchem5w",
+                "Ac_Ala3_NHMe",
+                "AT_AT",
+                "AT_AT_CG_CG",
+                "DHA",
+                "stachyose",
+                "buckyball_catcher",  # buckyball_catcher/radius3_broadcast_kmeans
+                "double_walled_nanotube",  # double_walled_nanotube/radius3_broadcast_kmeans
+            ]:
+                dataset = SmallMolDataset(
+                    args, data_path, data_name=dataset_name, **kwargs
+                )
+                train_dataset, valid_dataset = dataset.split_dataset()
+                len_total = len(dataset)
             else:
-                raise ValueError(f"Invalid dataset name: {dataset_name}")
+                raise ValueError(f"Invalid dataset name:{dataset_name}")
 
             self.train_dataset_list.append(train_dataset)
             self.valid_dataset_list.append(valid_dataset)

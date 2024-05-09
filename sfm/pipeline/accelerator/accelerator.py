@@ -673,14 +673,11 @@ class DeepSpeedAccelerator(Accelerator):
         return self.optimizer.cur_scale
 
     def set_ds_config(self):
-        if (
-            isinstance(self.args.deepspeed_config, str)
-            and len(self.args.deepspeed_config) > 0
-        ):
+        if self.args.deepspeed_config_path != "":
             import json
 
             try:
-                with open(self.args.deepspeed_config) as deepspeed_config_file:
+                with open(self.args.deepspeed_config_path) as deepspeed_config_file:
                     self.args.deepspeed_config = json.load(deepspeed_config_file)
             except Exception as e:
                 logger.warning(
@@ -689,10 +686,8 @@ class DeepSpeedAccelerator(Accelerator):
                 from sfm.utils.defaultdsconfig import DEFAULT_DS_CONFIG
 
                 self.args.deepspeed_config = DEFAULT_DS_CONFIG
-        elif (
-            isinstance(self.args.deepspeed_config, str)
-            and len(self.args.deepspeed_config) == 0
-        ):
+
+        else:
             from sfm.utils.defaultdsconfig import DEFAULT_DS_CONFIG
 
             self.args.deepspeed_config = DEFAULT_DS_CONFIG
