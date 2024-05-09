@@ -11,6 +11,22 @@ from sfm.utils import arg_utils, dist_utils, env_init
 import wandb  # isort:skip
 
 
+def wandb_init(args):
+    if dist_utils.is_master_node():
+        wandb_api_key = os.getenv("WANDB_API_KEY")
+        if not wandb_api_key:
+            logger.warning("Wandb not configured, logging to console only")
+        # elif args.strategy == "DDP" or args.strategy == "Single":
+        else:
+            wandb.init(
+                project=args.wandb_project,
+                group=args.wandb_group,
+                name=args.wandb_run_name,
+                entity=args.wandb_team,
+                config=args,
+            )
+
+
 def cli(*cfg_classes_and_funcs):
     def decorator(main):
         @wraps(main)

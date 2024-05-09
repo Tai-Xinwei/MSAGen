@@ -38,7 +38,6 @@ class PSMConfig(GraphormerConfig):
     num_residues: int = 32
     max_num_aa: int = 1024
 
-    arch: str = "geomformer"
     encoder_pair_embed_dim: int = 64
 
     task: str = "mae"

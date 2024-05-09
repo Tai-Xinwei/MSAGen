@@ -5,6 +5,9 @@ import numpy as np
 import pyximport
 
 pyximport.install(setup_args={"include_dirs": np.get_include()})
+import bisect
+import copy
+import glob
 import os
 import pickle as pkl
 import random
@@ -16,13 +19,20 @@ import torch
 from numpy import dot
 from numpy.linalg import norm
 from sympy.utilities.iterables import multiset_permutations
+from torch.utils.data import Subset
 from torch_geometric.data import Data
 
 from sfm.data.data_utils import _filter_by_size_dynamic
 from sfm.data.dataset import FoundationModelDataset
 from sfm.data.mol_data import algos
 from sfm.data.prot_data.util import bstr2obj
+from sfm.data.prot_data.vocalubary import Alphabet
 from sfm.data.psm_data.collator import collate_fn
+from sfm.data.psm_data.utils import (
+    get_conv_variable_lin,
+    get_data_defult_config,
+    matrixtoblock_lin,
+)
 from sfm.logging import logger
 
 
@@ -589,6 +599,237 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
     def num_tokens(self, index: int) -> int:
         return self.sizes[index]
+
+
+class SmallMolDataset(FoundationModelDataset):
+    r"""Dataset class to load from LMDB files containing relaxation
+    trajectories or single point computations.
+    Useful for Structure to Energy & Force (S2EF), Initial State to
+    Relaxed State (IS2RS), and Initial State to Relaxed Energy (IS2RE) tasks.
+    Args:
+            @path: the path to store the data
+            @task: the task for the lmdb dataset
+            @split: splitting of the data
+            @transform: some transformation of the data
+    """
+    energy = "energy"
+    forces = "forces"
+
+    def __init__(
+        self,
+        args,
+        path,
+        data_name="pubchem5w",
+        transforms=[],
+        enable_hami=False,
+        remove_init=False,
+        remove_atomref_energy=True,
+        Htoblock_otf=True,  ## on save H matrix, H to block is process in collate unifined for memory saving.
+        basis="def2-tzvp",
+    ):
+        super(SmallMolDataset, self).__init__()
+        if data_name.lower() == "pubchem5w":
+            if basis != "def2-tzvp":
+                raise ValueError(
+                    "sorry, when using pubchem the basis should be def2-tzvp"
+                )
+        self.atom_reference, self.system_ref, _, _, _ = get_data_defult_config(
+            data_name
+        )
+        db_paths = []
+        if isinstance(path, str):
+            if path.endswith("lmdb"):
+                db_paths.append(path)
+            else:
+                db_paths.extend(glob.glob(path + "/*.lmdb"))
+
+        elif isinstance(path, list):
+            for p in path:
+                if p.endswith("lmdb"):
+                    db_paths.append(p)
+                else:
+                    db_paths.extend(glob.glob(p + "/*.lmdb"))
+        # print(db_paths)
+        assert len(db_paths) > 0, f"No LMDBs found in '{self.path}'"
+        self.enable_hami = enable_hami
+        self._keys, self.envs = [], []
+        self.db_paths = sorted(db_paths)
+        print("self.db_paths", self.db_paths)
+        self.open_db()
+        self.transforms = transforms
+        self.remove_init = remove_init
+        self.remove_atomref_energy = remove_atomref_energy
+        self.conv, self.orbitals_ref, self.mask, self.chemical_symbols = (
+            None,
+            None,
+            None,
+            None,
+        )
+        self.Htoblock_otf = Htoblock_otf
+        if self.enable_hami:
+            self.conv, _, self.mask, _ = get_conv_variable_lin(basis)
+
+    def open_db(self):
+        for db_path in self.db_paths:
+            self.envs.append(self.connect_db(db_path))
+            length = pkl.loads(self.envs[-1].begin().get("length".encode("ascii")))
+            self._keys.append(list(range(length)))
+
+        keylens = [len(k) for k in self._keys]
+        self._keylen_cumulative = np.cumsum(keylens).tolist()
+        self.num_samples = sum(keylens)
+
+    def __len__(self):
+        return self.num_samples
+
+    def __getitem__(self, idx):
+        db_idx = bisect.bisect(self._keylen_cumulative, idx)
+        # Extract index of element within that db.
+        el_idx = idx
+        if db_idx != 0:
+            el_idx = idx - self._keylen_cumulative[db_idx - 1]
+        assert el_idx >= 0
+
+        # Return features.
+        datapoint_pickled = (
+            self.envs[db_idx]
+            .begin()
+            .get(f"{self._keys[db_idx][el_idx]}".encode("ascii"))
+        )
+        data_object = pkl.loads(datapoint_pickled)
+        data_object.id = el_idx  # f"{db_idx}_{el_idx}"
+
+        for transform in self.transforms:
+            data_object = transform(data_object)
+
+        out = {}
+        energy = data_object.energy
+        # out["pyscf_energy"] = copy.deepcopy(energy.astype(np.float32))  # this is pyscf energy ground truth
+        if self.remove_atomref_energy:
+            unique, counts = np.unique(
+                data_object.atomic_numbers.numpy(), return_counts=True
+            )
+            energy = energy - np.sum(self.atom_reference[unique] * counts)
+            energy = energy - self.system_ref
+
+        out = {
+            "coords": data_object.pos,
+            "forces": data_object.forces,
+            "num_atoms": data_object.pos.shape[0],
+            "token_type": data_object.atomic_numbers.reshape(-1),
+            "idx": idx,
+            "edge_index": data_object.edge_index,
+            "energy": energy.reshape(
+                -1
+            ),  # this is used from model training, mean/ref is removed.
+        }
+
+        if self.enable_hami:
+            # out.update({"init_fock":data_object.init_fock.astype(np.float32)})
+            if self.remove_init:
+                data_object.fock = data_object.fock - data_object.init_fock
+            if self.Htoblock_otf is True:
+                out.update(
+                    {
+                        "buildblock_mask": self.mask,
+                        "max_block_size": self.conv.max_block_size,
+                        "fock": data_object.fock,
+                    }
+                )
+            else:
+                diag, non_diag, diag_mask, non_diag_mask = None, None, None, None
+                diag, non_diag, diag_mask, non_diag_mask = matrixtoblock_lin(
+                    data_object.fock,
+                    data_object.atomic_numbers,
+                    self.mask,
+                    self.conv.max_block_size,
+                )
+                out.update(
+                    {
+                        "diag_hamiltonian": diag,
+                        "non_diag_hamiltonian": non_diag,
+                        "diag_mask": diag_mask,
+                        "non_diag_mask": non_diag_mask,
+                    }
+                )
+            out.update({"init_fock": data_object.init_fock})
+            out.update({"s1e": data_object.s1e})
+
+        for key in out.keys():
+            if key not in ["num_atoms", "token_type", "idx", "edge_index"]:
+                out[key] = torch.tensor(out[key], dtype=torch.float64)
+
+        out["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+        out["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+        out["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=energy.device)
+
+        out = self.generate_2dgraphfeat(out)
+
+        return out
+
+    def generate_2dgraphfeat(self, data):
+        N = data["num_atoms"]
+        adj = torch.zeros([N, N], dtype=torch.bool)
+
+        edge_index = torch.tensor(data["edge_index"].clone().detach(), dtype=torch.long)
+        edge_attr = torch.ones((data["edge_index"].shape[1], 1), dtype=torch.long)
+        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+        attn_edge_type[edge_index[0, :], edge_index[1, :]] = edge_attr + 1
+        adj[edge_index[0, :], edge_index[1, :]] = True
+        shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+        max_dist = np.amax(shortest_path_result)
+        edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+        spatial_pos = torch.from_numpy((shortest_path_result)).long()
+        indgree = adj.long().sum(dim=1).view(-1)
+
+        data["edge_index"] = edge_index
+        data["edge_attr"] = edge_attr
+        data["node_attr"] = data["token_type"].reshape(N, 1)
+
+        data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
+        data["attn_edge_type"] = attn_edge_type
+        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        data["in_degree"] = indgree
+        data["spatial_pos"] = spatial_pos
+
+        return data
+
+    def connect_db(self, lmdb_path=None):
+        env = lmdb.open(
+            str(lmdb_path),
+            subdir=False,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+            max_readers=32,
+        )
+        return env
+
+    def close_db(self):
+        if not self.path.is_file():
+            for env in self.envs:
+                env.close()
+            self.envs = []
+        else:
+            self.env.close()
+            self.env = None
+
+    def split_dataset(self, validation_ratio=0.03, sort=False):
+        num_samples = self.num_samples
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(666).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        dataset_train = Subset(self, training_indices)
+        dataset_val = Subset(self, validation_indices)
+        return dataset_train, dataset_val
 
 
 @torch.jit.script

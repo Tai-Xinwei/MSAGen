@@ -9,6 +9,7 @@ import torch.nn as nn
 from tqdm import tqdm
 
 from sfm.logging import logger
+from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
@@ -50,6 +51,7 @@ class PSMModel(Model):
         super().__init__()
         if not_init:
             return
+
         self.psm_config = PSMConfig(args)
         self.args = self.psm_config.args
         if args.rank == 0:
@@ -282,9 +284,9 @@ class PSMModel(Model):
         time_step, clean_mask = self.time_step_sampler.sample(
             n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
         )
-        clean_mask &= ~batched_data[
-            "is_protein"
-        ]  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
+        clean_mask = (
+            clean_mask & ~batched_data["is_protein"]
+        )  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
 
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
@@ -538,40 +540,49 @@ class PSM(nn.Module):
         # Implement the embedding
         self.embedding = PSMMixEmbedding(psm_config)
 
-        if self.psm_config.arch == "graphormer":
+        self.encoder = None
+        if args.backbone == "graphormer":
             # Implement the encoder
             self.encoder = PSMEncoder(args, psm_config)
+            # Implement the decoder
+            self.decoder = EquivariantDecoder(psm_config)
+        elif args.backbone == "equiformerv2":
+            args.backbone_config[
+                "embedding_dim"
+            ] = psm_config.encoder_embed_dim  # parameter unified!
 
+            self.decoder = Equiformerv2SO2(**args.backbone_config)
+        elif args.backbone == "geomformer":
             # Implement the decoder
             self.decoder = EquivariantDecoder(psm_config)
-        elif self.psm_config.arch == "geomformer":
-            # Implement the decoder
-            self.decoder = EquivariantDecoder(psm_config)
-        elif self.psm_config.arch == "equiformer_v2":
-            raise NotImplementedError
         else:
             raise NotImplementedError
 
         # simple energy, force and noise prediction heads
-        self.molecule_energy_head = nn.Sequential(
-            nn.Linear(psm_config.embedding_dim, psm_config.embedding_dim, bias=True),
-            nn.SiLU(),
-            nn.Linear(psm_config.embedding_dim, 1, bias=True),
-        )
+        self.energy_head = nn.ModuleDict()
+        self.forces_head = nn.ModuleDict()
+        self.noise_head = nn.ModuleDict()
 
-        self.periodic_energy_head = nn.Sequential(
-            nn.Linear(psm_config.embedding_dim, psm_config.embedding_dim, bias=True),
-            nn.SiLU(),
-            nn.Linear(psm_config.embedding_dim, 1, bias=True),
-        )
-
-        # TODO: more careful prediction head design
-        self.molecule_force_head = nn.Linear(psm_config.embedding_dim, 1, bias=False)
-        self.periodic_force_head = nn.Linear(psm_config.embedding_dim, 1, bias=False)
-
-        self.molecule_noise_head = nn.Linear(psm_config.embedding_dim, 1, bias=False)
-        self.periodic_noise_head = nn.Linear(psm_config.embedding_dim, 1, bias=False)
-        self.protein_noise_head = nn.Linear(psm_config.embedding_dim, 1, bias=False)
+        for key in {"molecule", "periodic", "protein"}:
+            self.energy_head.update(
+                {
+                    key: nn.Sequential(
+                        nn.Linear(
+                            psm_config.embedding_dim,
+                            psm_config.embedding_dim,
+                            bias=True,
+                        ),
+                        nn.SiLU(),
+                        nn.Linear(psm_config.embedding_dim, 1, bias=True),
+                    )
+                }
+            )
+            self.forces_head.update(
+                {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+            )
+            self.noise_head.update(
+                {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+            )
 
         # aa mask predict head
         self.aa_mask_head = nn.Linear(psm_config.embedding_dim, 160, bias=False)
@@ -617,11 +628,16 @@ class PSM(nn.Module):
         is_periodic = batched_data["is_periodic"]
         is_molecule = batched_data["is_molecule"]
         is_protein = batched_data["is_protein"]
-
+        # B , L, H is Batch, Length, Hidden
+        # token_embedding:B*L*H
+        # padding_mask:B*L
+        # token_type:B*L  (0 is used for PADDING)
         token_embedding, padding_mask, token_type = self.embedding(
             batched_data, time_step, clean_mask, aa_mask
         )
-
+        # for invariant model struct, we first used encoder to get invariant feature
+        # then used equivariant decoder to get equivariant output: like force, noise.
+        #
         if self.encoder is not None:
             (
                 encoder_output,
@@ -633,7 +649,6 @@ class PSM(nn.Module):
             decoder_x_output, decoder_vec_output = self.decoder(
                 batched_data,
                 encoder_output,
-                batched_data["pos"],
                 padding_mask,
                 pbc_expand_batched,
             )
@@ -641,34 +656,31 @@ class PSM(nn.Module):
             decoder_x_output, decoder_vec_output = self.decoder(
                 batched_data,
                 token_embedding.transpose(0, 1),
-                batched_data["pos"],
                 padding_mask,
                 pbc_expand_batched=None,
             )
 
-        # atom-wise energy prediction
-        molecule_energy = self.molecule_energy_head(decoder_x_output).squeeze(-1)
-        periodic_energy = self.periodic_energy_head(decoder_x_output).squeeze(-1)
         energy = torch.where(
-            is_periodic.unsqueeze(-1), periodic_energy, molecule_energy
+            is_periodic.unsqueeze(-1),
+            self.energy_head["periodic"](decoder_x_output).squeeze(-1),
+            self.energy_head["molecule"](decoder_x_output).squeeze(-1),
         )
 
-        molecule_force = self.molecule_force_head(decoder_vec_output).squeeze(-1)
-        periodic_force = self.periodic_force_head(decoder_vec_output).squeeze(-1)
         forces = torch.where(
-            is_periodic.unsqueeze(-1).unsqueeze(-1), periodic_force, molecule_force
+            is_periodic.unsqueeze(-1).unsqueeze(-1),
+            self.forces_head["periodic"](decoder_vec_output).squeeze(-1),
+            self.forces_head["molecule"](decoder_vec_output).squeeze(-1),
         )
 
-        molecule_noise_pred = self.molecule_noise_head(decoder_vec_output).squeeze(-1)
-        periodic_noise_pred = self.periodic_noise_head(decoder_vec_output).squeeze(-1)
-        protein_noise_pred = self.protein_noise_head(decoder_vec_output).squeeze(-1)
         noise_pred = torch.where(
             is_periodic.unsqueeze(-1).unsqueeze(-1),
-            periodic_noise_pred,
-            molecule_noise_pred,
+            self.noise_head["periodic"](decoder_vec_output).squeeze(-1),
+            self.noise_head["molecule"](decoder_vec_output).squeeze(-1),
         )
         noise_pred = torch.where(
-            is_protein.unsqueeze(-1).unsqueeze(-1), protein_noise_pred, noise_pred
+            is_protein.unsqueeze(-1).unsqueeze(-1),
+            self.noise_head["protein"](decoder_vec_output).squeeze(-1),
+            noise_pred,
         )
 
         # atom mask to leave out unit cell corners for periodic systems
@@ -676,14 +688,13 @@ class PSM(nn.Module):
             n_nodes, dtype=torch.long, device=energy.device
         ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(-1)
 
-        # all-atom energy prediction, instead of per-atom
-        # so use sum reduce
-        energy = energy.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
+        # per-atom energy prediction
+        energy = (
+            energy.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
+            # / batched_data["num_atoms"]
+        )
 
-        if self.encoder is not None:
-            aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
-        else:
-            aa_logits = self.aa_mask_head(decoder_x_output)
+        aa_logits = self.aa_mask_head(decoder_x_output.transpose(0, 1))  # @Peiran
 
         return {
             "energy": energy,

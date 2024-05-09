@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 
@@ -72,7 +72,8 @@ class DistributedConfig:
     rank: int = 0
     pipeline_model_parallel_size: int = 0
     tensor_model_parallel_size: int = 1
-    deepspeed_config: str = ""
+    deepspeed_config_path: str = ""
+    deepspeed_config: Any = None
     dist_backend: str = "nccl"
 
 
@@ -176,7 +177,7 @@ class TrainerConfig:
     wandb_team: str = ""
     wandb_group: str = ""
     wandb_project: str = ""
-
+    wandb_run_name: str = ""
     # adam
     beta1: float = 0.9
     beta2: float = 0.999
@@ -243,7 +244,8 @@ class DistributedTrainConfig(TrainerConfig):
     rank: int = 0
     pipeline_model_parallel_size: int = 0
     tensor_model_parallel_size: int = 1
-    deepspeed_config: str = ""
+    deepspeed_config_path: str = ""
+    deepspeed_config: Any = None
     dist_backend: str = "nccl"
 
 

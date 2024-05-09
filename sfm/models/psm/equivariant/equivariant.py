@@ -52,10 +52,10 @@ class EquivariantDecoder(nn.Module):
         self,
         batched_data,
         x,
-        pos,
         padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
     ):
+        pos = batched_data["pos"]
         if pbc_expand_batched is None:
             if (
                 "pbc" in batched_data

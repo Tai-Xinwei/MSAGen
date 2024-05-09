@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 
 @dataclass
 class GraphormerConfig:
-    model_type = "graphormer"
+    model_type: str = "graphormer"
     num_classes: int = 1
     encoder_attention_heads: int = 32
     encoder_ffn_embed_dim: int = 768
@@ -47,6 +47,71 @@ class GraphormerConfig:
     noise_mode: str = "const"
     num_edges: int = 1536
     num_atom_features: int = 5120
+    ###########################################################################################
+    ####### THESE are from graphormer_base_architecture, is confict, follow upper default vaule.
+    #
+    #
+    #     dropout: 0.0
+    attention_dropout: float = 0.0
+    #     act_dropout = 0.0
+    #
+    #     encoder_ffn_embed_dim = 4096
+    #     encoder_layers = 6
+    #     encoder_attention_heads = 8
+    #
+    #     encoder_embed_dim = 1024
+    share_encoder_input_output_embed: bool = False
+    encoder_learned_pos: bool = False
+    no_token_positional_embeddings: bool = False
+    num_segments: int = 2
+    #
+    sentence_class_num: int = 2
+    sent_loss: bool = False
+    #
+    apply_bert_init: bool = False
+    #
+    activation_fn: str = "relu"
+    pooler_activation_fn: str = "tanh"
+    encoder_normalize_before: bool = False
+    #
+    #     sandwich_ln = False
+    #     droppath_prob = 0.0
+    #
+    # add
+    atom_loss_coeff: float = 1.0
+    pos_loss_coeff: float = 1.0
+    y_2d_loss_coeff: float = 1.0
+    #
+    max_positions: int = 512
+    num_atoms: int = 512 * 9
+    #     num_edges = 512 * 3
+    num_in_degree: int = 512
+    num_out_degree: int = 512
+    num_spatial: int = 512
+    num_edge_dis: int = 128
+    #     multi_hop_max_dist:int = 5
+    edge_type: str = "multi_hop"
+    #
+    layerdrop: float = 0.0
+    apply_graphormer_init: bool = True
+    pre_layernorm: bool = False
+    #
+    #
+    #
+    #     encoder_layers = 12
+    #     encoder_attention_heads = 12
+    #     encoder_ffn_embed_dim = 768
+    #     encoder_embed_dim = 768
+    #     dropout = 0.0
+    #     attention_dropout = 0.0
+    #     act_dropout = 0.0
+    #     activation_fn ="gelu"
+    #     encoder_normalize_before = True
+    #     share_encoder_input_output_embed = False
+    #     no_token_positional_embeddings = False
+    #
+    #
+    #
 
     def __init__(
         self,
