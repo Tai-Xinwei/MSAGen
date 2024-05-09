@@ -698,7 +698,10 @@ class PSM(nn.Module):
             # / batched_data["num_atoms"]
         )
 
-        aa_logits = self.aa_mask_head(decoder_x_output.transpose(0, 1))  # @Peiran
+        if self.encoder is not None:
+            aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
+        else:
+            aa_logits = self.aa_mask_head(decoder_x_output)  # @Peiran
 
         return {
             "energy": energy,

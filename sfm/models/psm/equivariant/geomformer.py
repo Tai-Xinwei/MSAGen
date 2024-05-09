@@ -1281,7 +1281,7 @@ class GeomFormer(nn.Module):
                 eQi_choice="original",
                 gbf_args=[num_3d_bias_kernel, num_edges],
                 layer_index=_,
-                memeffattn=True,
+                memeffattn=False,
             )
             self.unified_encoder_layers.append(layer)
 

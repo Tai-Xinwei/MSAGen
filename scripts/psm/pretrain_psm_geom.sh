@@ -145,37 +145,42 @@ fi
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
-        --encoder_attention_heads $num_head \
-        --encoder_layers $layers \
-        --encoder_ffn_embed_dim $ffn_size \
-        --encoder_embed_dim $hidden_size \
-        --droppath_prob $droppath_prob \
-        --attn_dropout $attn_dropout \
-        --act_dropout $act_dropout --dropout $dropout --weight_decay $weight_decay \
-        --sandwich_ln \
-        --dataset_names $dataset_name \
-        --data_path $data_path \
-        --data_path_list $data_path_list --dataset_name_list $dataset_name_list \
-        --dataset_split_raito $dataset_split_raito \
-        --save_dir $save_dir \
-        --seed 666666 \
-        --add_3d \
-        --mask_ratio $mask_ratio \
-        --noise_scale $noise_scale \
-        --num_pred_attn_layer $num_pred_attn_layer \
-        --d_tilde $d_tilde \
-        --strategy $strategy \
-        --max_lr $max_lr \
-        --num_timesteps 1000 \
-        --mode_prob $mode_prob --noise_mode $noise_mode\
-        --use_2d_atom_features --use_2d_bond_features \
-        --total_num_steps $total_num_steps \
-        --warmup_num_steps $warmup_num_steps \
-        --train_batch_size $train_batch_size --val_batch_size $val_batch_size --max_length $max_length \
-        --gradient_accumulation_steps $gradient_accumulation_steps \
-        --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
-        --save_batch_interval $save_batch_interval --log_interval $log_interval \
-        --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project
+          --config-name=config_psm.yaml \
+          backbone_config=graphormer \
+          backbone=geomformer \
+          encoder_attention_heads=$num_head \
+          encoder_layers=$layers \
+          encoder_ffn_embed_dim=$ffn_size \
+          encoder_embed_dim=$hidden_size \
+          droppath_prob=$droppath_prob \
+          attn_dropout=$attn_dropout \
+          act_dropout=$act_dropout \
+          dropout=$dropout \
+          weight_decay=$weight_decay \
+          sandwich_ln=True \
+          add_3d=True \
+          data_path=$data_path \
+          data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
+          dataset_split_raito=\"$dataset_split_raito\" \
+          save_dir=$save_dir \
+          seed=666666 \
+          ifresume=True \
+          mask_ratio=$mask_ratio \
+          noise_scale=$noise_scale \
+          num_pred_attn_layer=$num_pred_attn_layer \
+          d_tilde=$d_tilde \
+          strategy=$strategy \
+          max_lr=$max_lr \
+          num_timesteps=1000 \
+          mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
+          use_2d_atom_features=True use_2d_bond_features=True \
+          total_num_steps=$total_num_steps \
+          warmup_num_steps=$warmup_num_steps \
+          train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
+          gradient_accumulation_steps=$gradient_accumulation_steps \
+          save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
+          save_batch_interval=$save_batch_interval log_interval=$log_interval \
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
 
           # --ifstack \
           # --use_2d_atom_features --use_2d_bond_features \
