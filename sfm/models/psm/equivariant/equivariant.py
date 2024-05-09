@@ -64,7 +64,7 @@ class EquivariantDecoder(nn.Module):
             ):
                 pos = batched_data["pos"]
                 pbc = batched_data["pbc"]
-                atoms = batched_data["token_id"]
+                atoms = batched_data["masked_token_type"]
                 cell = batched_data["cell"]
                 pbc_expand_batched = self.cell_expander.expand(
                     pos, pbc, atoms, cell, self.psm_config.pbc_use_local_attention

@@ -7,6 +7,7 @@ import torch
 # from sklearn.metrics import roc_auc_score
 import torch.nn as nn
 
+from sfm.logging import logger
 from sfm.models.psm.psm_config import DiffusionTrainingLoss
 
 
@@ -76,7 +77,7 @@ class DiffMAE3dCriterions(nn.Module):
             clean_mask = torch.zeros(
                 n_graphs, dtype=torch.bool, device=energy_label.device
             )
-        padding_mask = atomic_numbers.eq(0)
+        # padding_mask = atomic_numbers.eq(0)
         energy_mask = clean_mask & ~is_protein
         force_mask = clean_mask & is_periodic
 
@@ -147,7 +148,6 @@ class DiffMAE3dCriterions(nn.Module):
 
         # mlm loss
         if aa_mask.any():
-            aa_mask = aa_mask & ~padding_mask
             logits = model_output["aa_logits"][aa_mask]
             aa_mlm_loss = self.aa_mlm_loss(
                 logits,
@@ -170,6 +170,7 @@ class DiffMAE3dCriterions(nn.Module):
             num_aa_mask_token = 0.0
 
         loss = energy_loss + force_loss + noise_loss + aa_mlm_loss
+        # loss = force_loss + noise_loss + aa_mlm_loss
 
         # for loss exist in every sample of the batch, no extra number of samples are recorded (will use batch size in loss reduction)
         # for loss does not exist in every example of the batch, use a tuple, where the first element is the averaged loss value

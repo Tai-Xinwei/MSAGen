@@ -21,6 +21,7 @@ SFM.egg-info/
 wandb/
 output/
 prof/
+outputs/
 
 *.py[cod]
 *$py.class

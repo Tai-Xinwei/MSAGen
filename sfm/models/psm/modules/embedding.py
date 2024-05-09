@@ -66,6 +66,7 @@ class PSMMixEmbedding(nn.Module):
         else:
             mask_token_type = token_id
 
+        batched_data["masked_token_type"] = mask_token_type
         x = self.embed(mask_token_type)
 
         if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
