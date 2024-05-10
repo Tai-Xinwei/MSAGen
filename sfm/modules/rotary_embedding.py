@@ -10,10 +10,18 @@ def rotate_half(x):
 
 
 def apply_rotary_pos_emb(x, cos, sin):
-    cos = cos[:, : x.shape[-2], :]
-    sin = sin[:, : x.shape[-2], :]
+    if len(x.shape) == 3:
+        cos = cos[:, : x.shape[-2], :]
+        sin = sin[:, : x.shape[-2], :]
 
-    return (x * cos) + (rotate_half(x) * sin)
+        return (x * cos) + (rotate_half(x) * sin)
+    elif len(x.shape) == 4:
+        cos = cos[:, None, : x.shape[-2], :]
+        sin = sin[:, None, : x.shape[-2], :]
+
+        return (x * cos) + (rotate_half(x) * sin)
+    else:
+        raise ValueError
 
 
 class RotaryEmbedding(torch.nn.Module):
@@ -153,6 +161,5 @@ class RotaryEmbedding2(torch.nn.Module):
             emb = torch.cat((freqs, freqs), dim=-1)
             cos = emb.cos()
             sin = emb.sin()
-        # return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)
 
         return self.apply_rotary_pos_emb(q, k, cos, sin)

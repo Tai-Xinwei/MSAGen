@@ -737,6 +737,7 @@ class NodeTaskHead(nn.Module):
         self,
         query: Tensor,
         delta_pos: Tensor,
+        attn_mask: Tensor,
     ) -> Tensor:
         query = query.contiguous()
         bsz, n_node, _ = query.size()
@@ -746,7 +747,11 @@ class NodeTaskHead(nn.Module):
         )
         k = self.k_proj(query).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
         v = self.v_proj(query).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
+
         attn = q @ k.transpose(-1, -2)  # [bsz, head, n, n]
+        min_dtype = torch.finfo(k.dtype).min
+        attn = attn.masked_fill(~attn_mask.unsqueeze(1), min_dtype)
+        delta_pos = delta_pos.masked_fill(~attn_mask, 0.0)
 
         attn_probs_float = nn.functional.softmax(attn.view(-1, n_node, n_node))
         attn_probs = attn_probs_float.type_as(attn)

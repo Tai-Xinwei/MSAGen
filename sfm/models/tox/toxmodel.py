@@ -654,13 +654,30 @@ class TOX(nn.Module):
         x = x.view(B, L, L)
         return x
 
-    def _pos_pred(self, x, pos):
+    def _pos_pred(self, x, pos, residue_seq):
         B, L, H = x.shape
         delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
         dist = delta_pos.norm(dim=-1).view(-1, L, L)
         delta_pos /= dist.unsqueeze(-1) + 1e-5
 
-        pre_pos = self.pos_head(x, delta_pos)
+        B, L = residue_seq.shape
+        pair_mask_aa = torch.zeros(
+            (B, L, L), device=residue_seq.device, dtype=torch.int8
+        )
+        for i in range(B):
+            mask_start_idx = (residue_seq[i] == 0).nonzero(as_tuple=True)[0]
+            mask_end_idx = (residue_seq[i] == 2).nonzero(as_tuple=True)[0]
+
+            for j in range(len(mask_end_idx)):
+                s_idx = mask_start_idx[j] + 1
+                e_idx = mask_end_idx[j]
+                pair_mask_aa[i, s_idx:e_idx, s_idx:e_idx] = 1.0
+
+            if len(mask_start_idx) > len(mask_end_idx):
+                s_idx = mask_start_idx[-1] + 1
+                pair_mask_aa[i, s_idx:, s_idx:] = 1.0
+
+        pre_pos = self.pos_head(x, delta_pos, pair_mask_aa.bool())
         return pre_pos
 
     def _get_backbone(self, angle_pred):
@@ -850,7 +867,7 @@ class TOX(nn.Module):
             # x_pair, pair_mask_aa = self._pos_map(x, mask_aa, residue_seq)
             # backbone = self._get_backbone(angle_output)
             x_pair = self._dist_map(x)
-            pred_pos = self._pos_pred(x, pos[:, :, 1, :])
+            pred_pos = self._pos_pred(x, pos[:, :, 1, :], residue_seq)
             # x_pair = None
             pair_mask_aa = None
         else:

@@ -15,7 +15,7 @@ from sfm.logging import logger
 from .FairseqDropout import FairseqDropout
 from .layer_norm import Fp32LayerNorm, LayerNorm
 from .quant_noise import quant_noise
-from .rotary_embedding import RotaryEmbedding, RotaryEmbedding2
+from .rotary_embedding import RotaryEmbedding
 
 # from torch.nn.attention import SDPBackend, sdpa_kernel
 
@@ -323,7 +323,7 @@ class MemEffSelfAttn(nn.Module):
         self.onnx_trace = False
 
         self.rot_emb = (
-            RotaryEmbedding2(
+            RotaryEmbedding(
                 self.head_dim,
             )
             if add_rope
