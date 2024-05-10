@@ -161,6 +161,10 @@ class CellExpander:
                     torch.cat([dist, expand_dist_compress], dim=2),
                     cutoff=self.pbc_multigraph_cutoff,
                 )
+                is_periodic = pbc.any(dim=-1)
+                local_attention_weight = local_attention_weight.masked_fill(
+                    ~is_periodic.unsqueeze(-1).unsqueeze(-1), 1.0
+                )
                 local_attention_weight = local_attention_weight.masked_fill(
                     atoms.eq(0).unsqueeze(-1), 1.0
                 )

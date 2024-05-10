@@ -632,16 +632,15 @@ class PSM(nn.Module):
         is_periodic = batched_data["is_periodic"]
         is_molecule = batched_data["is_molecule"]
         is_protein = batched_data["is_protein"]
-        # B , L, H is Batch, Length, Hidden
-        # token_embedding:B*L*H
-        # padding_mask:B*L
-        # token_type:B*L  (0 is used for PADDING)
+        # B, L, H is Batch, Length, Hidden
+        # token_embedding: B x L x H
+        # padding_mask: B x L
+        # token_type: B x L  (0 is used for PADDING)
         token_embedding, padding_mask, token_type = self.embedding(
             batched_data, time_step, clean_mask, aa_mask
         )
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
-        #
         if self.encoder is not None:
             (
                 encoder_output,

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright 2022 Microsoft Corporation.
 import math
+from itertools import chain
 from typing import Any, Dict, List, Optional
 
 from deepspeed.runtime.lr_schedules import WarmupLR
@@ -293,8 +294,33 @@ if USE_APEX_FUSED_ADAM:
             for group, group_master in zip(self.param_groups, self.param_groups_master):
                 if len(group["params"]) == 0:
                     continue
+                device = group["params"][0].device
+                for key in group:
+                    if isinstance(group[key], torch.Tensor):
+                        group[key] = group[key].to(device=device)
                 for i, p in enumerate(group["params"]):
                     group_master["params"][i] = p.clone().detach().float()
+
+            saved_groups = state_dict["param_groups"]
+            groups = self.param_groups
+            id_map = {
+                old_id: p
+                for old_id, p in zip(
+                    chain.from_iterable((g["params"] for g in saved_groups)),
+                    chain.from_iterable((g["params"] for g in groups)),
+                )
+            }
+
+            for old_id in id_map:
+                if old_id in state_dict["state"]:
+                    state = state_dict["state"][old_id]
+                    fp32_state_names = ["exp_avg", "exp_avg_sq", "max_exp_avg_sq"]
+                    for state_name in fp32_state_names:
+                        if state_name in state:
+                            p = id_map[old_id]
+                            self.state[p][state_name] = state[state_name].to(
+                                device=p.device
+                            )
 
 else:
 
@@ -382,3 +408,27 @@ else:
                     max_exp_avg_sqs.append(state["max_exp_avg_sq"])
 
                 state_steps.append(state["step"])
+
+        def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
+            super().load_state_dict(state_dict)
+
+            saved_groups = state_dict["param_groups"]
+            groups = self.param_groups
+            id_map = {
+                old_id: p
+                for old_id, p in zip(
+                    chain.from_iterable((g["params"] for g in saved_groups)),
+                    chain.from_iterable((g["params"] for g in groups)),
+                )
+            }
+
+            for old_id in id_map:
+                if old_id in state_dict["state"]:
+                    state = state_dict["state"][old_id]
+                    fp32_state_names = ["exp_avg", "exp_avg_sq", "max_exp_avg_sq"]
+                    for state_name in fp32_state_names:
+                        if state_name in state:
+                            p = id_map[old_id]
+                            self.state[p][state_name] = state[state_name].to(
+                                device=p.device
+                            )

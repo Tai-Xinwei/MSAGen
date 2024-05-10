@@ -2,7 +2,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import Callable, Dict, Optional, Tuple
+from typing import Dict
 
 import torch
 import torch.nn as nn
