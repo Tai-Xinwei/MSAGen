@@ -11,7 +11,7 @@ from sfm.modules.FairseqDropout import FairseqDropout
 # from fairseq import utils
 from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.layer_norm import LayerNorm
-from sfm.modules.mem_eff_attn import MemEffAttn
+from sfm.modules.mem_eff_attn import MemEffAttn, MemEffSelfAttn
 from sfm.modules.multihead_attention import MultiheadAttention
 from sfm.modules.quant_noise import quant_noise
 
@@ -141,12 +141,11 @@ class TOXEncoderLayer(nn.Module):
         d_tilde=1,
         add_rope=False,
     ):
-        return MemEffAttn(
+        return MemEffSelfAttn(
             # return MultiheadAttention(
             embed_dim,
             num_attention_heads,
             dropout=dropout,
-            self_attention=True,
             q_noise=q_noise,
             qn_block_size=qn_block_size,
             d_tilde=d_tilde,
@@ -187,10 +186,11 @@ class TOXEncoderLayer(nn.Module):
         residual = x
         x = self.top_layer_norm(x)
         x, _ = self.self_attn(
-            query=x,
-            key=x,
-            value=x,
-            attn_bias=self_3d_attn_bias,
+            # query=x,
+            # key=x,
+            # value=x,
+            x,
+            # attn_bias=self_3d_attn_bias,
             key_padding_mask=self_attn_padding_mask,
             need_weights=False,
             attn_mask=self_attn_mask,

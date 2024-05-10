@@ -8,7 +8,7 @@ import lmdb
 from rdkit import Chem
 from tqdm import tqdm
 
-from data.utils import obj2bstr
+from sfm.data.mol_data.utils.lmdb import obj2bstr
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

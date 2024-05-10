@@ -13,6 +13,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from sfm.logging import logger
+from sfm.models.tox.modules.tox_layer import NodeTaskHead
 from sfm.models.tox.structure.backbone import BackboneBuilder, BackboneBuilderV0
 from sfm.models.tox.tox_config import TOXConfig
 from sfm.modules.get_activation_fn import get_activation_fn
@@ -448,6 +449,10 @@ class TOX(nn.Module):
             bias=False,
         )
 
+        self.pos_head = NodeTaskHead(
+            args.encoder_embed_dim, args.encoder_attention_heads
+        )
+
         self.backbonebuilder = BackboneBuilderV0()
 
         if self.load_softmax:
@@ -524,10 +529,7 @@ class TOX(nn.Module):
                 # time_pos = torch.where((mode_mask == 1), 1, time_pos)
                 time_ang = time_pos
 
-            pos_scale_coeff = 1.0
-            noisy_pos, _, _, _ = self.diffnoise._noise_sample(
-                ori_pos / pos_scale_coeff, time_pos
-            )
+            noisy_pos, _, _, _ = self.diffnoise._noise_sample(ori_pos, time_pos)
 
             (
                 noisy_ang,
@@ -644,6 +646,7 @@ class TOX(nn.Module):
 
     def _dist_map(self, x):
         B, L, H = x.shape
+
         q = self.fc_pmlm_q(x)
         k = self.fc_pmlm_k(x)
         x = torch.einsum("bih,bjh->bijh", q, k)
@@ -651,12 +654,20 @@ class TOX(nn.Module):
         x = x.view(B, L, L)
         return x
 
-    def _get_backbone(self, angle_pred, bond_angle_output):
-        bs = angle_pred.shape[0]
+    def _pos_pred(self, x, pos):
+        B, L, H = x.shape
+        delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
+        dist = delta_pos.norm(dim=-1).view(-1, L, L)
+        delta_pos /= dist.unsqueeze(-1) + 1e-5
+
+        pre_pos = self.pos_head(x, delta_pos)
+        return pre_pos
+
+    def _get_backbone(self, angle_pred):
+        angle_pred.shape[0]
         psi = angle_pred[:, :, 0]
         phi = angle_pred[:, :, 1]
         omega = angle_pred[:, :, 2]
-        bond_angle_output.view(bs, -1)
 
         backbone_pos = self.backbonebuilder(
             phi=phi, psi=psi, omega=omega, add_O=False
@@ -833,12 +844,13 @@ class TOX(nn.Module):
 
         # TODO: check if it is okay to mask the paddings for q
         angle_output = angle_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
-        # backbone = self._get_backbone(angle_output, bond_angle_output)
         backbone = None
 
         if q is None:
             # x_pair, pair_mask_aa = self._pos_map(x, mask_aa, residue_seq)
+            # backbone = self._get_backbone(angle_output)
             x_pair = self._dist_map(x)
+            pred_pos = self._pos_pred(x, pos[:, :, 1, :])
             # x_pair = None
             pair_mask_aa = None
         else:
@@ -876,6 +888,7 @@ class TOX(nn.Module):
             "ang_sigma": ang_sigma,
             "ang_epsilon": ang_epsilon,
             "ang_t": angle,
+            "pred_pos": pred_pos,
         }
 
         return output_dict
