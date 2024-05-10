@@ -97,6 +97,14 @@ class PM6FullLMDBDataset(FoundationModelDataset):
     def energy_std(self):
         return 25539.1640625
 
+    @property
+    def energy_per_atom_mean(self):
+        return 0.0019075811
+
+    @property
+    def energy_per_atom_std(self):
+        return 0.02820404
+
     def split_dataset(self, validation_ratio=0.03, sort=False):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
