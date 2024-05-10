@@ -83,6 +83,9 @@ class PSMConfig(GraphormerConfig):
     use_2d_atom_features: bool = False
     use_2d_bond_features: bool = False
 
+    # memory efficient attention
+    use_memory_efficient_attention: bool = False
+
     def __init__(
         self,
         args,
