@@ -86,6 +86,9 @@ class PSMConfig(GraphormerConfig):
     # memory efficient attention
     use_memory_efficient_attention: bool = False
 
+    # loss computation options
+    rescale_loss_with_std: bool = False
+
     def __init__(
         self,
         args,

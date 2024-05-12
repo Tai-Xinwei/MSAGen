@@ -60,12 +60,31 @@ class UnifiedPSMDataset(FoundationModelDataset):
         self.train_len = 0
         self.valid_len = 0
 
+        self.molecule_energy_mean = 0.0
+        self.molecule_energy_std = 1.0
+        self.periodic_energy_mean = 0.0
+        self.periodic_energy_std = 1.0
+        self.molecule_energy_per_atom_mean = 0.0
+        self.molecule_energy_per_atom_std = 1.0
+        self.periodic_energy_per_atom_mean = 0.0
+        self.periodic_energy_per_atom_std = 1.0
+        self.molecule_force_mean = 0.0
+        self.molecule_force_std = 1.0
+        self.periodic_force_mean = 0.0
+        self.periodic_force_std = 1.0
+
         for data_path, dataset_name in zip(file_list, dataset_name_list):
             if dataset_name == "pm6":
                 dataset = PM6FullLMDBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
                 self.sizes.append(train_dataset.sizes)
+                self.molecule_energy_mean = dataset.energy_mean
+                self.molecule_energy_std = dataset.energy_std
+                self.molecule_energy_per_atom_mean = dataset.energy_per_atom_mean
+                self.molecule_energy_per_atom_std = dataset.energy_per_atom_std
+                self.molecule_force_mean = dataset.force_mean
+                self.molecule_force_std = dataset.force_std
             elif dataset_name == "afdb":
                 dataset = AFDBLMDBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
@@ -75,6 +94,12 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 train_dataset = MatterSimDataset(data_path, split="train", **kwargs)
                 valid_dataset = MatterSimDataset(data_path, split="valid", **kwargs)
                 len_total = len(train_dataset) + len(valid_dataset)
+                self.periodic_energy_mean = train_dataset.energy_mean
+                self.periodic_energy_std = train_dataset.energy_std
+                self.periodic_energy_per_atom_mean = train_dataset.energy_per_atom_mean
+                self.periodic_energy_per_atom_std = train_dataset.energy_per_atom_std
+                self.periodic_force_mean = train_dataset.force_mean
+                self.periodic_force_std = train_dataset.force_std
             elif dataset_name in [
                 "pubchem5w",
                 "Ac_Ala3_NHMe",

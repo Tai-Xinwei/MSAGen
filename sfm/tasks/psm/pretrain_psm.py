@@ -76,8 +76,29 @@ def main(args: DictConfig) -> None:
     valid_data = BatchedDataDataset(args, valid_data, dataset.valid_len)
 
     # define psm models here, define the diff loss in DiffMAE3dCriterions
-    model = PSMModel(args, loss_fn=DiffMAE3dCriterions)
+    if args.rescale_loss_with_std:
 
+        def loss_fn(args):
+            return DiffMAE3dCriterions(
+                args,
+                dataset.molecule_energy_mean,
+                dataset.molecule_energy_std,
+                dataset.periodic_energy_mean,
+                dataset.periodic_energy_std,
+                dataset.molecule_energy_per_atom_mean,
+                dataset.molecule_energy_per_atom_std,
+                dataset.periodic_energy_per_atom_mean,
+                dataset.periodic_energy_per_atom_std,
+                dataset.molecule_force_mean,
+                dataset.molecule_force_std,
+                dataset.periodic_force_mean,
+                dataset.periodic_force_std,
+            )
+
+    else:
+        loss_fn = DiffMAE3dCriterions
+
+    model = PSMModel(args, loss_fn)
     # define optimizer here
     if args.fp16:
         optimizer = AdamFP16(

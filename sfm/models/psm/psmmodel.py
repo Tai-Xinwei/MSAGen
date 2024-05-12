@@ -30,8 +30,6 @@ class PSMModel(Model):
     def __init__(
         self,
         args,
-        data_mean=0.0,
-        data_std=1.0,
         loss_fn=None,
         not_init=False,
         load_ckpt=False,
@@ -663,7 +661,7 @@ class PSM(nn.Module):
                 pbc_expand_batched=None,
             )
 
-        energy = torch.where(
+        energy_per_atom = torch.where(
             is_periodic.unsqueeze(-1),
             self.energy_head["periodic"](decoder_x_output).squeeze(-1),
             self.energy_head["molecule"](decoder_x_output).squeeze(-1),
@@ -688,13 +686,13 @@ class PSM(nn.Module):
 
         # atom mask to leave out unit cell corners for periodic systems
         non_atom_mask = torch.arange(
-            n_nodes, dtype=torch.long, device=energy.device
+            n_nodes, dtype=torch.long, device=energy_per_atom.device
         ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(-1)
 
         # per-atom energy prediction
-        energy = (
-            energy.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
-            # / batched_data["num_atoms"]
+        energy_per_atom = (
+            energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
+            / batched_data["num_atoms"]
         )
 
         if self.encoder is not None:
@@ -703,7 +701,7 @@ class PSM(nn.Module):
             aa_logits = self.aa_mask_head(decoder_x_output)  # @Peiran
 
         return {
-            "energy": energy,
+            "energy_per_atom": energy_per_atom,
             "forces": forces,
             "aa_logits": aa_logits,
             "time_step": time_step,

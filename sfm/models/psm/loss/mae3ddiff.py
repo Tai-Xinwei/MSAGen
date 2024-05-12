@@ -3,11 +3,8 @@
 # Licensed under the MIT License.
 
 import torch
-
-# from sklearn.metrics import roc_auc_score
 import torch.nn as nn
 
-from sfm.logging import logger
 from sfm.models.psm.psm_config import DiffusionTrainingLoss
 
 
@@ -15,6 +12,18 @@ class DiffMAE3dCriterions(nn.Module):
     def __init__(
         self,
         args,
+        molecule_energy_mean: float = 0.0,
+        molecule_energy_std: float = 1.0,
+        periodic_energy_mean: float = 0.0,
+        periodic_energy_std: float = 1.0,
+        molecule_energy_per_atom_mean: float = 0.0,
+        molecule_energy_per_atom_std: float = 1.0,
+        periodic_energy_per_atom_mean: float = 0.0,
+        periodic_energy_per_atom_std: float = 1.0,
+        molecule_force_mean: float = 0.0,
+        molecule_force_std: float = 1.0,
+        periodic_force_mean: float = 0.0,
+        periodic_force_std: float = 1.0,
     ) -> None:
         super().__init__()
         self.args = args
@@ -28,9 +37,44 @@ class DiffMAE3dCriterions(nn.Module):
         )
         self.aa_mlm_loss = nn.CrossEntropyLoss(reduction="mean")
 
-    def _reduce_energy_loss(self, energy_loss, loss_mask):
+        self.molecule_energy_mean = molecule_energy_mean
+        self.molecule_energy_std = molecule_energy_std
+        self.periodic_energy_mean = periodic_energy_mean
+        self.periodic_energy_std = periodic_energy_std
+        self.molecule_energy_per_atom_mean = molecule_energy_per_atom_mean
+        self.molecule_energy_per_atom_std = molecule_energy_per_atom_std
+        self.periodic_energy_per_atom_mean = periodic_energy_per_atom_mean
+        self.periodic_energy_per_atom_std = periodic_energy_per_atom_std
+        self.molecule_force_mean = molecule_force_mean
+        self.molecule_force_std = molecule_force_std
+        self.periodic_force_mean = periodic_force_mean
+        self.periodic_force_std = periodic_force_std
+
+    def _reduce_energy_loss(
+        self, energy_loss, loss_mask, is_molecule, is_periodic, use_per_atom_energy=True
+    ):
         num_samples = torch.sum(loss_mask.long())
+        energy_loss = (
+            energy_loss.clone()
+        )  # energy_loss cloned since it will be resued multiple times
         if num_samples > 0:
+            # multiply the loss by std of energy labels
+            # note that this works only when using MAE loss
+            # for example, with MSE loss, we need to multiply squre of the std
+            if use_per_atom_energy:
+                energy_loss[is_molecule] = (
+                    energy_loss[is_molecule] * self.molecule_energy_per_atom_std
+                )
+                energy_loss[is_periodic] = (
+                    energy_loss[is_periodic] * self.periodic_energy_per_atom_std
+                )
+            else:
+                energy_loss[is_molecule] = (
+                    energy_loss[is_molecule] * self.molecule_energy_std
+                )
+                energy_loss[is_periodic] = (
+                    energy_loss[is_periodic] * self.periodic_energy_std
+                )
             energy_loss = torch.mean(energy_loss[loss_mask])
         else:
             energy_loss = torch.tensor(
@@ -38,10 +82,32 @@ class DiffMAE3dCriterions(nn.Module):
             )
         return energy_loss, num_samples
 
-    def _reduce_force_or_noise_loss(self, force_or_noise_loss, sample_mask, token_mask):
+    def _reduce_force_or_noise_loss(
+        self,
+        force_or_noise_loss,
+        sample_mask,
+        token_mask,
+        is_molecule,
+        is_periodic,
+        molecule_loss_factor=1.0,
+        periodic_loss_factor=1.0,
+    ):
         sample_mask = sample_mask & token_mask.any(dim=-1)
         num_samples = torch.sum(sample_mask.long())
+        force_or_noise_loss = (
+            force_or_noise_loss.clone()
+        )  # force_or_noise_loss cloned since it will be resued multiple times
         if num_samples > 0:
+            # multiply the loss by std (across all atoms and all 3 coordinates) of force labels
+            # note that this works only when using MAE loss
+            # for example, with MSE loss, we need to multiply squre of the std
+            # for noise loss, the factors should be 1.0
+            force_or_noise_loss[is_molecule] = (
+                force_or_noise_loss[is_molecule] * molecule_loss_factor
+            )
+            force_or_noise_loss[is_periodic] = (
+                force_or_noise_loss[is_periodic] * periodic_loss_factor
+            )
             force_or_noise_loss = force_or_noise_loss.masked_fill(
                 ~token_mask.unsqueeze(-1), 0.0
             )
@@ -57,11 +123,11 @@ class DiffMAE3dCriterions(nn.Module):
 
     def forward(self, model_output, batched_data):
         force_label = batched_data["forces"]
-        energy_label = batched_data["energy"]
+        energy_per_atom_label = batched_data["energy_per_atom"]
         atomic_numbers = batched_data["token_id"]
         noise_label = model_output["noise"]
         force_pred = model_output["forces"]
-        energy_pred = model_output["energy"]
+        energy_per_atom_pred = model_output["energy_per_atom"]
         noise_pred = model_output["noise_pred"]
         non_atom_mask = model_output["non_atom_mask"]
         clean_mask = model_output["clean_mask"]
@@ -72,47 +138,78 @@ class DiffMAE3dCriterions(nn.Module):
         diff_loss_mask = model_output["diff_loss_mask"]
         protein_mask = model_output["protein_mask"]
 
-        n_graphs = energy_label.size()[0]
+        n_graphs = energy_per_atom_label.size()[0]
         if clean_mask is None:
             clean_mask = torch.zeros(
-                n_graphs, dtype=torch.bool, device=energy_label.device
+                n_graphs, dtype=torch.bool, device=energy_per_atom_label.device
             )
-        # padding_mask = atomic_numbers.eq(0)
+
         energy_mask = clean_mask & ~is_protein
         force_mask = clean_mask & is_periodic
 
         # energy loss and force loss
         unreduced_energy_loss = self.energy_loss(
-            energy_pred.to(torch.float32),
-            energy_label.to(torch.float32),
+            energy_per_atom_pred.to(torch.float32),
+            energy_per_atom_label.to(torch.float32),
         )
         energy_loss, num_energy_sample = self._reduce_energy_loss(
-            unreduced_energy_loss, energy_mask
+            unreduced_energy_loss,
+            energy_mask,
+            is_molecule,
+            is_periodic,
+            use_per_atom_energy=True,
         )
         molecule_energy_loss, num_molecule_energy_sample = self._reduce_energy_loss(
-            unreduced_energy_loss, energy_mask & is_molecule
+            unreduced_energy_loss,
+            energy_mask & is_molecule,
+            is_molecule,
+            is_periodic,
+            use_per_atom_energy=True,
         )
         periodic_energy_loss, num_periodic_energy_sample = self._reduce_energy_loss(
-            unreduced_energy_loss, energy_mask & is_periodic
+            unreduced_energy_loss,
+            energy_mask & is_periodic,
+            is_molecule,
+            is_periodic,
+            use_per_atom_energy=True,
         )
+        # ic(molecule_energy_loss, num_molecule_energy_sample, periodic_energy_loss, num_periodic_energy_sample, energy_loss, num_energy_sample)
 
         unreduced_force_loss = self.force_loss(
             force_pred.to(dtype=force_label.dtype), force_label
         )
         force_loss, num_force_sample = self._reduce_force_or_noise_loss(
-            unreduced_force_loss, force_mask, ~non_atom_mask
+            unreduced_force_loss,
+            force_mask,
+            ~non_atom_mask,
+            is_molecule,
+            is_periodic,
+            self.molecule_force_std,
+            self.periodic_force_std,
         )
         (
             molecule_force_loss,
             num_molecule_force_sample,
         ) = self._reduce_force_or_noise_loss(
-            unreduced_force_loss, force_mask & is_molecule, ~non_atom_mask
+            unreduced_force_loss,
+            force_mask & is_molecule,
+            ~non_atom_mask,
+            is_molecule,
+            is_periodic,
+            self.molecule_force_std,
+            self.periodic_force_std,
         )
         (
             periodic_force_loss,
             num_periodic_force_sample,
         ) = self._reduce_force_or_noise_loss(
-            unreduced_force_loss, force_mask & is_periodic, ~non_atom_mask
+            unreduced_force_loss,
+            force_mask & is_periodic,
+            ~non_atom_mask,
+            is_molecule,
+            is_periodic,
+            self.molecule_force_std,
+            self.periodic_force_std,
         )
 
         # noise pred loss
@@ -123,6 +220,10 @@ class DiffMAE3dCriterions(nn.Module):
             unreduced_noise_loss,
             ~clean_mask,
             diff_loss_mask & ~protein_mask.any(dim=-1),
+            is_molecule,
+            is_periodic,
+            1.0,
+            1.0,
         )
         (
             molecule_noise_loss,
@@ -131,6 +232,10 @@ class DiffMAE3dCriterions(nn.Module):
             unreduced_noise_loss,
             ~clean_mask & is_molecule,
             diff_loss_mask & ~protein_mask.any(dim=-1),
+            is_molecule,
+            is_periodic,
+            1.0,
+            1.0,
         )
         (
             periodic_noise_loss,
@@ -139,11 +244,19 @@ class DiffMAE3dCriterions(nn.Module):
             unreduced_noise_loss,
             ~clean_mask & is_periodic,
             diff_loss_mask & ~protein_mask.any(dim=-1),
+            is_molecule,
+            is_periodic,
+            1.0,
+            1.0,
         )
         protein_noise_loss, num_protein_noise_sample = self._reduce_force_or_noise_loss(
             unreduced_noise_loss,
             ~clean_mask & is_protein,
             diff_loss_mask & ~protein_mask.any(dim=-1),
+            is_molecule,
+            is_periodic,
+            1.0,
+            1.0,
         )
 
         # mlm loss
@@ -170,7 +283,6 @@ class DiffMAE3dCriterions(nn.Module):
             num_aa_mask_token = 0.0
 
         loss = energy_loss + force_loss + noise_loss + aa_mlm_loss
-        # loss = force_loss + noise_loss + aa_mlm_loss
 
         # for loss exist in every sample of the batch, no extra number of samples are recorded (will use batch size in loss reduction)
         # for loss does not exist in every example of the batch, use a tuple, where the first element is the averaged loss value
