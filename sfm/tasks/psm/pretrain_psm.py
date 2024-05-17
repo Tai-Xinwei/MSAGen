@@ -15,6 +15,7 @@ from omegaconf import MISSING, DictConfig, OmegaConf
 
 from sfm.data.psm_data.unifieddataset import (
     BatchedDataDataset,
+    BatchedDataDatasetForUnifiedSampler,
     StackedIterableDataset,
     UnifiedPSMDataset,
 )
@@ -70,6 +71,10 @@ def main(args: DictConfig) -> None:
     if args.ifstack:
         raise NotImplementedError("ifstack is not finished yet!")
         # train_data = StackedIterableDataset(train_data, args, dataset.sizes)
+    elif args.use_unified_batch_sampler:
+        train_data = BatchedDataDatasetForUnifiedSampler(
+            args, train_data, dataset.train_len
+        )
     else:
         train_data = BatchedDataDataset(args, train_data, dataset.train_len)
 

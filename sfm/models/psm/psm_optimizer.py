@@ -279,11 +279,19 @@ if USE_APEX_FUSED_ADAM:
                 self.moved_master_param = True
 
             for group in self.param_groups:
+                device = group["params"][0].device
                 if isinstance(group["lr"], float):
                     device = group["params"][0].device
                     group["lr"] = torch.tensor(
                         group["lr"], dtype=torch.float32, device=device
                     )
+                elif isinstance(group["lr"], torch.Tensor):
+                    device = group["params"][0].device
+                    group["lr"] = group["lr"].to(device=device)
+                if "step" in group and isinstance(group["step"], torch.Tensor):
+                    device = group["params"][0].device
+                    group["step"] = group["step"].to(device=device)
+                self._dummy_overflow_buf = self._dummy_overflow_buf.to(device=device)
 
             return super().step(
                 closure, grads, output_params, scale, grad_norms, grad_scaler

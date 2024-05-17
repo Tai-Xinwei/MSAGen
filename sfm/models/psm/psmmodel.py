@@ -11,9 +11,10 @@ from tqdm import tqdm
 from sfm.logging import logger
 from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
+from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
-from sfm.models.psm.psm_config import DiffusionTrainingLoss, PSMConfig
+from sfm.models.psm.psm_config import PSMConfig
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
@@ -576,10 +577,10 @@ class PSM(nn.Module):
                 }
             )
             self.forces_head.update(
-                {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                {key: EquivariantVectorOutput(psm_config.embedding_dim)}
             )
             self.noise_head.update(
-                {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                {key: EquivariantVectorOutput(psm_config.embedding_dim)}
             )
 
         # aa mask predict head
@@ -669,18 +670,28 @@ class PSM(nn.Module):
 
         forces = torch.where(
             is_periodic.unsqueeze(-1).unsqueeze(-1),
-            self.forces_head["periodic"](decoder_vec_output).squeeze(-1),
-            self.forces_head["molecule"](decoder_vec_output).squeeze(-1),
+            self.forces_head["periodic"](decoder_x_output, decoder_vec_output).squeeze(
+                -1
+            ),
+            self.forces_head["molecule"](decoder_x_output, decoder_vec_output).squeeze(
+                -1
+            ),
         )
 
         noise_pred = torch.where(
             is_periodic.unsqueeze(-1).unsqueeze(-1),
-            self.noise_head["periodic"](decoder_vec_output).squeeze(-1),
-            self.noise_head["molecule"](decoder_vec_output).squeeze(-1),
+            self.noise_head["periodic"](decoder_x_output, decoder_vec_output).squeeze(
+                -1
+            ),
+            self.noise_head["molecule"](decoder_x_output, decoder_vec_output).squeeze(
+                -1
+            ),
         )
         noise_pred = torch.where(
             is_protein.unsqueeze(-1).unsqueeze(-1),
-            self.noise_head["protein"](decoder_vec_output).squeeze(-1),
+            self.noise_head["protein"](decoder_x_output, decoder_vec_output).squeeze(
+                -1
+            ),
             noise_pred,
         )
 

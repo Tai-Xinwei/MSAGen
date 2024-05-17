@@ -21,6 +21,7 @@ from numpy.linalg import norm
 from sympy.utilities.iterables import multiset_permutations
 from torch.utils.data import Subset
 from torch_geometric.data import Data
+from tqdm import tqdm
 
 from sfm.data.data_utils import _filter_by_size_dynamic
 from sfm.data.dataset import FoundationModelDataset
@@ -42,6 +43,12 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         lmdb_path: Optional[str],
     ):
         self.lmdb_path = lmdb_path
+        if (
+            self.lmdb_path is not None
+            and self.lmdb_path.find("PubChemQC-B3LYP-PM6") != -1
+            and self.lmdb_path.find("20240417.1/full") == -1
+        ):
+            self.lmdb_path += "/20240417.1/full/"
         self.args = args
         # for dataloader with num_workers > 1
         self._env, self._txn = None, None
@@ -62,7 +69,12 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         )
         self._txn = self.env.begin(write=False)
         metadata = bstr2obj(self.txn.get("metadata".encode()))
-        self._sizes, self._keys = metadata["size"], metadata["keys"]
+        if self.lmdb_path.find("PubChemQC-B3LYP-PM6") != -1:
+            self._sizes, keys = metadata["sizes"], metadata["keys"]
+            self._keys = [f"{key}" for key in keys]
+            del keys
+        else:
+            self._sizes, self._keys = metadata["size"], metadata["keys"]
 
     @property
     def env(self):
@@ -173,15 +185,16 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         data["forces"] = torch.zeros(
             (x.size()[0], 3), dtype=torch.float64, device=x.device
         )
+        if self.lmdb_path.find("PubChemQC-B3LYP-PM6") != -1:
+            total_energy = data["energy"]
+        else:
+            total_energy = data["total_energy"]
         data["energy"] = torch.tensor(
-            [(data["total_energy"] - self.energy_mean) / self.energy_std]
+            [(total_energy - self.energy_mean) / self.energy_std]
         )
         data["energy_per_atom"] = torch.tensor(
             [
-                (
-                    data["total_energy"] / float(data["num_atoms"])
-                    - self.energy_per_atom_mean
-                )
+                (total_energy / float(data["num_atoms"]) - self.energy_per_atom_mean)
                 / self.energy_per_atom_std
             ]
         )
@@ -270,11 +283,22 @@ class MatterSimDataset:
                     lmdb_path = f"{self.data_path}/{path_name}"
                 else:
                     lmdb_path = f"{self.data_path}/{path_name}/{split}"
-                self.data_name_to_lmdb[path_name] = lmdb.open(lmdb_path)
+                self.data_name_to_lmdb[path_name] = lmdb.open(
+                    lmdb_path,
+                    subdir=True,
+                    readonly=True,
+                    lock=False,
+                    readahead=False,
+                    meminit=False,
+                )
                 self.data_name_to_txn[path_name] = self.data_name_to_lmdb[
                     path_name
                 ].begin(write=False)
-                for key, _ in self.data_name_to_txn[path_name].cursor():
+                for key, _ in tqdm(
+                    self.data_name_to_txn[path_name].cursor(),
+                    miniters=100000,
+                    mininterval=10.0,
+                ):
                     self.index_to_dataset_name.append([path_name, key.decode()])
 
     def switch_lattice_vectors(self, pbc, cell):
