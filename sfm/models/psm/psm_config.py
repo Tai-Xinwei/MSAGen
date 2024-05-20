@@ -49,6 +49,8 @@ class PSMConfig(GraphormerConfig):
     data_path_list: str = ""
     dataset_name_list: str = ""
     dataset_split_raito: str = ""
+    dataset_micro_batch_size: str = ""
+    use_unified_batch_sampler: bool = False
 
     lamb_pde: float = 0.01
 
@@ -58,14 +60,14 @@ class PSMConfig(GraphormerConfig):
     pbc_expanded_token_cutoff: int = 512
     pbc_expanded_num_cell_per_direction: int = 5
     pbc_expanded_distance_cutoff: float = 20.0
-    pbc_use_local_attention: bool = True
+    pbc_use_local_attention: bool = False
     pbc_multigraph_cutoff: float = 5.0
     diff_init_lattice_size: float = 4.0
 
     lattice_size: float = 4.0
 
     # for diffusion
-    diffusion_sampling: str = "ode"
+    diffusion_sampling: str = "ddpm"
     diffusion_noise_std: float = 1.0
     ddim_eta: float = 0.0
     ddim_steps: int = 50
@@ -77,11 +79,21 @@ class PSMConfig(GraphormerConfig):
 
     # for equivariant part
     equivar_vec_init: VecInitApproach = VecInitApproach.ZERO_CENTERED_POS
-    use_bias: bool = False
+    equivar_use_linear_bias: bool = False
+    equivar_use_attention_bias: bool = False
 
     # for 2D information
     use_2d_atom_features: bool = False
     use_2d_bond_features: bool = False
+
+    # memory efficient attention
+    use_memory_efficient_attention: bool = False
+
+    # loss computation options
+    rescale_loss_with_std: bool = False
+
+    # used in force and noise heads
+    num_force_and_noise_head_layers: int = 2
 
     def __init__(
         self,

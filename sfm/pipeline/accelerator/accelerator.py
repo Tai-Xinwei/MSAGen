@@ -50,6 +50,9 @@ def safe_div(a, b):
     return a / b
 
 
+from sfm.data.psm_data.unifieddataset import UnifiedDataSampler
+
+
 class GroupedBatchIter(object):
     """
     This class is used to group batches into a larger batch. i.e., gradient accumulation.
@@ -538,16 +541,31 @@ class DdpAccelerator(SingleNodeAccelerator):
             ), "train_batch_size_per_gpu should be greater than 0"
 
             if not isinstance(train_data, IterableDataset):
-                self.train_sampler = DistributedSampler(
-                    train_data, num_replicas=self.world_size, rank=self.rank
-                )
-                self.train_data_loader = DataLoader(
-                    train_data,
-                    sampler=self.train_sampler,
-                    batch_size=train_batch_size_per_gpu,
-                    collate_fn=train_data.collate,
-                    drop_last=True,
-                )
+                if self.args.use_unified_batch_sampler:
+                    self.train_sampler = UnifiedDataSampler(
+                        train_data,
+                        self.args.dataset_split_raito,
+                        self.args.dataset_micro_batch_size,
+                        num_replicas=self.world_size,
+                        rank=self.rank,
+                        seed=self.args.seed,
+                    )
+                    self.train_data_loader = DataLoader(
+                        train_data,
+                        batch_sampler=self.train_sampler,
+                        collate_fn=train_data.collate,
+                    )
+                else:
+                    self.train_sampler = DistributedSampler(
+                        train_data, num_replicas=self.world_size, rank=self.rank
+                    )
+                    self.train_data_loader = DataLoader(
+                        train_data,
+                        sampler=self.train_sampler,
+                        batch_size=train_batch_size_per_gpu,
+                        collate_fn=train_data.collate,
+                        drop_last=True,
+                    )
             else:
                 self.train_sampler = None
                 self.train_data_loader = DataLoader(
@@ -1018,6 +1036,11 @@ class DeepSpeedAccelerator(Accelerator):
             dp_rank = self.model_engine.mpu.get_data_parallel_rank()
         else:
             dp_rank = self.model_engine.global_rank
+
+        if self.args.use_unified_batch_sampler:
+            raise ValueError(
+                "use_unified_batch_sampler=True is currently incompatible with deepspeed acclerators."
+            )
 
         if self.args.dynamic_loader:
             assert (

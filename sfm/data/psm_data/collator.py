@@ -2,9 +2,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import copy
-
-import numpy as np
 import torch
 
 
@@ -104,9 +101,11 @@ def collate_fn(
     max_node_num = max(i["token_type"].shape[0] for i in items)
     max_dist = max(i["edge_input"].size(-2) for i in items)
     energy = [i["energy"] for i in items]
+    energy_per_atom = [i["energy_per_atom"] for i in items]
     forces = torch.cat([pad_pos_unsqueeze(i["forces"], max_node_num) for i in items])
 
     energy = torch.cat(energy)
+    energy_per_atom = torch.cat(energy_per_atom)
     x = torch.cat([pad_2d_unsqueeze(i["node_attr"], max_node_num) for i in items])
 
     edge_input = torch.cat(
@@ -155,6 +154,7 @@ def collate_fn(
         node_attr=x,
         edge_input=edge_input,
         energy=energy,
+        energy_per_atom=energy_per_atom,
         forces=forces,
         pos=pos,
         node_type_edge=node_type_edge,
