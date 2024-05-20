@@ -89,15 +89,20 @@ class ProteinMAEDistCriterions(nn.Module):
         pred_ca_pos = output_dict["pred_pos"]
 
         pos_loss = self.loss_pos(
-            ori_ca_pos[~padding_mask].to(torch.float32),
-            pred_ca_pos[~padding_mask].to(torch.float32),
+            ori_ca_pos[(~padding_mask) & mask_pos.squeeze(-1).squeeze(-1)].to(
+                torch.float32
+            ),
+            pred_ca_pos[(~padding_mask) & mask_pos.squeeze(-1).squeeze(-1)].to(
+                torch.float32
+            ),
         )
 
         mask_angle = mask_pos.squeeze(-1)
         angle_mask = batch_data["ang_mask"][:, :, :3].bool()
+        angle_mask = torch.cat([angle_mask, output_dict["bond_angle_mask"]], dim=-1)
         unified_angle_mask = mask_angle & angle_mask
         if unified_angle_mask.any():
-            ori_angle = batch_data["ang"][:, :, :3]
+            ori_angle = output_dict["ori_angle"]
             unified_angle_mask = unified_angle_mask & (
                 ~padding_mask.bool().unsqueeze(-1)
             )
@@ -118,7 +123,7 @@ class ProteinMAEDistCriterions(nn.Module):
         else:
             angle_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
 
-        loss = type_loss + 3 * angle_loss + dist_loss + pos_loss
+        loss = type_loss + 5 * angle_loss + dist_loss + pos_loss
 
         return loss, {
             "total_loss": loss,

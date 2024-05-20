@@ -512,6 +512,105 @@ class Mix3DEmbeddingV3(nn.Module):
         return node6dfeature, None, None
 
 
+class Mix3DEmbeddingV4(nn.Module):
+    def __init__(
+        self,
+        pfm_config,
+        num_edges,
+        embed_dim,
+        num_kernel,
+        t_timesteps=1010,
+        time_embedding_type="positional",
+        time_embedding_mlp=True,
+    ):
+        super(Mix3DEmbeddingV4, self).__init__()
+        self.num_edges = num_edges
+        self.num_kernel = num_kernel
+        self.embed_dim = embed_dim
+        self.time_embedding_dim = embed_dim
+
+        self.angle_emb = AngleEmb(1, self.time_embedding_dim)
+
+        self.time_embedding = TimeStepEncoder(
+            t_timesteps,
+            self.time_embedding_dim,
+            timestep_emb_type=time_embedding_type,
+            mlp=time_embedding_mlp,
+        )
+
+        self.feature_proj = nn.Linear(6 * self.time_embedding_dim, embed_dim)
+        self.cls_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
+        self.eos_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
+        self.unkangle_embedding = nn.Embedding(
+            1, self.time_embedding_dim, padding_idx=None
+        )
+
+    def forward(
+        self,
+        pos,
+        angle,
+        padding_mask,
+        mask_aa,
+        mask_pos,
+        mask_angle,
+        angle_mask,
+        bond_angle_mask,
+        time_pos,
+        time_angle,
+        aa_seq,
+    ):
+        bs, nnode, _ = angle.shape
+        angle_mask = angle_mask[:, :, :3]
+        angle_mask = torch.cat([angle_mask, bond_angle_mask], dim=-1)
+
+        angle = angle.masked_fill(~angle_mask, 0.0)
+        angle = angle.to(self.angle_emb.layer1.weight.dtype)
+        angle = angle.reshape(bs, -1, 1)
+
+        cls_mask = (aa_seq == 0).unsqueeze(-1)
+        eos_mask = (aa_seq == 2).unsqueeze(-1)
+        angle_feat = self.angle_emb(angle)
+        angle_feat = torch.where(
+            angle_mask.reshape(bs, -1, 1), angle_feat, self.unkangle_embedding.weight
+        )
+
+        node6dfeature = angle_feat
+
+        if time_pos is not None and mask_angle is not None:
+            if time_pos.dim() == 2:
+                time_pos = time_pos.unsqueeze(-1).repeat(1, 1, 6)
+            elif time_pos.dim() == 1:
+                time_pos = time_pos.unsqueeze(-1).unsqueeze(-1).repeat(1, nnode, 3)
+
+            t0 = torch.zeros_like(
+                time_pos, dtype=time_pos.dtype, device=time_pos.device
+            )
+
+            time_pos = time_pos.masked_fill(~angle_mask, 0.0).view(-1)
+            t0 = t0.masked_fill(~angle_mask, 0.0).view(-1)
+
+            time_embedding_pos = self.time_embedding(time_pos).view(
+                bs, -1, self.time_embedding_dim
+            )
+            t0_emb = self.time_embedding(t0).view(bs, -1, self.time_embedding_dim)
+            t_mask = mask_angle.bool() & (~cls_mask) & (~eos_mask)
+            time_embedding_pos = torch.where(
+                t_mask.repeat(1, 6, 1), time_embedding_pos, t0_emb
+            )
+
+            node6dfeature = node6dfeature + time_embedding_pos
+
+        node6dfeature = self.feature_proj(node6dfeature.view(bs, nnode, -1))
+
+        node6dfeature = torch.where(cls_mask, self.cls_embedding.weight, node6dfeature)
+        node6dfeature = torch.where(eos_mask, self.eos_embedding.weight, node6dfeature)
+        node6dfeature = node6dfeature.masked_fill(
+            padding_mask.unsqueeze(-1).to(torch.bool), 0.0
+        )
+
+        return node6dfeature, None, None
+
+
 class Graph2DBias(nn.Module):
     """
     Compute attention bias for each head.
@@ -751,11 +850,12 @@ class NodeTaskHead(nn.Module):
         attn = q @ k.transpose(-1, -2)  # [bsz, head, n, n]
         min_dtype = torch.finfo(k.dtype).min
         attn = attn.masked_fill(~attn_mask.unsqueeze(1), min_dtype)
-        delta_pos = delta_pos.masked_fill(~attn_mask, 0.0)
 
-        attn_probs_float = nn.functional.softmax(attn.view(-1, n_node, n_node))
+        attn_probs_float = nn.functional.softmax(attn.view(-1, n_node, n_node), dim=-1)
         attn_probs = attn_probs_float.type_as(attn)
         attn_probs = attn_probs.view(bsz, self.num_heads, n_node, n_node)
+
+        delta_pos = delta_pos.masked_fill(~attn_mask.unsqueeze(-1), 0.0)
         rot_attn_probs = attn_probs.unsqueeze(-1) * delta_pos.unsqueeze(1).type_as(
             attn_probs
         )  # [bsz, head, n, n, 3]

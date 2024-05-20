@@ -31,16 +31,16 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=1e-4
-[ -z "${total_num_steps}" ] && total_num_steps=200000
+[ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 
-[ -z "${train_batch_size}" ] && train_batch_size=512
-[ -z "${val_batch_size}" ] && val_batch_size=512
+[ -z "${train_batch_size}" ] && train_batch_size=256
+[ -z "${val_batch_size}" ] && val_batch_size=256
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=20
+[ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.4,0.4,0.1' #prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
@@ -49,7 +49,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/AFDB50-plddt70.lmdb/'
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq1024_ddpm_dist/'
 # [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq1024_ddpm_dist/'
-[ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/pfmdiff150M1024_prob1261_m5_seq1024_ddpmx0_dist/'
+# [ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/pfmdiff150M1024_prob1261_m5_seq1024_ddpmx0_dist/'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/pfmdiff150M1024_prob1441_m5_seq1024_ddpmx0_dist_6d/'
 # [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir='/data/peiran/expresult/pfmdiff150M1024_prob1261_m5_seq1024_ddpm_dist_v3/'
 
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
@@ -156,8 +157,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
         --data_path $data_path \
         --save_dir $save_dir \
         --seed 666666 \
-        --add_3d --fp16 \
+        --add_3d \
         --ifstack \
+        --ifresume \
         --diffmode $diffmode \
         --mask_ratio $mask_ratio \
         --noise_scale $noise_scale \
@@ -169,6 +171,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
         --total_num_steps $total_num_steps \
         --warmup_num_steps $warmup_num_steps \
         --train_batch_size $train_batch_size --val_batch_size $val_batch_size --max_length $max_length \
+        --val_batch_interval 3000 \
         --gradient_accumulation_steps $gradient_accumulation_steps \
         --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
         --save_batch_interval $save_batch_interval --log_interval $log_interval \

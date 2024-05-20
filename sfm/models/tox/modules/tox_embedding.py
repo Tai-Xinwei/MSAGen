@@ -10,6 +10,7 @@ from .tox_layer import (
     Mix3DEmbedding,
     Mix3DEmbeddingV2,
     Mix3DEmbeddingV3,
+    Mix3DEmbeddingV4,
     Node3DEmbedding,
     Node3DEmbeddingv2,
     ResidueFeature,
@@ -111,7 +112,7 @@ class TOXmixEmbedding(nn.Module):
         )
 
         self.edge_3d_emb = (
-            Mix3DEmbeddingV3(
+            Mix3DEmbeddingV4(
                 pfm_config,
                 num_edges=pfm_config.num_edges,
                 embed_dim=pfm_config.embedding_dim // 2,
@@ -126,6 +127,7 @@ class TOXmixEmbedding(nn.Module):
         batched_data,
         padding_mask,
         angle_mask=None,
+        bond_angle_mask=None,
         pos=None,
         angle=None,
         mask_aa=None,
@@ -153,6 +155,7 @@ class TOXmixEmbedding(nn.Module):
                 mask_pos,
                 mask_angle,
                 angle_mask,
+                bond_angle_mask,
                 time_pos,
                 time_angle,
                 batched_data["x"],

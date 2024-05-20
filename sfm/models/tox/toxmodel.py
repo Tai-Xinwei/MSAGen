@@ -414,13 +414,7 @@ class TOX(nn.Module):
         self.angle_decoder = nn.Sequential(
             nn.Linear(args.encoder_embed_dim, args.encoder_embed_dim),
             nn.GELU(),
-            nn.Linear(args.encoder_embed_dim, 3),
-        )
-
-        self.bond_angle_decoder = nn.Sequential(
-            nn.Linear(args.encoder_embed_dim, args.encoder_embed_dim),
-            nn.GELU(),
-            nn.Linear(args.encoder_embed_dim, 3),
+            nn.Linear(args.encoder_embed_dim, 6),
         )
 
         self.masked_lm_pooler = nn.Linear(
@@ -669,12 +663,12 @@ class TOX(nn.Module):
             mask_end_idx = (residue_seq[i] == 2).nonzero(as_tuple=True)[0]
 
             for j in range(len(mask_end_idx)):
-                s_idx = mask_start_idx[j] + 1
-                e_idx = mask_end_idx[j]
+                s_idx = mask_start_idx[j]
+                e_idx = mask_end_idx[j] + 1
                 pair_mask_aa[i, s_idx:e_idx, s_idx:e_idx] = 1.0
 
             if len(mask_start_idx) > len(mask_end_idx):
-                s_idx = mask_start_idx[-1] + 1
+                s_idx = mask_start_idx[-1]
                 pair_mask_aa[i, s_idx:, s_idx:] = 1.0
 
         pre_pos = self.pos_head(x, delta_pos, pair_mask_aa.bool())
@@ -691,6 +685,87 @@ class TOX(nn.Module):
         )  # B x L x 4 x 3 [N, CA, C, O]
 
         return backbone_pos
+
+    def calculate_bondangle(self, pos: torch.Tensor, residue_seq: torch.Tensor):
+        """
+        Calculate the bond angle between three atoms.
+        Args:
+            pos: B x L x 3 x 3
+
+        Returns:
+            bond_angle: B x L x 3
+        """
+        Bs, L = pos.shape[:2]
+        bond_angle = []
+        bond_angle_mask = torch.ones((Bs, L, 3), device=pos.device)
+        for i in range(Bs):
+            mask_start_idx = (residue_seq[i] == 0).nonzero(as_tuple=True)[0]
+            mask_end_idx = (residue_seq[i] == 2).nonzero(as_tuple=True)[0]
+
+            bond_angle_i = []
+            for j in range(len(mask_end_idx)):
+                s_idx = mask_start_idx[j] + 1
+                e_idx = mask_end_idx[j]
+                postemp = pos[i, s_idx:e_idx, :, :].reshape(-1, 3)
+                u1 = postemp[1:-1, :] - postemp[:-2, :]
+                u2 = postemp[2:, :] - postemp[1:-1, :]
+
+                angle = torch.atan2(
+                    torch.norm(torch.cross(u1, u2, dim=-1), dim=-1),
+                    -(u1 * u2).sum(dim=-1),
+                )
+                bond_angle_i.append(
+                    torch.cat(
+                        [angle.new_zeros((4)), angle, angle.new_zeros((4))], dim=0
+                    )
+                )
+
+                bond_angle_mask[i, s_idx - 1, :] = 0.0
+                bond_angle_mask[i, e_idx, :] = 0.0
+                bond_angle_mask[i, s_idx, 0] = 0.0
+                bond_angle_mask[i, e_idx - 1, -1] = 0.0
+
+            if len(mask_start_idx) > len(mask_end_idx):
+                s_idx = mask_start_idx[-1] + 1
+                bond_angle_mask[i, s_idx - 1, :] = 0.0
+                if s_idx < L:
+                    postemp = pos[i, s_idx:, :, :].reshape(-1, 3)
+                    u1 = postemp[1:-1, :] - postemp[:-2, :]
+                    u2 = postemp[2:, :] - postemp[1:-1, :]
+
+                    angle = torch.atan2(
+                        torch.norm(torch.cross(u1, u2, dim=-1), dim=-1),
+                        -(u1 * u2).sum(dim=-1),
+                    )
+
+                    bond_angle_mask[i, s_idx, 0] = 0.0
+                    bond_angle_i.append(
+                        torch.cat(
+                            [angle.new_zeros((4)), angle, angle.new_zeros((1))], dim=0
+                        )
+                    )
+                else:
+                    bond_angle_i.append(angle.new_zeros((3)))
+
+            bond_angle_i = torch.cat(bond_angle_i, dim=0).view(-1, 3)
+            if bond_angle_i.shape[0] < L:
+                bond_angle_i = torch.cat(
+                    [bond_angle_i, angle.new_zeros((L - bond_angle_i.shape[0], 3))],
+                    dim=0,
+                )
+                bond_angle_mask[i, bond_angle_i.shape[0] :, :] = 0.0
+
+            bond_angle.append(bond_angle_i)
+
+        bond_angle = torch.stack(bond_angle, dim=0).view(Bs, L, 3)
+
+        return bond_angle, bond_angle_mask.bool()
+
+        # u1 = c2 - c1
+        # u2 = c3 - c2
+        # return torch.atan2(
+        #     torch.norm(torch.cross(u1, u2, dim=-1), dim=-1), -(u1 * u2).sum(dim=-1)
+        # )
 
     def forward(
         self,
@@ -746,6 +821,10 @@ class TOX(nn.Module):
         angle_mask = batched_data["ang_mask"].bool()
         pos_mask = batched_data["pos_mask"].bool().unsqueeze(-1)
         ori_pos = ori_pos.masked_fill(~pos_mask, 0.0)
+        ori_bond_angle, bond_angle_mask = self.calculate_bondangle(
+            ori_pos[:, :, :3, :], residue_seq
+        )
+        ori_angle = torch.cat([ori_angle[:, :, :3], ori_bond_angle], dim=-1)
 
         (
             mask_aa,
@@ -838,6 +917,7 @@ class TOX(nn.Module):
             mask_pos=mask_pos,
             mask_angle=mask_angle,
             angle_mask=angle_mask,
+            bond_angle_mask=bond_angle_mask,
             time_pos=time_pos,
             time_aa=time_aa,
             mode_mask=mode_mask,
@@ -906,6 +986,8 @@ class TOX(nn.Module):
             "ang_epsilon": ang_epsilon,
             "ang_t": angle,
             "pred_pos": pred_pos,
+            "ori_angle": ori_angle,
+            "bond_angle_mask": bond_angle_mask,
         }
 
         return output_dict
