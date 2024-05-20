@@ -15,6 +15,7 @@ from omegaconf import MISSING, DictConfig, OmegaConf
 
 from sfm.data.psm_data.unifieddataset import (
     BatchedDataDataset,
+    BatchedDataDatasetForUnifiedSampler,
     StackedIterableDataset,
     UnifiedPSMDataset,
 )
@@ -70,14 +71,39 @@ def main(args: DictConfig) -> None:
     if args.ifstack:
         raise NotImplementedError("ifstack is not finished yet!")
         # train_data = StackedIterableDataset(train_data, args, dataset.sizes)
+    elif args.use_unified_batch_sampler:
+        train_data = BatchedDataDatasetForUnifiedSampler(
+            args, train_data, dataset.train_len
+        )
     else:
         train_data = BatchedDataDataset(args, train_data, dataset.train_len)
 
     valid_data = BatchedDataDataset(args, valid_data, dataset.valid_len)
 
     # define psm models here, define the diff loss in DiffMAE3dCriterions
-    model = PSMModel(args, loss_fn=DiffMAE3dCriterions)
+    if args.rescale_loss_with_std:
 
+        def loss_fn(args):
+            return DiffMAE3dCriterions(
+                args,
+                dataset.molecule_energy_mean,
+                dataset.molecule_energy_std,
+                dataset.periodic_energy_mean,
+                dataset.periodic_energy_std,
+                dataset.molecule_energy_per_atom_mean,
+                dataset.molecule_energy_per_atom_std,
+                dataset.periodic_energy_per_atom_mean,
+                dataset.periodic_energy_per_atom_std,
+                dataset.molecule_force_mean,
+                dataset.molecule_force_std,
+                dataset.periodic_force_mean,
+                dataset.periodic_force_std,
+            )
+
+    else:
+        loss_fn = DiffMAE3dCriterions
+
+    model = PSMModel(args, loss_fn)
     # define optimizer here
     if args.fp16:
         optimizer = AdamFP16(

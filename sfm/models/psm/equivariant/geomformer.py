@@ -77,20 +77,6 @@ class NodeGaussianLayer(nn.Module):
         return gaussian(x.float(), mean, std).type_as(self.means.weight)
 
 
-class NonLinear(nn.Module):
-    def __init__(self, input, output_size, hidden=None):
-        super(NonLinear, self).__init__()
-        if hidden is None:
-            hidden = input
-        self.layer1 = nn.Linear(input, hidden, bias=False)
-        self.layer2 = nn.Linear(hidden, output_size, bias=False)
-
-    def forward(self, x):
-        x = F.gelu(self.layer1(x))
-        x = self.layer2(x)
-        return x
-
-
 class NodeTaskHead(nn.Module):
     def __init__(
         self,
@@ -180,20 +166,20 @@ class GatedEquivariantBlock(nn.Module):
 
         act_class = act_class_mapping[activation]
         self.update_net = nn.Sequential(
-            nn.Linear(hidden_channels * 2, intermediate_channels, bias=False),
+            nn.Linear(hidden_channels * 2, intermediate_channels),
             act_class(),
-            nn.Linear(intermediate_channels, out_channels * 2, bias=False),
+            nn.Linear(intermediate_channels, out_channels * 2),
         )
 
         self.act = act_class() if scalar_activation else None
 
-    # def reset_parameters(self):
-    #     nn.init.xavier_uniform_(self.vec1_proj.weight)
-    #     nn.init.xavier_uniform_(self.vec2_proj.weight)
-    #     nn.init.xavier_uniform_(self.update_net[0].weight)
-    #     self.update_net[0].bias.data.fill_(0)
-    #     nn.init.xavier_uniform_(self.update_net[2].weight)
-    #     self.update_net[2].bias.data.fill_(0)
+    def reset_parameters(self):
+        nn.init.xavier_uniform_(self.vec1_proj.weight)
+        nn.init.xavier_uniform_(self.vec2_proj.weight)
+        nn.init.xavier_uniform_(self.update_net[0].weight)
+        self.update_net[0].bias.data.fill_(0)
+        nn.init.xavier_uniform_(self.update_net[2].weight)
+        self.update_net[2].bias.data.fill_(0)
 
     def forward(self, x, v):
         vec1 = torch.norm(self.vec1_proj(v), dim=-2)
@@ -209,7 +195,7 @@ class GatedEquivariantBlock(nn.Module):
 
 
 class EquivariantVectorOutput(nn.Module):
-    def __init__(self, hidden_channels=768, activation="silu", d_tilde=1):
+    def __init__(self, hidden_channels=768, activation="silu"):
         super(EquivariantVectorOutput, self).__init__()
         self.output_network = nn.ModuleList(
             [
@@ -223,11 +209,11 @@ class EquivariantVectorOutput(nn.Module):
             ]
         )
 
-        self.reset_parameters(d_tilde)
+        self.reset_parameters()
 
-    def reset_parameters(self, d_tilde):
+    def reset_parameters(self):
         for layer in self.output_network:
-            layer.reset_parameters(d_tilde)
+            layer.reset_parameters()
 
     def forward(self, x, v):
         for layer in self.output_network:
@@ -564,14 +550,18 @@ class InvariantAttention(nn.Module):
         head_dim,
         dropout,
         d_tilde=1,
+        use_linear_bias=False,
         add_rope=True,
     ):
         super().__init__()
         self.hidden_channels = hidden_channels
         self.head_dim = head_dim
         self.num_heads = hidden_channels // head_dim
+        self.use_linear_bias = use_linear_bias
 
-        self.out_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
+        self.out_proj = nn.Linear(
+            hidden_channels, hidden_channels, bias=use_linear_bias
+        )
 
         self.dropout = dropout
         self.attn_ln = nn.LayerNorm(hidden_channels)
@@ -585,7 +575,8 @@ class InvariantAttention(nn.Module):
 
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        # self.out_proj.bias.data.fill_(0)
+        if self.use_linear_bias:
+            self.out_proj.bias.data.fill_(0)
 
     def forward(
         self,
@@ -737,21 +728,21 @@ class EquivariantAttention(nn.Module):
         else:
             local_attention_weight = None
 
-        bsz, tgt_len, _ = q.shape[0], q.shape[1], k.shape[1]
+        bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
         q = (
             q.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
             .permute(0, 3, 1, 2, 4)
             .reshape(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
         )
         k = (
-            k.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
+            k.reshape(bsz, src_len, 3, self.num_heads, self.head_dim)
             .permute(0, 3, 1, 2, 4)
-            .reshape(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
+            .reshape(bsz, self.num_heads, src_len, 3 * self.head_dim)
         )
         v = (
-            v.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
+            v.reshape(bsz, src_len, 3, self.num_heads, self.head_dim)
             .permute(0, 3, 1, 2, 4)
-            .reshape(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
+            .reshape(bsz, self.num_heads, src_len, 3 * self.head_dim)
         )
 
         # This is part of a workaround to get around fork/join parallelism
@@ -812,32 +803,42 @@ class EquivariantAttention(nn.Module):
 
 class InvariantSelfAttention(nn.Module):
     def __init__(
-        self, hidden_channels, head_dim, num_heads, dropout, d_tilde=1, memeffattn=True
+        self,
+        hidden_channels,
+        head_dim,
+        num_heads,
+        dropout,
+        use_linear_bias=False,
+        use_memory_efficient_attention=True,
     ):
         super().__init__()
         self.head_dim = head_dim
         self.num_heads = num_heads
-        self.q_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
-        self.k_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
-        self.v_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
-        if memeffattn:
+        self.use_linear_bias = use_linear_bias
+        self.q_proj = nn.Linear(hidden_channels, hidden_channels, bias=use_linear_bias)
+        self.k_proj = nn.Linear(hidden_channels, hidden_channels, bias=use_linear_bias)
+        self.v_proj = nn.Linear(hidden_channels, hidden_channels, bias=use_linear_bias)
+        if use_memory_efficient_attention:
             self.invariant_attention = MemEffInvariantAttention(
                 hidden_channels, head_dim, dropout
             )
         else:
             self.invariant_attention = InvariantAttention(
-                hidden_channels, head_dim, dropout
+                hidden_channels, head_dim, dropout, use_linear_bias=use_linear_bias
             )
 
         self.reset_parameters(1)
 
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.q_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        # self.q_proj.bias.data.fill_(0)
+        if self.use_linear_bias:
+            self.q_proj.bias.data.fill_(0)
         nn.init.xavier_uniform_(self.k_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        # self.k_proj.bias.data.fill_(0)
+        if self.use_linear_bias:
+            self.k_proj.bias.data.fill_(0)
         nn.init.xavier_uniform_(self.v_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        # self.v_proj.bias.data.fill_(0)
+        if self.use_linear_bias:
+            self.v_proj.bias.data.fill_(0)
 
     def forward(self, x, attn_bias, mask, pbc_expand_batched: Optional[Dict] = None):
         q = self.q_proj(x)
@@ -853,7 +854,12 @@ class InvariantSelfAttention(nn.Module):
 
 class EquivariantSelfAttention(nn.Module):
     def __init__(
-        self, hidden_channels, head_dim, num_heads, dropout, d_tilde=1, memeffattn=True
+        self,
+        hidden_channels,
+        head_dim,
+        num_heads,
+        dropout,
+        use_memory_efficient_attention=True,
     ):
         super().__init__()
         self.head_dim = head_dim
@@ -861,12 +867,12 @@ class EquivariantSelfAttention(nn.Module):
         self.q_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.k_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.v_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
-        if memeffattn:
-            self.equiariant_attention = EquivariantAttention(
+        if use_memory_efficient_attention:
+            self.equiariant_attention = MemEffEquivariantAttention(
                 hidden_channels, head_dim, dropout
             )
         else:
-            self.equiariant_attention = MemEffEquivariantAttention(
+            self.equiariant_attention = EquivariantAttention(
                 hidden_channels, head_dim, dropout
             )
 
@@ -891,17 +897,24 @@ class EquivariantSelfAttention(nn.Module):
 
 class Invariant2EquivariantAttention(nn.Module):
     def __init__(
-        self, hidden_channels, head_dim, num_heads, dropout, d_tilde=1, memeffattn=True
+        self,
+        hidden_channels,
+        head_dim,
+        num_heads,
+        dropout,
+        use_linear_bias=False,
+        use_memory_efficient_attention=True,
     ):
         super().__init__()
         self.head_dim = head_dim
         self.num_heads = num_heads
-        self.q_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
+        self.use_linear_bias = use_linear_bias
+        self.q_proj = nn.Linear(hidden_channels, hidden_channels, bias=use_linear_bias)
         self.k1_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.k2_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.v1_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.v2_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
-        if memeffattn:
+        if use_memory_efficient_attention:
             self.invariant_attention = MemEffInvariantAttention(
                 hidden_channels, head_dim, dropout
             )
@@ -914,7 +927,8 @@ class Invariant2EquivariantAttention(nn.Module):
 
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.q_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        # self.q_proj.bias.data.fill_(0)
+        if self.use_linear_bias:
+            self.q_proj.bias.data.fill_(0)
         nn.init.xavier_uniform_(self.k1_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         nn.init.xavier_uniform_(self.k2_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         nn.init.xavier_uniform_(self.v1_proj.weight, gain=1.0 / math.sqrt(d_tilde))
@@ -947,8 +961,8 @@ class Equivariant2InvariantAttention(nn.Module):
         dropout,
         eQi_choice,
         gbf_args,
-        d_tilde=1,
-        memeffattn=True,
+        use_linear_bias=False,
+        use_memory_efficient_attention=True,
     ):
         super().__init__()
         self.head_dim = head_dim
@@ -956,22 +970,23 @@ class Equivariant2InvariantAttention(nn.Module):
         self.eQi_choice = eQi_choice
         self.K = gbf_args[0]
         self.edge_types = gbf_args[1]
+        self.use_linear_bias = use_linear_bias
         self.q_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
-        self.k1_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
-        self.v1_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
+        self.k1_proj = nn.Linear(hidden_channels, hidden_channels, bias=use_linear_bias)
+        self.v1_proj = nn.Linear(hidden_channels, hidden_channels, bias=use_linear_bias)
         if eQi_choice == "original":
             self.k2_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
             self.v2_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         elif "gbf" in eQi_choice:
             self.gbf = GaussianLayer(self.K, self.edge_types)
-            self.gbf_proj = nn.Linear(self.K, hidden_channels, bias=False)
+            self.gbf_proj = nn.Linear(self.K, hidden_channels, bias=use_linear_bias)
 
-        if memeffattn:
-            self.equiariant_attention = EquivariantAttention(
+        if use_memory_efficient_attention:
+            self.equiariant_attention = MemEffEquivariantAttention(
                 hidden_channels, head_dim, dropout
             )
         else:
-            self.equiariant_attention = MemEffEquivariantAttention(
+            self.equiariant_attention = EquivariantAttention(
                 hidden_channels, head_dim, dropout
             )
 
@@ -980,10 +995,12 @@ class Equivariant2InvariantAttention(nn.Module):
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.q_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         nn.init.xavier_uniform_(self.k1_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        # self.k1_proj.bias.data.fill_(0)
+        if self.use_linear_bias:
+            self.k1_proj.bias.data.fill_(0)
         nn.init.xavier_uniform_(self.k2_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         nn.init.xavier_uniform_(self.v1_proj.weight, gain=1.0 / math.sqrt(d_tilde))
-        # self.v1_proj.bias.data.fill_(0)
+        if self.use_linear_bias:
+            self.v1_proj.bias.data.fill_(0)
         nn.init.xavier_uniform_(self.v2_proj.weight, gain=1.0 / math.sqrt(d_tilde))
 
     def forward(
@@ -1079,7 +1096,6 @@ class EncoderLayer(nn.Module):
         self,
         hidden_channels,
         num_heads,
-        activation_fn,
         ffn_embedding_dim,
         dropout: float = 0.1,
         attention_dropout: float = 0.1,
@@ -1087,8 +1103,8 @@ class EncoderLayer(nn.Module):
         eQi_choice: str = "original",
         gbf_args=None,
         layer_index=0,
-        d_tilde=1,
-        memeffattn=False,
+        use_memory_efficient_attention=False,
+        use_linear_bias=False,
     ):
         super().__init__()
 
@@ -1096,20 +1112,23 @@ class EncoderLayer(nn.Module):
 
         self.layer_index = layer_index
 
+        self.use_linear_bias = use_linear_bias
+
         if self.layer_index % 2 == 0:
             self.invariant_self_attention = InvariantSelfAttention(
                 hidden_channels,
                 head_dim,
                 num_heads,
                 dropout=attention_dropout,
-                memeffattn=memeffattn,
+                use_memory_efficient_attention=use_memory_efficient_attention,
+                use_linear_bias=use_linear_bias,
             )
             self.equivariant_self_attention = EquivariantSelfAttention(
                 hidden_channels,
                 head_dim,
                 num_heads,
                 dropout=attention_dropout,
-                memeffattn=memeffattn,
+                use_memory_efficient_attention=use_memory_efficient_attention,
             )
         else:
             self.invariant2equivariant_attention = Invariant2EquivariantAttention(
@@ -1117,7 +1136,8 @@ class EncoderLayer(nn.Module):
                 head_dim,
                 num_heads,
                 dropout=attention_dropout,
-                memeffattn=memeffattn,
+                use_memory_efficient_attention=use_memory_efficient_attention,
+                use_linear_bias=use_linear_bias,
             )
             self.equivaiant2invariant_attention = Equivariant2InvariantAttention(
                 hidden_channels,
@@ -1126,16 +1146,27 @@ class EncoderLayer(nn.Module):
                 dropout=attention_dropout,
                 eQi_choice=eQi_choice,
                 gbf_args=gbf_args,
-                memeffattn=memeffattn,
+                use_memory_efficient_attention=use_memory_efficient_attention,
+                use_linear_bias=use_linear_bias,
             )
 
         self.invariant_attn_layer_norm = nn.LayerNorm(hidden_channels)
         self.equivariant_attn_layer_norm = EquivariantLayerNorm(hidden_channels)
 
         self.activation_fn = gelu
-        self.invariant_fc1 = nn.Linear(hidden_channels, ffn_embedding_dim, bias=False)
-        self.invariant_fc2 = nn.Linear(ffn_embedding_dim, hidden_channels, bias=False)
-        self.equivariant_fc1 = nn.Linear(hidden_channels, ffn_embedding_dim, bias=False)
+        # for invariant branches, we can chose whether to use bias in linear mappings
+        # note that equivariant_fc1 is for invariant branch
+        self.invariant_fc1 = nn.Linear(
+            hidden_channels, ffn_embedding_dim, bias=use_linear_bias
+        )
+        self.invariant_fc2 = nn.Linear(
+            ffn_embedding_dim, hidden_channels, bias=use_linear_bias
+        )
+        self.equivariant_fc1 = nn.Linear(
+            hidden_channels, ffn_embedding_dim, bias=use_linear_bias
+        )
+
+        # for equivariant branches, we always disable bias in linear mappings to keep equivariance
         self.equivariant_fc2 = nn.Linear(hidden_channels, ffn_embedding_dim, bias=False)
         self.equivariant_fc3 = nn.Linear(ffn_embedding_dim, hidden_channels, bias=False)
 
@@ -1158,15 +1189,18 @@ class EncoderLayer(nn.Module):
         nn.init.xavier_uniform_(
             self.invariant_fc1.weight, gain=1.0 / math.sqrt(d_tilde)
         )
-        # self.invariant_fc1.bias.data.fill_(0)
+        if self.use_linear_bias:
+            self.invariant_fc1.bias.data.fill_(0)
         nn.init.xavier_uniform_(
             self.invariant_fc2.weight, gain=1.0 / math.sqrt(d_tilde)
         )
-        # self.invariant_fc2.bias.data.fill_(0)
+        if self.use_linear_bias:
+            self.invariant_fc2.bias.data.fill_(0)
         nn.init.xavier_uniform_(
             self.equivariant_fc1.weight, gain=1.0 / math.sqrt(d_tilde)
         )
-        # self.equivariant_fc1.bias.data.fill_(0)
+        if self.use_linear_bias:
+            self.equivariant_fc1.bias.data.fill_(0)
         nn.init.xavier_uniform_(
             self.equivariant_fc2.weight, gain=1.0 / math.sqrt(d_tilde)
         )
@@ -1269,19 +1303,19 @@ class GeomFormer(nn.Module):
         self.psm_config = psm_config
 
         self.unified_encoder_layers = nn.ModuleList()
-        for _ in range(num_pred_attn_layer):
+        for layer_index in range(num_pred_attn_layer):
             layer = EncoderLayer(
                 embedding_dim,
                 num_attention_heads,
-                None,
                 ffn_embedding_dim,
                 dropout=dropout,
                 attention_dropout=attention_dropout,
                 activation_dropout=activation_dropout,
                 eQi_choice="original",
                 gbf_args=[num_3d_bias_kernel, num_edges],
-                layer_index=_,
-                memeffattn=False,
+                layer_index=layer_index,
+                use_memory_efficient_attention=psm_config.use_memory_efficient_attention,
+                use_linear_bias=psm_config.equivar_use_linear_bias,
             )
             self.unified_encoder_layers.append(layer)
 
@@ -1289,14 +1323,20 @@ class GeomFormer(nn.Module):
 
         self.unified_gbf_vec = GaussianLayer(num_3d_bias_kernel, num_edges)
 
-        if self.psm_config.use_bias:
+        if self.psm_config.equivar_use_attention_bias:
             self.unified_gbf_attn_bias = GaussianLayer(num_3d_bias_kernel, num_edges)
 
             self.unified_bias_proj = nn.Linear(
-                num_3d_bias_kernel, num_attention_heads, bias=False
+                num_3d_bias_kernel,
+                num_attention_heads,
+                bias=self.psm_config.equivar_use_linear_bias,
             )
 
-        self.unified_vec_proj = nn.Linear(num_3d_bias_kernel, embedding_dim, bias=False)
+        self.unified_vec_proj = nn.Linear(
+            num_3d_bias_kernel,
+            embedding_dim,
+            bias=self.psm_config.equivar_use_linear_bias,
+        )
 
         self.unified_final_equivariant_ln = EquivariantLayerNorm(embedding_dim)
 
@@ -1374,10 +1414,9 @@ class GeomFormer(nn.Module):
                 -2
             )  # n_graph x n_node x n_expand_node x 3 x num_kernel
             if pbc_expand_batched is not None:
-                local_attention_weight = pbc_expand_batched[
-                    "local_attention_weight"
-                ].to(dtype=x.dtype)
+                local_attention_weight = pbc_expand_batched["local_attention_weight"]
                 if local_attention_weight is not None:
+                    local_attention_weight = local_attention_weight.to(dtype=x.dtype)
                     vec = (
                         uni_pos_feature
                         * local_attention_weight.unsqueeze(-1).unsqueeze(-1)
@@ -1400,7 +1439,7 @@ class GeomFormer(nn.Module):
         pos_mean_centered_dist = pos.norm(dim=-1)
         pos_mean_centered_unit = pos / (pos_mean_centered_dist.unsqueeze(-1) + 1e-5)
 
-        if self.psm_config.use_bias:
+        if self.psm_config.equivar_use_attention_bias:
             # attn_bias
             uni_gbf_feature = self.unified_gbf_attn_bias(dist, node_type_edge)
             uni_graph_attn_bias = (
@@ -1425,7 +1464,7 @@ class GeomFormer(nn.Module):
 
         output = x.contiguous().transpose(0, 1)
         output = output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
-        for layer_index, layer in enumerate(self.unified_encoder_layers):
+        for _, layer in enumerate(self.unified_encoder_layers):
             output, vec = layer(
                 output,
                 vec,

@@ -9,8 +9,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${layers}" ] && layers=12
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
-[ -z "${num_head}" ] && num_head=8
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
+[ -z "${num_head}" ] && num_head=32
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=512
@@ -33,12 +33,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${val_batch_size}" ] && val_batch_size=64
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
-[ -z "${strategy}" ] && strategy=Zero1
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${strategy}" ] && strategy=DDP
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000000
+[ -z "${save_batch_interval}" ] && save_batch_interval=10000
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
+[ -z "${val_batch_interval}" ] && val_batch_interval=30000
 
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
@@ -46,9 +47,11 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
 [ -z "${data_path}" ] && data_path='/data/peiran/'
 # [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,AFDB50-plddt70.lmdb'
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M,AFDB50-plddt70.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.9,0.0,0.1'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.2,0.4'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,1"
+[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
@@ -68,6 +71,28 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_PORT}" ] && MASTER_PORT=62347
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
+
+[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS"
+[ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
+[ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
+[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
+[ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=5.0
+[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
+[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
+
+[ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
+[ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
+[ -z "${num_timesteps}" ] && num_timesteps=5000
+[ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
+[ -z "${ddpm_beta_end}" ] && ddpm_beta_end=2e-3
+[ -z "${ddpm_schedule}" ] && ddpm_schedule=sigmoid
+
+[ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=True
+[ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=True
+
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+
+[ -z "${fp16}" ] && fp16=True
 
 
 echo -e "\n\n"
@@ -164,7 +189,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
-          seed=666666 \
+          seed=12345 \
           ifresume=True \
           mask_ratio=$mask_ratio \
           noise_scale=$noise_scale \
@@ -172,7 +197,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           d_tilde=$d_tilde \
           strategy=$strategy \
           max_lr=$max_lr \
-          num_timesteps=1000 \
           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
           use_2d_atom_features=True use_2d_bond_features=True \
           total_num_steps=$total_num_steps \
@@ -180,14 +204,20 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
           gradient_accumulation_steps=$gradient_accumulation_steps \
           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
-          save_batch_interval=$save_batch_interval log_interval=$log_interval \
+          save_batch_interval=$save_batch_interval log_interval=$log_interval loadcheck_path=$loadcheck_path \
+          equivar_vec_init=$equivar_vec_init pbc_use_local_attention=$pbc_use_local_attention \
+          pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
+          pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
+          diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
+          diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
+          num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
+          ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \
+          +dataset_micro_batch_size=\"$dataset_micro_batch_size\" +equivar_use_linear_bias=$equivar_use_linear_bias \
+          +equivar_use_attention_bias=$equivar_use_attention_bias +use_unified_batch_sampler=$use_unified_batch_sampler \
+          clean_sample_ratio=$clean_sample_ratio \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
 
 
           # dynamic_loader --max_tokens=$max_tokens \
           # --use_2d_atom_features --use_2d_bond_features \
           # --dynamic_loader --max_tokens $max_tokens \
-
-sleep inf
-sleep inf
-sleep inf

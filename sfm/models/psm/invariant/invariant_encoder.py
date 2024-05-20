@@ -2,7 +2,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import Callable, Dict, Optional, Tuple
+from typing import Dict
 
 import torch
 import torch.nn as nn
@@ -11,9 +11,7 @@ from sfm.models.psm.invariant.graphormer_2d_bias import GraphAttnBias
 
 from ..modules.pbc import CellExpander
 from ..psm_config import PSMConfig
-
-# from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
-from .graphormer_sentence_encoder_layer_v2 import GraphormerSentenceEncoderLayer
+from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
 
 
 class PSMEncoder(nn.Module):

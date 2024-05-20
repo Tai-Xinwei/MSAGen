@@ -21,12 +21,12 @@ from numpy.linalg import norm
 from sympy.utilities.iterables import multiset_permutations
 from torch.utils.data import Subset
 from torch_geometric.data import Data
+from tqdm import tqdm
 
 from sfm.data.data_utils import _filter_by_size_dynamic
 from sfm.data.dataset import FoundationModelDataset
 from sfm.data.mol_data import algos
 from sfm.data.prot_data.util import bstr2obj
-from sfm.data.prot_data.vocalubary import Alphabet
 from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.utils import (
     get_conv_variable_lin,
@@ -43,6 +43,12 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         lmdb_path: Optional[str],
     ):
         self.lmdb_path = lmdb_path
+        if (
+            self.lmdb_path is not None
+            and self.lmdb_path.find("PubChemQC-B3LYP-PM6") != -1
+            and self.lmdb_path.find("20240417.1/full") == -1
+        ):
+            self.lmdb_path += "/20240417.1/full/"
         self.args = args
         # for dataloader with num_workers > 1
         self._env, self._txn = None, None
@@ -63,7 +69,12 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         )
         self._txn = self.env.begin(write=False)
         metadata = bstr2obj(self.txn.get("metadata".encode()))
-        self._sizes, self._keys = metadata["size"], metadata["keys"]
+        if self.lmdb_path.find("PubChemQC-B3LYP-PM6") != -1:
+            self._sizes, keys = metadata["sizes"], metadata["keys"]
+            self._keys = [f"{key}" for key in keys]
+            del keys
+        else:
+            self._sizes, self._keys = metadata["size"], metadata["keys"]
 
     @property
     def env(self):
@@ -89,6 +100,7 @@ class PM6FullLMDBDataset(FoundationModelDataset):
             self._init_db()
         return self._keys
 
+    # energy and std calculated over training part of the dataset
     @property
     def energy_mean(self):
         return -43590.75390625
@@ -97,11 +109,27 @@ class PM6FullLMDBDataset(FoundationModelDataset):
     def energy_std(self):
         return 25539.1640625
 
+    @property
+    def force_mean(self):  # force mean should always be 0.0 to keep equivariance
+        return 0.0
+
+    @property
+    def force_std(self):
+        return 1.0
+
+    @property
+    def energy_per_atom_mean(self):
+        return -993.6875723598414
+
+    @property
+    def energy_per_atom_std(self):
+        return 770.9310654087114
+
     def split_dataset(self, validation_ratio=0.03, sort=False):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
-        random.Random(666).shuffle(indices)
+        random.Random(12345).shuffle(indices)
 
         num_validation_samples = int(num_samples * validation_ratio)
         num_training_samples = num_samples - num_validation_samples
@@ -127,7 +155,11 @@ class PM6FullLMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = pkl.loads(value)
 
-        # node features conversion for embedding, [0, 1, 0, 2] -> [0, 1 + 512, 0 + 512 x 2, 2 + 512 x 3]
+        # node features conversion for embedding, [6, 1, 0, 2] -> [6, 1 + 512, 0 + 512 x 2, 2 + 512 x 3]
+        # note that in node_feat from ogb smiles2graph, hydrogen is represented by number 0 in the first dimension of node features
+        # see https://github.com/snap-stanford/ogb/blob/f631af76359c9687b2fe60905557bbb241916258/ogb/utils/features.py#L60
+        # +1 for the atomic number here to be consistent with other datasets
+        data["node_feat"][:, 0] += 1
         data["node_feat"] = convert_to_single_emb(
             torch.tensor(data["node_feat"], dtype=torch.long)
         )
@@ -153,8 +185,18 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         data["forces"] = torch.zeros(
             (x.size()[0], 3), dtype=torch.float64, device=x.device
         )
+        if self.lmdb_path.find("PubChemQC-B3LYP-PM6") != -1:
+            total_energy = data["energy"]
+        else:
+            total_energy = data["total_energy"]
         data["energy"] = torch.tensor(
-            [(data["total_energy"] - self.energy_mean) / self.energy_std]
+            [(total_energy - self.energy_mean) / self.energy_std]
+        )
+        data["energy_per_atom"] = torch.tensor(
+            [
+                (total_energy / float(data["num_atoms"]) - self.energy_per_atom_mean)
+                / self.energy_per_atom_std
+            ]
         )
 
         data = self.generate_2dgraphfeat(data)
@@ -241,11 +283,22 @@ class MatterSimDataset:
                     lmdb_path = f"{self.data_path}/{path_name}"
                 else:
                     lmdb_path = f"{self.data_path}/{path_name}/{split}"
-                self.data_name_to_lmdb[path_name] = lmdb.open(lmdb_path)
+                self.data_name_to_lmdb[path_name] = lmdb.open(
+                    lmdb_path,
+                    subdir=True,
+                    readonly=True,
+                    lock=False,
+                    readahead=False,
+                    meminit=False,
+                )
                 self.data_name_to_txn[path_name] = self.data_name_to_lmdb[
                     path_name
                 ].begin(write=False)
-                for key, _ in self.data_name_to_txn[path_name].cursor():
+                for key, _ in tqdm(
+                    self.data_name_to_txn[path_name].cursor(),
+                    miniters=100000,
+                    mininterval=10.0,
+                ):
                     self.index_to_dataset_name.append([path_name, key.decode()])
 
     def switch_lattice_vectors(self, pbc, cell):
@@ -276,6 +329,7 @@ class MatterSimDataset:
         cell = cell[best_permutation] * np.array(best_lattice_flip_sign)[:, None]
         return pbc, cell
 
+    # energy and std calculated over training part of the dataset
     @property
     def energy_mean(self):
         return -66.0996156928496
@@ -283,6 +337,14 @@ class MatterSimDataset:
     @property
     def energy_std(self):
         return 102.91694201560776
+
+    @property
+    def energy_per_atom_mean(self):
+        return -4.707989414326259
+
+    @property
+    def energy_per_atom_std(self):
+        return 3.7324579639110653
 
     @property
     def force_mean(self):  # force mean should always be 0.0 to keep equivariance
@@ -296,7 +358,9 @@ class MatterSimDataset:
     def __getitem__(self, idx):
         data_name, key = self.index_to_dataset_name[idx]
         data = pkl.loads(self.data_name_to_txn[data_name].get(key.encode()))
-        numbers = data.pop("numbers")
+        numbers = data.pop(
+            "numbers"
+        )  # atomic numbers, starting from 1 for hydrogen atoms
         x = torch.tensor(numbers, dtype=torch.long)
         x = torch.cat([x, torch.full([8], 128)], dim=-1)
 
@@ -304,7 +368,7 @@ class MatterSimDataset:
 
         data["sample_type"] = 1
         data["coords"] = torch.tensor(positions, dtype=torch.float64)
-        data["token_type"] = x  # convert_to_single_emb(x)
+        data["token_type"] = x
         data["idx"] = idx
 
         data["pbc"], data["cell"] = self.switch_lattice_vectors(
@@ -342,6 +406,15 @@ class MatterSimDataset:
         )  # expand forces for cell corners
         data["energy"] = torch.tensor(
             [(data["info"]["energy"] - self.energy_mean) / self.energy_std]
+        )
+        data["energy_per_atom"] = torch.tensor(
+            [
+                (
+                    (data["info"]["energy"] / float(data["num_atoms"]))
+                    - self.energy_per_atom_mean
+                )
+                / self.energy_per_atom_std
+            ]
         )
         data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
 
@@ -502,6 +575,9 @@ class AFDBLMDBDataset(FoundationModelDataset):
             (x.size()[0], 3), dtype=torch.float64, device=x.device
         )
         data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=x.device
+        )
 
         data = self.generate_2dgraphfeat(data)
 
@@ -511,7 +587,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
-        random.Random(666).shuffle(indices)
+        random.Random(12345).shuffle(indices)
 
         num_validation_samples = int(num_samples * validation_ratio)
         num_training_samples = num_samples - num_validation_samples
@@ -819,7 +895,7 @@ class SmallMolDataset(FoundationModelDataset):
         num_samples = self.num_samples
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
-        random.Random(666).shuffle(indices)
+        random.Random(12345).shuffle(indices)
 
         num_validation_samples = int(num_samples * validation_ratio)
         num_training_samples = num_samples - num_validation_samples

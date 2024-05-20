@@ -2,11 +2,12 @@
 
 import os
 import random
+from typing import Iterator, Optional
 
 import numpy as np
 import torch
 from torch.utils.data import IterableDataset
-from torch.utils.data.distributed import DistributedSampler
+from torch.utils.data.distributed import DistributedSampler, T_co
 
 from sfm.data.dataset import FoundationModelDataset
 from sfm.data.psm_data.collator import collate_fn
@@ -16,6 +17,7 @@ from sfm.data.psm_data.dataset import (
     PM6FullLMDBDataset,
     SmallMolDataset,
 )
+from sfm.data.sampler import WeightedDistributedSampler
 from sfm.logging import logger
 
 try:
@@ -49,6 +51,7 @@ class UnifiedPSMDataset(FoundationModelDataset):
         dataset_name_list = dataset_name_list.split(",")
 
         self.sizes = []
+        self.dataset_lens = {}
 
         file_list = []
 
@@ -60,21 +63,49 @@ class UnifiedPSMDataset(FoundationModelDataset):
         self.train_len = 0
         self.valid_len = 0
 
+        self.molecule_energy_mean = 0.0
+        self.molecule_energy_std = 1.0
+        self.periodic_energy_mean = 0.0
+        self.periodic_energy_std = 1.0
+        self.molecule_energy_per_atom_mean = 0.0
+        self.molecule_energy_per_atom_std = 1.0
+        self.periodic_energy_per_atom_mean = 0.0
+        self.periodic_energy_per_atom_std = 1.0
+        self.molecule_force_mean = 0.0
+        self.molecule_force_std = 1.0
+        self.periodic_force_mean = 0.0
+        self.periodic_force_std = 1.0
+
         for data_path, dataset_name in zip(file_list, dataset_name_list):
             if dataset_name == "pm6":
                 dataset = PM6FullLMDBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
+                self.dataset_lens[dataset_name] = len(train_dataset)
                 self.sizes.append(train_dataset.sizes)
+                self.molecule_energy_mean = dataset.energy_mean
+                self.molecule_energy_std = dataset.energy_std
+                self.molecule_energy_per_atom_mean = dataset.energy_per_atom_mean
+                self.molecule_energy_per_atom_std = dataset.energy_per_atom_std
+                self.molecule_force_mean = dataset.force_mean
+                self.molecule_force_std = dataset.force_std
             elif dataset_name == "afdb":
                 dataset = AFDBLMDBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
+                self.dataset_lens[dataset_name] = len(train_dataset)
                 self.sizes.append(train_dataset.sizes)
             elif dataset_name == "mattersim":
                 train_dataset = MatterSimDataset(data_path, split="train", **kwargs)
                 valid_dataset = MatterSimDataset(data_path, split="valid", **kwargs)
+                self.dataset_lens[dataset_name] = len(train_dataset)
                 len_total = len(train_dataset) + len(valid_dataset)
+                self.periodic_energy_mean = train_dataset.energy_mean
+                self.periodic_energy_std = train_dataset.energy_std
+                self.periodic_energy_per_atom_mean = train_dataset.energy_per_atom_mean
+                self.periodic_energy_per_atom_std = train_dataset.energy_per_atom_std
+                self.periodic_force_mean = train_dataset.force_mean
+                self.periodic_force_std = train_dataset.force_std
             elif dataset_name in [
                 "pubchem5w",
                 "Ac_Ala3_NHMe",
@@ -162,6 +193,30 @@ class BatchedDataDataset(FoundationModelDataset):
 
     def num_tokens(self, idx: int) -> int:
         return super().num_tokens(idx)
+
+
+class BatchedDataDatasetForUnifiedSampler(BatchedDataDataset):
+    def __init__(
+        self,
+        args,
+        dataset_list,
+        len_data,
+        multi_hop_max_dist=5,
+        spatial_pos_max=1024,
+        ft=False,
+        infer=False,
+    ):
+        super().__init__(
+            args, dataset_list, len_data, multi_hop_max_dist, spatial_pos_max, ft, infer
+        )
+        self.dataset_lens = [len(dataset) for dataset in self.dataset_list]
+        self.dataset_ranges = np.cumsum([0] + self.dataset_lens)
+
+    def __getitem__(self, idx):
+        for i in range(self.num_datasets):
+            if idx >= self.dataset_ranges[i] and idx < self.dataset_ranges[i + 1]:
+                return self.dataset_list[i][idx - self.dataset_ranges[i]]
+        raise ValueError("Data not found")
 
 
 class StackedIterableDataset(IterableDataset):
@@ -342,6 +397,88 @@ class StackedIterableDataset(IterableDataset):
 
     def __len__(self):
         return self.num_blocks
+
+
+class UnifiedDataSampler(WeightedDistributedSampler):
+    # samples data from different modalities
+    def __init__(
+        self,
+        dataset: UnifiedPSMDataset,
+        dataset_split_ratios: str,
+        dataset_batch_sizes: str,
+        num_replicas: Optional[int] = None,
+        rank: Optional[int] = None,
+        seed: int = 0,
+        drop_last: bool = False,
+    ) -> None:
+        self.dataset_split_ratios = [
+            float(ratio) for ratio in dataset_split_ratios.split(",")
+        ]
+        self.dataset_batch_sizes = [
+            int(batch_size) for batch_size in dataset_batch_sizes.split(",")
+        ]
+        assert len(dataset.dataset_lens) == len(self.dataset_split_ratios) and len(
+            dataset.dataset_lens
+        ) == len(
+            self.dataset_batch_sizes
+        ), "Dataset parameters mismatched, please check data_path_list, dataset_name_list, dataset_split_raito, and dataset_micro_batch_size"
+        self.dataset_ranges = np.cumsum([0] + dataset.dataset_lens)
+        total_len = self.dataset_ranges[-1]
+        dataset_sampled_lens = [
+            total_len * ratio for ratio in self.dataset_split_ratios
+        ]
+        weight_dict = {}
+        for i in range(len(self.dataset_ranges) - 1):
+            start = self.dataset_ranges[i]
+            end = self.dataset_ranges[i + 1]
+            weight_dict[(start, end)] = dataset_sampled_lens[i] * 1.0 / (end - start)
+        super().__init__(dataset, weight_dict, num_replicas, rank, seed, drop_last)
+
+    def _pad_indices(self, batch_size, indices):
+        leftover_size = len(indices) % batch_size
+        if leftover_size == 0:
+            return indices
+        padding_size = batch_size - leftover_size
+        return indices + indices[:padding_size]
+
+    def __iter__(self) -> Iterator[T_co]:
+        indices = list(super().__iter__())
+        num_datasets = len(self.dataset_ranges) - 1
+        split_indices = [[] for _ in range(num_datasets)]
+        for index in indices:
+            for tag in range(num_datasets):
+                if (
+                    index >= self.dataset_ranges[tag]
+                    and index < self.dataset_ranges[tag + 1]
+                ):
+                    split_indices[tag].append(index)
+        if not self.drop_last:
+            for i in range(num_datasets):
+                split_indices[i] = self._pad_indices(
+                    self.dataset_batch_sizes[i], split_indices[i]
+                )
+        batch_seqs = [
+            [
+                split_indices[j][
+                    i * self.dataset_batch_sizes[j] : i * self.dataset_batch_sizes[j]
+                    + self.dataset_batch_sizes[j]
+                ]
+                for i in range(len(split_indices[j]) // self.dataset_batch_sizes[j])
+            ]
+            for j in range(num_datasets)
+        ]
+
+        g = torch.Generator()
+        g.manual_seed(self.seed + self.epoch)
+        total_num_batches = np.sum([len(batch_seq) for batch_seq in batch_seqs])
+        all_batches = []
+        for batch_seq in batch_seqs:
+            all_batches += batch_seq
+        batch_indices = torch.randperm(total_num_batches, generator=g).tolist()
+        return iter(all_batches[i] for i in batch_indices)
+
+    def set_epoch(self, epoch) -> None:
+        return super().set_epoch(epoch)
 
 
 if __name__ == "__main__":

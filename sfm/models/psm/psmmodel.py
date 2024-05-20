@@ -11,9 +11,10 @@ from tqdm import tqdm
 from sfm.logging import logger
 from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
+from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
-from sfm.models.psm.psm_config import DiffusionTrainingLoss, PSMConfig
+from sfm.models.psm.psm_config import PSMConfig
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
@@ -30,8 +31,6 @@ class PSMModel(Model):
     def __init__(
         self,
         args,
-        data_mean=0.0,
-        data_std=1.0,
         loss_fn=None,
         not_init=False,
         load_ckpt=False,
@@ -578,10 +577,10 @@ class PSM(nn.Module):
                 }
             )
             self.forces_head.update(
-                {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                {key: EquivariantVectorOutput(psm_config.embedding_dim)}
             )
             self.noise_head.update(
-                {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                {key: EquivariantVectorOutput(psm_config.embedding_dim)}
             )
 
         # aa mask predict head
@@ -632,16 +631,15 @@ class PSM(nn.Module):
         is_periodic = batched_data["is_periodic"]
         is_molecule = batched_data["is_molecule"]
         is_protein = batched_data["is_protein"]
-        # B , L, H is Batch, Length, Hidden
-        # token_embedding:B*L*H
-        # padding_mask:B*L
-        # token_type:B*L  (0 is used for PADDING)
+        # B, L, H is Batch, Length, Hidden
+        # token_embedding: B x L x H
+        # padding_mask: B x L
+        # token_type: B x L  (0 is used for PADDING)
         token_embedding, padding_mask, token_type = self.embedding(
             batched_data, time_step, clean_mask, aa_mask
         )
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
-        #
         if self.encoder is not None:
             (
                 encoder_output,
@@ -664,7 +662,7 @@ class PSM(nn.Module):
                 pbc_expand_batched=None,
             )
 
-        energy = torch.where(
+        energy_per_atom = torch.where(
             is_periodic.unsqueeze(-1),
             self.energy_head["periodic"](decoder_x_output).squeeze(-1),
             self.energy_head["molecule"](decoder_x_output).squeeze(-1),
@@ -672,30 +670,40 @@ class PSM(nn.Module):
 
         forces = torch.where(
             is_periodic.unsqueeze(-1).unsqueeze(-1),
-            self.forces_head["periodic"](decoder_vec_output).squeeze(-1),
-            self.forces_head["molecule"](decoder_vec_output).squeeze(-1),
+            self.forces_head["periodic"](decoder_x_output, decoder_vec_output).squeeze(
+                -1
+            ),
+            self.forces_head["molecule"](decoder_x_output, decoder_vec_output).squeeze(
+                -1
+            ),
         )
 
         noise_pred = torch.where(
             is_periodic.unsqueeze(-1).unsqueeze(-1),
-            self.noise_head["periodic"](decoder_vec_output).squeeze(-1),
-            self.noise_head["molecule"](decoder_vec_output).squeeze(-1),
+            self.noise_head["periodic"](decoder_x_output, decoder_vec_output).squeeze(
+                -1
+            ),
+            self.noise_head["molecule"](decoder_x_output, decoder_vec_output).squeeze(
+                -1
+            ),
         )
         noise_pred = torch.where(
             is_protein.unsqueeze(-1).unsqueeze(-1),
-            self.noise_head["protein"](decoder_vec_output).squeeze(-1),
+            self.noise_head["protein"](decoder_x_output, decoder_vec_output).squeeze(
+                -1
+            ),
             noise_pred,
         )
 
         # atom mask to leave out unit cell corners for periodic systems
         non_atom_mask = torch.arange(
-            n_nodes, dtype=torch.long, device=energy.device
+            n_nodes, dtype=torch.long, device=energy_per_atom.device
         ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(-1)
 
         # per-atom energy prediction
-        energy = (
-            energy.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
-            # / batched_data["num_atoms"]
+        energy_per_atom = (
+            energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
+            / batched_data["num_atoms"]
         )
 
         if self.encoder is not None:
@@ -704,7 +712,7 @@ class PSM(nn.Module):
             aa_logits = self.aa_mask_head(decoder_x_output)  # @Peiran
 
         return {
-            "energy": energy,
+            "energy_per_atom": energy_per_atom,
             "forces": forces,
             "aa_logits": aa_logits,
             "time_step": time_step,
