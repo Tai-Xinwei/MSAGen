@@ -32,8 +32,8 @@ except:
 from sfm.models.psm.psm_optimizer import AdamFP16
 from sfm.models.psm.psmmodel import PSMModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
-from sfm.pipeline.accelerator.trainer import Trainer
-from sfm.utils import dist_utils
+from sfm.pipeline.accelerator.trainer import Trainer, seed_everything
+from sfm.utils import dist_utils, env_init
 from sfm.utils.cli_utils import wandb_init
 
 
@@ -61,6 +61,8 @@ def main(args: DictConfig) -> None:
     args = Config(**OmegaConf.to_container(args, resolve=True))
 
     wandb_init(args)
+    seed_everything(args.seed)
+    env_init.set_env(args)
 
     ### define psm dataset here
     dataset = UnifiedPSMDataset(
@@ -75,10 +77,12 @@ def main(args: DictConfig) -> None:
         train_data = BatchedDataDatasetForUnifiedSampler(
             args, train_data, dataset.train_len
         )
+        valid_data = BatchedDataDatasetForUnifiedSampler(
+            args, valid_data, dataset.valid_len
+        )
     else:
         train_data = BatchedDataDataset(args, train_data, dataset.train_len)
-
-    valid_data = BatchedDataDataset(args, valid_data, dataset.valid_len)
+        valid_data = BatchedDataDataset(args, valid_data, dataset.valid_len)
 
     # define psm models here, define the diff loss in DiffMAE3dCriterions
     if args.rescale_loss_with_std:

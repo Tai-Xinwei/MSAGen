@@ -68,7 +68,8 @@ class WeightedDistributedSampler(DistributedSampler):
         self.total_size = self.num_samples * self.num_replicas
         self.seed = seed
         self.shuffle = True
-        self.num_skip_samples = None
+        self.num_skip_batches = None
+        self.micro_batch_size = None
 
     def __iter__(self) -> Iterator[T_co]:
         if self.shuffle:
@@ -119,8 +120,8 @@ class WeightedDistributedSampler(DistributedSampler):
         indices = indices[self.rank : self.total_size : self.num_replicas]
         assert len(indices) == self.num_samples
 
-        if self.num_skip_samples is not None:
-            indices = indices[self.num_skip_samples :]
+        if self.num_skip_batches is not None:
+            indices = indices[self.num_skip_batches * self.micro_batch_size :]
             self.num_samples = len(indices)
 
         return iter(indices)
@@ -128,9 +129,11 @@ class WeightedDistributedSampler(DistributedSampler):
     def __len__(self) -> int:
         return self.num_samples
 
-    def set_skip_samples(self, num_skip_samples):
-        self.num_skip_samples = num_skip_samples
+    def set_skip_batches(self, num_skip_batches, micro_batch_size):
+        self.num_skip_batches = num_skip_batches
+        self.micro_batch_size = micro_batch_size
 
     def set_epoch(self, epoch) -> None:
-        self.num_skip_samples = None
+        self.num_skip_batches = None
+        self.micro_batch_size = None
         return super().set_epoch(epoch)

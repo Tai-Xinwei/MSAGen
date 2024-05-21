@@ -34,12 +34,13 @@ from sfm.data.psm_data.utils import (
     matrixtoblock_lin,
 )
 from sfm.logging import logger
+from sfm.models.psm.psm_config import PSMConfig
 
 
 class PM6FullLMDBDataset(FoundationModelDataset):
     def __init__(
         self,
-        args,
+        args: PSMConfig,
         lmdb_path: Optional[str],
     ):
         self.lmdb_path = lmdb_path
@@ -214,20 +215,25 @@ class PM6FullLMDBDataset(FoundationModelDataset):
             edge_attr
         )
         adj[edge_index[0, :], edge_index[1, :]] = True
-        shortest_path_result, path = algos.floyd_warshall(adj.numpy())
-        max_dist = np.amax(shortest_path_result)
-        edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
-        spatial_pos = torch.from_numpy((shortest_path_result)).long()
         indgree = adj.long().sum(dim=1).view(-1)
 
         data["edge_index"] = edge_index
         data["edge_attr"] = edge_attr
         data["node_attr"] = data["node_feat"]
 
-        data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
-        data["spatial_pos"] = spatial_pos
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+            max_dist = np.amax(shortest_path_result)
+            edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
+            data["spatial_pos"] = spatial_pos
 
         return data
 
@@ -460,7 +466,7 @@ class PCQM4Mv2LMDBDataset(FoundationModelDataset):
 
 
 class MatterSimDataset:
-    def __init__(self, data_path, split=None):
+    def __init__(self, args: PSMConfig, data_path, split=None):
         self.data_name_to_lmdb = {}
         self.data_name_to_txn = {}
         self.index_to_dataset_name = []
@@ -488,6 +494,7 @@ class MatterSimDataset:
                     mininterval=10.0,
                 ):
                     self.index_to_dataset_name.append([path_name, key.decode()])
+        self.args = args
 
     def switch_lattice_vectors(self, pbc, cell):
         # simple algorithm to switch lattice vectors so that they are more aligned with the initial lattice vectors
@@ -616,13 +623,6 @@ class MatterSimDataset:
 
         edge_index = torch.zeros([2, 0], dtype=torch.long)
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
-        adj[edge_index[0, :], edge_index[1, :]] = True
-        shortest_path_result = (
-            torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
-        )
-        edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
-
-        spatial_pos = torch.from_numpy((shortest_path_result)).long()
         indgree = adj.long().sum(dim=1).view(-1)
 
         data["edge_index"] = edge_index
@@ -634,10 +634,21 @@ class MatterSimDataset:
             ],
             dim=-1,
         )
-        data["edge_input"] = edge_input
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
-        data["spatial_pos"] = spatial_pos
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result = (
+                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+            )
+            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = edge_input
+            data["spatial_pos"] = spatial_pos
 
         return data
 
@@ -648,7 +659,7 @@ class MatterSimDataset:
 class AFDBLMDBDataset(FoundationModelDataset):
     def __init__(
         self,
-        args,
+        args: PSMConfig,
         lmdb_path: Optional[str],
     ):
         self.lmdb_path = lmdb_path
@@ -834,12 +845,6 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
         edge_index = torch.zeros([2, 0], dtype=torch.long)
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
-        adj[edge_index[0, :], edge_index[1, :]] = True
-        shortest_path_result = (
-            torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
-        )
-        edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long).cpu().numpy()
-        spatial_pos = torch.from_numpy((shortest_path_result)).long()
         indgree = adj.long().sum(dim=1).view(-1)
 
         data["edge_index"] = edge_index
@@ -851,10 +856,21 @@ class AFDBLMDBDataset(FoundationModelDataset):
             ],
             dim=-1,
         )
-        data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
-        data["spatial_pos"] = spatial_pos
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result = (
+                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+            )
+            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = edge_input
+            data["spatial_pos"] = spatial_pos
 
         return data
 
@@ -881,7 +897,7 @@ class SmallMolDataset(FoundationModelDataset):
 
     def __init__(
         self,
-        args,
+        args: PSMConfig,
         path,
         data_name="pubchem5w",
         transforms=[],
@@ -932,6 +948,7 @@ class SmallMolDataset(FoundationModelDataset):
         self.Htoblock_otf = Htoblock_otf
         if self.enable_hami:
             self.conv, _, self.mask, _ = get_conv_variable_lin(basis)
+        self.args = args
 
     def open_db(self):
         for db_path in self.db_paths:
@@ -1040,21 +1057,25 @@ class SmallMolDataset(FoundationModelDataset):
         attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
         attn_edge_type[edge_index[0, :], edge_index[1, :]] = edge_attr + 1
         adj[edge_index[0, :], edge_index[1, :]] = True
-        shortest_path_result, path = algos.floyd_warshall(adj.numpy())
-        max_dist = np.amax(shortest_path_result)
-        edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
-        spatial_pos = torch.from_numpy((shortest_path_result)).long()
         indgree = adj.long().sum(dim=1).view(-1)
 
         data["edge_index"] = edge_index
         data["edge_attr"] = edge_attr
         data["node_attr"] = data["token_type"].reshape(N, 1)
 
-        data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
-        data["attn_edge_type"] = attn_edge_type
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
-        data["spatial_pos"] = spatial_pos
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+            max_dist = np.amax(shortest_path_result)
+            edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
+            data["spatial_pos"] = spatial_pos
 
         return data
 
@@ -1223,7 +1244,7 @@ class ProteinDownstreamDataset(FoundationModelDataset):
         # TODO: single sequence --> contact map
     }
 
-    def __init__(self, args: Any, direct=True) -> None:
+    def __init__(self, args: PSMConfig, direct=True) -> None:
         if direct:
             raise ValueError(
                 "DownstreamLMDBDataset should not be initialized directly, please use DownstreamLMDBDataset.load_dataset(args) instead."
@@ -1354,16 +1375,6 @@ class ProteinDownstreamDataset(FoundationModelDataset):
 
         edge_index = torch.zeros([2, 0], dtype=torch.long)
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
-        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
-        attn_edge_type[edge_index[0, :], edge_index[1, :]] = (
-            convert_to_single_emb(edge_attr) + 1
-        )
-        adj[edge_index[0, :], edge_index[1, :]] = True
-        shortest_path_result = (
-            torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
-        )
-        edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long).cpu().numpy()
-        spatial_pos = torch.from_numpy((shortest_path_result)).long()
         indgree = adj.long().sum(dim=1).view(-1)
 
         data["edge_index"] = edge_index
@@ -1375,11 +1386,21 @@ class ProteinDownstreamDataset(FoundationModelDataset):
             ],
             dim=-1,
         )
-        data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
-        data["attn_edge_type"] = attn_edge_type
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
-        data["spatial_pos"] = spatial_pos
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result = (
+                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+            )
+            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = edge_input
+            data["spatial_pos"] = spatial_pos
 
         return data
 
