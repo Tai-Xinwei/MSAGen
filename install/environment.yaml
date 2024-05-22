@@ -41,4 +41,4 @@ dependencies:
       - megablocks[gg]==0.5.1
       - hydra-core
       - e3nn
-      - git+https://github.com/Open-Catalyst-Project/ocp.git
+      - git+https://github.com/Open-Catalyst-Project/ocp.git@117cba5ecc57895b981629f7da8540cc398e5a1a
