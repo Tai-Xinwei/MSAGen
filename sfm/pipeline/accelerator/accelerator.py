@@ -971,7 +971,7 @@ class DeepSpeedAccelerator(Accelerator):
                 self.train_data_loader,
                 self.lr_scheduler,
             ) = initialize_pp_engine(
-                args=self.args,
+                args=dict(self.args),
                 model=self.ppmodel,
                 model_parameters=model_parameters,
                 training_data=self.train_data,

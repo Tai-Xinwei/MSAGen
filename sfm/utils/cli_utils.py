@@ -4,6 +4,9 @@ import os
 from argparse import ArgumentParser
 from functools import wraps
 
+import omegaconf as OmegaConf
+from hydra.core.config_store import DictConfig
+
 from sfm.logging import logger
 from sfm.pipeline.accelerator.trainer import seed_everything
 from sfm.utils import arg_utils, dist_utils, env_init
@@ -18,13 +21,23 @@ def wandb_init(args):
             logger.warning("Wandb not configured, logging to console only")
         # elif args.strategy == "DDP" or args.strategy == "Single":
         else:
-            wandb.init(
-                project=args.wandb_project,
-                group=args.wandb_group,
-                name=args.wandb_run_name,
-                entity=args.wandb_team,
-                config=args,
-            )
+            # print(type(args))
+            if type(args) == DictConfig:
+                wandb.init(
+                    project=args.wandb_project,
+                    group=args.wandb_group,
+                    name=args.wandb_run_name,
+                    entity=args.wandb_team,
+                    config=dict(args),
+                )
+            else:
+                wandb.init(
+                    project=args.wandb_project,
+                    group=args.wandb_group,
+                    name=args.wandb_run_name,
+                    entity=args.wandb_team,
+                    config=args,
+                )
 
 
 def cli(*cfg_classes_and_funcs):
