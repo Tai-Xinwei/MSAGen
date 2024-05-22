@@ -35,6 +35,28 @@ def pad_attn_bias_unsqueeze(x, padlen):
     return x.unsqueeze(0)
 
 
+def pad_adj_unsqueeze(x, padlen):
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen, padlen], dtype=x.dtype).fill_(False)
+        new_x[:xlen, :xlen] = x
+        new_x[xlen:, :xlen] = False
+        x = new_x
+    return x.unsqueeze(0)
+
+
+def pad_attn_edge_input_unsqueeze(x, padlen):
+    x = x + 1
+    xlen = x.size(0)
+    num_features = x.size(-1)
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen, padlen, num_features], dtype=x.dtype).fill_(0)
+        new_x[:xlen, :xlen, :] = x
+        new_x[xlen:, :xlen, :] = 0
+        x = new_x
+    return x.unsqueeze(0)
+
+
 def pad_spatial_pos_unsqueeze(x, padlen):
     x = x + 1
     xlen = x.size(0)
@@ -79,6 +101,7 @@ def collate_fn(
     multi_hop_max_dist=20,
     spatial_pos_max=20,
     use_pbc=True,
+    preprocess_2d_bond_features_with_cuda=True,
 ):  # unify the data format
     # include the following fields: sample_type, token_type, idx, coords, cell, pbc, stress, forces, energy
     # need to add: node_type_edge, edge_input, in_degree, attn_bias, spatial_pos
@@ -90,16 +113,10 @@ def collate_fn(
             item["cell"] = torch.zeros([3, 3])
         if "num_atoms" not in item:
             item["num_atoms"] = item["x"].size()[0]
-
-        item["edge_input"] = item["edge_input"][:, :, :multi_hop_max_dist, :]
-
-    # for idx, item in enumerate(items):
-    #     item["attn_bias"][1:, 1:][item["spatial_pos"] >= spatial_pos_max] = float(
-    #         "-inf"
-    #     )
+        if not preprocess_2d_bond_features_with_cuda:
+            item["edge_input"] = item["edge_input"][:, :, :multi_hop_max_dist, :]
 
     max_node_num = max(i["token_type"].shape[0] for i in items)
-    max_dist = max(i["edge_input"].size(-2) for i in items)
     energy = [i["energy"] for i in items]
     energy_per_atom = [i["energy_per_atom"] for i in items]
     forces = torch.cat([pad_pos_unsqueeze(i["forces"], max_node_num) for i in items])
@@ -108,17 +125,8 @@ def collate_fn(
     energy_per_atom = torch.cat(energy_per_atom)
     x = torch.cat([pad_2d_unsqueeze(i["node_attr"], max_node_num) for i in items])
 
-    edge_input = torch.cat(
-        [
-            pad_3d_unsqueeze(i["edge_input"], max_node_num, max_node_num, max_dist)
-            for i in items
-        ]
-    )
     attn_bias = torch.cat(
         [pad_attn_bias_unsqueeze(i["attn_bias"], max_node_num + 1) for i in items]
-    )
-    spatial_pos = torch.cat(
-        [pad_spatial_pos_unsqueeze(i["spatial_pos"], max_node_num) for i in items]
     )
     in_degree = torch.cat(
         [pad_1d_unsqueeze(i["in_degree"], max_node_num) for i in items]
@@ -131,6 +139,28 @@ def collate_fn(
         torch.cat([i["cell"].unsqueeze(0) for i in items], dim=0) if use_pbc else None
     )
     num_atoms = torch.tensor([i["num_atoms"] for i in items]) if use_pbc else None
+
+    if preprocess_2d_bond_features_with_cuda:
+        adj = torch.cat(
+            [pad_attn_bias_unsqueeze(i["adj"], max_node_num) for i in items]
+        )
+        attn_edge_type = torch.cat(
+            [
+                pad_attn_edge_input_unsqueeze(i["attn_edge_type"], max_node_num)
+                for i in items
+            ]
+        )
+    else:
+        max_dist = max(i["edge_input"].size(-2) for i in items)
+        edge_input = torch.cat(
+            [
+                pad_3d_unsqueeze(i["edge_input"], max_node_num, max_node_num, max_dist)
+                for i in items
+            ]
+        )
+        spatial_pos = torch.cat(
+            [pad_spatial_pos_unsqueeze(i["spatial_pos"], max_node_num) for i in items]
+        )
 
     node_type_edges = []
     for item in items:
@@ -145,14 +175,12 @@ def collate_fn(
         node_type_edges.append(node_atom_edge.long())
     node_type_edge = torch.cat(node_type_edges)
 
-    return dict(
+    batched_data = dict(
         attn_bias=attn_bias,
-        spatial_pos=spatial_pos,
         in_degree=in_degree,
         out_degree=in_degree,  # for undirected graph
         token_id=x[:, :, 0],
         node_attr=x,
-        edge_input=edge_input,
         energy=energy,
         energy_per_atom=energy_per_atom,
         forces=forces,
@@ -162,3 +190,19 @@ def collate_fn(
         cell=cell,
         num_atoms=num_atoms,
     )
+
+    if preprocess_2d_bond_features_with_cuda:
+        batched_data.update(
+            dict(
+                adj=adj,
+                attn_edge_type=attn_edge_type,
+            )
+        )
+    else:
+        batched_data.update(
+            dict(
+                spatial_pos=spatial_pos,
+                edge_input=edge_input,
+            )
+        )
+    return batched_data

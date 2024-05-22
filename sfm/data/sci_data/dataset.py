@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
+import bisect
+import os
 from collections import namedtuple
 
+import lmdb
 import numpy as np
 import torch
 
 from sfm.data.prot_data.dataset import DownstreamLMDBDataset
+from sfm.data.prot_data.util import bstr2obj
 from sfm.data.sci_data import SFMDecTokenizer
 from sfm.logging import logger
 
@@ -47,8 +51,34 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
         shuffle_subseq: bool = False,
     ):
         super().__init__()
-        self.data = np.load(path, mmap_mode="r")
-        processed_seq_len = self.data.shape[1]
+        # self.data = np.load(path, mmap_mode="r")
+        data_list = []
+        file_list = []
+        if isinstance(path, str):
+            if os.path.isfile(path):
+                file_list.append(path)
+            else:
+                for file_name in os.listdir(path):
+                    if file_name.endswith(".npy"):
+                        file_list.append(os.path.join(path, file_name))
+        elif isinstance(path, list):
+            file_list = path
+        else:
+            raise ValueError(f"{path} error")
+        logger.info(f"The dataset contains {len(file_list)} files.")
+        for file_path in file_list:
+            data = np.load(file_path, mmap_mode="r")
+            logger.info(f"Load {file_path} into the dataset.")
+            data_list.append(data)
+        self.data_list = data_list
+
+        processed_seq_len = self.data_list[0].shape[1]
+        for i in range(len(data_list)):
+            if processed_seq_len != self.data_list[i].shape[1]:
+                raise ValueError(
+                    f"{os.listdir(path)[i]} ({self.data_list[i].shape[1]}) is inconsistent with processed_seq_len in other files ({processed_seq_len})"
+                )
+
         if processed_seq_len % max_len != 0:
             raise ValueError(
                 f"processed_seq_len {processed_seq_len} is not divisible by max_len {max_len}"
@@ -61,20 +91,158 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
 
         if self.shuffle_subseq:
             assert self.eos_idx != -1, "eos_idx must be set if shuffle_subseq is True"
+        self.data_size_list = []
+        self.data_size_list.append(0)
+        for i in range(len(self.data_list)):
+            cur_num = self.data_list[i].shape[0] * self.replicate
+            self.data_size_list.append(self.data_size_list[i] + cur_num)
 
         logger.info(
-            f"Loaded {path} with shape {self.data.shape}, max_len {max_len}, replicate {self.replicate}"
+            f"Loaded {path} with shape ({int(self.__len__()/self.replicate), processed_seq_len}), max_len {max_len}, replicate {self.replicate}"
         )
 
     def __getitem__(self, index):
-        index, offset = divmod(index, self.replicate)
-        data = self.data[index][offset * self.max_len : (offset + 1) * self.max_len]
+        list_index, data_index = self.get_real_index(index)
+        data_index, offset = divmod(data_index, self.replicate)
+
+        data = self.data_list[list_index][data_index][
+            offset * self.max_len : (offset + 1) * self.max_len
+        ]
         if self.shuffle_subseq:
             data = shuffle_sub_sequences(data, self.eos_idx)
         return torch.from_numpy(data.astype(np.int64))
 
+    def get_real_index(self, index):
+        list_index = bisect.bisect_right(self.data_size_list, index)
+        return list_index - 1, index - self.data_size_list[list_index - 1]
+
     def __len__(self):
-        return self.data.shape[0] * self.replicate
+        return self.data_size_list[-1]
+
+    def collate(self, samples):
+        input_ids = torch.stack(samples, dim=0)
+        padding_mask = input_ids.ne(self.padding_idx)
+        input = SciTokenIdxAndMask(input_ids, padding_mask)
+        labels = input
+        return SciDataTuple(input, labels)
+
+
+class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        path,
+        padding_idx,
+        max_len: int,
+        eos_idx: int = -1,
+        shuffle_subseq: bool = False,
+    ):
+        super().__init__()
+        env_list = []
+        txn_list = []
+        keys_list = []
+        data_size_list = []
+        data_size_list.append(0)
+        processed_seq_len = None
+        self.len = 0
+        file_list = []
+        self.dtype = None
+        if isinstance(path, str):
+            if path.endswith(".lmdb"):
+                file_list.append(path)
+            else:
+                for file_name in os.listdir(path):
+                    if file_name.endswith(".lmdb"):
+                        file_list.append(os.path.join(path, file_name))
+        elif isinstance(path, list):
+            file_list = path
+        else:
+            raise ValueError(f"{path} error")
+        logger.info(f"The dataset contains {len(file_list)} files.")
+        for file_path in file_list:
+            env = lmdb.open(
+                file_path, subdir=True, readonly=True, lock=False, readahead=False
+            )
+            logger.info(f"Load {file_path} into the dataset.")
+            env_list.append(env)
+            txn = env.begin(write=False)
+            txn_list.append(txn)
+            metadata = bstr2obj(txn.get("metadata".encode()))
+            cur_processed_seq_len = metadata["processed_seq_len"]
+            cur_dtype = metadata["dtype"]
+            if processed_seq_len is not None:
+                if cur_processed_seq_len != processed_seq_len:
+                    raise ValueError(
+                        f"{file_path} ({cur_processed_seq_len}) is inconsistent with processed_seq_len in other files ({processed_seq_len})"
+                    )
+            else:
+                processed_seq_len = cur_processed_seq_len
+            if self.dtype is not None:
+                if self.dtype != cur_dtype:
+                    raise ValueError(
+                        f"{file_path} ({cur_dtype}) is inconsistent with dtype in other files ({self.dtype})"
+                    )
+            else:
+                self.dtype = cur_dtype
+        if self.dtype == "uint16":
+            self.dtype = np.uint16
+        elif self.dtype == "uint32":
+            self.dtype = np.uint32
+        elif self.dtype == "uint64":
+            self.dtype = np.uint64
+        else:
+            raise ValueError(f"current dtype {self.dtype} error")
+        self.env_list = env_list
+        self.txn_list = txn_list
+        if processed_seq_len % max_len != 0:
+            raise ValueError(
+                f"processed_seq_len {processed_seq_len} is not divisible by max_len {max_len}"
+            )
+        self.replicate = processed_seq_len // max_len
+        self.max_len = max_len
+        self.padding_idx = padding_idx
+        self.eos_idx = eos_idx
+        self.shuffle_subseq = shuffle_subseq
+        for txn in self.txn_list:
+            metadata = bstr2obj(txn.get("metadata".encode()))
+            cur_len, cur_keys = metadata["size"], metadata["keys"]
+            self.len += cur_len * self.replicate
+            data_size_list.append(self.len)
+
+            keys_list.append(cur_keys)
+            cur_processed_seq_len = metadata["processed_seq_len"]
+            if processed_seq_len is not None:
+                if cur_processed_seq_len != processed_seq_len:
+                    raise ValueError(
+                        f"{os.path.join(path,file_name)} ({cur_processed_seq_len}) is inconsistent with processed_seq_len in other files ({processed_seq_len})"
+                    )
+            else:
+                processed_seq_len = cur_processed_seq_len
+        self.data_size_list = data_size_list
+        self.keys_list = keys_list
+        if self.shuffle_subseq:
+            assert self.eos_idx != -1, "eos_idx must be set if shuffle_subseq is True"
+
+        logger.info(
+            f"Loaded {path} with shape ({int(self.len/self.replicate), processed_seq_len}), max_len {max_len}, replicate {self.replicate}"
+        )
+
+    def __getitem__(self, index):
+        list_index, data_index = self.get_real_index(index)
+        data_index, offset = divmod(data_index, self.replicate)
+        value = self.txn_list[list_index].get(str(data_index).encode())
+        data = np.frombuffer(value, dtype=self.dtype)[
+            offset * self.max_len : (offset + 1) * self.max_len
+        ]
+        if self.shuffle_subseq:
+            data = shuffle_sub_sequences(data, self.eos_idx)
+        return torch.from_numpy(data.astype(np.int64))
+
+    def get_real_index(self, index):
+        list_index = bisect.bisect_right(self.data_size_list, index)
+        return list_index - 1, index - self.data_size_list[list_index - 1]
+
+    def __len__(self):
+        return self.len
 
     def collate(self, samples):
         input_ids = torch.stack(samples, dim=0)

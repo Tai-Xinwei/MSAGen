@@ -69,6 +69,29 @@ class EquivariantDecoder(nn.Module):
                 pbc_expand_batched = self.cell_expander.expand(
                     pos, pbc, atoms, cell, self.psm_config.pbc_use_local_attention
                 )
+
+                n_node = atoms.size()[-1]
+                masked_token_type_i = (
+                    atoms.unsqueeze(-1).repeat(1, 1, n_node).unsqueeze(-1)
+                )
+                masked_token_type_j = (
+                    atoms.unsqueeze(1).repeat(1, n_node, 1).unsqueeze(-1)
+                )
+                pair_token_type = torch.cat(
+                    [masked_token_type_i, masked_token_type_j], dim=-1
+                )
+                outcell_index = pbc_expand_batched["outcell_index"]
+                expand_pair_token_type = torch.gather(
+                    pair_token_type,
+                    dim=2,
+                    index=outcell_index.unsqueeze(1)
+                    .unsqueeze(-1)
+                    .repeat(1, n_node, 1, 2),
+                )
+                pair_token_type = torch.cat(
+                    [pair_token_type, expand_pair_token_type], dim=2
+                )
+                pbc_expand_batched["expand_node_type_edge"] = pair_token_type
             else:
                 pbc_expand_batched = None
 
