@@ -34,12 +34,13 @@ from sfm.data.psm_data.utils import (
     matrixtoblock_lin,
 )
 from sfm.logging import logger
+from sfm.models.psm.psm_config import PSMConfig
 
 
 class PM6FullLMDBDataset(FoundationModelDataset):
     def __init__(
         self,
-        args,
+        args: PSMConfig,
         lmdb_path: Optional[str],
     ):
         self.lmdb_path = lmdb_path
@@ -214,20 +215,25 @@ class PM6FullLMDBDataset(FoundationModelDataset):
             edge_attr
         )
         adj[edge_index[0, :], edge_index[1, :]] = True
-        shortest_path_result, path = algos.floyd_warshall(adj.numpy())
-        max_dist = np.amax(shortest_path_result)
-        edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
-        spatial_pos = torch.from_numpy((shortest_path_result)).long()
         indgree = adj.long().sum(dim=1).view(-1)
 
         data["edge_index"] = edge_index
         data["edge_attr"] = edge_attr
         data["node_attr"] = data["node_feat"]
 
-        data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
-        data["spatial_pos"] = spatial_pos
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+            max_dist = np.amax(shortest_path_result)
+            edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
+            data["spatial_pos"] = spatial_pos
 
         return data
 
@@ -271,8 +277,196 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         return self.sizes[index]
 
 
+class PCQM4Mv2LMDBDataset(FoundationModelDataset):
+    def __init__(
+        self,
+        args,
+        lmdb_path: Optional[str],
+    ):
+        self.lmdb_path = lmdb_path
+        self.args = args
+        # for dataloader with num_workers > 1
+        self._env, self._txn = None, None
+        self._sizes, self._keys = None, None
+
+        self.filter_indices_by_size(
+            indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
+        )
+
+    def _init_db(self):
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self._txn = self.env.begin(write=False)
+        metadata = bstr2obj(self.txn.get("metadata".encode()))
+        self._sizes, self._keys = metadata["size"], metadata["keys"]
+
+    @property
+    def env(self):
+        if self._env is None:
+            self._init_db()
+        return self._env
+
+    @property
+    def txn(self):
+        if self._txn is None:
+            self._init_db()
+        return self._txn
+
+    @property
+    def sizes(self):
+        if self._sizes is None:
+            self._init_db()
+        return self._sizes
+
+    @property
+    def keys(self):
+        if self._keys is None:
+            self._init_db()
+        return self._keys
+
+    def get_dataset(self, sort=False):
+        num_samples = len(self.keys)
+        indices = list(range(num_samples))
+
+        dataset = self.__class__(self.args, self.lmdb_path)
+        dataset._keys = [self._keys[idx] for idx in indices]
+        dataset._sizes = [self._sizes[idx] for idx in indices]
+
+        return dataset
+
+    def split_dataset(self, validation_ratio=0.03, sort=False):
+        num_samples = len(self.keys)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(666).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(self.args, self.lmdb_path)
+        dataset_train._keys = [self._keys[idx] for idx in training_indices]
+        dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
+
+        dataset_val = self.__class__(self.args, self.lmdb_path)
+        dataset_val._keys = [self._keys[idx] for idx in validation_indices]
+        dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
+
+        return dataset_train, dataset_val
+
+    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
+        key = self.keys[idx]
+        value = self.txn.get(key.encode())
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        data = bstr2obj(value)
+
+        data["node_feat"] = torch.tensor(data["node_feat"], dtype=torch.long)
+        x = data["node_feat"][:, 0]
+        if "pos" in data:
+            coords = torch.tensor(data["pos"], dtype=torch.float64)
+        elif "coords" in data:
+            coords = torch.tensor(data["coords"], dtype=torch.float64)
+
+        # x = convert_to_single_emb(x)
+
+        data["sample_type"] = 0
+        data["token_type"] = x
+        data["idx"] = idx
+
+        data["coords"] = coords
+        data["num_atoms"] = x.size()[0]
+
+        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
+        data["forces"] = torch.zeros(
+            (x.size()[0], 3), dtype=torch.float64, device=x.device
+        )
+        # data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+        data["energy"] = torch.tensor([data["homo_lumo_gap"]], dtype=torch.float64)
+
+        data = self.generate_2dgraphfeat(data)
+
+        return data
+
+    def generate_2dgraphfeat(self, data):
+        N = data["num_atoms"]
+        adj = torch.zeros([N, N], dtype=torch.bool)
+
+        edge_index = torch.tensor(data["edge_index"], dtype=torch.long)
+        edge_attr = torch.tensor(data["edge_feat"], dtype=torch.long)
+        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+        attn_edge_type[edge_index[0, :], edge_index[1, :]] = (
+            convert_to_single_emb(edge_attr) + 1
+        )
+        adj[edge_index[0, :], edge_index[1, :]] = True
+        shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+        max_dist = np.amax(shortest_path_result)
+        edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+        spatial_pos = torch.from_numpy((shortest_path_result)).long()
+        indgree = adj.long().sum(dim=1).view(-1)
+
+        data["edge_index"] = edge_index
+        data["edge_attr"] = edge_attr
+        data["node_attr"] = data["node_feat"]
+
+        data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
+        data["attn_edge_type"] = attn_edge_type
+        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        data["in_degree"] = indgree
+        data["spatial_pos"] = spatial_pos
+
+        return data
+
+    def filter_indices_by_size(self, indices, max_sizes):
+        """
+        Filter a list of sample indices. Remove those that are longer than
+        specified in *max_sizes*.
+
+        WARNING: don't update, override method in child classes
+
+        Args:
+            indices (np.array): original array of sample indices
+            max_sizes (int or list[int] or tuple[int]): max sample size,
+                can be defined separately for src and tgt (then list or tuple)
+        """
+        if isinstance(max_sizes, float) or isinstance(max_sizes, int):
+            if hasattr(self, "_sizes") and isinstance(self._sizes, np.ndarray):
+                ignored = indices[self._sizes[indices] > max_sizes].tolist()
+                indices = indices[self._sizes[indices] <= max_sizes]
+            elif hasattr(self, "_sizes") and isinstance(self._sizes, list):
+                sizes = np.array(self._sizes)
+                ignored = indices[np.array(sizes[indices]) > max_sizes].tolist()
+                indices = indices[np.array(sizes[indices]) <= max_sizes]
+            else:
+                indices, ignored = _filter_by_size_dynamic(
+                    indices, self._sizes, max_sizes
+                )
+        else:
+            indices, ignored = _filter_by_size_dynamic(indices, self._sizes, max_sizes)
+
+        logger.warning(
+            f"Removed {len(ignored)} examples from the PCQM4Mv2LMDBDataset because they are longer than {max_sizes}."
+        )
+        self._sizes = [self._sizes[idx] for idx in indices]
+        self._keys = [self._keys[idx] for idx in indices]
+
+    def __len__(self) -> int:
+        return len(self.keys)
+
+
 class MatterSimDataset:
-    def __init__(self, data_path, split=None):
+    def __init__(self, args: PSMConfig, data_path, split=None):
         self.data_name_to_lmdb = {}
         self.data_name_to_txn = {}
         self.index_to_dataset_name = []
@@ -300,6 +494,7 @@ class MatterSimDataset:
                     mininterval=10.0,
                 ):
                     self.index_to_dataset_name.append([path_name, key.decode()])
+        self.args = args
 
     def switch_lattice_vectors(self, pbc, cell):
         # simple algorithm to switch lattice vectors so that they are more aligned with the initial lattice vectors
@@ -428,13 +623,6 @@ class MatterSimDataset:
 
         edge_index = torch.zeros([2, 0], dtype=torch.long)
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
-        adj[edge_index[0, :], edge_index[1, :]] = True
-        shortest_path_result = (
-            torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
-        )
-        edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
-
-        spatial_pos = torch.from_numpy((shortest_path_result)).long()
         indgree = adj.long().sum(dim=1).view(-1)
 
         data["edge_index"] = edge_index
@@ -446,10 +634,21 @@ class MatterSimDataset:
             ],
             dim=-1,
         )
-        data["edge_input"] = edge_input
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
-        data["spatial_pos"] = spatial_pos
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result = (
+                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+            )
+            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = edge_input
+            data["spatial_pos"] = spatial_pos
 
         return data
 
@@ -460,7 +659,7 @@ class MatterSimDataset:
 class AFDBLMDBDataset(FoundationModelDataset):
     def __init__(
         self,
-        args,
+        args: PSMConfig,
         lmdb_path: Optional[str],
     ):
         self.lmdb_path = lmdb_path
@@ -646,12 +845,6 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
         edge_index = torch.zeros([2, 0], dtype=torch.long)
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
-        adj[edge_index[0, :], edge_index[1, :]] = True
-        shortest_path_result = (
-            torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
-        )
-        edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long).cpu().numpy()
-        spatial_pos = torch.from_numpy((shortest_path_result)).long()
         indgree = adj.long().sum(dim=1).view(-1)
 
         data["edge_index"] = edge_index
@@ -663,10 +856,21 @@ class AFDBLMDBDataset(FoundationModelDataset):
             ],
             dim=-1,
         )
-        data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
-        data["spatial_pos"] = spatial_pos
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result = (
+                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+            )
+            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = edge_input
+            data["spatial_pos"] = spatial_pos
 
         return data
 
@@ -693,7 +897,7 @@ class SmallMolDataset(FoundationModelDataset):
 
     def __init__(
         self,
-        args,
+        args: PSMConfig,
         path,
         data_name="pubchem5w",
         transforms=[],
@@ -744,6 +948,7 @@ class SmallMolDataset(FoundationModelDataset):
         self.Htoblock_otf = Htoblock_otf
         if self.enable_hami:
             self.conv, _, self.mask, _ = get_conv_variable_lin(basis)
+        self.args = args
 
     def open_db(self):
         for db_path in self.db_paths:
@@ -852,21 +1057,25 @@ class SmallMolDataset(FoundationModelDataset):
         attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
         attn_edge_type[edge_index[0, :], edge_index[1, :]] = edge_attr + 1
         adj[edge_index[0, :], edge_index[1, :]] = True
-        shortest_path_result, path = algos.floyd_warshall(adj.numpy())
-        max_dist = np.amax(shortest_path_result)
-        edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
-        spatial_pos = torch.from_numpy((shortest_path_result)).long()
         indgree = adj.long().sum(dim=1).view(-1)
 
         data["edge_index"] = edge_index
         data["edge_attr"] = edge_attr
         data["node_attr"] = data["token_type"].reshape(N, 1)
 
-        data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
-        data["attn_edge_type"] = attn_edge_type
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
-        data["spatial_pos"] = spatial_pos
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+            max_dist = np.amax(shortest_path_result)
+            edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
+            data["spatial_pos"] = spatial_pos
 
         return data
 
@@ -1035,7 +1244,7 @@ class ProteinDownstreamDataset(FoundationModelDataset):
         # TODO: single sequence --> contact map
     }
 
-    def __init__(self, args: Any, direct=True) -> None:
+    def __init__(self, args: PSMConfig, direct=True) -> None:
         if direct:
             raise ValueError(
                 "DownstreamLMDBDataset should not be initialized directly, please use DownstreamLMDBDataset.load_dataset(args) instead."
@@ -1166,16 +1375,6 @@ class ProteinDownstreamDataset(FoundationModelDataset):
 
         edge_index = torch.zeros([2, 0], dtype=torch.long)
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
-        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
-        attn_edge_type[edge_index[0, :], edge_index[1, :]] = (
-            convert_to_single_emb(edge_attr) + 1
-        )
-        adj[edge_index[0, :], edge_index[1, :]] = True
-        shortest_path_result = (
-            torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
-        )
-        edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long).cpu().numpy()
-        spatial_pos = torch.from_numpy((shortest_path_result)).long()
         indgree = adj.long().sum(dim=1).view(-1)
 
         data["edge_index"] = edge_index
@@ -1187,11 +1386,21 @@ class ProteinDownstreamDataset(FoundationModelDataset):
             ],
             dim=-1,
         )
-        data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
-        data["attn_edge_type"] = attn_edge_type
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
-        data["spatial_pos"] = spatial_pos
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result = (
+                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+            )
+            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = edge_input
+            data["spatial_pos"] = spatial_pos
 
         return data
 

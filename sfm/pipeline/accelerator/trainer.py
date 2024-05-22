@@ -363,6 +363,7 @@ class Trainer(object):
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self._load_checkpoint(self.save_dir)
         self.start_iteration = self._load_rng_and_iter_state(self.save_dir)
+        logger.warning(f"self.start_iteration = {self.start_iteration} !!!!")
 
     def finetune_from_checkpoint(self):
         if self.finetune_from_checkpoint_dir is not None:
@@ -447,7 +448,7 @@ class Trainer(object):
     def should_save_batch_checkpoint(self) -> bool:
         return (
             self.args.save_batch_interval > 0
-            and (self.state.global_step + 1) % self.args.save_batch_interval == 0
+            and self.state.global_step % self.args.save_batch_interval == 0
         )
 
     def should_save_epoch_checkpoint(self) -> bool:
@@ -865,7 +866,10 @@ class Trainer(object):
 
         self.state.batch = start_iteration
 
-        if isinstance(self.accelerator, DeepSpeedAccelerator):
+        if (
+            isinstance(self.accelerator, DeepSpeedAccelerator)
+            or self.args.use_unified_batch_sampler
+        ):
             skip_first_batches_in_accelerator = self.accelerator.skip_first_batches(
                 start_iteration
             )

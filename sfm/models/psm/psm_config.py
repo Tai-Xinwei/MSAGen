@@ -84,6 +84,7 @@ class PSMConfig(GraphormerConfig):
     # for 2D information
     use_2d_atom_features: bool = False
     use_2d_bond_features: bool = False
+    preprocess_2d_bond_features_with_cuda: bool = True
 
     # memory efficient attention
     use_memory_efficient_attention: bool = False

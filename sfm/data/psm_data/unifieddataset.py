@@ -19,6 +19,7 @@ from sfm.data.psm_data.dataset import (
 )
 from sfm.data.sampler import WeightedDistributedSampler
 from sfm.logging import logger
+from sfm.models.psm.psm_config import PSMConfig
 
 try:
     from sfm.data.prot_data.token_block_utils_fast import (
@@ -30,6 +31,10 @@ except ImportError:
         "Please build Cython components with: `pip install --editable .` "
         "or `python setup.py build_ext --inplace`"
     )
+
+import math
+
+import torch.distributed as dist
 
 
 class UnifiedPSMDataset(FoundationModelDataset):
@@ -96,8 +101,12 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 self.dataset_lens[dataset_name] = len(train_dataset)
                 self.sizes.append(train_dataset.sizes)
             elif dataset_name == "mattersim":
-                train_dataset = MatterSimDataset(data_path, split="train", **kwargs)
-                valid_dataset = MatterSimDataset(data_path, split="valid", **kwargs)
+                train_dataset = MatterSimDataset(
+                    args, data_path, split="train", **kwargs
+                )
+                valid_dataset = MatterSimDataset(
+                    args, data_path, split="valid", **kwargs
+                )
                 self.dataset_lens[dataset_name] = len(train_dataset)
                 len_total = len(train_dataset) + len(valid_dataset)
                 self.periodic_energy_mean = train_dataset.energy_mean
@@ -142,7 +151,7 @@ class UnifiedPSMDataset(FoundationModelDataset):
 class BatchedDataDataset(FoundationModelDataset):
     def __init__(
         self,
-        args,
+        args: PSMConfig,
         dataset_list,
         len_data,
         multi_hop_max_dist=5,
@@ -189,6 +198,7 @@ class BatchedDataDataset(FoundationModelDataset):
             max_node=self.args.max_length,
             multi_hop_max_dist=self.multi_hop_max_dist,
             spatial_pos_max=self.spatial_pos_max,
+            preprocess_2d_bond_features_with_cuda=self.args.preprocess_2d_bond_features_with_cuda,
         )
 
     def num_tokens(self, idx: int) -> int:
@@ -220,7 +230,7 @@ class BatchedDataDatasetForUnifiedSampler(BatchedDataDataset):
 
 
 class StackedIterableDataset(IterableDataset):
-    def __init__(self, dataset_list, args, sizes, shuffle=True):
+    def __init__(self, dataset_list, args: PSMConfig, sizes, shuffle=True):
         self.dataset_list = dataset_list  # An iterable source
         self.collate_fn = collate_fn
         self.sequence_length = args.max_length
@@ -393,7 +403,11 @@ class StackedIterableDataset(IterableDataset):
         return result
 
     def collate(self, samples):
-        return self.collate_fn(samples, use_pbc=False)
+        return self.collate_fn(
+            samples,
+            use_pbc=False,
+            preprocess_2d_bond_features_with_cuda=self.args.preprocess_2d_bond_features_with_cuda,
+        )
 
     def __len__(self):
         return self.num_blocks
@@ -409,7 +423,6 @@ class UnifiedDataSampler(WeightedDistributedSampler):
         num_replicas: Optional[int] = None,
         rank: Optional[int] = None,
         seed: int = 0,
-        drop_last: bool = False,
     ) -> None:
         self.dataset_split_ratios = [
             float(ratio) for ratio in dataset_split_ratios.split(",")
@@ -432,17 +445,82 @@ class UnifiedDataSampler(WeightedDistributedSampler):
             start = self.dataset_ranges[i]
             end = self.dataset_ranges[i + 1]
             weight_dict[(start, end)] = dataset_sampled_lens[i] * 1.0 / (end - start)
-        super().__init__(dataset, weight_dict, num_replicas, rank, seed, drop_last)
 
-    def _pad_indices(self, batch_size, indices):
-        leftover_size = len(indices) % batch_size
-        if leftover_size == 0:
-            return indices
-        padding_size = batch_size - leftover_size
-        return indices + indices[:padding_size]
+        if num_replicas is None:
+            if not dist.is_available():
+                raise RuntimeError("Requires distributed package to be available")
+            num_replicas = dist.get_world_size()
+        if rank is None:
+            if not dist.is_available():
+                raise RuntimeError("Requires distributed package to be available")
+            rank = dist.get_rank()
+        if rank >= num_replicas or rank < 0:
+            raise ValueError(
+                "Invalid rank {}, rank should be in the interval"
+                " [0, {}]".format(rank, num_replicas - 1)
+            )
+        self.dataset = dataset
+        self.num_replicas = num_replicas
+        self.rank = rank
+        self.epoch = 0
+        self.weight_dict = weight_dict
+        self.dataset_sampled_len = {}
+
+        dataset_indices_len = 0
+        num_samples = 0
+        for i in range(len(self.dataset_ranges) - 1):
+            start = self.dataset_ranges[i]
+            end = self.dataset_ranges[i + 1]
+            ratio = weight_dict[(start, end)]
+            sampled_len = math.ceil((end - start) * ratio)
+            micro_batch_size = self.dataset_batch_sizes[i]
+            sampled_len = (
+                (sampled_len + micro_batch_size * num_replicas - 1)
+                // (micro_batch_size * num_replicas)
+                * micro_batch_size
+                * num_replicas
+            )
+            self.dataset_sampled_len[(start, end)] = sampled_len
+            dataset_indices_len += sampled_len
+            num_samples += sampled_len // num_replicas
+
+        self.dataset_indices_len = dataset_indices_len
+        self.num_total_samples = num_samples
+        self.num_samples = num_samples
+        self.total_size = self.num_samples * self.num_replicas
+        assert self.total_size == self.dataset_indices_len
+        self.seed = seed
+        self.shuffle = True
+        self.drop_last = False
+        self.num_skip_batches = None
+        self.micro_batch_size = None
 
     def __iter__(self) -> Iterator[T_co]:
-        indices = list(super().__iter__())
+        # deterministically shuffle based on epoch and seed
+        generator = np.random.default_rng(self.epoch + self.seed)
+        torch_generator = torch.Generator()
+        torch_generator.manual_seed(self.seed + self.epoch)
+        indices = []
+        for begin, end in np.sort(list(self.dataset_sampled_len.keys())):
+            sampled_len = self.dataset_sampled_len[(begin, end)]
+            if sampled_len > end - begin:
+                choice_replace = True
+            else:
+                choice_replace = False
+            indices.extend(
+                list(
+                    generator.choice(end - begin, sampled_len, replace=choice_replace)
+                    + begin
+                )[self.rank : self.total_size : self.num_replicas]
+            )
+        sorted_indices = torch.randperm(
+            len(indices), generator=torch_generator
+        ).tolist()
+        indices = np.array(indices)[np.array(sorted_indices)].tolist()
+
+        assert len(indices) == self.num_total_samples
+        self.num_samples = self.num_total_samples
+
         num_datasets = len(self.dataset_ranges) - 1
         split_indices = [[] for _ in range(num_datasets)]
         for index in indices:
@@ -452,11 +530,7 @@ class UnifiedDataSampler(WeightedDistributedSampler):
                     and index < self.dataset_ranges[tag + 1]
                 ):
                     split_indices[tag].append(index)
-        if not self.drop_last:
-            for i in range(num_datasets):
-                split_indices[i] = self._pad_indices(
-                    self.dataset_batch_sizes[i], split_indices[i]
-                )
+
         batch_seqs = [
             [
                 split_indices[j][
@@ -475,7 +549,13 @@ class UnifiedDataSampler(WeightedDistributedSampler):
         for batch_seq in batch_seqs:
             all_batches += batch_seq
         batch_indices = torch.randperm(total_num_batches, generator=g).tolist()
-        return iter(all_batches[i] for i in batch_indices)
+
+        if self.num_skip_batches is not None:
+            batch_indices = batch_indices[self.num_skip_batches :]
+        all_batches = [all_batches[i] for i in batch_indices]
+        if self.num_skip_batches is not None:
+            self.num_samples = np.sum(len(batch) for batch in all_batches)
+        return iter(all_batches)
 
     def set_epoch(self, epoch) -> None:
         return super().set_epoch(epoch)

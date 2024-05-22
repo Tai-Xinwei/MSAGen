@@ -7,16 +7,16 @@ import wandb  # isort:skip
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Union
+from dataclasses import dataclass
+from typing import Any, Dict
 
 import hydra
-from omegaconf import MISSING, DictConfig, OmegaConf
+from hydra.core.config_store import ConfigStore
+from omegaconf import MISSING
 
 from sfm.data.psm_data.unifieddataset import (
     BatchedDataDataset,
     BatchedDataDatasetForUnifiedSampler,
-    StackedIterableDataset,
     UnifiedPSMDataset,
 )
 from sfm.logging import logger
@@ -32,8 +32,8 @@ except:
 from sfm.models.psm.psm_optimizer import AdamFP16
 from sfm.models.psm.psmmodel import PSMModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
-from sfm.pipeline.accelerator.trainer import Trainer
-from sfm.utils import dist_utils
+from sfm.pipeline.accelerator.trainer import Trainer, seed_everything
+from sfm.utils import env_init
 from sfm.utils.cli_utils import wandb_init
 
 
@@ -41,26 +41,19 @@ from sfm.utils.cli_utils import wandb_init
 class Config(DistributedTrainConfig, PSMConfig):
     backbone_config: Dict[str, Any] = MISSING
     backbone: str = "graphormer"
-    ode_mode: bool = False
-
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-
-    def __getitem__(self, key):
-        return getattr(self, key)
 
 
-# @cli(DistributedTrainConfig, PSMConfig)
+cs = ConfigStore.instance()
+cs.store(name="config_psm_schema", node=Config)
+
+
 @hydra.main(
     version_base="1.3", config_path="../../../config_file", config_name="config_psm"
 )
-def main(args: DictConfig) -> None:
-    schema = OmegaConf.structured(Config)
-    args = OmegaConf.merge(schema, args)
-    args = Config(**OmegaConf.to_container(args, resolve=True))
-
+def main(args: Config) -> None:
     wandb_init(args)
+    seed_everything(args.seed)
+    env_init.set_env(args)
 
     ### define psm dataset here
     dataset = UnifiedPSMDataset(
@@ -75,10 +68,12 @@ def main(args: DictConfig) -> None:
         train_data = BatchedDataDatasetForUnifiedSampler(
             args, train_data, dataset.train_len
         )
+        valid_data = BatchedDataDatasetForUnifiedSampler(
+            args, valid_data, dataset.valid_len
+        )
     else:
         train_data = BatchedDataDataset(args, train_data, dataset.train_len)
-
-    valid_data = BatchedDataDataset(args, valid_data, dataset.valid_len)
+        valid_data = BatchedDataDataset(args, valid_data, dataset.valid_len)
 
     # define psm models here, define the diff loss in DiffMAE3dCriterions
     if args.rescale_loss_with_std:

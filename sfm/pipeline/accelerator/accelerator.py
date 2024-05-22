@@ -129,6 +129,9 @@ class Accelerator(ABC):
     def before_epoch(self, epoch: int):
         pass
 
+    def skip_first_batches(self, start_iteration):
+        return False
+
     def _accumulate_log_output(
         self, total_log_output, log_output, current_sample_count, num_new_samples
     ):
@@ -236,9 +239,7 @@ class SingleNodeAccelerator(Accelerator):
         )
 
         if valid_data:
-            valid_batch_size_per_gpu = self.args.val_batch_size // (
-                self.world_size * self.args.gradient_accumulation_steps
-            )
+            valid_batch_size_per_gpu = self.args.val_batch_size
             assert (
                 valid_batch_size_per_gpu > 0
             ), "valid_batch_size_per_gpu should be greater than 0"
@@ -390,6 +391,15 @@ class SingleNodeAccelerator(Accelerator):
     @staticmethod
     def _allreducelog(log_dict: dict = {}, log_num_dict: dict = {}):
         return None
+
+    def skip_first_batches(self, start_iteration):
+        if self.args.use_unified_batch_sampler:
+            self.train_data_loader.batch_sampler.set_skip_batches(
+                start_iteration * self.args.gradient_accumulation_steps, 0
+            )
+            return True
+        else:
+            return False
 
 
 class DdpAccelerator(SingleNodeAccelerator):
@@ -577,23 +587,35 @@ class DdpAccelerator(SingleNodeAccelerator):
                 )
 
         if val_data:
-            valid_batch_size_per_gpu = self.args.val_batch_size // (
-                self.world_size * self.args.gradient_accumulation_steps
-            )
-            assert (
-                valid_batch_size_per_gpu > 0
-            ), "valid_batch_size_per_gpu should be greater than 0"
-
-            validsampler = torch.utils.data.distributed.DistributedSampler(
-                val_data, num_replicas=self.world_size, shuffle=False
-            )
-            self.valid_data_loader = DataLoader(
-                val_data,
-                sampler=validsampler,
-                batch_size=valid_batch_size_per_gpu,
-                collate_fn=val_data.collate,
-                drop_last=False,
-            )
+            if self.args.use_unified_batch_sampler:
+                valid_sampler = UnifiedDataSampler(
+                    val_data,
+                    self.args.dataset_split_raito,
+                    self.args.dataset_micro_batch_size,
+                    num_replicas=self.world_size,
+                    rank=self.rank,
+                    seed=self.args.seed,
+                )
+                self.valid_data_loader = DataLoader(
+                    val_data,
+                    batch_sampler=valid_sampler,
+                    collate_fn=train_data.collate,
+                )
+            else:
+                valid_batch_size_per_gpu = self.args.val_batch_size
+                assert (
+                    valid_batch_size_per_gpu > 0
+                ), "valid_batch_size_per_gpu should be greater than 0"
+                validsampler = torch.utils.data.distributed.DistributedSampler(
+                    val_data, num_replicas=self.world_size, shuffle=False
+                )
+                self.valid_data_loader = DataLoader(
+                    val_data,
+                    sampler=validsampler,
+                    batch_size=valid_batch_size_per_gpu,
+                    collate_fn=val_data.collate,
+                    drop_last=False,
+                )
         else:
             self.valid_data_loader = None
 
@@ -664,6 +686,15 @@ class DdpAccelerator(SingleNodeAccelerator):
             log_num_dict[k] = v.item()
 
         return {k: safe_div(v, log_num_dict[k]) for k, v in log_dict.items()}
+
+    def skip_first_batches(self, start_iteration):
+        if self.args.use_unified_batch_sampler:
+            self.train_data_loader.batch_sampler.set_skip_batches(
+                start_iteration * self.args.gradient_accumulation_steps, 0
+            )
+            return True
+        else:
+            return False
 
 
 class DeepSpeedAccelerator(Accelerator):
@@ -1356,7 +1387,12 @@ class DeepSpeedAccelerator(Accelerator):
         return {k: safe_div(v, log_num_dict[k]) for k, v in log_dict.items()}
 
     def skip_first_batches(self, start_iteration):
-        if (
+        if self.args.use_unified_batch_sampler:
+            self.train_data_loader.batch_sampler.set_skip_batches(
+                start_iteration * self.args.gradient_accumulation_steps, 0
+            )
+            return True
+        elif (
             self.args.strategy == TrainStrategy.Zero1
             or self.args.strategy == TrainStrategy.Pipeline
         ):
@@ -1369,10 +1405,13 @@ class DeepSpeedAccelerator(Accelerator):
                 and self.train_data.weight_dict is not None
             ):
                 if stage_id == 0 or stage_id == num_stages - 1:
-                    self.train_data_loader.data_sampler.set_skip_samples(
-                        start_iteration
-                        * self.args.deepspeed_config["train_batch_size"]
-                        // self.model_engine.dp_world_size
+                    self.train_data_loader.data_sampler.set_skip_batches(
+                        start_iteration * self.args.gradient_accumulation_steps,
+                        self.args.deepspeed_config["train_batch_size"]
+                        // (
+                            self.model_engine.dp_world_size
+                            * self.args.gradient_accumulation_steps
+                        ),
                     )
                 return True
             else:
