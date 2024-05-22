@@ -50,7 +50,6 @@ class PSMConfig(GraphormerConfig):
     dataset_name_list: str = ""
     dataset_split_raito: str = ""
     dataset_micro_batch_size: str = ""
-    use_unified_batch_sampler: bool = False
 
     lamb_pde: float = 0.01
 

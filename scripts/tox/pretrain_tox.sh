@@ -34,8 +34,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 
-[ -z "${train_batch_size}" ] && train_batch_size=256
-[ -z "${val_batch_size}" ] && val_batch_size=256
+[ -z "${train_batch_size}" ] && train_batch_size=512
+[ -z "${val_batch_size}" ] && val_batch_size=512
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
@@ -158,8 +158,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
         --save_dir $save_dir \
         --seed 666666 \
         --add_3d \
+        --fp16 \
         --ifstack \
-        --ifresume \
         --diffmode $diffmode \
         --mask_ratio $mask_ratio \
         --noise_scale $noise_scale \
@@ -171,12 +171,12 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
         --total_num_steps $total_num_steps \
         --warmup_num_steps $warmup_num_steps \
         --train_batch_size $train_batch_size --val_batch_size $val_batch_size --max_length $max_length \
-        --val_batch_interval 3000 \
         --gradient_accumulation_steps $gradient_accumulation_steps \
         --save_epoch_interval $save_epoch_interval --total_num_epochs $epochs \
         --save_batch_interval $save_batch_interval --log_interval $log_interval \
         --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
 
+        # --val_batch_interval 3000 \
         # --ifresume \
         # --ifstack \
         # --finetune_from_checkpoint_dir $save_dir \

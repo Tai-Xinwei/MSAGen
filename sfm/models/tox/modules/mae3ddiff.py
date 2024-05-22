@@ -33,13 +33,14 @@ class ProteinMAEDistCriterions(nn.Module):
         output_dict,
     ):
         logits = output_dict["x"]
-        pair_output = output_dict["x_pair"]
+        output_dict["x_pair"]
         angle_output = output_dict["angle_output"]
         ang_epsilon = output_dict["ang_epsilon"]  # add agn_epsilon target
         mask_pos = output_dict["mask_pos"]
         mask_aa = output_dict["mask_aa"]
         padding_mask = output_dict["padding_mask"]
         # backbone = output_dict["backbone"]
+        pred_ca_pos = output_dict["pred_pos"]
 
         if mask_aa.any():
             with torch.no_grad():
@@ -65,11 +66,30 @@ class ProteinMAEDistCriterions(nn.Module):
             type_loss = torch.tensor([0.0], device=logits.device, requires_grad=True)
             type_acc = 0.0
 
+        # with torch.no_grad():
+        #     ori_pos = batch_data["pos"][:, :, :3, :]
+        #     batch_data["pos_mask"].bool()
+
+        #     ori_pos = ori_pos.mean(dim=2, keepdim=False)
+        #     delta_pos0 = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
+        #     ori_dist = delta_pos0.norm(dim=-1)
+
+        # pair_mask_aa = self._set_dist_mask(batch_data["x"])
+
+        # dist_mask = ~(
+        #     padding_mask.bool().unsqueeze(1) | padding_mask.bool().unsqueeze(2)
+        # )
+        # dist_filter = (ori_dist > 0.2) & (ori_dist < 20.0)
+        # dist_mask = dist_mask & dist_filter & pair_mask_aa
+
+        # ori_dist = ori_dist[dist_mask]
+        # dist = pair_output[dist_mask]
+        # dist_loss = self.loss_dist(ori_dist.to(torch.float32), dist.to(torch.float32))
+
         with torch.no_grad():
-            ori_pos = batch_data["pos"][:, :, :3, :]
+            ori_pos = batch_data["pos"][:, :, 1, :]
             batch_data["pos_mask"].bool()
 
-            ori_pos = ori_pos.mean(dim=2, keepdim=False)
             delta_pos0 = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
             ori_dist = delta_pos0.norm(dim=-1)
 
@@ -80,13 +100,14 @@ class ProteinMAEDistCriterions(nn.Module):
         )
         dist_filter = (ori_dist > 0.2) & (ori_dist < 20.0)
         dist_mask = dist_mask & dist_filter & pair_mask_aa
-
         ori_dist = ori_dist[dist_mask]
-        dist = pair_output[dist_mask]
+
+        dist = pred_ca_pos.unsqueeze(1) - pred_ca_pos.unsqueeze(2)
+        dist = dist.norm(dim=-1)
+        dist = dist[dist_mask]
         dist_loss = self.loss_dist(ori_dist.to(torch.float32), dist.to(torch.float32))
 
         ori_ca_pos = batch_data["pos"][:, :, 1, :]
-        pred_ca_pos = output_dict["pred_pos"]
 
         pos_loss = self.loss_pos(
             ori_ca_pos[(~padding_mask) & mask_pos.squeeze(-1).squeeze(-1)].to(

@@ -72,3 +72,14 @@ def sfm_nlm_moe_8x7b_config(config: MoeModelConfig):
     config.num_attention_heads = 32
     config.num_key_value_heads = 8
     return config
+
+
+def sfm_nlm_1b_base_config(config: MoeModelConfig):
+    config.hidden_size = 2048
+    config.intermediate_size = 5504
+    config.num_hidden_layers = 16
+    config.num_attention_heads = 32
+    config.num_key_value_heads = 8
+    config.max_position_embeddings = 8192
+    config.tokens_per_sample = 8192
+    return config

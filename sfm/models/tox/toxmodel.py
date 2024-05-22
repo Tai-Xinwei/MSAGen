@@ -675,13 +675,14 @@ class TOX(nn.Module):
         return pre_pos
 
     def _get_backbone(self, angle_pred):
-        angle_pred.shape[0]
+        bs = angle_pred.shape[0]
         psi = angle_pred[:, :, 0]
         phi = angle_pred[:, :, 1]
         omega = angle_pred[:, :, 2]
+        bond_angles = angle_pred[:, :, 3:].reshape(bs, -1)
 
         backbone_pos = self.backbonebuilder(
-            phi=phi, psi=psi, omega=omega, add_O=False
+            phi=phi, psi=psi, omega=omega, angles=bond_angles, add_O=False
         )  # B x L x 4 x 3 [N, CA, C, O]
 
         return backbone_pos
@@ -946,9 +947,10 @@ class TOX(nn.Module):
         if q is None:
             # x_pair, pair_mask_aa = self._pos_map(x, mask_aa, residue_seq)
             # backbone = self._get_backbone(angle_output)
-            x_pair = self._dist_map(x)
+            # pred_pos = self._pos_pred(x, backbone[:, :, 1, :], residue_seq)
+            # x_pair = self._dist_map(x)
             pred_pos = self._pos_pred(x, pos[:, :, 1, :], residue_seq)
-            # x_pair = None
+            x_pair = None
             pair_mask_aa = None
         else:
             x_pair = None
