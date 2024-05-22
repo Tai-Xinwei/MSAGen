@@ -1,4 +1,5 @@
 defaults:
+- config_psm_schema
 - backbone_config: graphormer
 # - schedule: polynomial #'cosine', 'reduce_on_plateau','polynomial'
 # - data_module: default
@@ -105,7 +106,6 @@ dataset_name_list: ""
 dataset_split_raito: ""
 lamb_pde: 0.01
 mode: "score"
-ode_mode: False
 # for PBC
 pbc_expanded_token_cutoff: 512
 pbc_expanded_num_cell_per_direction: 5
@@ -135,7 +135,7 @@ encoder_layers: 24
 num_pred_attn_layer: 4
 num_3d_bias_kernel: 128
 max_length: 1024
-multi_hop_max_dist: 20
+multi_hop_max_dist: 5
 droppath_prob: 0.0
 act_dropout: 0.0
 attn_dropout: 0.0
