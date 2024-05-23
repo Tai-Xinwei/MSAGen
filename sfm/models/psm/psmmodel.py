@@ -429,6 +429,69 @@ class PSMModel(Model):
 
         return {"loss": loss, "pred_pos": pred_pos, "orig_pos": orig_pos}
 
+    @torch.no_grad()
+    def seq2structure(self, aa_seq, dtype: torch.dtype = torch.float16) -> dict:
+        """
+        Given an amino acid sequence, predict the 3D structure of the protein.
+        """
+        batched_data = {}
+        N, L = aa_seq.shape
+
+        batched_data["sample_type"] = 2
+        batched_data["token_type"] = aa_seq
+        batched_data["idx"] = 0
+
+        batched_data["coords"] = torch.randn(N, L, 3, device=aa_seq.device, dtype=dtype)
+        batched_data["num_atoms"] = aa_seq.size()[0]
+
+        batched_data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+        batched_data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+        batched_data["stress"] = torch.zeros(
+            (3, 3), dtype=torch.float64, device=aa_seq.device
+        )
+        batched_data["forces"] = torch.zeros(
+            (aa_seq.size()[0], 3), dtype=torch.float64, device=aa_seq.device
+        )
+        batched_data["energy"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=aa_seq.device
+        )
+        batched_data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=aa_seq.device
+        )
+        adj = torch.zeros([N, N], dtype=torch.bool)
+
+        edge_index = torch.zeros([2, 0], dtype=torch.long)
+        edge_attr = torch.zeros([0, 3], dtype=torch.long)
+        indgree = adj.long().sum(dim=1).view(-1)
+
+        batched_data["edge_index"] = edge_index
+        batched_data["edge_attr"] = edge_attr
+        batched_data["node_attr"] = torch.cat(
+            [
+                batched_data["token_type"].unsqueeze(-1),
+                torch.zeros(
+                    [batched_data["token_type"].size()[0], 8], dtype=torch.long
+                ),
+            ],
+            dim=-1,
+        )
+        batched_data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        batched_data["in_degree"] = indgree
+
+        shortest_path_result = (
+            torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+        )
+        edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
+        spatial_pos = torch.from_numpy((shortest_path_result)).long()
+        batched_data["edge_input"] = edge_input
+        batched_data["spatial_pos"] = spatial_pos
+
+        # {"loss": loss, "pred_pos": pred_pos, "orig_pos": orig_pos}
+        # orig_pos would be N(0, 1) noise here, do not use.
+        result_dict = self.sample(batched_data)
+
+        return result_dict
+
 
 def center_pos(batched_data, padding_mask):
     # get center of system positions
