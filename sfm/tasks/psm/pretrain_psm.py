@@ -12,7 +12,7 @@ from typing import Any, Dict
 
 import hydra
 from hydra.core.config_store import ConfigStore
-from omegaconf import MISSING
+from omegaconf import MISSING, DictConfig, OmegaConf
 
 from sfm.data.psm_data.unifieddataset import (
     BatchedDataDataset,
@@ -48,11 +48,15 @@ cs = ConfigStore.instance()
 cs.store(name="config_psm_schema", node=Config)
 
 
-# @cli(DistributedTrainConfig, PSMConfig)
 @hydra.main(
     version_base="1.3", config_path="../../../config_file", config_name="config_psm"
 )
-def main(args: Config) -> None:
+def main(args: DictConfig) -> None:
+    args = OmegaConf.to_object(args)
+    assert isinstance(
+        args, Config
+    ), f"args must be an instance of Config! But it is {type(args)}"
+
     wandb_init(args)
     seed_everything(args.seed)
     env_init.set_env(args)

@@ -34,13 +34,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 
-[ -z "${train_batch_size}" ] && train_batch_size=512
-[ -z "${val_batch_size}" ] && val_batch_size=512
+[ -z "${train_batch_size}" ] && train_batch_size=1024
+[ -z "${val_batch_size}" ] && val_batch_size=1024
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=100
+[ -z "${log_interval}" ] && log_interval=50
 [ -z "${epochs}" ] && epochs=1000
 
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.4,0.4,0.1' #prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full

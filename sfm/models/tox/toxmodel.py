@@ -541,7 +541,7 @@ class TOX(nn.Module):
             # ang_score_norm = torch.tensor(ang_score_norm, device=noisy_ang.device)
 
             # set noised pos
-            noisy_pos = noisy_pos.masked_fill(~mask_pos.bool(), 0.0).to(ori_angle.dtype)
+            noisy_pos = noisy_pos.masked_fill(~mask_pos.bool(), 0.0).to(ori_pos.dtype)
             vis_pos = ori_pos.masked_fill(mask_pos.bool(), 0.0)
             pos = noisy_pos + vis_pos
 
@@ -551,7 +551,6 @@ class TOX(nn.Module):
             )
             vis_ang = ori_angle.masked_fill(mask_angle.bool(), 0.0)
             angle = noisy_ang + vis_ang
-            # angle = self.diffnoise._T_noise(angle, angle_mask)
 
             return (
                 pos,
@@ -948,9 +947,9 @@ class TOX(nn.Module):
             # x_pair, pair_mask_aa = self._pos_map(x, mask_aa, residue_seq)
             # backbone = self._get_backbone(angle_output)
             # pred_pos = self._pos_pred(x, backbone[:, :, 1, :], residue_seq)
-            # x_pair = self._dist_map(x)
+            x_pair = self._dist_map(x)
             pred_pos = self._pos_pred(x, pos[:, :, 1, :], residue_seq)
-            x_pair = None
+            # x_pair = None
             pair_mask_aa = None
         else:
             x_pair = None

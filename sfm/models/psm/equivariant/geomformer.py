@@ -1367,9 +1367,13 @@ class GeomFormer(nn.Module):
                 [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
             )
         else:
-            node_type_edge, node_type = (
-                batched_data["node_type_edge"],
-                batched_data["masked_token_type"],
+            node_type = batched_data["masked_token_type"]
+            node_type_edge = torch.cat(
+                [
+                    node_type.unsqueeze(-1).repeat(1, 1, n_node).unsqueeze(-1),
+                    node_type.unsqueeze(1).repeat(1, n_node, 1).unsqueeze(-1),
+                ],
+                dim=-1,
             )
             if node_type_edge is None:
                 atomic_numbers = batched_data["masked_token_type"]

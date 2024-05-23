@@ -19,25 +19,14 @@ def wandb_init(args):
         wandb_api_key = os.getenv("WANDB_API_KEY")
         if not wandb_api_key:
             logger.warning("Wandb not configured, logging to console only")
-        # elif args.strategy == "DDP" or args.strategy == "Single":
         else:
-            # print(type(args))
-            if type(args) == DictConfig:
-                wandb.init(
-                    project=args.wandb_project,
-                    group=args.wandb_group,
-                    name=args.wandb_run_name,
-                    entity=args.wandb_team,
-                    config=dict(args),
-                )
-            else:
-                wandb.init(
-                    project=args.wandb_project,
-                    group=args.wandb_group,
-                    name=args.wandb_run_name,
-                    entity=args.wandb_team,
-                    config=args,
-                )
+            wandb.init(
+                project=args.wandb_project,
+                group=args.wandb_group,
+                name=args.wandb_run_name,
+                entity=args.wandb_team,
+                config=args,
+            )
 
 
 def cli(*cfg_classes_and_funcs):

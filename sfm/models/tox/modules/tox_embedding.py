@@ -11,8 +11,11 @@ from .tox_layer import (
     Mix3DEmbeddingV2,
     Mix3DEmbeddingV3,
     Mix3DEmbeddingV4,
+    Mix3DEmbeddingV5,
+    Mix3DEmbeddingV6,
     Node3DEmbedding,
     Node3DEmbeddingv2,
+    NonLinear,
     ResidueFeature,
 )
 
@@ -112,7 +115,7 @@ class TOXmixEmbedding(nn.Module):
         )
 
         self.edge_3d_emb = (
-            Mix3DEmbeddingV4(
+            Mix3DEmbeddingV5(
                 pfm_config,
                 num_edges=pfm_config.num_edges,
                 embed_dim=pfm_config.embedding_dim // 2,

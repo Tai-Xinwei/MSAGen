@@ -515,6 +515,8 @@ class ProteinLMDBDataset(LMDBDataset):
         item["ang_noise"] = ang_noise
 
         item["ang"] = item["ang"] / 180.0 * torch.pi
+        item["pos"] = item["pos"] - item["pos"].mean(axis=1, keepdims=True)
+
         # insert inf to the first place and the end
         item["ang"] = np.concatenate(
             [np.zeros((1, 9)), item["ang"], np.zeros((1, 9))], axis=0

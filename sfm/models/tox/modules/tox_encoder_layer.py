@@ -15,8 +15,6 @@ from sfm.modules.mem_eff_attn import MemEffAttn, MemEffSelfAttn
 from sfm.modules.multihead_attention import MultiheadAttention
 from sfm.modules.quant_noise import quant_noise
 
-from .tox_layer import Graph2DBias, Graph3DBias
-
 
 class TOXEncoderLayer(nn.Module):
     """
@@ -104,15 +102,15 @@ class TOXEncoderLayer(nn.Module):
         # TODO: 2D attention bias needs carefully designed, features such as MSA should be included
         # self.graph_attn_bias = graph2dBias()
 
-        # TODO: reuse the 3D attention bias from Graphormer, modification may needed
-        self.graph_3d_bias = (
-            Graph3DBias(
-                num_heads=pfm_config.num_attention_heads,
-                num_kernel=pfm_config.num_3d_bias_kernel,
-            )
-            if pfm_config.add_3d
-            else None
-        )
+        # # TODO: reuse the 3D attention bias from Graphormer, modification may needed
+        # self.graph_3d_bias = (
+        #     Graph3DBias(
+        #         num_heads=pfm_config.num_attention_heads,
+        #         num_kernel=pfm_config.num_3d_bias_kernel,
+        #     )
+        #     if pfm_config.add_3d
+        #     else None
+        # )
 
         # dummy param for lora, do not remove
         self.dummy = nn.Linear(1, 1, bias=False)
