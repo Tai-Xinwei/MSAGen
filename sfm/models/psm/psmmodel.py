@@ -427,7 +427,7 @@ class PSMModel(Model):
 
         loss = torch.sum((pred_pos - orig_pos) ** 2, dim=-1, keepdim=True)
 
-        return loss
+        return {"loss": loss, "pred_pos": pred_pos, "orig_pos": orig_pos}
 
 
 def center_pos(batched_data, padding_mask):

@@ -4,9 +4,6 @@ import os
 from argparse import ArgumentParser
 from functools import wraps
 
-import omegaconf as OmegaConf
-from hydra.core.config_store import DictConfig
-
 from sfm.logging import logger
 from sfm.pipeline.accelerator.trainer import seed_everything
 from sfm.utils import arg_utils, dist_utils, env_init
