@@ -13,6 +13,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from sfm.logging import logger
+from sfm.models.tox.modules.tox_layer import NodeTaskHead
 from sfm.models.tox.structure.backbone import BackboneBuilder, BackboneBuilderV0
 from sfm.models.tox.tox_config import TOXConfig
 from sfm.modules.get_activation_fn import get_activation_fn
@@ -413,13 +414,7 @@ class TOX(nn.Module):
         self.angle_decoder = nn.Sequential(
             nn.Linear(args.encoder_embed_dim, args.encoder_embed_dim),
             nn.GELU(),
-            nn.Linear(args.encoder_embed_dim, 3),
-        )
-
-        self.bond_angle_decoder = nn.Sequential(
-            nn.Linear(args.encoder_embed_dim, args.encoder_embed_dim),
-            nn.GELU(),
-            nn.Linear(args.encoder_embed_dim, 3),
+            nn.Linear(args.encoder_embed_dim, 6),
         )
 
         self.masked_lm_pooler = nn.Linear(
@@ -446,6 +441,10 @@ class TOX(nn.Module):
             args.encoder_pair_embed_dim,
             args.num_residues * args.num_residues,
             bias=False,
+        )
+
+        self.pos_head = NodeTaskHead(
+            args.encoder_embed_dim, args.encoder_attention_heads
         )
 
         self.backbonebuilder = BackboneBuilderV0()
@@ -524,10 +523,7 @@ class TOX(nn.Module):
                 # time_pos = torch.where((mode_mask == 1), 1, time_pos)
                 time_ang = time_pos
 
-            pos_scale_coeff = 1.0
-            noisy_pos, _, _, _ = self.diffnoise._noise_sample(
-                ori_pos / pos_scale_coeff, time_pos
-            )
+            noisy_pos, _, _, _ = self.diffnoise._noise_sample(ori_pos, time_pos)
 
             (
                 noisy_ang,
@@ -545,7 +541,7 @@ class TOX(nn.Module):
             # ang_score_norm = torch.tensor(ang_score_norm, device=noisy_ang.device)
 
             # set noised pos
-            noisy_pos = noisy_pos.masked_fill(~mask_pos.bool(), 0.0).to(ori_angle.dtype)
+            noisy_pos = noisy_pos.masked_fill(~mask_pos.bool(), 0.0).to(ori_pos.dtype)
             vis_pos = ori_pos.masked_fill(mask_pos.bool(), 0.0)
             pos = noisy_pos + vis_pos
 
@@ -555,7 +551,6 @@ class TOX(nn.Module):
             )
             vis_ang = ori_angle.masked_fill(mask_angle.bool(), 0.0)
             angle = noisy_ang + vis_ang
-            # angle = self.diffnoise._T_noise(angle, angle_mask)
 
             return (
                 pos,
@@ -644,6 +639,7 @@ class TOX(nn.Module):
 
     def _dist_map(self, x):
         B, L, H = x.shape
+
         q = self.fc_pmlm_q(x)
         k = self.fc_pmlm_k(x)
         x = torch.einsum("bih,bjh->bijh", q, k)
@@ -651,18 +647,125 @@ class TOX(nn.Module):
         x = x.view(B, L, L)
         return x
 
-    def _get_backbone(self, angle_pred, bond_angle_output):
+    def _pos_pred(self, x, pos, residue_seq):
+        B, L, H = x.shape
+        delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
+        dist = delta_pos.norm(dim=-1).view(-1, L, L)
+        delta_pos /= dist.unsqueeze(-1) + 1e-5
+
+        B, L = residue_seq.shape
+        pair_mask_aa = torch.zeros(
+            (B, L, L), device=residue_seq.device, dtype=torch.int8
+        )
+        for i in range(B):
+            mask_start_idx = (residue_seq[i] == 0).nonzero(as_tuple=True)[0]
+            mask_end_idx = (residue_seq[i] == 2).nonzero(as_tuple=True)[0]
+
+            for j in range(len(mask_end_idx)):
+                s_idx = mask_start_idx[j]
+                e_idx = mask_end_idx[j] + 1
+                pair_mask_aa[i, s_idx:e_idx, s_idx:e_idx] = 1.0
+
+            if len(mask_start_idx) > len(mask_end_idx):
+                s_idx = mask_start_idx[-1]
+                pair_mask_aa[i, s_idx:, s_idx:] = 1.0
+
+        pre_pos = self.pos_head(x, delta_pos, pair_mask_aa.bool())
+        return pre_pos
+
+    def _get_backbone(self, angle_pred):
         bs = angle_pred.shape[0]
         psi = angle_pred[:, :, 0]
         phi = angle_pred[:, :, 1]
         omega = angle_pred[:, :, 2]
-        bond_angle_output.view(bs, -1)
+        bond_angles = angle_pred[:, :, 3:].reshape(bs, -1)
 
         backbone_pos = self.backbonebuilder(
-            phi=phi, psi=psi, omega=omega, add_O=False
+            phi=phi, psi=psi, omega=omega, angles=bond_angles, add_O=False
         )  # B x L x 4 x 3 [N, CA, C, O]
 
         return backbone_pos
+
+    def calculate_bondangle(self, pos: torch.Tensor, residue_seq: torch.Tensor):
+        """
+        Calculate the bond angle between three atoms.
+        Args:
+            pos: B x L x 3 x 3
+
+        Returns:
+            bond_angle: B x L x 3
+        """
+        Bs, L = pos.shape[:2]
+        bond_angle = []
+        bond_angle_mask = torch.ones((Bs, L, 3), device=pos.device)
+        for i in range(Bs):
+            mask_start_idx = (residue_seq[i] == 0).nonzero(as_tuple=True)[0]
+            mask_end_idx = (residue_seq[i] == 2).nonzero(as_tuple=True)[0]
+
+            bond_angle_i = []
+            for j in range(len(mask_end_idx)):
+                s_idx = mask_start_idx[j] + 1
+                e_idx = mask_end_idx[j]
+                postemp = pos[i, s_idx:e_idx, :, :].reshape(-1, 3)
+                u1 = postemp[1:-1, :] - postemp[:-2, :]
+                u2 = postemp[2:, :] - postemp[1:-1, :]
+
+                angle = torch.atan2(
+                    torch.norm(torch.cross(u1, u2, dim=-1), dim=-1),
+                    -(u1 * u2).sum(dim=-1),
+                )
+                bond_angle_i.append(
+                    torch.cat(
+                        [angle.new_zeros((4)), angle, angle.new_zeros((4))], dim=0
+                    )
+                )
+
+                bond_angle_mask[i, s_idx - 1, :] = 0.0
+                bond_angle_mask[i, e_idx, :] = 0.0
+                bond_angle_mask[i, s_idx, 0] = 0.0
+                bond_angle_mask[i, e_idx - 1, -1] = 0.0
+
+            if len(mask_start_idx) > len(mask_end_idx):
+                s_idx = mask_start_idx[-1] + 1
+                bond_angle_mask[i, s_idx - 1, :] = 0.0
+                if s_idx < L:
+                    postemp = pos[i, s_idx:, :, :].reshape(-1, 3)
+                    u1 = postemp[1:-1, :] - postemp[:-2, :]
+                    u2 = postemp[2:, :] - postemp[1:-1, :]
+
+                    angle = torch.atan2(
+                        torch.norm(torch.cross(u1, u2, dim=-1), dim=-1),
+                        -(u1 * u2).sum(dim=-1),
+                    )
+
+                    bond_angle_mask[i, s_idx, 0] = 0.0
+                    bond_angle_i.append(
+                        torch.cat(
+                            [angle.new_zeros((4)), angle, angle.new_zeros((1))], dim=0
+                        )
+                    )
+                else:
+                    bond_angle_i.append(angle.new_zeros((3)))
+
+            bond_angle_i = torch.cat(bond_angle_i, dim=0).view(-1, 3)
+            if bond_angle_i.shape[0] < L:
+                bond_angle_i = torch.cat(
+                    [bond_angle_i, angle.new_zeros((L - bond_angle_i.shape[0], 3))],
+                    dim=0,
+                )
+                bond_angle_mask[i, bond_angle_i.shape[0] :, :] = 0.0
+
+            bond_angle.append(bond_angle_i)
+
+        bond_angle = torch.stack(bond_angle, dim=0).view(Bs, L, 3)
+
+        return bond_angle, bond_angle_mask.bool()
+
+        # u1 = c2 - c1
+        # u2 = c3 - c2
+        # return torch.atan2(
+        #     torch.norm(torch.cross(u1, u2, dim=-1), dim=-1), -(u1 * u2).sum(dim=-1)
+        # )
 
     def forward(
         self,
@@ -718,6 +821,10 @@ class TOX(nn.Module):
         angle_mask = batched_data["ang_mask"].bool()
         pos_mask = batched_data["pos_mask"].bool().unsqueeze(-1)
         ori_pos = ori_pos.masked_fill(~pos_mask, 0.0)
+        ori_bond_angle, bond_angle_mask = self.calculate_bondangle(
+            ori_pos[:, :, :3, :], residue_seq
+        )
+        ori_angle = torch.cat([ori_angle[:, :, :3], ori_bond_angle], dim=-1)
 
         (
             mask_aa,
@@ -810,6 +917,7 @@ class TOX(nn.Module):
             mask_pos=mask_pos,
             mask_angle=mask_angle,
             angle_mask=angle_mask,
+            bond_angle_mask=bond_angle_mask,
             time_pos=time_pos,
             time_aa=time_aa,
             mode_mask=mode_mask,
@@ -833,12 +941,14 @@ class TOX(nn.Module):
 
         # TODO: check if it is okay to mask the paddings for q
         angle_output = angle_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
-        # backbone = self._get_backbone(angle_output, bond_angle_output)
         backbone = None
 
         if q is None:
             # x_pair, pair_mask_aa = self._pos_map(x, mask_aa, residue_seq)
+            # backbone = self._get_backbone(angle_output)
+            # pred_pos = self._pos_pred(x, backbone[:, :, 1, :], residue_seq)
             x_pair = self._dist_map(x)
+            pred_pos = self._pos_pred(x, pos[:, :, 1, :], residue_seq)
             # x_pair = None
             pair_mask_aa = None
         else:
@@ -876,6 +986,9 @@ class TOX(nn.Module):
             "ang_sigma": ang_sigma,
             "ang_epsilon": ang_epsilon,
             "ang_t": angle,
+            "pred_pos": pred_pos,
+            "ori_angle": ori_angle,
+            "bond_angle_mask": bond_angle_mask,
         }
 
         return output_dict

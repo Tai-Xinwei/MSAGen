@@ -41,6 +41,7 @@ from sfm.utils.cli_utils import wandb_init
 class Config(DistributedTrainConfig, PSMConfig):
     backbone_config: Dict[str, Any] = MISSING
     backbone: str = "graphormer"
+    ode_mode: bool = False
 
 
 cs = ConfigStore.instance()
@@ -50,9 +51,12 @@ cs.store(name="config_psm_schema", node=Config)
 @hydra.main(
     version_base="1.3", config_path="../../../config_file", config_name="config_psm"
 )
-def main(cfg: DictConfig) -> None:
-    args = OmegaConf.to_object(cfg)
-    assert isinstance(args, Config)
+def main(args: DictConfig) -> None:
+    args = OmegaConf.to_object(args)
+    assert isinstance(
+        args, Config
+    ), f"args must be an instance of Config! But it is {type(args)}"
+
     wandb_init(args)
     seed_everything(args.seed)
     env_init.set_env(args)

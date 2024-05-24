@@ -16,7 +16,6 @@ def wandb_init(args):
         wandb_api_key = os.getenv("WANDB_API_KEY")
         if not wandb_api_key:
             logger.warning("Wandb not configured, logging to console only")
-        # elif args.strategy == "DDP" or args.strategy == "Single":
         else:
             wandb.init(
                 project=args.wandb_project,

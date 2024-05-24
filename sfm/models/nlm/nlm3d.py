@@ -38,27 +38,27 @@ from sfm.utils.optim.set_lr import DECAY_COSINE_RATE, groupWarmupDecayLR
 
 
 class NLM3dModel(SFMPipelineModelMixin):
-    def __init__(self, args, vocab_size: int):
+    def __init__(self, args, vocab_size: int, if_init=True):
         super().__init__()
 
-        llama_config = LlamaConfig.from_pretrained(args.dict_path)
-        self.args = args
-        vocab_size = (
-            max(args.padded_vocab_size, vocab_size)
-            if hasattr(args, "padded_vocab_size")
-            else vocab_size
-        )
-        llama_config.vocab_size = vocab_size
-        self.mp_config = self.init_mp_config(args, llama_config)
-        self.llama_config = self.mp_config
+        if if_init:
+            llama_config = LlamaConfig.from_pretrained(args.dict_path)
+            self.args = args
+            vocab_size = (
+                max(args.padded_vocab_size, vocab_size)
+                if hasattr(args, "padded_vocab_size")
+                else vocab_size
+            )
+            llama_config.vocab_size = vocab_size
+            self.mp_config = self.init_mp_config(args, llama_config)
 
-        if args.strategy == TrainStrategy.ThreeD:
-            self.loss_fn = AutoregressiveThreeDCriterion(self.mp_config)
-        elif args.strategy == TrainStrategy.Pipeline:
-            raise Exception("Use ThreeD strategy for pipeline training.")
-        else:
-            self.net = TELlamaModel(args, self.llama_config)
-            self.loss_fn = AutoregressiveCriterion(self.mp_config)
+            if args.strategy == TrainStrategy.ThreeD:
+                self.loss_fn = AutoregressiveThreeDCriterion(self.mp_config)
+            elif args.strategy == TrainStrategy.Pipeline:
+                raise Exception("Use ThreeD strategy for pipeline training.")
+            else:
+                self.net = TELlamaModel(args, self.mp_config)
+                self.loss_fn = AutoregressiveCriterion(self.mp_config)
 
     def to_layers(self):
         pipe_layer = []

@@ -175,16 +175,16 @@ class TELlamaModel(LlamaPreTrainedModel):
             torch.zeros(1, dtype=torch.float32), requires_grad=True
         )
         self.args = args
-        self.layers = []
+        self.layers = nn.ModuleList([])
         for layer_id in range(config.num_hidden_layers):
             self.layers.append(
                 TELlamaDecoderLayer(args),
             )
-        self.embed_tokens = torch.nn.Embedding(
+        self.word_embeddings = torch.nn.Embedding(
             config.vocab_size, config.hidden_size, config.pad_token_id
         )
         self.learnable_cutoff = args.learnable_cutoff
-        self.embed_tokens.weight.register_hook(self.freeze_parital_weight_hook)
+        self.word_embeddings.weight.register_hook(self.freeze_parital_weight_hook)
 
         self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
@@ -201,7 +201,7 @@ class TELlamaModel(LlamaPreTrainedModel):
         attention_mask: Optional[torch.Tensor] = None,
         **kwargs,
     ):
-        hidden_states = self.embed_tokens(input_ids).transpose(0, 1)
+        hidden_states = self.word_embeddings(input_ids).transpose(0, 1)
         with te.pytorch.fp8_autocast(
             enabled=True, fp8_recipe=self.fp8_recipe
         ) if self.args.fp8 else nullcontext():

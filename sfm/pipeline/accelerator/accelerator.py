@@ -1235,7 +1235,6 @@ class DeepSpeedAccelerator(Accelerator):
         ):
             pred, log_loss = self.model_engine.eval_batch(iter(batch_data))
             pred = pred.detach().item()
-            torch.cuda.empty_cache()
             extra_output = {
                 k: v.detach().item() if isinstance(v, torch.Tensor) else v
                 for k, v in log_loss.items()
@@ -1263,7 +1262,6 @@ class DeepSpeedAccelerator(Accelerator):
                 logger.info("num_examples is not found. set to None")
                 num_examples = None
 
-            torch.cuda.empty_cache()
             return ValidLogOutput(
                 valid_loss=model_output.loss.item(),
                 epoch=epoch,

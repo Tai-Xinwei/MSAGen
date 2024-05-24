@@ -13,8 +13,8 @@ import numpy as np
 import rdkit.Chem as Chem
 from joblib import Parallel, delayed
 
-from data.utils.lmdb import obj2bstr
-from data.utils.molecule import mol2graph
+from sfm.data.mol_data.utils.lmdb import obj2bstr
+from sfm.data.mol_data.utils.molecule import mol2graph
 
 logger = logging.getLogger(__name__)
 

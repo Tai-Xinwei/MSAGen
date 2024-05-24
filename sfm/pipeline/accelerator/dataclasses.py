@@ -154,6 +154,7 @@ class TrainerConfig:
     finetune_from_checkpoint_dir: Optional[str] = None
     finetune_from_checkpoint_id: Optional[str] = None
     reset_act_each_step: bool = False
+    use_unified_batch_sampler: bool = False
 
     # dataloader strategy
     daliLoader: bool = False

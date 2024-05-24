@@ -16,6 +16,7 @@ from sfm.data.prot_data.dataset import (
     StackedSequenceIterableDataset,
 )
 from sfm.logging import logger
+from sfm.models.psm.psm_optimizer import AdamFP16
 from sfm.models.tox.modules.mae3ddiff import ProteinMAEDistCriterions
 from sfm.models.tox.tox_config import TOXConfig
 from sfm.models.tox.tox_optimizer import groupWarmupDecayLR, myAdam
@@ -53,13 +54,24 @@ def main(args) -> None:
 
     model = TOXModel(args, loss_fn=ProteinMAEDistCriterions)
 
-    optimizer, _ = myAdam(
-        model,
-        lr=args.max_lr,
-        betas=[0.9, 0.999],
-        weight_decay=args.weight_decay,
-        eps=1e-8,
-    )
+    # define optimizer here
+    if args.fp16:
+        optimizer = AdamFP16(
+            model.parameters(),
+            distributed_strategy=args.strategy,
+            lr=args.max_lr,
+            betas=(0.9, 0.999),
+            eps=1e-8,
+            weight_decay=args.weight_decay,
+        )
+    else:
+        optimizer, _ = myAdam(
+            model,
+            lr=args.max_lr,
+            betas=[0.9, 0.999],
+            weight_decay=args.weight_decay,
+            eps=1e-8,
+        )
 
     lr_scheduler = groupWarmupDecayLR(
         optimizer,

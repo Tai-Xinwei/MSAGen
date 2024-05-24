@@ -83,7 +83,7 @@ jobs:
   - export gradient_accumulation_steps=16
   - export log_interval=100
   - export data_path=/blob/psm/
-  - export data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,48organisms-fullatom.lmdb'
+  - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M,AFDB50-plddt70.lmdb'
   - export dataset_name_list='pm6,mattersim,afdb'
   - export dataset_split_raito='0.9,0.0,0.1'
   - export loadcheck_path=/blob/experiment/psm/psmV0test_0507/checkpoints

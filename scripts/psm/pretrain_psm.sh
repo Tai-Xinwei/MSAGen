@@ -212,8 +212,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
           num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
           ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \
-          +dataset_micro_batch_size=\"$dataset_micro_batch_size\" +equivar_use_linear_bias=$equivar_use_linear_bias \
-          +equivar_use_attention_bias=$equivar_use_attention_bias +use_unified_batch_sampler=$use_unified_batch_sampler \
+          dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
+          equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
 
