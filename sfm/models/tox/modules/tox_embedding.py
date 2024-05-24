@@ -109,7 +109,6 @@ class TOXmixEmbedding(nn.Module):
             pfm_config,
             num_residues=pfm_config.num_residues,
             hidden_dim=pfm_config.embedding_dim // 2,
-            max_len=1024,
             prop_feat=False,
             angle_feat=False,
         )

@@ -131,7 +131,7 @@ class DiffNoise(nn.Module):
     def _noise_sample(self, x_start, t):
         t = (t * self.args.num_timesteps).long()
         epsilon = torch.randn_like(x_start)
-        # epsilon = epsilon - epsilon.mean(dim=1, keepdim=True)
+        epsilon = epsilon - epsilon.mean(dim=1, keepdim=True)
 
         # sqrt_alphas_cumprod is a list of tensors, each tensor is a scalar, t is in shape of [batch_size, L], get the corresponding scalar for each batch
         sqrt_alphas_cumprod_t = self._extract(
@@ -168,7 +168,7 @@ class DiffNoise(nn.Module):
         sigma = beta_min ** (1 - T) * beta_max**T  # SMLD (31)
 
         epsilon = torch.randn_like(x_start)
-        # epsilon = epsilon - epsilon.mean(dim=1, keepdim=True)
+        epsilon = epsilon - epsilon.mean(dim=1, keepdim=True)
 
         noise = epsilon * sigma
 

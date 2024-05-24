@@ -629,7 +629,7 @@ class Mix3DEmbeddingV5(nn.Module):
         self.time_embedding_dim = embed_dim // 2
 
         self.angle_emb = AngleEmb(1, self.time_embedding_dim)
-        self.pos_emb = PosEmb(1, self.time_embedding_dim)
+        self.pos_emb = NonLinear(1, self.time_embedding_dim)
 
         self.time_embedding = TimeStepEncoder(
             t_timesteps,
@@ -706,7 +706,7 @@ class Mix3DEmbeddingV5(nn.Module):
             angle_mask.reshape(bs, -1, 1), angle_feat, self.unkangle_embedding.weight
         )
 
-        pos = pos.to(self.pos_emb.layer1.weight.dtype)
+        pos = pos.to(angle.dtype)
         dist_sum = self.cal_dist(pos[:, :, 1, :], aa_seq)
         pos_feat = self.pos_emb(dist_sum)
         pos_mask = ~(cls_mask | eos_mask)
@@ -784,9 +784,7 @@ class Mix3DEmbeddingV6(nn.Module):
         self.time_embedding_dim = embed_dim // 2
 
         self.angle_emb = AngleEmb(1, self.time_embedding_dim)
-        self.dist_emb = NonLinear(
-            1, self.time_embedding_dim, hidden=self.time_embedding_dim // 4
-        )
+        self.dist_emb = NonLinear(1, self.time_embedding_dim)
 
         self.time_embedding = TimeStepEncoder(
             t_timesteps,
