@@ -52,8 +52,8 @@ jobs:
   - export WANDB_TEAM=ai4s-sfm
   - export wandb_group=pdm_dev
   - mkdir /blob/pfmexp/output
-  - mkdir /blob/pfmexp/output/pfmdiff300M_prob1441_m5_bs1024_ddpm_v5
-  - mkdir /blob/pfmexp/output/pfmdiff300M_prob1441_m5_bs1024_ddpm_v5/checkpoints
+  - mkdir /blob/pfmexp/output/pfmdiff300M_prob1441_m5_bs1024_ddpm_v5_3
+  - mkdir /blob/pfmexp/output/pfmdiff300M_prob1441_m5_bs1024_ddpm_v5_3/checkpoints
   - mkdir ./output
   - export path=run.sh
   - export layers=24
@@ -80,11 +80,11 @@ jobs:
   - export max_length=1024
   - export gradient_accumulation_steps=1
   - export log_interval=100
-  - export loadcheck_path=/blob/pfmexp/output/pfmdiff300M_prob1441_m5_bs1024_ddpm_v5/checkpoints
+  - export loadcheck_path=/blob/pfmexp/output/pfmdiff300M_prob1441_m5_bs1024_ddpm_v5_3/checkpoints
   # - export data_path=/blob/data/afdb/48organisms-fullatom.lmdb/
   # - export data_path=/mnt/amlt_code/AFDB50-plddt70.lmdb/
   - export data_path=/nfs/psmdata/AFDB50-plddt70.lmdb/
-  - export save_dir=/blob/pfmexp/output/pfmdiff300M_prob1441_m5_bs1024_ddpm_v5/checkpoints
+  - export save_dir=/blob/pfmexp/output/pfmdiff300M_prob1441_m5_bs1024_ddpm_v5_3/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   # - bash ./scripts/tox/copy_from_nfs.sh

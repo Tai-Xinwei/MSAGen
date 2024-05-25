@@ -7,6 +7,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+from sfm.modules.mem_eff_attn import MemEffSelfAttn
+
 from .timestep_encoder import DiffNoise, TimeStepEncoder
 
 
@@ -617,7 +619,7 @@ class Mix3DEmbeddingV5(nn.Module):
         pfm_config,
         num_edges,
         embed_dim,
-        num_kernel,
+        num_kernel=64,
         t_timesteps=1010,
         time_embedding_type="positional",
         time_embedding_mlp=True,
@@ -657,6 +659,7 @@ class Mix3DEmbeddingV5(nn.Module):
 
     def cal_dist(self, pos, aa_seq):
         Bs, L = pos.shape[:2]
+        pos = pos / 10.0
         dist_sum = torch.zeros(Bs, L, device=pos.device, dtype=pos.dtype)
         for i in range(Bs):
             mask_start_idx = (aa_seq[i] == 0).nonzero(as_tuple=True)[0]
@@ -665,14 +668,14 @@ class Mix3DEmbeddingV5(nn.Module):
             for j in range(len(mask_end_idx)):
                 s_idx = mask_start_idx[j] + 1
                 e_idx = mask_end_idx[j]
-                delta_pos = pos[i, s_idx:e_idx].unsqueeze(1) - pos[
+                delta_pos = pos[i, s_idx:e_idx].unsqueeze(0) - pos[
                     i, s_idx:e_idx
-                ].unsqueeze(2)
+                ].unsqueeze(1)
                 dist_sum[i, s_idx:e_idx] = delta_pos.norm(dim=-1).mean(dim=-1)
 
             if len(mask_start_idx) > len(mask_end_idx):
-                s_idx = mask_start_idx[-1]
-                delta_pos = pos[i, s_idx:].unsqueeze(1) - pos[i, s_idx:].unsqueeze(2)
+                s_idx = mask_start_idx[-1] + 1
+                delta_pos = pos[i, s_idx:].unsqueeze(0) - pos[i, s_idx:].unsqueeze(1)
                 dist_sum[i, s_idx:] = delta_pos.norm(dim=-1).mean(dim=-1)
 
         return dist_sum.unsqueeze(-1)
@@ -772,7 +775,7 @@ class Mix3DEmbeddingV6(nn.Module):
         pfm_config,
         num_edges,
         embed_dim,
-        num_kernel,
+        num_kernel=32,
         t_timesteps=1010,
         time_embedding_type="positional",
         time_embedding_mlp=True,
@@ -783,8 +786,10 @@ class Mix3DEmbeddingV6(nn.Module):
         self.embed_dim = embed_dim
         self.time_embedding_dim = embed_dim // 2
 
+        self.gbf = GaussianLayer(self.num_kernel, num_edges)
+        self.pos_emb = nn.Linear(self.num_kernel, self.time_embedding_dim, bias=False)
+
         self.angle_emb = AngleEmb(1, self.time_embedding_dim)
-        self.dist_emb = NonLinear(1, self.time_embedding_dim)
 
         self.time_embedding = TimeStepEncoder(
             t_timesteps,
@@ -794,10 +799,10 @@ class Mix3DEmbeddingV6(nn.Module):
         )
 
         self.ang_feature_proj = nn.Linear(
-            6 * self.time_embedding_dim, self.time_embedding_dim
+            6 * self.time_embedding_dim, self.time_embedding_dim, bias=False
         )
         self.pos_feature_proj = nn.Linear(
-            self.time_embedding_dim, self.time_embedding_dim
+            self.time_embedding_dim, self.time_embedding_dim, bias=False
         )
 
         self.cls_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
@@ -810,10 +815,12 @@ class Mix3DEmbeddingV6(nn.Module):
             1, self.time_embedding_dim, padding_idx=None
         )
 
-    def cal_pos_emb(self, pos, aa_seq):
+    def cal_dist(self, pos, aa_seq):
         Bs, L = pos.shape[:2]
-        dist_sum = torch.zeros(Bs, L, device=pos.device, dtype=pos.dtype)
-
+        pos = pos / 10.0
+        sum_dist_features = torch.zeros(
+            Bs, L, self.num_kernel, device=pos.device, dtype=pos.dtype
+        )
         for i in range(Bs):
             mask_start_idx = (aa_seq[i] == 0).nonzero(as_tuple=True)[0]
             mask_end_idx = (aa_seq[i] == 2).nonzero(as_tuple=True)[0]
@@ -821,19 +828,22 @@ class Mix3DEmbeddingV6(nn.Module):
             for j in range(len(mask_end_idx)):
                 s_idx = mask_start_idx[j] + 1
                 e_idx = mask_end_idx[j]
-                delta_pos = pos[i, s_idx:e_idx].unsqueeze(1) - pos[
+                delta_pos = pos[i, s_idx:e_idx].unsqueeze(0) - pos[
                     i, s_idx:e_idx
-                ].unsqueeze(2)
-                dist_sum[i, s_idx:e_idx] = delta_pos.norm(dim=-1).mean(dim=-1)
+                ].unsqueeze(1)
+                sum_dist_features[i, s_idx:e_idx, :] = self.gbf(
+                    delta_pos.norm(dim=-1)
+                ).mean(dim=-2)
 
             if len(mask_start_idx) > len(mask_end_idx):
-                s_idx = mask_start_idx[-1]
-                delta_pos = pos[i, s_idx:].unsqueeze(1) - pos[i, s_idx:].unsqueeze(2)
-                dist_sum[i, s_idx:] = delta_pos.norm(dim=-1).mean(dim=-1)
+                s_idx = mask_start_idx[-1] + 1
+                delta_pos = pos[i, s_idx:].unsqueeze(0) - pos[i, s_idx:].unsqueeze(1)
+                sum_dist_features[i, s_idx:, :] = self.gbf(delta_pos.norm(dim=-1)).mean(
+                    dim=-2
+                )
 
-        dist_feature = self.dist_emb(1 / (1.0 + dist_sum.unsqueeze(-1)))
-
-        return dist_feature
+        merge_dist_features = self.pos_emb(sum_dist_features)
+        return merge_dist_features
 
     def forward(
         self,
@@ -864,8 +874,8 @@ class Mix3DEmbeddingV6(nn.Module):
             angle_mask.reshape(bs, -1, 1), angle_feat, self.unkangle_embedding.weight
         )
 
-        pos = pos.to(self.dist_emb.layer1.weight.dtype)
-        pos_feat = self.cal_pos_emb(pos[:, :, 1, :], aa_seq)
+        pos = pos.to(angle.dtype)
+        pos_feat = self.cal_dist(pos[:, :, 1, :], aa_seq)
         pos_mask = ~(cls_mask | eos_mask)
         pos_feat = torch.where(pos_mask, pos_feat, self.unkpos_embedding.weight)
 
@@ -913,7 +923,6 @@ class Mix3DEmbeddingV6(nn.Module):
         pos_feat = self.pos_feature_proj(pos_feat.view(bs, nnode, -1))
 
         node9dfeature = torch.cat([angle_feat, pos_feat], dim=-1)
-        # node9dfeature = angle_feat + pos_feat
 
         node9dfeature = torch.where(cls_mask, self.cls_embedding.weight, node9dfeature)
         node9dfeature = torch.where(eos_mask, self.eos_embedding.weight, node9dfeature)
@@ -949,9 +958,10 @@ class GaussianLayer(nn.Module):
             mul = self.mul(edge_types).sum(dim=-2)
             bias = self.bias(edge_types).sum(dim=-2)
             x = mul * x.unsqueeze(-1) + bias
+            x = x.expand(-1, -1, -1, self.K)
         else:
             x = x.unsqueeze(-1)
-        x = x.expand(-1, -1, -1, self.K)
+            x = x.expand(-1, -1, self.K)
         mean = self.means.weight.float().view(-1)
         std = self.stds.weight.float().view(-1).abs() + 1e-2
         return gaussian(x.float(), mean, std).type_as(self.means.weight)

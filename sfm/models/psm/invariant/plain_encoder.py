@@ -4,19 +4,15 @@ from typing import Callable, Optional
 import torch
 import torch.nn as nn
 
-from sfm.modules.deformable_multihead_attention import DeformableMultiheadAttention
 from sfm.modules.droppath import DropPath
 from sfm.modules.FairseqDropout import FairseqDropout
 
 # from fairseq import utils
 from sfm.modules.get_activation_fn import get_activation_fn
-from sfm.modules.layer_norm import LayerNorm
-from sfm.modules.mem_eff_attn import MemEffAttn, MemEffSelfAttn
-from sfm.modules.multihead_attention import MultiheadAttention
-from sfm.modules.quant_noise import quant_noise
+from sfm.modules.mem_eff_attn import MemEffSelfAttn
 
 
-class TOXEncoderLayer(nn.Module):
+class PSMPlainEncoderLayer(nn.Module):
     """
     Implements a Transformer-M Encoder Layer.
     """
@@ -61,10 +57,6 @@ class TOXEncoderLayer(nn.Module):
                 dropout, module_name=self.__class__.__name__
             )
 
-        # self.activation_dropout_module = FairseqDropout(
-        #     activation_dropout, module_name=self.__class__.__name__
-        # )
-
         # Initialize blocks
         self.activation_fn = get_activation_fn(activation_fn)
         self.self_attn = self.build_self_attention(
@@ -99,19 +91,6 @@ class TOXEncoderLayer(nn.Module):
         self.args = args
         self.self_attn_mask = self_attn_mask
 
-        # TODO: 2D attention bias needs carefully designed, features such as MSA should be included
-        # self.graph_attn_bias = graph2dBias()
-
-        # # TODO: reuse the 3D attention bias from Graphormer, modification may needed
-        # self.graph_3d_bias = (
-        #     Graph3DBias(
-        #         num_heads=pfm_config.num_attention_heads,
-        #         num_kernel=pfm_config.num_3d_bias_kernel,
-        #     )
-        #     if pfm_config.add_3d
-        #     else None
-        # )
-
         # dummy param for lora, do not remove
         self.dummy = nn.Linear(1, 1, bias=False)
 
@@ -140,7 +119,6 @@ class TOXEncoderLayer(nn.Module):
         add_rope=False,
     ):
         return MemEffSelfAttn(
-            # return MultiheadAttention(
             embed_dim,
             num_attention_heads,
             dropout=dropout,
@@ -167,19 +145,6 @@ class TOXEncoderLayer(nn.Module):
         LayerNorm is applied either before or after the self-attention/ffn
         modules similar to the original Transformer implementation.
         """
-        # x: T x B x C
-        self_3d_attn_bias = None
-        if self.pfm_config.add_3d and if_attn_bias:
-            # [bs, nHead, nnode, nnode]
-            self_3d_attn_bias = self.graph_3d_bias(self_attn_padding_mask, edge_feature)
-            # mae task need to mask the 3d attn bias
-            if mask_pos is not None and self.pfm_config.noise_mode == "mae":
-                self_3d_attn_bias = self_3d_attn_bias.masked_fill_(
-                    (
-                        (self_3d_attn_bias != float("-inf")) * mask_pos[:, None, :, :]
-                    ).bool(),
-                    0.0,
-                )
 
         residual = x
         x = self.top_layer_norm(x)
@@ -199,4 +164,4 @@ class TOXEncoderLayer(nn.Module):
         x = self.dropout_module(x)
         x = residual + x
 
-        return x, self_3d_attn_bias
+        return x

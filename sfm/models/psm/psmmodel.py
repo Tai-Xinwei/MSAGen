@@ -617,6 +617,11 @@ class PSM(nn.Module):
         elif args.backbone == "geomformer":
             # Implement the decoder
             self.decoder = EquivariantDecoder(psm_config)
+        if args.backbone == "vanillatransformer":
+            # Implement the encoder
+            self.encoder = PSMEncoder(args, psm_config)
+            # Implement the decoder
+            self.decoder = EquivariantDecoder(psm_config)
         else:
             raise NotImplementedError
 

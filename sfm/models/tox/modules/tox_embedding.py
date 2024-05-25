@@ -118,12 +118,12 @@ class TOXmixEmbedding(nn.Module):
                 pfm_config,
                 num_edges=pfm_config.num_edges,
                 embed_dim=pfm_config.embedding_dim // 2,
-                num_kernel=pfm_config.num_3d_bias_kernel,
             )
             if pfm_config.add_3d
             else None
         )
 
+    @torch.compile
     def forward(
         self,
         batched_data,
