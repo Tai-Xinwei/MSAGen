@@ -9,27 +9,26 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${weight_decay}" ] && weight_decay=0.1 # same as LLAMA2
-[ -z "${max_lr}" ] && max_lr=2e-4  # LLAMA2 use 3e-4, let's use smaller lr
+[ -z "${max_lr}" ] && max_lr=4e-4  # LLAMA2 use 3e-4, let's use smaller lr
 [ -z "${beta1}" ] && beta1=0.9 # same as LLAMA2
 [ -z "${beta2}" ] && beta2=0.95 # same as LLAMA2
-[ -z "${total_num_steps}" ] && total_num_steps=140000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=8000
+[ -z "${total_num_steps}" ] && total_num_steps=28000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=2000
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
 # [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,word_embeddings.weight"
 # [ -z "${learnable_cutoff}" ] && learnable_cutoff=128256
 
 # In this stage, the grad is too large to use grad accumulation
 [ -z "${strategy}" ] && strategy=ThreeD
-[ -z "${train_batch_size}" ] && train_batch_size=2
+[ -z "${train_batch_size}" ] && train_batch_size=16
 [ -z "${val_batch_size}" ] && val_batch_size=$train_batch_size
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=2
-[ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerMP"
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
 
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=1000
-[ -z "${log_interval}" ] && log_interval=100
+[ -z "${save_batch_interval}" ] && save_batch_interval=2000
+[ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=10
 
 
@@ -75,6 +74,7 @@ else
   fi
 fi
 
+
 # if [[ "${strategy}" == "ThreeD" ]]; then
 dp_worldsize=$(($world_size/$pipeline_model_parallel_size/$tensor_model_parallel_size))
 [ -z "${micro_batch_size}" ] && micro_batch_size=$(($train_batch_size/$gradient_accumulation_steps/$dp_worldsize))
@@ -89,9 +89,6 @@ MEGATRON_ARGS="--micro-batch-size $micro_batch_size --global-batch-size $global_
   --num-layers $layers --hidden-size $llm_hidden_size --seq-length $max_position_embeddings \
   --max-position-embeddings $max_position_embeddings --num-attention-heads $num_head \
   --seq-length $max_position_embeddings --disable-bias-linear --no-position-embedding --no-query-key-layer-scaling"
-# else
-#   MEGATRON_ARGS=""
-# fi
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -130,7 +127,7 @@ wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 export WANDB_API_KEY=$wandb_key
 
 set -x
-torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm_1Bbase.py \
       --model_type "$model_type" \
       --dict_path "$dict_path" \
       --train_data_path "$train_data_path" \
@@ -152,10 +149,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --save_batch_interval "$save_batch_interval" \
       --log_interval "$log_interval" \
       --strategy "$strategy" \
-      --pipeline_model_parallel_size "$pipeline_model_parallel_size" \
-      --tensor_model_parallel_size "$tensor_model_parallel_size" \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --pretrained_ckpt_path "$loadcheck_path" \
-      --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
       ${MEGATRON_ARGS}

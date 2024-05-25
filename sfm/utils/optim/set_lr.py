@@ -193,7 +193,7 @@ class groupWarmupDecayLR(WarmupLR):
         warmup_type: str = WARMUP_LINEAR_RATE,
         last_batch_iteration: int = -1,
         d_tilde: float = 1.0,
-        decay_type: str = DECAY_LINEAR_RATE,
+        decay_type: str = DECAY_COSINE_RATE,
     ):
         self.total_num_steps = total_num_steps
         super(groupWarmupDecayLR, self).__init__(

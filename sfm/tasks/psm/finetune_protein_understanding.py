@@ -19,6 +19,7 @@ from data.utils.metrics import (
     rmse,
     spearmanr,
 )
+
 from sfm.data.prot_data.dataset import BatchedDataDataset
 from sfm.data.psm_data.dataset import ProteinDownstreamDataset
 from sfm.logging import logger, metric_logger

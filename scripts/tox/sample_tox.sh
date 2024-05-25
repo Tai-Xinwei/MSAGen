@@ -50,12 +50,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0,0.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-# [ -z "${data_path}" ] && data_path='/fastdata/peiran/bfm/48organism1m.lmdb/'
-# [ -z "${data_path}" ] && data_path='/mnt/protein/48organism1m.lmdb'
-[ -z "${data_path}" ] && data_path='/blob/hai1data/pfm/data/afdb/48organisms-fullatom.lmdb/'
+[ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
 # [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_dist_score/'
-[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_dist_score/'
-[ -z "${loadcheck_path}" ] && loadcheck_path='.'
+# [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff100M768_prob1522_m5_bs256_ddpmnoise_v1_pi_dist_score/'
+[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq1024_ddpmx0_dist/'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq1024_ddpmx0_dist/'
 [ -z "${diffmode}" ] && diffmode='ddpm'
 
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'

@@ -41,6 +41,7 @@ from sfm.utils.cli_utils import wandb_init
 class Config(DistributedTrainConfig, PSMConfig):
     backbone_config: Dict[str, Any] = MISSING
     backbone: str = "graphormer"
+    ode_mode: bool = False
 
 
 cs = ConfigStore.instance()

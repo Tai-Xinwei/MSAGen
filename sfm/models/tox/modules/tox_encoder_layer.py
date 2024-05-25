@@ -11,11 +11,9 @@ from sfm.modules.FairseqDropout import FairseqDropout
 # from fairseq import utils
 from sfm.modules.get_activation_fn import get_activation_fn
 from sfm.modules.layer_norm import LayerNorm
-from sfm.modules.mem_eff_attn import MemEffAttn
+from sfm.modules.mem_eff_attn import MemEffAttn, MemEffSelfAttn
 from sfm.modules.multihead_attention import MultiheadAttention
 from sfm.modules.quant_noise import quant_noise
-
-from .tox_layer import Graph2DBias, Graph3DBias
 
 
 class TOXEncoderLayer(nn.Module):
@@ -104,15 +102,15 @@ class TOXEncoderLayer(nn.Module):
         # TODO: 2D attention bias needs carefully designed, features such as MSA should be included
         # self.graph_attn_bias = graph2dBias()
 
-        # TODO: reuse the 3D attention bias from Graphormer, modification may needed
-        self.graph_3d_bias = (
-            Graph3DBias(
-                num_heads=pfm_config.num_attention_heads,
-                num_kernel=pfm_config.num_3d_bias_kernel,
-            )
-            if pfm_config.add_3d
-            else None
-        )
+        # # TODO: reuse the 3D attention bias from Graphormer, modification may needed
+        # self.graph_3d_bias = (
+        #     Graph3DBias(
+        #         num_heads=pfm_config.num_attention_heads,
+        #         num_kernel=pfm_config.num_3d_bias_kernel,
+        #     )
+        #     if pfm_config.add_3d
+        #     else None
+        # )
 
         # dummy param for lora, do not remove
         self.dummy = nn.Linear(1, 1, bias=False)
@@ -141,12 +139,11 @@ class TOXEncoderLayer(nn.Module):
         d_tilde=1,
         add_rope=False,
     ):
-        return MemEffAttn(
+        return MemEffSelfAttn(
             # return MultiheadAttention(
             embed_dim,
             num_attention_heads,
             dropout=dropout,
-            self_attention=True,
             q_noise=q_noise,
             qn_block_size=qn_block_size,
             d_tilde=d_tilde,
@@ -187,10 +184,11 @@ class TOXEncoderLayer(nn.Module):
         residual = x
         x = self.top_layer_norm(x)
         x, _ = self.self_attn(
-            query=x,
-            key=x,
-            value=x,
-            attn_bias=self_3d_attn_bias,
+            # query=x,
+            # key=x,
+            # value=x,
+            x,
+            # attn_bias=self_3d_attn_bias,
             key_padding_mask=self_attn_padding_mask,
             need_weights=False,
             attn_mask=self_attn_mask,

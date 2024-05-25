@@ -5,6 +5,7 @@ from typing import Any, Callable
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
 
 from .timestep_encoder import DiffNoise, TimeStepEncoder
 
@@ -511,75 +512,416 @@ class Mix3DEmbeddingV3(nn.Module):
         return node6dfeature, None, None
 
 
-class Graph2DBias(nn.Module):
-    """
-    Compute attention bias for each head.
-    Consider to include MSA here
-    """
-
+class Mix3DEmbeddingV4(nn.Module):
     def __init__(
         self,
-        num_heads,
-        num_atoms,
+        pfm_config,
         num_edges,
-        num_spatial,
-        num_edge_dis,
-        hidden_dim,
-        edge_type,
-        multi_hop_max_dist,
-        n_layers,
-        no_2d=False,
+        embed_dim,
+        num_kernel,
+        t_timesteps=1010,
+        time_embedding_type="positional",
+        time_embedding_mlp=True,
     ):
-        super(Graph3DBias, self).__init__()
-
-    def forward(self, batched_data, mask_2d=None):
-        pass
-
-
-class Graph3DBias(nn.Module):
-    """
-    Compute 3D attention bias according to the position information for each head.
-    """
-
-    def __init__(self, num_heads, num_kernel):
-        super(Graph3DBias, self).__init__()
-        self.num_heads = num_heads
+        super(Mix3DEmbeddingV4, self).__init__()
+        self.num_edges = num_edges
         self.num_kernel = num_kernel
+        self.embed_dim = embed_dim
+        self.time_embedding_dim = embed_dim
 
-        self.gbf_proj = NonLinear(self.num_kernel, self.num_heads)
+        self.angle_emb = AngleEmb(1, self.time_embedding_dim)
 
-    def forward(self, padding_mask, edge_feature):
-        gbf_result = self.gbf_proj(edge_feature)
-        graph_attn_bias = gbf_result
-
-        graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous()
-        graph_attn_bias.masked_fill_(
-            padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
+        self.time_embedding = TimeStepEncoder(
+            t_timesteps,
+            self.time_embedding_dim,
+            timestep_emb_type=time_embedding_type,
+            mlp=time_embedding_mlp,
         )
 
-        return graph_attn_bias
+        self.feature_proj = nn.Linear(6 * self.time_embedding_dim, embed_dim)
+        self.cls_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
+        self.eos_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
+        self.unkangle_embedding = nn.Embedding(
+            1, self.time_embedding_dim, padding_idx=None
+        )
+
+    def forward(
+        self,
+        pos,
+        angle,
+        padding_mask,
+        mask_aa,
+        mask_pos,
+        mask_angle,
+        angle_mask,
+        bond_angle_mask,
+        time_pos,
+        time_angle,
+        aa_seq,
+    ):
+        bs, nnode, _ = angle.shape
+        angle_mask = angle_mask[:, :, :3]
+        angle_mask = torch.cat([angle_mask, bond_angle_mask], dim=-1)
+
+        angle = angle.masked_fill(~angle_mask, 0.0)
+        angle = angle.to(self.angle_emb.layer1.weight.dtype)
+        angle = angle.reshape(bs, -1, 1)
+
+        cls_mask = (aa_seq == 0).unsqueeze(-1)
+        eos_mask = (aa_seq == 2).unsqueeze(-1)
+        angle_feat = self.angle_emb(angle)
+        angle_feat = torch.where(
+            angle_mask.reshape(bs, -1, 1), angle_feat, self.unkangle_embedding.weight
+        )
+
+        node6dfeature = angle_feat
+
+        if time_pos is not None and mask_angle is not None:
+            if time_pos.dim() == 2:
+                time_pos = time_pos.unsqueeze(-1).repeat(1, 1, 6)
+            elif time_pos.dim() == 1:
+                time_pos = time_pos.unsqueeze(-1).unsqueeze(-1).repeat(1, nnode, 3)
+
+            t0 = torch.zeros_like(
+                time_pos, dtype=time_pos.dtype, device=time_pos.device
+            )
+
+            time_pos = time_pos.masked_fill(~angle_mask, 0.0).view(-1)
+            t0 = t0.masked_fill(~angle_mask, 0.0).view(-1)
+
+            time_embedding_pos = self.time_embedding(time_pos).view(
+                bs, -1, self.time_embedding_dim
+            )
+            t0_emb = self.time_embedding(t0).view(bs, -1, self.time_embedding_dim)
+            t_mask = mask_angle.bool() & (~cls_mask) & (~eos_mask)
+            time_embedding_pos = torch.where(
+                t_mask.repeat(1, 6, 1), time_embedding_pos, t0_emb
+            )
+
+            node6dfeature = node6dfeature + time_embedding_pos
+
+        node6dfeature = self.feature_proj(node6dfeature.view(bs, nnode, -1))
+
+        node6dfeature = torch.where(cls_mask, self.cls_embedding.weight, node6dfeature)
+        node6dfeature = torch.where(eos_mask, self.eos_embedding.weight, node6dfeature)
+        node6dfeature = node6dfeature.masked_fill(
+            padding_mask.unsqueeze(-1).to(torch.bool), 0.0
+        )
+
+        return node6dfeature, None, None
 
 
-# class RBF(nn.Module):
-#     def __init__(self, K):
-#         super(RBF, self).__init__()
-#         self.K = K
-#         self.centres = nn.Parameter(torch.Tensor(K, 1))
-#         self.log_sigmas = nn.Parameter(torch.Tensor(K))
-#         self.reset_parameters()
+class Mix3DEmbeddingV5(nn.Module):
+    def __init__(
+        self,
+        pfm_config,
+        num_edges,
+        embed_dim,
+        num_kernel,
+        t_timesteps=1010,
+        time_embedding_type="positional",
+        time_embedding_mlp=True,
+    ):
+        super(Mix3DEmbeddingV5, self).__init__()
+        self.num_edges = num_edges
+        self.num_kernel = num_kernel
+        self.embed_dim = embed_dim
+        self.time_embedding_dim = embed_dim // 2
 
-#     def reset_parameters(self):
-#         nn.init.normal_(self.centres, 0, 1)
-#         nn.init.constant_(self.log_sigmas, 0)
+        self.angle_emb = AngleEmb(1, self.time_embedding_dim)
+        self.pos_emb = NonLinear(1, self.time_embedding_dim)
 
-#     #  - Input: (N, in_features) where N is an arbitrary batch size
-#     #  - Output: (N, out_features) where N is an arbitrary batch size
-#     def forward(self, input):
-#         size = (input.size(0), self.K, 1)
-#         x = input.unsqueeze(1).expand(size)
-#         c = self.centres.unsqueeze(0).expand(size)
-#         distances = (x - c).pow(2).sum(-1).pow(0.5) / torch.exp(self.log_sigmas).unsqueeze(0)
-#         return torch.exp(-1*distances.pow(2))
+        self.time_embedding = TimeStepEncoder(
+            t_timesteps,
+            self.time_embedding_dim,
+            timestep_emb_type=time_embedding_type,
+            mlp=time_embedding_mlp,
+        )
+
+        self.ang_feature_proj = nn.Linear(
+            6 * self.time_embedding_dim, self.time_embedding_dim
+        )
+        self.pos_feature_proj = nn.Linear(
+            self.time_embedding_dim, self.time_embedding_dim
+        )
+
+        self.cls_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
+        self.eos_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
+
+        self.unkangle_embedding = nn.Embedding(
+            1, self.time_embedding_dim, padding_idx=None
+        )
+        self.unkpos_embedding = nn.Embedding(
+            1, self.time_embedding_dim, padding_idx=None
+        )
+
+    def cal_dist(self, pos, aa_seq):
+        Bs, L = pos.shape[:2]
+        dist_sum = torch.zeros(Bs, L, device=pos.device, dtype=pos.dtype)
+        for i in range(Bs):
+            mask_start_idx = (aa_seq[i] == 0).nonzero(as_tuple=True)[0]
+            mask_end_idx = (aa_seq[i] == 2).nonzero(as_tuple=True)[0]
+
+            for j in range(len(mask_end_idx)):
+                s_idx = mask_start_idx[j] + 1
+                e_idx = mask_end_idx[j]
+                delta_pos = pos[i, s_idx:e_idx].unsqueeze(1) - pos[
+                    i, s_idx:e_idx
+                ].unsqueeze(2)
+                dist_sum[i, s_idx:e_idx] = delta_pos.norm(dim=-1).mean(dim=-1)
+
+            if len(mask_start_idx) > len(mask_end_idx):
+                s_idx = mask_start_idx[-1]
+                delta_pos = pos[i, s_idx:].unsqueeze(1) - pos[i, s_idx:].unsqueeze(2)
+                dist_sum[i, s_idx:] = delta_pos.norm(dim=-1).mean(dim=-1)
+
+        return dist_sum.unsqueeze(-1)
+
+    def forward(
+        self,
+        pos,
+        angle,
+        padding_mask,
+        mask_aa,
+        mask_pos,
+        mask_angle,
+        angle_mask,
+        bond_angle_mask,
+        time_pos,
+        time_angle,
+        aa_seq,
+    ):
+        bs, nnode, _ = angle.shape
+        angle_mask = angle_mask[:, :, :3]
+        angle_mask = torch.cat([angle_mask, bond_angle_mask], dim=-1)
+
+        angle = angle.masked_fill(~angle_mask, 0.0)
+        angle = angle.to(self.angle_emb.layer1.weight.dtype)
+        angle = angle.reshape(bs, -1, 1)
+
+        cls_mask = (aa_seq == 0).unsqueeze(-1)
+        eos_mask = (aa_seq == 2).unsqueeze(-1)
+        angle_feat = self.angle_emb(angle)
+        angle_feat = torch.where(
+            angle_mask.reshape(bs, -1, 1), angle_feat, self.unkangle_embedding.weight
+        )
+
+        pos = pos.to(angle.dtype)
+        dist_sum = self.cal_dist(pos[:, :, 1, :], aa_seq)
+        pos_feat = self.pos_emb(dist_sum)
+        pos_mask = ~(cls_mask | eos_mask)
+        pos_feat = torch.where(pos_mask, pos_feat, self.unkpos_embedding.weight)
+
+        if time_pos is not None and mask_angle is not None:
+            if time_pos.dim() == 2:
+                time_pos = time_pos.unsqueeze(-1)
+                time_angle = time_pos.repeat(1, 1, 6)
+            elif time_pos.dim() == 1:
+                time_pos = time_pos.unsqueeze(-1).unsqueeze(-1).repeat(1, nnode, 3)
+
+            t0_ang = torch.zeros_like(
+                time_angle, dtype=time_angle.dtype, device=time_angle.device
+            )
+            t0_pos = torch.zeros_like(
+                time_pos, dtype=time_pos.dtype, device=time_pos.device
+            )
+
+            time_angle = time_angle.masked_fill(~angle_mask, 0.0).view(-1)
+            t0_ang = t0_ang.masked_fill(~angle_mask, 0.0).view(-1)
+            t0_pos = t0_pos.masked_fill(~pos_mask, 0.0).view(-1)
+
+            time_embedding_pos = self.time_embedding(time_pos).view(
+                bs, -1, self.time_embedding_dim
+            )
+            time_embedding_ang = self.time_embedding(time_angle).view(
+                bs, -1, self.time_embedding_dim
+            )
+            t0_ang_emb = self.time_embedding(t0_ang).view(
+                bs, -1, self.time_embedding_dim
+            )
+            t0_pos_emb = self.time_embedding(t0_pos).view(
+                bs, -1, self.time_embedding_dim
+            )
+
+            t_mask = mask_angle.bool() & (~cls_mask) & (~eos_mask)
+            time_embedding_ang = torch.where(
+                t_mask.repeat(1, 6, 1), time_embedding_ang, t0_ang_emb
+            )
+            time_embedding_pos = torch.where(t_mask, time_embedding_pos, t0_pos_emb)
+
+            angle_feat = angle_feat + time_embedding_ang
+            pos_feat = pos_feat + time_embedding_pos
+
+        angle_feat = self.ang_feature_proj(angle_feat.view(bs, nnode, -1))
+        pos_feat = self.pos_feature_proj(pos_feat.view(bs, nnode, -1))
+
+        node9dfeature = torch.cat([angle_feat, pos_feat], dim=-1)
+
+        node9dfeature = torch.where(cls_mask, self.cls_embedding.weight, node9dfeature)
+        node9dfeature = torch.where(eos_mask, self.eos_embedding.weight, node9dfeature)
+        node9dfeature = node9dfeature.masked_fill(
+            padding_mask.unsqueeze(-1).to(torch.bool), 0.0
+        )
+
+        return node9dfeature, None, None
+
+
+class Mix3DEmbeddingV6(nn.Module):
+    def __init__(
+        self,
+        pfm_config,
+        num_edges,
+        embed_dim,
+        num_kernel,
+        t_timesteps=1010,
+        time_embedding_type="positional",
+        time_embedding_mlp=True,
+    ):
+        super(Mix3DEmbeddingV6, self).__init__()
+        self.num_edges = num_edges
+        self.num_kernel = num_kernel
+        self.embed_dim = embed_dim
+        self.time_embedding_dim = embed_dim // 2
+
+        self.angle_emb = AngleEmb(1, self.time_embedding_dim)
+        self.dist_emb = NonLinear(1, self.time_embedding_dim)
+
+        self.time_embedding = TimeStepEncoder(
+            t_timesteps,
+            self.time_embedding_dim,
+            timestep_emb_type=time_embedding_type,
+            mlp=time_embedding_mlp,
+        )
+
+        self.ang_feature_proj = nn.Linear(
+            6 * self.time_embedding_dim, self.time_embedding_dim
+        )
+        self.pos_feature_proj = nn.Linear(
+            self.time_embedding_dim, self.time_embedding_dim
+        )
+
+        self.cls_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
+        self.eos_embedding = nn.Embedding(1, embed_dim, padding_idx=None)
+
+        self.unkangle_embedding = nn.Embedding(
+            1, self.time_embedding_dim, padding_idx=None
+        )
+        self.unkpos_embedding = nn.Embedding(
+            1, self.time_embedding_dim, padding_idx=None
+        )
+
+    def cal_pos_emb(self, pos, aa_seq):
+        Bs, L = pos.shape[:2]
+        dist_sum = torch.zeros(Bs, L, device=pos.device, dtype=pos.dtype)
+
+        for i in range(Bs):
+            mask_start_idx = (aa_seq[i] == 0).nonzero(as_tuple=True)[0]
+            mask_end_idx = (aa_seq[i] == 2).nonzero(as_tuple=True)[0]
+
+            for j in range(len(mask_end_idx)):
+                s_idx = mask_start_idx[j] + 1
+                e_idx = mask_end_idx[j]
+                delta_pos = pos[i, s_idx:e_idx].unsqueeze(1) - pos[
+                    i, s_idx:e_idx
+                ].unsqueeze(2)
+                dist_sum[i, s_idx:e_idx] = delta_pos.norm(dim=-1).mean(dim=-1)
+
+            if len(mask_start_idx) > len(mask_end_idx):
+                s_idx = mask_start_idx[-1]
+                delta_pos = pos[i, s_idx:].unsqueeze(1) - pos[i, s_idx:].unsqueeze(2)
+                dist_sum[i, s_idx:] = delta_pos.norm(dim=-1).mean(dim=-1)
+
+        dist_feature = self.dist_emb(1 / (1.0 + dist_sum.unsqueeze(-1)))
+
+        return dist_feature
+
+    def forward(
+        self,
+        pos,
+        angle,
+        padding_mask,
+        mask_aa,
+        mask_pos,
+        mask_angle,
+        angle_mask,
+        bond_angle_mask,
+        time_pos,
+        time_angle,
+        aa_seq,
+    ):
+        bs, nnode, _ = angle.shape
+        angle_mask = angle_mask[:, :, :3]
+        angle_mask = torch.cat([angle_mask, bond_angle_mask], dim=-1)
+
+        angle = angle.masked_fill(~angle_mask, 0.0)
+        angle = angle.to(self.angle_emb.layer1.weight.dtype)
+        angle = angle.reshape(bs, -1, 1)
+
+        cls_mask = (aa_seq == 0).unsqueeze(-1)
+        eos_mask = (aa_seq == 2).unsqueeze(-1)
+        angle_feat = self.angle_emb(angle)
+        angle_feat = torch.where(
+            angle_mask.reshape(bs, -1, 1), angle_feat, self.unkangle_embedding.weight
+        )
+
+        pos = pos.to(self.dist_emb.layer1.weight.dtype)
+        pos_feat = self.cal_pos_emb(pos[:, :, 1, :], aa_seq)
+        pos_mask = ~(cls_mask | eos_mask)
+        pos_feat = torch.where(pos_mask, pos_feat, self.unkpos_embedding.weight)
+
+        if time_pos is not None and mask_angle is not None:
+            if time_pos.dim() == 2:
+                time_pos = time_pos.unsqueeze(-1)
+                time_angle = time_pos.repeat(1, 1, 6)
+            elif time_pos.dim() == 1:
+                time_pos = time_pos.unsqueeze(-1).unsqueeze(-1).repeat(1, nnode, 3)
+
+            t0_ang = torch.zeros_like(
+                time_angle, dtype=time_angle.dtype, device=time_angle.device
+            )
+            t0_pos = torch.zeros_like(
+                time_pos, dtype=time_pos.dtype, device=time_pos.device
+            )
+
+            time_angle = time_angle.masked_fill(~angle_mask, 0.0).view(-1)
+            t0_ang = t0_ang.masked_fill(~angle_mask, 0.0).view(-1)
+            t0_pos = t0_pos.masked_fill(~pos_mask, 0.0).view(-1)
+
+            time_embedding_pos = self.time_embedding(time_pos).view(
+                bs, -1, self.time_embedding_dim
+            )
+            time_embedding_ang = self.time_embedding(time_angle).view(
+                bs, -1, self.time_embedding_dim
+            )
+            t0_ang_emb = self.time_embedding(t0_ang).view(
+                bs, -1, self.time_embedding_dim
+            )
+            t0_pos_emb = self.time_embedding(t0_pos).view(
+                bs, -1, self.time_embedding_dim
+            )
+
+            t_mask = mask_angle.bool() & (~cls_mask) & (~eos_mask)
+            time_embedding_ang = torch.where(
+                t_mask.repeat(1, 6, 1), time_embedding_ang, t0_ang_emb
+            )
+            time_embedding_pos = torch.where(t_mask, time_embedding_pos, t0_pos_emb)
+
+            angle_feat = angle_feat + time_embedding_ang
+            pos_feat = pos_feat + time_embedding_pos
+
+        angle_feat = self.ang_feature_proj(angle_feat.view(bs, nnode, -1))
+        pos_feat = self.pos_feature_proj(pos_feat.view(bs, nnode, -1))
+
+        node9dfeature = torch.cat([angle_feat, pos_feat], dim=-1)
+        # node9dfeature = angle_feat + pos_feat
+
+        node9dfeature = torch.where(cls_mask, self.cls_embedding.weight, node9dfeature)
+        node9dfeature = torch.where(eos_mask, self.eos_embedding.weight, node9dfeature)
+        node9dfeature = node9dfeature.masked_fill(
+            padding_mask.unsqueeze(-1).to(torch.bool), 0.0
+        )
+
+        return node9dfeature, None, None
 
 
 @torch.jit.script
@@ -640,6 +982,22 @@ class NonLinear(nn.Module):
 class AngleEmb(nn.Module):
     def __init__(self, input, output_size, hidden=None):
         super(AngleEmb, self).__init__()
+
+        if hidden is None:
+            hidden = output_size // 4
+        self.layer1 = nn.Linear(input, hidden, bias=False)
+        self.layer2 = nn.Linear(hidden, output_size, bias=False)
+
+    def forward(self, x):
+        x = self.layer1(x)
+        x = F.gelu(x)
+        x = self.layer2(x)
+        return x
+
+
+class PosEmb(nn.Module):
+    def __init__(self, input, output_size, hidden=None):
+        super(PosEmb, self).__init__()
 
         if hidden is None:
             hidden = output_size // 4
@@ -715,3 +1073,55 @@ class TransNet_V2(nn.Module):
         x = x.view(-1, self.input, self.input)
 
         return x
+
+
+class NodeTaskHead(nn.Module):
+    def __init__(
+        self,
+        embed_dim: int,
+        num_heads: int,
+    ):
+        super().__init__()
+        self.embed_dim = embed_dim
+        self.q_proj = nn.Linear(embed_dim, embed_dim, bias=False)
+        self.k_proj = nn.Linear(embed_dim, embed_dim, bias=False)
+        self.v_proj = nn.Linear(embed_dim, embed_dim, bias=False)
+        self.num_heads = num_heads
+        self.scaling = (embed_dim // num_heads) ** -0.5
+        self.force_proj = nn.Linear(embed_dim, 1, bias=False)
+
+    def forward(
+        self,
+        query: Tensor,
+        delta_pos: Tensor,
+        attn_mask: Tensor,
+    ) -> Tensor:
+        query = query.contiguous()
+        bsz, n_node, _ = query.size()
+        q = (
+            self.q_proj(query).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
+            * self.scaling
+        )
+        k = self.k_proj(query).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
+        v = self.v_proj(query).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
+
+        attn = q @ k.transpose(-1, -2)  # [bsz, head, n, n]
+        min_dtype = torch.finfo(k.dtype).min
+        attn = attn.masked_fill(~attn_mask.unsqueeze(1), min_dtype)
+
+        attn_probs_float = nn.functional.softmax(attn.view(-1, n_node, n_node), dim=-1)
+        attn_probs = attn_probs_float.type_as(attn)
+        attn_probs = attn_probs.view(bsz, self.num_heads, n_node, n_node)
+
+        delta_pos = delta_pos.masked_fill(~attn_mask.unsqueeze(-1), 0.0)
+        rot_attn_probs = attn_probs.unsqueeze(-1) * delta_pos.unsqueeze(1).type_as(
+            attn_probs
+        )  # [bsz, head, n, n, 3]
+        rot_attn_probs = rot_attn_probs.permute(0, 1, 4, 2, 3)
+        x = rot_attn_probs @ v.unsqueeze(2)  # [bsz, head , 3, n, d]
+        x = x.permute(0, 3, 2, 1, 4).contiguous().view(bsz, n_node, 3, -1)
+        f1 = self.force_proj(x[:, :, 0, :]).view(bsz, n_node, 1)
+        f2 = self.force_proj(x[:, :, 1, :]).view(bsz, n_node, 1)
+        f3 = self.force_proj(x[:, :, 2, :]).view(bsz, n_node, 1)
+        cur_force = torch.cat([f1, f2, f3], dim=-1).float()
+        return cur_force
