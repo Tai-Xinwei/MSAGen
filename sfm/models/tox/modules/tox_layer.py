@@ -659,7 +659,6 @@ class Mix3DEmbeddingV5(nn.Module):
 
     def cal_dist(self, pos, aa_seq):
         Bs, L = pos.shape[:2]
-        pos = pos / 10.0
         dist_sum = torch.zeros(Bs, L, device=pos.device, dtype=pos.dtype)
         for i in range(Bs):
             mask_start_idx = (aa_seq[i] == 0).nonzero(as_tuple=True)[0]
@@ -817,7 +816,6 @@ class Mix3DEmbeddingV6(nn.Module):
 
     def cal_dist(self, pos, aa_seq):
         Bs, L = pos.shape[:2]
-        pos = pos / 10.0
         sum_dist_features = torch.zeros(
             Bs, L, self.num_kernel, device=pos.device, dtype=pos.dtype
         )

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from typing import Callable, Optional
+from typing import Callable, Dict, Optional
 
 import torch
 import torch.nn as nn
@@ -132,14 +132,13 @@ class PSMPlainEncoderLayer(nn.Module):
             add_rope=add_rope,
         )
 
+    # @torch.compile
     def forward(
         self,
         x: torch.Tensor,
-        if_attn_bias: bool = False,
-        edge_feature: Optional[torch.Tensor] = None,
-        self_attn_mask: Optional[torch.Tensor] = None,
-        self_attn_padding_mask: Optional[torch.Tensor] = None,
-        mask_pos: Optional[torch.Tensor] = None,
+        padding_mask: torch.Tensor,
+        batched_data: Dict,
+        masked_token_type: torch.Tensor,
     ):
         """
         LayerNorm is applied either before or after the self-attention/ffn
@@ -150,9 +149,9 @@ class PSMPlainEncoderLayer(nn.Module):
         x = self.top_layer_norm(x)
         x, _ = self.self_attn(
             x,
-            key_padding_mask=self_attn_padding_mask,
+            key_padding_mask=padding_mask,
             need_weights=False,
-            attn_mask=self_attn_mask,
+            attn_mask=None,
         )
         x = self.dropout_module(x)
         x = residual + x
@@ -164,4 +163,4 @@ class PSMPlainEncoderLayer(nn.Module):
         x = self.dropout_module(x)
         x = residual + x
 
-        return x
+        return x, None

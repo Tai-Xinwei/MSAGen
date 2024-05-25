@@ -12,7 +12,9 @@ from sfm.logging import logger
 from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
+from sfm.models.psm.equivariant.nodetaskhead import NodeTaskHead
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
+from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoderLayer
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
@@ -619,9 +621,11 @@ class PSM(nn.Module):
             self.decoder = EquivariantDecoder(psm_config)
         if args.backbone == "vanillatransformer":
             # Implement the encoder
-            self.encoder = PSMEncoder(args, psm_config)
+            self.encoder = PSMPlainEncoderLayer(args, psm_config)
             # Implement the decoder
-            self.decoder = EquivariantDecoder(psm_config)
+            self.decoder = NodeTaskHead(
+                args.encoder_embed_dim, args.encoder_attention_heads
+            )
         else:
             raise NotImplementedError
 
