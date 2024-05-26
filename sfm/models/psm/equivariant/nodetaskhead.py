@@ -23,7 +23,6 @@ class NodeTaskHead(nn.Module):
         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=False)
         self.num_heads = psm_config.encoder_attention_heads
         self.scaling = (embed_dim // psm_config.encoder_attention_heads) ** -0.5
-        # self.force_proj = nn.Linear(embed_dim, 1, bias=False)
 
     def forward(
         self,
