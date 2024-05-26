@@ -78,9 +78,9 @@ class NodeTaskHead(nn.Module):
 
 
 class VectorOutput(nn.Module):
-    def __init__(self, hidden_channels=768, activation="silu"):
+    def __init__(self, hidden_channels=768):
         super(VectorOutput, self).__init__()
-        self.output_network = nn.Linear(hidden_channels, 1)
+        self.output_network = nn.Linear(hidden_channels, 1, bias=False)
 
     def forward(self, x, v):
         v = self.output_network(v)
