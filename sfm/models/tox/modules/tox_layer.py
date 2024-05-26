@@ -1120,13 +1120,13 @@ class NodeTaskHead(nn.Module):
 
         attn = q @ k.transpose(-1, -2)  # [bsz, head, n, n]
         min_dtype = torch.finfo(k.dtype).min
-        attn = attn.masked_fill(~attn_mask.unsqueeze(1), min_dtype)
+        attn = attn.masked_fill(attn_mask.unsqueeze(1), min_dtype)
 
         attn_probs_float = nn.functional.softmax(attn.view(-1, n_node, n_node), dim=-1)
         attn_probs = attn_probs_float.type_as(attn)
         attn_probs = attn_probs.view(bsz, self.num_heads, n_node, n_node)
 
-        delta_pos = delta_pos.masked_fill(~attn_mask.unsqueeze(-1), 0.0)
+        delta_pos = delta_pos.masked_fill(attn_mask.unsqueeze(-1), 0.0)
         rot_attn_probs = attn_probs.unsqueeze(-1) * delta_pos.unsqueeze(1).type_as(
             attn_probs
         )  # [bsz, head, n, n, 3]

@@ -12,10 +12,11 @@ from sfm.logging import logger
 from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
-from sfm.models.psm.equivariant.nodetaskhead import NodeTaskHead
+from sfm.models.psm.equivariant.nodetaskhead import NodeTaskHead, VectorOutput
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
+from sfm.models.psm.modules.mixembedding import PSMMix3dEmbedding
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
@@ -602,7 +603,10 @@ class PSM(nn.Module):
         self.psm_config = psm_config
 
         # Implement the embedding
-        self.embedding = PSMMixEmbedding(psm_config)
+        if args.backbone == "vanillatransformer":
+            self.embedding = PSMMix3dEmbedding(psm_config)
+        else:
+            self.embedding = PSMMixEmbedding(psm_config)
 
         self.encoder = None
         if args.backbone == "graphormer":
@@ -623,11 +627,8 @@ class PSM(nn.Module):
             # Implement the encoder
             self.encoder = PSMPlainEncoder(args, psm_config)
             # Implement the decoder
-            self.decoder = EquivariantDecoder(psm_config)
-
-            # self.decoder = NodeTaskHead(
-            #     args.encoder_embed_dim, args.encoder_attention_heads
-            # )
+            # self.decoder = EquivariantDecoder(psm_config)
+            self.decoder = NodeTaskHead(psm_config)
         else:
             raise NotImplementedError
 
@@ -650,13 +651,17 @@ class PSM(nn.Module):
                     )
                 }
             )
-            self.forces_head.update(
-                {key: EquivariantVectorOutput(psm_config.embedding_dim)}
-            )
-            self.noise_head.update(
-                {key: EquivariantVectorOutput(psm_config.embedding_dim)}
-            )
 
+            if args.backbone == "vanillatransformer":
+                self.noise_head.update({key: VectorOutput(psm_config.embedding_dim)})
+                self.forces_head.update({key: VectorOutput(psm_config.embedding_dim)})
+            else:
+                self.noise_head.update(
+                    {key: EquivariantVectorOutput(psm_config.embedding_dim)}
+                )
+                self.forces_head.update(
+                    {key: EquivariantVectorOutput(psm_config.embedding_dim)}
+                )
         # aa mask predict head
         self.aa_mask_head = nn.Sequential(
             nn.Linear(psm_config.embedding_dim, psm_config.embedding_dim, bias=False),
@@ -727,13 +732,6 @@ class PSM(nn.Module):
                 padding_mask,
                 pbc_expand_batched,
             )
-            # decoder_vec_output = self.decoder(
-            #     batched_data,
-            #     encoder_output,
-            #     padding_mask,
-            #     pbc_expand_batched=None,
-            # )
-            # decoder_x_output = encoder_output.transpose(0, 1)
         elif self.encoder is not None:
             (
                 encoder_output,
