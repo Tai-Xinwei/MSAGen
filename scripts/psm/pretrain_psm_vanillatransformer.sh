@@ -6,10 +6,10 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=12
+[ -z "${layers}" ] && layers=24
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
-[ -z "${num_head}" ] && num_head=8
+[ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=6
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
@@ -31,9 +31,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_lr}" ] && max_lr=2e-4
 [ -z "${total_num_steps}" ] && total_num_steps=200000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
-[ -z "${train_batch_size}" ] && train_batch_size=256
-[ -z "${val_batch_size}" ] && val_batch_size=256
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${train_batch_size}" ] && train_batch_size=1024
+[ -z "${val_batch_size}" ] && val_batch_size=1024
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
@@ -48,8 +48,8 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
 [ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb,matter-sim-3M,48organisms-fullatom.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.9,0.0,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32,8,8"
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.0,0.0,1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="64,16,16"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
@@ -173,6 +173,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           backbone=vanillatransformer \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
+          num_pred_attn_layer=$num_pred_attn_layer \
           encoder_ffn_embed_dim=$ffn_size \
           encoder_embed_dim=$hidden_size \
           droppath_prob=$droppath_prob \
@@ -190,7 +191,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           ifresume=True \
           mask_ratio=$mask_ratio \
           noise_scale=$noise_scale \
-          num_pred_attn_layer=$num_pred_attn_layer \
           d_tilde=$d_tilde \
           strategy=$strategy \
           max_lr=$max_lr \

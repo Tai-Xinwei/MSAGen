@@ -1,7 +1,7 @@
 description: train_sfm_nlmmoe_debug
 
 env_defaults:
-  NODES: 4
+  NODES: 8
   GPUS: 8
   # WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
@@ -50,16 +50,16 @@ jobs:
   - python setup_cython.py build_ext --inplace
   - pip install git+https://github.com/NVIDIA/TransformerEngine.git
   - pip uninstall flash-attn -y
-  - export train_batch_size=512
-  - export val_batch_size=512
-  - export gradient_accumulation_steps=32
-  - export tensor_model_parallel_size=2
+  - export train_batch_size=1024
+  - export val_batch_size=1024
+  - export gradient_accumulation_steps=16
+  - export tensor_model_parallel_size=1
   - export pipeline_model_parallel_size=1
   - export train_data_path=/sfm/nlm/llama3_processed_data/v5_train/train.npy
-  - export valid_data_path=/sfm/nlm/llama3_processed_data/v5_validation/valid.npy
+  - export valid_data_path=/sfm/nlm/llama3_processed_data/v5_train/valid.npy
   - export dict_path=/sfm/llama/Meta-Llama-3-8B/original
   - export loadcheck_path=/sfm/llama/Meta-Llama-3-8B/original
-  - export save_dir=/sfm/nlm/output/llama3_stageA_tp2/
+  - export save_dir=/sfm/nlm/output/llama3_stageA_tp1/
   - bash scripts/nlm/pretrain_nlm_llama3_7b_stageA.sh
   submit_args:
     env:

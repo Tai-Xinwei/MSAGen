@@ -1069,11 +1069,20 @@ class DeepSpeedAccelerator(Accelerator):
             dp_rank = self.model_engine.global_rank
 
         if self.args.use_unified_batch_sampler:
-            raise ValueError(
-                "use_unified_batch_sampler=True is currently incompatible with deepspeed acclerators."
+            self.train_sampler = UnifiedDataSampler(
+                train_data,
+                self.args.dataset_split_raito,
+                self.args.dataset_micro_batch_size,
+                num_replicas=self.world_size,
+                rank=self.rank,
+                seed=self.args.seed,
             )
-
-        if self.args.dynamic_loader:
+            self.train_data_loader = DataLoader(
+                train_data,
+                batch_sampler=self.train_sampler,
+                collate_fn=train_data.collate,
+            )
+        elif self.args.dynamic_loader:
             assert (
                 self.args.strategy is not TrainStrategy.Pipeline
             ), "dynamic loader is not supported in pipeline mode"

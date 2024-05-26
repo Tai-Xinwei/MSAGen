@@ -14,7 +14,7 @@ from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.equivariant.nodetaskhead import NodeTaskHead
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
-from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoderLayer
+from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
@@ -619,13 +619,15 @@ class PSM(nn.Module):
         elif args.backbone == "geomformer":
             # Implement the decoder
             self.decoder = EquivariantDecoder(psm_config)
-        if args.backbone == "vanillatransformer":
+        elif args.backbone == "vanillatransformer":
             # Implement the encoder
-            self.encoder = PSMPlainEncoderLayer(args, psm_config)
+            self.encoder = PSMPlainEncoder(args, psm_config)
             # Implement the decoder
-            self.decoder = NodeTaskHead(
-                args.encoder_embed_dim, args.encoder_attention_heads
-            )
+            self.decoder = EquivariantDecoder(psm_config)
+
+            # self.decoder = NodeTaskHead(
+            #     args.encoder_embed_dim, args.encoder_attention_heads
+            # )
         else:
             raise NotImplementedError
 
@@ -712,7 +714,27 @@ class PSM(nn.Module):
         )
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
-        if self.encoder is not None:
+        if self.args.backbone == "vanillatransformer":
+            (
+                encoder_output,
+                pbc_expand_batched,
+            ) = self.encoder(  # CL: expand cell outside encoder?
+                token_embedding.transpose(0, 1), padding_mask, batched_data, token_type
+            )
+            decoder_x_output, decoder_vec_output = self.decoder(
+                batched_data,
+                encoder_output,
+                padding_mask,
+                pbc_expand_batched,
+            )
+            # decoder_vec_output = self.decoder(
+            #     batched_data,
+            #     encoder_output,
+            #     padding_mask,
+            #     pbc_expand_batched=None,
+            # )
+            # decoder_x_output = encoder_output.transpose(0, 1)
+        elif self.encoder is not None:
             (
                 encoder_output,
                 pbc_expand_batched,

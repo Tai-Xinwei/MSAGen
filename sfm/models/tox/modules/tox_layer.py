@@ -785,8 +785,11 @@ class Mix3DEmbeddingV6(nn.Module):
         self.embed_dim = embed_dim
         self.time_embedding_dim = embed_dim // 2
 
-        self.gbf = GaussianLayer(self.num_kernel, num_edges)
-        self.pos_emb = nn.Linear(self.num_kernel, self.time_embedding_dim, bias=False)
+        # self.gbf = GaussianLayer(self.num_kernel, num_edges)
+        self.pos_emb = nn.Linear(3, self.num_kernel, bias=False)
+        self.pos_feature_emb = nn.Linear(
+            self.num_kernel, self.time_embedding_dim, bias=False
+        )
 
         self.angle_emb = AngleEmb(1, self.time_embedding_dim)
 
@@ -829,18 +832,20 @@ class Mix3DEmbeddingV6(nn.Module):
                 delta_pos = pos[i, s_idx:e_idx].unsqueeze(0) - pos[
                     i, s_idx:e_idx
                 ].unsqueeze(1)
-                sum_dist_features[i, s_idx:e_idx, :] = self.gbf(
-                    delta_pos.norm(dim=-1)
-                ).mean(dim=-2)
+                pos_p = self.pos_emb(pos[i, s_idx:e_idx])
+                sum_dist_features[i, s_idx:e_idx, :] = torch.matmul(
+                    1.0 / (delta_pos.norm(dim=-1) + 1.0), pos_p
+                )
 
             if len(mask_start_idx) > len(mask_end_idx):
                 s_idx = mask_start_idx[-1] + 1
                 delta_pos = pos[i, s_idx:].unsqueeze(0) - pos[i, s_idx:].unsqueeze(1)
-                sum_dist_features[i, s_idx:, :] = self.gbf(delta_pos.norm(dim=-1)).mean(
-                    dim=-2
+                pos_p = self.pos_emb(pos[i, s_idx:])
+                sum_dist_features[i, s_idx:, :] = torch.matmul(
+                    1.0 / (delta_pos.norm(dim=-1) + 1.0), pos_p
                 )
 
-        merge_dist_features = self.pos_emb(sum_dist_features)
+        merge_dist_features = self.pos_feature_emb(sum_dist_features)
         return merge_dist_features
 
     def forward(
