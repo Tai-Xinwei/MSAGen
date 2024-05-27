@@ -51,7 +51,7 @@ class PSMMix3dEmbedding(nn.Module):
         dist = 1.0 / (delta_pos.norm(dim=-1) + 1.0)
         dist = dist.masked_fill(padding_mask.unsqueeze(-1), 0.0)
         pos_emb = self.pos_emb(pos)
-        dist = torch.nn.functional.softmax(dist, dim=1)
+        dist = torch.nn.functional.softmax(dist, dim=-1)
         pos_feature_emb = torch.matmul(
             dist, pos_emb.masked_fill(padding_mask.unsqueeze(-1), 0.0)
         )
