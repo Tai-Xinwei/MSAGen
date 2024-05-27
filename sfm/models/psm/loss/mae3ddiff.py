@@ -173,7 +173,6 @@ class DiffMAE3dCriterions(nn.Module):
             is_periodic,
             use_per_atom_energy=True,
         )
-        # ic(molecule_energy_loss, num_molecule_energy_sample, periodic_energy_loss, num_periodic_energy_sample, energy_loss, num_energy_sample)
 
         unreduced_force_loss = self.force_loss(
             force_pred.to(dtype=force_label.dtype), force_label
@@ -303,5 +302,27 @@ class DiffMAE3dCriterions(nn.Module):
             "aa_mlm_loss": (aa_mlm_loss, num_aa_mask_token),
             "aa_acc": (aa_acc, num_aa_mask_token),
         }
+
+        if "rmsd" in model_output:
+            rmsd = model_output["rmsd"]
+            matched_mask = ~rmsd.isnan()
+            num_matched_samples = int(torch.sum(matched_mask.long()))
+            matched_rate = float(torch.mean(matched_mask.float()))
+            mean_rmsd = float(torch.sum(rmsd[matched_mask]) / num_matched_samples)
+            logging_output["rmsd"] = (mean_rmsd, num_matched_samples)
+            logging_output["matched_rate"] = (matched_rate, rmsd.numel())
+            if rmsd.size()[-1] > 1:
+                any_matched_mask = ~rmsd.isnan().any(dim=-1)
+                num_any_matched_samples = int(torch.sum(any_matched_mask))
+                min_rmsd = torch.min(rmsd, dim=-1)[0]
+                min_rmsd = float(
+                    torch.sum(min_rmsd[any_matched_mask]) / num_any_matched_samples
+                )
+                any_matched_rate = float(torch.mean(any_matched_mask.float()))
+                logging_output["min_rmsd"] = (min_rmsd, num_any_matched_samples)
+                logging_output["any_matched_rate"] = (
+                    any_matched_rate,
+                    int(rmsd.size()[0]),
+                )
 
         return loss, logging_output
