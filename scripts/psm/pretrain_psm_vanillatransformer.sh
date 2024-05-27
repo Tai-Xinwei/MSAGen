@@ -6,7 +6,7 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=22
+[ -z "${layers}" ] && layers=36
 [ -z "${hidden_size}" ] && hidden_size=1536
 [ -z "${ffn_size}" ] && ffn_size=6144
 [ -z "${num_head}" ] && num_head=32
