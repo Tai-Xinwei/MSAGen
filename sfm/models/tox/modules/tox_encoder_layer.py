@@ -184,11 +184,7 @@ class TOXEncoderLayer(nn.Module):
         residual = x
         x = self.top_layer_norm(x)
         x, _ = self.self_attn(
-            # query=x,
-            # key=x,
-            # value=x,
             x,
-            # attn_bias=self_3d_attn_bias,
             key_padding_mask=self_attn_padding_mask,
             need_weights=False,
             attn_mask=self_attn_mask,

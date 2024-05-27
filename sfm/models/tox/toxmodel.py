@@ -761,12 +761,6 @@ class TOX(nn.Module):
 
         return bond_angle, bond_angle_mask.bool()
 
-        # u1 = c2 - c1
-        # u2 = c3 - c2
-        # return torch.atan2(
-        #     torch.norm(torch.cross(u1, u2, dim=-1), dim=-1), -(u1 * u2).sum(dim=-1)
-        # )
-
     def forward(
         self,
         batched_data,
