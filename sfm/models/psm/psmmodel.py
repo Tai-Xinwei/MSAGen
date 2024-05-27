@@ -19,6 +19,7 @@ from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
 from .modules.diffusion import DIFFUSION_PROCESS_REGISTER
+from .modules.sampled_structure_converter import SampledStructureConverter
 from .modules.timestep_encoder import DiffNoise, TimeStepSampler
 
 
@@ -71,6 +72,10 @@ class PSMModel(Model):
         self.time_step_sampler = TimeStepSampler(self.psm_config.num_timesteps)
 
         self.loss_fn = loss_fn(args)
+
+        self.sampled_structure_converter = SampledStructureConverter(
+            self.psm_config.sampled_structure_output_path
+        )
 
     def _create_initial_pos_for_diffusion(self, batched_data):
         periodic_mask = torch.any(batched_data["pbc"], dim=-1)
@@ -276,6 +281,23 @@ class PSMModel(Model):
             **kwargs: Additional keyword arguments.
         """
 
+        if self.psm_config.sample_in_validation and not self.training:
+            rmsds = []
+            for sample_time_index in range(self.psm_config.num_sampling_time):
+                original_pos = batched_data["pos"].clone()
+                batched_data["pos"] = torch.zeros_like(
+                    batched_data["pos"]
+                )  # zero position to avoid any potential leakage
+                self.sample(batched_data=batched_data)
+                rmsds_one_time = self.sampled_structure_converter.convert_and_match(
+                    batched_data, original_pos, sample_time_index
+                )
+                rmsds.append(rmsds_one_time)
+                batched_data[
+                    "pos"
+                ] = original_pos  # recover original position, in case that we want to calculate diffusion loss and sampling RMSD at the same time in validation, and for subsequent sampling
+            rmsds = torch.cat([rmsd.unsqueeze(-1) for rmsd in rmsds], dim=-1)
+
         self._create_system_tags(batched_data)
         self._create_protein_mask(batched_data)
         pos = batched_data["pos"]
@@ -312,6 +334,9 @@ class PSMModel(Model):
         result_dict["clean_mask"] = clean_mask
         result_dict["aa_mask"] = aa_mask
         result_dict["diff_loss_mask"] = batched_data["diff_loss_mask"]
+
+        if self.psm_config.sample_in_validation and not self.training:
+            result_dict["rmsd"] = rmsds
 
         return result_dict
 

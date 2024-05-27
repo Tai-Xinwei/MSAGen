@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from dataclasses import asdict, dataclass
 from enum import Enum
+from typing import Optional
 
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 
@@ -94,6 +95,12 @@ class PSMConfig(GraphormerConfig):
 
     # used in force and noise heads
     num_force_and_noise_head_layers: int = 2
+
+    # used for diffusion sampling
+    psm_validation_mode: bool = False
+    sample_in_validation: bool = False
+    num_sampling_time: int = 1
+    sampled_structure_output_path: Optional[str] = None
 
     def __init__(
         self,
