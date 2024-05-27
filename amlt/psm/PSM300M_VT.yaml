@@ -83,7 +83,7 @@ jobs:
   - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-3M,AFDB50-plddt70.lmdb'
   - export dataset_name_list='pm6,mattersim,afdb'
   - export dataset_split_raito='0.5,0.0,0.5'
-  - export dataset_micro_batch_size='128,16,16'
+  - export dataset_micro_batch_size='256,32,32'
   - export loadcheck_path=/blob/experiment/psm/psmV1_VT_v0/checkpoints
   - export save_dir=/blob/pfmexp/output/psmV1_VT_v0/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
