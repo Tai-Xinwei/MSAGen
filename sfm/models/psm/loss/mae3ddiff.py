@@ -282,8 +282,7 @@ class DiffMAE3dCriterions(nn.Module):
             aa_acc = 0.0
             num_aa_mask_token = 0.0
 
-        # loss = energy_loss + force_loss + noise_loss + aa_mlm_loss
-        loss = noise_loss + aa_mlm_loss
+        loss = energy_loss + force_loss + noise_loss + aa_mlm_loss
 
         # for loss exist in every sample of the batch, no extra number of samples are recorded (will use batch size in loss reduction)
         # for loss does not exist in every example of the batch, use a tuple, where the first element is the averaged loss value
