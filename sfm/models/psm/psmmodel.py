@@ -4,8 +4,11 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+from contextlib import nullcontext
+
 import torch
 import torch.nn as nn
+from torch.cuda.amp import autocast
 from tqdm import tqdm
 
 from sfm.logging import logger
@@ -604,7 +607,8 @@ class PSM(nn.Module):
 
         # Implement the embedding
         if args.backbone == "vanillatransformer":
-            self.embedding = PSMMix3dEmbedding(psm_config)
+            # self.embedding = PSMMix3dEmbedding(psm_config)
+            self.embedding = PSMMixEmbedding(psm_config)
         else:
             self.embedding = PSMMixEmbedding(psm_config)
 
@@ -714,6 +718,7 @@ class PSM(nn.Module):
         # token_embedding: B x L x H
         # padding_mask: B x L
         # token_type: B x L  (0 is used for PADDING)
+        # with autocast(dtype=torch.float32) if self.args.backbone == "vanillatransformer" else nullcontext():
         token_embedding, padding_mask, token_type = self.embedding(
             batched_data, time_step, clean_mask, aa_mask
         )

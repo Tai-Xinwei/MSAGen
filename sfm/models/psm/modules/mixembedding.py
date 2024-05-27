@@ -55,6 +55,7 @@ class PSMMix3dEmbedding(nn.Module):
             dist, pos_emb.masked_fill(padding_mask.unsqueeze(-1), 0.0)
         )
         pos_feature_emb = self.pos_feature_emb(pos_feature_emb)
+        pos_feature_emb = pos_feature_emb.masked_fill(padding_mask.unsqueeze(-1), 0.0)
         return pos_feature_emb
 
     def forward(
