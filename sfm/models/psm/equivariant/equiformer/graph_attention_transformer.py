@@ -10,7 +10,7 @@ from e3nn.nn.models.v2106.gate_points_message_passing import tp_path_exists
 from e3nn.util.jit import compile_mode
 
 # for bessel radial basis
-from ocpmodels.models.gemnet.layers.radial_basis import RadialBasis
+from fairchem.core.models.gemnet.layers.radial_basis import RadialBasis
 from torch_cluster import radius_graph
 from torch_scatter import scatter
 
