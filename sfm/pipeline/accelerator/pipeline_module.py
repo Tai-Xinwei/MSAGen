@@ -29,6 +29,8 @@ class SFMPipelineModule(PipelineModule, Model):
         loss_log_dict: Optional[dict] = {},
         part_list: Optional[List[int]] = None,
         topology=None,
+        activation_checkpoint_interval: int = 0,
+        checkpointable_layers: Optional[list] = None,
     ):
         super().__init__(
             model.to_layers(),
@@ -39,9 +41,9 @@ class SFMPipelineModule(PipelineModule, Model):
             seed_fn=None,
             base_seed=1234,
             partition_method=partition_method,
-            activation_checkpoint_interval=0,
+            activation_checkpoint_interval=activation_checkpoint_interval,
             activation_checkpoint_func=checkpointing.checkpoint,
-            checkpointable_layers=None,
+            checkpointable_layers=checkpointable_layers,
             loss_log_dict=loss_log_dict,
             part_list=part_list,
         )

@@ -77,6 +77,10 @@ python setup_cython.py build_ext --inplace
 
 # optional: install NVIDIA apex locally, which may take 20 minutes
 bash install/install_third_party.sh
+# If your machine has a different version of CUDA, you may get the apex compile error.
+# In such case, run
+conda install nvidia/label/cuda-12.1.0::cuda-toolkit
+conda install nvidia/label/cuda-12.1.0::cuda-cudart
 ```
 
 
