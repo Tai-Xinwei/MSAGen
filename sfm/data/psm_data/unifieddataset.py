@@ -195,10 +195,9 @@ class BatchedDataDataset(FoundationModelDataset):
     def collate(self, samples):
         return collate_fn(
             samples,
-            max_node=self.args.max_length,
             multi_hop_max_dist=self.multi_hop_max_dist,
-            spatial_pos_max=self.spatial_pos_max,
             preprocess_2d_bond_features_with_cuda=self.args.preprocess_2d_bond_features_with_cuda,
+            sample_in_validation=self.args.sample_in_validation,
         )
 
     def num_tokens(self, idx: int) -> int:
@@ -226,7 +225,7 @@ class BatchedDataDatasetForUnifiedSampler(BatchedDataDataset):
         for i in range(self.num_datasets):
             if idx >= self.dataset_ranges[i] and idx < self.dataset_ranges[i + 1]:
                 return self.dataset_list[i][idx - self.dataset_ranges[i]]
-        raise ValueError("Data not found")
+        raise ValueError(f"Data with index {idx} not found in any subset.")
 
 
 class StackedIterableDataset(IterableDataset):

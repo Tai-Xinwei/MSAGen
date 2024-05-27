@@ -2,7 +2,7 @@
 import logging
 
 import torch
-from ocpmodels.common.utils import (
+from fairchem.core.common.utils import (
     compute_neighbors,
     get_pbc_distances,
     radius_graph_pbc,

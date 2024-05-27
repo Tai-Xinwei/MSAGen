@@ -94,14 +94,21 @@ def convert_to_single_emb(x, offset: int = 512):
     return x
 
 
+def pad_edge_info_unsqueeze(x, padlen):
+    xlen, xdim = x.size()
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen, xdim], dtype=x.dtype)
+        new_x[:xlen, :] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
 def collate_fn(
     items,
-    min_node=-1,
-    max_node=512,
     multi_hop_max_dist=20,
-    spatial_pos_max=20,
     use_pbc=True,
     preprocess_2d_bond_features_with_cuda=True,
+    sample_in_validation: bool = False,
 ):  # unify the data format
     # include the following fields: sample_type, token_type, idx, coords, cell, pbc, stress, forces, energy
     # need to add: node_type_edge, edge_input, in_degree, attn_bias, spatial_pos
@@ -162,6 +169,20 @@ def collate_fn(
             [pad_spatial_pos_unsqueeze(i["spatial_pos"], max_node_num) for i in items]
         )
 
+    if sample_in_validation:
+        # add original edge information to recover the molecule
+        max_num_edges = max(i["edge_attr"].size()[0] for i in items)
+        edge_attr = torch.cat(
+            [pad_edge_info_unsqueeze(i["edge_attr"], max_num_edges) for i in items]
+        )
+        edge_index = torch.cat(
+            [pad_edge_info_unsqueeze(i["edge_index"].T, max_num_edges) for i in items]
+        )
+        num_edges = torch.tensor(
+            [int(i["edge_attr"].size()[0]) for i in items], dtype=torch.long
+        )
+        idx = torch.tensor([int(i["idx"]) for i in items], dtype=torch.long)
+
     node_type_edges = []
     for item in items:
         node_atom_type = item["token_type"]
@@ -203,6 +224,13 @@ def collate_fn(
             dict(
                 spatial_pos=spatial_pos,
                 edge_input=edge_input,
+            )
+        )
+
+    if sample_in_validation:
+        batched_data.update(
+            dict(
+                edge_attr=edge_attr, edge_index=edge_index, num_edges=num_edges, idx=idx
             )
         )
     return batched_data

@@ -134,7 +134,10 @@ def main(args: Config) -> None:
         train_data=train_data,
         valid_data=valid_data,
     )
-    trainer.train()
+    if args.psm_validation_mode:
+        trainer.validate()
+    else:
+        trainer.train()
 
 
 if __name__ == "__main__":
