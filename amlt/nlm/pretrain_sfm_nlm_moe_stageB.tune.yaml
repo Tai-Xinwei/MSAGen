@@ -1,0 +1,171 @@
+description: train_sfm_nlm_moe
+
+env_defaults:
+  NODES: 32
+  GPUS: 8
+
+target:
+  service: sing
+  name: baltic02
+  workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msroctocr.azurecr.io
+  username: msroctocr
+
+storage:
+  sfmdataeastus2:
+    storage_account_name: sfmdataeastus2
+    container_name: nlm
+    mount_dir: /mnt/sfmdataeastus2
+
+code:
+  local_dir: .
+
+jobs:
+- name: train_sfm_nlm_moe_stageB_pp16_acc32_total512
+  sku: ${NODES}xG${GPUS}
+  tags:
+    - 'ProjectID: PRJ-0209-A40'
+    - 'Project_Name: Science_Foundation_Model'
+    - 'Experiment: SFM_NLM_MOE_Model_Training'
+  mpi: true
+  process_count_per_node: 1
+  submit_args:
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
+      WANDB_API_KEY: local-8b231a9559eded7cef00bd550f7330ad2f3ce696
+      WANDB_PROJECT: NLM_MOE
+      WANDB_TEAM: ai4s-sfm
+      WANDB_BASE_URL: https://microsoft-research.wandb.io
+      NCCL_DEBUG: INFO
+      train_batch_size: 512
+      gradient_accumulation_steps: 32
+      pipeline_model_parallel_size: 16
+      epochs: 1
+      total_num_steps: 256 # 128k/512
+      save_batch_interval: 5000
+      log_interval: 1
+      save_dir: '/mnt/sfmdataeastus2/shufxi/nlm/8x7b/stageB_pp16_acc32_total512'
+  command:
+    - eval "$$(conda shell.bash hook)" && conda activate sfm
+    - python setup_cython.py build_ext --inplace
+    - pip install -e . --no-deps
+    - bash scripts/nlm/pretrain_sfm_nlm_moe_stageB.sh
+- name: train_sfm_nlm_moe_stageB_pp16_acc16_total512
+  sku: ${NODES}xG${GPUS}
+  tags:
+    - 'ProjectID: PRJ-0209-A40'
+    - 'Project_Name: Science_Foundation_Model'
+    - 'Experiment: SFM_NLM_MOE_Model_Training'
+  mpi: true
+  process_count_per_node: 1
+  submit_args:
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
+      WANDB_API_KEY: local-8b231a9559eded7cef00bd550f7330ad2f3ce696
+      WANDB_PROJECT: NLM_MOE
+      WANDB_TEAM: ai4s-sfm
+      WANDB_BASE_URL: https://microsoft-research.wandb.io
+      NCCL_DEBUG: INFO
+      train_batch_size: 512
+      gradient_accumulation_steps: 16
+      pipeline_model_parallel_size: 16
+      epochs: 1
+      total_num_steps: 256 # 128k/512
+      save_batch_interval: 5000
+      log_interval: 1
+      save_dir: '/mnt/sfmdataeastus2/shufxi/nlm/8x7b/stageB_pp16_acc16_total512'
+  command:
+    - eval "$$(conda shell.bash hook)" && conda activate sfm
+    - python setup_cython.py build_ext --inplace
+    - pip install -e . --no-deps
+    - bash scripts/nlm/pretrain_sfm_nlm_moe_stageB.sh
+- name: train_sfm_nlm_moe_stageB_pp16_acc16_total768
+  sku: ${NODES}xG${GPUS}
+  tags:
+    - 'ProjectID: PRJ-0209-A40'
+    - 'Project_Name: Science_Foundation_Model'
+    - 'Experiment: SFM_NLM_MOE_Model_Training'
+  mpi: true
+  process_count_per_node: 1
+  submit_args:
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
+      WANDB_API_KEY: local-8b231a9559eded7cef00bd550f7330ad2f3ce696
+      WANDB_PROJECT: NLM_MOE
+      WANDB_TEAM: ai4s-sfm
+      WANDB_BASE_URL: https://microsoft-research.wandb.io
+      NCCL_DEBUG: INFO
+      train_batch_size: 768
+      gradient_accumulation_steps: 16
+      pipeline_model_parallel_size: 16
+      epochs: 1
+      total_num_steps: 170 # 128k/768
+      save_batch_interval: 5000
+      log_interval: 1
+      save_dir: '/mnt/sfmdataeastus2/shufxi/nlm/8x7b/stageB_pp16_acc32_total768'
+  command:
+    - eval "$$(conda shell.bash hook)" && conda activate sfm
+    - python setup_cython.py build_ext --inplace
+    - pip install -e . --no-deps
+    - bash scripts/nlm/pretrain_sfm_nlm_moe_stageB.sh
+- name: train_sfm_nlm_moe_stageB_pp16_acc16_total1024
+  sku: ${NODES}xG${GPUS}
+  tags:
+    - 'ProjectID: PRJ-0209-A40'
+    - 'Project_Name: Science_Foundation_Model'
+    - 'Experiment: SFM_NLM_MOE_Model_Training'
+  mpi: true
+  process_count_per_node: 1
+  submit_args:
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
+      WANDB_API_KEY: local-8b231a9559eded7cef00bd550f7330ad2f3ce696
+      WANDB_PROJECT: NLM_MOE
+      WANDB_TEAM: ai4s-sfm
+      WANDB_BASE_URL: https://microsoft-research.wandb.io
+      NCCL_DEBUG: INFO
+      train_batch_size: 1024
+      gradient_accumulation_steps: 16
+      pipeline_model_parallel_size: 16
+      epochs: 1
+      total_num_steps: 128 # 128k/1024
+      save_batch_interval: 5000
+      log_interval: 1
+      save_dir: '/mnt/sfmdataeastus2/shufxi/nlm/8x7b/stageB_pp16_acc32_total1024'
+  command:
+    - eval "$$(conda shell.bash hook)" && conda activate sfm
+    - python setup_cython.py build_ext --inplace
+    - pip install -e . --no-deps
+    - bash scripts/nlm/pretrain_sfm_nlm_moe_stageB.sh
+- name: train_sfm_nlm_moe_stageB_pp16_acc16_total1280
+  sku: ${NODES}xG${GPUS}
+  tags:
+    - 'ProjectID: PRJ-0209-A40'
+    - 'Project_Name: Science_Foundation_Model'
+    - 'Experiment: SFM_NLM_MOE_Model_Training'
+  mpi: true
+  process_count_per_node: 1
+  submit_args:
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
+      WANDB_API_KEY: local-8b231a9559eded7cef00bd550f7330ad2f3ce696
+      WANDB_PROJECT: NLM_MOE
+      WANDB_TEAM: ai4s-sfm
+      WANDB_BASE_URL: https://microsoft-research.wandb.io
+      NCCL_DEBUG: INFO
+      train_batch_size: 1280
+      gradient_accumulation_steps: 16
+      pipeline_model_parallel_size: 16
+      epochs: 1
+      total_num_steps: 102 # 128k/1280
+      save_batch_interval: 5000
+      log_interval: 1
+      save_dir: '/mnt/sfmdataeastus2/shufxi/nlm/8x7b/stageB_pp16_acc32_total1280'
+  command:
+    - eval "$$(conda shell.bash hook)" && conda activate sfm
+    - python setup_cython.py build_ext --inplace
+    - pip install -e . --no-deps
+    - bash scripts/nlm/pretrain_sfm_nlm_moe_stageB.sh

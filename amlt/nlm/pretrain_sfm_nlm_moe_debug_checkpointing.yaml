@@ -1,0 +1,62 @@
+description: train_sfm_nlmmoe_debug
+
+# target:
+#   service: sing
+#   name: baltic02
+#   workspace_name: sfm-ws
+
+# target:
+#   service: aml
+#   name: sfm-nc96-westus3 #sfm-nd96amsra100v4-uksouth
+
+target:
+  service: sing
+  name: baltic02
+  workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msroctocr.azurecr.io
+  username: msroctocr
+
+storage:
+  hai1:
+    storage_account_name: hai1data # Storage account
+    container_name: sfm # Container name
+    mount_dir: /sfm
+
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: train_sfm_nlm_moe_ckpt
+  sku: 4xG8
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - pip install -e . --no-deps
+  - python scripts/pref/all_reduce_bench_v2.py
+  - bash scripts/nlm/pretrain_sfm_nlm_moe_debug_checkpointing.sh
+  submit_args:
+    env:
+      NCCL_DEBUG: INFO
+      SHARED_MEMORY_PERCENT: 1.0
+      # CUDA_LAUNCH_BLOCKING: 1
+      WANDB_API_KEY: local-094f941ede8eda7a00c307f50595f054be5382f7
+      WANDB_PROJECT: scigptmoe
+      WANDB_TEAM: ai4s-sfm
+      wandb_group: nlm_dev
+      model_type: scigptmoe_8x7b #scigptmoe_tiny
+      train_batch_size: 64
+      val_batch_size: 64
+      gradient_accumulation_steps: 16
+      pipeline_model_parallel_size: 8
+      train_data_path: /sfm/nlm/mix_pretrain/c4.npy
+      valid_data_path: /sfm/nlm/mix_pretrain/c4.npy
+      dict_path: /sfm/Mixtral-8x7B-v0.1
+      loadcheck_path: /sfm/Mixtral-8x7B-v0.1
+      save_dir: /sfm/shufxi/output/sfm_nlm_moe_debug

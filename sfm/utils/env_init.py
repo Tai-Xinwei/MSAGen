@@ -17,7 +17,7 @@ def set_env(args):
         args.local_rank = int(os.environ["LOCAL_RANK"])
         args.rank = int(os.environ["RANK"])
         args.world_size = int(os.environ["WORLD_SIZE"])
-        os.environ["NCCL_BLOCKING_WAIT"] = "0"
+        os.environ["TORCH_NCCL_BLOCKING_WAIT"] = "0"
         os.environ["OMPI_COMM_WORLD_LOCAL_RANK"] = os.environ["LOCAL_RANK"]
         torch.cuda.set_device(args.local_rank)
 

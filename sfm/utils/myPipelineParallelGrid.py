@@ -232,22 +232,17 @@ def _prime_factors(N):
 
 
 class PipeDataParallelTopology(ProcessTopology):
-    """A topology specialization for hybrid data and pipeline parallelism.
-
-    Uses data parallelism on the last dimension to encourage gradient
-    reductions to use high-bandwidth intra-node links and lower-volume
-    pipeline communications to use low-bandwidth inter-node links.
-    """
+    """A topology specialization for hybrid data and pipeline parallelism."""
 
     def __init__(self, num_pp, num_dp):
-        super().__init__(axes=["pipe", "data"], dims=[num_pp, num_dp])
+        super().__init__(axes=["data", "pipe"], dims=[num_dp, num_pp])
 
 
 class PipeModelDataParallelTopology(ProcessTopology):
     """A topology for hybrid pipeline, model, and data parallelism."""
 
     def __init__(self, num_pp, num_mp, num_dp):
-        super().__init__(axes=["pipe", "data", "model"], dims=[num_pp, num_dp, num_mp])
+        super().__init__(axes=["data", "pipe", "model"], dims=[num_dp, num_pp, num_mp])
 
 
 class myPipelineParallelGrid:
