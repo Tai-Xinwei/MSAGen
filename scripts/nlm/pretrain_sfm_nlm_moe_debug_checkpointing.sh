@@ -2,12 +2,9 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-ulimit -c unlimited
 
-wget 'https://aka.ms/downloadazcopy-v10-linux' -O /tmp/azcopy.tar.gz
-tar -xf /tmp/azcopy.tar.gz -C /tmp
-# find the folder in /tmp and starts with azcopy_linux_amd64
-azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
+# In this stage, we only finetune new emb
+ulimit -c unlimited
 
 echo 'Solving MKL done!'
 export MKL_SERVICE_FORCE_INTEL=1
@@ -15,34 +12,32 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${model_type}" ] && model_type="scigptmoe_8x7b"
 [ -z "${weight_decay}" ] && weight_decay=0.1 # same as LLAMA2
+# TODO: we need grad clip
 [ -z "${max_lr}" ] && max_lr=1e-4
 [ -z "${beta1}" ] && beta1=0.9 # same as LLAMA2
 [ -z "${beta2}" ] && beta2=0.95 # same as LLAMA2
-[ -z "${total_num_steps}" ] && total_num_steps=140000 # 17913508/128 = 140k
+[ -z "${total_num_steps}" ] && total_num_steps=80000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=8000
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
-[ -z "${train_batch_size}" ] && train_batch_size=128
-[ -z "${val_batch_size}" ] && val_batch_size=128
-[ -z "${learnable_cutoff}" ] && learnable_cutoff=0
+[ -z "${train_batch_size}" ] && train_batch_size=512
+[ -z "${val_batch_size}" ] && val_batch_size=8
+# [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,embed_tokens.weight"
+# [ -z "${learnable_cutoff}" ] && learnable_cutoff=32000
 
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
-[ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000
-[ -z "${log_interval}" ] && log_interval=20
+# In this stage, the grad is too large to use grad accumulation
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=128
+[ -z "${save_epoch_interval}" ] && save_epoch_interval=1000000
+[ -z "${save_batch_interval}" ] && save_batch_interval=4000000
+[ -z "${log_interval}" ] && log_interval=1
 [ -z "${epochs}" ] && epochs=1
 
 [ -z "${strategy}" ] && strategy=Pipeline
 
-[ -z "${dict_path}" ] && dict_path='/mnt/sfmdataeastus2/Mixtral-8x7B-v0.1'
-
-train_data_sas=$(cat /mnt/sfmdataeastus2/shufxi/data/SFM.Mixtral.v0/sas.txt)
-$azcopy_path/azcopy copy "$train_data_sas" /tmp/train.npy
-
-[ -z "${train_data_path}" ] && train_data_path='/tmp/train.npy'
-[ -z "${valid_data_path}" ] && valid_data_path='/mnt/sfmdataeastus2/shufxi/data/SFM.Mixtral.v0/valid.npy'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/mnt/sfmdataeastus2/shufxi/nlm/8x7b/stageA/global_step3999'
-[ -z "${save_dir}" ] && save_dir='/mnt/sfmdataeastus2/shufxi/nlm/8x7b/stageB'
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=8
+[ -z "${dict_path}" ] && dict_path='/data/peiran/blob/hai1data/sfm/Mixtral-8x7B-v0.1'
+[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/mix_pretrain/c4.npy'
+[ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/hai1data/sfm/nlm/mix_pretrain/c4.npy'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/hai1data/sfm/Mixtral-8x7B-v0.1'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/'
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="MoeDecoderLayerPP"
 
 
@@ -89,7 +84,7 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin "$WANDB_API_KEY" --host=$WANDB_BASE_URL
+wandb login --relogin --host='https://microsoft-research.wandb.io' $WANDB_API_KEY
 
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
@@ -113,17 +108,31 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 nvidia-smi topo -m
 ifconfig -s
 
+# set -x
+# for i in $(seq 0 7); do
+#     echo "ib${i}"
+#     ifconfig ib${i}
+#     ip addr show ib${i}
+# done
+
+# Debug IB
+# sudo apt-get update && sudo apt-get install infiniband-diags -y
+# ibdev2netdev -v
+# ibstatus
+# ibv_devinfo
+
 
 set -x
 torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_sfm_nlm_moe.py \
       --model_type "$model_type" \
-      --vocab_size 33982 --pad_token_id 32000 --eos_token_id 2 \
+      --vocab_size 33982 \
+      --pad_token_id 32000 --eos_token_id 2 \
       --max_position_embeddings 8192 \
       --train_data_path "$train_data_path" \
       --valid_data_path "$valid_data_path" \
       --weight_decay "$weight_decay" \
       --save_dir "$save_dir" \
-      --seed 46 \
+      --seed 666666 \
       --bf16 \
       --grad_scaler_init "$grad_scaler_init" \
       --max_lr "$max_lr" \
@@ -136,13 +145,14 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_sfm_nlm_moe.py \
       --save_epoch_interval "$save_epoch_interval" \
       --total_num_epochs "$epochs" \
       --save_batch_interval "$save_batch_interval" \
-      --val_batch_interval "$save_batch_interval" \
       --log_interval "$log_interval" \
       --strategy "$strategy" \
       --pipeline_model_parallel_size "$pipeline_model_parallel_size" \
       --pp_partition_layer_name "$pp_partition_layer_name" \
-      --load_ckpt --pretrained_ckpt_path "$loadcheck_path" \
       --moe_impl "vanilla" \
-      --ifresume
+      --load_ckpt --pretrained_ckpt_path "$loadcheck_path" \
 
-echo "Finished training"
+
+sleep infinity
+sleep infinity
+sleep infinity

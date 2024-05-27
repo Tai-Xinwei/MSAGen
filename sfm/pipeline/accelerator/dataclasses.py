@@ -155,6 +155,8 @@ class TrainerConfig:
     finetune_from_checkpoint_id: Optional[str] = None
     reset_act_each_step: bool = False
     use_unified_batch_sampler: bool = False
+    activation_checkpoint_interval: int = 0
+    checkpointable_layers: Optional[list[str]] = None
 
     # dataloader strategy
     daliLoader: bool = False
@@ -204,6 +206,7 @@ class TrainerConfig:
     profiling: bool = False
     prof_dir: str = "./prof"
     ptensorboard: bool = False
+    allreduce_log_path: str = "/tmp/stragglers"
 
     # debugger
     debug: bool = False

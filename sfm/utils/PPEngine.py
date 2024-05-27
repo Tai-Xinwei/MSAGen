@@ -85,6 +85,7 @@ class SFMPipeEngine(DeepSpeedEngine):
         **super_kwargs,
     ):
         super().__init__(*super_args, **super_kwargs)
+
         assert isinstance(self.module, PipelineModule), "model must base PipelineModule"
         self.pipeline_parallelism = True
         self.copilot_train = copilot_train
@@ -274,6 +275,27 @@ class SFMPipeEngine(DeepSpeedEngine):
         self.para_dict = {}
         self.id2paramname = {}
 
+        # AllReduce profile
+        self.event_timer_id = 0
+        self.start_event = torch.cuda.Event(enable_timing=True)
+        self.end_event = torch.cuda.Event(enable_timing=True)
+        self.allreduce_data = torch.zeros(64, 1024, 1024, dtype=torch.bfloat16).to(
+            self.device
+        )
+        cudaDeviceId = str(self.device).split(":")[1]
+
+        args = super_kwargs.get("args", None)
+        allreduce_log_path = "/tmp/stragglers"
+        if args is not None and hasattr(args, "allreduce_log_path"):
+            allreduce_log_path = args.allreduce_log_path
+
+        file_name = os.path.join(
+            allreduce_log_path,
+            f"{cudaDeviceId}_{self.grid.get_stage_id()}_{self.grid.data_parallel_id}.txt",
+        )
+        os.makedirs(allreduce_log_path, exist_ok=True)
+        self.file = open(file_name, "a")
+
     def set_has_attention_mask(self, value):
         assert isinstance(value, bool)
         self.has_attention_mask = value
@@ -322,6 +344,35 @@ class SFMPipeEngine(DeepSpeedEngine):
             dist.all_reduce(grad, group=group)
 
     def _exec_reduce_grads(self):
+        rank = os.getenv("OMPI_COMM_WORLD_RANK") or os.getenv("RANK")
+        rank = int(rank) if rank is not None else None
+
+        # if rank == 0:
+        #    import pdb; pdb.set_trace()
+        if self.event_timer_id > 1:
+            allreduce_time = self.start_event.elapsed_time(self.end_event)
+            if rank == 0:
+                n = dist.get_world_size()
+                size = 64 * 1024 * 1024 * 2
+                busbw = ((size / (1024 * 1024 * 1024)) / (allreduce_time / 1e3)) * (
+                    2 * (n - 1) / n
+                )
+                str2 = f"AllReduce 128MB data among {n} ranks took {allreduce_time:.2f} ms; BusBW = {busbw:.2f} GB/s."
+                print(str2)
+
+            # str1 = f"Step: {self.global_steps} DP: {self.grid.data_parallel_id} PP: {self.grid.get_stage_id()} AllReduce: {allreduce_time:.2f}ms"
+            str1 = f"{self.global_steps} {allreduce_time:.2f}\n"
+            # print(str1)
+            self.file.write(str1)
+            self.file.flush()
+        self.start_event.record()
+        handle = dist.all_reduce(
+            self.allreduce_data, group=self.module.world_group, async_op=True
+        )
+        handle.wait()
+        self.end_event.record()
+        self.event_timer_id += 1
+
         self._force_grad_boundary = True
         if self.pipeline_enable_backward_allreduce:
             if self.bfloat16_enabled():
@@ -956,9 +1007,16 @@ class SFMPipeEngine(DeepSpeedEngine):
             # print(t.shape, t.dtype, t.requires_grad)
             out_tensors = [t for t in outputs if t.is_floating_point()]
             assert len(out_tensors) == len(grad_tensors)
-            # for t in out_tensors:
-            #     print(t.shape, t.dtype, t.requires_grad)
-            torch.autograd.backward(tensors=out_tensors, grad_tensors=grad_tensors)
+            try:
+                torch.autograd.backward(tensors=out_tensors, grad_tensors=grad_tensors)
+            except Exception as e:
+                print(e)
+                print("length of outputs:", len(outputs))
+                for t in outputs:
+                    print(t.shape, t.dtype, t.requires_grad)
+                for t in grad_tensors:
+                    print(t.shape, t.dtype, t.requires_grad)
+                raise e
         else:
             torch.autograd.backward(tensors=(outputs,), grad_tensors=(grad_tensors,))
 

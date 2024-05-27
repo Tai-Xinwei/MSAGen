@@ -454,7 +454,7 @@ class Trainer(object):
     def should_save_epoch_checkpoint(self) -> bool:
         return (
             self.args.save_epoch_interval > 0
-            and (self.state.epoch + 1) % self.args.save_epoch_interval == 0
+            and self.state.epoch % self.args.save_epoch_interval == 0
         )
 
     def should_log(self) -> bool:
@@ -590,14 +590,17 @@ class Trainer(object):
 
                         if self.args.profiling:
                             prof.step()
+
+                        if self.should_stop():
+                            break
                 except StopIteration:
                     logger.info("StopIteration")
                     pass
 
-                self.state.batch = 0
-
                 log_output = self.build_log_output(loss_accumulator.averge_loss)
                 metric_logger.log(log_output, "train", self.state.global_step)
+
+                self.state.batch = 0
 
                 if self.should_do_epoch_validate():
                     valid_log = self.validate()
@@ -607,9 +610,7 @@ class Trainer(object):
                 self.accelerator.barrier()
                 if self.should_save_epoch_checkpoint():
                     checkpoint_name = f"checkpoint_E{self.state.epoch}.pt"
-                    self.state.epoch += 1
                     self.save_checkpoint(checkpoint_name, self.state)
-                    self.state.epoch -= 1
 
                 # if use early stopping
                 if self.args.early_stopping:
@@ -665,8 +666,9 @@ class Trainer(object):
                             f"not improving over past {self.early_stopping.counter} epochs. "
                         )
 
+                if self.should_stop():
+                    break
                 self.state.epoch += 1
-                torch.cuda.empty_cache()
 
             self.model.after_training()
 

@@ -941,6 +941,8 @@ class DeepSpeedAccelerator(Accelerator):
                 part_list=self.args.pp_part_list,
                 loss_log_dict=self.loss_log_dict,
                 topology=topology,
+                activation_checkpoint_interval=self.args.activation_checkpoint_interval,
+                checkpointable_layers=self.args.checkpointable_layers,
             )
             unfreeze_params = self.get_unfreeze_param_list(
                 self.args.unfreeze_param_list
