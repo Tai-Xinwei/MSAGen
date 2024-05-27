@@ -7,7 +7,7 @@
 description: PSMV0
 
 env_defaults:
-  NODES: 8
+  NODES: 4
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -44,7 +44,7 @@ jobs:
   process_count_per_node: 1
   command:
   - export WANDB_TEAM=ai4s-sfm
-  - export wandb_group=psm_VT_001
+  - export wandb_group=psm_VT
   - export wandb_project=psm_VT
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - mkdir /blob/pfmexp/output
@@ -53,11 +53,10 @@ jobs:
   - mkdir ./output
   - export path=run.sh
   - export num_pred_attn_layer=4
-  - export layers=24
+  - export layers=20
   - export hidden_size=1024
   - export ffn_size=4096
   - export num_head=32
-  - export num_3d_bias_kernel=8
   - export atom_loss_coeff=1.0
   - export pos_loss_coeff=1.0
   - export sandwich_ln="true"
@@ -77,14 +76,15 @@ jobs:
   - export val_batch_size=1024
   - export max_tokens=16000
   - export max_length=512
-  - export gradient_accumulation_steps=1
+  - export gradient_accumulation_steps=4
   - export log_interval=100
   - export data_path=/blob/psm/
   - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-3M,AFDB50-plddt70.lmdb'
   - export dataset_name_list='pm6,mattersim,afdb'
   - export dataset_split_raito='0.5,0.0,0.5'
-  - export dataset_micro_batch_size='128,14,14'
-  - export fp16=False
+  # - export dataset_micro_batch_size='256,32,32'
+  - export dataset_micro_batch_size='128,16,16'
+  - export fp16=True
   - export loadcheck_path=/blob/experiment/psm/psmV1_VT_v2/checkpoints
   - export save_dir=/blob/pfmexp/output/psmV1_VT_v2/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm

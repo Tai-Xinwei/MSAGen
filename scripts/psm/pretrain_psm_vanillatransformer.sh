@@ -49,8 +49,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-3M,AFDB50-plddt70.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.0,0.5'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="256,32,32"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128,16,16"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
+[ -z "${fp16}" ] && fp16=True
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
@@ -91,7 +92,6 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
 
-[ -z "${fp16}" ] && fp16=True
 
 echo -e "\n\n"
 echo "==================================MP==========================================="

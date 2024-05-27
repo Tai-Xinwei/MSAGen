@@ -42,6 +42,8 @@ class PSMMix3dEmbedding(nn.Module):
             psm_config.num_3d_bias_kernel, psm_config.embedding_dim, bias=False
         )
 
+        self.scaling = (psm_config.num_3d_bias_kernel) ** -0.5
+
         self.psm_config = psm_config
 
     def _pos_emb(self, batched_data: Dict, padding_mask: torch.Tensor):
@@ -50,12 +52,12 @@ class PSMMix3dEmbedding(nn.Module):
         delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
         dist = 1.0 / (delta_pos.norm(dim=-1) + 1.0)
         min_dtype = torch.finfo(dist.dtype).min
+        dist = dist.masked_fill(padding_mask.unsqueeze(1), min_dtype)
         dist = dist.masked_fill(padding_mask.unsqueeze(-1), min_dtype)
-        pos_emb = self.pos_emb(pos)
-        dist = torch.nn.functional.softmax(dist, dim=-1)
-        pos_feature_emb = torch.matmul(
-            dist, pos_emb.masked_fill(padding_mask.unsqueeze(-1), 0.0)
-        )
+
+        pos_emb = self.pos_emb(pos).masked_fill(padding_mask.unsqueeze(-1), 0.0).float()
+        dist = torch.nn.functional.softmax(dist.float() * self.scaling, dim=-1)
+        pos_feature_emb = torch.matmul(dist, pos_emb).to(self.pos_emb.weight.dtype)
         pos_feature_emb = self.pos_feature_emb(pos_feature_emb)
         pos_feature_emb = pos_feature_emb.masked_fill(padding_mask.unsqueeze(-1), 0.0)
         return pos_feature_emb
