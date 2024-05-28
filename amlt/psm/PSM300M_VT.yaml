@@ -12,8 +12,9 @@ env_defaults:
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
 # target:
-#     service: sing
-#     name: baltic02
+  # service: sing
+  # name: baltic02
+  # workspace_name: msrresrchws
 
 target:
     service: aml
@@ -53,7 +54,7 @@ jobs:
   - mkdir ./output
   - export path=run.sh
   - export num_pred_attn_layer=4
-  - export layers=20
+  - export layers=24
   - export hidden_size=1024
   - export ffn_size=4096
   - export num_head=32
@@ -83,8 +84,8 @@ jobs:
   - export dataset_name_list='pm6,mattersim,afdb'
   - export dataset_split_raito='0.5,0.0,0.5'
   # - export dataset_micro_batch_size='64,8,8'
-  - export dataset_micro_batch_size='256,16,16'
-  - export fp16=False
+  - export dataset_micro_batch_size='256,32,32'
+  - export fp16=True
   - export loadcheck_path=/blob/experiment/psm/psmv1_vt_v3/checkpoints
   - export save_dir=/blob/pfmexp/output/psmv1_vt_v3/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
