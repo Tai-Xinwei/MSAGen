@@ -277,6 +277,50 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         return self.sizes[index]
 
 
+class PlainPM6FullLMDBDataset(PM6FullLMDBDataset):
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: Optional[str],
+    ):
+        super().__init__(args, lmdb_path)
+
+    def generate_2dgraphfeat(self, data):
+        N = data["num_atoms"]
+        adj = torch.zeros([N, N], dtype=torch.bool)
+
+        edge_index = torch.tensor(data["edge_index"], dtype=torch.long)
+        edge_attr = torch.tensor(data["edge_feat"], dtype=torch.long)
+        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+        attn_edge_type[edge_index[0, :], edge_index[1, :]] = convert_to_single_emb(
+            edge_attr
+        )
+        adj[edge_index[0, :], edge_index[1, :]] = True
+        indgree = adj.long().sum(dim=1).view(-1)
+
+        data["edge_index"] = edge_index
+        data["edge_attr"] = edge_attr
+        data["node_attr"] = data["node_feat"]
+
+        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        data["in_degree"] = indgree
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result = (
+                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+            )
+            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = edge_input
+            data["spatial_pos"] = spatial_pos
+
+        return data
+
+
 class PCQM4Mv2LMDBDataset(FoundationModelDataset):
     def __init__(
         self,

@@ -44,8 +44,8 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
-# [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-[ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
+[ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
+# [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
 [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-3M,AFDB50-plddt70.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.0,0.5'
