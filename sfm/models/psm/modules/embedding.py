@@ -116,4 +116,4 @@ class PSMMixEmbedding(nn.Module):
             )
             x[init_pos_mask, :] += init_pos_embedding[init_pos_mask, :]
 
-        return x, padding_mask, mask_token_type
+        return x, padding_mask, mask_token_type, time_embed
