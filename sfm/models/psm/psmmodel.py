@@ -79,9 +79,10 @@ class PSMModel(Model):
 
         self.loss_fn = loss_fn(args)
 
-        self.sampled_structure_converter = SampledStructureConverter(
-            self.psm_config.sampled_structure_output_path
-        )
+        if self.psm_config.sample_in_validation:
+            self.sampled_structure_converter = SampledStructureConverter(
+                self.psm_config.sampled_structure_output_path
+            )
 
     def _create_initial_pos_for_diffusion(self, batched_data):
         periodic_mask = torch.any(batched_data["pbc"], dim=-1)

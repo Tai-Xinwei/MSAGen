@@ -47,9 +47,9 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         if (
             self.lmdb_path is not None
             and self.lmdb_path.find("PubChemQC-B3LYP-PM6") != -1
-            and self.lmdb_path.find("20240417.1/full") == -1
+            and self.lmdb_path.find("20240527.1/full") == -1
         ):
-            self.lmdb_path += "/20240417.1/full/"
+            self.lmdb_path += "/20240527.1/full/"
         self.args = args
         # for dataloader with num_workers > 1
         self._env, self._txn = None, None

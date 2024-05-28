@@ -41,4 +41,5 @@ dependencies:
       - megablocks[gg]==0.5.1
       - hydra-core
       - e3nn
-      - fairchem-core @ https://test-files.pythonhosted.org/packages/02/e7/d20823da7621a79ad28f2461f3924cf5f487dd4df58836da751ff89ccecb/fairchem_core-0.0.0.1-py3-none-any.whl#sha256=ab4ac058c97ee58e08c359291243d9f210b3ed676c73a580f1598b851523090c
+      - fairchem-core
+      - PyAstronomy
