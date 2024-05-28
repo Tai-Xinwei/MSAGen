@@ -804,9 +804,11 @@ class PSM(nn.Module):
             ),
         )
 
-        noise_pred = self.noise_head(decoder_x_output, decoder_vec_output).squeeze(-1)
+        noise_pred = self.noise_head(
+            decoder_x_output, decoder_vec_output
+        )  # .squeeze(-1)
 
-        scale_shift = self.mlp_w(time_embed)
+        scale_shift = self.mlp_w(time_embed).unsqueeze(-1)
         logit_bias = torch.logit(batched_data["sqrt_one_minus_alphas_cumprod_t"])
         scale = torch.sigmoid(scale_shift + logit_bias)
         noise_pred = scale * batched_data["pos"] + (1 - scale) * noise_pred
