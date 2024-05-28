@@ -53,7 +53,7 @@ class NodeTaskHead(nn.Module):
         attn = attn.masked_fill(padding_mask.unsqueeze(1).unsqueeze(2), min_dtype)
         attn = attn.masked_fill(padding_mask.unsqueeze(1).unsqueeze(-1), min_dtype)
 
-        attn_probs_float = nn.functional.softmax(attn, dim=-1)
+        attn_probs_float = nn.functional.softmax(attn.float(), dim=-1)
         attn_probs = attn_probs_float.type_as(attn)
         attn_probs = attn_probs.view(bsz, self.num_heads, n_node, n_node)
 
@@ -69,9 +69,11 @@ class NodeTaskHead(nn.Module):
             .view(bsz, n_node, 3, -1)
         )
 
-        decoder_x_output = (
-            (attn_probs @ v).permute(0, 2, 1, 3).contiguous().view(bsz, n_node, -1)
-        )
+        # decoder_x_output = (
+        #     (attn_probs @ v).permute(0, 2, 1, 3).contiguous().view(bsz, n_node, -1)
+        # )
+
+        decoder_x_output = x
 
         return decoder_x_output, decoder_vec_output
 

@@ -23,10 +23,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${weight_decay}" ] && weight_decay=0.0
 [ -z "${sandwich_ln}" ] && sandwich_ln=true
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
-[ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=1e-4
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
@@ -51,6 +52,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.0,0.5'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="256,32,32"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
+[ -z "${fp16}" ] && fp16=True
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
@@ -60,7 +62,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=psm_dev
+[ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_dev
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
@@ -77,7 +79,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=5.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
-[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
+[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
@@ -89,9 +91,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=False
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
 
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
-
-[ -z "${fp16}" ] && fp16=True
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -131,7 +130,6 @@ echo "add_3d: ${add_3d}"
 echo "data_path: ${data_path}"
 echo "output_path: ${output_path}"
 echo "dataset_name: ${dataset_name}"
-echo "noise_scale: ${noise_scale}"
 echo "mask_ratio: ${mask_ratio}"
 echo "mode_prob: ${mode_prob}"
 echo "noise_mode: ${noise_mode}"
@@ -190,7 +188,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           seed=12345 \
           ifresume=True \
           mask_ratio=$mask_ratio \
-          noise_scale=$noise_scale \
           d_tilde=$d_tilde \
           strategy=$strategy \
           max_lr=$max_lr \

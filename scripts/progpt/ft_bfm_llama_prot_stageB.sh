@@ -41,7 +41,7 @@
 [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir="/data/peiran/blob/hai1data/sfm/pfmexp/output/stageB/"
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step12386"
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/nlm/checkpoints/bfm_scigpt_prot/global_step20499"
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/scigpt/stageB/global_step32999"
+# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/scigpt/stageB/global_step32999"
 [ -z "${tokenizer_path}" ] && tokenizer_path="/data/peiran/blob/msralaphilly2/ml-la/shufxi/data/scigpt"
 
 [ -z "${save_batch_interval}"] && save_batch_interval=500
