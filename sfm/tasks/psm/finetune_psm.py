@@ -8,7 +8,7 @@ sys.path.extend([".", ".."])
 
 import torch
 
-from sfm.data.psm_data.dataset import PCQM4Mv2LMDBDataset
+from sfm.data.psm_data.ft_mol_dataset import GenericMoleculeLMDBDataset
 from sfm.data.psm_data.unifieddataset import BatchedDataDataset
 from sfm.logging import logger
 from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions
@@ -37,13 +37,13 @@ class PSMFTConfig:
 
 def load_data(args):
     if args.dataset_names == "pcqm4mv2":
-        dataset = PCQM4Mv2LMDBDataset(args, args.data_path)
+        dataset = GenericMoleculeLMDBDataset(args, args.data_path)
         train_data, valid_data = dataset.split_dataset()
     else:
         raise ValueError("invalid dataset name")
 
-    train_data = BatchedDataDataset(args, [train_data], len(train_data))
-    valid_data = BatchedDataDataset(args, [valid_data], len(valid_data))
+    # train_data = BatchedDataDataset(args, [train_data], len(train_data))
+    # valid_data = BatchedDataDataset(args, [valid_data], len(valid_data))
 
     return train_data, valid_data
 
@@ -74,12 +74,14 @@ class PSMFTModel(Model):
 
     def compute_loss(self, model_output, batch_data):
         y_pred = model_output["homo_lumo_gap"]
-        y_true = batch_data["energy"]
+        y_true = batch_data["homo_lumo_gap"]
 
         loss = torch.nn.L1Loss()(y_pred, y_true)
         size = y_true.shape[0]
 
-        return ModelOutput(loss=loss, num_examples=size)
+        logging_output = {"total_loss": loss}
+
+        return ModelOutput(loss=loss, num_examples=size, log_output=logging_output)
 
     def config_optimizer(self):
         return (None, None)

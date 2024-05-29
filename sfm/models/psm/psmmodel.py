@@ -656,6 +656,8 @@ class PSM(nn.Module):
 
             self.decoder = Equiformerv2SO2(**args.backbone_config)
         elif args.backbone == "geomformer":
+            self.encoder = None
+
             # Implement the decoder
             self.decoder = EquivariantDecoder(psm_config)
         elif args.backbone == "vanillatransformer":

@@ -11,8 +11,9 @@ from joblib import Parallel, delayed
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem import rdMolAlign as MA
-from spyrmsd.molecule import Molecule
-from spyrmsd.rmsd import rmsdwrapper
+
+# from spyrmsd.molecule import Molecule
+# from spyrmsd.rmsd import rmsdwrapper
 from tqdm import tqdm
 
 
@@ -49,19 +50,15 @@ def get_rmsd_confusion_matrix(
 ):
     pos_gen = torch.cat(
         [
-            torch.tensor(
-                mol.GetConformer(i).GetPositions(), dtype=torch.float32
-            ).unsqueeze(0)
-            for i in range(mol.GetNumConformers())
+            torch.tensor(conf.GetPositions(), dtype=torch.float32).unsqueeze(0)
+            for conf in mol.GetConformers()
         ],
         0,
     )
     pos_ref = torch.cat(
         [
-            torch.tensor(
-                ref.GetConformer(i).GetPositions(), dtype=torch.float32
-            ).unsqueeze(0)
-            for i in range(ref.GetNumConformers())
+            torch.tensor(conf.GetPositions(), dtype=torch.float32).unsqueeze(0)
+            for conf in ref.GetConformers()
         ],
         0,
     )
