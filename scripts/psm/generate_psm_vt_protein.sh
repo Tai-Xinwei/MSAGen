@@ -3,8 +3,29 @@
 # Licensed under the MIT License.
 ulimit -c unlimited
 
+
+if [ $# == 0 ]; then
+  fasta_list=/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/list
+  output_dir=/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/output
+  # tmpdir=$(mktemp -d)
+  tmpdir="/home/peiranjin/expresult/psmexp/output/psmv1_vt_v3/"
+  fasta_list="$tmpdir/fasta_list"
+  output_dir="$tmpdir"
+  echo ">T1082 gp63, T4 phage, 97 residues|" > "$tmpdir/T1082.fasta"
+  echo "MKKFIFATIFALASCAAQPAMAGYDKDLCEWSMTADQTEVETQIEADIMNIVKRDRPEMKAEVQKQLKSGGVMQYNYVLYCDKNFNNKNIIAEVVGE" >> "$tmpdir/T1082.fasta"
+  echo "$tmpdir/T1082.fasta" > "$fasta_list"
+elif [ $# == 2 ]; then
+  fasta_list=$1
+  output_dir=$2
+else
+  echo "Default: bash $0"
+  echo "Usage: bash $0 <fasta_list> <output_dir>"
+  exit 1
+fi
+
+
 export MKL_SERVICE_FORCE_INTEL=1
-export MKL_THREADING_LAYER='GNU'
+export MKL_THREADING_LAYER="GNU"
 
 [ -z "${layers}" ] && layers=24
 [ -z "${hidden_size}" ] && hidden_size=1024
@@ -23,52 +44,54 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${weight_decay}" ] && weight_decay=0.0
 [ -z "${sandwich_ln}" ] && sandwich_ln=true
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
+[ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.5
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+[ -z "${mask_ratio}" ] && mask_ratio=0.0
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.0
 
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=1e-4
+[ -z "${max_lr}" ] && max_lr=1.5e-4
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=12000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
-[ -z "${strategy}" ] && strategy=Zero1
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${strategy}" ] && strategy=DDP
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=20
+[ -z "${save_batch_interval}" ] && save_batch_interval=2500
+[ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
+[ -z "${val_batch_interval}" ] && val_batch_interval=0
 
-[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-# [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob="0.1,0.2,0.6,0.1" #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-# [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
-[ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-# [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-3M,AFDB50-plddt70.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.0,0.5'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128,16,16"
+[ -z "${data_path}" ] && data_path="/data/peiran/blob/hai1data/sfm/psm"
+[ -z "${data_path_list}" ] && data_path_list="PubChemQC-B3LYP-PM6,matter-sim-15M,AFDB50-plddt70.lmdb"
+[ -z "${dataset_name_list}" ] && dataset_name_list="pm6,mattersim,afdb"
+[ -z "${dataset_split_raito}" ] && dataset_split_raito="0.4,0.2,0.4"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16,4,2"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
+[ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${fp16}" ] && fp16=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/"
-[ -z "${save_dir}" ] && save_dir="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/"
-# [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
+#[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-16xG8-fp32-ddp-unified-sampler-continued-fastpreprocess/checkpoint_E0_B84999.pt"
+#[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-16xG8-fp32-ddp-unified-sampler-continued-fastpreprocess/checkpoint_E0_B84999.pt"
+#[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240523-1902/checkpoint_E1_B66933.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/global_step16021/mp_rank_00_model_states.pt"
+[ -z "${save_dir}" ] && save_dir="/home/peiran/expresult/psmexp/output/psmv1_vt_v3/"
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
+[ -z "${wandb_group}" ] && wandb_group=psm_dev
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_dev
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
-[ -z "${launcher}" ] && launcher='openmpi'
-[ -z "${hostfile}" ] && hostfile='/job/hostfile'
+[ -z "${launcher}" ] && launcher="openmpi"
+[ -z "${hostfile}" ] && hostfile="/job/hostfile"
 [ -z "${MASTER_PORT}" ] && MASTER_PORT=62347
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
@@ -91,11 +114,12 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=False
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
-[ -z "${psm_validation_mode}" ] && psm_validation_mode=True
+
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
 [ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
+n_gpu=1
 echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
 echo "MASTER_PORT: ${MASTER_PORT}"
@@ -131,6 +155,7 @@ echo "add_3d: ${add_3d}"
 echo "data_path: ${data_path}"
 echo "output_path: ${output_path}"
 echo "dataset_name: ${dataset_name}"
+echo "noise_scale: ${noise_scale}"
 echo "mask_ratio: ${mask_ratio}"
 echo "mode_prob: ${mode_prob}"
 echo "noise_mode: ${noise_mode}"
@@ -145,8 +170,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-export WANDB_API_KEY=$wandb_key
+#wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+#export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -154,7 +179,7 @@ then
 else
   if (( $OMPI_COMM_WORLD_SIZE == 1))
   then
-    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
+    DISTRIBUTED_ARGS="--nproc_per_node 1 \
                       --master_port $MASTER_PORT"
   else
     DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
@@ -165,14 +190,14 @@ else
 fi
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
+#   num_attention_heads=$num_head \
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/generate_psm_protein.py \
           --config-name=config_psm.yaml \
           backbone_config=graphormer \
           backbone=vanillatransformer \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
-          num_pred_attn_layer=$num_pred_attn_layer \
           encoder_ffn_embed_dim=$ffn_size \
           encoder_embed_dim=$hidden_size \
           droppath_prob=$droppath_prob \
@@ -189,11 +214,14 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           seed=12345 \
           ifresume=True \
           mask_ratio=$mask_ratio \
+          noise_scale=$noise_scale \
+          num_pred_attn_layer=$num_pred_attn_layer \
           d_tilde=$d_tilde \
           strategy=$strategy \
           max_lr=$max_lr \
           diffusion_mode=\"$diffusion_mode\" \
           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
+          use_2d_atom_features=True use_2d_bond_features=True \
           total_num_steps=$total_num_steps \
           warmup_num_steps=$warmup_num_steps \
           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
@@ -204,19 +232,12 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
           diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
-          psm_validation_mode=$psm_validation_mode \
           diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
           num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
           ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \
           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
-          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
-
-          # --ifstack \
-          # --use_2d_atom_features --use_2d_bond_features \
-          # --dynamic_loader --max_tokens $max_tokens \
-
-sleep inf
-sleep inf
-sleep inf
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          fasta_list=$fasta_list \
+          output_dir=$output_dir \
