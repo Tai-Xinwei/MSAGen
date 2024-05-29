@@ -14,6 +14,7 @@ from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import (
     AFDBLMDBDataset,
     MatterSimDataset,
+    PlainPM6FullLMDBDataset,
     PM6FullLMDBDataset,
     SmallMolDataset,
 )
@@ -83,7 +84,10 @@ class UnifiedPSMDataset(FoundationModelDataset):
 
         for data_path, dataset_name in zip(file_list, dataset_name_list):
             if dataset_name == "pm6":
-                dataset = PM6FullLMDBDataset(args, data_path, **kwargs)
+                if args.backbone.find("vanilla") != -1:
+                    dataset = PlainPM6FullLMDBDataset(args, data_path, **kwargs)
+                else:
+                    dataset = PM6FullLMDBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)

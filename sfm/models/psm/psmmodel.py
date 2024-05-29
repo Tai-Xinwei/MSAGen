@@ -4,11 +4,8 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from contextlib import nullcontext
-
 import torch
 import torch.nn as nn
-from torch.cuda.amp import autocast
 from tqdm import tqdm
 
 from sfm.logging import logger
@@ -79,9 +76,10 @@ class PSMModel(Model):
 
         self.loss_fn = loss_fn(args)
 
-        self.sampled_structure_converter = SampledStructureConverter(
-            self.psm_config.sampled_structure_output_path
-        )
+        if self.psm_config.sample_in_validation:
+            self.sampled_structure_converter = SampledStructureConverter(
+                self.psm_config.sampled_structure_output_path
+            )
 
     def _create_initial_pos_for_diffusion(self, batched_data):
         periodic_mask = torch.any(batched_data["pbc"], dim=-1)
@@ -212,7 +210,7 @@ class PSMModel(Model):
 
         self._create_initial_pos_for_diffusion(batched_data)
 
-        noise_pos, noise, _ = self.diffnoise.noise_sample(
+        noise_pos, noise, sqrt_one_minus_alphas_cumprod_t = self.diffnoise.noise_sample(
             x_start=ori_pos,
             t=time_step,
             non_atom_mask=batched_data["non_atom_mask"],
@@ -222,7 +220,7 @@ class PSMModel(Model):
         )
         noise_pos = complete_cell(noise_pos, batched_data)
 
-        return noise_pos, noise
+        return noise_pos, noise, sqrt_one_minus_alphas_cumprod_t
 
     def load_pretrained_weights(self, args, checkpoint_path):
         """
@@ -322,13 +320,16 @@ class PSMModel(Model):
         ].unsqueeze(-1)
         aa_mask = aa_mask & ~padding_mask
 
-        pos, noise = self._set_noise(
+        pos, noise, sqrt_one_minus_alphas_cumprod_t = self._set_noise(
             padding_mask=padding_mask,
             batched_data=batched_data,
             time_step=time_step,
             clean_mask=clean_mask,
         )
         batched_data["pos"] = pos
+        batched_data[
+            "sqrt_one_minus_alphas_cumprod_t"
+        ] = sqrt_one_minus_alphas_cumprod_t
         result_dict = self.net(
             batched_data,
             time_step=time_step,
@@ -433,12 +434,18 @@ class PSMModel(Model):
             time_step = self.time_step_sampler.get_continuous_time_step(
                 t, n_graphs, device=device, dtype=batched_data["pos"].dtype
             )
+            batched_data["sqrt_one_minus_alphas_cumprod_t"] = self.diffnoise._extract(
+                self.diffnoise.sqrt_one_minus_alphas_cumprod,
+                time_step,
+                batched_data["pos"].shape,
+            )
             predicted_noise = self.net(batched_data, time_step=time_step)["noise_pred"]
             epsilon = self.diffnoise.get_noise(
                 batched_data["pos"],
                 batched_data["non_atom_mask"],
                 batched_data["is_periodic"],
             )
+
             batched_data["pos"] = self.diffusion_process.sample_step(
                 batched_data["pos"],
                 batched_data["init_pos"],
@@ -461,7 +468,7 @@ class PSMModel(Model):
         return {"loss": loss, "pred_pos": pred_pos, "orig_pos": orig_pos}
 
     @torch.no_grad()
-    def seq2structure(self, aa_seq, dtype: torch.dtype = torch.float16) -> dict:
+    def seq2structure(self, aa_seq, dtype: torch.dtype = torch.float32) -> dict:
         """
         Given an amino acid sequence, predict the 3D structure of the protein.
         """
@@ -469,51 +476,67 @@ class PSMModel(Model):
         N, L = aa_seq.shape
 
         batched_data["sample_type"] = 2
-        batched_data["token_type"] = aa_seq
+        batched_data["token_id"] = aa_seq
         batched_data["idx"] = 0
 
-        batched_data["coords"] = torch.randn(N, L, 3, device=aa_seq.device, dtype=dtype)
-        batched_data["num_atoms"] = aa_seq.size()[0]
+        batched_data["pos"] = torch.randn([N, L, 3], device=aa_seq.device, dtype=dtype)
+        batched_data["num_atoms"] = (
+            torch.tensor(aa_seq.size()[1], device=aa_seq.device).unsqueeze(0).long()
+        )
 
-        batched_data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
-        batched_data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+        batched_data["cell"] = torch.zeros(
+            (3, 3), dtype=dtype, device=aa_seq.device
+        ).unsqueeze(0)
+        batched_data["pbc"] = (
+            torch.zeros(3, dtype=dtype, device=aa_seq.device).bool().unsqueeze(0)
+        )
         batched_data["stress"] = torch.zeros(
-            (3, 3), dtype=torch.float64, device=aa_seq.device
-        )
+            (3, 3), dtype=dtype, device=aa_seq.device
+        ).unsqueeze(0)
         batched_data["forces"] = torch.zeros(
-            (aa_seq.size()[0], 3), dtype=torch.float64, device=aa_seq.device
-        )
+            (aa_seq.size()[1], 3), dtype=dtype, device=aa_seq.device
+        ).unsqueeze(0)
         batched_data["energy"] = torch.tensor(
-            [0.0], dtype=torch.float64, device=aa_seq.device
-        )
+            [0.0], dtype=dtype, device=aa_seq.device
+        ).unsqueeze(0)
         batched_data["energy_per_atom"] = torch.tensor(
-            [0.0], dtype=torch.float64, device=aa_seq.device
-        )
-        adj = torch.zeros([N, N], dtype=torch.bool)
+            [0.0], dtype=dtype, device=aa_seq.device
+        ).unsqueeze(0)
+        adj = torch.zeros([L, L], dtype=torch.bool, device=aa_seq.device)
 
-        edge_index = torch.zeros([2, 0], dtype=torch.long)
-        edge_attr = torch.zeros([0, 3], dtype=torch.long)
-        indgree = adj.long().sum(dim=1).view(-1)
+        edge_index = torch.zeros([2, 0], dtype=torch.long, device=aa_seq.device)
+        edge_attr = torch.zeros([0, 3], dtype=torch.long, device=aa_seq.device)
+        indgree = adj.long().sum(dim=1).view(-1).unsqueeze(0)
 
-        batched_data["edge_index"] = edge_index
-        batched_data["edge_attr"] = edge_attr
+        batched_data["edge_index"] = edge_index.unsqueeze(0)
+        batched_data["edge_attr"] = edge_attr.unsqueeze(0)
         batched_data["node_attr"] = torch.cat(
             [
-                batched_data["token_type"].unsqueeze(-1),
+                batched_data["token_id"].unsqueeze(-1),
                 torch.zeros(
-                    [batched_data["token_type"].size()[0], 8], dtype=torch.long
+                    [
+                        batched_data["token_id"].size()[0],
+                        batched_data["token_id"].size()[1],
+                        8,
+                    ],
+                    dtype=torch.long,
+                    device=aa_seq.device,
                 ),
             ],
             dim=-1,
         )
-        batched_data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        batched_data["attn_bias"] = torch.zeros(
+            [L + 1, L + 1], dtype=dtype, device=aa_seq.device
+        ).unsqueeze(0)
         batched_data["in_degree"] = indgree
 
         shortest_path_result = (
             torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
         )
-        edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
-        spatial_pos = torch.from_numpy((shortest_path_result)).long()
+        edge_input = torch.zeros(
+            [L, L, 0, 3], dtype=torch.long, device=aa_seq.device
+        ).unsqueeze(0)
+        spatial_pos = torch.from_numpy(shortest_path_result).long().cuda().unsqueeze(0)
         batched_data["edge_input"] = edge_input
         batched_data["spatial_pos"] = spatial_pos
 
@@ -650,6 +673,8 @@ class PSM(nn.Module):
 
             self.decoder = Equiformerv2SO2(**args.backbone_config)
         elif args.backbone == "geomformer":
+            self.encoder = None
+
             # Implement the decoder
             self.decoder = EquivariantDecoder(psm_config)
         elif args.backbone == "vanillatransformer":
@@ -664,7 +689,6 @@ class PSM(nn.Module):
         # simple energy, force and noise prediction heads
         self.energy_head = nn.ModuleDict()
         self.forces_head = nn.ModuleDict()
-        self.noise_head = nn.ModuleDict()
 
         for key in {"molecule", "periodic", "protein"}:
             self.energy_head.update(
@@ -682,20 +706,25 @@ class PSM(nn.Module):
             )
 
             if args.backbone == "vanillatransformer":
-                self.noise_head.update({key: VectorOutput(psm_config.embedding_dim)})
+                self.noise_head = VectorOutput(psm_config.embedding_dim)
                 self.forces_head.update({key: VectorOutput(psm_config.embedding_dim)})
             else:
-                self.noise_head.update(
-                    {key: EquivariantVectorOutput(psm_config.embedding_dim)}
-                )
+                self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
                 self.forces_head.update(
                     {key: EquivariantVectorOutput(psm_config.embedding_dim)}
                 )
+
         # aa mask predict head
         self.aa_mask_head = nn.Sequential(
             nn.Linear(psm_config.embedding_dim, psm_config.embedding_dim, bias=False),
             nn.SiLU(),
             nn.Linear(psm_config.embedding_dim, 160, bias=False),
+        )
+
+        self.mlp_w = nn.Sequential(
+            nn.Linear(psm_config.embedding_dim, psm_config.embedding_dim, bias=False),
+            nn.SiLU(),
+            nn.Linear(psm_config.embedding_dim, 1, bias=False),
         )
 
     def _set_mask(self, mask_aa, mask_pos, residue_seq):
@@ -743,7 +772,7 @@ class PSM(nn.Module):
         # token_embedding: B x L x H
         # padding_mask: B x L
         # token_type: B x L  (0 is used for PADDING)
-        token_embedding, padding_mask, token_type = self.embedding(
+        token_embedding, padding_mask, token_type, time_embed = self.embedding(
             batched_data, time_step, clean_mask, aa_mask
         )
         # for invariant model struct, we first used encoder to get invariant feature
@@ -799,22 +828,14 @@ class PSM(nn.Module):
             ),
         )
 
-        noise_pred = torch.where(
-            is_periodic.unsqueeze(-1).unsqueeze(-1),
-            self.noise_head["periodic"](decoder_x_output, decoder_vec_output).squeeze(
-                -1
-            ),
-            self.noise_head["molecule"](decoder_x_output, decoder_vec_output).squeeze(
-                -1
-            ),
-        )
-        noise_pred = torch.where(
-            is_protein.unsqueeze(-1).unsqueeze(-1),
-            self.noise_head["protein"](decoder_x_output, decoder_vec_output).squeeze(
-                -1
-            ),
-            noise_pred,
-        )
+        noise_pred = self.noise_head(
+            decoder_x_output, decoder_vec_output
+        )  # .squeeze(-1)
+
+        scale_shift = self.mlp_w(time_embed).unsqueeze(-1)
+        logit_bias = torch.logit(batched_data["sqrt_one_minus_alphas_cumprod_t"])
+        scale = torch.sigmoid(scale_shift + logit_bias)
+        noise_pred = scale * batched_data["pos"] + (1 - scale) * noise_pred
 
         # atom mask to leave out unit cell corners for periodic systems
         non_atom_mask = torch.arange(

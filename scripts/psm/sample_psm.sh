@@ -6,7 +6,7 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=24
+[ -z "${layers}" ] && layers=12
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
@@ -15,7 +15,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=512
 [ -z "${max_tokens}" ] && max_tokens=2000
-# [ -z "${max_tokens}" ] && max_tokens=36000
 
 [ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -23,49 +22,45 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${weight_decay}" ] && weight_decay=0.0
 [ -z "${sandwich_ln}" ] && sandwich_ln=true
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
+[ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
-
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=1e-4
-[ -z "${total_num_steps}" ] && total_num_steps=2000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
-[ -z "${train_batch_size}" ] && train_batch_size=1024
-[ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
-[ -z "${strategy}" ] && strategy=Zero1
+[ -z "${max_lr}" ] && max_lr=2e-4
+[ -z "${total_num_steps}" ] && total_num_steps=200000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
+[ -z "${train_batch_size}" ] && train_batch_size=16
+[ -z "${val_batch_size}" ] && val_batch_size=16
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${strategy}" ] && strategy=DDP
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=20
+[ -z "${save_batch_interval}" ] && save_batch_interval=10000
+[ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
+[ -z "${val_batch_interval}" ] && val_batch_interval=30000
 
-[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-# [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${num_conformers}" ] && num_conformers=1
 
-# [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
-[ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-# [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-3M,AFDB50-plddt70.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.0,0.5'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="256,32,32"
-[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
-[ -z "${fp16}" ] && fp16=True
+[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
-[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
-# [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
-[ -z "${dataset_name}" ] && dataset_name="."
+[ -z "${data_path}" ] && data_path='/blob/hai1data/sfm/psm/pm6_10M_refined4.lmdb'
+[ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb'
+[ -z "${dataset_names}" ] && dataset_names="pm6"
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
+[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=False
+
+[ -z "${loadcheck_path}" ] && loadcheck_path='/blob/hai1data/sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240523-1902/checkpoint_E1_B66933.pt'
+[ -z "${save_dir}" ] && save_dir='.'
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
+[ -z "${wandb_group}" ] && wandb_group=psm_dev
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_dev
-[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -73,13 +68,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
-[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS"
+[ -z "${equivar_vec_init}" ] && equivar_vec_init="ZERO_CENTERED_POS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=5.0
-[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
-[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
+[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=False
+[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
 
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
@@ -88,8 +83,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${ddpm_beta_end}" ] && ddpm_beta_end=2e-3
 [ -z "${ddpm_schedule}" ] && ddpm_schedule=sigmoid
 
-[ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=False
-[ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
+[ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=True
+[ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=True
+
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+
+[ -z "${fp16}" ] && fp16=False
 
 
 echo -e "\n\n"
@@ -99,12 +98,10 @@ echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
 echo "MASTER_PORT: ${MASTER_PORT}"
 echo "NCCL_SOCKET_IFNAME: ${NCCL_SOCKET_IFNAME}"
-echo "LOCAL_RANK : ${LOCAL_RANK}"
+echo "LOCAL_RANK: ${LOCAL_RANK}"
 echo "OMPI_COMM_WORLD_RANK: ${OMPI_COMM_WORLD_RANK}"
 echo "OMPI_COMM_WORLD_SIZE: ${OMPI_COMM_WORLD_SIZE}"
 echo "OMPI_COMM_WORLD_LOCAL_RANK: ${OMPI_COMM_WORLD_LOCAL_RANK}"
-
-# echo "AZUREML_EXPERIMENT_ID: ${AZUREML_EXPERIMENT_ID}"
 
 echo -e "\n\n"
 echo "=====================================ARGS======================================"
@@ -130,6 +127,7 @@ echo "add_3d: ${add_3d}"
 echo "data_path: ${data_path}"
 echo "output_path: ${output_path}"
 echo "dataset_name: ${dataset_name}"
+echo "noise_scale: ${noise_scale}"
 echo "mask_ratio: ${mask_ratio}"
 echo "mode_prob: ${mode_prob}"
 echo "noise_mode: ${noise_mode}"
@@ -143,9 +141,6 @@ export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
-
-wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -165,13 +160,12 @@ fi
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/sample_psm.py \
           --config-name=config_psm.yaml \
           backbone_config=graphormer \
-          backbone=vanillatransformer \
+          backbone=graphormer \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
-          num_pred_attn_layer=$num_pred_attn_layer \
           encoder_ffn_embed_dim=$ffn_size \
           encoder_embed_dim=$hidden_size \
           droppath_prob=$droppath_prob \
@@ -183,15 +177,19 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           add_3d=True \
           data_path=$data_path \
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
+          dataset_names=\"$dataset_names\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
           seed=12345 \
-          ifresume=True \
+          ifresume=False \
           mask_ratio=$mask_ratio \
+          noise_scale=$noise_scale \
+          num_pred_attn_layer=$num_pred_attn_layer \
           d_tilde=$d_tilde \
           strategy=$strategy \
           max_lr=$max_lr \
           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
+          use_2d_atom_features=True use_2d_bond_features=True \
           total_num_steps=$total_num_steps \
           warmup_num_steps=$warmup_num_steps \
           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
@@ -208,12 +206,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
-          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
-
-          # --ifstack \
-          # --use_2d_atom_features --use_2d_bond_features \
-          # --dynamic_loader --max_tokens $max_tokens \
-
-sleep inf
-sleep inf
-sleep inf
+          num_conformers=$num_conformers \
+          sample_in_validation=True \
+          infer=True

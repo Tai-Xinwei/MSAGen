@@ -12,8 +12,9 @@ env_defaults:
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
 # target:
-#     service: sing
-#     name: baltic02
+  # service: sing
+  # name: baltic02
+  # workspace_name: msrresrchws
 
 target:
     service: aml
@@ -37,19 +38,19 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: psmV1_VT_v2
+- name: psmv1_vt_v3
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}
   mpi: true
   process_count_per_node: 1
   command:
   - export WANDB_TEAM=ai4s-sfm
-  - export wandb_group=psm_VT_001
+  - export wandb_group=psm_VT
   - export wandb_project=psm_VT
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - mkdir /blob/pfmexp/output
-  - mkdir /blob/experiment/psm/psmV1_VT_v2
-  - mkdir /blob/experiment/psm/psmV1_VT_v2/checkpoints
+  - mkdir /blob/experiment/psm/psmv1_vt_v3
+  - mkdir /blob/experiment/psm/psmv1_vt_v3/checkpoints
   - mkdir ./output
   - export path=run.sh
   - export num_pred_attn_layer=4
@@ -57,7 +58,6 @@ jobs:
   - export hidden_size=1024
   - export ffn_size=4096
   - export num_head=32
-  - export num_3d_bias_kernel=8
   - export atom_loss_coeff=1.0
   - export pos_loss_coeff=1.0
   - export sandwich_ln="true"
@@ -77,18 +77,21 @@ jobs:
   - export val_batch_size=1024
   - export max_tokens=16000
   - export max_length=512
-  - export gradient_accumulation_steps=1
+  - export gradient_accumulation_steps=2
   - export log_interval=100
   - export data_path=/blob/psm/
   - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-3M,AFDB50-plddt70.lmdb'
   - export dataset_name_list='pm6,mattersim,afdb'
   - export dataset_split_raito='0.5,0.0,0.5'
-  - export dataset_micro_batch_size='128,14,14'
-  - export fp16=False
-  - export loadcheck_path=/blob/experiment/psm/psmV1_VT_v2/checkpoints
-  - export save_dir=/blob/pfmexp/output/psmV1_VT_v2/checkpoints
+  # - export dataset_micro_batch_size='64,8,8'
+  - export dataset_micro_batch_size='256,32,32'
+  - export fp16=True
+  - export loadcheck_path=/blob/experiment/psm/psmv1_vt_v3/checkpoints
+  - export save_dir=/blob/pfmexp/output/psmv1_vt_v3/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
+  - pip install PyAstronomy
+  - pip install fairchem-core
   - bash ./scripts/psm/pretrain_psm_vanillatransformer.sh
   submit_args:
     container_args:

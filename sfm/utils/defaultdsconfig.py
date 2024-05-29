@@ -69,7 +69,7 @@ DEFAULT_DS_CONFIG = {
         "ignore_unused_parameters": True,
     },
     "fp16": {
-        "enabled": True,
+        "enabled": False,
         "auto_cast": False,
         "loss_scale": 0,
         "initial_scale_power": 16,
