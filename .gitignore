@@ -137,6 +137,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+miniforge3
+miniconda3
 
 # Spyder project settings
 .spyderproject

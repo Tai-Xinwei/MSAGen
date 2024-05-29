@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from dataclasses import asdict, dataclass
 
-from sfm.data.psm_data.dataset import PCQM4Mv2LMDBDataset
+from sfm.data.psm_data.ft_mol_dataset import GenericMoleculeLMDBDataset
 from sfm.data.psm_data.unifieddataset import BatchedDataDataset
 from sfm.models.psm.loss.evaluation import EvalPropMetric
 from sfm.models.psm.psm_config import PSMConfig
@@ -29,12 +29,12 @@ class PSMEvalConfig:
 
 def load_data(args):
     if args.dataset_names == "pcqm4mv2":
-        dataset = PCQM4Mv2LMDBDataset(args, args.data_path)
+        dataset = GenericMoleculeLMDBDataset(args, args.data_path)
         data = dataset.get_dataset()
     else:
         raise ValueError("invalid dataset name")
 
-    return BatchedDataDataset(args, [data], len(data))
+    return data
 
 
 @cli(DistributedTrainConfig, PSMConfig, PSMEvalConfig)

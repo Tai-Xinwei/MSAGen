@@ -162,7 +162,9 @@ class MoleculeConverter(BaseConverter):
 class SampledStructureConverter:
     def __init__(self, sampled_structure_output_path: Optional[str]) -> None:
         self.sampled_structure_output_path = sampled_structure_output_path
-        if not os.path.exists(self.sampled_structure_output_path):
+        if self.sampled_structure_output_path is not None and not os.path.exists(
+            self.sampled_structure_output_path
+        ):
             os.system(f"mkdir {self.sampled_structure_output_path}")
 
     def convert_and_match(
