@@ -209,6 +209,7 @@ class PSMModel(Model):
         ori_pos = ori_pos.masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
         self._create_initial_pos_for_diffusion(batched_data)
+        batched_data["ori_pos"] = batched_data["pos"]
 
         noise_pos, noise, sqrt_one_minus_alphas_cumprod_t = self.diffnoise.noise_sample(
             x_start=ori_pos,
@@ -305,6 +306,7 @@ class PSMModel(Model):
         self._create_system_tags(batched_data)
         self._create_protein_mask(batched_data)
         pos = batched_data["pos"]
+
         n_graphs = pos.size(0)
         time_step, clean_mask = self.time_step_sampler.sample(
             n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
@@ -341,6 +343,7 @@ class PSMModel(Model):
         result_dict["clean_mask"] = clean_mask
         result_dict["aa_mask"] = aa_mask
         result_dict["diff_loss_mask"] = batched_data["diff_loss_mask"]
+        result_dict["ori_pos"] = batched_data["ori_pos"]
 
         if self.psm_config.sample_in_validation and not self.training:
             result_dict["rmsd"] = rmsds
@@ -687,13 +690,16 @@ class PSM(nn.Module):
             )
 
             if args.backbone == "vanillatransformer":
-                self.noise_head = VectorOutput(psm_config.embedding_dim)
                 self.forces_head.update({key: VectorOutput(psm_config.embedding_dim)})
             else:
-                self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
                 self.forces_head.update(
                     {key: EquivariantVectorOutput(psm_config.embedding_dim)}
                 )
+
+        if args.backbone == "vanillatransformer":
+            self.noise_head = VectorOutput(psm_config.embedding_dim)
+        else:
+            self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
 
         # aa mask predict head
         self.aa_mask_head = nn.Sequential(
@@ -809,14 +815,22 @@ class PSM(nn.Module):
             ),
         )
 
-        noise_pred = self.noise_head(
-            decoder_x_output, decoder_vec_output
-        )  # .squeeze(-1)
+        noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
 
-        scale_shift = self.mlp_w(time_embed).unsqueeze(-1)
-        logit_bias = torch.logit(batched_data["sqrt_one_minus_alphas_cumprod_t"])
-        scale = torch.sigmoid(scale_shift + logit_bias)
-        noise_pred = scale * batched_data["pos"] + (1 - scale) * noise_pred
+        if self.args.diffusion_mode == "epsilon":
+            scale_shift = self.mlp_w(time_embed).unsqueeze(-1)
+            logit_bias = torch.logit(batched_data["sqrt_one_minus_alphas_cumprod_t"])
+            scale = torch.sigmoid(scale_shift + logit_bias)
+            noise_pred = scale * batched_data["pos"] + (1 - scale) * noise_pred
+        elif self.args.diffusion_mode == "x0":
+            scale_shift = self.mlp_w(time_embed).unsqueeze(-1)
+            logit_bias = torch.logit(batched_data["sqrt_one_minus_alphas_cumprod_t"])
+            scale = torch.sigmoid(scale_shift + logit_bias)
+            noise_pred = scale * noise_pred + (1 - scale) * batched_data["pos"]
+        else:
+            raise ValueError(
+                f"diffusion mode: {self.args.diffusion_mode} is not supported"
+            )
 
         # atom mask to leave out unit cell corners for periodic systems
         non_atom_mask = torch.arange(

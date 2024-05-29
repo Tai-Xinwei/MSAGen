@@ -32,7 +32,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=2e-5
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=30000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=300
 [ -z "${train_batch_size}" ] && train_batch_size=256
 [ -z "${max_tokens}" ] && max_tokens=1600
 [ -z "${val_batch_size}" ] && val_batch_size=256
@@ -46,8 +46,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${strategy}" ] && strategy=DDP
 
 # [ -z "${data_path}" ] && data_path='/mnt/protein/48organism.lmdb/'
-[ -z "${train_data_path}" ] && train_data_path='/fastdata/peiran/bfm/ur50_23_msa_ppi_bpe_pack1536.lmdb'
-[ -z "${valid_data_path}" ] && valid_data_path='/fastdata/peiran/bfm/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb'
+# [ -z "${train_data_path}" ] && train_data_path='/fastdata/peiran/bfm/ur50_23_msa_ppi_bpe_pack1536.lmdb'
+# [ -z "${valid_data_path}" ] && valid_data_path='/fastdata/peiran/bfm/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb'
+[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/psm/ur50_23_bpe_pack1536.lmdb/'
+[ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/hai1data/sfm/psm/uniref50_valid.lmdb/'
+
+
 # [ -z "${data_path}" ] && data_path="/data/pm6-86m-3d-filter/pm6-86m-3d-filter"
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/bfm/checkpoints/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/bfm/checkpoints/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2'
@@ -122,8 +126,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export OMP_NUM_THREADS=1
 
 
-wandb login --relogin e9150e973268b83f75cda414757706e08e6a7a93
-export WANDB_API_KEY=e9150e973268b83f75cda414757706e08e6a7a93
+# wandb login --relogin e9150e973268b83f75cda414757706e08e6a7a93
+# export WANDB_API_KEY=e9150e973268b83f75cda414757706e08e6a7a93
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then

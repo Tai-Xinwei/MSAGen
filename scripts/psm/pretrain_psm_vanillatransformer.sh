@@ -50,9 +50,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-3M,AFDB50-plddt70.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.0,0.5'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="256,32,32"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128,16,16"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
-[ -z "${fp16}" ] && fp16=True
+[ -z "${fp16}" ] && fp16=False
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
@@ -80,6 +80,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=5.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
+[ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
 
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
@@ -191,6 +192,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           d_tilde=$d_tilde \
           strategy=$strategy \
           max_lr=$max_lr \
+          diffusion_mode=\"$diffusion_mode\" \
           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
           total_num_steps=$total_num_steps \
           warmup_num_steps=$warmup_num_steps \
