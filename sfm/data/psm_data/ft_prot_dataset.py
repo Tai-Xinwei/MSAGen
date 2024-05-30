@@ -37,7 +37,7 @@ class ProteinSamplingDataset(AFDBLMDBDataset):
         x = torch.tensor(
             [
                 self.vocab[tok] - 1
-                for tok in "MKKFIFATIFALASCAAQPAMAGYDKDLCEWSMTADQTEVETQIEADIMNIVKRDRPEMKAEVQKQLKSGGVMQYNYVLYCDKNFNNKNIIAEVVGE"
+                for tok in "AKARDKLEENRDLIVERLKVDEIADFMIEKGELTEEEKKKVDAEDSERKRAEKLVEIVMKMDDAAVKAFYDALKAKGYSDLASLLESGLC"
             ],
             dtype=torch.int64,
         )
