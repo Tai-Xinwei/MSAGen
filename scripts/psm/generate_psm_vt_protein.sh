@@ -3,25 +3,6 @@
 # Licensed under the MIT License.
 ulimit -c unlimited
 
-
-if [ $# == 0 ]; then
-  tmpdir=$(mktemp -d)
-  #tmpdir="/home/peiranjin/expresult/psmexp/output/psmv1_vt_v3/"
-  fasta_list="$tmpdir/fasta_list"
-  output_dir="$tmpdir"
-  echo ">7vty_A length=90" > "$tmpdir/7vty_A.fasta"
-  echo "AKARDKLEENRDLIVERLKVDEIADFMIEKGELTEEEKKKVDAEDSERKRAEKLVEIVMKMDDAAVKAFYDALKAKGYSDLASLLESGLC" >> "$tmpdir/7vty_A.fasta"
-  echo "$tmpdir/7vty_A.fasta" > "$fasta_list"
-elif [ $# == 2 ]; then
-  fasta_list=$1
-  output_dir=$2
-else
-  echo "Default: bash $0"
-  echo "Usage: bash $0 <fasta_list> <output_dir>"
-  exit 1
-fi
-
-
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER="GNU"
 
@@ -65,7 +46,7 @@ export MKL_THREADING_LAYER="GNU"
 [ -z "${mode_prob}" ] && mode_prob="0.1,0.2,0.6,0.1" #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 #[ -z "${data_path}" ] && data_path="/data/peiran/blob/hai1data/sfm/psm"
-[ -z "${data_path}" ] && data_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm"
+[ -z "${data_path}" ] && data_path="/home/peiranjin/output/sample_result/casp_14and15.lmdb"
 [ -z "${data_path_list}" ] && data_path_list="PubChemQC-B3LYP-PM6,matter-sim-15M,AFDB50-plddt70.lmdb"
 [ -z "${dataset_name_list}" ] && dataset_name_list="pm6,mattersim,afdb"
 [ -z "${dataset_split_raito}" ] && dataset_split_raito="0.4,0.2,0.4"
@@ -74,10 +55,10 @@ export MKL_THREADING_LAYER="GNU"
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${fp16}" ] && fp16=False
 
-#[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/global_step48063/mp_rank_00_model_states.pt"
-#[ -z "${save_dir}" ] && save_dir="/home/peiran/expresult/psmexp/output/psmv1_vt_v3/"
-[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/pfmexp/output/psmv1_vt_v3/checkpoints/global_step48063/mp_rank_00_model_states.pt"
-[ -z "${save_dir}" ] && save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/global_step48063/mp_rank_00_model_states.pt"
+[ -z "${save_dir}" ] && save_dir="/home/peiranjin/expresult/psmexp/output/psmv1_vt_v3/"
+# [ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/pfmexp/output/psmv1_vt_v3/checkpoints/global_step48063/mp_rank_00_model_states.pt"
+# [ -z "${save_dir}" ] && save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/"
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
@@ -238,5 +219,3 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/generate_psm_protein.py \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
-          fasta_list=$fasta_list \
-          output_dir=$output_dir \

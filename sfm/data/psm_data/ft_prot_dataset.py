@@ -26,8 +26,8 @@ class ProteinSamplingDataset(AFDBLMDBDataset):
         super().__init__(args, lmdb_path)
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
-        key = self.keys[idx]
-        value = self.txn.get(key.encode())
+        key = self.keys[idx].encode()
+        value = self.txn.get(key)
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
         x = bstr2obj(value)

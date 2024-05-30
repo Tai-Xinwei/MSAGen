@@ -69,6 +69,38 @@ VOCAB = {
     "<eos>": 159,
     # "<unk>": 160,
 }
+REVERSED_VOCAB = {
+    130: "L",
+    131: "A",
+    132: "G",
+    133: "V",
+    134: "S",
+    135: "E",
+    136: "R",
+    137: "T",
+    138: "I",
+    139: "D",
+    140: "P",
+    141: "K",
+    142: "Q",
+    143: "N",
+    144: "F",
+    145: "Y",
+    146: "M",
+    147: "H",
+    148: "W",
+    149: "C",
+    150: "X",
+    151: "B",
+    152: "U",
+    153: "Z",
+    154: "O",
+    155: "-",
+    156: ".",
+    157: "<mask>",
+    158: "<cls>",
+    159: "<eos>",
+}
 AA1TO3 = {
     "A": "ALA",
     "C": "CYS",
@@ -98,7 +130,6 @@ class Config(DistributedTrainConfig, PSMConfig):
     backbone_config: Dict[str, Any] = MISSING
     backbone: str = "graphormer"
     ode_mode: bool = False
-    output_dir: str = "/tmp/jianwzhu_output"
 
 
 cs = ConfigStore.instance()
@@ -116,10 +147,6 @@ def main(args: DictConfig) -> None:
         args, Config
     ), f"args must be an instance of Config! But it is {type(args)}"
 
-    assert os.path.exists(
-        args.output_dir
-    ), f"ERROR: output_dir {args.output_dir} does not exist!"
-
     wandb_init(args)
     seed_everything(args.seed)
     env_init.set_env(args)
@@ -127,8 +154,6 @@ def main(args: DictConfig) -> None:
     model = PSMModel(args, loss_fn=DiffMAE3dCriterions).cuda()
     model.eval()
 
-    # args.data_path = "/home/peiranjin/output/sample_result/casp_14and15.lmdb"
-    args.data_path = os.path.join(args.data_path, "casp_14and15.lmdb")
     dataset = ProteinSamplingDataset(args, args.data_path)
     # sampler = DistributedSampler(
     # dataset
@@ -136,16 +161,18 @@ def main(args: DictConfig) -> None:
     train_data_loader = DataLoader(
         dataset,
         # sampler=sampler,
+        shuffle=False,
         batch_size=1,
         collate_fn=dataset.collate,
         drop_last=False,
     )
 
     print(f"Start to predict protein structure for {args.data_path}.")
-    for data in train_data_loader:
+    for idx, data in enumerate(train_data_loader):
+        target = dataset.keys[idx].split(" ")[0]
         data = {k: v.cuda() for k, v in data.items()}
-        target = "T9999"
-        sequence = data["token_id"][0]
+        sequence = data["token_id"][0].cpu().tolist()
+        sequence = [REVERSED_VOCAB.get(i, "<mask>") for i in sequence]
         print(f"Sequence name is {target} and context is \n{sequence}")
 
         # predict CA position for sequence
@@ -183,12 +210,10 @@ def main(args: DictConfig) -> None:
         atomlines.append("END\n")
 
         # write results to .pdb
-        pdb_file = os.path.join(args.output_dir, f"{target}.pdb")
+        pdb_file = os.path.join(args.save_dir, f"{target}.pdb")
         with open(pdb_file, "w") as fp:
             fp.writelines(atomlines)
         print(f"Predict structure for {target} and write {pdb_file} done.")
-
-        break
 
 
 if __name__ == "__main__":
