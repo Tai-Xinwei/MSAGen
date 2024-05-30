@@ -11,11 +11,10 @@ import torch
 from torch import Tensor, nn
 
 from sfm.logging import logger
-
-from .FairseqDropout import FairseqDropout
-from .layer_norm import Fp32LayerNorm, LayerNorm
-from .quant_noise import quant_noise
-from .rotary_embedding import RotaryEmbedding
+from sfm.modules.FairseqDropout import FairseqDropout
+from sfm.modules.layer_norm import Fp32LayerNorm, LayerNorm
+from sfm.modules.quant_noise import quant_noise
+from sfm.modules.rotary_embedding import RotaryEmbedding
 
 # from torch.nn.attention import SDPBackend, sdpa_kernel
 
@@ -241,7 +240,7 @@ class MemEffAttn(nn.Module):
         #     [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
         # ):
         with torch.backends.cuda.sdp_kernel(
-            enable_math=False, enable_mem_efficient=True, enable_flash=True
+            enable_math=True, enable_mem_efficient=True, enable_flash=True
         ):
             attn = torch.nn.functional.scaled_dot_product_attention(
                 q,

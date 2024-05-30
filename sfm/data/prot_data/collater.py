@@ -9,6 +9,19 @@ from sfm.logging import logger
 from .vocalubary import Alphabet
 
 
+def pad_nd_seq_unsqueeze(
+    x: torch.Tensor, padlen: int, start: int, pad_num: Union[int, float]
+):
+    # (N, ...) -> (1, padlen, ...)
+    xlen, otherdims = x.size(0), x.size()[1:]
+    assert (
+        start + xlen <= padlen
+    ), f"padlen {padlen} is too small for xlen {xlen} and start point {start}"
+    new_x = x.new_full([padlen] + list(otherdims), pad_num, dtype=x.dtype)
+    new_x[start : start + xlen, ...] = x
+    return new_x.unsqueeze(0)
+
+
 # allow pad_num to be int or float
 def pad_1d_unsqueeze(
     x: torch.Tensor, padlen: int, start: int, pad_num: Union[int, float]

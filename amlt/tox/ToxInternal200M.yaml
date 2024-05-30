@@ -1,0 +1,139 @@
+description: psm
+
+env_defaults:
+  WANDB_API_KEY: "local-138548ae9c9a3b39646af8ae2c4c6d4e22c51385"
+  JOBNAME: psm-int-200M-norebuild
+
+
+target:
+  service: sing
+  # name: msrresrchlab
+  name: msrresrchvc
+  workspace_name: msrresrchws
+
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msroctocr.azurecr.io
+  username: msroctocr
+
+
+storage:
+  blob:
+    storage_account_name: hai1data
+    container_name: pfm
+    mount_dir: /blob
+
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: ${JOBNAME}
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
+  # sku: 4x32G8-V100-IB
+  sku: 4x80G4-A100-NvLink
+  priority: high
+  sla_tier: premium
+  mpi: true
+  process_count_per_node: 1
+  command:
+  # ToxInternalLMDBDataset dataset args:
+  - export data_path=/blob/data/afdb/AFDB50-plddt70.lmdb/
+  - export max_length=$$((384+2))
+  - export min_length=$$((20+2))
+  - export num_residues=32
+  - export transform_str="[FromNumpy(), ItemToCRABBackBone(), CRABToInternal(), BERTMasking()]"
+  # ToxInternalModel args:
+  - export load_ckpt_from=""
+  - export dropout=0.1
+  - export droppath_prob=0.0
+  - export layerdrop=0.0
+  - export activation_dropout=0.1
+  - export attntion_dropout=0.1
+  - export activation_fn="gelu"
+  - export num_encoder_layers=12
+  - export embedding_dim=1024
+  - export ffn_embedding_dim=4096
+  - export num_attention_heads=32
+  - export q_noise=0.0
+  - export qn_block_size=8
+  - export d_tilde=1.0
+  - export add_rope=false
+  # InitialLoss args
+  - export seq_type_loss_weight=1.0
+  - export disto_loss_weight=0.01
+  - export bl_loss_weight=1.0
+  - export ba_loss_weight=1.0
+  - export && ba_norm_loss_weight=0.5
+  - export da_loss_weight=10.0
+  - export da_norm_loss_weight=0.5
+  - export eps=1e-4
+
+  # TrainerConfig args:
+  - export seed=666
+  - export fp16=false
+  - export auto_cast=false
+  - export bf16=false
+  - export grad_scaler_init=1.0
+  - export gradient_accumulation_steps=4
+  # used in trainer, set it to a large number, we do length clip in dataset class with max_length
+  - export max_tokens=16000
+  - export train_batch_size=5120
+  - export val_batch_size=5120
+  # [ -z "${val_batch_interval}" ] && val_batch_interval=0
+  # [ -z "${val_batch_log_interval}" ] && val_batch_log_interval=1000
+  # [ -z "${val_epoch_interval}" ] && val_epoch_interval=1
+  - export save_dir="/blob/pfmexp/output/${JOBNAME}/checkpoints"
+  - export save_batch_interval=10000
+  - export save_epoch_interval=0
+  - export log_interval=10
+  - export strategy="Zero1"
+  # pp_partition_layer_name: str = ""
+  # pp_part_list: Optional[List[int]] = None
+  # [ -z "${cpu}" ] && cpu=false
+  # we do not use this parameter defined in trainer, see load_ckpt_from in ToxInternalModel
+  - export ifresume=false
+  # [ -z "${load_ckpt}" ] && load_ckpt=false
+  # [ -z "${freeze_param_list}" ] && freeze_param_list=""
+  # [ -z "${unfreeze_param_list}" ] && unfreeze_param_list=""
+  # [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir=""
+  # [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id=""
+  - export total_num_steps=270000
+  - export warmup_num_steps=4000
+  # warmup_factor: float = 0.06
+  # warmup_lr: float = 1e-6
+  # warmup_num_epochs: int = 10
+  - export max_lr=4e-4
+  # init_lr: float = 8e-5
+  # min_lr: float = 8e-6
+  - export weight_decay=0.0
+  - export total_num_epochs=100000
+  # wandb
+  - export wandb=true
+  - export wandb_key=${WANDB_API_KEY}
+  - export wandb_project=SFM_toxinternal
+  - export wandb_team="yaosenmin"
+  - export wandb_group=tox_dev
+  # run the task
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - bash ./scripts/tox/train_internal.sh
+  submit_args:
+    env:
+      {SHARED_MEMORY_PERCENT: 1.0}
+    container_args:
+      shm_size: 1024g
+
+# world_size=16, batch_size=1280, gradient_accumulation_steps=4
+# world_size=8, batch_size=640, gradient_accumulation_steps=8
+
+
+# 16xA100 gradient_accumulation_steps=1 batch_size=1280, max_length=384, GPU mem = 65.575
+# RunningAvgSamplesPerSec=185.64428818859548
+
+
+# on this machine：
+# without rebuild loss, RunningAvgSamplesPerSec=1071.0109237277807
+# with rebuild loss 0524, RunningAvgSamplesPerSec=64.08296529861303
+# with rebuild loss batch, RunningAvgSamplesPerSec=61.36618750475759
