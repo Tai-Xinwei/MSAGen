@@ -30,17 +30,11 @@ class ProteinSamplingDataset(AFDBLMDBDataset):
         value = self.txn.get(key)
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
-        x = bstr2obj(value)
+        toks = bstr2obj(value)
 
         data = {}
-        # for testing only
-        x = torch.tensor(
-            [
-                self.vocab[tok] - 1
-                for tok in "AKARDKLEENRDLIVERLKVDEIADFMIEKGELTEEEKKKVDAEDSERKRAEKLVEIVMKMDDAAVKAFYDALKAKGYSDLASLLESGLC"
-            ],
-            dtype=torch.int64,
-        )
+
+        x = torch.tensor([self.vocab[tok] - 1 for tok in toks], dtype=torch.int64)
         coords = torch.zeros([x.size()[0], 3], dtype=torch.float32)
 
         data["sample_type"] = 2
