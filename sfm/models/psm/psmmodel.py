@@ -17,6 +17,7 @@ from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.modules.mixembedding import PSMMix3dEmbedding
+from sfm.models.psm.modules.mixembedding_equiv import PSMMix3DEquivEmbedding
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
@@ -657,6 +658,8 @@ class PSM(nn.Module):
         if args.backbone == "vanillatransformer":
             self.embedding = PSMMix3dEmbedding(psm_config)
             # self.embedding = PSMMixEmbedding(psm_config)
+        elif args.backbone == "vanillatransformer_equiv":
+            self.embedding = PSMMix3DEquivEmbedding(psm_config)
         else:
             self.embedding = PSMMixEmbedding(psm_config)
 
@@ -677,7 +680,7 @@ class PSM(nn.Module):
 
             # Implement the decoder
             self.decoder = EquivariantDecoder(psm_config)
-        elif args.backbone == "vanillatransformer":
+        elif args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
             # Implement the encoder
             self.encoder = PSMPlainEncoder(args, psm_config)
             # Implement the decoder
@@ -705,7 +708,7 @@ class PSM(nn.Module):
                 }
             )
 
-            if args.backbone == "vanillatransformer":
+            if args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
                 self.noise_head = VectorOutput(psm_config.embedding_dim)
                 self.forces_head.update({key: VectorOutput(psm_config.embedding_dim)})
             else:
@@ -777,7 +780,7 @@ class PSM(nn.Module):
         )
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
-        if self.args.backbone == "vanillatransformer":
+        if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
             (
                 encoder_output,
                 pbc_expand_batched,
