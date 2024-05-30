@@ -94,10 +94,13 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${fp16}" ] && fp16=True
 
-[ -z "${sample_in_validation}" ] && sample_in_validation=True
-[ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="sample_save_dir"
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
+[ -z "${sample_in_validation}" ] && sample_in_validation=False
 [ -z "${num_sampling_time}" ] && num_sampling_time=1
+[ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="sample_save_dir"
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
+[ -z "${psm_sample_structure_in_finetune}" ] && psm_sample_structure_in_finetune=False
+[ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=True
 
 
 echo -e "\n\n"
@@ -220,10 +223,13 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
-          +sample_in_validation=$sample_in_validation \
-          +sampled_structure_output_path=$sampled_structure_output_path \
-          +psm_validation_mode=$psm_validation_mode \
-          +num_sampling_time=$num_sampling_time \
+          sample_in_validation=$sample_in_validation \
+          sampled_structure_output_path=$sampled_structure_output_path \
+          psm_validation_mode=$psm_validation_mode \
+          num_sampling_time=$num_sampling_time \
+          psm_finetune_mode=$psm_finetune_mode \
+          psm_sample_structure_in_finetune=$psm_sample_structure_in_finetune \
+          psm_finetune_reset_head=$psm_finetune_reset_head \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
 
 
