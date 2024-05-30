@@ -78,7 +78,7 @@ export MKL_THREADING_LAYER="GNU"
 #[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-16xG8-fp32-ddp-unified-sampler-continued-fastpreprocess/checkpoint_E0_B84999.pt"
 #[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-16xG8-fp32-ddp-unified-sampler-continued-fastpreprocess/checkpoint_E0_B84999.pt"
 #[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240523-1902/checkpoint_E1_B66933.pt"
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/global_step32042/mp_rank_00_model_states.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/global_step48063/mp_rank_00_model_states.pt"
 [ -z "${save_dir}" ] && save_dir="/home/peiran/expresult/psmexp/output/psmv1_vt_v3/"
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
@@ -213,6 +213,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/generate_psm_protein.py \
           save_dir=$save_dir \
           seed=12345 \
           ifresume=True \
+          infer=True \
           mask_ratio=$mask_ratio \
           noise_scale=$noise_scale \
           num_pred_attn_layer=$num_pred_attn_layer \

@@ -654,19 +654,10 @@ class AFDBLMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
 
-        # # minus 1 due to add padding index=0 in collator
-        # x = torch.tensor([self.vocab[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
-        # # CA atom positions, assume all values are valid.
-        # coords = data["pos"][:, 1, :]
-
-        x = torch.tensor(
-            [
-                self.vocab[tok] - 1
-                for tok in "MKKFIFATIFALASCAAQPAMAGYDKDLCEWSMTADQTEVETQIEADIMNIVKRDRPEMKAEVQKQLKSGGVMQYNYVLYCDKNFNNKNIIAEVVGE"
-            ],
-            dtype=torch.int64,
-        )
-        coords = torch.zeros([x.size()[0], 3], dtype=torch.float32)
+        # minus 1 due to add padding index=0 in collator
+        x = torch.tensor([self.vocab[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
+        # CA atom positions, assume all values are valid.
+        coords = data["pos"][:, 1, :]
 
         data["sample_type"] = 2
         data["token_type"] = x

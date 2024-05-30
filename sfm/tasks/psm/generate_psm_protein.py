@@ -20,6 +20,9 @@ except:
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
+from torch.utils.data import DataLoader, DistributedSampler
+
+from sfm.data.psm_data.ft_prot_dataset import ProteinSamplingDataset
 from sfm.logging import logger
 from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions
 from sfm.models.psm.psm_config import PSMConfig
@@ -144,68 +147,114 @@ def main(args: DictConfig) -> None:
     seed_everything(args.seed)
     env_init.set_env(args)
 
-    args.infer = True
     model = PSMModel(args, loss_fn=DiffMAE3dCriterions, load_ckpt=True).cuda()
+    model.eval()
 
-    # parse candidate list
-    with open(args.fasta_list, "r") as fp:
-        fasta_paths = [_.strip() for _ in fp]
-    print(f"There are {len(fasta_paths)} targets in {args.fasta_list}.")
+    args.data_path = "/home/peiranjin/output/sample_result/casp_14and15.lmdb"
+    dataset = ProteinSamplingDataset(args, args.data_path)
+    # sampler = DistributedSampler(
+    # dataset
+    # )
+    train_data_loader = DataLoader(
+        dataset,
+        # sampler=sampler,
+        batch_size=1,
+        collate_fn=dataset.collate,
+        drop_last=False,
+    )
 
-    for path in tqdm(fasta_paths):
-        # parse fasta file
-        assert os.path.exists(path), f"ERROR: fasta file {path} does not exist!"
-        seqs = parse_fastafile(path)
-        assert 1 == len(seqs), f"ERROR: wrong file {path}"
-        assert 2 == len(seqs[0]), f"ERROR: wrong fasta context {path}"
-        print(f"Read sequence from fasta {path}.")
+    print(f"Start to predict protein structure for {args.data_path}.")
+    for data in train_data_loader:
+        data = {k: v.cuda() for k, v in data.items()}
+        # sequence = data["token_id"][0]
 
-        header = seqs[0][0]
-        assert header[0] == ">", f"ERROR: wrong header {header}"
-        target = header.split()[0][1:]
-        sequence = seqs[0][1]
-        print(f"Sequence name is {target} and context is \n{sequence}")
-
-        # parse target name and chain
-        assert len(target) >= 5, f"ERROR: {target} is not a valid target name."
-        if len(target) == 6 and target[4] == "_":
-            tarname, chain = target[:4], target[5]
-        elif target[0] == "T":
-            tarname, chain = target, " "
-        else:
-            print(f"ERROR: {target} may be a wrong name.", file=sys.stderr)
-            tarname, chain = target, " "
-        print(target, tarname, chain)
-
-        # predict CA position for sequence
-        indices = [VOCAB.get(_, 150) for _ in sequence]
-        aa_seq = torch.tensor(indices, dtype=torch.int64).unsqueeze(0).cuda()
-        result = model.seq2structure(aa_seq)
+        result = model.sample(data, data)
 
         pred_pos = result["pred_pos"].tolist()
-        assert 1 == len(pred_pos), f"ERROR: batch size of {target} should =1"
-        assert len(pred_pos[0]) == len(sequence), f"ERROR: wrong length {target}"
-        assert 3 == len(pred_pos[0][0]), f"ERROR: 3D coordinates for {target}"
+        print(f"pred_pos: {pred_pos}")
+        # assert 1 == len(pred_pos), f"ERROR: batch size of {target} should =1"
+        # assert len(pred_pos[0]) == len(sequence), f"ERROR: wrong length {target}"
+        # assert 3 == len(pred_pos[0][0]), f"ERROR: 3D coordinates for {target}"
 
-        # generate atom lines with atom position
-        coords = pred_pos[0]
-        atomlines = []
-        for i, (x, y, z) in enumerate(coords):
-            atomidx = i + 1
-            resname = AA1TO3.get(sequence[i], "UNK")
-            resnumb = i + 1
-            atomlines.append(
-                f"ATOM  {atomidx:>5d}  CA  {resname} {chain}{resnumb:>4d}    "
-                f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
-            )
-        atomlines.append("TER\n")
-        atomlines.append("END\n")
+        # # generate atom lines with atom position
+        # coords = pred_pos[0]
+        # atomlines = []
+        # for i, (x, y, z) in enumerate(coords):
+        #     atomidx = i + 1
+        #     resname = AA1TO3.get(sequence[i], "UNK")
+        #     resnumb = i + 1
+        #     atomlines.append(
+        #         f"ATOM  {atomidx:>5d}  CA  {resname} {chain}{resnumb:>4d}    "
+        #         f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
+        #     )
+        # atomlines.append("TER\n")
+        # atomlines.append("END\n")
 
-        # write results to .pdb
-        pdb_file = os.path.join(args.output_dir, f"{target}.pdb")
-        with open(pdb_file, "w") as fp:
-            fp.writelines(atomlines)
-        print(f"Predict structure for {target} and write {pdb_file} done.")
+        # # write results to .pdb
+        # pdb_file = os.path.join(args.output_dir, f"{target}.pdb")
+        # with open(pdb_file, "w") as fp:
+        #     fp.writelines(atomlines)
+        # print(f"Predict structure for {target} and write {pdb_file} done.")
+
+    # # parse candidate list
+    # with open(args.fasta_list, "r") as fp:
+    #     fasta_paths = [_.strip() for _ in fp]
+    # print(f"There are {len(fasta_paths)} targets in {args.fasta_list}.")
+
+    # for path in tqdm(fasta_paths):
+    #     # parse fasta file
+    #     assert os.path.exists(path), f"ERROR: fasta file {path} does not exist!"
+    #     seqs = parse_fastafile(path)
+    #     assert 1 == len(seqs), f"ERROR: wrong file {path}"
+    #     assert 2 == len(seqs[0]), f"ERROR: wrong fasta context {path}"
+    #     print(f"Read sequence from fasta {path}.")
+
+    #     header = seqs[0][0]
+    #     assert header[0] == ">", f"ERROR: wrong header {header}"
+    #     target = header.split()[0][1:]
+    #     sequence = seqs[0][1]
+    #     print(f"Sequence name is {target} and context is \n{sequence}")
+
+    #     # parse target name and chain
+    #     assert len(target) >= 5, f"ERROR: {target} is not a valid target name."
+    #     if len(target) == 6 and target[4] == "_":
+    #         tarname, chain = target[:4], target[5]
+    #     elif target[0] == "T":
+    #         tarname, chain = target, " "
+    #     else:
+    #         print(f"ERROR: {target} may be a wrong name.", file=sys.stderr)
+    #         tarname, chain = target, " "
+    #     print(target, tarname, chain)
+
+    #     # predict CA position for sequence
+    #     indices = [VOCAB.get(_, 150) for _ in sequence]
+    #     aa_seq = torch.tensor(indices, dtype=torch.int64).unsqueeze(0).cuda()
+    #     result = model.seq2structure(aa_seq)
+
+    #     pred_pos = result["pred_pos"].tolist()
+    #     assert 1 == len(pred_pos), f"ERROR: batch size of {target} should =1"
+    #     assert len(pred_pos[0]) == len(sequence), f"ERROR: wrong length {target}"
+    #     assert 3 == len(pred_pos[0][0]), f"ERROR: 3D coordinates for {target}"
+
+    #     # generate atom lines with atom position
+    #     coords = pred_pos[0]
+    #     atomlines = []
+    #     for i, (x, y, z) in enumerate(coords):
+    #         atomidx = i + 1
+    #         resname = AA1TO3.get(sequence[i], "UNK")
+    #         resnumb = i + 1
+    #         atomlines.append(
+    #             f"ATOM  {atomidx:>5d}  CA  {resname} {chain}{resnumb:>4d}    "
+    #             f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
+    #         )
+    #     atomlines.append("TER\n")
+    #     atomlines.append("END\n")
+
+    #     # write results to .pdb
+    #     pdb_file = os.path.join(args.output_dir, f"{target}.pdb")
+    #     with open(pdb_file, "w") as fp:
+    #         fp.writelines(atomlines)
+    #     print(f"Predict structure for {target} and write {pdb_file} done.")
 
 
 if __name__ == "__main__":

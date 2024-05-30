@@ -310,27 +310,6 @@ class PSMModel(Model):
             **kwargs: Additional keyword arguments.
         """
 
-        batched_data["pos"].clone()
-        result_dict = self.sample(batched_data=batched_data)
-        coords = result_dict["pred_pos"][0]
-        atomlines = []
-        for i, (x, y, z) in enumerate(coords):
-            atomidx = i + 1
-            resname = AA1TO3.get(batched_data["token_id"][0][i], "UNK")
-            resnumb = i + 1
-            atomlines.append(
-                f"ATOM  {atomidx:>5d}  CA  {resname} {0}{resnumb:>4d}    "
-                f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
-            )
-        atomlines.append("TER\n")
-        atomlines.append("END\n")
-        with open(
-            "/home/peiranjin/expresult/psmexp/output/psmv1_vt_v3/T1082.pdb", "w"
-        ) as fp:
-            fp.writelines(atomlines)
-        print("finished")
-        exit()
-
         if self.psm_config.sample_in_validation and not self.training:
             rmsds = []
             for sample_time_index in range(self.psm_config.num_sampling_time):
