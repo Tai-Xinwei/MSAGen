@@ -61,7 +61,7 @@ export MKL_THREADING_LAYER="GNU"
 
 [ -z "${mode_prob}" ] && mode_prob="0.1,0.2,0.6,0.1" #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-[ -z "${data_path}" ] && data_path="/data/peiran/blob/hai1data/sfm/psm"
+[ -z "${data_path}" ] && data_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm"
 [ -z "${data_path_list}" ] && data_path_list="PubChemQC-B3LYP-PM6,matter-sim-15M,AFDB50-plddt70.lmdb"
 [ -z "${dataset_name_list}" ] && dataset_name_list="pm6,mattersim,afdb"
 [ -z "${dataset_split_raito}" ] && dataset_split_raito="0.4,0.2,0.4"
@@ -72,8 +72,8 @@ export MKL_THREADING_LAYER="GNU"
 #[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-16xG8-fp32-ddp-unified-sampler-continued-fastpreprocess/checkpoint_E0_B84999.pt"
 #[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-16xG8-fp32-ddp-unified-sampler-continued-fastpreprocess/checkpoint_E0_B84999.pt"
 #[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240523-1902/checkpoint_E1_B66933.pt"
-[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240528-1755/checkpoint_E0_B30000.pt"
-[ -z "${save_dir}" ] && save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/psm-checkpoints/"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240528-1755/checkpoint_E0_B30000.pt"
+[ -z "${save_dir}" ] && save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/"
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
