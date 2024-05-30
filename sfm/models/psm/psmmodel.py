@@ -38,7 +38,7 @@ class PSMModel(Model):
         args,
         loss_fn=None,
         not_init=False,
-        load_ckpt=False,
+        psm_finetune_head: nn.Module = None,
     ):
         """
         Initialize the PSMModel class.
@@ -49,7 +49,7 @@ class PSMModel(Model):
             data_mean: The mean of the label. For label normalization.
             data_std: The standard deviation of the label. For label normalization.
             not_init: If True, the model will not be initialized. Default is False.
-            load_ckpt: If True, the model will load a checkpoint. Default is False.
+            psm_finetune_head: head used to finetune psm
         """
 
         super().__init__()
@@ -63,7 +63,7 @@ class PSMModel(Model):
 
         self.net = PSM(args, self.psm_config)
 
-        if load_ckpt:
+        if self.psm_config.psm_finetune_mode or self.psm_config.psm_validation_mode:
             self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
         else:
             logger.info("No checkpoint is loaded")
@@ -81,6 +81,14 @@ class PSMModel(Model):
             self.sampled_structure_converter = SampledStructureConverter(
                 self.psm_config.sampled_structure_output_path
             )
+
+        if (
+            self.psm_config.psm_finetune_mode
+            and self.psm_config.psm_finetune_reset_head
+        ):
+            self.net.reset_head_for_finetune()
+
+        self.psm_finetune_head = psm_finetune_head
 
     def _create_initial_pos_for_diffusion(self, batched_data):
         periodic_mask = torch.any(batched_data["pbc"], dim=-1)
@@ -232,45 +240,42 @@ class PSMModel(Model):
             args: Command line arguments.
             checkpoint_path: Path to the pretrained weights.
         """
-        if args.ft or args.infer:
-            checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
-            if "model" in checkpoints_state:
-                checkpoints_state = checkpoints_state["model"]
-            elif "module" in checkpoints_state:
-                checkpoints_state = checkpoints_state["module"]
+        checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
+        if "model" in checkpoints_state:
+            checkpoints_state = checkpoints_state["model"]
+        elif "module" in checkpoints_state:
+            checkpoints_state = checkpoints_state["module"]
 
-            IncompatibleKeys = self.load_state_dict(checkpoints_state, strict=False)
-            IncompatibleKeys = IncompatibleKeys._asdict()
+        IncompatibleKeys = self.load_state_dict(checkpoints_state, strict=False)
+        IncompatibleKeys = IncompatibleKeys._asdict()
 
-            missing_keys = []
-            for keys in IncompatibleKeys["missing_keys"]:
-                if keys.find("dummy") == -1:
-                    missing_keys.append(keys)
+        missing_keys = []
+        for keys in IncompatibleKeys["missing_keys"]:
+            if keys.find("dummy") == -1:
+                missing_keys.append(keys)
 
-            unexpected_keys = []
-            for keys in IncompatibleKeys["unexpected_keys"]:
-                if keys.find("dummy") == -1:
-                    unexpected_keys.append(keys)
+        unexpected_keys = []
+        for keys in IncompatibleKeys["unexpected_keys"]:
+            if keys.find("dummy") == -1:
+                unexpected_keys.append(keys)
 
-            if len(missing_keys) > 0:
-                logger.info(
-                    "Missing keys in {}: {}".format(
-                        checkpoint_path,
-                        missing_keys,
-                    )
+        if len(missing_keys) > 0:
+            logger.info(
+                "Missing keys in {}: {}".format(
+                    checkpoint_path,
+                    missing_keys,
                 )
+            )
 
-            if len(unexpected_keys) > 0:
-                logger.info(
-                    "Unexpected keys {}: {}".format(
-                        checkpoint_path,
-                        unexpected_keys,
-                    )
+        if len(unexpected_keys) > 0:
+            logger.info(
+                "Unexpected keys {}: {}".format(
+                    checkpoint_path,
+                    unexpected_keys,
                 )
+            )
 
-            logger.info(f"checkpoint: {checkpoint_path} is loaded")
-        else:
-            logger.info("No checkpoint is loaded")
+        logger.info(f"checkpoint: {checkpoint_path} is loaded")
 
     def max_positions(self):
         """
@@ -305,23 +310,25 @@ class PSMModel(Model):
             rmsds = torch.cat([rmsd.unsqueeze(-1) for rmsd in rmsds], dim=-1)
 
         self._create_system_tags(batched_data)
-        self._create_protein_mask(batched_data)
-        pos = batched_data["pos"]
+        if self.psm_config.psm_finetune_mode:
+            return self.ft_forward(batched_data=batched_data)
+        else:
+            self._create_protein_mask(batched_data)
+            pos = batched_data["pos"]
+            n_graphs = pos.size(0)
+            time_step, clean_mask = self.time_step_sampler.sample(
+                n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
+            )
+            clean_mask = (
+                clean_mask & ~batched_data["is_protein"]
+            )  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
 
-        n_graphs = pos.size(0)
-        time_step, clean_mask = self.time_step_sampler.sample(
-            n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
-        )
-        clean_mask = (
-            clean_mask & ~batched_data["is_protein"]
-        )  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
-
-        token_id = batched_data["token_id"]
-        padding_mask = token_id.eq(0)  # B x T x 1
-        aa_mask = batched_data["protein_masked_aa"] & batched_data[
-            "is_protein"
-        ].unsqueeze(-1)
-        aa_mask = aa_mask & ~padding_mask
+            token_id = batched_data["token_id"]
+            padding_mask = token_id.eq(0)  # B x T x 1
+            aa_mask = batched_data["protein_masked_aa"] & batched_data[
+                "is_protein"
+            ].unsqueeze(-1)
+            aa_mask = aa_mask & ~padding_mask
 
         pos, noise, sqrt_one_minus_alphas_cumprod_t = self._set_noise(
             padding_mask=padding_mask,
@@ -359,7 +366,44 @@ class PSMModel(Model):
             batched_data: Input data for the forward pass.
             **kwargs: Additional keyword arguments.
         """
-        return self.net.ft_forward(batched_data, **kwargs)
+
+        if self.psm_config.psm_sample_structure_in_finetune:
+            self.sample(batched_data)
+
+        pos = batched_data["pos"]
+        n_graphs, n_tokens = pos.size()[:2]
+        device = pos.device
+        time_step = torch.zeros(n_graphs, dtype=torch.float, device=device)
+        clean_mask = torch.full([n_graphs], True, dtype=torch.bool, device=device)
+        aa_mask = torch.full(
+            [n_graphs, n_tokens], False, dtype=torch.bool, device=device
+        )
+        batched_data["protein_mask"] = torch.full(
+            [n_graphs, n_tokens, 3], False, dtype=torch.bool, device=device
+        )
+        batched_data["sqrt_one_minus_alphas_cumprod_t"] = torch.zeros(
+            [n_graphs, 1, 1], dtype=pos.dtype, device=device
+        )
+
+        result_dict = self.net(
+            batched_data,
+            time_step=time_step,
+            clean_mask=clean_mask,
+            aa_mask=aa_mask,
+            **kwargs,
+        )
+
+        result_dict["noise"] = torch.zeros_like(pos)
+        result_dict["clean_mask"] = clean_mask
+        result_dict["aa_mask"] = aa_mask
+        result_dict["diff_loss_mask"] = torch.full(
+            [n_graphs, n_tokens], False, dtype=torch.bool, device=device
+        )
+
+        if self.psm_finetune_head is not None:
+            result_dict = self.psm_finetune_head(result_dict)
+
+        return result_dict
 
     def compute_loss(self, model_output, batched_data) -> ModelOutput:
         """
@@ -440,7 +484,7 @@ class PSMModel(Model):
             )
             batched_data["sqrt_one_minus_alphas_cumprod_t"] = self.diffnoise._extract(
                 self.diffnoise.sqrt_one_minus_alphas_cumprod,
-                time_step,
+                time_step * self.psm_config.num_timesteps.long(),
                 batched_data["pos"].shape,
             )
             predicted_noise = self.net(batched_data, time_step=time_step)["noise_pred"]
@@ -869,7 +913,7 @@ class PSM(nn.Module):
         else:
             aa_logits = self.aa_mask_head(decoder_x_output)  # @Peiran
 
-        return {
+        result_dict = {
             "energy_per_atom": energy_per_atom,
             "forces": forces,
             "aa_logits": aa_logits,
@@ -882,27 +926,29 @@ class PSM(nn.Module):
             "is_protein": is_protein,
         }
 
-    def ft_forward(
-        self,
-        batched_data,
-        mode="T_noise",
-        perturb=None,
-        time_step=None,
-        mask_aa=None,
-        mask_pos=None,
-        mask_angle=None,
-        padding_mask=None,
-        mode_mask=None,
-        time_pos=None,
-        time_aa=None,
-        segment_labels=None,
-        masked_tokens=None,
-        **unused,
-    ):
-        """
-        forward function used in finetuning
-        """
-        pass
+        if self.psm_config.psm_finetune_mode:
+            result_dict.update(
+                {
+                    "invariant_output": decoder_x_output,
+                    "equivariant_output": decoder_vec_output,
+                }
+            )
+
+        return result_dict
+
+    def reset_head_for_finetune(self):
+        def _reset_one_head(head_module: nn.Module, prefix: str):
+            if hasattr(head_module, "reset_parameters"):
+                head_module.reset_parameters()
+                logger.info(f"Reset parameters successfully in {prefix}")
+            else:
+                for name, module in head_module.named_children():
+                    logger.info(f"Reset parameters into {prefix}.{name}")
+                    _reset_one_head(module, prefix + "." + name)
+
+        _reset_one_head(self.energy_head, "energy_head")
+        _reset_one_head(self.forces_head, "forces_head")
+        _reset_one_head(self.noise_head, "noise_head")
 
     def init_state_dict_weight(self, weight, bias):
         """

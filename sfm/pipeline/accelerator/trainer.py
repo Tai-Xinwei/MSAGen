@@ -363,7 +363,7 @@ class Trainer(object):
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self._load_checkpoint(self.save_dir)
         self.start_iteration = self._load_rng_and_iter_state(self.save_dir)
-        logger.warning(f"self.start_iteration = {self.start_iteration} !!!!")
+        logger.info(f"self.start_iteration = {self.start_iteration}.")
 
     def finetune_from_checkpoint(self):
         if self.finetune_from_checkpoint_dir is not None:
