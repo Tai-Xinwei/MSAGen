@@ -33,63 +33,30 @@ from sfm.pipeline.accelerator.trainer import Trainer, seed_everything
 from sfm.utils import env_init
 from sfm.utils.cli_utils import wandb_init
 
-VOCAB = {
-    # "<pad>": 0,  # padding
-    # "1"-"127": 1-127, # atom type
-    # "<cell_corner>": 128, use for pbc material
-    "L": 130,
-    "A": 131,
-    "G": 132,
-    "V": 133,
-    "S": 134,
-    "E": 135,
-    "R": 136,
-    "T": 137,
-    "I": 138,
-    "D": 139,
-    "P": 140,
-    "K": 141,
-    "Q": 142,
-    "N": 143,
-    "F": 144,
-    "Y": 145,
-    "M": 146,
-    "H": 147,
-    "W": 148,
-    "C": 149,
-    "X": 150,
-    "B": 151,
-    "U": 152,
-    "Z": 153,
-    "O": 154,
-    "-": 155,
-    ".": 156,
-    "<mask>": 157,
-    "<cls>": 158,
-    "<eos>": 159,
-    # "<unk>": 160,
-}
-AA1TO3 = {
-    "A": "ALA",
-    "C": "CYS",
-    "D": "ASP",
-    "E": "GLU",
-    "F": "PHE",
-    "G": "GLY",
-    "H": "HIS",
-    "I": "ILE",
-    "K": "LYS",
-    "L": "LEU",
-    "M": "MET",
-    "N": "ASN",
-    "P": "PRO",
-    "Q": "GLN",
-    "R": "ARG",
-    "S": "SER",
-    "T": "THR",
-    "V": "VAL",
-    "W": "TRP",
-    "Y": "TYR",
+# Vocabulary defined on sfm/data/psm_data/dataset.py:ProteinDownstreamDataset (self.vocab)
+VOCAB2AA = {
+    130: "LEU",  # "L"
+    131: "ALA",  # "A"
+    132: "GLY",  # "G"
+    133: "VAL",  # "V"
+    134: "SER",  # "S"
+    135: "GLU",  # "E"
+    136: "ARG",  # "R"
+    137: "THR",  # "T"
+    138: "ILE",  # "I"
+    139: "ASP",  # "D"
+    140: "PRO",  # "P"
+    141: "LYS",  # "K"
+    142: "GLN",  # "Q"
+    143: "ASN",  # "N"
+    144: "PHE",  # "F"
+    145: "TYR",  # "Y"
+    146: "MET",  # "M"
+    147: "HIS",  # "H"
+    148: "TRP",  # "W"
+    149: "CYS",  # "C"
+    150: "UNK",  # "X"
+    # other_code: "UNK",
 }
 
 
@@ -172,7 +139,7 @@ def main(args: DictConfig) -> None:
         atomlines = []
         for i, (x, y, z) in enumerate(coords):
             atomidx = i + 1
-            resname = AA1TO3.get(sequence[i], "UNK")
+            resname = VOCAB2AA.get(sequence[i], "UNK")
             resnumb = i + 1
             atomlines.append(
                 f"ATOM  {atomidx:>5d}  CA  {resname} {chain}{resnumb:>4d}    "
