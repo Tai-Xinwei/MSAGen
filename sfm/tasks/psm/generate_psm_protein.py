@@ -65,7 +65,7 @@ class Config(DistributedTrainConfig, PSMConfig):
     backbone_config: Dict[str, Any] = MISSING
     backbone: str = "graphormer"
     ode_mode: bool = False
-    output_dir: str = "/tmp/jianwzhu_output"
+    output_dir: str = "/tmp/output_dir"
 
 
 cs = ConfigStore.instance()
@@ -83,6 +83,7 @@ def main(args: DictConfig) -> None:
         args, Config
     ), f"args must be an instance of Config! But it is {type(args)}"
 
+    args.output_dir = "/tmp/jianwzhu_psm/tmpdir"
     assert os.path.exists(
         args.output_dir
     ), f"ERROR: output_dir {args.output_dir} does not exist!"
@@ -113,8 +114,8 @@ def main(args: DictConfig) -> None:
     for data in train_data_loader:
         data = {k: v.cuda() for k, v in data.items()}
         target = "T9999"
-        sequence = data["token_id"][0]
-        print(f"Sequence name is {target} and context is \n{sequence}")
+        sequence = data["token_id"][0].cpu().tolist()
+        print(f"Sequence name is {target} and length is {len(sequence)}.")
 
         # predict CA position for sequence
         result = model.sample(data, data)
@@ -149,7 +150,8 @@ def main(args: DictConfig) -> None:
         atomlines.append("END\n")
 
         # write results to .pdb
-        pdb_file = os.path.join(args.output_dir, f"{target}.pdb")
+        model_num = 1
+        pdb_file = os.path.join(args.output_dir, f"{target}-{model_num}.pdb")
         with open(pdb_file, "w") as fp:
             fp.writelines(atomlines)
         print(f"Predict structure for {target} and write {pdb_file} done.")
