@@ -112,11 +112,6 @@ def main(args: DictConfig) -> None:
         # predict CA position for sequence
         result = model.sample(data, data)
         pred_pos = result["pred_pos"].tolist()
-        print(f"pred_pos: {pred_pos}")
-
-        # assert 1 == len(pred_pos), f"ERROR: batch size of {target} should =1"
-        # assert len(pred_pos[0]) == len(sequence), f"ERROR: wrong length {target}"
-        # assert 3 == len(pred_pos[0][0]), f"ERROR: 3D coordinates for {target}"
 
         # parse target name and chain
         assert len(target) >= 5, f"ERROR: {target} is not a valid target name."
@@ -145,7 +140,7 @@ def main(args: DictConfig) -> None:
 
         # write results to .pdb
         model_num = 1
-        pdb_file = os.path.join(args.output_dir, f"{target}-{model_num}.pdb")
+        pdb_file = os.path.join(args.save_dir, f"{target}-{model_num}.pdb")
         with open(pdb_file, "w") as fp:
             fp.writelines(atomlines)
         print(f"Predict structure for {target} and write {pdb_file} done.")
