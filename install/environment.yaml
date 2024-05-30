@@ -33,6 +33,7 @@ dependencies:
   - pyg::pytorch-sparse=0.6.18
   - pyg::pytorch-spline-conv=1.2.2
   - defaults::cython
+  - bioconda::tmalign
   - pip:
       - deepspeed==0.14.0
       - sacremoses==0.1.1
