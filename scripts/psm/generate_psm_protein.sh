@@ -3,24 +3,6 @@
 # Licensed under the MIT License.
 ulimit -c unlimited
 
-
-if [ $# == 0 ]; then
-  tmpdir=$(mktemp -d)
-  fasta_list="$tmpdir/fasta_list"
-  output_dir="$tmpdir"
-  echo ">7vty_A length=90" > "$tmpdir/7vty_A.fasta"
-  echo "AKARDKLEENRDLIVERLKVDEIADFMIEKGELTEEEKKKVDAEDSERKRAEKLVEIVMKMDDAAVKAFYDALKAKGYSDLASLLESGLC" >> "$tmpdir/7vty_A.fasta"
-  echo "$tmpdir/7vty_A.fasta" > "$fasta_list"
-elif [ $# == 2 ]; then
-  fasta_list=$1
-  output_dir=$2
-else
-  echo "Default: bash $0"
-  echo "Usage: bash $0 <fasta_list> <output_dir>"
-  exit 1
-fi
-
-
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER="GNU"
 
@@ -235,5 +217,3 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/generate_psm_protein.py \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
-          fasta_list=$fasta_list \
-          output_dir=$output_dir \

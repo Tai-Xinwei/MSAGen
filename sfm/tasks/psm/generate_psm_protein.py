@@ -98,34 +98,11 @@ class Config(DistributedTrainConfig, PSMConfig):
     backbone_config: Dict[str, Any] = MISSING
     backbone: str = "graphormer"
     ode_mode: bool = False
-    fasta_list: str = "/tmp/fasta_list"
-    output_dir: str = "/tmp/output_dir"
+    output_dir: str = "/tmp/jianwzhu_output"
 
 
 cs = ConfigStore.instance()
 cs.store(name="config_psm_schema", node=Config)
-
-
-def parse_fastafile(fastafile):
-    """Parse fasta file."""
-
-    seqs = []
-    try:
-        with open(fastafile, "r") as fin:
-            header, seq = "", []
-            for line in fin:
-                if line[0] == ">":
-                    seqs.append((header, "".join(seq)))
-                    header, seq = line.strip(), []
-                else:
-                    seq.append(line.strip())
-            seqs.append((header, "".join(seq)))
-            del seqs[0]
-
-    except Exception as e:
-        print(f"ERROR: wrong fasta {fastafile}\n      {e}", file=sys.stderr)
-
-    return seqs
 
 
 @hydra.main(
@@ -147,7 +124,8 @@ def main(args: DictConfig) -> None:
     seed_everything(args.seed)
     env_init.set_env(args)
 
-    model = PSMModel(args, loss_fn=DiffMAE3dCriterions, load_ckpt=True).cuda()
+    args.psm_validation_mode = True
+    model = PSMModel(args, loss_fn=DiffMAE3dCriterions).cuda()
     model.eval()
 
     # args.data_path = "/home/peiranjin/output/sample_result/casp_14and15.lmdb"
@@ -167,90 +145,49 @@ def main(args: DictConfig) -> None:
     print(f"Start to predict protein structure for {args.data_path}.")
     for data in train_data_loader:
         data = {k: v.cuda() for k, v in data.items()}
-        print(data.keys())
-        print(data["token_id"])
+        target = "T9999"
         sequence = data["token_id"][0]
-        print(sequence)
+        print(f"Sequence name is {target} and context is \n{sequence}")
 
-        # result = model.sample(data, data)
-        # pred_pos = result["pred_pos"].tolist()
-        # assert 1 == len(pred_pos), f"ERROR: batch size of {target} should =1"
-        # assert len(pred_pos[0]) == len(sequence), f"ERROR: wrong length {target}"
-        # assert 3 == len(pred_pos[0][0]), f"ERROR: 3D coordinates for {target}"
+        # predict CA position for sequence
+        result = model.sample(data, data)
+        pred_pos = result["pred_pos"].tolist()
+        assert 1 == len(pred_pos), f"ERROR: batch size of {target} should =1"
+        assert len(pred_pos[0]) == len(sequence), f"ERROR: wrong length {target}"
+        assert 3 == len(pred_pos[0][0]), f"ERROR: 3D coordinates for {target}"
 
-        # # generate atom lines with atom position
-        # coords = pred_pos[0]
-        # atomlines = []
-        # for i, (x, y, z) in enumerate(coords):
-        #     atomidx = i + 1
-        #     resname = AA1TO3.get(sequence[i], "UNK")
-        #     resnumb = i + 1
-        #     atomlines.append(
-        #         f"ATOM  {atomidx:>5d}  CA  {resname} {chain}{resnumb:>4d}    "
-        #         f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
-        #     )
-        # atomlines.append("TER\n")
-        # atomlines.append("END\n")
+        # parse target name and chain
+        assert len(target) >= 5, f"ERROR: {target} is not a valid target name."
+        if len(target) == 6 and target[4] == "_":
+            tarname, chain = target[:4], target[5]
+        elif target[0] == "T":
+            tarname, chain = target, " "
+        else:
+            print(f"ERROR: {target} may be a wrong name.", file=sys.stderr)
+            tarname, chain = target, " "
+        print(target, tarname, chain)
 
-        # # write results to .pdb
-        # pdb_file = os.path.join(args.output_dir, f"{target}.pdb")
-        # with open(pdb_file, "w") as fp:
-        #     fp.writelines(atomlines)
-        # print(f"Predict structure for {target} and write {pdb_file} done.")
+        # generate atom lines with atom position
+        coords = pred_pos[0]
+        atomlines = []
+        for i, (x, y, z) in enumerate(coords):
+            atomidx = i + 1
+            resname = AA1TO3.get(sequence[i], "UNK")
+            resnumb = i + 1
+            atomlines.append(
+                f"ATOM  {atomidx:>5d}  CA  {resname} {chain}{resnumb:>4d}    "
+                f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
+            )
+        atomlines.append("TER\n")
+        atomlines.append("END\n")
+
+        # write results to .pdb
+        pdb_file = os.path.join(args.output_dir, f"{target}.pdb")
+        with open(pdb_file, "w") as fp:
+            fp.writelines(atomlines)
+        print(f"Predict structure for {target} and write {pdb_file} done.")
+
         break
-
-    #    assert os.path.exists(path), f"ERROR: fasta file {path} does not exist!"
-    #    seqs = parse_fastafile(path)
-    #    assert 1 == len(seqs), f"ERROR: wrong file {path}"
-    #    assert 2 == len(seqs[0]), f"ERROR: wrong fasta context {path}"
-    #    print(f"Read sequence from fasta {path}.")
-
-    #    header = seqs[0][0]
-    #    assert header[0] == ">", f"ERROR: wrong header {header}"
-    #    target = header.split()[0][1:]
-    #    sequence = seqs[0][1]
-    #    print(f"Sequence name is {target} and context is \n{sequence}")
-
-    #    # parse target name and chain
-    #    assert len(target) >= 5, f"ERROR: {target} is not a valid target name."
-    #    if len(target) == 6 and target[4] == "_":
-    #        tarname, chain = target[:4], target[5]
-    #    elif target[0] == "T":
-    #        tarname, chain = target, " "
-    #    else:
-    #        print(f"ERROR: {target} may be a wrong name.", file=sys.stderr)
-    #        tarname, chain = target, " "
-    #    print(target, tarname, chain)
-
-    #    # predict CA position for sequence
-    #    indices = [VOCAB.get(_, 150) for _ in sequence]
-    #    aa_seq = torch.tensor(indices, dtype=torch.int64).unsqueeze(0).cuda()
-    #    result = model.seq2structure(aa_seq)
-
-    #    pred_pos = result["pred_pos"].tolist()
-    #    assert 1 == len(pred_pos), f"ERROR: batch size of {target} should =1"
-    #    assert len(pred_pos[0]) == len(sequence), f"ERROR: wrong length {target}"
-    #    assert 3 == len(pred_pos[0][0]), f"ERROR: 3D coordinates for {target}"
-
-    #    # generate atom lines with atom position
-    #    coords = pred_pos[0]
-    #    atomlines = []
-    #    for i, (x, y, z) in enumerate(coords):
-    #        atomidx = i + 1
-    #        resname = AA1TO3.get(sequence[i], "UNK")
-    #        resnumb = i + 1
-    #        atomlines.append(
-    #            f"ATOM  {atomidx:>5d}  CA  {resname} {chain}{resnumb:>4d}    "
-    #            f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
-    #        )
-    #    atomlines.append("TER\n")
-    #    atomlines.append("END\n")
-
-    #    # write results to .pdb
-    #    pdb_file = os.path.join(args.output_dir, f"{target}.pdb")
-    #    with open(pdb_file, "w") as fp:
-    #        fp.writelines(atomlines)
-    #    print(f"Predict structure for {target} and write {pdb_file} done.")
 
 
 if __name__ == "__main__":
