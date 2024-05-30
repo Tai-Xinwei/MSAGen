@@ -229,7 +229,8 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
     def __getitem__(self, index):
         list_index, data_index = self.get_real_index(index)
         data_index, offset = divmod(data_index, self.replicate)
-        value = self.txn_list[list_index].get(str(data_index).encode())
+        key = self.keys_list[list_index][data_index]
+        value = self.txn_list[list_index].get(str(key).encode())
         data = np.frombuffer(value, dtype=self.dtype)[
             offset * self.max_len : (offset + 1) * self.max_len
         ]
