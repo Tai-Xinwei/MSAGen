@@ -717,14 +717,10 @@ class PSM(nn.Module):
                 self.noise_head = VectorOutput(psm_config.embedding_dim)
                 self.forces_head.update({key: VectorOutput(psm_config.embedding_dim)})
             else:
+                self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
                 self.forces_head.update(
                     {key: EquivariantVectorOutput(psm_config.embedding_dim)}
                 )
-
-        if args.backbone == "vanillatransformer":
-            self.noise_head = VectorOutput(psm_config.embedding_dim)
-        else:
-            self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
 
         # aa mask predict head
         self.aa_mask_head = nn.Sequential(
