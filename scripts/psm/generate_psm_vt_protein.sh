@@ -5,15 +5,13 @@ ulimit -c unlimited
 
 
 if [ $# == 0 ]; then
-  fasta_list=/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/list
-  output_dir=/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/output
   # tmpdir=$(mktemp -d)
   tmpdir="/home/peiranjin/expresult/psmexp/output/psmv1_vt_v3/"
   fasta_list="$tmpdir/fasta_list"
   output_dir="$tmpdir"
-  echo ">T1082 gp63, T4 phage, 97 residues|" > "$tmpdir/T1082.fasta"
-  echo "MKKFIFATIFALASCAAQPAMAGYDKDLCEWSMTADQTEVETQIEADIMNIVKRDRPEMKAEVQKQLKSGGVMQYNYVLYCDKNFNNKNIIAEVVGE" >> "$tmpdir/T1082.fasta"
-  echo "$tmpdir/T1082.fasta" > "$fasta_list"
+  echo ">7vty_A length=90" > "$tmpdir/7vty_A.fasta"
+  echo "AKARDKLEENRDLIVERLKVDEIADFMIEKGELTEEEKKKVDAEDSERKRAEKLVEIVMKMDDAAVKAFYDALKAKGYSDLASLLESGLC" >> "$tmpdir/7vty_A.fasta"
+  echo "$tmpdir/7vty_A.fasta" > "$fasta_list"
 elif [ $# == 2 ]; then
   fasta_list=$1
   output_dir=$2
