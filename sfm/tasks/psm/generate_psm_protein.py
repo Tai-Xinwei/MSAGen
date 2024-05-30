@@ -147,7 +147,7 @@ def main(args: DictConfig) -> None:
     seed_everything(args.seed)
     env_init.set_env(args)
 
-    model = PSMModel(args, loss_fn=DiffMAE3dCriterions, load_ckpt=True).cuda()
+    model = PSMModel(args, loss_fn=DiffMAE3dCriterions).cuda()
     model.eval()
 
     args.data_path = "/home/peiranjin/output/sample_result/casp_14and15.lmdb"
@@ -172,6 +172,7 @@ def main(args: DictConfig) -> None:
 
         pred_pos = result["pred_pos"].tolist()
         print(f"pred_pos: {pred_pos}")
+
         # assert 1 == len(pred_pos), f"ERROR: batch size of {target} should =1"
         # assert len(pred_pos[0]) == len(sequence), f"ERROR: wrong length {target}"
         # assert 3 == len(pred_pos[0][0]), f"ERROR: 3D coordinates for {target}"

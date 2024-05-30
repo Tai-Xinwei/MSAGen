@@ -211,7 +211,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/generate_psm_protein.py \
           save_dir=$save_dir \
           seed=12345 \
           ifresume=True \
-          infer=True \
+          psm_validation_mode=True \
           mask_ratio=$mask_ratio \
           noise_scale=$noise_scale \
           num_pred_attn_layer=$num_pred_attn_layer \
