@@ -74,12 +74,9 @@ export MKL_THREADING_LAYER="GNU"
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${fp16}" ] && fp16=False
 
-#[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-16xG8-fp32-ddp-unified-sampler-continued-fastpreprocess/checkpoint_E0_B84999.pt"
-#[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-16xG8-fp32-ddp-unified-sampler-continued-fastpreprocess/checkpoint_E0_B84999.pt"
-#[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240523-1902/checkpoint_E1_B66933.pt"
 #[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/global_step48063/mp_rank_00_model_states.pt"
-[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240528-1755/checkpoint_E0_B30000.pt"
 #[ -z "${save_dir}" ] && save_dir="/home/peiran/expresult/psmexp/output/psmv1_vt_v3/"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/pfmexp/output/psmv1_vt_v3/checkpoints/global_step48063/mp_rank_00_model_states.pt"
 [ -z "${save_dir}" ] && save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/"
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
