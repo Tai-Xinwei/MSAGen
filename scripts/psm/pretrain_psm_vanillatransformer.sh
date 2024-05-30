@@ -91,7 +91,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=False
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
-[ -z "${psm_validation_mode}" ] && psm_validation_mode=True
+[ -z "${psm_validation_mode}" ] && psm_validation_mode=False
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -187,7 +187,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
           seed=12345 \
-          ifresume=True \
           mask_ratio=$mask_ratio \
           d_tilde=$d_tilde \
           strategy=$strategy \
@@ -211,6 +210,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
+          finetune_from_checkpoint_dir=$loadcheck_path \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
 
           # --ifstack \

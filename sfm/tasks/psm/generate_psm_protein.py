@@ -181,6 +181,7 @@ def main(args: DictConfig) -> None:
         indices = [VOCAB.get(_, 150) for _ in sequence]
         aa_seq = torch.tensor(indices, dtype=torch.int64).unsqueeze(0).cuda()
         result = model.seq2structure(aa_seq)
+
         pred_pos = result["pred_pos"].tolist()
         assert 1 == len(pred_pos), f"ERROR: batch size of {target} should =1"
         assert len(pred_pos[0]) == len(sequence), f"ERROR: wrong length {target}"

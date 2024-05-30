@@ -9,7 +9,7 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 [ -z "${weight_decay}" ] && weight_decay=0.1 # same as LLAMA2
-[ -z "${max_lr}" ] && max_lr=2e-4  # LLAMA2 use 3e-4, let's use smaller lr
+[ -z "${max_lr}" ] && max_lr=3e-4  # LLAMA2 use 3e-4, let's use smaller lr
 [ -z "${beta1}" ] && beta1=0.9 # same as LLAMA2
 [ -z "${beta2}" ] && beta2=0.95 # same as LLAMA2
 [ -z "${total_num_steps}" ] && total_num_steps=140000
@@ -156,6 +156,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --tensor_model_parallel_size "$tensor_model_parallel_size" \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --pretrained_ckpt_path "$loadcheck_path" \
-      --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
-      ${MEGATRON_ARGS}
+      ${MEGATRON_ARGS} --load_ckpt
+
+      # --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \

@@ -140,6 +140,7 @@ def main(args: DictConfig) -> None:
         valid_data=valid_data,
     )
     if args.psm_validation_mode:
+        trainer.finetune_from_checkpoint()
         trainer.validate()
     else:
         trainer.train()
