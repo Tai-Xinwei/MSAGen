@@ -484,7 +484,7 @@ class PSMModel(Model):
             )
             batched_data["sqrt_one_minus_alphas_cumprod_t"] = self.diffnoise._extract(
                 self.diffnoise.sqrt_one_minus_alphas_cumprod,
-                time_step,
+                time_step * self.psm_config.num_timesteps.long(),
                 batched_data["pos"].shape,
             )
             predicted_noise = self.net(batched_data, time_step=time_step)["noise_pred"]
