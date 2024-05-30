@@ -28,6 +28,8 @@ class DiffMAE3dCriterions(nn.Module):
         super().__init__()
         self.args = args
 
+        self.diffusion_mode = args.diffusion_mode
+
         self.energy_loss = nn.L1Loss(reduction="none")
         self.force_loss = nn.L1Loss(reduction="none")
         self.noise_loss = (
@@ -126,6 +128,7 @@ class DiffMAE3dCriterions(nn.Module):
         energy_per_atom_label = batched_data["energy_per_atom"]
         atomic_numbers = batched_data["token_id"]
         noise_label = model_output["noise"]
+        pos_label = batched_data["ori_pos"]
         force_pred = model_output["forces"]
         energy_per_atom_pred = model_output["energy_per_atom"]
         noise_pred = model_output["noise_pred"]
@@ -211,10 +214,19 @@ class DiffMAE3dCriterions(nn.Module):
             self.periodic_force_std,
         )
 
-        # noise pred loss
-        unreduced_noise_loss = self.noise_loss(
-            noise_pred.to(noise_label.dtype), noise_label
-        )
+        if self.diffusion_mode == "epsilon":
+            # noise pred loss
+            unreduced_noise_loss = self.noise_loss(
+                noise_pred.to(noise_label.dtype), noise_label
+            )
+        elif self.diffusion_mode == "x0":
+            # x0 pred loss, noise pred is x0 pred here
+            unreduced_noise_loss = self.noise_loss(
+                noise_pred.to(noise_label.dtype), pos_label
+            )
+        else:
+            raise ValueError(f"Invalid diffusion mode: {self.diffusion_mode}")
+
         noise_loss, num_noise_sample = self._reduce_force_or_noise_loss(
             unreduced_noise_loss,
             ~clean_mask,

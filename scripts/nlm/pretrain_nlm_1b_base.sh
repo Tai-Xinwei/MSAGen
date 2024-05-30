@@ -83,7 +83,6 @@ dp_worldsize=$(($world_size/$pipeline_model_parallel_size/$tensor_model_parallel
 [ -z "${max_position_embeddings}" ] && max_position_embeddings=8192
 [ -z "${llm_hidden_size}" ] && llm_hidden_size=4096
 [ -z "${layers}" ] && layers=24
-[ -z "${num_head}" ] && num_head=32
 
 MEGATRON_ARGS="--micro-batch-size $micro_batch_size --global-batch-size $global_batch_size \
   --num-layers $layers --hidden-size $llm_hidden_size --seq-length $max_position_embeddings \

@@ -523,7 +523,9 @@ class TOX(nn.Module):
                 # time_pos = torch.where((mode_mask == 1), 1, time_pos)
                 time_ang = time_pos
 
-            noisy_pos, _, _, _ = self.diffnoise._noise_sample(ori_pos, time_pos)
+            noisy_pos, _, _, _ = self.diffnoise._noise_sample(
+                ori_pos, time_pos, unit_noise_scale=10.0
+            )
 
             (
                 noisy_ang,

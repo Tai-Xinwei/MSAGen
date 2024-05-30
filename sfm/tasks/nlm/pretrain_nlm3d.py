@@ -10,7 +10,7 @@ sys.path.extend([".", ".."])
 from megatron.arguments import parse_megatron_args
 from megatron.core.transformer.transformer_config import TransformerConfig
 from megatron.initialize import initialize_megatron
-from sfm.data.sci_data.dataset import ProcessedSciDataset
+from sfm.data.sci_data.dataset import ProcessedSciDataset, ProcessedSciDatasetLmdb
 from sfm.data.sci_data.NlmTokenizer import NlmLlama3Tokenizer
 from sfm.logging import logger
 from sfm.models.nlm.moe_config import MoeModelConfig
@@ -40,10 +40,10 @@ def main(args) -> None:
         logger.info("Initializing megatron for 3D training.")
     model = NLM3dModel(args, len(tokenizer))
 
-    train_dataset = ProcessedSciDataset(
+    train_dataset = ProcessedSciDatasetLmdb(
         args.train_data_path, args.pad_token_id, args.max_position_embeddings
     )
-    valid_dataset = ProcessedSciDataset(
+    valid_dataset = ProcessedSciDatasetLmdb(
         args.valid_data_path, args.pad_token_id, args.max_position_embeddings
     )
     logger.info("datasets loaded")

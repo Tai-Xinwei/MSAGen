@@ -46,7 +46,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.4,0.4,0.1' #prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
-[ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/AFDB50-plddt70.lmdb/'
+[ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/AFDB50-plddt70.lmdb/'
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq1024_ddpm_dist/'
 # [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq1024_ddpm_dist/'
 # [ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/pfmdiff150M1024_prob1261_m5_seq1024_ddpmx0_dist/'
@@ -158,7 +158,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/tox/pretrain_tox.py \
         --save_dir $save_dir \
         --seed 666666 \
         --add_3d \
-        --fp16 \
         --ifstack \
         --diffmode $diffmode \
         --mask_ratio $mask_ratio \
