@@ -96,11 +96,14 @@ class PSMConfig(GraphormerConfig):
     # used in force and noise heads
     num_force_and_noise_head_layers: int = 2
 
-    # used for diffusion sampling
+    # used for finetuning and diffusion sampling
     psm_validation_mode: bool = False
     sample_in_validation: bool = False
     num_sampling_time: int = 1
     sampled_structure_output_path: Optional[str] = None
+    psm_finetune_mode: bool = False
+    psm_sample_structure_in_finetune: bool = False
+    psm_finetune_reset_head: bool = False
 
     def __init__(
         self,
