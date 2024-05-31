@@ -36,7 +36,7 @@ code:
 
 jobs:
 - name: sfm_nlm_llama3_stageB
-  sku: ${NODES}xG${GPUS}
+  sku: ${NODES}xG${GPUS}-IB
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
   mpi: true
   process_count_per_node: 1

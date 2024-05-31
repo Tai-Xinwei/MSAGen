@@ -130,6 +130,7 @@ class LlamaEfficientAttention(LlamaAttention):
         # query_states, key_states = apply_rotary_pos_emb(
         #     query_states, key_states, cos, sin, position_ids
         # )
+
         cos, sin = self.rotary_emb(value_states, position_ids)
         query_states, key_states = apply_rotary_pos_emb(
             query_states, key_states, cos, sin
@@ -144,6 +145,10 @@ class LlamaEfficientAttention(LlamaAttention):
 
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
+
+        query_states = query_states.contiguous()
+        key_states = key_states.contiguous()
+        value_states = value_states.contiguous()
 
         if self.use_flash:
             with torch.backends.cuda.sdp_kernel(

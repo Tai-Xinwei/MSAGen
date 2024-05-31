@@ -12,8 +12,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_lr}" ] && max_lr=3e-4  # LLAMA2 use 3e-4, let's use smaller lr
 [ -z "${beta1}" ] && beta1=0.9 # same as LLAMA2
 [ -z "${beta2}" ] && beta2=0.95 # same as LLAMA2
-[ -z "${total_num_steps}" ] && total_num_steps=140000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=8000
+[ -z "${total_num_steps}" ] && total_num_steps=50000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=3000
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
 # [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,word_embeddings.weight"
 # [ -z "${learnable_cutoff}" ] && learnable_cutoff=128256
@@ -28,8 +28,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerMP"
 
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=1000
-[ -z "${log_interval}" ] && log_interval=100
+[ -z "${save_batch_interval}" ] && save_batch_interval=200
+[ -z "${log_interval}" ] && log_interval=10
 [ -z "${epochs}" ] && epochs=10
 
 

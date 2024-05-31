@@ -344,34 +344,34 @@ class SFMPipeEngine(DeepSpeedEngine):
             dist.all_reduce(grad, group=group)
 
     def _exec_reduce_grads(self):
-        rank = os.getenv("OMPI_COMM_WORLD_RANK") or os.getenv("RANK")
-        rank = int(rank) if rank is not None else None
+        # rank = os.getenv("OMPI_COMM_WORLD_RANK") or os.getenv("RANK")
+        # rank = int(rank) if rank is not None else None
 
         # if rank == 0:
         #    import pdb; pdb.set_trace()
-        if self.event_timer_id > 1:
-            allreduce_time = self.start_event.elapsed_time(self.end_event)
-            if rank == 0:
-                n = dist.get_world_size()
-                size = 64 * 1024 * 1024 * 2
-                busbw = ((size / (1024 * 1024 * 1024)) / (allreduce_time / 1e3)) * (
-                    2 * (n - 1) / n
-                )
-                str2 = f"AllReduce 128MB data among {n} ranks took {allreduce_time:.2f} ms; BusBW = {busbw:.2f} GB/s."
-                print(str2)
+        # if self.event_timer_id > 1:
+        #     allreduce_time = self.start_event.elapsed_time(self.end_event)
+        #     if rank == 0:
+        #         n = dist.get_world_size()
+        #         size = 64 * 1024 * 1024 * 2
+        #         busbw = ((size / (1024 * 1024 * 1024)) / (allreduce_time / 1e3)) * (
+        #             2 * (n - 1) / n
+        #         )
+        #         str2 = f"AllReduce 128MB data among {n} ranks took {allreduce_time:.2f} ms; BusBW = {busbw:.2f} GB/s."
+        #         print(str2)
 
-            # str1 = f"Step: {self.global_steps} DP: {self.grid.data_parallel_id} PP: {self.grid.get_stage_id()} AllReduce: {allreduce_time:.2f}ms"
-            str1 = f"{self.global_steps} {allreduce_time:.2f}\n"
-            # print(str1)
-            self.file.write(str1)
-            self.file.flush()
-        self.start_event.record()
-        handle = dist.all_reduce(
-            self.allreduce_data, group=self.module.world_group, async_op=True
-        )
-        handle.wait()
-        self.end_event.record()
-        self.event_timer_id += 1
+        #     # str1 = f"Step: {self.global_steps} DP: {self.grid.data_parallel_id} PP: {self.grid.get_stage_id()} AllReduce: {allreduce_time:.2f}ms"
+        #     str1 = f"{self.global_steps} {allreduce_time:.2f}\n"
+        #     # print(str1)
+        #     self.file.write(str1)
+        #     self.file.flush()
+        # self.start_event.record()
+        # handle = dist.all_reduce(
+        #     self.allreduce_data, group=self.module.world_group, async_op=True
+        # )
+        # handle.wait()
+        # self.end_event.record()
+        # self.event_timer_id += 1
 
         self._force_grad_boundary = True
         if self.pipeline_enable_backward_allreduce:
