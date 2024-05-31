@@ -13,9 +13,10 @@ export MKL_THREADING_LAYER="GNU"
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${max_length}" ] && max_length=512
-[ -z "${max_tokens}" ] && max_tokens=2000
-# [ -z "${max_tokens}" ] && max_tokens=36000
+#[ -z "${max_length}" ] && max_length=512
+[ -z "${max_length}" ] && max_length=5120
+#[ -z "${max_tokens}" ] && max_tokens=2000
+[ -z "${max_tokens}" ] && max_tokens=36000
 
 [ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -45,8 +46,9 @@ export MKL_THREADING_LAYER="GNU"
 
 [ -z "${mode_prob}" ] && mode_prob="0.1,0.2,0.6,0.1" #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-#[ -z "${data_path}" ] && data_path="/data/peiran/blob/hai1data/sfm/psm"
-[ -z "${data_path}" ] && data_path="/home/peiranjin/output/sample_result/casp_14and15.lmdb"
+#[ -z "${data_path}" ] && data_path="/home/peiranjin/output/sample_result/casp_14and15.lmdb"
+#[ -z "${data_path}" ] && data_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm/casp_14and15.lmdb"
+[ -z "${data_path}" ] && data_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm/cameo-from-20220401-to-20220625.lmdb"
 [ -z "${data_path_list}" ] && data_path_list="PubChemQC-B3LYP-PM6,matter-sim-15M,AFDB50-plddt70.lmdb"
 [ -z "${dataset_name_list}" ] && dataset_name_list="pm6,mattersim,afdb"
 [ -z "${dataset_split_raito}" ] && dataset_split_raito="0.4,0.2,0.4"
@@ -55,10 +57,10 @@ export MKL_THREADING_LAYER="GNU"
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${fp16}" ] && fp16=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/global_step48063/mp_rank_00_model_states.pt"
-[ -z "${save_dir}" ] && save_dir="/home/peiranjin/expresult/psmexp/output/psmv1_vt_v3/"
-# [ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/pfmexp/output/psmv1_vt_v3/checkpoints/global_step48063/mp_rank_00_model_states.pt"
-# [ -z "${save_dir}" ] && save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/"
+#[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/global_step48063/mp_rank_00_model_states.pt"
+#[ -z "${save_dir}" ] && save_dir="/home/peiranjin/expresult/psmexp/output/psmv1_vt_v3/"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/pfmexp/output/psmv1_vt_v3/checkpoints/global_step48063/mp_rank_00_model_states.pt"
+[ -z "${save_dir}" ] && save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/pfmexp/output/psmv1_vt_v3/prediction"
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
@@ -171,7 +173,7 @@ fi
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 #   num_attention_heads=$num_head \
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/generate_psm_protein.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/evaluate_psm_protein.py \
           --config-name=config_psm.yaml \
           backbone_config=graphormer \
           backbone=vanillatransformer \
