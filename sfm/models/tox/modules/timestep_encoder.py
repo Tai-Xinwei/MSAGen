@@ -128,9 +128,9 @@ class DiffNoise(nn.Module):
         else:
             raise Exception(f"t shape: {t.shape} not supported")
 
-    def _noise_sample(self, x_start, t):
+    def _noise_sample(self, x_start, t, unit_noise_scale=1.0):
         t = (t * self.args.num_timesteps).long()
-        epsilon = torch.randn_like(x_start)
+        epsilon = torch.randn_like(x_start) * unit_noise_scale
         epsilon = epsilon - epsilon.mean(dim=1, keepdim=True)
 
         # sqrt_alphas_cumprod is a list of tensors, each tensor is a scalar, t is in shape of [batch_size, L], get the corresponding scalar for each batch

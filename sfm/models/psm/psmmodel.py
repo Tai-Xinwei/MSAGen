@@ -218,6 +218,7 @@ class PSMModel(Model):
         ori_pos = ori_pos.masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
         self._create_initial_pos_for_diffusion(batched_data)
+        batched_data["ori_pos"] = batched_data["pos"]
 
         noise_pos, noise, sqrt_one_minus_alphas_cumprod_t = self.diffnoise.noise_sample(
             x_start=ori_pos,
@@ -329,27 +330,28 @@ class PSMModel(Model):
             ].unsqueeze(-1)
             aa_mask = aa_mask & ~padding_mask
 
-            pos, noise, sqrt_one_minus_alphas_cumprod_t = self._set_noise(
-                padding_mask=padding_mask,
-                batched_data=batched_data,
-                time_step=time_step,
-                clean_mask=clean_mask,
-            )
-            batched_data["pos"] = pos
-            batched_data[
-                "sqrt_one_minus_alphas_cumprod_t"
-            ] = sqrt_one_minus_alphas_cumprod_t
-            result_dict = self.net(
-                batched_data,
-                time_step=time_step,
-                clean_mask=clean_mask,
-                aa_mask=aa_mask,
-                **kwargs,
-            )
-            result_dict["noise"] = noise
-            result_dict["clean_mask"] = clean_mask
-            result_dict["aa_mask"] = aa_mask
-            result_dict["diff_loss_mask"] = batched_data["diff_loss_mask"]
+        pos, noise, sqrt_one_minus_alphas_cumprod_t = self._set_noise(
+            padding_mask=padding_mask,
+            batched_data=batched_data,
+            time_step=time_step,
+            clean_mask=clean_mask,
+        )
+        batched_data["pos"] = pos
+        batched_data[
+            "sqrt_one_minus_alphas_cumprod_t"
+        ] = sqrt_one_minus_alphas_cumprod_t
+        result_dict = self.net(
+            batched_data,
+            time_step=time_step,
+            clean_mask=clean_mask,
+            aa_mask=aa_mask,
+            **kwargs,
+        )
+        result_dict["noise"] = noise
+        result_dict["clean_mask"] = clean_mask
+        result_dict["aa_mask"] = aa_mask
+        result_dict["diff_loss_mask"] = batched_data["diff_loss_mask"]
+        result_dict["ori_pos"] = batched_data["ori_pos"]
 
         if self.psm_config.sample_in_validation and not self.training:
             result_dict["rmsd"] = rmsds
@@ -482,7 +484,7 @@ class PSMModel(Model):
             )
             batched_data["sqrt_one_minus_alphas_cumprod_t"] = self.diffnoise._extract(
                 self.diffnoise.sqrt_one_minus_alphas_cumprod,
-                time_step,
+                (time_step * self.psm_config.num_timesteps).long(),
                 batched_data["pos"].shape,
             )
             predicted_noise = self.net(batched_data, time_step=time_step)["noise_pred"]
@@ -512,85 +514,6 @@ class PSMModel(Model):
         loss = torch.sum((pred_pos - orig_pos) ** 2, dim=-1, keepdim=True)
 
         return {"loss": loss, "pred_pos": pred_pos, "orig_pos": orig_pos}
-
-    @torch.no_grad()
-    def seq2structure(self, aa_seq, dtype: torch.dtype = torch.float32) -> dict:
-        """
-        Given an amino acid sequence, predict the 3D structure of the protein.
-        """
-        batched_data = {}
-        N, L = aa_seq.shape
-
-        batched_data["sample_type"] = 2
-        batched_data["token_id"] = aa_seq
-        batched_data["idx"] = 0
-
-        batched_data["pos"] = torch.randn([N, L, 3], device=aa_seq.device, dtype=dtype)
-        batched_data["num_atoms"] = (
-            torch.tensor(aa_seq.size()[1], device=aa_seq.device).unsqueeze(0).long()
-        )
-
-        batched_data["cell"] = torch.zeros(
-            (3, 3), dtype=dtype, device=aa_seq.device
-        ).unsqueeze(0)
-        batched_data["pbc"] = (
-            torch.zeros(3, dtype=dtype, device=aa_seq.device).bool().unsqueeze(0)
-        )
-        batched_data["stress"] = torch.zeros(
-            (3, 3), dtype=dtype, device=aa_seq.device
-        ).unsqueeze(0)
-        batched_data["forces"] = torch.zeros(
-            (aa_seq.size()[1], 3), dtype=dtype, device=aa_seq.device
-        ).unsqueeze(0)
-        batched_data["energy"] = torch.tensor(
-            [0.0], dtype=dtype, device=aa_seq.device
-        ).unsqueeze(0)
-        batched_data["energy_per_atom"] = torch.tensor(
-            [0.0], dtype=dtype, device=aa_seq.device
-        ).unsqueeze(0)
-        adj = torch.zeros([L, L], dtype=torch.bool, device=aa_seq.device)
-
-        edge_index = torch.zeros([2, 0], dtype=torch.long, device=aa_seq.device)
-        edge_attr = torch.zeros([0, 3], dtype=torch.long, device=aa_seq.device)
-        indgree = adj.long().sum(dim=1).view(-1).unsqueeze(0)
-
-        batched_data["edge_index"] = edge_index.unsqueeze(0)
-        batched_data["edge_attr"] = edge_attr.unsqueeze(0)
-        batched_data["node_attr"] = torch.cat(
-            [
-                batched_data["token_id"].unsqueeze(-1),
-                torch.zeros(
-                    [
-                        batched_data["token_id"].size()[0],
-                        batched_data["token_id"].size()[1],
-                        8,
-                    ],
-                    dtype=torch.long,
-                    device=aa_seq.device,
-                ),
-            ],
-            dim=-1,
-        )
-        batched_data["attn_bias"] = torch.zeros(
-            [L + 1, L + 1], dtype=dtype, device=aa_seq.device
-        ).unsqueeze(0)
-        batched_data["in_degree"] = indgree
-
-        shortest_path_result = (
-            torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
-        )
-        edge_input = torch.zeros(
-            [L, L, 0, 3], dtype=torch.long, device=aa_seq.device
-        ).unsqueeze(0)
-        spatial_pos = torch.from_numpy(shortest_path_result).long().cuda().unsqueeze(0)
-        batched_data["edge_input"] = edge_input
-        batched_data["spatial_pos"] = spatial_pos
-
-        # {"loss": loss, "pred_pos": pred_pos, "orig_pos": orig_pos}
-        # orig_pos would be N(0, 1) noise here, do not use.
-        result_dict = self.sample(batched_data)
-
-        return result_dict
 
 
 def center_pos(batched_data, padding_mask):
@@ -876,14 +799,22 @@ class PSM(nn.Module):
             ),
         )
 
-        noise_pred = self.noise_head(
-            decoder_x_output, decoder_vec_output
-        )  # .squeeze(-1)
+        noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
 
-        scale_shift = self.mlp_w(time_embed).unsqueeze(-1)
-        logit_bias = torch.logit(batched_data["sqrt_one_minus_alphas_cumprod_t"])
-        scale = torch.sigmoid(scale_shift + logit_bias)
-        noise_pred = scale * batched_data["pos"] + (1 - scale) * noise_pred
+        if self.args.diffusion_mode == "epsilon":
+            scale_shift = self.mlp_w(time_embed).unsqueeze(-1)
+            logit_bias = torch.logit(batched_data["sqrt_one_minus_alphas_cumprod_t"])
+            scale = torch.sigmoid(scale_shift + logit_bias)
+            noise_pred = scale * batched_data["pos"] + (1 - scale) * noise_pred
+        elif self.args.diffusion_mode == "x0":
+            scale_shift = self.mlp_w(time_embed).unsqueeze(-1)
+            logit_bias = torch.logit(batched_data["sqrt_one_minus_alphas_cumprod_t"])
+            scale = torch.sigmoid(scale_shift + logit_bias)
+            noise_pred = scale * noise_pred + (1 - scale) * batched_data["pos"]
+        else:
+            raise ValueError(
+                f"diffusion mode: {self.args.diffusion_mode} is not supported"
+            )
 
         # atom mask to leave out unit cell corners for periodic systems
         non_atom_mask = torch.arange(
