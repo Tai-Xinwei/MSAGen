@@ -38,18 +38,21 @@ from sfm.models.psm.psm_config import PSMConfig
 
 
 class PM6FullLMDBDataset(FoundationModelDataset):
+    latest_version = "20240527.1"
+
     def __init__(
         self,
         args: PSMConfig,
-        lmdb_path: Optional[str],
+        lmdb_path: str,
+        version: Optional[str] = None,
     ):
-        self.lmdb_path = lmdb_path
-        if (
-            self.lmdb_path is not None
-            and self.lmdb_path.find("PubChemQC-B3LYP-PM6") != -1
-            and self.lmdb_path.find("20240527.1/full") == -1
-        ):
-            self.lmdb_path += "/20240527.1/full/"
+        assert lmdb_path, "LMDB path must be provided"
+        self.lmdb_path = os.path.normpath(lmdb_path)
+        if self.lmdb_path.endswith("PubChemQC-B3LYP-PM6"):
+            self.lmdb_path = os.path.join(
+                self.lmdb_path, version or PM6FullLMDBDataset.latest_version, "full"
+            )
+
         self.args = args
         # for dataloader with num_workers > 1
         self._env, self._txn = None, None
@@ -104,11 +107,11 @@ class PM6FullLMDBDataset(FoundationModelDataset):
     # energy and std calculated over training part of the dataset
     @property
     def energy_mean(self):
-        return -43590.75390625
+        return -42774.16038176129
 
     @property
     def energy_std(self):
-        return 25539.1640625
+        return 25029.68158883449
 
     @property
     def force_mean(self):  # force mean should always be 0.0 to keep equivariance
@@ -120,11 +123,11 @@ class PM6FullLMDBDataset(FoundationModelDataset):
 
     @property
     def energy_per_atom_mean(self):
-        return -993.6875723598414
+        return -994.0920019593214
 
     @property
     def energy_per_atom_std(self):
-        return 770.9310654087114
+        return 770.7496116135809
 
     def split_dataset(self, validation_ratio=0.03, sort=False):
         num_samples = len(self.keys)
@@ -748,6 +751,7 @@ class SmallMolDataset(FoundationModelDataset):
             @split: splitting of the data
             @transform: some transformation of the data
     """
+
     energy = "energy"
     forces = "forces"
 

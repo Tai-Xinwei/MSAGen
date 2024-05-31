@@ -107,6 +107,10 @@ def convert_b3lpy_pm6_mol(
         raise ValueError(f"[MultiFragsError] n_frags={len(frags)}, smiles={smiles}")
 
     energy = props["energy"]
+    total_energy = energy.get("total")
+    if total_energy is None or total_energy >= 0:
+        raise ValueError(f"[EnergyError] energy={total_energy}")
+
     ret = dict(
         formula=js["pubchem"]["molecular formula"],
         smiles=smiles,
@@ -251,7 +255,7 @@ if __name__ == "__main__":
     arg_parser = ArgumentParser(
         description="Build dataset from PubChemQC-B3LYP//PM data",
         formatter_class=ArgumentDefaultsHelpFormatter,
-        epilog="Example: python data/pubchemqc/b3lyp_pm6.py"
+        epilog="Example: python sfm/data/mol_data/pubchemqc/b3lyp_pm6.py"
         " --data-dir /data/psm/PubChemQC-B3LYP-PM6/raw/Compounds"
         " --output-dir /data/psm/PubChemQC-B3LYP-PM6"
         " --version 20240419.1"
