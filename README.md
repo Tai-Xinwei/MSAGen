@@ -32,7 +32,7 @@ For submitting jobs on clusters, there is no additional installation steps since
 # ...... target information .....
 
 environment:
-  image: ai4s-sfm:20240429.081857
+  image: ai4s-sfm:20240531.170731
   registry: msroctocr.azurecr.io  # or msrresrchcr.azurecr.io
   username: msroctocr  # or msrresrchcr
 
