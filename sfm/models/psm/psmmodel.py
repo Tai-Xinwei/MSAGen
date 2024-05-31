@@ -739,6 +739,7 @@ class PSM(nn.Module):
         is_periodic = batched_data["is_periodic"]
         is_molecule = batched_data["is_molecule"]
         is_protein = batched_data["is_protein"]
+
         # B, L, H is Batch, Length, Hidden
         # token_embedding: B x L x H
         # padding_mask: B x L
@@ -746,6 +747,7 @@ class PSM(nn.Module):
         token_embedding, padding_mask, token_type, time_embed = self.embedding(
             batched_data, time_step, clean_mask, aa_mask
         )
+
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
         if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
@@ -830,7 +832,7 @@ class PSM(nn.Module):
         if self.encoder is not None:
             aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
         else:
-            aa_logits = self.aa_mask_head(decoder_x_output)  # @Peiran
+            aa_logits = self.aa_mask_head(decoder_x_output)
 
         result_dict = {
             "energy_per_atom": energy_per_atom,

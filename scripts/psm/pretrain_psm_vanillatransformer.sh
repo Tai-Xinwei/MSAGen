@@ -40,6 +40,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
+[ -z "${val_batch_interval}" ] && val_batch_interval=10000
 
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
@@ -92,6 +93,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=False
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
+[ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
+[ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -211,7 +214,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
           finetune_from_checkpoint_dir=$loadcheck_path \
-          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
+          use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          val_batch_interval=$val_batch_interval \
 
           # --ifstack \
           # --use_2d_atom_features --use_2d_bond_features \

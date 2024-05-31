@@ -41,7 +41,6 @@ export MKL_THREADING_LAYER="GNU"
 [ -z "${save_batch_interval}" ] && save_batch_interval=2500
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
-[ -z "${val_batch_interval}" ] && val_batch_interval=0
 
 [ -z "${mode_prob}" ] && mode_prob="0.1,0.2,0.6,0.1" #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
@@ -55,7 +54,7 @@ export MKL_THREADING_LAYER="GNU"
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${fp16}" ] && fp16=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/global_step48063/mp_rank_00_model_states.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3_prot/checkpoints/global_step29295/mp_rank_00_model_states.pt"
 [ -z "${save_dir}" ] && save_dir="/home/peiranjin/expresult/psmexp/output/psmv1_vt_v3/"
 # [ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/pfmexp/output/psmv1_vt_v3/checkpoints/global_step48063/mp_rank_00_model_states.pt"
 # [ -z "${save_dir}" ] && save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/"
@@ -177,6 +176,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/generate_psm_protein.py \
           backbone=vanillatransformer \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
+          num_pred_attn_layer=$num_pred_attn_layer \
           encoder_ffn_embed_dim=$ffn_size \
           encoder_embed_dim=$hidden_size \
           droppath_prob=$droppath_prob \
@@ -195,13 +195,11 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/generate_psm_protein.py \
           psm_validation_mode=True \
           mask_ratio=$mask_ratio \
           noise_scale=$noise_scale \
-          num_pred_attn_layer=$num_pred_attn_layer \
           d_tilde=$d_tilde \
           strategy=$strategy \
           max_lr=$max_lr \
           diffusion_mode=\"$diffusion_mode\" \
           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
-          use_2d_atom_features=True use_2d_bond_features=True \
           total_num_steps=$total_num_steps \
           warmup_num_steps=$warmup_num_steps \
           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
