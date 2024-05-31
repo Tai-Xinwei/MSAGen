@@ -30,7 +30,7 @@ class ProteinSamplingDataset(AFDBLMDBDataset):
         value = self.txn.get(key)
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
-        toks = bstr2obj(value)
+        toks = bstr2obj(value)["seq"]
 
         data = {}
 

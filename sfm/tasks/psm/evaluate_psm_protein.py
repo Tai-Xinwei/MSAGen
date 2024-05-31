@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
 import os
+import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from typing import Any, Dict
 
 import hydra
+import lmdb
 import numpy as np
 import torch
 from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING, DictConfig, OmegaConf
-from tqdm import tqdm
 
 import wandb  # isort:skip
 
@@ -22,6 +24,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 from torch.utils.data import DataLoader, DistributedSampler
 
+from sfm.data.prot_data.util import bstr2obj, obj2bstr
 from sfm.data.psm_data.ft_prot_dataset import ProteinSamplingDataset
 from sfm.logging import logger
 from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions
@@ -71,6 +74,95 @@ cs = ConfigStore.instance()
 cs.store(name="config_psm_schema", node=Config)
 
 
+def generate_pdbcontext_from_lmdb(lmdbdir):
+    pdbcontext = {}
+    with lmdb.open(lmdbdir, readonly=True).begin(write=False) as txn:
+        metadata = bstr2obj(txn.get("__metadata__".encode()))
+        logger.info(f"{len(metadata['keys'])} keys in {lmdbdir}")
+        logger.info(f"{len(metadata['sizes'])} sizes in {lmdbdir}")
+        for key, length in zip(metadata["keys"], metadata["sizes"]):
+            value = txn.get(key.encode())
+            assert value, f"Key {key} not found."
+            data = bstr2obj(value)
+            assert data.keys() == {"seq", "pdb"}, f"Wrong keys {data.keys()}."
+            pdbcontext[key] = data["pdb"]
+    return pdbcontext
+
+
+def TMscore4Pair(predicted_pdb, native_pdb):
+    """Calculate model score by using TMscore program"""
+    # intialization
+    score = {
+        "PredictedPDB": os.path.basename(predicted_pdb),
+        "NativePDB": os.path.basename(native_pdb),
+        "PredictedLen": 0,
+        "NativeLen": 0,
+        "AlignLen": 0,
+        "RMSD": 0.0,
+        "TMscore": 0.0,
+        "MaxSub": 0.0,
+        "GDT_TS": 0.0,
+        "GDT_HA": 0.0,
+    }
+
+    status, _ = subprocess.getstatusoutput("which TMscore")
+    if status != 0:
+        logger.warning("TMscore does not exist in $PATH")
+        return score
+
+    if not os.path.exists(predicted_pdb):
+        logger.warning(f"cannot found predicted model {predicted_pdb}")
+        return score
+
+    if not os.path.exists(native_pdb):
+        logger.warning(f"cannot found native structure {native_pdb}")
+        return score
+
+    # execuate command and get output
+    cmds = ["TMscore", predicted_pdb, native_pdb]
+    logger.info(" ".join(cmds))
+
+    # open a temporary file and write the output to this file
+    lines = []
+    with tempfile.TemporaryFile() as tmp:
+        proc = subprocess.Popen(cmds, stdout=tmp, stderr=tmp)
+        proc.wait()
+        tmp.seek(0)
+        lines = [_.decode("utf-8") for _ in tmp.readlines()]
+
+    # parse model score
+    for i, l in enumerate(lines):
+        cols = l.split()
+        if l.startswith("Structure1:") and len(cols) > 3:
+            score["PredictedLen"] = int(cols[3])
+        elif l.startswith("Structure2:") and len(cols) > 3:
+            score["NativeLen"] = int(cols[3])
+        elif l.startswith("Number") and len(cols) > 5:
+            score["AlignLen"] = int(cols[5])
+        elif l.startswith("RMSD") and len(cols) > 5:
+            score["RMSD"] = float(cols[5])
+        elif l.startswith("TM-score") and len(cols) > 2:
+            score["TMscore"] = float(cols[2])
+        elif l.startswith("MaxSub") and len(cols) > 1:
+            score["MaxSub"] = float(cols[1])
+        elif l.startswith("GDT-TS") and len(cols) > 1:
+            score["GDT_TS"] = float(cols[1]) * 100
+        elif l.startswith("GDT-HA") and len(cols) > 1:
+            score["GDT_HA"] = float(cols[1]) * 100
+        elif l.startswith('(":"'):
+            i += 1
+            break
+        else:
+            continue
+        logger.info(l, end="")
+
+    # check data format and TMscore output
+    if len(lines) != i + 5 or lines[-1] != "\n":
+        logger.warning(f"wrong TMscore between {predicted_pdb} and {native_pdb}")
+
+    return score
+
+
 @hydra.main(
     version_base="1.3",
     config_path="../../../config_file",
@@ -102,12 +194,15 @@ def main(args: DictConfig) -> None:
         drop_last=False,
     )
 
-    print(f"Start to predict protein structure for {args.data_path}.")
+    logger.info(f"Loading pdb atomlines from {args.data_path}.")
+    pdbcontext = generate_pdbcontext_from_lmdb(args.data_path)
+
+    logger.info(f"Start to predict protein structure for {args.data_path}.")
     for idx, data in enumerate(train_data_loader):
         target = dataset.keys[idx].split(" ")[0]
         data = {k: v.cuda() for k, v in data.items()}
         sequence = data["token_id"][0].cpu().tolist()
-        print(f"Sequence name is {target} and length is {len(sequence)}.")
+        logger.info(f"Sequence name is {target} and length is {len(sequence)}.")
 
         # predict CA position for sequence
         result = model.sample(data, data)
@@ -120,9 +215,9 @@ def main(args: DictConfig) -> None:
         elif target[0] == "T":
             tarname, chain = target, " "
         else:
-            print(f"ERROR: {target} may be a wrong name.", file=sys.stderr)
+            logger.warning(f"ERROR: {target} may be a wrong name.")
             tarname, chain = target, " "
-        print(target, tarname, chain)
+        logger.info(target, tarname, chain)
 
         # generate atom lines with atom position
         coords = pred_pos[0]
@@ -138,12 +233,20 @@ def main(args: DictConfig) -> None:
         atomlines.append("TER\n")
         atomlines.append("END\n")
 
-        # write results to .pdb
+        # write results to *.pdb
         model_num = 1
         pdb_file = os.path.join(args.save_dir, f"{target}-{model_num}.pdb")
         with open(pdb_file, "w") as fp:
             fp.writelines(atomlines)
-        print(f"Predict structure for {target} and write {pdb_file} done.")
+        logger.info(f"Predicted structure for {target} written to {pdb_file}")
+
+        # evaluate predicted structure by TMalign/TMscore
+        print("Calculate TMscore between predicted and native pdb")
+        with tempfile.NamedTemporaryFile() as tmp:
+            with open(tmp.name, "w") as fp:
+                fp.writelines(pdbcontext[target])
+            score = TMscore4Pair(pdb_file, tmp.name)
+            print(score)
 
 
 if __name__ == "__main__":
