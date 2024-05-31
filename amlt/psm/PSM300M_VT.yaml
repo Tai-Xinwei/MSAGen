@@ -15,6 +15,9 @@ env_defaults:
   # service: sing
   # name: baltic02
   # workspace_name: msrresrchws
+  # service: sing
+  # name: baltic02
+  # workspace_name: msrresrchws
 
 target:
     service: aml

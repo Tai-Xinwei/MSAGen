@@ -187,6 +187,7 @@ docs/result/
 *.html
 
 *.cif
+*.pdb
 
 # vim swap files
 *.sw*

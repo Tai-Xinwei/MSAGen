@@ -92,7 +92,8 @@ export MKL_THREADING_LAYER="GNU"
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=False
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
-
+[ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
+[ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -177,10 +178,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/generate_psm_protein.py \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
           num_pred_attn_layer=$num_pred_attn_layer \
-          encoder_ffn_embed_dim=$ffn_size \
           encoder_embed_dim=$hidden_size \
-          droppath_prob=$droppath_prob \
-          attn_dropout=$attn_dropout \
           act_dropout=$act_dropout \
           dropout=$dropout \
           weight_decay=$weight_decay \
@@ -195,19 +193,11 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/generate_psm_protein.py \
           psm_validation_mode=True \
           mask_ratio=$mask_ratio \
           noise_scale=$noise_scale \
-          d_tilde=$d_tilde \
-          strategy=$strategy \
-          max_lr=$max_lr \
-          diffusion_mode=\"$diffusion_mode\" \
           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
           total_num_steps=$total_num_steps \
           warmup_num_steps=$warmup_num_steps \
           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
           gradient_accumulation_steps=$gradient_accumulation_steps \
-          save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
-          save_batch_interval=$save_batch_interval log_interval=$log_interval loadcheck_path=$loadcheck_path \
-          equivar_vec_init=$equivar_vec_init pbc_use_local_attention=$pbc_use_local_attention \
-          pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
           diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
           diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \

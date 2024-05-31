@@ -1,0 +1,52 @@
+description: psm
+
+env_defaults:
+  NODES: 4
+  GPUS: 8
+  WANDB_API_KEY: "local-138548ae9c9a3b39646af8ae2c4c6d4e22c51385"
+  JOBNAME: mock
+
+
+target:
+  service: sing
+  # name: msrresrchlab
+  name: msrresrchvc
+  workspace_name: msrresrchws
+
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msroctocr.azurecr.io
+  username: msroctocr
+
+
+storage:
+  blob:
+    storage_account_name: hai1data
+    container_name: pfm
+    mount_dir: /blob
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: ${JOBNAME}
+  # sku: 32G8-V100-IB
+  sku: 80G4-A100-NvLink
+  priority: high
+  sla_tier: premium
+  mpi: true
+  process_count_per_node: 1
+  command:
+  # run the task
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - python tools/mock/code/mock.py 0.8
+  - sleep infinity
+  - sleep infinity
+  - sleep infinity
+  submit_args:
+    env:
+      {SHARED_MEMORY_PERCENT: 1.0}
+    container_args:
+      shm_size: 1024g
