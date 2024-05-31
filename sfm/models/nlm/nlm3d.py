@@ -11,12 +11,14 @@ from megatron.core import parallel_state, tensor_parallel
 from megatron.model.enums import AttnMaskType
 from sfm.logging import logger
 from sfm.models.llama2.llama2mp_config import MPLlamaConfig
+from sfm.models.llama2.llama_modules import LlamaDecoderLayerPP, LlamaHead, LlamaNorm
 from sfm.models.llama2.llama_modules_3dmp import (
     FusedLlamaNorm,
     LlamaDecoderLayerMP,
     LlamaHeadMP,
     LlamaLLMEmbeddingsMP,
 )
+from sfm.models.scigpt.modules import SciGPTEmbeddingsPP
 
 try:
     from sfm.models.llama2.llama_modules_3dmp_te import (
@@ -67,7 +69,7 @@ class NLM3dModel(SFMPipelineModelMixin):
         pretrained_ckpt_path = os.path.join(
             self.args.pretrained_ckpt_path, "layer_00-model_00-model_states.pt"
         )
-        if not os.path.exists(pretrained_ckpt_path):
+        if os.path.exists(pretrained_ckpt_path):
             prefix1 = "layer_"
             frefix2 = "-model_00-model_states.pt"
         else:

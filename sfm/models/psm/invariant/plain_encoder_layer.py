@@ -10,7 +10,7 @@ from sfm.modules.FairseqDropout import FairseqDropout
 
 # from fairseq import utils
 from sfm.modules.get_activation_fn import get_activation_fn
-from sfm.modules.mem_eff_attn import MemEffSelfAttn
+from sfm.modules.mem_eff_attn import MemEffAttn, MemEffSelfAttn
 
 
 class PSMPlainEncoderLayer(nn.Module):
