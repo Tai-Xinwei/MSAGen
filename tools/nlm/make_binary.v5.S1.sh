@@ -45,6 +45,8 @@ FILE_PATH_IN_BLOB_LIST=(
         /blob/shufxi/data/scigpt/materials_project_data/train_x10.txt
         /blob/yinxia/wu2/shared/SFM/SFM.overall.data/X-text/smallmol_property_train.txt
         /blob/shufxi/data/scitpt/bindingdb_ec50/train_x2.txt
+        /blob/yinxia/wu2/shared/SFM/SFM.overall.data/text/clinical_trial_intro.txt
+        /blob/yinxia/wu2/shared/SFM/SFM.overall.data/text/train.patent.v2.txt
 )
 
 
