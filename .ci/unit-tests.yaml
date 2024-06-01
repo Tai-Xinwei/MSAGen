@@ -62,7 +62,7 @@ steps:
     eval "$(conda shell.bash hook)"
     conda activate $(CONDA_ENV_DIR)/$(CONDA_ENV_NAME)
     # Install deps that are missing in the cached conda environment
-    pip install deepspeed==0.14.0 sacremoses==0.1.1 torch-tb-profiler==0.4.3 hydra-core
+    pip install deepspeed==0.14.0 sacremoses==0.1.1 torch-tb-profiler==0.4.3 hydra-core torch-geometric==2.5.3
     pip install -e . --no-deps
     python setup_cython.py build_ext --inplace
     pytest tests/
