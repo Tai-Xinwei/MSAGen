@@ -20,10 +20,10 @@ export MKL_THREADING_LAYER='GNU'
 
 # In this stage, the grad is too large to use grad accumulation
 [ -z "${strategy}" ] && strategy=ThreeD
-[ -z "${train_batch_size}" ] && train_batch_size=1
+[ -z "${train_batch_size}" ] && train_batch_size=8
 [ -z "${val_batch_size}" ] && val_batch_size=$train_batch_size
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=4
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=2
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayer"
 
@@ -37,7 +37,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_train/train.npy'
 [ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_300B/valid_lmdb/'
 [ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_300B/valid_lmdb/'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageA/global_step11562'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/hai1data/sfm/llama/Meta-Llama-3-8B/original'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageB/'
 [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageA/'
 
