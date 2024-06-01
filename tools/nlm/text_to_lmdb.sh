@@ -10,13 +10,12 @@ set -exuo pipefail
 BLOB_URL='https://msralaphilly2.blob.core.windows.net/ml-la'
 
 FILE_PATH_IN_BLOB_LIST=(
-        /home/v-zekunguo/zekun_data/scidata/raw_data/valid.c4
-        /home/v-zekunguo/zekun_data/scidata/raw_data/valid.pubmedabs
-        # /home/v-zekunguo/data/v-zequnliu/mix_pretrain/valid.pubmedabs
-        # /home/v-zekunguo/data/yinxia/wu2/shared/SFM/SFM.overall.data/molecule/valid.pubchem.pureSMILES.randomRoot.10k
-        # /home/v-zekunguo/data/lihe/scigpt/data/ur90/valid.uniref90.shuf.10k
-        # /home/v-zekunguo/data/lihe/scigpt/data/dna/sequence/valid.DNASeq.20Btoken.10k
-        # /home/v-zekunguo/data/lihe/scigpt/data/rna/20.0/valid.rnacentral.10k
+        /home/v-zekunguo/data/yinxia/wu2/shared/SFM/SFM.overall.data/text/valid.patent.v2.txt
+        /home/v-zekunguo/data/yinxia/wu2/shared/SFM/SFM.overall.data/text/GPT4-rewrite-nc-cell-medrxiv.txt
+        /home/v-zekunguo/data/yinxia/wu2/shared/SFM/SFM.overall.data/text/material_doc_from_ziheng
+        /home/v-zekunguo/data/yinxia/wu2/shared/SFM/SFM.overall.data/text/train.patent.v2.txt
+        /home/v-zekunguo/data/yinxia/wu2/shared/SFM/SFM.overall.data/text/clinical_trial_intro.txt
+        # /home/v-zekunguo/data/yinxia/wu2/shared/SFM/SFM.overall.data/text/SlimPajama_train_sample_300B.txt
         # /blob/v-zequnliu/mix_pretrain/train.c4
         # /blob/v-zequnliu/mix_pretrain/train.pubmedabs
         # /blob/v-kehanwu/data/filtered_data_new/biorxiv.txt
@@ -52,20 +51,22 @@ FILE_PATH_IN_BLOB_LIST=(
         # /blob/shufxi/data/scigpt/materials_project_data/train_x10.txt
         # /blob/yinxia/wu2/shared/SFM/SFM.overall.data/X-text/smallmol_property_train.txt
         # /blob/shufxi/data/scitpt/bindingdb_ec50/train_x2.txt
+        # /blob/yinxia/wu2/shared/SFM/SFM.overall.data/text/clinical_trial_intro.txt
+        # /blob/yinxia/wu2/shared/SFM/SFM.overall.data/text/train.patent.v2.txt
 )
 
 
 declare -a TRAIN_FILES_LIST
 L=${#FILE_PATH_IN_BLOB_LIST[@]}
-# S=$1
-# E=$2
+S=$1
+E=$2
 CPUID=$1
 
 echo "there are ${L} files to be processed"
 # echo "processing ${S} to ${E}"
 
 
-for ((ii=0;ii<L;ii+=1)); do
+for ((ii=S;ii<E;ii+=1)); do
     FILE_PATH_IN_BLOB=${FILE_PATH_IN_BLOB_LIST[${ii}]}
     echo $FILE_PATH_IN_BLOB
 
@@ -84,7 +85,8 @@ done
 
 TRAIN_FILES=$(IFS=',' ; echo "${TRAIN_FILES_LIST[*]}")
 
-TARGET_FOLDER="/home/v-zekunguo/zekun_data/scidata/tmp"
+# TARGET_FOLDER="/home/v-zekunguo/zekun_data/scidata/tmp"
+TARGET_FOLDER="/home/v-zekunguo/data/yinxia/wu2/shared/SFM/SFM.overall.data/lmdb"
 mkdir -p "${TARGET_FOLDER}"
 WORKERS=$(nproc)
 
