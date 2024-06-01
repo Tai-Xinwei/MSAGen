@@ -130,7 +130,6 @@ def main(args) -> None:
 
     logger.info(f"length of dataset: {len(data_module['train_dataset'])}")
     logger.info(f"vocab size: {data_module['vocab_size']}")
-
     model = ProGPTModel(args, data_module["vocab_size"])
 
     trainer = Trainer(

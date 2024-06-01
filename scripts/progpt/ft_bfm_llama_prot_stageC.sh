@@ -17,36 +17,34 @@
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=2e-5
-[ -z "${total_num_steps}" ] && total_num_steps=100000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=600
+[ -z "${total_num_steps}" ] && total_num_steps=7000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=500
 # training parameters for generalist
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=32
 [ -z "${train_batch_size}" ] && train_batch_size=256
 [ -z "${val_batch_size}" ] && val_batch_size=256
 # [ -z "${train_batch_size}" ] && train_batch_size=32
 
-[ -z "${train_data_path}" ] && train_data_path='/blob/v-zekunguo/nlm/data/progpt_train_bpe_inst.lmdb'
-[ -z "${valid_data_path}" ] && valid_data_path='/blob/v-zekunguo/nlm/data/progpt_valid_bpe_inst.lmdb'
+[ -z "${train_data_path}" ] && train_data_path='/blob/v-zekunguo/nlm/data/train_progpt_inst_no_design_add_bpe.lmdb/'
+[ -z "${valid_data_path}" ] && valid_data_path='/blob/v-zekunguo/nlm/data/test_progpt_inst_no_design_add_bpe.lmdb/'
 
 [ -z "${pool_mode}" ] && pool_mode='full'
 [ -z "${embedding_length}" ] && embedding_length=20
 [ -z "${model_max_length}" ] && model_max_length=2048
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="."
-[ -z "${save_dir}" ] && save_dir='/blob/v-zekunguo/nlm/checkpoints/bfm_scigpt_prot/stageB'
+[ -z "${save_dir}" ] && save_dir='/blob/v-zekunguo/nlm/checkpoints/stageC_bpe2e5'
 [ -z "${loadbfmckpt_path}" ] && loadbfmckpt_path='/hai1.sfm/nlm/output/checkpoint_E144_new.pt'
 # [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/hai1/ds_dataset/llama2/llama-2-7b"
+[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/scigpt/stageB.prot/global_step224655"
+[ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir="/blob/v-zekunguo/nlm/checkpoints/bfm_scigpt_prot/useful/stageB"
 
-[ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/data/peiran/blob/msralaphilly2/ml-la/v-kehanwu/SFM/scigpt/stageB.prot/global_step224655"
-[ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir="/data/peiran/blob/hai1data/sfm/pfmexp/output/stageB/"
-[ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step12386"
-# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/nlm/checkpoints/bfm_scigpt_prot/global_step20499"
-# [ -z "${llm_model_name_or_path}" ] && llm_model_name_or_path="/blob/v-kehanwu/SFM/scigpt/stageB/global_step32999"
-[ -z "${tokenizer_path}" ] && tokenizer_path="/data/peiran/blob/msralaphilly2/ml-la/shufxi/data/scigpt"
+[ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step23241"
+
+[ -z "${tokenizer_path}" ] && tokenizer_path="/blob/shufxi/data/scigpt"
 
 [ -z "${save_batch_interval}"] && save_batch_interval=500
 [ -z "${log_interval}" ] && log_interval=20
-
 
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
@@ -67,6 +65,12 @@
 [ -z "${wandb_team}" ] && wandb_team=large-scale-pde
 [ -z "${wandb_project}" ] && wandb_project=sfm_test
 [ -z "${wandb_key}" ] && wandb_key=local-84c43c09161e2c012c3317ccb9becc6148001b8e
+
+# [ -z "${wandb_group}" ] && wandb_group=NLM
+# [ -z "${wandb_team}" ] && wandb_team=HankerWu
+# [ -z "${wandb_project}" ] && wandb_project=sfm
+# [ -z "${wandb_key}" ] && wandb_key=140f5ace0c8e16afe6efe3921fa0d90d1c7a3e61
+
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -168,13 +172,14 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/progpt/ft_bfm_llama_inst.py \
           --loadbfmckpt_path $loadbfmckpt_path \
           --log_interval $log_interval \
           --save_batch_interval $save_batch_interval \
-          --unfreeze_param_list "mol_adaptor,mol_rep_layernorm,0.layers" \
+          --unfreeze_param_list "" \
           --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
           --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
           --finetune_from_checkpoint_id $finetune_from_checkpoint_id \
+          --instruction_mode \
           # --ifresume
 
 
-sleep inf
-sleep inf
-sleep inf
+# sleep inf
+# sleep inf
+# sleep inf

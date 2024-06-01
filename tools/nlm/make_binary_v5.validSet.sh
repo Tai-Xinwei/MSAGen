@@ -16,6 +16,7 @@ FILE_PATH_IN_BLOB_LIST=(
         /blob/lihe/scigpt/data/ur90/valid.uniref90.shuf.10k
         /blob/lihe/scigpt/data/dna/sequence/valid.DNASeq.20Btoken.10k
         /blob/lihe/scigpt/data/rna/20.0/valid.rnacentral.10k
+        /blob/yinxia/wu2/shared/SFM/SFM.overall.data/text/valid.patent.v2.txt
 )
 
 
