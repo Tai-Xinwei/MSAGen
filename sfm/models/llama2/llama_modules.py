@@ -211,8 +211,8 @@ class LlamaDecoderLayerPP(LlamaDecoderLayer):
     ):
         config._attn_implementation = "sdpa"
         super().__init__(config, layer_index)
-        if enable_mem_efficient:
-            self.self_attn = LlamaEfficientAttention(config, use_flash_attention)
+        # if enable_mem_efficient:
+        # self.self_attn = LlamaEfficientAttention(config, use_flash_attention)
 
         self.config = config
         self.layer_index = layer_index
@@ -243,12 +243,17 @@ class LlamaDecoderLayerPP(LlamaDecoderLayer):
         """
         hidden_states, attention_mask_bool, position_ids = input_tuple
 
-        attention_mask = torch.zeros_like(
-            attention_mask_bool, dtype=hidden_states.dtype, device=hidden_states.device
-        )
-        attention_mask.masked_fill_(
-            ~attention_mask_bool, torch.finfo(hidden_states.dtype).min
-        )
+        if (~attention_mask_bool).any() is True:
+            attention_mask = torch.zeros_like(
+                attention_mask_bool,
+                dtype=hidden_states.dtype,
+                device=hidden_states.device,
+            )
+            attention_mask.masked_fill_(
+                ~attention_mask_bool, torch.finfo(hidden_states.dtype).min
+            )
+        else:
+            attention_mask = None
 
         hidden_states = super().forward(
             hidden_states=hidden_states,

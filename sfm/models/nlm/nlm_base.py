@@ -43,9 +43,11 @@ class NLMBaseModel(NLM3dModel):
         llama_config = self.init_config(args, llama_config, vocab_size)
         self.mp_config = self.init_mp_config(args, llama_config)
 
-        self.net = NLMBaseCausalLM(args, self.mp_config)
-        # self.loss_fn = AutoregressiveCriterion(self.mp_config)
-        self.loss_fn = AutoregressiveThreeDCriterion(self.mp_config)
+        if args.infer:
+            self.net = NLMBaseCausalLM(args, self.mp_config)
+            self.loss_fn = AutoregressiveCriterion(self.mp_config)
+        else:
+            self.loss_fn = AutoregressiveThreeDCriterion(self.mp_config)
 
     def compute_loss(self, model_output, label) -> ModelOutput:
         loss, log_loss = self.loss_fn(model_output, label)

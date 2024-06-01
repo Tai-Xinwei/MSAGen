@@ -162,6 +162,7 @@ class NlmLlama3Tokenizer(PreTrainedTokenizerFast):
         self.add_special_tokens(
             {
                 "pad_token": "[PAD]",
+                "unk_token": "<unk>",
             },
         )
 
