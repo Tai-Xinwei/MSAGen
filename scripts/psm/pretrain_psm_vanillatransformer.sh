@@ -217,7 +217,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           finetune_from_checkpoint_dir=$loadcheck_path \
           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
-          val_batch_interval=$val_batch_interval \
 
           # --ifstack \
           # --use_2d_atom_features --use_2d_bond_features \

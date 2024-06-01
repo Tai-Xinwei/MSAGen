@@ -6,7 +6,7 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=24
+[ -z "${layers}" ] && layers=12
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
@@ -23,7 +23,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
-[ -z "${diffmode}" ] && diffmode=x0
+[ -z "${diffmode}" ] && diffmode=epsilon
 [ -z "${lamb_pde}" ] && lamb_pde=0.01
 # [ -z "${seq_masking_method}" ] && seq_masking_method=continuousMask
 [ -z "${seq_masking_method}" ] && seq_masking_method=transformerM
@@ -47,10 +47,10 @@ export MKL_THREADING_LAYER='GNU'
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/AFDB50-plddt70.lmdb/'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq1024_ddpm_dist/'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1441_m5_seq1024_ddpm_dist_9d/'
 # [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/pfmdiff150M1024_prob1261_m5_seq1024_ddpm_dist/'
 # [ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/pfmdiff150M1024_prob1261_m5_seq1024_ddpmx0_dist/'
-[ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/pfmdiff150M1024_prob1441_m5_seq1024_ddpmx0_dist_6d/'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/expresult/pfmdiff150M1024_prob1441_m5_seq1024_ddpm_dist_9d/'
 # [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir='/data/peiran/expresult/pfmdiff150M1024_prob1261_m5_seq1024_ddpm_dist_v3/'
 
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
