@@ -79,7 +79,7 @@ class NLM3dModel(SFMPipelineModelMixin):
         pipe_layer.extend(
             [
                 PretrainedLayerSpec(
-                    LlamaLLMEmbeddingsMP,
+                    SciGPTEmbeddingsPP,
                     self.mp_config,
                     learnable_cutoff=self.args.learnable_cutoff,
                     new_num_tokens=self.mp_config.vocab_size,
@@ -88,8 +88,8 @@ class NLM3dModel(SFMPipelineModelMixin):
                         self.args.pretrained_ckpt_path, f"{prefix1}00{frefix2}"
                     ),
                     lora_mode="full",
-                    tp_model_size=self.args.tensor_model_parallel_size,
-                    tp_rank=parallel_state.get_tensor_model_parallel_rank(),
+                    # tp_model_size=self.args.tensor_model_parallel_size,
+                    # tp_rank=parallel_state.get_tensor_model_parallel_rank(),
                 )
             ]
         )
@@ -97,7 +97,7 @@ class NLM3dModel(SFMPipelineModelMixin):
         for i in range(self.mp_config.num_hidden_layers):
             pipe_layer.append(
                 PretrainedLayerSpec(
-                    TELlamaDecoderLayerMP,
+                    LlamaDecoderLayerPP,
                     self.mp_config,
                     i,
                     load_ckpt=self.args.load_ckpt,
@@ -106,27 +106,27 @@ class NLM3dModel(SFMPipelineModelMixin):
                         f"{prefix1}{str(i+1).zfill(2)}{frefix2}",
                     ),
                     lora_mode="full",
-                    tp_model_size=self.args.tensor_model_parallel_size,
-                    tp_rank=parallel_state.get_tensor_model_parallel_rank(),
-                    self_attn_mask_type=AttnMaskType.causal,
+                    # tp_model_size=self.args.tensor_model_parallel_size,
+                    # tp_rank=parallel_state.get_tensor_model_parallel_rank(),
+                    # self_attn_mask_type=AttnMaskType.causal,
                 )
             )
         pipe_layer.append(
             PretrainedLayerSpec(
-                FusedLlamaNorm,
+                LlamaNorm,
                 self.mp_config,
                 load_ckpt=self.args.load_ckpt,
                 pretrained_ckpt_path=os.path.join(
                     self.args.pretrained_ckpt_path, f"{prefix1}33{frefix2}"
                 ),
                 lora_mode="full",
-                tp_model_size=self.args.tensor_model_parallel_size,
-                tp_rank=parallel_state.get_tensor_model_parallel_rank(),
+                # tp_model_size=self.args.tensor_model_parallel_size,
+                # tp_rank=parallel_state.get_tensor_model_parallel_rank(),
             )
         )
         pipe_layer.append(
             PretrainedLayerSpec(
-                LlamaHeadMP,
+                LlamaHead,
                 self.mp_config,
                 learnable_cutoff=self.args.learnable_cutoff,
                 new_num_tokens=self.mp_config.vocab_size,
@@ -135,8 +135,8 @@ class NLM3dModel(SFMPipelineModelMixin):
                     self.args.pretrained_ckpt_path, f"{prefix1}34{frefix2}"
                 ),
                 lora_mode="full",
-                tp_model_size=self.args.tensor_model_parallel_size,
-                tp_rank=parallel_state.get_tensor_model_parallel_rank(),
+                # tp_model_size=self.args.tensor_model_parallel_size,
+                # tp_rank=parallel_state.get_tensor_model_parallel_rank(),
             )
         )
 
