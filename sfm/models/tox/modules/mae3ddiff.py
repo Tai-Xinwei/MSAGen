@@ -129,7 +129,7 @@ class ProteinMAEDistCriterions(nn.Module):
             )
 
             if self.diffmode == "epsilon":
-                ang_epsilon = ang_epsilon[:, :, :3]
+                ang_epsilon = ang_epsilon[:, :, :6]
                 ang_epsilon = ang_epsilon[unified_angle_mask]
                 epsilon_pred = angle_output[unified_angle_mask]
                 angle_loss = ((ang_epsilon - epsilon_pred) ** 2).mean()

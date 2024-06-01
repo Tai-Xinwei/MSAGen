@@ -9,14 +9,11 @@ from typing import Dict, Optional, Tuple
 
 import torch
 from torch import Tensor, nn
+from torch.nn.attention import SDPBackend, sdpa_kernel
 
 from sfm.logging import logger
-from sfm.modules.FairseqDropout import FairseqDropout
-from sfm.modules.layer_norm import Fp32LayerNorm, LayerNorm
 from sfm.modules.quant_noise import quant_noise
 from sfm.modules.rotary_embedding import RotaryEmbedding
-
-# from torch.nn.attention import SDPBackend, sdpa_kernel
 
 
 class MemEffAttn(nn.Module):
@@ -236,12 +233,7 @@ class MemEffAttn(nn.Module):
         # FutureWarning: torch.backends.cuda.sdp_kernel() is deprecated. In the future, this context manager will be removed.
         # Please see, torch.nn.attention.sdpa_kernel() for the new context manager, with updated signature.
         # with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
-        # with sdpa_kernel(
-        #     [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
-        # ):
-        with torch.backends.cuda.sdp_kernel(
-            enable_math=True, enable_mem_efficient=True, enable_flash=True
-        ):
+        with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
             attn = torch.nn.functional.scaled_dot_product_attention(
                 q,
                 k,
@@ -399,12 +391,7 @@ class MemEffSelfAttn(nn.Module):
         # FutureWarning: torch.backends.cuda.sdp_kernel() is deprecated. In the future, this context manager will be removed.
         # Please see, torch.nn.attention.sdpa_kernel() for the new context manager, with updated signature.
         # with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
-        # with sdpa_kernel(
-        #     [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
-        # ):
-        with torch.backends.cuda.sdp_kernel(
-            enable_math=False, enable_mem_efficient=True, enable_flash=True
-        ):
+        with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
             attn = torch.nn.functional.scaled_dot_product_attention(
                 q,
                 k,

@@ -63,7 +63,7 @@ class AutoregressiveCriterion(nn.Module):
         self.vocab_size = config.vocab_size
 
     def forward(self, model_output, label_tuple):
-        labels, _ = label_tuple[0]
+        labels = label_tuple[0]
         logits = model_output[0]
 
         shift_logits = logits[..., :-1, :].contiguous()
