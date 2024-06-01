@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import rdkit
 import torch
-from PyAstronomy import pyasl
+from rdkit import Chem
 from rdkit.Chem import Atom, Mol, RWMol, rdDistGeom
 from rdkit.Chem.rdMolAlign import AlignMol
 from rdkit.Chem.rdmolfiles import MolToMolFile
@@ -64,7 +64,7 @@ CONVERTER_REGISTER: Union[Dict[str, BaseConverter.__class__], Register] = Regist
 class MoleculeConverter(BaseConverter):
     def __init__(self) -> None:
         super().__init__()
-        self.atomic_number_map = pyasl.AtomicNo()
+        self.periodic_table = Chem.GetPeriodicTable()
 
     def _add_bond_to_mol(self, mol: RWMol, edge_index, edge_attr, num_edges):
         edge_index = edge_index[:num_edges].reshape(num_edges // 2, 2, -1)[
@@ -81,7 +81,7 @@ class MoleculeConverter(BaseConverter):
 
     def _add_atoms_to_mol(self, mol: RWMol, atomic_numbers: Tensor):
         for atomic_number in atomic_numbers:
-            mol.AddAtom(Atom(self.atomic_number_map.getElSymbol(int(atomic_number))))
+            mol.AddAtom(Atom(self.periodic_table.GetElementSymbol(int(atomic_number))))
 
     def _add_pos_to_mol(self, mol: RWMol, pos: Tensor):
         rdDistGeom.EmbedMolecule(

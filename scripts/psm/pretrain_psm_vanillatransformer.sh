@@ -93,7 +93,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=False
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
-[ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
+[ -z "${use_2d_atom_features}" ] && use_2d_atom_features=False
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 
 echo -e "\n\n"
@@ -194,6 +194,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           d_tilde=$d_tilde \
           strategy=$strategy \
           max_lr=$max_lr \
+          ifresume=True \
           diffusion_mode=\"$diffusion_mode\" \
           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
           total_num_steps=$total_num_steps \
