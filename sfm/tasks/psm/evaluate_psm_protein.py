@@ -9,6 +9,7 @@ from typing import Any, Dict
 import hydra
 import lmdb
 import numpy as np
+import pandas as pd
 import torch
 from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING, DictConfig, OmegaConf
@@ -154,7 +155,7 @@ def TMscore4Pair(predicted_pdb, native_pdb):
             break
         else:
             continue
-        logger.info(l, end="")
+        logger.info(l.rstrip("\n"))
 
     # check data format and TMscore output
     if len(lines) != i + 5 or lines[-1] != "\n":
@@ -181,6 +182,7 @@ def main(args: DictConfig) -> None:
     model = PSMModel(args, loss_fn=DiffMAE3dCriterions).cuda()
     model.eval()
 
+    logger.info(f"Loading test dataset from {args.data_path}.")
     dataset = ProteinSamplingDataset(args, args.data_path)
     # sampler = DistributedSampler(
     # dataset
@@ -194,15 +196,34 @@ def main(args: DictConfig) -> None:
         drop_last=False,
     )
 
-    logger.info(f"Loading pdb atomlines from {args.data_path}.")
-    pdbcontext = generate_pdbcontext_from_lmdb(args.data_path)
+    logger.info(f"Loading metadata from {args.data_path}.")
+    with lmdb.open(args.data_path, readonly=True).begin(write=False) as txn:
+        metadata = bstr2obj(txn.get("__metadata__".encode()))
+    logger.info(
+        f"The metadata contains"
+        f"{len(metadata['keys'])} keys, "
+        f"{len(metadata['sizes'])} sizes, "
+        f"{len(metadata['types'])} types, "
+        f"{len(metadata['groups'])} groups, "
+        f"{len(metadata['pdbs'])} pdbs."
+    )
 
-    logger.info(f"Start to predict protein structure for {args.data_path}.")
+    logger.info(f"Start to evaluate protein structure for {args.data_path}.")
+    scores = []
     for idx, data in enumerate(train_data_loader):
         target = dataset.keys[idx].split(" ")[0]
+        if target not in metadata["keys"]:
+            logger.error(f"{target} target name does not match metadata.")
+            continue
+        logger.info(f"Start to evaluate structure for {target}.")
+        taridx = metadata["keys"].index(target)
+
         data = {k: v.cuda() for k, v in data.items()}
         sequence = data["token_id"][0].cpu().tolist()
-        logger.info(f"Sequence name is {target} and length is {len(sequence)}.")
+        if len(sequence) != metadata["sizes"][taridx]:
+            logger.error(f"{target} sequence length does not match metadata.")
+            continue
+        logger.info(f"Sequence length is {len(sequence)}.")
 
         # predict CA position for sequence
         result = model.sample(data, data)
@@ -241,12 +262,28 @@ def main(args: DictConfig) -> None:
         logger.info(f"Predicted structure for {target} written to {pdb_file}")
 
         # evaluate predicted structure by TMalign/TMscore
-        print("Calculate TMscore between predicted and native pdb")
+        logger.info("Calculate TM-score between generated pdb and native pdb")
         with tempfile.NamedTemporaryFile() as tmp:
             with open(tmp.name, "w") as fp:
-                fp.writelines(pdbcontext[target])
+                fp.writelines(metadata["pdbs"][taridx])
             score = TMscore4Pair(pdb_file, tmp.name)
-            print(score)
+            score["Target"] = target
+            score["Length"] = len(sequence)
+            score["Type"] = metadata["types"][taridx]
+            score["Group"] = metadata["groups"][taridx]
+            scores.append(score)
+    df = pd.DataFrame(scores)
+    print(df)
+
+    # write results to csv file
+    score_file = os.path.join(args.save_dir, "TM-score.csv")
+    df.to_csv(score_file)
+
+    # simple statistics for results
+    print(f"{'Category':<10} {'Number':>6} {'SFM_TMscore':>11}")
+    for t in df["Type"].unique():
+        subdf = df[df["Type"] == t]["TMscore"]
+        print(f"{t:<10s} {len(subdf):>6d} {subdf.mean()*100:>11.2f}")
 
 
 if __name__ == "__main__":
