@@ -181,9 +181,10 @@ class PSMModel(Model):
         clean_mask = clean_mask.unsqueeze(-1).repeat(1, nnodes)
         mask_choice = mask_choice.unsqueeze(-1).repeat(1, nnodes)
         time_step = time_step.unsqueeze(-1).repeat(1, nnodes)
+
         clean_mask = clean_mask.masked_fill(padding_mask, True)
 
-        # mode 0: 50% masked seq and 50 noised structure to structure and seq
+        # mode 0: 50% masked seq and 50% noised structure to structure and seq
         clean_mask = torch.where(
             (mask_choice == 0) & is_protein_mask.unsqueeze(-1), ~aa_mask, clean_mask
         )
