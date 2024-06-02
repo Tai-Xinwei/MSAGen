@@ -172,16 +172,21 @@ class PSMModel(Model):
         mask = masked_protein & (masked_nan | masked_inf)
         batched_data["protein_mask"] = mask
 
-    def _protein_pretrain_mode(self, clean_mask, aa_mask, time_step):
+    def _protein_pretrain_mode(
+        self, clean_mask, aa_mask, padding_mask, is_protein_mask, time_step
+    ):
         n_graph, nnodes = aa_mask.size()[:2]
         mask_choice = np.random.choice(np.arange(3), n_graph, p=self.mode_prob)
         mask_choice = torch.tensor([i for i in mask_choice]).to(clean_mask.device)
         clean_mask = clean_mask.unsqueeze(-1).repeat(1, nnodes)
         mask_choice = mask_choice.unsqueeze(-1).repeat(1, nnodes)
         time_step = time_step.unsqueeze(-1).repeat(1, nnodes)
+        clean_mask = clean_mask.masked_fill(padding_mask, True)
 
         # mode 0: 50% masked seq and 50 noised structure to structure and seq
-        clean_mask = torch.where(mask_choice == 0, aa_mask, clean_mask)
+        clean_mask = torch.where(
+            (mask_choice == 0) & is_protein_mask.unsqueeze(-1), ~aa_mask, clean_mask
+        )
 
         # mode 1: clean seq to structure
         aa_mask = torch.where(mask_choice == 1, False, aa_mask)
@@ -360,7 +365,7 @@ class PSMModel(Model):
             aa_mask = aa_mask & ~padding_mask
 
             clean_mask, aa_mask, time_step = self._protein_pretrain_mode(
-                clean_mask, aa_mask, time_step
+                clean_mask, aa_mask, padding_mask, batched_data["is_protein"], time_step
             )
 
         pos, noise, sqrt_one_minus_alphas_cumprod_t = self._set_noise(

@@ -4,7 +4,7 @@
 # 3. Specify the Azure storage account and container to use
 # 4. Submit the job with this yaml file
 
-description: PSMV0
+description: PSMV1
 
 env_defaults:
   NODES: 8
@@ -27,7 +27,7 @@ target:
 
 environment:
   # image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
-  image: ai4s-sfm:20240429.081857
+  image: ai4s-sfm:20240531.170731
   registry: msroctocr.azurecr.io
   username: msroctocr
 
@@ -92,8 +92,8 @@ jobs:
   - export save_dir=/blob/pfmexp/output/psmv1_vt_v4/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
-  - pip install fairchem-core
   - bash ./scripts/psm/pretrain_psm_vanillatransformer.sh
   submit_args:
     container_args:
       shm_size: 1024g
+  preemptible: false

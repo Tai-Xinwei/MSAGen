@@ -33,7 +33,7 @@ class ProteinMAEDistCriterions(nn.Module):
         output_dict,
     ):
         logits = output_dict["x"]
-        pair_output = output_dict["x_pair"]
+        output_dict["x_pair"]
         angle_output = output_dict["angle_output"]
         ang_epsilon = output_dict["ang_epsilon"]  # add agn_epsilon target
         pos_epsilon = output_dict["pos_epsilon"]  # add agn_epsilon target
@@ -67,30 +67,11 @@ class ProteinMAEDistCriterions(nn.Module):
             type_loss = torch.tensor(0.0, device=logits.device, requires_grad=True)
             type_acc = 0.0
 
-        with torch.no_grad():
-            ori_pos = batch_data["pos"][:, :, 1, :]
-            batch_data["pos_mask"].bool()
-
-            # ori_pos = ori_pos.mean(dim=2, keepdim=False)
-            delta_pos0 = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
-            ori_dist = delta_pos0.norm(dim=-1)
-
-        pair_mask_aa = self._set_dist_mask(batch_data["x"])
-
-        dist_mask = ~(
-            padding_mask.bool().unsqueeze(1) | padding_mask.bool().unsqueeze(2)
-        )
-        dist_filter = (ori_dist > 0.2) & (ori_dist < 20.0)
-        dist_mask = dist_mask & dist_filter & pair_mask_aa
-
-        ori_dist = ori_dist[dist_mask]
-        dist = pair_output[dist_mask]
-        dist_loss = self.loss_dist(ori_dist.to(torch.float32), dist.to(torch.float32))
-
         # with torch.no_grad():
         #     ori_pos = batch_data["pos"][:, :, 1, :]
         #     batch_data["pos_mask"].bool()
 
+        #     # ori_pos = ori_pos.mean(dim=2, keepdim=False)
         #     delta_pos0 = ori_pos.unsqueeze(1) - ori_pos.unsqueeze(2)
         #     ori_dist = delta_pos0.norm(dim=-1)
 
@@ -101,11 +82,9 @@ class ProteinMAEDistCriterions(nn.Module):
         # )
         # dist_filter = (ori_dist > 0.2) & (ori_dist < 20.0)
         # dist_mask = dist_mask & dist_filter & pair_mask_aa
-        # ori_dist = ori_dist[dist_mask]
 
-        # dist = pred_ca_pos.unsqueeze(1) - pred_ca_pos.unsqueeze(2)
-        # dist = dist.norm(dim=-1)
-        # dist = dist[dist_mask]
+        # ori_dist = ori_dist[dist_mask]
+        # dist = pair_output[dist_mask]
         # dist_loss = self.loss_dist(ori_dist.to(torch.float32), dist.to(torch.float32))
 
         if self.diffmode == "x0":
@@ -156,12 +135,12 @@ class ProteinMAEDistCriterions(nn.Module):
         else:
             angle_loss = torch.tensor(0.0, device=logits.device, requires_grad=True)
 
-        loss = type_loss + 5 * angle_loss + dist_loss + pos_loss
+        loss = type_loss + 5 * angle_loss + pos_loss  # + dist_loss
 
         return loss, {
             "total_loss": loss,
             "loss_type": type_loss,
-            "loss_dist": dist_loss,
+            # "loss_dist": dist_loss,
             "loss_angle": angle_loss,
             "loss_pos": pos_loss,
             "type_acc": type_acc,

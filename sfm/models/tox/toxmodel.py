@@ -945,9 +945,9 @@ class TOX(nn.Module):
             # x_pair, pair_mask_aa = self._pos_map(x, mask_aa, residue_seq)
             # backbone = self._get_backbone(angle_output)
             # pred_pos = self._pos_pred(x, backbone[:, :, 1, :], residue_seq)
-            x_pair = self._dist_map(x)
+            # x_pair = self._dist_map(x)
             pred_pos = self._pos_pred(x, pos[:, :, 1, :], residue_seq)
-            # x_pair = None
+            x_pair = None
             pair_mask_aa = None
         else:
             x_pair = None
