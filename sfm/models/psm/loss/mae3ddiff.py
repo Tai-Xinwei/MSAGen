@@ -165,14 +165,8 @@ class DiffMAE3dCriterions(nn.Module):
                 n_graphs, dtype=torch.bool, device=energy_per_atom_label.device
             )
 
-        if (~clean_mask).any():
-            total_clean = torch.zeros(
-                n_graphs, dtype=torch.bool, device=energy_per_atom_label.device
-            )
-        else:
-            total_clean = torch.ones(
-                n_graphs, dtype=torch.bool, device=energy_per_atom_label.device
-            )
+        total_clean = clean_mask.all(dim=-1)
+
         energy_mask = total_clean & ~is_protein
         force_mask = total_clean & is_periodic
 

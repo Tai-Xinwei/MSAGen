@@ -211,8 +211,8 @@ class LlamaDecoderLayerPP(LlamaDecoderLayer):
     ):
         config._attn_implementation = "sdpa"
         super().__init__(config, layer_index)
-        # if enable_mem_efficient:
-        # self.self_attn = LlamaEfficientAttention(config, use_flash_attention)
+        if enable_mem_efficient:
+            self.self_attn = LlamaEfficientAttention(config, use_flash_attention)
 
         self.config = config
         self.layer_index = layer_index
