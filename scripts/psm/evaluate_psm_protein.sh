@@ -44,7 +44,7 @@ export MKL_THREADING_LAYER="GNU"
 
 [ -z "${mode_prob}" ] && mode_prob="0.1,0.2,0.6,0.1" #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-[ -z "${data_path}" ] && data_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm/cameo-from-20220401-to-20220625.lmdb"
+[ -z "${data_path}" ] && data_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm/cameo-subset-casp14-and-casp15-combined.lmdb"
 [ -z "${data_path_list}" ] && data_path_list="PubChemQC-B3LYP-PM6,matter-sim-15M,AFDB50-plddt70.lmdb"
 [ -z "${dataset_name_list}" ] && dataset_name_list="pm6,mattersim,afdb"
 [ -z "${dataset_split_raito}" ] && dataset_split_raito="0.4,0.2,0.4"
