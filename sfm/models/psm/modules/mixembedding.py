@@ -101,7 +101,7 @@ class PSMMix3dEmbedding(nn.Module):
 
         if time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)
-            x += time_embed.unsqueeze(1)
+            x += time_embed  # .unsqueeze(1)
 
         # _, pos_embedding = self.pos_embedding_bias(
         #     batched_data, mask_token_type, padding_mask, pbc_expand_batched

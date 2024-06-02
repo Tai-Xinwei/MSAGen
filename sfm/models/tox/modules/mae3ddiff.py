@@ -36,6 +36,7 @@ class ProteinMAEDistCriterions(nn.Module):
         pair_output = output_dict["x_pair"]
         angle_output = output_dict["angle_output"]
         ang_epsilon = output_dict["ang_epsilon"]  # add agn_epsilon target
+        pos_epsilon = output_dict["pos_epsilon"]  # add agn_epsilon target
         mask_pos = output_dict["mask_pos"]
         mask_aa = output_dict["mask_aa"]
         padding_mask = output_dict["padding_mask"]
@@ -107,16 +108,27 @@ class ProteinMAEDistCriterions(nn.Module):
         # dist = dist[dist_mask]
         # dist_loss = self.loss_dist(ori_dist.to(torch.float32), dist.to(torch.float32))
 
-        ori_ca_pos = batch_data["pos"][:, :, 1, :]
+        if self.diffmode == "x0":
+            ori_ca_pos = batch_data["pos"][:, :, 1, :]
 
-        pos_loss = self.loss_pos(
-            ori_ca_pos[(~padding_mask) & mask_pos.squeeze(-1).squeeze(-1)].to(
-                torch.float32
-            ),
-            pred_ca_pos[(~padding_mask) & mask_pos.squeeze(-1).squeeze(-1)].to(
-                torch.float32
-            ),
-        )
+            pos_loss = self.loss_pos(
+                ori_ca_pos[(~padding_mask) & mask_pos.squeeze(-1).squeeze(-1)].to(
+                    torch.float32
+                ),
+                pred_ca_pos[(~padding_mask) & mask_pos.squeeze(-1).squeeze(-1)].to(
+                    torch.float32
+                ),
+            )
+        elif self.diffmode == "epsilon":
+            pos_epsilon = pos_epsilon[:, :, 1, :]
+            pos_loss = self.loss_pos(
+                pos_epsilon[(~padding_mask) & mask_pos.squeeze(-1).squeeze(-1)].to(
+                    torch.float32
+                ),
+                pred_ca_pos[(~padding_mask) & mask_pos.squeeze(-1).squeeze(-1)].to(
+                    torch.float32
+                ),
+            )
 
         mask_angle = mask_pos.squeeze(-1)
         angle_mask = batch_data["ang_mask"][:, :, :3].bool()

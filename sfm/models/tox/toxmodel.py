@@ -523,7 +523,7 @@ class TOX(nn.Module):
                 # time_pos = torch.where((mode_mask == 1), 1, time_pos)
                 time_ang = time_pos
 
-            noisy_pos, _, _, _ = self.diffnoise._noise_sample(
+            noisy_pos, _, _, pos_epsilon = self.diffnoise._noise_sample(
                 ori_pos, time_pos, unit_noise_scale=10.0
             )
 
@@ -562,6 +562,7 @@ class TOX(nn.Module):
                 ang_noise,
                 ang_sigma,
                 ang_epsilon,
+                pos_epsilon,
             )
         else:
             raise Exception(
@@ -849,6 +850,7 @@ class TOX(nn.Module):
                 ang_noise,
                 ang_sigma,
                 ang_epsilon,
+                pos_epsilon,
             ) = self._set_noise(
                 ori_pos,
                 ori_angle,
@@ -981,6 +983,7 @@ class TOX(nn.Module):
             "backbone": backbone,
             "ang_sigma": ang_sigma,
             "ang_epsilon": ang_epsilon,
+            "pos_epsilon": pos_epsilon,
             "ang_t": angle,
             "pred_pos": pred_pos,
             "ori_angle": ori_angle,
