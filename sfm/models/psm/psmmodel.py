@@ -4,6 +4,8 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+from contextlib import nullcontext
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -783,9 +785,12 @@ class PSM(nn.Module):
         # token_embedding: B x L x H
         # padding_mask: B x L
         # token_type: B x L  (0 is used for PADDING)
-        token_embedding, padding_mask, token_type, time_embed = self.embedding(
-            batched_data, time_step, clean_mask, aa_mask
-        )
+        with torch.cuda.amp.autocast(
+            enabled=True, dtype=torch.float32
+        ) if self.args.fp16 else nullcontext():
+            token_embedding, padding_mask, token_type, time_embed = self.embedding(
+                batched_data, time_step, clean_mask, aa_mask
+            )
 
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
@@ -796,12 +801,15 @@ class PSM(nn.Module):
             ) = self.encoder(  # CL: expand cell outside encoder?
                 token_embedding.transpose(0, 1), padding_mask, batched_data, token_type
             )
-            decoder_x_output, decoder_vec_output = self.decoder(
-                batched_data,
-                encoder_output,
-                padding_mask,
-                pbc_expand_batched,
-            )
+            with torch.cuda.amp.autocast(
+                enabled=True, dtype=torch.float32
+            ) if self.args.fp16 else nullcontext():
+                decoder_x_output, decoder_vec_output = self.decoder(
+                    batched_data,
+                    encoder_output,
+                    padding_mask,
+                    pbc_expand_batched,
+                )
         elif self.encoder is not None:
             (
                 encoder_output,
@@ -824,54 +832,63 @@ class PSM(nn.Module):
                 pbc_expand_batched=None,
             )
 
-        energy_per_atom = torch.where(
-            is_periodic.unsqueeze(-1),
-            self.energy_head["periodic"](decoder_x_output).squeeze(-1),
-            self.energy_head["molecule"](decoder_x_output).squeeze(-1),
-        )
-
-        forces = torch.where(
-            is_periodic.unsqueeze(-1).unsqueeze(-1),
-            self.forces_head["periodic"](decoder_x_output, decoder_vec_output).squeeze(
-                -1
-            ),
-            self.forces_head["molecule"](decoder_x_output, decoder_vec_output).squeeze(
-                -1
-            ),
-        )
-
-        noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
-
-        if self.args.diffusion_mode == "epsilon":
-            scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
-            logit_bias = torch.logit(batched_data["sqrt_one_minus_alphas_cumprod_t"])
-            scale = torch.sigmoid(scale_shift + logit_bias)
-            noise_pred = scale * batched_data["pos"] + (1 - scale) * noise_pred
-        elif self.args.diffusion_mode == "x0":
-            scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
-            logit_bias = torch.logit(batched_data["sqrt_one_minus_alphas_cumprod_t"])
-            scale = torch.sigmoid(scale_shift + logit_bias)
-            noise_pred = scale * noise_pred + (1 - scale) * batched_data["pos"]
-        else:
-            raise ValueError(
-                f"diffusion mode: {self.args.diffusion_mode} is not supported"
+        with torch.cuda.amp.autocast(
+            enabled=True, dtype=torch.float32
+        ) if self.args.fp16 else nullcontext():
+            energy_per_atom = torch.where(
+                is_periodic.unsqueeze(-1),
+                self.energy_head["periodic"](decoder_x_output).squeeze(-1),
+                self.energy_head["molecule"](decoder_x_output).squeeze(-1),
             )
 
-        # atom mask to leave out unit cell corners for periodic systems
-        non_atom_mask = torch.arange(
-            n_nodes, dtype=torch.long, device=energy_per_atom.device
-        ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(-1)
+            forces = torch.where(
+                is_periodic.unsqueeze(-1).unsqueeze(-1),
+                self.forces_head["periodic"](
+                    decoder_x_output, decoder_vec_output
+                ).squeeze(-1),
+                self.forces_head["molecule"](
+                    decoder_x_output, decoder_vec_output
+                ).squeeze(-1),
+            )
 
-        # per-atom energy prediction
-        energy_per_atom = (
-            energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
-            / batched_data["num_atoms"]
-        )
+            noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
 
-        if self.encoder is not None:
-            aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
-        else:
-            aa_logits = self.aa_mask_head(decoder_x_output)
+            if self.args.diffusion_mode == "epsilon":
+                scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
+                logit_bias = torch.logit(
+                    batched_data["sqrt_one_minus_alphas_cumprod_t"]
+                )
+                scale = torch.sigmoid(scale_shift + logit_bias)
+                noise_pred = scale * batched_data["pos"] + (1 - scale) * noise_pred
+            elif self.args.diffusion_mode == "x0":
+                scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
+                logit_bias = torch.logit(
+                    batched_data["sqrt_one_minus_alphas_cumprod_t"]
+                )
+                scale = torch.sigmoid(scale_shift + logit_bias)
+                noise_pred = scale * noise_pred + (1 - scale) * batched_data["pos"]
+            else:
+                raise ValueError(
+                    f"diffusion mode: {self.args.diffusion_mode} is not supported"
+                )
+
+            # atom mask to leave out unit cell corners for periodic systems
+            non_atom_mask = torch.arange(
+                n_nodes, dtype=torch.long, device=energy_per_atom.device
+            ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(
+                -1
+            )
+
+            # per-atom energy prediction
+            energy_per_atom = (
+                energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
+                / batched_data["num_atoms"]
+            )
+
+            if self.encoder is not None:
+                aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
+            else:
+                aa_logits = self.aa_mask_head(decoder_x_output)
 
         result_dict = {
             "energy_per_atom": energy_per_atom,

@@ -74,7 +74,7 @@ jobs:
   - export max_lr=2.0e-4
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
-  - export total_num_steps=2000000
+  - export total_num_steps=500000
   - export warmup_num_steps=10000
   - export train_batch_size=1024
   - export val_batch_size=1024
