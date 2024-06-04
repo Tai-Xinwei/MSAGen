@@ -4,6 +4,9 @@ from typing import Callable, Dict, Optional
 import torch
 import torch.nn as nn
 
+from sfm.models.psm.modules.multihead_attention import (
+    MemEffSelfAttnWithProteinRotaryEmbedding,
+)
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.droppath import DropPath
 from sfm.modules.FairseqDropout import FairseqDropout
@@ -69,7 +72,11 @@ class PSMPlainEncoderLayer(nn.Module):
         d_tilde=1,
         add_rope=False,
     ):
-        return MemEffSelfAttn(
+        if self.psm_config.only_use_rotary_embedding_for_protein:
+            attn_cls = MemEffSelfAttnWithProteinRotaryEmbedding
+        else:
+            attn_cls = MemEffSelfAttn
+        return attn_cls(
             embed_dim,
             num_attention_heads,
             dropout=dropout,
@@ -95,12 +102,21 @@ class PSMPlainEncoderLayer(nn.Module):
 
         residual = x
         x = self.top_layer_norm(x)
-        x, _ = self.self_attn(
-            x,
-            key_padding_mask=padding_mask,
-            need_weights=False,
-            attn_mask=None,
-        )
+        if self.psm_config.only_use_rotary_embedding_for_protein:
+            x, _ = self.self_attn(
+                x,
+                key_padding_mask=padding_mask,
+                need_weights=False,
+                attn_mask=None,
+                is_protein=batched_data["is_protein"],
+            )
+        else:
+            x, _ = self.self_attn(
+                x,
+                key_padding_mask=padding_mask,
+                need_weights=False,
+                attn_mask=None,
+            )
         x = residual + x
 
         residual = x

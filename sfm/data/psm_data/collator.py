@@ -197,6 +197,11 @@ def collate_fn(
         node_type_edges.append(node_atom_edge.long())
     node_type_edge = torch.cat(node_type_edges)
 
+    is_stable_periodic = torch.tensor(
+        [("is_stable_periodic" in i) and i["is_stable_periodic"] for i in items],
+        dtype=torch.bool,
+    )
+
     batched_data = dict(
         idx=idx,
         attn_bias=attn_bias,
@@ -212,6 +217,7 @@ def collate_fn(
         pbc=pbc,
         cell=cell,
         num_atoms=num_atoms,
+        is_stable_periodic=is_stable_periodic,
     )
 
     if preprocess_2d_bond_features_with_cuda:

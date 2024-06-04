@@ -106,6 +106,7 @@ class PSMConfig(GraphormerConfig):
     psm_finetune_mode: bool = False
     psm_sample_structure_in_finetune: bool = False
     psm_finetune_reset_head: bool = False
+    only_use_rotary_embedding_for_protein: bool = False
 
     def __init__(
         self,

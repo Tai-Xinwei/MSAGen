@@ -506,15 +506,23 @@ class UnifiedDataSampler(WeightedDistributedSampler):
         indices = []
         for begin, end in np.sort(list(self.dataset_sampled_len.keys())):
             sampled_len = self.dataset_sampled_len[(begin, end)]
-            if sampled_len > end - begin:
-                choice_replace = True
-            else:
-                choice_replace = False
-            indices.extend(
-                list(
-                    generator.choice(end - begin, sampled_len, replace=choice_replace)
+            indices_for_dataset = []
+            while sampled_len > end - begin:
+                indices_for_dataset.extend(
+                    torch.randperm(end - begin, generator=torch_generator).numpy()
                     + begin
-                )[self.rank : self.total_size : self.num_replicas]
+                )
+                sampled_len -= end - begin
+            indices_for_dataset.extend(
+                list(generator.choice(end - begin, sampled_len, replace=False) + begin)
+            )
+            indices_for_dataset = list(
+                torch.tensor(indices_for_dataset, dtype=torch.long)[
+                    torch.randperm(len(indices_for_dataset), generator=torch_generator)
+                ].numpy()
+            )
+            indices.extend(
+                indices_for_dataset[self.rank : self.total_size : self.num_replicas]
             )
         sorted_indices = torch.randperm(
             len(indices), generator=torch_generator

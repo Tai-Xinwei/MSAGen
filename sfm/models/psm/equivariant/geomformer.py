@@ -345,6 +345,7 @@ class MemEffInvariantAttention(nn.Module):
         attn_bias,
         key_padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
+        is_protein: Optional[Tensor] = None,
     ):
         if pbc_expand_batched is not None:
             raise Exception("pbc is not supported in the mem efficient attention")
@@ -381,7 +382,14 @@ class MemEffInvariantAttention(nn.Module):
 
         # add rope
         if self.rot_emb:
-            q, k = self.rot_emb(q, k)
+            is_protein_expanded = (
+                is_protein.unsqueeze(-1)
+                .repeat(1, self.num_heads)
+                .reshape([bsz * self.num_heads])
+            )
+            q[is_protein_expanded], k[is_protein_expanded] = self.rot_emb(
+                q[is_protein_expanded], k[is_protein_expanded]
+            )
 
         q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
         k = k.view(bsz, self.num_heads, src_len, self.head_dim)
@@ -586,6 +594,7 @@ class InvariantAttention(nn.Module):
         attn_bias,
         key_padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
+        is_protein: Optional[Tensor] = None,
     ):
         q = q * self.scaling
 
@@ -623,7 +632,14 @@ class InvariantAttention(nn.Module):
 
         # add rope
         if self.rot_emb:
-            q, k = self.rot_emb(q, k)
+            is_protein_expanded = (
+                is_protein.unsqueeze(-1)
+                .repeat(1, self.num_heads)
+                .reshape([bsz * self.num_heads])
+            )
+            q[is_protein_expanded], k[is_protein_expanded] = self.rot_emb(
+                q[is_protein_expanded], k[is_protein_expanded]
+            )
 
         q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
         k = k.view(bsz, self.num_heads, src_len, self.head_dim)
@@ -840,13 +856,26 @@ class InvariantSelfAttention(nn.Module):
         if self.use_linear_bias:
             self.v_proj.bias.data.fill_(0)
 
-    def forward(self, x, attn_bias, mask, pbc_expand_batched: Optional[Dict] = None):
+    def forward(
+        self,
+        x,
+        attn_bias,
+        mask,
+        pbc_expand_batched: Optional[Dict] = None,
+        is_protein: Optional[Tensor] = None,
+    ):
         q = self.q_proj(x)
         k = self.k_proj(x)
         v = self.v_proj(x)
 
         attn = self.invariant_attention(
-            q, k, v, attn_bias, mask, pbc_expand_batched=pbc_expand_batched
+            q,
+            k,
+            v,
+            attn_bias,
+            mask,
+            pbc_expand_batched=pbc_expand_batched,
+            is_protein=is_protein,
         )
 
         return attn
@@ -935,7 +964,13 @@ class Invariant2EquivariantAttention(nn.Module):
         nn.init.xavier_uniform_(self.v2_proj.weight, gain=1.0 / math.sqrt(d_tilde))
 
     def forward(
-        self, x, vec, attn_bias, mask, pbc_expand_batched: Optional[Dict] = None
+        self,
+        x,
+        vec,
+        attn_bias,
+        mask,
+        pbc_expand_batched: Optional[Dict] = None,
+        is_protein: Optional[Tensor] = None,
     ):
         q = self.q_proj(x)
         k1 = self.k1_proj(vec)
@@ -946,7 +981,13 @@ class Invariant2EquivariantAttention(nn.Module):
         v = (v1 * v2).sum(dim=-2) * (3**-0.5)  # (n_graph, n_node, feat_dim)
 
         attn = self.invariant_attention(
-            q, k, v, attn_bias, mask, pbc_expand_batched=pbc_expand_batched
+            q,
+            k,
+            v,
+            attn_bias,
+            mask,
+            pbc_expand_batched=pbc_expand_batched,
+            is_protein=is_protein,
         )
 
         return attn
@@ -1225,6 +1266,7 @@ class EncoderLayer(nn.Module):
         pos_unit,
         gbf_args,
         pbc_expand_batched: Optional[Dict] = None,
+        is_protein: Optional[Tensor] = None,
     ):
         # attetion
         dx = self.invariant_attn_layer_norm(x)
@@ -1232,7 +1274,11 @@ class EncoderLayer(nn.Module):
 
         if self.layer_index % 2 == 0:
             dx_invariant = self.invariant_self_attention(
-                dx, attn_bias_iself, mask, pbc_expand_batched=pbc_expand_batched
+                dx,
+                attn_bias_iself,
+                mask,
+                pbc_expand_batched=pbc_expand_batched,
+                is_protein=is_protein,
             )
             dx_invariant = F.dropout(
                 dx_invariant, p=self.dropout, training=self.training
@@ -1244,7 +1290,12 @@ class EncoderLayer(nn.Module):
             vec = vec + dvec_equivariant
         else:
             dx_equivariant = self.invariant2equivariant_attention(
-                dx, dvec, attn_bias_i2e, mask, pbc_expand_batched=pbc_expand_batched
+                dx,
+                dvec,
+                attn_bias_i2e,
+                mask,
+                pbc_expand_batched=pbc_expand_batched,
+                is_protein=is_protein,
             )
             dx_equivariant = F.dropout(
                 dx_equivariant, p=self.dropout, training=self.training
@@ -1480,6 +1531,7 @@ class GeomFormer(nn.Module):
                 [pos_mean_centered_unit, uni_delta_pos],
                 [dist, node_type_edge],
                 pbc_expand_batched,
+                is_protein=batched_data["is_protein"],
             )
 
         node_output = self.unified_final_equivariant_ln(vec)

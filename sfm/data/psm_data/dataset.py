@@ -325,34 +325,27 @@ class PlainPM6FullLMDBDataset(PM6FullLMDBDataset):
 
 
 class MatterSimDataset:
-    def __init__(self, args: PSMConfig, data_path, split=None):
-        self.data_name_to_lmdb = {}
-        self.data_name_to_txn = {}
-        self.index_to_dataset_name = []
+    def __init__(self, args: PSMConfig, data_path, split):
+        self.data_name_to_lmdb = None
+        self.data_name_to_txn = None
+        self.index_to_key_name = []
         self.data_path = data_path
-        for path_name in os.listdir(self.data_path):
-            if os.path.isdir(f"{self.data_path}/{path_name}"):
-                if split is None:
-                    lmdb_path = f"{self.data_path}/{path_name}"
-                else:
-                    lmdb_path = f"{self.data_path}/{path_name}/{split}"
-                self.data_name_to_lmdb[path_name] = lmdb.open(
-                    lmdb_path,
-                    subdir=True,
-                    readonly=True,
-                    lock=False,
-                    readahead=False,
-                    meminit=False,
-                )
-                self.data_name_to_txn[path_name] = self.data_name_to_lmdb[
-                    path_name
-                ].begin(write=False)
-                for key, _ in tqdm(
-                    self.data_name_to_txn[path_name].cursor(),
-                    miniters=100000,
-                    mininterval=10.0,
-                ):
-                    self.index_to_dataset_name.append([path_name, key.decode()])
+        lmdb_path = f"{self.data_path}/{split}"
+        self.data_name_to_lmdb = lmdb.open(
+            lmdb_path,
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self.data_name_to_txn = self.data_name_to_lmdb.begin(write=False)
+        for key, _ in tqdm(
+            self.data_name_to_txn.cursor(),
+            miniters=100000,
+            mininterval=10.0,
+        ):
+            self.index_to_key_name.append(key.decode())
         self.args = args
 
     def switch_lattice_vectors(self, pbc, cell):
@@ -410,8 +403,8 @@ class MatterSimDataset:
 
     @lru_cache(maxsize=16)
     def __getitem__(self, idx):
-        data_name, key = self.index_to_dataset_name[idx]
-        data = pkl.loads(self.data_name_to_txn[data_name].get(key.encode()))
+        key = self.index_to_key_name[idx]
+        data = pkl.loads(self.data_name_to_txn.get(key.encode()))
         numbers = data.pop(
             "numbers"
         )  # atomic numbers, starting from 1 for hydrogen atoms
@@ -474,6 +467,11 @@ class MatterSimDataset:
 
         data = self.generate_2dgraphfeat(data)
 
+        if self.data_path.find("force-filtered") != -1:
+            data["is_stable_periodic"] = True
+        else:
+            data["is_stable_periodic"] = False
+
         return data
 
     def generate_2dgraphfeat(self, data):
@@ -512,7 +510,7 @@ class MatterSimDataset:
         return data
 
     def __len__(self):
-        return len(self.index_to_dataset_name)
+        return len(self.index_to_key_name)
 
 
 class AFDBLMDBDataset(FoundationModelDataset):

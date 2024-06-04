@@ -102,6 +102,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_sample_structure_in_finetune}" ] && psm_sample_structure_in_finetune=False
 [ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=True
 
+[ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=False
+[ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=False
+
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -230,6 +233,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           psm_finetune_mode=$psm_finetune_mode \
           psm_sample_structure_in_finetune=$psm_sample_structure_in_finetune \
           psm_finetune_reset_head=$psm_finetune_reset_head \
+          rescale_loss_with_std=$rescale_loss_with_std \
+          only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
 
 
