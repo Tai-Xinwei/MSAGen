@@ -66,6 +66,7 @@ class TimeStepEncoder(nn.Module):
         self.timestep_emb_type = timestep_emb_type
 
     def forward(self, timesteps, clean_mask: Optional[Tensor]):
+        ngraph, nnodes = timesteps.shape[:2]
         if self.timestep_emb_type == DiffusionTimeStepEncoderType.DISCRETE_LEARNABLE:
             discretized_time_steps = (
                 timesteps * self.n_timesteps
@@ -80,7 +81,7 @@ class TimeStepEncoder(nn.Module):
                 timesteps = timesteps.masked_fill(
                     clean_mask, 0.0
                 )  # use t = 0 for clean samples with positional time embedding (which is continuous time embedding)
-            t_emb = self.time_proj(timesteps)
+            t_emb = self.time_proj(timesteps.unsqueeze(-1)).view(ngraph, nnodes, -1)
         else:
             raise ValueError(f"Unkown timestep_emb_type {self.timestep_emb_type}")
         if self.time_embedding is not None:
@@ -172,9 +173,17 @@ class DiffNoise(nn.Module):
         )
 
     def _extract(self, a, t, x_shape):
-        batch_size = t.shape[0]
-        out = a.gather(-1, t.cpu().long())
-        return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
+        if len(t.shape) == 1:
+            batch_size = t.shape[0]
+            out = a.gather(-1, t.cpu().long())
+            return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
+        elif len(t.shape) == 2:
+            batch_size, L = t.shape
+            # a is in shape of [num_timesteps], t is in shape of [batch_size, L],
+            out = torch.gather(a.unsqueeze(0).expand(batch_size, -1), 1, t.cpu().long())
+            return out.reshape(batch_size, L, *((1,) * (len(x_shape) - 2))).to(t.device)
+        else:
+            raise Exception(f"t shape: {t.shape} not supported")
 
     def _noise_lattice_vectors(self, pos, non_atom_mask, noise, is_periodic):
         n_graphs = pos[is_periodic].size()[0]
@@ -269,7 +278,14 @@ class DiffNoise(nn.Module):
             )
 
         if clean_mask is not None:
-            x_t = torch.where(clean_mask.unsqueeze(-1).unsqueeze(-1), x_start, x_t)
+            if len(clean_mask.shape) == 1:
+                x_t = torch.where(clean_mask.unsqueeze(-1).unsqueeze(-1), x_start, x_t)
+            elif len(clean_mask.shape) == 2:
+                x_t = torch.where(clean_mask.unsqueeze(-1), x_start, x_t)
+            else:
+                raise ValueError(
+                    f"clean_mask should be [B] or [B, L] tensor, but it's shape is {clean_mask.shape}"
+                )
 
         return x_t, noise, sqrt_one_minus_alphas_cumprod_t
 

@@ -34,16 +34,15 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=20
+[ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 
-[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-# [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.7'
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
@@ -51,13 +50,15 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-3M,AFDB50-plddt70.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.0,0.5'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128,16,16"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="256,32,32"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
-[ -z "${fp16}" ] && fp16=False
+[ -z "${fp16}" ] && fp16=True
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/"
-[ -z "${save_dir}" ] && save_dir="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/"
-# [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v4/checkpoints/"
+# [ -z "${save_dir}" ] && save_dir="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/"
+# [ -z "${loadcheck_path}" ] && loadcheck_path='/home/peiranjin/output/'
+[ -z "${save_dir}" ] && save_dir='/home/peiranjin/output/'
+
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
@@ -194,7 +195,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           d_tilde=$d_tilde \
           strategy=$strategy \
           max_lr=$max_lr \
-          ifresume=True \
           diffusion_mode=\"$diffusion_mode\" \
           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
           total_num_steps=$total_num_steps \
@@ -217,10 +217,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           finetune_from_checkpoint_dir=$loadcheck_path \
           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          ifresume=True \
 
-          # --ifstack \
-          # --use_2d_atom_features --use_2d_bond_features \
-          # --dynamic_loader --max_tokens $max_tokens \
 
 sleep inf
 sleep inf

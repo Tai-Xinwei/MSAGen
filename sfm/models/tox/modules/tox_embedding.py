@@ -123,7 +123,7 @@ class TOXmixEmbedding(nn.Module):
             else None
         )
 
-    @torch.compile
+    # @torch.compile
     def forward(
         self,
         batched_data,

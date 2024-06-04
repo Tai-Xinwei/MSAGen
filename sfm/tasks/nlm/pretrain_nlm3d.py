@@ -40,12 +40,19 @@ def main(args) -> None:
         logger.info("Initializing megatron for 3D training.")
     model = NLM3dModel(args, len(tokenizer))
 
-    train_dataset = ProcessedSciDatasetLmdb(
+    # train_dataset = ProcessedSciDatasetLmdb(
+    #     args.train_data_path, args.pad_token_id, args.max_position_embeddings
+    # )
+    # valid_dataset = ProcessedSciDatasetLmdb(
+    #     args.valid_data_path, args.pad_token_id, args.max_position_embeddings
+    # )
+    train_dataset = ProcessedSciDataset(
         args.train_data_path, args.pad_token_id, args.max_position_embeddings
     )
-    valid_dataset = ProcessedSciDatasetLmdb(
+    valid_dataset = ProcessedSciDataset(
         args.valid_data_path, args.pad_token_id, args.max_position_embeddings
     )
+
     logger.info("datasets loaded")
 
     trainer = Trainer(
