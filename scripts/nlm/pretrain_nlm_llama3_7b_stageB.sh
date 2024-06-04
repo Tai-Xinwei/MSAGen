@@ -8,6 +8,11 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
+wget 'https://aka.ms/downloadazcopy-v10-linux' -O /tmp/azcopy.tar.gz
+tar -xf /tmp/azcopy.tar.gz -C /tmp
+# find the folder in /tmp and starts with azcopy_linux_amd64
+azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
+
 [ -z "${weight_decay}" ] && weight_decay=0.1 # same as LLAMA2
 [ -z "${max_lr}" ] && max_lr=1.5e-4  # LLAMA2 use 3e-4, let's use smaller lr
 [ -z "${beta1}" ] && beta1=0.9 # same as LLAMA2
@@ -28,8 +33,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayer"
 
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=200
-[ -z "${log_interval}" ] && log_interval=10
+[ -z "${save_batch_interval}" ] && save_batch_interval=2000
+[ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=10
 
 
@@ -126,6 +131,9 @@ echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
+train_data_sas=$(cat /nlm/peiran/llama3_processed_data/sas.txt)
+$azcopy_path/azcopy copy "$train_data_sas" /tmp/train.npy
+
 wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 export WANDB_API_KEY=$wandb_key
 
@@ -157,6 +165,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --pretrained_ckpt_path "$loadcheck_path" \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
-      ${MEGATRON_ARGS} --load_ckpt
-
-      # --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
+      --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
+      ${MEGATRON_ARGS} #--load_ckpt

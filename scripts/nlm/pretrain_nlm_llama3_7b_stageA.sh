@@ -10,6 +10,11 @@ pwd
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
+wget 'https://aka.ms/downloadazcopy-v10-linux' -O /tmp/azcopy.tar.gz
+tar -xf /tmp/azcopy.tar.gz -C /tmp
+# find the folder in /tmp and starts with azcopy_linux_amd64
+azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
+
 [ -z "${weight_decay}" ] && weight_decay=0.1 # same as LLAMA2
 [ -z "${max_lr}" ] && max_lr=3e-4  # LLAMA2 use 3e-4, let's use smaller lr
 [ -z "${beta1}" ] && beta1=0.9 # same as LLAMA2
@@ -123,6 +128,9 @@ echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 echo "tensor_model_parallel_size: ${tensor_model_parallel_size}"
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
+
+train_data_sas=$(cat /nlm/peiran/llama3_processed_data/sas.txt)
+$azcopy_path/azcopy copy "$train_data_sas" /tmp/train.npy
 
 wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 export WANDB_API_KEY=$wandb_key
