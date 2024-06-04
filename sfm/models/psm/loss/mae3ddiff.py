@@ -146,7 +146,8 @@ class DiffMAE3dCriterions(nn.Module):
         energy_per_atom_label = batched_data["energy_per_atom"]
         atomic_numbers = batched_data["token_id"]
         noise_label = model_output["noise"]
-        pos_label = batched_data["ori_pos"]
+        if self.diffusion_mode == "x0":
+            pos_label = batched_data["ori_pos"]
         force_pred = model_output["forces"]
         energy_per_atom_pred = model_output["energy_per_atom"]
         noise_pred = model_output["noise_pred"]

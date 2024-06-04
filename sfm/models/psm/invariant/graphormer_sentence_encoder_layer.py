@@ -10,6 +10,10 @@ import torch
 import torch.nn as nn
 
 from sfm.models.psm.invariant.mixture_bias import PSMBias
+from sfm.models.psm.modules.multihead_attention import (
+    MemEffAttnWithProteinRotaryEmbedding,
+    MultiheadAttentionWithProteinRotaryEmbedding,
+)
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.droppath import DropPath
 from sfm.modules.FairseqDropout import FairseqDropout
@@ -64,6 +68,8 @@ class GraphormerSentenceEncoderLayer(nn.Module):
 
         self.pre_attn_norm = nn.LayerNorm(self.embedding_dim)
         self.pre_mlp_norm = nn.LayerNorm(self.embedding_dim)
+
+        self.psm_config = psm_config
 
         # Initialize blocks
         self.activation_fn = get_activation_fn(activation_fn)
@@ -122,35 +128,30 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         use_memory_efficient_attention=False,
     ):
         if use_memory_efficient_attention:
-            return MemEffAttn(
-                embed_dim,
-                num_attention_heads,
-                dropout=dropout,
-                self_attention=self_attention,
-                q_noise=q_noise,
-                qn_block_size=qn_block_size,
-                d_tilde=d_tilde,
-                layer_norm=False,
-                k_bias=False,
-                q_bias=False,
-                v_bias=False,
-                o_bias=False,
-            )
+            if self.psm_config.only_use_rotary_embedding_for_protein:
+                attn_cls = MemEffAttnWithProteinRotaryEmbedding
+            else:
+                attn_cls = MemEffAttn
         else:
-            return MultiheadAttention(
-                embed_dim,
-                num_attention_heads,
-                dropout=dropout,
-                self_attention=self_attention,
-                q_noise=q_noise,
-                qn_block_size=qn_block_size,
-                d_tilde=d_tilde,
-                layer_norm=False,
-                k_bias=False,
-                q_bias=False,
-                v_bias=False,
-                o_bias=False,
-            )
+            if self.psm_config.only_use_rotary_embedding_for_protein:
+                attn_cls = MultiheadAttentionWithProteinRotaryEmbedding
+            else:
+                attn_cls = MultiheadAttention
+        return attn_cls(
+            embed_dim,
+            num_attention_heads,
+            dropout=dropout,
+            self_attention=self_attention,
+            q_noise=q_noise,
+            qn_block_size=qn_block_size,
+            d_tilde=d_tilde,
+            layer_norm=False,
+            k_bias=False,
+            q_bias=False,
+            v_bias=False,
+            o_bias=False,
+            add_rope=True,
+        )
 
     def build_attn_bias(self, psm_config):
         return PSMBias(psm_config)
@@ -208,16 +209,29 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         residual = x
         x = self.pre_attn_norm(x)
 
-        x, attn = self.self_attn(
-            query=x,
-            key=x,
-            value=x,
-            attn_bias=self_attn_bias,
-            key_padding_mask=self_attn_padding_mask,
-            need_weights=False,
-            attn_mask=self_attn_mask,
-            pbc_expand_batched=pbc_expand_batched,
-        )
+        if self.psm_config.only_use_rotary_embedding_for_protein:
+            x, attn = self.self_attn(
+                query=x,
+                key=x,
+                value=x,
+                attn_bias=self_attn_bias,
+                key_padding_mask=self_attn_padding_mask,
+                need_weights=False,
+                attn_mask=self_attn_mask,
+                pbc_expand_batched=pbc_expand_batched,
+                is_protein=batched_data["is_protein"],
+            )
+        else:
+            x, attn = self.self_attn(
+                query=x,
+                key=x,
+                value=x,
+                attn_bias=self_attn_bias,
+                key_padding_mask=self_attn_padding_mask,
+                need_weights=False,
+                attn_mask=self_attn_mask,
+                pbc_expand_batched=pbc_expand_batched,
+            )
 
         x = self.dropout_module(x)
         x = residual + x

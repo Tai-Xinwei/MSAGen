@@ -360,6 +360,10 @@ class PSMModel(Model):
                 clean_mask & ~batched_data["is_protein"]
             )  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
 
+            clean_mask = clean_mask | (
+                (batched_data["is_periodic"]) & (~batched_data["is_stable_periodic"])
+            )  # A periodic sample which is not stable is always clean
+
             token_id = batched_data["token_id"]
             padding_mask = token_id.eq(0)  # B x T x 1
             aa_mask = batched_data["protein_masked_aa"] & batched_data[
