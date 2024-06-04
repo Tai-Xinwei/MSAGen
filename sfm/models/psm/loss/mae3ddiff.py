@@ -94,7 +94,15 @@ class DiffMAE3dCriterions(nn.Module):
         molecule_loss_factor=1.0,
         periodic_loss_factor=1.0,
     ):
-        sample_mask = sample_mask & token_mask.any(dim=-1)
+        if len(sample_mask.shape) == (len(token_mask.shape) - 1):
+            sample_mask = sample_mask & token_mask.any(dim=-1)
+        elif len(sample_mask.shape) == len(token_mask.shape):
+            sample_mask = sample_mask & token_mask
+        else:
+            raise ValueError(
+                f"sample_mask and token_mask have incompatible shapes: {sample_mask.shape} and {token_mask.shape}"
+            )
+
         num_samples = torch.sum(sample_mask.long())
         force_or_noise_loss = (
             force_or_noise_loss.clone()
@@ -113,9 +121,19 @@ class DiffMAE3dCriterions(nn.Module):
             force_or_noise_loss = force_or_noise_loss.masked_fill(
                 ~token_mask.unsqueeze(-1), 0.0
             )
-            force_or_noise_loss = torch.sum(
-                force_or_noise_loss[sample_mask], dim=[1, 2]
-            ) / (3.0 * torch.sum(token_mask[sample_mask], dim=-1))
+            if len(sample_mask.shape) == 1:
+                force_or_noise_loss = torch.sum(
+                    force_or_noise_loss[sample_mask], dim=[1, 2]
+                ) / (3.0 * torch.sum(token_mask[sample_mask], dim=-1))
+            elif len(sample_mask.shape) == 2:
+                # TODO: need to average over tokens in one sample first then all smaples
+                force_or_noise_loss = torch.sum(
+                    force_or_noise_loss[sample_mask], dim=[0, 1]
+                ) / (3.0 * torch.sum(token_mask[sample_mask], dim=-1))
+            else:
+                raise ValueError(
+                    f"sample_mask has an unexpected shape: {sample_mask.shape}"
+                )
             force_or_noise_loss = force_or_noise_loss.mean()
         else:
             force_or_noise_loss = torch.tensor(
@@ -128,7 +146,8 @@ class DiffMAE3dCriterions(nn.Module):
         energy_per_atom_label = batched_data["energy_per_atom"]
         atomic_numbers = batched_data["token_id"]
         noise_label = model_output["noise"]
-        pos_label = batched_data["ori_pos"]
+        if self.diffusion_mode == "x0":
+            pos_label = batched_data["ori_pos"]
         force_pred = model_output["forces"]
         energy_per_atom_pred = model_output["energy_per_atom"]
         noise_pred = model_output["noise_pred"]
@@ -147,8 +166,10 @@ class DiffMAE3dCriterions(nn.Module):
                 n_graphs, dtype=torch.bool, device=energy_per_atom_label.device
             )
 
-        energy_mask = clean_mask & ~is_protein
-        force_mask = clean_mask & is_periodic
+        # energy and force loss only apply on total clean samples
+        total_clean = clean_mask.all(dim=-1)
+        energy_mask = total_clean & ~is_protein
+        force_mask = total_clean & is_periodic
 
         # energy loss and force loss
         unreduced_energy_loss = self.energy_loss(
@@ -241,7 +262,7 @@ class DiffMAE3dCriterions(nn.Module):
             num_molecule_noise_sample,
         ) = self._reduce_force_or_noise_loss(
             unreduced_noise_loss,
-            ~clean_mask & is_molecule,
+            ~clean_mask & is_molecule.unsqueeze(-1),
             diff_loss_mask & ~protein_mask.any(dim=-1),
             is_molecule,
             is_periodic,
@@ -253,7 +274,7 @@ class DiffMAE3dCriterions(nn.Module):
             num_periodic_noise_sample,
         ) = self._reduce_force_or_noise_loss(
             unreduced_noise_loss,
-            ~clean_mask & is_periodic,
+            ~clean_mask & is_periodic.unsqueeze(-1),
             diff_loss_mask & ~protein_mask.any(dim=-1),
             is_molecule,
             is_periodic,
@@ -262,7 +283,7 @@ class DiffMAE3dCriterions(nn.Module):
         )
         protein_noise_loss, num_protein_noise_sample = self._reduce_force_or_noise_loss(
             unreduced_noise_loss,
-            ~clean_mask & is_protein,
+            ~clean_mask & is_protein.unsqueeze(-1),
             diff_loss_mask & ~protein_mask.any(dim=-1),
             is_molecule,
             is_periodic,

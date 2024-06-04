@@ -707,8 +707,14 @@ class Equiformerv2SO2(nn.Module):
             pbc = batched_data["pbc"]
             atoms = batched_data["token_id"]
             cell = batched_data["cell"]
+            num_atoms = batched_data["num_atoms"]
             self.cell_expander.expand(
-                pos, pbc, atoms, cell, self.psm_config.pbc_use_local_attention
+                pos,
+                pbc,
+                num_atoms,
+                atoms,
+                cell,
+                self.psm_config.pbc_use_local_attention,
             )
             return None, None, None
         else:

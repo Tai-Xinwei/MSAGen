@@ -123,6 +123,7 @@ def collate_fn(
         if not preprocess_2d_bond_features_with_cuda:
             item["edge_input"] = item["edge_input"][:, :, :multi_hop_max_dist, :]
 
+    idx = torch.tensor([i["idx"] for i in items], dtype=torch.long)
     max_node_num = max(i["token_type"].shape[0] for i in items)
     energy = [i["energy"] for i in items]
     energy_per_atom = [i["energy_per_atom"] for i in items]
@@ -196,7 +197,13 @@ def collate_fn(
         node_type_edges.append(node_atom_edge.long())
     node_type_edge = torch.cat(node_type_edges)
 
+    is_stable_periodic = torch.tensor(
+        [("is_stable_periodic" in i) and i["is_stable_periodic"] for i in items],
+        dtype=torch.bool,
+    )
+
     batched_data = dict(
+        idx=idx,
         attn_bias=attn_bias,
         in_degree=in_degree,
         out_degree=in_degree,  # for undirected graph
@@ -210,6 +217,7 @@ def collate_fn(
         pbc=pbc,
         cell=cell,
         num_atoms=num_atoms,
+        is_stable_periodic=is_stable_periodic,
     )
 
     if preprocess_2d_bond_features_with_cuda:

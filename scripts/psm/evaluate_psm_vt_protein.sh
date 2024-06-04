@@ -159,7 +159,7 @@ then
 else
   if (( $OMPI_COMM_WORLD_SIZE == 1))
   then
-    DISTRIBUTED_ARGS="--nproc_per_node 1 \
+    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
                       --master_port $MASTER_PORT"
   else
     DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \

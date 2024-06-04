@@ -64,7 +64,7 @@ class CellExpander:
         )
         return torch.clamp(result, min=0.0)
 
-    def expand(self, pos, pbc, atoms, cell, use_local_attention=True):
+    def expand(self, pos, pbc, num_atoms, atoms, cell, use_local_attention=True):
         with torch.no_grad():  # CL: make this an option?
             device = pos.device
             batch_size, max_num_atoms = pos.size()[:2]
@@ -84,7 +84,6 @@ class CellExpander:
                 expand_dist
                 > 1e-5  # CL: this cannot mask out colocated nodes in `expand_pos`
             )  # B x T x (8 x T)
-            # multi_ragph_mask = expand_dist < self.pbc_multigraph_cutoff
             expand_mask = torch.masked_fill(
                 expand_mask, atoms.eq(0).unsqueeze(-1), False
             )
@@ -101,16 +100,15 @@ class CellExpander:
             expand_mask &= cell_mask
             expand_len = torch.sum(expand_mask, dim=-1)
 
-            max_expand_len = torch.max(expand_len)
-
-            threshold_num_expanded_token = (
-                0
-                if max_num_atoms > self.expanded_token_cutoff
-                else self.expanded_token_cutoff - max_num_atoms
+            threshold_num_expanded_token = torch.clamp(
+                self.expanded_token_cutoff - num_atoms, min=0
             )
 
+            max_expand_len = torch.max(expand_len)
+
             # cutoff within expanded_token_cutoff tokens
-            if max_expand_len > threshold_num_expanded_token:
+            need_threshold = expand_len > threshold_num_expanded_token
+            if need_threshold.any():
                 min_expand_dist = expand_dist.masked_fill(expand_dist <= 1e-5, np.inf)
                 expand_dist_mask = (
                     atoms.eq(0).unsqueeze(-1) | atoms.eq(0).unsqueeze(1)
@@ -120,18 +118,22 @@ class CellExpander:
                     ~cell_mask.unsqueeze(1), np.inf
                 )
                 min_expand_dist = torch.min(min_expand_dist, dim=1)[0]
-                need_threshold = expand_len > threshold_num_expanded_token
 
                 need_threshold_distances = min_expand_dist[
                     need_threshold
                 ]  # B x (8 x T)
+                threshold_num_expanded_token = threshold_num_expanded_token[
+                    need_threshold
+                ]
                 threshold_dist = torch.sort(
                     need_threshold_distances, dim=-1, descending=False
-                )[0][:, threshold_num_expanded_token]
+                )[0]
 
-                new_expand_mask = min_expand_dist[
-                    need_threshold
-                ] < threshold_dist.unsqueeze(-1)
+                threshold_dist = torch.gather(
+                    threshold_dist, 1, threshold_num_expanded_token.unsqueeze(-1)
+                )
+
+                new_expand_mask = min_expand_dist[need_threshold] < threshold_dist
                 expand_mask[need_threshold] &= new_expand_mask
                 expand_len = torch.sum(expand_mask, dim=-1)
                 max_expand_len = torch.max(expand_len)
