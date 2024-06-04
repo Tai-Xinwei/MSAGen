@@ -5,6 +5,7 @@
 import torch
 import torch.nn as nn
 
+from sfm.logging import logger
 from sfm.models.psm.psm_config import DiffusionTrainingLoss
 
 
@@ -313,8 +314,10 @@ class DiffMAE3dCriterions(nn.Module):
             aa_acc = 0.0
             num_aa_mask_token = 0.0
 
-        loss = energy_loss + force_loss + noise_loss + aa_mlm_loss
-        # loss = noise_loss + aa_mlm_loss
+        energy_loss_ratio = (
+            min(10.0 / energy_loss.item(), 10.0) if energy_loss.item() > 0 else 1.0
+        )
+        loss = energy_loss_ratio * energy_loss + force_loss + noise_loss + aa_mlm_loss
 
         # for loss exist in every sample of the batch, no extra number of samples are recorded (will use batch size in loss reduction)
         # for loss does not exist in every example of the batch, use a tuple, where the first element is the averaged loss value

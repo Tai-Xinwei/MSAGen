@@ -199,7 +199,7 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         data["energy_per_atom"] = torch.tensor(
             [
                 (total_energy / float(data["num_atoms"]) - self.energy_per_atom_mean)
-                / self.energy_per_atom_std
+                # / self.energy_per_atom_std
             ]
         )
 
@@ -467,7 +467,7 @@ class MatterSimDataset:
                     (data["info"]["energy"] / float(data["num_atoms"]))
                     - self.energy_per_atom_mean
                 )
-                / self.energy_per_atom_std
+                # / self.energy_per_atom_std
             ]
         )
         data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)

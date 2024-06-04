@@ -63,7 +63,7 @@ jobs:
   - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
   - export loadcheck_path=/nlm/llama/Meta-Llama-3-8B/original
   - export finetune_from_checkpoint_dir=/nlm/peiran/output/llama3_stageA_G256/
-  - export save_dir=/nlm/peiran/output/llama3_stageA_G256/
+  - export save_dir=/nlm/peiran/output/llama3_stageB_G256/
   - bash scripts/nlm/pretrain_nlm_llama3_7b_stageB.sh
   submit_args:
     env:
