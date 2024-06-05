@@ -6,7 +6,7 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=24
+[ -z "${layers}" ] && layers=6
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
@@ -47,12 +47,12 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
 # [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-3M,AFDB50-plddt70.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.0,0.5'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="256,32,32"
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,afdb'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.5'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="256,32"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
-[ -z "${fp16}" ] && fp16=True
+[ -z "${fp16}" ] && fp16=False
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v4/checkpoints/"
 # [ -z "${save_dir}" ] && save_dir="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3/checkpoints/"
@@ -99,7 +99,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=False
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
-[ -z "${use_2d_atom_features}" ] && use_2d_atom_features=False
+[ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 
 echo -e "\n\n"
@@ -152,7 +152,7 @@ echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
-# export OMP_NUM_THREADS=1
+export OMP_NUM_THREADS=4
 
 wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 export WANDB_API_KEY=$wandb_key

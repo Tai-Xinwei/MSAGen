@@ -2,6 +2,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -315,10 +316,11 @@ class DiffMAE3dCriterions(nn.Module):
             aa_acc = 0.0
             num_aa_mask_token = 0.0
 
-        # energy_loss_ratio = (
-        #     min(10.0 / energy_loss.item(), 10.0) if energy_loss.item() > 1.0 else 1.0
-        # )
-        energy_loss_ratio = 1.0
+        def calculate_energy_loss_ratio(energy_loss_mag):
+            return np.clip(1.0 - (energy_loss_mag - 1.0) / 100, 0.01, 1.0)
+
+        energy_loss_ratio = calculate_energy_loss_ratio(energy_loss.item())
+
         loss = energy_loss_ratio * energy_loss + force_loss + noise_loss + aa_mlm_loss
 
         # for loss exist in every sample of the batch, no extra number of samples are recorded (will use batch size in loss reduction)

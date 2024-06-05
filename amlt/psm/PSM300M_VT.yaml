@@ -7,7 +7,7 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 8
+  NODES: 1
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -82,7 +82,7 @@ jobs:
   - export max_length=512
   - export gradient_accumulation_steps=4
   - export log_interval=100
-  - export data_path=/sfm/psm/
+  - export data_path=/nfs/psmdata/
   - export data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb'
   - export dataset_name_list='pm6,afdb'
   - export dataset_split_raito='0.5,0.5'
