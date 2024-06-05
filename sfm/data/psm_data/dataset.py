@@ -6,13 +6,12 @@ import pyximport
 
 pyximport.install(setup_args={"include_dirs": np.get_include()})
 import bisect
-import copy
 import glob
 import os
 import pickle as pkl
 import random
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union
 
 import lmdb
 import torch
@@ -27,7 +26,7 @@ from sfm.data.data_utils import _filter_by_size_dynamic
 from sfm.data.dataset import FoundationModelDataset
 from sfm.data.mol_data import algos
 from sfm.data.prot_data.util import bstr2obj
-from sfm.data.psm_data.collator import collate_fn, pad_pos_unsqueeze
+from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.utils import (
     get_conv_variable_lin,
     get_data_defult_config,
@@ -37,21 +36,17 @@ from sfm.logging import logger
 from sfm.models.psm.psm_config import PSMConfig
 
 
-class PM6FullLMDBDataset(FoundationModelDataset):
-    latest_version = "20240527.1"
+class MoleculeLMDBDataset(FoundationModelDataset):
+    energy_mean: float = 0.0
+    energy_std: float = 1.0
+    energy_per_atom_mean: float = 0.0
+    energy_per_atom_std: float = 1.0
+    force_mean: float = 0.0  # force mean should always be 0.0 to keep equivariance
+    force_std: float = 1.0
 
-    def __init__(
-        self,
-        args: PSMConfig,
-        lmdb_path: str,
-        version: Optional[str] = None,
-    ):
+    def __init__(self, args: PSMConfig, lmdb_path: str) -> None:
         assert lmdb_path, "LMDB path must be provided"
-        self.lmdb_path = os.path.normpath(lmdb_path)
-        if self.lmdb_path.endswith("PubChemQC-B3LYP-PM6"):
-            self.lmdb_path = os.path.join(
-                self.lmdb_path, version or PM6FullLMDBDataset.latest_version, "full"
-            )
+        self.lmdb_path = lmdb_path
 
         self.args = args
         # for dataloader with num_workers > 1
@@ -62,7 +57,9 @@ class PM6FullLMDBDataset(FoundationModelDataset):
             indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
         )
 
-    def _init_db(self):
+    def _ensure_init_db(self):
+        if self._env is not None:
+            return
         self._env = lmdb.open(
             str(self.lmdb_path),
             subdir=True,
@@ -71,63 +68,30 @@ class PM6FullLMDBDataset(FoundationModelDataset):
             readahead=False,
             meminit=False,
         )
-        self._txn = self.env.begin(write=False)
-        metadata = bstr2obj(self.txn.get("metadata".encode()))
-        if self.lmdb_path.find("PubChemQC-B3LYP-PM6") != -1:
-            self._sizes, keys = metadata["sizes"], metadata["keys"]
-            self._keys = [f"{key}" for key in keys]
-            del keys
-        else:
-            self._sizes, self._keys = metadata["size"], metadata["keys"]
+        self._txn = self._env.begin(write=False)
+        metadata = bstr2obj(self._txn.get("metadata".encode()))
+        self._keys = [str(key) for key in metadata["keys"]]
+        self._sizes = metadata["size"] if "size" in metadata else metadata["sizes"]
 
     @property
     def env(self):
-        if self._env is None:
-            self._init_db()
+        self._ensure_init_db()
         return self._env
 
     @property
     def txn(self):
-        if self._txn is None:
-            self._init_db()
+        self._ensure_init_db()
         return self._txn
 
     @property
     def sizes(self):
-        if self._sizes is None:
-            self._init_db()
+        self._ensure_init_db()
         return self._sizes
 
     @property
     def keys(self):
-        if self._keys is None:
-            self._init_db()
+        self._ensure_init_db()
         return self._keys
-
-    # energy and std calculated over training part of the dataset
-    @property
-    def energy_mean(self):
-        return -42774.16038176129
-
-    @property
-    def energy_std(self):
-        return 25029.68158883449
-
-    @property
-    def force_mean(self):  # force mean should always be 0.0 to keep equivariance
-        return 0.0
-
-    @property
-    def force_std(self):
-        return 1.0
-
-    @property
-    def energy_per_atom_mean(self):
-        return -994.0920019593214
-
-    @property
-    def energy_per_atom_std(self):
-        return 770.7496116135809
 
     def split_dataset(self, validation_ratio=0.03, sort=False):
         num_samples = len(self.keys)
@@ -171,6 +135,8 @@ class PM6FullLMDBDataset(FoundationModelDataset):
             coords = torch.tensor(data["pos"], dtype=torch.float64)
         elif "coords" in data:
             coords = torch.tensor(data["coords"], dtype=torch.float64)
+        else:
+            coords = torch.zeros((data["node_feat"].size()[0], 3), dtype=torch.float64)
 
         x = data["node_feat"]
 
@@ -189,19 +155,24 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         data["forces"] = torch.zeros(
             (x.size()[0], 3), dtype=torch.float64, device=x.device
         )
-        if self.lmdb_path.find("PubChemQC-B3LYP-PM6") != -1:
-            total_energy = data["energy"]
+
+        if "energy" in data or "total_energy" in data:
+            total_energy = data["energy"] if "energy" in data else data["total_energy"]
+            data["energy"] = torch.tensor(
+                [(total_energy - self.energy_mean) / self.energy_std]
+            )
+            data["energy_per_atom"] = torch.tensor(
+                [
+                    (
+                        total_energy / float(data["num_atoms"])
+                        - self.energy_per_atom_mean
+                    )
+                    / self.energy_per_atom_std
+                ]
+            )
         else:
-            total_energy = data["total_energy"]
-        data["energy"] = torch.tensor(
-            [(total_energy - self.energy_mean) / self.energy_std]
-        )
-        data["energy_per_atom"] = torch.tensor(
-            [
-                (total_energy / float(data["num_atoms"]) - self.energy_per_atom_mean)
-                / self.energy_per_atom_std
-            ]
-        )
+            data["energy"] = torch.tensor([0.0], dtype=torch.float64)
+            data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
 
         data = self.generate_2dgraphfeat(data)
 
@@ -268,7 +239,7 @@ class PM6FullLMDBDataset(FoundationModelDataset):
             indices, ignored = _filter_by_size_dynamic(indices, self._sizes, max_sizes)
 
         logger.warning(
-            f"Removed {len(ignored)} examples from the PM6FullLMDBDataset because they are longer than {max_sizes}."
+            f"Removed {len(ignored)} examples from the {self.lmdb_path} because they are longer than {max_sizes}."
         )
         self._sizes = [self._sizes[idx] for idx in indices]
         self._keys = [self._keys[idx] for idx in indices]
@@ -278,6 +249,27 @@ class PM6FullLMDBDataset(FoundationModelDataset):
 
     def num_tokens(self, index: int) -> int:
         return self.sizes[index]
+
+
+class PM6FullLMDBDataset(MoleculeLMDBDataset):
+    latest_version = "20240527.1"
+    energy_mean: float = -42774.16038176129
+    energy_std: float = 25029.68158883449
+    energy_per_atom_mean: float = -994.0920019593214
+    energy_per_atom_std: float = 770.7496116135809
+
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: str,
+        version: Optional[str] = None,
+    ):
+        path = os.path.normpath(lmdb_path)
+        if path.endswith("PubChemQC-B3LYP-PM6"):
+            path = os.path.join(
+                path, version or PM6FullLMDBDataset.latest_version, "full"
+            )
+        super().__init__(args, path)
 
 
 class PlainPM6FullLMDBDataset(PM6FullLMDBDataset):
