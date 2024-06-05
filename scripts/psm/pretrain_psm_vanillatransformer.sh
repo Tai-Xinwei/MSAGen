@@ -219,12 +219,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
-          finetune_from_checkpoint_dir=$loadcheck_path \
           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
-          ifresume=True \
-
-
-sleep inf
-sleep inf
-sleep inf
+          # ifresume=True \
+          # finetune_from_checkpoint_dir=$loadcheck_path \
