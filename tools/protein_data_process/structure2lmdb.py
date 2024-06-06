@@ -107,7 +107,7 @@ def processpdb(mmcif_dir: str, input_list: str, chem_comp: str,
             mmcif_path = str( cifpath )
         else:
             mmcif_path = ''
-        data = process_pdb_complex(mmcif_path, chem_comp_path)
+        data = process_pdb_complex(mmcif_path, chem_comp_path, removeHs=True)
         if not data:
             return pdbid, None
         return pdbid, obj2bstr(data)

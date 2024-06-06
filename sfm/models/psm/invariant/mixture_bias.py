@@ -22,7 +22,7 @@ class PSMBias(nn.Module):
         """
         super(PSMBias, self).__init__()
 
-        rpe_heads = psm_config.num_attention_heads
+        rpe_heads = psm_config.num_attention_heads * (psm_config.num_encoder_layers + 1)
 
         self.gbf = GaussianLayer(psm_config.num_3d_bias_kernel, psm_config.num_edges)
         self.gbf_proj = NonLinear(psm_config.num_3d_bias_kernel, rpe_heads)
@@ -43,7 +43,6 @@ class PSMBias(nn.Module):
     def forward(
         self,
         batch_data: Dict,
-        masked_token_type: torch.Tensor,
         padding_mask: torch.Tensor,
         pbc_expand_batched: Optional[Dict] = None,
     ) -> torch.Tensor:
@@ -70,32 +69,15 @@ class PSMBias(nn.Module):
             delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
             dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
 
-        masked_token_type_i = (
-            masked_token_type.unsqueeze(-1).repeat(1, 1, n_node).unsqueeze(-1)
-        )
-        masked_token_type_j = (
-            masked_token_type.unsqueeze(1).repeat(1, n_node, 1).unsqueeze(-1)
-        )
-        pair_token_type = torch.cat([masked_token_type_i, masked_token_type_j], dim=-1)
-
         if pbc_expand_batched is not None:
-            outcell_index = pbc_expand_batched["outcell_index"]
-            expand_pair_token_type = torch.gather(
-                pair_token_type,
-                dim=2,
-                index=outcell_index.unsqueeze(1).unsqueeze(-1).repeat(1, n_node, 1, 2),
-            )
-            pair_token_type = torch.cat(
-                [pair_token_type, expand_pair_token_type], dim=2
-            )
-            pbc_expand_batched["expand_node_type_edge"] = pair_token_type
+            node_type_edge = pbc_expand_batched["expand_node_type_edge"]
             local_attention_weight = pbc_expand_batched["local_attention_weight"]
         else:
+            node_type_edge = batch_data["node_type_edge"]
             local_attention_weight = None
 
-        edge_feature = self.gbf(dist, pair_token_type.long())
+        edge_feature = self.gbf(dist, node_type_edge.long())
         graph_attn_bias = self.gbf_proj(edge_feature)
-        pos_embedding_feature = self.pos_embedding_proj(edge_feature)
 
         if pbc_expand_batched is not None:
             expand_mask = pbc_expand_batched["expand_mask"]
@@ -103,14 +85,14 @@ class PSMBias(nn.Module):
             graph_attn_bias = graph_attn_bias.masked_fill(
                 full_mask.unsqueeze(1).unsqueeze(-1), float("-inf")
             )
-            pos_embedding_feature = pos_embedding_feature.masked_fill(
+            edge_feature = edge_feature.masked_fill(
                 full_mask.unsqueeze(1).unsqueeze(-1), 0.0
             )
         else:
             graph_attn_bias = graph_attn_bias.masked_fill(
                 padding_mask.unsqueeze(1).unsqueeze(-1), float("-inf")
             )
-            pos_embedding_feature = pos_embedding_feature.masked_fill(
+            edge_feature = edge_feature.masked_fill(
                 padding_mask.unsqueeze(1).unsqueeze(-1), 0.0
             )
 
@@ -121,10 +103,12 @@ class PSMBias(nn.Module):
         graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2)
 
         if local_attention_weight is not None:
-            pos_embedding_feature = (
-                pos_embedding_feature * local_attention_weight.unsqueeze(-1)
-            )
-        pos_embedding_feature = pos_embedding_feature.sum(dim=-2)
+            edge_feature = edge_feature * local_attention_weight.unsqueeze(-1)
+        edge_feature = edge_feature.sum(dim=-2)
+        pos_embedding_feature = self.pos_embedding_proj(edge_feature)
+        pos_embedding_feature = pos_embedding_feature.masked_fill(
+            padding_mask.unsqueeze(-1), 0.0
+        )
 
         return graph_attn_bias, pos_embedding_feature
 

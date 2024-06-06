@@ -60,16 +60,15 @@ is called, which happens at each batch update. However, for longer runs, the def
 this way, trace handler is called at specific times during the training for the profiling. Below is an example of how to use the
 schedule parameter to define the profiling frequency.
 
-.. code-block:: default
+.. code::
 
-my_schedule = torch.profiler.schedule(
-   wait=5,
-   warmup=1,
-   active=3,
-   repeat=2,
-   skip_first=10
-)
-..
+   my_schedule = torch.profiler.schedule(
+      wait=5,
+      warmup=1,
+      active=3,
+      repeat=2,
+      skip_first=10
+   )
 
 In the example above, profiler will skip the first 15 steps, spend the next step on the warm up,
 actively record the next 3 steps, skip another 5 steps, spend the next step on the warm up, actively

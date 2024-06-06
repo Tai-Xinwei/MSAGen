@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 from sfm.models.psm.modules.multihead_attention import (
-    MemEffSelfAttnWithProteinRotaryEmbedding,
+    MemEffAttnWithProteinRotaryEmbedding,
 )
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.droppath import DropPath
@@ -13,7 +13,7 @@ from sfm.modules.FairseqDropout import FairseqDropout
 
 # from fairseq import utils
 from sfm.modules.get_activation_fn import get_activation_fn
-from sfm.modules.mem_eff_attn import MemEffAttn, MemEffSelfAttn
+from sfm.modules.mem_eff_attn import MemEffAttn
 
 
 class PSMPlainEncoderLayer(nn.Module):
@@ -73,9 +73,9 @@ class PSMPlainEncoderLayer(nn.Module):
         add_rope=False,
     ):
         if self.psm_config.only_use_rotary_embedding_for_protein:
-            attn_cls = MemEffSelfAttnWithProteinRotaryEmbedding
+            attn_cls = MemEffAttnWithProteinRotaryEmbedding
         else:
-            attn_cls = MemEffSelfAttn
+            attn_cls = MemEffAttn
         return attn_cls(
             embed_dim,
             num_attention_heads,
@@ -93,7 +93,7 @@ class PSMPlainEncoderLayer(nn.Module):
         x: torch.Tensor,
         padding_mask: torch.Tensor,
         batched_data: Dict,
-        masked_token_type: torch.Tensor,
+        pbc_expand_batched: Optional[Dict[str, torch.Tensor]] = None,
     ):
         """
         LayerNorm is applied either before or after the self-attention/ffn
@@ -109,6 +109,7 @@ class PSMPlainEncoderLayer(nn.Module):
                 need_weights=False,
                 attn_mask=None,
                 is_protein=batched_data["is_protein"],
+                pbc_expand_batched=pbc_expand_batched,
             )
         else:
             x, _ = self.self_attn(
@@ -116,6 +117,7 @@ class PSMPlainEncoderLayer(nn.Module):
                 key_padding_mask=padding_mask,
                 need_weights=False,
                 attn_mask=None,
+                pbc_expand_batched=pbc_expand_batched,
             )
         x = residual + x
 
