@@ -53,7 +53,9 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         # for dataloader with num_workers > 1
         self._env, self._txn = None, None
         self._sizes, self._keys = None, None
-
+        self.PM6_ATOM_REFERENCE_tensor = torch.tensor(
+            PM6_ATOM_REFERENCE_LIST, dtype=torch.float64
+        )
         self.filter_indices_by_size(
             indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
         )
@@ -152,47 +154,35 @@ class MoleculeLMDBDataset(FoundationModelDataset):
 
         data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
         data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
-        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
-        data["forces"] = torch.zeros(
-            (x.size()[0], 3), dtype=torch.float64, device=x.device
-        )
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float64)
+        data["forces"] = torch.zeros((x.size()[0], 3), dtype=torch.float64)
 
         if "energy" in data or "total_energy" in data:
             total_energy = data["energy"] if "energy" in data else data["total_energy"]
             data["energy"] = torch.tensor(
                 [(total_energy - self.energy_mean) / self.energy_std]
             )
-            data["energy_per_atom"] = torch.tensor(
-                [
-                    (
-                        total_energy / float(data["num_atoms"])
-                        - self.energy_per_atom_mean
-                    )
-                    / self.energy_per_atom_std
-                ]
+            # data["energy_per_atom"] = torch.tensor(
+            #     [
+            #         (
+            #             total_energy / float(data["num_atoms"])
+            #             - self.energy_per_atom_mean
+            #         )
+            #         / self.energy_per_atom_std
+            #     ]
+            # )
+
+            reference_energy = (
+                torch.gather(self.PM6_ATOM_REFERENCE_tensor, 0, data["token_type"] - 1)
+                .sum()
+                .unsqueeze(0)
             )
+            data["energy_per_atom"] = (
+                torch.tensor(total_energy) - reference_energy
+            ) / data["num_atoms"]
         else:
-            total_energy = data["total_energy"]
-        data["energy"] = torch.tensor(
-            [(total_energy - self.energy_mean) / self.energy_std]
-        )
-        # data["energy_per_atom"] = torch.tensor(
-        #     [
-        #         (total_energy / float(data["num_atoms"]) - self.energy_per_atom_mean)
-        #         / self.energy_per_atom_std
-        #     ]
-        # )
-        PM6_ATOM_REFERENCE_tensor = torch.tensor(
-            PM6_ATOM_REFERENCE_LIST, device=x.device, dtype=torch.float64
-        )
-        reference_energy = (
-            torch.gather(PM6_ATOM_REFERENCE_tensor, 0, data["token_type"] - 1)
-            .sum()
-            .unsqueeze(0)
-        )
-        data["energy_per_atom"] = (
-            torch.tensor(total_energy) - reference_energy
-        ) / data["num_atoms"]
+            data["energy"] = torch.tensor([0.0], dtype=torch.float64)
+            data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
 
         data = self.generate_2dgraphfeat(data)
 
