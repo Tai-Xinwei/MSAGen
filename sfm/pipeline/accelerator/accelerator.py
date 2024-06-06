@@ -1147,7 +1147,7 @@ class DeepSpeedAccelerator(Accelerator):
                 drop_last=True,
                 num_workers=1,
             )
-        elif self.args.daliLoader:
+        elif self.args.use_dali_pipeline:
             self.train_sampler = None
             self.train_data_loader = DataLoader(
                 train_data,
