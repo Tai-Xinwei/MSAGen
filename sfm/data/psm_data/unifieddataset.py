@@ -261,10 +261,10 @@ class UnifiedBatchedIterableDataset(IterableDataset):
             get_dali_pipeline(args, dataset=dataset, batch_size=micro_batch_size)
             for dataset, micro_batch_size in zip(dataset_list, self.dataset_batch_sizes)
         ]
-
-        self.dataset_list[0] = get_dali_pm6_pipeline(
-            args, dataset_list[0], self.dataset_batch_sizes[0]
-        )
+        # TODO: get_dali_pm6_pipeline needs to be updated with dataset in main branch
+        # self.dataset_list[0] = get_dali_pm6_pipeline(
+        #     args, dataset_list[0], self.dataset_batch_sizes[0]
+        # )
 
     def __iter__(self):
         return self
