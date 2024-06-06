@@ -64,7 +64,17 @@ class CellExpander:
         )
         return torch.clamp(result, min=0.0)
 
-    def expand(self, pos, pbc, num_atoms, atoms, cell, use_local_attention=True):
+    def expand(
+        self,
+        pos,
+        init_pos,
+        pbc,
+        num_atoms,
+        atoms,
+        cell,
+        pair_token_type,
+        use_local_attention=True,
+    ):
         with torch.no_grad():  # CL: make this an option?
             device = pos.device
             batch_size, max_num_atoms = pos.size()[:2]
@@ -154,6 +164,17 @@ class CellExpander:
                     i, expand_mask[i], :
                 ]
 
+            expand_pair_token_type = torch.gather(
+                pair_token_type,
+                dim=2,
+                index=outcell_index.unsqueeze(1)
+                .unsqueeze(-1)
+                .repeat(1, max_num_atoms, 1, 2),
+            )
+            expand_node_type_edge = torch.cat(
+                [pair_token_type, expand_pair_token_type], dim=2
+            )
+
             if use_local_attention:
                 dist = (pos.unsqueeze(2) - pos.unsqueeze(1)).norm(p=2, dim=-1)
                 expand_dist_compress = (
@@ -180,18 +201,36 @@ class CellExpander:
                 local_attention_weight = local_attention_weight.masked_fill(
                     full_mask.unsqueeze(1), 0.0
                 )
-                return {
+                pbc_expand_batched = {
                     "expand_pos": expand_pos_compressed,
                     "outcell_index": outcell_index,
                     "expand_mask": expand_mask,
                     "local_attention_weight": local_attention_weight,
+                    "expand_node_type_edge": expand_node_type_edge,
                 }
             else:
-                return {
+                pbc_expand_batched = {
                     "expand_pos": expand_pos_compressed,
                     "outcell_index": outcell_index,
                     "expand_mask": mask_after_k_persample(
                         batch_size, max_expand_len, expand_len
                     ),
                     "local_attention_weight": None,
+                    "expand_node_type_edge": expand_node_type_edge,
                 }
+
+            expand_pos_no_offset = torch.gather(
+                pos, dim=1, index=outcell_index.unsqueeze(-1)
+            )
+            offset = expand_pos_compressed - expand_pos_no_offset
+            init_expand_pos_no_offset = torch.gather(
+                init_pos, dim=1, index=outcell_index.unsqueeze(-1)
+            )
+            init_expand_pos = init_expand_pos_no_offset + offset
+            init_expand_pos = init_expand_pos.masked_fill(
+                pbc_expand_batched["expand_mask"].unsqueeze(-1),
+                0.0,
+            )
+
+            pbc_expand_batched["init_expand_pos"] = init_expand_pos
+            return pbc_expand_batched

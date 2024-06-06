@@ -21,6 +21,7 @@ from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.modules.mixembedding import PSMMix3dEmbedding
 from sfm.models.psm.modules.mixembedding_equiv import PSMMix3DEquivEmbedding
+from sfm.models.psm.modules.pbc import CellExpander
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
@@ -369,6 +370,10 @@ class PSMModel(Model):
             (batched_data["is_periodic"]) & (~batched_data["is_stable_periodic"])
         )  # A periodic sample which is not stable is always clean
 
+        clean_mask = clean_mask & (
+            (~batched_data["is_periodic"]) | (~batched_data["is_stable_periodic"])
+        )  # A periodic sample which is stable is always corrupted
+
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
         aa_mask = batched_data["protein_masked_aa"] & batched_data[
@@ -643,6 +648,13 @@ class PSM(nn.Module):
 
         self.psm_config = psm_config
 
+        self.cell_expander = CellExpander(
+            self.psm_config.pbc_cutoff,
+            self.psm_config.pbc_expanded_token_cutoff,
+            self.psm_config.pbc_expanded_num_cell_per_direction,
+            self.psm_config.pbc_multigraph_cutoff,
+        )
+
         # Implement the embedding
         if args.backbone == "vanillatransformer":
             self.embedding = PSMMix3dEmbedding(psm_config)
@@ -719,11 +731,28 @@ class PSM(nn.Module):
             nn.Linear(psm_config.embedding_dim, 1, bias=False),
         )
 
-    def _set_mask(self, mask_aa, mask_pos, residue_seq):
-        """
-        set mask here
-        """
-        pass
+    def _set_aa_mask(self, batched_data, aa_mask):
+        token_id = batched_data["token_id"]
+        if aa_mask is not None:
+            mask_token_type = token_id.masked_fill(
+                aa_mask, 157
+            )  # 157 is the mask token
+        else:
+            mask_token_type = token_id
+
+        batched_data["masked_token_type"] = mask_token_type
+
+    def _create_node_type_edge(self, batched_data):
+        masked_token_type = batched_data["masked_token_type"]
+        n_node = masked_token_type.size()[-1]
+        masked_token_type_i = (
+            masked_token_type.unsqueeze(-1).repeat(1, 1, n_node).unsqueeze(-1)
+        )
+        masked_token_type_j = (
+            masked_token_type.unsqueeze(1).repeat(1, n_node, 1).unsqueeze(-1)
+        )
+        node_type_edge = torch.cat([masked_token_type_i, masked_token_type_j], dim=-1)
+        batched_data["node_type_edge"] = node_type_edge
 
     def forward(
         self,
@@ -761,6 +790,9 @@ class PSM(nn.Module):
         is_molecule = batched_data["is_molecule"]
         is_protein = batched_data["is_protein"]
 
+        self._set_aa_mask(batched_data, aa_mask)
+        self._create_node_type_edge(batched_data)
+
         # B, L, H is Batch, Length, Hidden
         # token_embedding: B x L x H
         # padding_mask: B x L
@@ -770,18 +802,40 @@ class PSM(nn.Module):
             if self.args.fp16
             else nullcontext()
         ):
-            token_embedding, padding_mask, token_type, time_embed = self.embedding(
-                batched_data, time_step, clean_mask, aa_mask
+            if (
+                "pbc" in batched_data
+                and batched_data["pbc"] is not None
+                and torch.any(batched_data["pbc"])
+            ):
+                pbc_expand_batched = self.cell_expander.expand(
+                    batched_data["pos"],
+                    batched_data["init_pos"],
+                    batched_data["pbc"],
+                    batched_data["num_atoms"],
+                    batched_data["masked_token_type"],
+                    batched_data["cell"],
+                    batched_data["node_type_edge"],
+                    self.psm_config.pbc_use_local_attention,
+                )
+            else:
+                pbc_expand_batched = None
+
+            token_embedding, padding_mask, time_embed, mixed_attn_bias = self.embedding(
+                batched_data,
+                time_step,
+                clean_mask,
+                aa_mask,
+                pbc_expand_batched=pbc_expand_batched,
             )
 
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
         if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
-            (
-                encoder_output,
+            encoder_output = self.encoder(
+                token_embedding.transpose(0, 1),
+                padding_mask,
+                batched_data,
                 pbc_expand_batched,
-            ) = self.encoder(  # CL: expand cell outside encoder?
-                token_embedding.transpose(0, 1), padding_mask, batched_data, token_type
             )
             with (
                 torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
@@ -795,16 +849,18 @@ class PSM(nn.Module):
                     pbc_expand_batched,
                 )
         elif self.encoder is not None:
-            (
-                encoder_output,
+            encoder_output = self.encoder(
+                token_embedding.transpose(0, 1),
+                padding_mask,
+                batched_data,
+                mixed_attn_bias,
                 pbc_expand_batched,
-            ) = self.encoder(  # CL: expand cell outside encoder?
-                token_embedding.transpose(0, 1), padding_mask, batched_data, token_type
             )
 
             decoder_x_output, decoder_vec_output = self.decoder(
                 batched_data,
                 encoder_output,
+                mixed_attn_bias[-1],
                 padding_mask,
                 pbc_expand_batched,
             )
@@ -813,7 +869,7 @@ class PSM(nn.Module):
                 batched_data,
                 token_embedding.transpose(0, 1),
                 padding_mask,
-                pbc_expand_batched=None,
+                pbc_expand_batched=pbc_expand_batched,
             )
 
         with (
@@ -845,7 +901,10 @@ class PSM(nn.Module):
                     batched_data["sqrt_one_minus_alphas_cumprod_t"]
                 )
                 scale = torch.sigmoid(scale_shift + logit_bias)
-                noise_pred = scale * batched_data["pos"] + (1 - scale) * noise_pred
+                noise_pred = (
+                    scale * (batched_data["pos"] - batched_data["init_pos"])
+                    + (1 - scale) * noise_pred
+                )
             elif self.args.diffusion_mode == "x0":
                 scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
                 logit_bias = torch.logit(

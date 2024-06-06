@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from torch.nn.attention import SDPBackend, sdpa_kernel
 
 from sfm.models.psm.psm_config import PSMConfig, VecInitApproach
 from sfm.modules.rotary_embedding import RotaryEmbedding
@@ -17,11 +18,6 @@ torch._C._jit_set_profiling_mode(False)
 torch._C._jit_set_profiling_executor(False)
 torch._C._jit_override_can_fuse_on_cpu(True)
 torch._C._jit_override_can_fuse_on_gpu(True)
-
-
-@torch.jit.script
-def softmax_dropout(input, dropout_prob: float, is_training: bool):
-    return F.dropout(F.softmax(input, -1), dropout_prob, is_training)
 
 
 @torch.jit.script
@@ -75,65 +71,6 @@ class NodeGaussianLayer(nn.Module):
         mean = self.means.weight.float().view(-1)
         std = self.stds.weight.float().view(-1).abs() + 1e-5
         return gaussian(x.float(), mean, std).type_as(self.means.weight)
-
-
-class NodeTaskHead(nn.Module):
-    def __init__(
-        self,
-        embed_dim: int,
-        num_heads: int,
-    ):
-        super().__init__()
-        self.embed_dim = embed_dim
-        self.q_proj: Callable[[Tensor], Tensor] = nn.Linear(
-            embed_dim, embed_dim, bias=False
-        )
-        self.k_proj: Callable[[Tensor], Tensor] = nn.Linear(
-            embed_dim, embed_dim, bias=False
-        )
-        self.v_proj: Callable[[Tensor], Tensor] = nn.Linear(
-            embed_dim, embed_dim, bias=False
-        )
-        self.num_heads = num_heads
-        self.scaling = (embed_dim // num_heads) ** -0.5
-        self.force_proj1: Callable[[Tensor], Tensor] = nn.Linear(
-            embed_dim, 1, bias=False
-        )
-        self.force_proj2: Callable[[Tensor], Tensor] = nn.Linear(
-            embed_dim, 1, bias=False
-        )
-        self.force_proj3: Callable[[Tensor], Tensor] = nn.Linear(
-            embed_dim, 1, bias=False
-        )
-
-    def forward(
-        self,
-        query: Tensor,
-        attn_bias: Tensor,
-        delta_pos: Tensor,
-    ) -> Tensor:
-        bsz, n_node, _ = query.size()
-        q = (
-            self.q_proj(query).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
-            * self.scaling
-        )
-        k = self.k_proj(query).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
-        v = self.v_proj(query).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
-        attn = q @ k.transpose(-1, -2)  # [bsz, head, n, n]
-        attn_probs = softmax_dropout(
-            attn.view(-1, n_node, n_node) + attn_bias, 0.1, self.training
-        ).view(bsz, self.num_heads, n_node, n_node)
-        rot_attn_probs = attn_probs.unsqueeze(-1) * delta_pos.unsqueeze(1).type_as(
-            attn_probs
-        )  # [bsz, head, n, n, 3]
-        rot_attn_probs = rot_attn_probs.permute(0, 1, 4, 2, 3)
-        x = rot_attn_probs @ v.unsqueeze(2)  # [bsz, head , 3, n, d]
-        x = x.permute(0, 3, 2, 1, 4).contiguous().view(bsz, n_node, 3, -1)
-        f1 = self.force_proj1(x[:, :, 0, :]).view(bsz, n_node, 1)
-        f2 = self.force_proj2(x[:, :, 1, :]).view(bsz, n_node, 1)
-        f3 = self.force_proj3(x[:, :, 2, :]).view(bsz, n_node, 1)
-        cur_force = torch.cat([f1, f2, f3], dim=-1).float()
-        return cur_force
 
 
 class GatedEquivariantBlock(nn.Module):
@@ -348,19 +285,25 @@ class MemEffInvariantAttention(nn.Module):
         is_protein: Optional[Tensor] = None,
     ):
         if pbc_expand_batched is not None:
-            raise Exception("pbc is not supported in the mem efficient attention")
-        #     outcell_index = (
-        #         pbc_expand_batched["outcell_index"]
-        #         .unsqueeze(-1)
-        #         .repeat(1, 1, k.size()[-1])
-        #     )
-        #     local_attention_weight = pbc_expand_batched["local_attention_weight"]
-        #     expand_k = torch.gather(k, dim=1, index=outcell_index)
-        #     expand_v = torch.gather(v, dim=1, index=outcell_index)
-        #     k = torch.cat([k, expand_k], dim=1)
-        #     v = torch.cat([v, expand_v], dim=1)
-        # else:
-        #     local_attention_weight = None
+            outcell_index = (
+                pbc_expand_batched["outcell_index"]
+                .unsqueeze(-1)
+                .repeat(1, 1, k.size()[-1])
+            )
+            local_attention_weight = pbc_expand_batched["local_attention_weight"]
+            expand_k = torch.gather(k, dim=1, index=outcell_index)
+            expand_v = torch.gather(v, dim=1, index=outcell_index)
+            k = torch.cat([k, expand_k], dim=1)
+            v = torch.cat([v, expand_v], dim=1)
+            expand_mask = pbc_expand_batched["expand_mask"]
+        else:
+            local_attention_weight = None
+            expand_mask = None
+
+        if local_attention_weight is not None:
+            raise Exception(
+                "periodic systems with pbc_use_local_attention=True is not supported in the mem efficient attention"
+            )
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
 
@@ -391,6 +334,13 @@ class MemEffInvariantAttention(nn.Module):
                 q[is_protein_expanded], k[is_protein_expanded]
             )
 
+        if key_padding_mask is not None:
+            if pbc_expand_batched is not None:
+                assert expand_mask is not None
+                key_padding_mask = torch.cat([key_padding_mask, expand_mask], dim=1)
+            assert key_padding_mask.size(0) == bsz
+            assert key_padding_mask.size(1) == src_len
+
         q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
         k = k.view(bsz, self.num_heads, src_len, self.head_dim)
         v = v.view(bsz, self.num_heads, src_len, self.head_dim)
@@ -417,9 +367,9 @@ class MemEffInvariantAttention(nn.Module):
                         bsz, self.num_heads, tgt_len, src_len
                     )
 
-        with torch.backends.cuda.sdp_kernel(
-            enable_math=False, enable_mem_efficient=True, enable_flash=True
-        ):
+        with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
+            if attn_mask is not None:
+                attn_mask = attn_mask.to(dtype=q.dtype)
             attn = torch.nn.functional.scaled_dot_product_attention(
                 q,
                 k,
@@ -468,20 +418,26 @@ class MemEffEquivariantAttention(nn.Module):
         pbc_expand_batched: Optional[Dict] = None,
     ):
         if pbc_expand_batched is not None:
-            raise Exception("pbc is not supported in the mem efficient attention")
-        #     outcell_index = (
-        #         pbc_expand_batched["outcell_index"]
-        #         .unsqueeze(-1)
-        #         .unsqueeze(-1)
-        #         .repeat(1, 1, k.size()[-2], k.size()[-1])
-        #     )
-        #     local_attention_weight = pbc_expand_batched["local_attention_weight"]
-        #     expand_k = torch.gather(k, dim=1, index=outcell_index)
-        #     expand_v = torch.gather(v, dim=1, index=outcell_index)
-        #     k = torch.cat([k, expand_k], dim=1)
-        #     v = torch.cat([v, expand_v], dim=1)
-        # else:
-        #     local_attention_weight = None
+            outcell_index = (
+                pbc_expand_batched["outcell_index"]
+                .unsqueeze(-1)
+                .unsqueeze(-1)
+                .repeat(1, 1, k.size()[-2], k.size()[-1])
+            )
+            local_attention_weight = pbc_expand_batched["local_attention_weight"]
+            expand_k = torch.gather(k, dim=1, index=outcell_index)
+            expand_v = torch.gather(v, dim=1, index=outcell_index)
+            k = torch.cat([k, expand_k], dim=1)
+            v = torch.cat([v, expand_v], dim=1)
+            expand_mask = pbc_expand_batched["expand_mask"]
+        else:
+            local_attention_weight = None
+            expand_mask = None
+
+        if local_attention_weight is not None:
+            raise Exception(
+                "periodic systems with pbc_use_local_attention=True is not supported in the mem efficient attention"
+            )
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
         q = (
@@ -490,14 +446,14 @@ class MemEffEquivariantAttention(nn.Module):
             .reshape(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
         )
         k = (
-            k.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
+            k.reshape(bsz, src_len, 3, self.num_heads, self.head_dim)
             .permute(0, 3, 1, 2, 4)
-            .reshape(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
+            .reshape(bsz, self.num_heads, src_len, 3 * self.head_dim)
         )
         v = (
-            v.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
+            v.reshape(bsz, src_len, 3, self.num_heads, self.head_dim)
             .permute(0, 3, 1, 2, 4)
-            .reshape(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
+            .reshape(bsz, self.num_heads, src_len, 3 * self.head_dim)
         )
 
         if key_padding_mask is not None:
@@ -525,9 +481,9 @@ class MemEffEquivariantAttention(nn.Module):
                         bsz, self.num_heads, tgt_len, src_len
                     )
 
-        with torch.backends.cuda.sdp_kernel(
-            enable_math=False, enable_mem_efficient=True, enable_flash=True
-        ):
+        with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
+            if attn_mask is not None:
+                attn_mask = attn_mask.to(dtype=q.dtype)
             attn = torch.nn.functional.scaled_dot_product_attention(
                 q,
                 k,
@@ -1400,6 +1356,7 @@ class GeomFormer(nn.Module):
         batched_data,
         x,
         pos,
+        mixed_attn_bias,
         padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
     ):
@@ -1419,22 +1376,7 @@ class GeomFormer(nn.Module):
             )
         else:
             node_type = batched_data["masked_token_type"]
-            node_type_edge = torch.cat(
-                [
-                    node_type.unsqueeze(-1).repeat(1, 1, n_node).unsqueeze(-1),
-                    node_type.unsqueeze(1).repeat(1, n_node, 1).unsqueeze(-1),
-                ],
-                dim=-1,
-            )
-            if node_type_edge is None:
-                atomic_numbers = batched_data["masked_token_type"]
-                node_type_edge = torch.cat(
-                    [
-                        atomic_numbers.unsqueeze(-1).repeat(1, 1, n_node).unsqueeze(-1),
-                        atomic_numbers.unsqueeze(1).repeat(1, n_node, 1).unsqueeze(-1),
-                    ],
-                    dim=-1,
-                )
+            node_type_edge = batched_data["node_type_edge"]
             uni_delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
             n_expand_node = n_node
             expand_mask = padding_mask
@@ -1495,25 +1437,7 @@ class GeomFormer(nn.Module):
         pos_mean_centered_unit = pos / (pos_mean_centered_dist.unsqueeze(-1) + 1e-5)
 
         if self.psm_config.equivar_use_attention_bias:
-            # attn_bias
-            uni_gbf_feature = self.unified_gbf_attn_bias(dist, node_type_edge)
-            uni_graph_attn_bias = (
-                self.unified_bias_proj(uni_gbf_feature).permute(0, 3, 1, 2).contiguous()
-            )
-
-            if pbc_expand_batched is not None:
-                expand_mask = pbc_expand_batched["expand_mask"]
-                full_mask = torch.cat([padding_mask, expand_mask], dim=-1)
-                uni_graph_attn_bias = uni_graph_attn_bias.masked_fill(
-                    full_mask.unsqueeze(1).unsqueeze(2), float("-inf")
-                )
-            else:
-                uni_graph_attn_bias = uni_graph_attn_bias.masked_fill(
-                    padding_mask.unsqueeze(1).unsqueeze(2), float("-inf")
-                )
-            uni_graph_attn_bias = uni_graph_attn_bias.masked_fill(
-                padding_mask.unsqueeze(1).unsqueeze(-1), 0.0
-            )
+            uni_graph_attn_bias = mixed_attn_bias
         else:
             uni_graph_attn_bias = None
 
