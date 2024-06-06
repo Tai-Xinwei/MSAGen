@@ -223,6 +223,7 @@ def dali_pipeline(source, source_batch_size, source_num_outputs):
 
 def get_dali_pm6_pipeline(args: Any, dataset: Any, batch_size: int):
     source = DaliPM6DataSource(args, dataset=dataset, batch_size=batch_size)
+    dataset._close_db()
 
     pipe = dali_pm6_pipeline(
         batch_size=batch_size,
@@ -262,6 +263,7 @@ def get_dali_pm6_pipeline(args: Any, dataset: Any, batch_size: int):
 
 def get_dali_pipeline(args: Any, dataset: Any, batch_size: int):
     source = DaliUnifiedDataSource(args, dataset=dataset, batch_size=batch_size)
+    dataset._close_db()
 
     pipe = dali_pipeline(
         batch_size=batch_size,

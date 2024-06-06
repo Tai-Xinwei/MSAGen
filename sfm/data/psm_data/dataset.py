@@ -74,6 +74,12 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         self._keys = [str(key) for key in metadata["keys"]]
         self._sizes = metadata["size"] if "size" in metadata else metadata["sizes"]
 
+    def _close_db(self):
+        if self._env is not None:
+            self._env.close()
+            self._env = None
+            self._txn = None
+
     @property
     def env(self):
         self._ensure_init_db()
@@ -583,6 +589,12 @@ class AFDBLMDBDataset(FoundationModelDataset):
         self._txn = self.env.begin(write=False)
         metadata = bstr2obj(self.txn.get("__metadata__".encode()))
         self._sizes, self._keys = metadata["sizes"], metadata["keys"]
+
+    def _close_db(self):
+        if self._env is not None:
+            self._env.close()
+            self._env = None
+            self._txn = None
 
     @property
     def env(self):
