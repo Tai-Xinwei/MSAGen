@@ -57,8 +57,8 @@ export MKL_THREADING_LAYER="GNU"
 
 #[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3_prot/checkpoints/global_step29295/mp_rank_00_model_states.pt"
 #[ -z "${save_dir}" ] && save_dir="/home/peiranjin/expresult/psmexp/output/psmv1_vt_v3/"
-[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/pfmexp/output/psmv1_vt_v4/checkpoints/global_step64084/mp_rank_00_model_states.pt"
-[ -z "${save_dir}" ] && save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/pfmexp/output/psmv1_vt_v4/checkpoints/global_step64084/prediction"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/pfmexp/output/psmv1_vt_v4/checkpoints/global_step144189/mp_rank_00_model_states.pt"
+[ -z "${save_dir}" ] && save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/pfmexp/output/psmv1_vt_v4/checkpoints/global_step144189/prediction"
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
@@ -99,7 +99,6 @@ export MKL_THREADING_LAYER="GNU"
 echo -e "\n\n"
 echo "==================================MP==========================================="
 [ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
-n_gpu=1
 echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
 echo "MASTER_PORT: ${MASTER_PORT}"

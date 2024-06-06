@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.extend([".", ".."])
 
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import hydra
 from hydra.core.config_store import ConfigStore
@@ -33,6 +33,7 @@ from sfm.models.psm.psm_optimizer import AdamFP16
 from sfm.models.psm.psmmodel import PSMModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig
 from sfm.pipeline.accelerator.trainer import Trainer, seed_everything
+from sfm.tasks.psm.ft_modules import PSM_FT_REGISTER
 from sfm.utils import env_init
 from sfm.utils.cli_utils import wandb_init
 
@@ -42,6 +43,7 @@ class Config(DistributedTrainConfig, PSMConfig):
     backbone_config: Dict[str, Any] = MISSING
     backbone: str = "graphormer"
     ode_mode: bool = False
+    finetune_module: Optional[str] = None
 
 
 cs = ConfigStore.instance()
@@ -49,7 +51,7 @@ cs.store(name="config_psm_schema", node=Config)
 
 
 @hydra.main(
-    version_base="1.3", config_path="../../../config_file", config_name="config_psm"
+    version_base=None, config_path="../../../config_file", config_name="config_psm"
 )
 def main(args: Config) -> None:
     wandb_init(args)
@@ -62,19 +64,29 @@ def main(args: Config) -> None:
     )
     train_data, valid_data = dataset.split_dataset()
 
+    finetune_module = None
+    extra_collate_fn = None
+    if args.psm_finetune_mode:
+        finetune_module = PSM_FT_REGISTER[args.finetune_module](args)
+        extra_collate_fn = finetune_module.update_batched_data
+
     if args.ifstack:
         raise NotImplementedError("ifstack is not finished yet!")
         # train_data = StackedIterableDataset(train_data, args, dataset.sizes)
     elif args.use_unified_batch_sampler:
         train_data = BatchedDataDatasetForUnifiedSampler(
-            args, train_data, dataset.train_len
+            args, train_data, dataset.train_len, extra_collate_fn=extra_collate_fn
         )
         valid_data = BatchedDataDatasetForUnifiedSampler(
-            args, valid_data, dataset.valid_len
+            args, valid_data, dataset.valid_len, extra_collate_fn=extra_collate_fn
         )
     else:
-        train_data = BatchedDataDataset(args, train_data, dataset.train_len)
-        valid_data = BatchedDataDataset(args, valid_data, dataset.valid_len)
+        train_data = BatchedDataDataset(
+            args, train_data, dataset.train_len, extra_collate_fn=extra_collate_fn
+        )
+        valid_data = BatchedDataDataset(
+            args, valid_data, dataset.valid_len, extra_collate_fn=extra_collate_fn
+        )
 
     # define psm models here, define the diff loss in DiffMAE3dCriterions
     if args.rescale_loss_with_std:
@@ -99,7 +111,7 @@ def main(args: Config) -> None:
     else:
         loss_fn = DiffMAE3dCriterions
 
-    model = PSMModel(args, loss_fn)
+    model = PSMModel(args, loss_fn, psm_finetune_head=finetune_module)
     # define optimizer here
     if args.fp16:
         optimizer = AdamFP16(

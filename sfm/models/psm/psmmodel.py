@@ -85,13 +85,21 @@ class PSMModel(Model):
                 self.psm_config.sampled_structure_output_path
             )
 
-        if (
-            self.psm_config.psm_finetune_mode
-            and self.psm_config.psm_finetune_reset_head
-        ):
-            self.net.reset_head_for_finetune()
-
-        self.psm_finetune_head = psm_finetune_head
+        if self.psm_config.psm_finetune_mode:
+            settings = dict(
+                psm_finetune_reset_head=self.psm_config.psm_finetune_reset_head,
+                psm_finetune_head=(
+                    psm_finetune_head.__class__ if psm_finetune_head else None
+                ),
+                psm_finetune_noise_mode=self.psm_config.psm_finetune_noise_mode,
+            )
+            logger.info(f"Finetune settings: {settings}")
+            if self.psm_config.psm_finetune_reset_head:
+                self.net.reset_head_for_finetune()
+            self.psm_finetune_head = psm_finetune_head
+        else:
+            assert not psm_finetune_head
+            self.psm_finetune_head = None
 
         try:
             mode_prob = [float(item) for item in self.psm_config.mode_prob.split(",")]
@@ -347,33 +355,41 @@ class PSMModel(Model):
             rmsds = torch.cat([rmsd.unsqueeze(-1) for rmsd in rmsds], dim=-1)
 
         self._create_system_tags(batched_data)
+        self._create_protein_mask(batched_data)
+        pos = batched_data["pos"]
+        n_graphs = pos.size(0)
+        time_step, clean_mask = self.time_step_sampler.sample(
+            n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
+        )
+        clean_mask = (
+            clean_mask & ~batched_data["is_protein"]
+        )  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
+
+        clean_mask = clean_mask | (
+            (batched_data["is_periodic"]) & (~batched_data["is_stable_periodic"])
+        )  # A periodic sample which is not stable is always clean
+
+        token_id = batched_data["token_id"]
+        padding_mask = token_id.eq(0)  # B x T x 1
+        aa_mask = batched_data["protein_masked_aa"] & batched_data[
+            "is_protein"
+        ].unsqueeze(-1)
+        aa_mask = aa_mask & ~padding_mask
+
+        clean_mask, aa_mask, time_step = self._protein_pretrain_mode(
+            clean_mask, aa_mask, padding_mask, batched_data["is_protein"], time_step
+        )
+
         if self.psm_config.psm_finetune_mode:
-            return self.ft_forward(batched_data=batched_data)
-        else:
-            self._create_protein_mask(batched_data)
-            pos = batched_data["pos"]
-            n_graphs = pos.size(0)
-            time_step, clean_mask = self.time_step_sampler.sample(
-                n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
-            )
-            clean_mask = (
-                clean_mask & ~batched_data["is_protein"]
-            )  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
-
-            clean_mask = clean_mask | (
-                (batched_data["is_periodic"]) & (~batched_data["is_stable_periodic"])
-            )  # A periodic sample which is not stable is always clean
-
-            token_id = batched_data["token_id"]
-            padding_mask = token_id.eq(0)  # B x T x 1
-            aa_mask = batched_data["protein_masked_aa"] & batched_data[
-                "is_protein"
-            ].unsqueeze(-1)
-            aa_mask = aa_mask & ~padding_mask
-
-            clean_mask, aa_mask, time_step = self._protein_pretrain_mode(
-                clean_mask, aa_mask, padding_mask, batched_data["is_protein"], time_step
-            )
+            noise_mode = self.psm_config.psm_finetune_noise_mode
+            if noise_mode == "T":
+                time_step = torch.ones_like(time_step)
+                clean_mask = torch.zeros_like(clean_mask)
+            elif noise_mode == "zero":
+                time_step = torch.zeros_like(time_step)
+                clean_mask = torch.ones_like(clean_mask)
+            else:
+                assert noise_mode == "diffusion"
 
         pos, noise, sqrt_one_minus_alphas_cumprod_t = self._set_noise(
             padding_mask=padding_mask,
@@ -401,51 +417,7 @@ class PSMModel(Model):
         if self.psm_config.sample_in_validation and not self.training:
             result_dict["rmsd"] = rmsds
 
-        return result_dict
-
-    def ft_forward(self, batched_data, **kwargs):
-        """
-        Forward pass of the model during fine-tuning.
-
-        Args:
-            batched_data: Input data for the forward pass.
-            **kwargs: Additional keyword arguments.
-        """
-
-        if self.psm_config.psm_sample_structure_in_finetune:
-            self.sample(batched_data)
-
-        pos = batched_data["pos"]
-        n_graphs, n_tokens = pos.size()[:2]
-        device = pos.device
-        time_step = torch.zeros(n_graphs, dtype=torch.float, device=device)
-        clean_mask = torch.full([n_graphs], True, dtype=torch.bool, device=device)
-        aa_mask = torch.full(
-            [n_graphs, n_tokens], False, dtype=torch.bool, device=device
-        )
-        batched_data["protein_mask"] = torch.full(
-            [n_graphs, n_tokens, 3], False, dtype=torch.bool, device=device
-        )
-        batched_data["sqrt_one_minus_alphas_cumprod_t"] = torch.zeros(
-            [n_graphs, 1, 1], dtype=pos.dtype, device=device
-        )
-
-        result_dict = self.net(
-            batched_data,
-            time_step=time_step,
-            clean_mask=clean_mask,
-            aa_mask=aa_mask,
-            **kwargs,
-        )
-
-        result_dict["noise"] = torch.zeros_like(pos)
-        result_dict["clean_mask"] = clean_mask
-        result_dict["aa_mask"] = aa_mask
-        result_dict["diff_loss_mask"] = torch.full(
-            [n_graphs, n_tokens], False, dtype=torch.bool, device=device
-        )
-
-        if self.psm_finetune_head is not None:
+        if self.psm_finetune_head:
             result_dict = self.psm_finetune_head(result_dict)
 
         return result_dict
@@ -464,6 +436,10 @@ class PSMModel(Model):
         # bs = batched_data["token_id"].eq(158).sum().item()
         bs = batched_data["pos"].size(0)
         loss, logging_output = self.loss_fn(model_output, batched_data)
+        if self.psm_finetune_head and hasattr(self.psm_finetune_head, "update_loss"):
+            self.psm_finetune_head.update_loss(
+                loss, logging_output, model_output, batched_data
+            )
         return ModelOutput(loss=loss, num_examples=bs, log_output=logging_output)
 
     def config_optimizer(self):
@@ -789,9 +765,11 @@ class PSM(nn.Module):
         # token_embedding: B x L x H
         # padding_mask: B x L
         # token_type: B x L  (0 is used for PADDING)
-        with torch.cuda.amp.autocast(
-            enabled=True, dtype=torch.float32
-        ) if self.args.fp16 else nullcontext():
+        with (
+            torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+            if self.args.fp16
+            else nullcontext()
+        ):
             token_embedding, padding_mask, token_type, time_embed = self.embedding(
                 batched_data, time_step, clean_mask, aa_mask
             )
@@ -805,9 +783,11 @@ class PSM(nn.Module):
             ) = self.encoder(  # CL: expand cell outside encoder?
                 token_embedding.transpose(0, 1), padding_mask, batched_data, token_type
             )
-            with torch.cuda.amp.autocast(
-                enabled=True, dtype=torch.float32
-            ) if self.args.fp16 else nullcontext():
+            with (
+                torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+                if self.args.fp16
+                else nullcontext()
+            ):
                 decoder_x_output, decoder_vec_output = self.decoder(
                     batched_data,
                     encoder_output,
@@ -836,9 +816,11 @@ class PSM(nn.Module):
                 pbc_expand_batched=None,
             )
 
-        with torch.cuda.amp.autocast(
-            enabled=True, dtype=torch.float32
-        ) if self.args.fp16 else nullcontext():
+        with (
+            torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+            if self.args.fp16
+            else nullcontext()
+        ):
             energy_per_atom = torch.where(
                 is_periodic.unsqueeze(-1),
                 self.energy_head["periodic"](decoder_x_output).squeeze(-1),
@@ -910,8 +892,8 @@ class PSM(nn.Module):
         if self.psm_config.psm_finetune_mode:
             result_dict.update(
                 {
-                    "invariant_output": decoder_x_output,
-                    "equivariant_output": decoder_vec_output,
+                    "decoder_x_output": decoder_x_output,
+                    "decoder_vec_output": decoder_vec_output,
                 }
             )
 

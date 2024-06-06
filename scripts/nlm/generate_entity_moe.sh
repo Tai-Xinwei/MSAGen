@@ -22,10 +22,8 @@ fi
 
 output_path="${output_path}/pred_${LOCAL_RANK}.txt"
 local_path="/tmp/nlm_rank${LOCAL_RANK}"
-offload_path="/tmp/moe_rank${LOCAL_RANK}"
 
 mkdir -p "${local_path}"
-mkdir -p "${offload_path}"
 
 echo "Start generation on rank $LOCAL_RANK, output_path: $output_path"
 export CUDA_VISIBLE_DEVICES=${LOCAL_RANK}
@@ -34,7 +32,6 @@ python sfm/tasks/nlm/generate_entity_moe.py  \
     --mixtral_path "${mixtral_path}" \
     --nlm_path "${model_path}" \
     --local_path "${local_path}" \
-    --offload_path "${offload_path}" \
     --output_path "${output_path}" \
     --n_seq "${n_seq}" \
     --entity "${entity}" \

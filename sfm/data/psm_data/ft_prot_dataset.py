@@ -35,13 +35,12 @@ class ProteinSamplingDataset(AFDBLMDBDataset):
         data = {}
 
         x = torch.tensor([self.vocab[tok] - 1 for tok in toks], dtype=torch.int64)
-        coords = torch.zeros([x.size()[0], 3], dtype=torch.float32)
+        coords = torch.zeros([x.size()[0], 3], dtype=torch.float64)
 
         data["sample_type"] = 2
         data["token_type"] = x
         data["idx"] = idx
 
-        coords = torch.tensor(coords, dtype=torch.float64)
         data["coords"] = coords
         data["num_atoms"] = x.size()[0]
 

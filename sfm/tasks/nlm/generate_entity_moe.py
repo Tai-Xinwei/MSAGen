@@ -6,11 +6,10 @@ import shutil
 from argparse import ArgumentParser
 from pathlib import Path
 
-import numpy as np
 import safetensors.torch as st
 import torch
-from moe_infinity import MoE
 from tqdm import tqdm
+from transformers import AutoModelForCausalLM, BitsAndBytesConfig
 
 from sfm.data.sci_data.NlmTokenizer import NlmTokenizer
 
@@ -21,6 +20,7 @@ def download_and_convert_ckpt(mixtral_blob_path, nlm_blob_path, local_path):
     os.makedirs(local_path, exist_ok=True)
     bar = tqdm(total=35)
 
+    metadata = {"format": "pt"}
     tensor_index = {"metadata": {"total_size": 0}, "weight_map": {}}
 
     # input emb
@@ -34,7 +34,7 @@ def download_and_convert_ckpt(mixtral_blob_path, nlm_blob_path, local_path):
 
     tensor_index["metadata"]["total_size"] += emb_weight.numel()
     tensor_index["weight_map"]["model.embed_tokens.weight"] = ckpt_new_name
-    st.save_file(ckpt_new, os.path.join(local_path, ckpt_new_name))
+    st.save_file(ckpt_new, os.path.join(local_path, ckpt_new_name), metadata=metadata)
     bar.update(1)
 
     # layer 1 to 32
@@ -88,7 +88,9 @@ def download_and_convert_ckpt(mixtral_blob_path, nlm_blob_path, local_path):
             tensor_index["metadata"]["total_size"] += v.numel()
             tensor_index["weight_map"][k] = ckpt_new_name
 
-        st.save_file(ckpt_new, os.path.join(local_path, ckpt_new_name))
+        st.save_file(
+            ckpt_new, os.path.join(local_path, ckpt_new_name), metadata=metadata
+        )
         bar.update(1)
 
     # Final norm
@@ -102,7 +104,7 @@ def download_and_convert_ckpt(mixtral_blob_path, nlm_blob_path, local_path):
 
     tensor_index["metadata"]["total_size"] += emb_weight.numel()
     tensor_index["weight_map"]["model.norm.weight"] = ckpt_new_name
-    st.save_file(ckpt_new, os.path.join(local_path, ckpt_new_name))
+    st.save_file(ckpt_new, os.path.join(local_path, ckpt_new_name), metadata=metadata)
     bar.update(1)
 
     # LM head
@@ -116,7 +118,7 @@ def download_and_convert_ckpt(mixtral_blob_path, nlm_blob_path, local_path):
 
     tensor_index["metadata"]["total_size"] += emb_weight.numel()
     tensor_index["weight_map"]["lm_head.weight"] = ckpt_new_name
-    st.save_file(ckpt_new, os.path.join(local_path, ckpt_new_name))
+    st.save_file(ckpt_new, os.path.join(local_path, ckpt_new_name), metadata=metadata)
     bar.update(1)
 
     with open(os.path.join(local_path, "model.safetensors.index.json"), "w") as f:
@@ -155,11 +157,10 @@ def main():
     parser.add_argument("--mixtral_path", type=str, required=True)
     parser.add_argument("--nlm_path", type=str, required=True)
     parser.add_argument("--local_path", type=str, default="/tmp/nlm")
-    parser.add_argument("--offload_path", type=str, default="/tmp/moe-infinity")
     parser.add_argument("--output_path", type=str, default="/tmp/moe-infinity")
-    parser.add_argument("--device_memory_ratio", type=float, default=0.75)
     parser.add_argument("--n_seq", type=int, default=125)
     parser.add_argument("--entity", type=str, default="protein")
+    parser.add_argument("--max_new_tokens", type=int, default=1024)
 
     args = parser.parse_args()
     print(args)
@@ -168,13 +169,11 @@ def main():
     print("vocab size", len(tokenizer))
 
     download_and_convert_ckpt(args.mixtral_path, args.nlm_path, args.local_path)
-
-    config = {
-        "offload_path": args.offload_path,
-        "device_memory_ratio": args.device_memory_ratio,
-    }
-
-    model = MoE(args.local_path, config)
+    quantization_config = BitsAndBytesConfig(load_in_8bit=True, llm_int8_threshold=6.0)
+    model = AutoModelForCausalLM.from_pretrained(
+        args.local_path, quantization_config=quantization_config
+    )
+    model.eval()
     output_path = Path(args.output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     input_text = f"<{args.entity}>"
@@ -185,7 +184,7 @@ def main():
         with torch.no_grad():
             outputs = model.generate(
                 input_ids,
-                max_new_tokens=300,
+                max_new_tokens=args.max_new_tokens,
                 do_sample=True,
                 pad_token_id=tokenizer.pad_token_id,
                 num_return_sequences=1,

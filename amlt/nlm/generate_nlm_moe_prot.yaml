@@ -43,7 +43,7 @@ jobs:
       shm_size: 1024g
   command:
     - eval "$$(conda shell.bash hook)" && conda activate sfm
-    - pip install git+https://github.com/TorchMoE/MoE-Infinity
+    - pip install -i https://pypi.org/simple/ bitsandbytes
     - pip install -e . --no-deps
     - bash scripts/nlm/generate_entity_moe.sh
 - name: generate_nlm_moe_prot_step23324
@@ -66,29 +66,29 @@ jobs:
       shm_size: 1024g
   command:
     - eval "$$(conda shell.bash hook)" && conda activate sfm
-    - pip install git+https://github.com/TorchMoE/MoE-Infinity
+    - pip install -i https://pypi.org/simple/ bitsandbytes
     - pip install -e . --no-deps
     - bash scripts/nlm/generate_entity_moe.sh
-- name: generate_nlm_moe_prot_stageA
-  sku: G8
-  mpi: true
-  process_count_per_node: 8
-  tags:
-  - 'ProjectID: PRJ-0209-A40'
-  - 'Project_Name: Science_Foundation_Model'
-  - 'Experiment: SFM_NLM_MOE_Model_Training'
-  submit_args:
-    env:
-      SHARED_MEMORY_PERCENT: 1.0
-      mixtral_path: '/mnt/sfmdataeastus2/Mixtral-8x7B-v0.1'
-      model_path: '/mnt/sfmdataeastus2/shufxi/nlm/8x7b/stageA/global_step3999'
-      output_path: '/mnt/sfmdataeastus2/shufxi/nlm/protgen/8x7b/stageA/global_step3999'
-      n_seq: 125
-      entity: 'protein'
-    container_args:
-      shm_size: 1024g
-  command:
-    - eval "$$(conda shell.bash hook)" && conda activate sfm
-    - pip install git+https://github.com/TorchMoE/MoE-Infinity
-    - pip install -e . --no-deps
-    - bash scripts/nlm/generate_entity_moe.sh
+# - name: generate_nlm_moe_prot_stageA
+#   sku: G8
+#   mpi: true
+#   process_count_per_node: 8
+#   tags:
+#   - 'ProjectID: PRJ-0209-A40'
+#   - 'Project_Name: Science_Foundation_Model'
+#   - 'Experiment: SFM_NLM_MOE_Model_Training'
+#   submit_args:
+#     env:
+#       SHARED_MEMORY_PERCENT: 1.0
+#       mixtral_path: '/mnt/sfmdataeastus2/Mixtral-8x7B-v0.1'
+#       model_path: '/mnt/sfmdataeastus2/shufxi/nlm/8x7b/stageA/global_step3999'
+#       output_path: '/mnt/sfmdataeastus2/shufxi/nlm/protgen/8x7b/stageA/global_step3999'
+#       n_seq: 125
+#       entity: 'protein'
+#     container_args:
+#       shm_size: 1024g
+#   command:
+#     - eval "$$(conda shell.bash hook)" && conda activate sfm
+#     - pip install git+https://github.com/TorchMoE/MoE-Infinity
+#     - pip install -e . --no-deps
+#     - bash scripts/nlm/generate_entity_moe.sh
