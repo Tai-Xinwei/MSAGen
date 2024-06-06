@@ -36,18 +36,17 @@ class PSMPlainEncoder(nn.Module):
         x: torch.Tensor,
         padding_mask: torch.Tensor,
         batched_data: Dict,
-        masked_token_type: torch.Tensor,
+        pbc_expand_batched: Optional[Dict] = None,
     ):
         """
         LayerNorm is applied either before or after the self-attention/ffn
         modules similar to the original Transformer implementation.
         """
-
         for layer_index, layer in enumerate(self.layers):
             x, _ = layer(
                 x,
                 padding_mask,
                 batched_data,
-                masked_token_type=masked_token_type,
+                pbc_expand_batched=pbc_expand_batched,
             )
-        return x, None
+        return x

@@ -54,9 +54,11 @@ cs.store(name="config_psm_schema", node=Config)
 @hydra.main(
     version_base=None, config_path="../../../config_file", config_name="config_psm"
 )
-def main(cfg: DictConfig) -> None:
-    args = OmegaConf.to_object(cfg)
-    assert isinstance(args, Config), f"type(args) is {type(cfg)} != Config"
+def main(args: DictConfig) -> None:
+    args = OmegaConf.to_object(args)
+    assert isinstance(
+        args, Config
+    ), f"args must be an instance of Config! But it is {type(args)}"
 
     wandb_init(args)
     seed_everything(args.seed)

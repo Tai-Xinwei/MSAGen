@@ -9,7 +9,6 @@ from typing import Callable, Dict, Optional
 import torch
 import torch.nn as nn
 
-from sfm.models.psm.invariant.mixture_bias import PSMBias
 from sfm.models.psm.modules.multihead_attention import (
     MemEffAttnWithProteinRotaryEmbedding,
     MultiheadAttentionWithProteinRotaryEmbedding,
@@ -77,7 +76,6 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             self.embedding_dim,
             num_attention_heads,
             dropout=attention_dropout,
-            self_attention=True,
             q_noise=q_noise,
             qn_block_size=qn_block_size,
             d_tilde=args.d_tilde,
@@ -92,8 +90,6 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             ffn_embedding_dim,
             self.embedding_dim,
         )
-
-        self.attn_bias = self.build_attn_bias(psm_config)
 
         self.nl = nl
         self.args = args
@@ -121,7 +117,6 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         embed_dim,
         num_attention_heads,
         dropout,
-        self_attention,
         q_noise,
         qn_block_size,
         d_tilde=1,
@@ -141,7 +136,6 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             embed_dim,
             num_attention_heads,
             dropout=dropout,
-            self_attention=self_attention,
             q_noise=q_noise,
             qn_block_size=qn_block_size,
             d_tilde=d_tilde,
@@ -153,18 +147,14 @@ class GraphormerSentenceEncoderLayer(nn.Module):
             add_rope=True,
         )
 
-    def build_attn_bias(self, psm_config):
-        return PSMBias(psm_config)
-
     def forward(
         self,
         x: torch.Tensor,
         batched_data: Dict,
-        masked_token_type: torch.Tensor,
         self_attn_mask: Optional[torch.Tensor] = None,
         self_attn_padding_mask: Optional[torch.Tensor] = None,
+        mixed_attn_bias: Optional[torch.Tensor] = None,
         pbc_expand_batched: Optional[Dict[str, torch.Tensor]] = None,
-        graph_2d_attention_bias: Optional[torch.Tensor] = None,
     ):
         """
         LayerNorm is applied either before or after the self-attention/ffn
@@ -172,38 +162,11 @@ class GraphormerSentenceEncoderLayer(nn.Module):
         Args:
             x: Input tensor [T x B x C].
             batched_data: Input data for the forward pass.
-            masked_token_type: The masked token type [B, L].
             self_attn_mask: The self-attention mask [B, L, L].
             self_attn_padding_mask: The self-attention padding mask [B, L].
             pbc_expand_batched: The pbc expand batched data.
             graph_2d_attention_bias: 2D attention bias, if use bond features in molecules
         """
-        # # TODO: graphormer stype attn bias
-        self_attn_bias, _ = self.attn_bias(
-            batched_data,
-            masked_token_type,
-            self_attn_padding_mask,
-            pbc_expand_batched=pbc_expand_batched,
-        )
-
-        # expand graph_2d_attention_bias according to PBC, just to match the shape of 3D attention bias
-        # for periodic systems graph_2d_attention_bias should be all zero
-        # here we use pbc and token id together to differentiate molecules from periodic systems and proteins
-        if graph_2d_attention_bias is not None:
-            expanded_graph_2d_attention_bias = torch.zeros_like(self_attn_bias)
-            token_id = batched_data["token_id"]
-            pbc = batched_data["pbc"]
-            molecule_mask = torch.all(token_id <= 128, dim=-1) & ~torch.any(pbc, dim=-1)
-            n_node = graph_2d_attention_bias.size()[-1] - 1
-            expanded_graph_2d_attention_bias[
-                :, :, :n_node, :n_node
-            ] = graph_2d_attention_bias[
-                :, :, 1:, 1:
-            ]  # leave out virtual node in 2D attention bias
-            expanded_graph_2d_attention_bias.masked_fill(
-                ~molecule_mask.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), 0.0
-            )
-            self_attn_bias += expanded_graph_2d_attention_bias
 
         # x: T x B x C
         residual = x
@@ -214,7 +177,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
                 query=x,
                 key=x,
                 value=x,
-                attn_bias=self_attn_bias,
+                attn_bias=mixed_attn_bias,
                 key_padding_mask=self_attn_padding_mask,
                 need_weights=False,
                 attn_mask=self_attn_mask,
@@ -226,7 +189,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
                 query=x,
                 key=x,
                 value=x,
-                attn_bias=self_attn_bias,
+                attn_bias=mixed_attn_bias,
                 key_padding_mask=self_attn_padding_mask,
                 need_weights=False,
                 attn_mask=self_attn_mask,

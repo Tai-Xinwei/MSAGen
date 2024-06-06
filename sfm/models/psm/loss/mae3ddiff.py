@@ -2,9 +2,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+import numpy as np
 import torch
 import torch.nn as nn
 
+from sfm.logging import logger
 from sfm.models.psm.psm_config import DiffusionTrainingLoss
 
 
@@ -314,8 +316,13 @@ class DiffMAE3dCriterions(nn.Module):
             aa_acc = 0.0
             num_aa_mask_token = 0.0
 
-        loss = energy_loss + force_loss + noise_loss + aa_mlm_loss
-        # loss = noise_loss + aa_mlm_loss
+        def calculate_energy_loss_ratio(energy_loss_mag):
+            return np.clip(1.0 - (energy_loss_mag - 1.0) / 1000, 0.001, 1.0)
+
+        # energy_loss_ratio = calculate_energy_loss_ratio(energy_loss.item())
+        energy_loss_ratio = 1.0
+
+        loss = energy_loss_ratio * energy_loss + force_loss + noise_loss + aa_mlm_loss
 
         # for loss exist in every sample of the batch, no extra number of samples are recorded (will use batch size in loss reduction)
         # for loss does not exist in every example of the batch, use a tuple, where the first element is the averaged loss value

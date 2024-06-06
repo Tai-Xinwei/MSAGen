@@ -165,5 +165,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --pretrained_ckpt_path "$loadcheck_path" \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
-      --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
-      ${MEGATRON_ARGS} #--load_ckpt
+      ${MEGATRON_ARGS} --load_ckpt
+
+      # --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \
