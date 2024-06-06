@@ -11,12 +11,13 @@ import os
 import pickle as pkl
 import random
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 
 import lmdb
 import torch
 from numpy import dot
 from numpy.linalg import norm
+from nvidia import dali
 from sympy.utilities.iterables import multiset_permutations
 from torch.utils.data import Subset
 from torch_geometric.data import Data
@@ -76,6 +77,12 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         self._keys = [str(key) for key in metadata["keys"]]
         self._sizes = metadata["size"] if "size" in metadata else metadata["sizes"]
 
+    def _close_db(self):
+        if self._env is not None:
+            self._env.close()
+            self._env = None
+            self._txn = None
+
     @property
     def env(self):
         self._ensure_init_db()
@@ -118,6 +125,15 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
 
         return dataset_train, dataset_val
+
+    def raw(self, idx: Union[int, np.integer]) -> Data:
+        key = self.keys[idx]
+        value = self.txn.get(key.encode())
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        data = pkl.loads(value)
+
+        return data
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
@@ -185,6 +201,8 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
 
         data = self.generate_2dgraphfeat(data)
+
+        data["is_stable_periodic"] = False
 
         return data
 
@@ -582,6 +600,12 @@ class AFDBLMDBDataset(FoundationModelDataset):
         metadata = bstr2obj(self.txn.get("__metadata__".encode()))
         self._sizes, self._keys = metadata["sizes"], metadata["keys"]
 
+    def _close_db(self):
+        if self._env is not None:
+            self._env.close()
+            self._env = None
+            self._txn = None
+
     @property
     def env(self):
         if self._env is None:
@@ -638,6 +662,8 @@ class AFDBLMDBDataset(FoundationModelDataset):
         )
 
         data = self.generate_2dgraphfeat(data)
+
+        data["is_stable_periodic"] = False
 
         return data
 
@@ -1388,3 +1414,142 @@ class ProteinDownstreamDataset(FoundationModelDataset):
             )
             dset_dict[split] = cls(args, direct=False)
         return dset_dict
+
+
+class DaliPM6DataSource:
+    def __init__(self, args: Any, dataset: Any, batch_size: int):
+        self.dataset = dataset
+        self.batch_size = batch_size
+
+        self.size = len(dataset)
+        self.generator = np.random.default_rng(args.seed)
+
+        self.rank = args.rank
+        self.world_size = args.world_size
+
+        self._set_sample_indices()
+
+    def _set_sample_indices(self):
+        indices = self.generator.permutation(self.size)
+        indices = indices[self.rank : self.size : self.world_size]
+
+        self.indices = indices
+        self.rank_size = len(indices)
+
+    def __call__(self, sample_info):
+        sample_idx = sample_info.idx_in_epoch
+
+        if sample_info.iteration >= self.rank_size // self.batch_size:
+            raise StopIteration
+
+        idx = self.indices[sample_idx]
+        data = self.dataset.raw(idx % self.size)
+
+        N = data["node_feat"].shape[0]
+        F = data["edge_feat"].shape[-1]
+
+        node_feat = torch.tensor(data["node_feat"], dtype=torch.long)
+        if "pos" in data:
+            coords = torch.tensor(data["pos"], dtype=torch.float)
+        elif "coords" in data:
+            coords = torch.tensor(data["coords"], dtype=torch.float)
+        else:
+            coords = torch.zeros((data["node_feat"].size()[0], 3), dtype=torch.float)
+
+        cell = torch.zeros([3, 3], dtype=torch.float)
+        pbc = torch.zeros([3], dtype=torch.long)
+        forces = torch.zeros([N, 3], dtype=torch.float)
+        energy = torch.tensor(data["energy"], dtype=torch.float)
+        adj = torch.zeros([N, N], dtype=torch.long)
+        edge_index = torch.tensor(
+            np.ascontiguousarray(data["edge_index"]), dtype=torch.long
+        )
+        edge_attr = torch.tensor(
+            np.ascontiguousarray(data["edge_feat"]), dtype=torch.long
+        )
+        attn_bias = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        attn_edge_type = torch.zeros([N, N, F], dtype=torch.long)
+        is_stable_periodic = torch.zeros(1, dtype=torch.bool)
+
+        return (
+            node_feat,
+            coords,
+            cell,
+            pbc,
+            forces,
+            energy,
+            adj,
+            edge_index,
+            edge_attr,
+            attn_bias,
+            attn_edge_type,
+            is_stable_periodic,
+        )
+
+    def __len__(self):
+        return self.size
+
+
+class DaliUnifiedDataSource:
+    def __init__(self, args: Any, dataset: Any, batch_size: int):
+        self.dataset = dataset
+        self.batch_size = batch_size
+
+        self.size = len(dataset)
+        self.generator = np.random.default_rng(args.seed)
+
+        self.rank = args.rank
+        self.world_size = args.world_size
+
+        self._set_sample_indices()
+
+    def _set_sample_indices(self):
+        indices = self.generator.permutation(self.size)
+        indices = indices[self.rank : self.size : self.world_size]
+
+        self.indices = indices
+        self.rank_size = len(indices)
+
+    def __call__(self, sample_info):
+        sample_idx = sample_info.idx_in_epoch
+
+        if sample_info.iteration >= self.rank_size // self.batch_size:
+            raise StopIteration
+
+        idx = self.indices[sample_idx]
+        data = self.dataset[idx % self.size]
+
+        attn_bias = data["attn_bias"]
+        in_degree = data["in_degree"]
+        node_attr = data["node_attr"]
+        energy = data["energy"].to(dtype=torch.float)
+        energy_per_atom = data["energy_per_atom"].to(dtype=torch.float)
+        forces = data["forces"].to(dtype=torch.float)
+        pos = data["coords"].to(dtype=torch.float)
+        token_type = data["token_type"].contiguous().to(dtype=torch.long)
+        pbc = data["pbc"].to(dtype=torch.long)
+        cell = data["cell"].to(dtype=torch.float)
+        num_atoms = torch.tensor(data["num_atoms"], dtype=torch.long)
+        adj = data["adj"]
+        attn_edge_type = data["attn_edge_type"]
+        is_stable_periodic = torch.tensor(data["is_stable_periodic"], dtype=torch.bool)
+
+        return (
+            attn_bias,
+            in_degree,
+            node_attr,
+            energy,
+            energy_per_atom,
+            forces,
+            pos,
+            token_type,
+            pbc,
+            cell,
+            num_atoms,
+            adj,
+            attn_edge_type,
+            is_stable_periodic,
+        )
+
+    def __len__(self):
+        return self.size

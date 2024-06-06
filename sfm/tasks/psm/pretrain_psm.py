@@ -17,6 +17,7 @@ from omegaconf import MISSING, DictConfig, OmegaConf
 from sfm.data.psm_data.unifieddataset import (
     BatchedDataDataset,
     BatchedDataDatasetForUnifiedSampler,
+    UnifiedBatchedIterableDataset,
     UnifiedPSMDataset,
 )
 from sfm.logging import logger
@@ -82,6 +83,11 @@ def main(args: DictConfig) -> None:
         train_data = BatchedDataDatasetForUnifiedSampler(
             args, train_data, dataset.train_len, extra_collate_fn=extra_collate_fn
         )
+        valid_data = BatchedDataDatasetForUnifiedSampler(
+            args, valid_data, dataset.valid_len, extra_collate_fn=extra_collate_fn
+        )
+    elif args.use_dali_pipeline:
+        train_data = UnifiedBatchedIterableDataset(args, train_data, dataset.train_len)
         valid_data = BatchedDataDatasetForUnifiedSampler(
             args, valid_data, dataset.valid_len, extra_collate_fn=extra_collate_fn
         )

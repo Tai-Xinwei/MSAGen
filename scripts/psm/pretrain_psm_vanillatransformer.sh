@@ -46,19 +46,19 @@ export MKL_THREADING_LAYER='GNU'
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128"
-# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,afdb'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.5'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128,12"
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128"
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,afdb'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.5'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128,12"
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-force-filtered'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.1,0.5,0.1'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,32,12'
-[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
+[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=False
 [ -z "${fp16}" ] && fp16=False
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v4/checkpoints/"
@@ -228,5 +228,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           clean_sample_ratio=$clean_sample_ratio \
           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
-          # ifresume=True \
-          # finetune_from_checkpoint_dir=$loadcheck_path \
+          ifresume=True \
+          use_dali_pipeline=True \

@@ -19,6 +19,7 @@ from sfm.data.psm_data.dataset import (
     SmallMolDataset,
 )
 from sfm.data.psm_data.ft_mol_dataset import PCQM4Mv2LMDBDataset
+from sfm.data.psm_data.pipeline import get_dali_pipeline, get_dali_pm6_pipeline
 from sfm.data.sampler import WeightedDistributedSampler
 from sfm.logging import logger
 from sfm.models.psm.psm_config import PSMConfig
@@ -217,6 +218,69 @@ class BatchedDataDataset(FoundationModelDataset):
         if self.extra_collate_fn is not None:
             batched_data = self.extra_collate_fn(samples, batched_data)
         return batched_data
+
+    def num_tokens(self, idx: int) -> int:
+        return super().num_tokens(idx)
+
+
+class UnifiedBatchedIterableDataset(IterableDataset):
+    def __init__(
+        self,
+        args: PSMConfig,
+        dataset_list,
+        dataset_len,
+        ft=False,
+        infer=False,
+    ):
+        super().__init__()
+
+        self.args = args
+
+        self.num_datasets = len(dataset_list)
+        self.dataset_split_ratios = list(
+            map(float, args.dataset_split_raito.split(","))
+        )
+        self.dataset_batch_sizes = list(
+            map(int, args.dataset_micro_batch_size.split(","))
+        )
+
+        self.dataset_len = dataset_len
+
+        dataset_params_mismatch = "Dataset parameters mismatched, please check data_path_list, dataset_name_list, dataset_split_raito, and dataset_micro_batch_size"
+        assert self.num_datasets == len(
+            self.dataset_split_ratios
+        ), dataset_params_mismatch
+        assert self.num_datasets == len(
+            self.dataset_batch_sizes
+        ), dataset_params_mismatch
+        assert (
+            sum(self.dataset_split_ratios) == 1.0
+        ), f"sum of split ratio {self.dataset_split_ratios} is not 1.0"
+
+        self.dataset_list = [
+            get_dali_pipeline(args, dataset=dataset, batch_size=micro_batch_size)
+            for dataset, micro_batch_size in zip(dataset_list, self.dataset_batch_sizes)
+        ]
+        # TODO: get_dali_pm6_pipeline needs to be updated with dataset in main branch
+        # self.dataset_list[0] = get_dali_pm6_pipeline(
+        #     args, dataset_list[0], self.dataset_batch_sizes[0]
+        # )
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        # select dataset_idx based on split ratio
+        dataset_idx = random.choices(
+            range(self.num_datasets), weights=self.dataset_split_ratios
+        )[0]
+        return next(self.dataset_list[dataset_idx])
+
+    def __len__(self):
+        return self.dataset_len
+
+    def collate(self, samples):
+        return samples[0]
 
     def num_tokens(self, idx: int) -> int:
         return super().num_tokens(idx)
