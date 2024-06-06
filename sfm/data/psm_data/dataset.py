@@ -1439,7 +1439,13 @@ class DaliPM6DataSource:
         F = data["edge_feat"].shape[-1]
 
         node_feat = torch.tensor(data["node_feat"], dtype=torch.long)
-        coords = torch.tensor(data["pos"], dtype=torch.float)
+        if "pos" in data:
+            coords = torch.tensor(data["pos"], dtype=torch.float)
+        elif "coords" in data:
+            coords = torch.tensor(data["coords"], dtype=torch.float)
+        else:
+            coords = torch.zeros((data["node_feat"].size()[0], 3), dtype=torch.float)
+
         cell = torch.zeros([3, 3], dtype=torch.float)
         pbc = torch.zeros([3], dtype=torch.long)
         forces = torch.zeros([N, 3], dtype=torch.float)

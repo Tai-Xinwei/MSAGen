@@ -1148,7 +1148,12 @@ class DeepSpeedAccelerator(Accelerator):
                 num_workers=1,
             )
         elif self.args.daliLoader:
-            raise NotImplementedError
+            self.train_sampler = None
+            self.train_data_loader = DataLoader(
+                train_data,
+                batch_size=None,
+                collate_fn=train_data.collate,
+            )
 
         if self.valid_data:
             validsampler = torch.utils.data.distributed.DistributedSampler(

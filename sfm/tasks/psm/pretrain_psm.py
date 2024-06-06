@@ -86,7 +86,9 @@ def main(cfg: DictConfig) -> None:
         )
     elif args.use_dali_pipeline:
         train_data = UnifiedBatchedIterableDataset(args, train_data, dataset.train_len)
-        valid_data = UnifiedBatchedIterableDataset(args, valid_data, dataset.valid_len)
+        valid_data = BatchedDataDatasetForUnifiedSampler(
+            args, valid_data, dataset.valid_len, extra_collate_fn=extra_collate_fn
+        )
     else:
         train_data = BatchedDataDataset(
             args, train_data, dataset.train_len, extra_collate_fn=extra_collate_fn

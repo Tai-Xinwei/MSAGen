@@ -33,15 +33,15 @@ environment:
 
 storage:
   blob:
-    storage_account_name: hai1data # Storage account
+    storage_account_name: sfmarca100 # Storage account
     container_name: sfm # Container name
-    mount_dir: /blob
+    mount_dir: /sfm
 
 code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: psmv1_vt_v4
+- name: psmv1_vt_v5
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}
   mpi: true
@@ -52,8 +52,8 @@ jobs:
   - export wandb_project=psm_VT
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - mkdir /blob/pfmexp/output
-  - mkdir /blob/experiment/psm/psmv1_vt_v4
-  - mkdir /blob/experiment/psm/psmv1_vt_v4/checkpoints
+  - mkdir /blob/experiment/psm/psmv1_vt_v5
+  - mkdir /blob/experiment/psm/psmv1_vt_v5/checkpoints
   - mkdir ./output
   - export path=run.sh
   - export num_pred_attn_layer=4
@@ -82,14 +82,14 @@ jobs:
   - export max_length=512
   - export gradient_accumulation_steps=4
   - export log_interval=100
-  - export data_path=/blob/psm/
-  - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-3M,AFDB50-plddt70.lmdb'
-  - export dataset_name_list='pm6,mattersim,afdb'
-  - export dataset_split_raito='0.5,0.0,0.5'
-  - export dataset_micro_batch_size='128,12,12'
+  - export data_path=/nfs6/psmdata/
+  - export data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb'
+  - export dataset_name_list='pm6,afdb'
+  - export dataset_split_raito='0.5,0.5'
+  - export dataset_micro_batch_size='128,32,12'
   - export fp16=False
-  - export loadcheck_path=/blob/experiment/psm/psmv1_vt_v4/checkpoints
-  - export save_dir=/blob/pfmexp/output/psmv1_vt_v4/checkpoints
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v5/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v5/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - bash ./scripts/psm/pretrain_psm_vanillatransformer.sh
