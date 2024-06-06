@@ -14,14 +14,6 @@ casp15_domain_definition = Path('/data/database/casp/casp15/casp15_domain_defina
 if not casp15_domain_definition.exists():
     raise FileNotFoundError(f"ERROR: {casp15_domain_definition} not found")
 
-inptargetdir = Path('prediction/casp-official-targets.prediction')
-if not inptargetdir.exists():
-    raise FileNotFoundError(f"ERROR: {inptargetdir} not found")
-
-outdomaindir = Path('prediction/casp-official-trimmed-to-domains.prediction')
-if not outdomaindir.exists():
-    raise FileNotFoundError(f"ERROR: {outdomaindir} not found")
-
 
 def select_residues_by_index(atomlines: list, residueindex: set) -> list:
     # parse pdbfile lines by residue index
@@ -40,79 +32,86 @@ def select_residues_by_index(atomlines: list, residueindex: set) -> list:
     return lines
 
 
-if len(sys.argv) != 2:
-    sys.exit(f"Usage: {sys.argv[0]} <server_id>")
-server_id = sys.argv[1]
+if __name__ == '__main__':
+    if len(sys.argv) != 3:
+        sys.exit(f"Usage: {sys.argv[0]} <output_root_directory> <server_id>")
+    rootdir, server_id = sys.argv[1:3]
 
-# read in domain definition
-df = pd.concat([
-    pd.read_csv(casp14_domain_definition),
-    pd.read_csv(casp15_domain_definition)
-    ]).reset_index(drop=True)
-print(df)
+    # check directory
+    inptargetdir = Path(rootdir) / 'casp-official-targets.prediction'
+    outdomaindir = Path(rootdir) / 'casp-official-trimmed-to-domains.prediction'
+    if not inptargetdir.exists() or not outdomaindir.exists():
+        raise FileNotFoundError(f"{inptargetdir} or {outdomaindir} not found")
 
-for idx, row in df.iterrows():
-    # parse domain and residue index
-    domainstring = row['Domains']
-    cols = domainstring.split(':')
-    assert 2 == len(cols), f"ERROR: wrong domain format: {domainstring}"
-    domname, domseg = cols[0], cols[1]
-    residueindex = set()
-    for seg in domseg.split(','):
-        arr = seg.split('-')
-        assert len(arr) == 2, f"ERROR: wrong segment: {domainstring} {seg}"
-        start, finish = int(arr[0]), int(arr[1])
-        residueindex.update( range(start, finish+1) )
-    assert row['Residues in domain'] == len(residueindex), (
-        f"ERROR: wrong domain definition: {domainstring}")
+    # read in domain definition
+    df = pd.concat([
+        pd.read_csv(casp14_domain_definition),
+        pd.read_csv(casp15_domain_definition)
+        ]).reset_index(drop=True)
+    print(df)
 
-    # check residue index
-    domstr = f'{domname}: '
-    for i in sorted(residueindex):
-        if i-1 in residueindex and i+1 in residueindex:
+    for idx, row in df.iterrows():
+        # parse domain and residue index
+        domainstring = row['Domains']
+        cols = domainstring.split(':')
+        assert 2 == len(cols), f"ERROR: wrong domain format: {domainstring}"
+        domname, domseg = cols[0], cols[1]
+        residueindex = set()
+        for seg in domseg.split(','):
+            arr = seg.split('-')
+            assert len(arr) == 2, f"ERROR: wrong segment: {domainstring} {seg}"
+            start, finish = int(arr[0]), int(arr[1])
+            residueindex.update( range(start, finish+1) )
+        assert row['Residues in domain'] == len(residueindex), (
+            f"ERROR: wrong domain definition: {domainstring}")
+
+        # check residue index
+        domstr = f'{domname}: '
+        for i in sorted(residueindex):
+            if i-1 in residueindex and i+1 in residueindex:
+                continue
+            elif i-1 in residueindex:
+                domstr += f'{i},'
+            elif i+1 in residueindex:
+                domstr += f'{i}-'
+            else:
+                raise ValueError(f"ERROR: wrong domain index: {domainstring}")
+        domstr = domstr.rstrip(',')
+        assert domainstring == domstr, f"ERROR: wrong: {domainstring} {domstr}"
+
+        # check domain is D0 or not
+        if domname.endswith('D0'):
             continue
-        elif i-1 in residueindex:
-            domstr += f'{i},'
-        elif i+1 in residueindex:
-            domstr += f'{i}-'
-        else:
-            raise ValueError(f"ERROR: wrong domain index: {domainstring}")
-    domstr = domstr.rstrip(',')
-    assert domainstring == domstr, f"ERROR: wrong: {domainstring} {domstr}"
 
-    # check domain is D0 or not
-    if domname.endswith('D0'):
-        continue
+        # check native pdb exists or not
+        tarname = row['Target']
+        pdbfile = inptargetdir / f'{tarname}.pdb'
+        preddir = inptargetdir / tarname
+        if not pdbfile.is_file() or not preddir.exists():
+            continue
+        print(f"{domname:10} {len(residueindex):4} {domseg}")
 
-    # check native pdb exists or not
-    tarname = row['Target']
-    pdbfile = inptargetdir / f'{tarname}.pdb'
-    preddir = inptargetdir / tarname
-    if not pdbfile.is_file() or not preddir.exists():
-        continue
-    print(f"{domname:10} {len(residueindex):4} {domseg}")
+        # parse pdbfile lines by residue index
+        domlines = []
+        with open(pdbfile, 'r') as fp:
+            domlines = select_residues_by_index(fp.readlines(), residueindex)
 
-    # parse pdbfile lines by residue index
-    domlines = []
-    with open(pdbfile, 'r') as fp:
-        domlines = select_residues_by_index(fp.readlines(), residueindex)
-
-    # write out domain pdb file
-    if (outdomaindir / domname).exists():
-        dompdbfile = outdomaindir / f'{domname}.pdb'
-        print(dompdbfile)
-        with open(dompdbfile, 'w') as fp:
-            fp.writelines(domlines)
-
-    # parse prediction file
-    for model in sorted( preddir.glob(f'{tarname}TS{server_id:3}_*') ):
-        print(model)
-        # read lines from prediction file
-        modlines = []
-        with open(model, 'r') as fp:
-            modlines = select_residues_by_index(fp.readlines(), residueindex)
-        # write out domain prediction file
+        # write out domain pdb file
         if (outdomaindir / domname).exists():
-            dompredfile = outdomaindir / domname / f'{model.name}{domname[-3:]}'
-            with open(dompredfile, 'w') as fp:
-                fp.writelines(modlines)
+            dompdbfile = outdomaindir / f'{domname}.pdb'
+            print(dompdbfile)
+            with open(dompdbfile, 'w') as fp:
+                fp.writelines(domlines)
+
+        # parse prediction file
+        for model in sorted( preddir.glob(f'{tarname}TS{server_id:3}_*') ):
+            print(model)
+            # read lines from prediction file
+            modlines = []
+            with open(model, 'r') as fp:
+                modlines = select_residues_by_index(fp.readlines(), residueindex)
+            # write out domain prediction file
+            if (outdomaindir / domname).exists():
+                dompredfile = outdomaindir / domname / f'{model.name}{domname[-3:]}'
+                with open(dompredfile, 'w') as fp:
+                    fp.writelines(modlines)

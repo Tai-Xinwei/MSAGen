@@ -52,8 +52,8 @@ export MKL_THREADING_LAYER="GNU"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240528-1755/checkpoint_E1_B24433.pt"
-[ -z "${save_dir}" ] && save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240528-1755/checkpoint_E1_B24433-5000steps-diffusionnoisestd10.0"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240528-1755/checkpoint_E2_B68866.pt"
+[ -z "${save_dir}" ] && save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240528-1755/checkpoint_E2_B68866-prediction"
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
@@ -96,7 +96,6 @@ export MKL_THREADING_LAYER="GNU"
 echo -e "\n\n"
 echo "==================================MP==========================================="
 [ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
-n_gpu=1
 echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
 echo "MASTER_PORT: ${MASTER_PORT}"
@@ -156,7 +155,7 @@ then
 else
   if (( $OMPI_COMM_WORLD_SIZE == 1))
   then
-    DISTRIBUTED_ARGS="--nproc_per_node 1 \
+    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
                       --master_port $MASTER_PORT"
   else
     DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \

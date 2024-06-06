@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import logging
-import os
 import sys
 from pathlib import Path
 
@@ -27,12 +25,14 @@ def parse_cameo_metadata(cameo_metadata_csv) -> dict:
     tmpdict = {0: 'Easy', 1: 'Medium', 2: 'Hard'}
     infodict = {}
     for _, row in pd.read_csv(cameo_metadata_csv).iterrows():
-        pdbchain = row['ref. PDB [Chain]']
-        target = f'{pdbchain[:4]}_{pdbchain[6]}'
+        target = f'{row["ref. PDB [Chain]"][:4]}_{row["ref. PDB [Chain]"][6]}'
+        size = row['Sequence Length (residues)']
+        type = 'CAMEO'
+        domain = (target, size, tmpdict.get(row['Difficulty'], 'Hard'))
         infodict[target] = {
-            'length': row['Sequence Length (residues)'],
-            'type' : 'CAMEO',
-            'group': tmpdict[row['Difficulty']],
+            'size': size,
+            'type' : type,
+            'domain': [domain],
         }
     return infodict
 
@@ -42,18 +42,17 @@ def parse_casp_metadata(casp_metadata_csv) -> dict:
     infodict = {}
     for _, row in pd.read_csv(casp_metadata_csv).iterrows():
         target = row['Target']
-        domain = row['Domains'].split(':')[0]
-        casp_round = 'CASP14' if int(target[1:5]) < 1104 else 'CASP15'
-        infodict[target] = {
-            'length': row['Residues'],
-            'type' : casp_round,
-            'group': row['Type'],
-        }
-        infodict[domain] = {
-            'length': row['Residues in domain'],
-            'type' : casp_round,
-            'group': row['Classification'],
-        }
+        size = row['Residues']
+        type = 'CASP14' if int(target[1:5]) < 1104 else 'CASP15'
+        domain = (row['Domains'], row['Residues in domain'], row['Classification'])
+        if target in infodict:
+            infodict[target]['domain'].append(domain)
+        else:
+            infodict[target] = {
+                'size': size,
+                'type' : type,
+                'domain': [domain],
+            }
     return infodict
 
 
@@ -77,29 +76,6 @@ def parse_fastafile(fastafile):
         print('ERROR: wrong fasta file "%s"\n      ' % fastafile, e, file=sys.stderr)
 
     return seqs
-
-
-def show_lmdb(lmdbdir):
-    with lmdb.open(lmdbdir, readonly=True).begin(write=False) as txn:
-        metadata = bstr2obj( txn.get('__metadata__'.encode()) )
-        print(f"{len(metadata['keys'])} keys in {lmdbdir}" )
-        print(f"{len(metadata['sizes'])} sizes in {lmdbdir}" )
-        print(f"{len(metadata['types'])} types in {lmdbdir}" )
-        print(f"{len(metadata['groups'])} groups in {lmdbdir}" )
-        print(f"{len(metadata['pdbs'])} pdbs in {lmdbdir}")
-
-        for (k, l, t, g, p) in zip(metadata['keys'],
-                                   metadata['sizes'],
-                                   metadata['types'],
-                                   metadata['groups'],
-                                   metadata['pdbs']):
-            value = txn.get(k.encode())
-            assert value, f"Key {k} not found."
-            seq = bstr2obj(value)
-            print(f"name={k}, length={l}, type={t}, group={g}, lines={len(p)}")
-            print(seq)
-            print(p[0], end='')
-            print(p[-1], end='')
 
 
 def main():
@@ -126,8 +102,8 @@ def main():
     keys = []
     types = []
     sizes = []
-    groups = []
     pdbs = []
+    domains = []
     for header, seq in tqdm(seqs):
         # parse target
         assert header[0] == '>' and 'length=' in header, (
@@ -135,7 +111,7 @@ def main():
         cols = header[1:].split()
         target, length = cols[0], int(cols[1].split('=')[1])
         assert target in metainfo4target, f"ERROR: {target} metainfo not found."
-        assert length == len(seq) == metainfo4target[target]['length'], (
+        assert length == len(seq) == metainfo4target[target]['size'], (
             f"ERROR: wrong sequence length for {target}")
 
         # read in pdb file
@@ -150,19 +126,34 @@ def main():
         keys.append(target)
         sizes.append(length)
         types.append(metainfo4target[target]['type'])
-        groups.append(metainfo4target[target]['group'])
         pdbs.append(atomlines)
+        domains.append(metainfo4target[target]['domain'])
     metadata = {
         'keys': keys,
         'sizes': sizes,
         'types': types,
-        'groups': groups,
         'pdbs': pdbs,
+        'domains': domains,
         }
     txn.put("__metadata__".encode(), obj2bstr(metadata))
     txn.commit()
 
-    show_lmdb(outlmdb)
+    with lmdb.open(outlmdb, readonly=True).begin(write=False) as txn:
+        metadata = bstr2obj( txn.get('__metadata__'.encode()) )
+        print(f"{len(metadata['keys'])} keys, sizes, ... in {outlmdb}" )
+
+        for (k, s, t, p, d) in zip(metadata['keys'],
+                                   metadata['sizes'],
+                                   metadata['types'],
+                                   metadata['pdbs'],
+                                   metadata['domains']):
+            value = txn.get(k.encode())
+            assert value, f"Key {k} not found."
+            seq = bstr2obj(value)
+            print(f"name={k}, size={s}, type={t}, lines={len(p)}, domain={d}")
+            print(seq)
+            print(p[0], end='')
+            print(p[-1], end='')
 
 
 if __name__ == "__main__":

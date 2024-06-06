@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any, Dict
 
 import hydra
@@ -13,6 +14,7 @@ import pandas as pd
 import torch
 from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING, DictConfig, OmegaConf
+from tqdm import tqdm
 
 import wandb  # isort:skip
 
@@ -37,7 +39,7 @@ from sfm.pipeline.accelerator.trainer import Trainer, seed_everything
 from sfm.utils import env_init
 from sfm.utils.cli_utils import wandb_init
 
-# Vocabulary defined on sfm/data/psm_data/dataset.py:ProteinDownstreamDataset (self.vocab)
+# Vocabulary defined on sfm/data/psm_data/dataset.py (variable: self.vocab)
 VOCAB2AA = {
     130: "LEU",  # "L"
     131: "ALA",  # "A"
@@ -75,19 +77,31 @@ cs = ConfigStore.instance()
 cs.store(name="config_psm_schema", node=Config)
 
 
-def generate_pdbcontext_from_lmdb(lmdbdir):
-    pdbcontext = {}
-    with lmdb.open(lmdbdir, readonly=True).begin(write=False) as txn:
-        metadata = bstr2obj(txn.get("__metadata__".encode()))
-        logger.info(f"{len(metadata['keys'])} keys in {lmdbdir}")
-        logger.info(f"{len(metadata['sizes'])} sizes in {lmdbdir}")
-        for key, length in zip(metadata["keys"], metadata["sizes"]):
-            value = txn.get(key.encode())
-            assert value, f"Key {key} not found."
-            data = bstr2obj(value)
-            assert data.keys() == {"seq", "pdb"}, f"Wrong keys {data.keys()}."
-            pdbcontext[key] = data["pdb"]
-    return pdbcontext
+def parse_name_chain_from_target(target: str):
+    # parse target name and chain
+    if len(target) == 6 and target[4] == "_":
+        # e.g. 1ctf_A
+        name, chain = target[:4], target[5]
+    elif (len(target) == 5 or len(target) == 7) and target[0] == "T":
+        # e.g. T1024 or T1106s2
+        name, chain = target, " "
+    else:
+        # test or other names
+        logger.warning(f"ERROR: {target} may be a wrong name.")
+        name, chain = target, " "
+    return name, chain
+
+
+def select_residues_by_index(atomlines: list, residx: set) -> list:
+    lines = []
+    for line in atomlines:
+        if line.startswith("ATOM"):
+            resnum = int(line[22:26].strip())
+            if resnum in residx:
+                lines.append(line)
+    lines.append("TER\n")
+    lines.append("END\n")
+    return lines
 
 
 def TMscore4Pair(predicted_pdb, native_pdb):
@@ -121,7 +135,6 @@ def TMscore4Pair(predicted_pdb, native_pdb):
 
     # execuate command and get output
     cmds = ["TMscore", predicted_pdb, native_pdb]
-    logger.info(" ".join(cmds))
 
     # open a temporary file and write the output to this file
     lines = []
@@ -155,7 +168,6 @@ def TMscore4Pair(predicted_pdb, native_pdb):
             break
         else:
             continue
-        logger.info(l.rstrip("\n"))
 
     # check data format and TMscore output
     if len(lines) != i + 5 or lines[-1] != "\n":
@@ -165,9 +177,7 @@ def TMscore4Pair(predicted_pdb, native_pdb):
 
 
 @hydra.main(
-    version_base="1.3",
-    config_path="../../../config_file",
-    config_name="config_psm",
+    version_base="1.3", config_path="../../../config_file", config_name="config_psm"
 )
 def main(args: DictConfig) -> None:
     args = OmegaConf.to_object(args)
@@ -179,69 +189,71 @@ def main(args: DictConfig) -> None:
     seed_everything(args.seed)
     env_init.set_env(args)
 
-    model = PSMModel(args, loss_fn=DiffMAE3dCriterions).cuda()
-    model.eval()
-
-    logger.info(f"Loading test dataset from {args.data_path}.")
-    dataset = ProteinSamplingDataset(args, args.data_path)
-    # sampler = DistributedSampler(
-    # dataset
-    # )
-    train_data_loader = DataLoader(
-        dataset,
-        # sampler=sampler,
-        shuffle=False,
-        batch_size=1,
-        collate_fn=dataset.collate,
-        drop_last=False,
+    torch.distributed.init_process_group(
+        backend="NCCL",
+        init_method="env://",
+        world_size=args.world_size,
+        rank=args.rank,
+        timeout=timedelta(hours=10),
+    )
+    torch.distributed.barrier()
+    logger.success(
+        f"DDP initialized on env:// rank: {args.rank}, "
+        f"world_size: {args.world_size}, local_rank: {args.local_rank}."
     )
 
     logger.info(f"Loading metadata from {args.data_path}.")
     with lmdb.open(args.data_path, readonly=True).begin(write=False) as txn:
         metadata = bstr2obj(txn.get("__metadata__".encode()))
-    logger.info(
-        f"The metadata contains"
-        f"{len(metadata['keys'])} keys, "
-        f"{len(metadata['sizes'])} sizes, "
-        f"{len(metadata['types'])} types, "
-        f"{len(metadata['groups'])} groups, "
-        f"{len(metadata['pdbs'])} pdbs."
+    logger.info(f"Metadata contains {len(metadata['keys'])} keys, pdbs, ...")
+
+    logger.info(f"Loading model from {args.loadcheck_path}.")
+    model = PSMModel(args, loss_fn=DiffMAE3dCriterions).cuda()
+    model.eval()
+
+    logger.info(f"Loading test dataset from {args.data_path}.")
+    dataset = ProteinSamplingDataset(args, args.data_path)
+    sampler = DistributedSampler(dataset, shuffle=False)
+    train_data_loader = DataLoader(
+        dataset,
+        sampler=sampler,
+        batch_size=1,
+        collate_fn=dataset.collate,
+        drop_last=False,
     )
 
     logger.info(f"Start to evaluate protein structure for {args.data_path}.")
-    scores = []
-    for idx, data in enumerate(train_data_loader):
+    for data in train_data_loader:
+        data = {k: v.cuda() for k, v in data.items()}
+
+        idx = data["idx"][0].cpu()
         target = dataset.keys[idx].split(" ")[0]
         if target not in metadata["keys"]:
             logger.error(f"{target} target name does not match metadata.")
             continue
-        logger.info(f"Start to evaluate structure for {target}.")
         taridx = metadata["keys"].index(target)
+        logger.success(f"Start to evaluate structure for {target}.")
 
-        data = {k: v.cuda() for k, v in data.items()}
         sequence = data["token_id"][0].cpu().tolist()
         if len(sequence) != metadata["sizes"][taridx]:
             logger.error(f"{target} sequence length does not match metadata.")
             continue
-        logger.info(f"Sequence length is {len(sequence)}.")
+        logger.success(f"Sequence length for {target} is {len(sequence)}.")
 
-        # predict CA position for sequence
-        result = model.sample(data, data)
-        pred_pos = result["pred_pos"].tolist()
+        tarname, chain = parse_name_chain_from_target(target)
+        logger.success(f"The {target} name is {tarname} and chain is {chain}.")
 
-        # parse target name and chain
-        assert len(target) >= 5, f"ERROR: {target} is not a valid target name."
-        if len(target) == 6 and target[4] == "_":
-            tarname, chain = target[:4], target[5]
-        elif target[0] == "T":
-            tarname, chain = target, " "
-        else:
-            logger.warning(f"ERROR: {target} may be a wrong name.")
-            tarname, chain = target, " "
-        logger.info(target, tarname, chain)
+        # write predicted CA position to pdb file
+        pdb_file = os.path.join(args.save_dir, f"{target}-1.pdb")
+        if os.path.exists(pdb_file):
+            logger.warning(f"{pdb_file} already exists, skip generating.")
+            continue
 
-        # generate atom lines with atom position
-        coords = pred_pos[0]
+        logger.success(f"Predicted {target} structure by SFM model.")
+        result = model.sample(data)
+        coords = result["pred_pos"][0].tolist()
+
+        logger.success(f"Write predicted {target} structure to {pdb_file}.")
         atomlines = []
         for i, (x, y, z) in enumerate(coords):
             atomidx = i + 1
@@ -253,37 +265,79 @@ def main(args: DictConfig) -> None:
             )
         atomlines.append("TER\n")
         atomlines.append("END\n")
-
-        # write results to *.pdb
-        model_num = 1
-        pdb_file = os.path.join(args.save_dir, f"{target}-{model_num}.pdb")
         with open(pdb_file, "w") as fp:
             fp.writelines(atomlines)
-        logger.info(f"Predicted structure for {target} written to {pdb_file}")
 
-        # evaluate predicted structure by TMalign/TMscore
-        logger.info("Calculate TM-score between generated pdb and native pdb")
-        with tempfile.NamedTemporaryFile() as tmp:
-            with open(tmp.name, "w") as fp:
-                fp.writelines(metadata["pdbs"][taridx])
-            score = TMscore4Pair(pdb_file, tmp.name)
-            score["Target"] = target
-            score["Length"] = len(sequence)
-            score["Type"] = metadata["types"][taridx]
-            score["Group"] = metadata["groups"][taridx]
-            scores.append(score)
+    # gather all results from different ranks
+    torch.distributed.barrier()
+    if args.rank != 0:
+        return
+
+    logger.info(f"TMscore between predicted.pdb and native.pdb {args.save_dir}")
+    scores = []
+    for target in tqdm(metadata["keys"]):
+        taridx = metadata["keys"].index(target)
+
+        pdb_file = os.path.join(args.save_dir, f"{target}-1.pdb")
+        with open(pdb_file, "r") as fp:
+            predlines = fp.readlines()
+        natilines = metadata["pdbs"][taridx]
+
+        for domstr, domlen, domgroup in metadata["domains"][taridx]:
+            residx = set()
+            try:
+                if domstr[0] == "T":
+                    domseg = domstr.split(":")[1]
+                    for seg in domseg.split(","):
+                        start, finish = [int(_) for _ in seg.split("-")]
+                        residx.update(range(start, finish + 1))
+                else:
+                    residx.update(range(1, domlen + 1))
+                assert domlen == len(residx), f"domain length!={domlen}"
+            except Exception as e:
+                print(f"ERROR: {domstr} parsing error, {e}")
+                continue
+
+            # evaluate predicted structure by TMalign/TMscore
+            score = {
+                "Target": domstr.split(":")[0],
+                "Length": domlen,
+                "Group": domgroup,
+                "Type": metadata["types"][taridx],
+            }
+            with (
+                tempfile.NamedTemporaryFile() as predpdb,
+                tempfile.NamedTemporaryFile() as natipdb,
+            ):
+                with open(predpdb.name, "w") as fp:
+                    fp.writelines(select_residues_by_index(predlines, residx))
+                with open(natipdb.name, "w") as fp:
+                    fp.writelines(select_residues_by_index(natilines, residx))
+                score.update(TMscore4Pair(predpdb.name, natipdb.name))
+                scores.append(score)
+
+    logger.info(f"Write TM-score to {args.save_dir}.")
+    score_file = os.path.join(args.save_dir, f"TM-score-rank{args.rank}.csv")
     df = pd.DataFrame(scores)
+    df.to_csv(score_file)
     print(df)
 
-    # write results to csv file
-    score_file = os.path.join(args.save_dir, "TM-score.csv")
-    df.to_csv(score_file)
-
-    # simple statistics for results
-    print(f"{'Category':<10} {'Number':>6} {'SFM_TMscore':>11}")
-    for t in df["Type"].unique():
-        subdf = df[df["Type"] == t]["TMscore"]
-        print(f"{t:<10s} {len(subdf):>6d} {subdf.mean()*100:>11.2f}")
+    CATEGORY = {
+        "CAMEO  Easy": ["Easy"],
+        "CAMEO  Medi": ["Medium", "Hard"],
+        "CASP14 Easy": ["TBM-easy", "TBM-hard"],
+        "CASP14 Hard": ["FM/TBM", "FM"],
+        "CASP15 Easy": ["TBM-easy", "TBM-hard"],
+        "CASP15 Hard": ["FM/TBM", "FM"],
+    }
+    print(f"{'Category':<12} {'Number':>6} {'SFM_TMscore':>11}")
+    for category, groups in CATEGORY.items():
+        domtype = category.split()[0]
+        dfs = []
+        for domgroup in groups:
+            dfs.append(df[(df["Type"] == domtype) & (df["Group"] == domgroup)])
+        dfsub = pd.concat(dfs, ignore_index=True)["TMscore"]
+        print(f"{category:<12s} {len(dfsub):>6d} {dfsub.mean()*100:>11.2f}")
 
 
 if __name__ == "__main__":

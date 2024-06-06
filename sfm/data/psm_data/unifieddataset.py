@@ -18,6 +18,7 @@ from sfm.data.psm_data.dataset import (
     PM6FullLMDBDataset,
     SmallMolDataset,
 )
+from sfm.data.psm_data.ft_mol_dataset import PCQM4Mv2LMDBDataset
 from sfm.data.sampler import WeightedDistributedSampler
 from sfm.logging import logger
 from sfm.models.psm.psm_config import PSMConfig
@@ -134,6 +135,14 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 )
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
+            elif dataset_name == "pcqm4mv2":
+                train_dataset = PCQM4Mv2LMDBDataset(
+                    args, data_path, split="train", **kwargs
+                )
+                valid_dataset = PCQM4Mv2LMDBDataset(
+                    args, data_path, split="valid", **kwargs
+                )
+                len_total = len(train_dataset) + len(valid_dataset)
             else:
                 raise ValueError(f"Invalid dataset name:{dataset_name}")
 
@@ -162,6 +171,7 @@ class BatchedDataDataset(FoundationModelDataset):
         spatial_pos_max=1024,
         ft=False,
         infer=False,
+        extra_collate_fn=None,
     ):
         super().__init__()
         self.dataset_list = dataset_list
@@ -184,6 +194,7 @@ class BatchedDataDataset(FoundationModelDataset):
         self.args = args
         self.ft = ft
         self.infer = infer
+        self.extra_collate_fn = extra_collate_fn
 
     def __getitem__(self, idx):
         # select dataset_idx based on split ratio
@@ -197,12 +208,15 @@ class BatchedDataDataset(FoundationModelDataset):
         return self.len
 
     def collate(self, samples):
-        return collate_fn(
+        batched_data = collate_fn(
             samples,
             multi_hop_max_dist=self.multi_hop_max_dist,
             preprocess_2d_bond_features_with_cuda=self.args.preprocess_2d_bond_features_with_cuda,
             sample_in_validation=self.args.sample_in_validation,
         )
+        if self.extra_collate_fn is not None:
+            batched_data = self.extra_collate_fn(samples, batched_data)
+        return batched_data
 
     def num_tokens(self, idx: int) -> int:
         return super().num_tokens(idx)
@@ -214,14 +228,9 @@ class BatchedDataDatasetForUnifiedSampler(BatchedDataDataset):
         args,
         dataset_list,
         len_data,
-        multi_hop_max_dist=5,
-        spatial_pos_max=1024,
-        ft=False,
-        infer=False,
+        **kwargs,
     ):
-        super().__init__(
-            args, dataset_list, len_data, multi_hop_max_dist, spatial_pos_max, ft, infer
-        )
+        super().__init__(args, dataset_list, len_data, **kwargs)
         self.dataset_lens = [len(dataset) for dataset in self.dataset_list]
         self.dataset_ranges = np.cumsum([0] + self.dataset_lens)
 
