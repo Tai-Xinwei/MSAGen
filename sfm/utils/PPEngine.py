@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import copy
 import os
+import time
 from types import MethodType
 from typing import Optional, Union
 
@@ -295,6 +296,119 @@ class SFMPipeEngine(DeepSpeedEngine):
         )
         os.makedirs(allreduce_log_path, exist_ok=True)
         self.file = open(file_name, "a")
+
+    #     ranks_per_node = 8
+    #     node_world_size = self.module.world_size//ranks_per_node
+
+    #     allpair_table = [[-1 for j in range(node_world_size)] for i in range(node_world_size) ]
+
+    #     allpairs_node = self.generate_pairwise_config(node_world_size)
+    #     allpairs = self.map_ranks_to_nodes(allpairs_node, ranks_per_node=ranks_per_node)
+
+    #     n_pairs = os.getenv('NPAIRS')
+    #     if n_pairs is None:
+    #         n_pairs = len(allpairs)
+    #     n_pairs = allpairs[:n_pairs]
+    #     g = 1024*1024*1024
+    #     size = 8*g*2
+    #     npair_data = torch.zeros(8*g, dtype=torch.bfloat16).to(self.device)
+    #     tensor_list = [torch.zeros(len(n_pairs), dtype=torch.float32).to(self.device) for i in range(self.module.world_size)]
+    #     tensor = torch.zeros(len(n_pairs), dtype=torch.float32).to(self.device)
+    #     for test in range(len(n_pairs)):
+    #         my_group = None
+    #         my_group_id = -1
+    #         for group in range(len(n_pairs[test])):
+    #             new_group = dist.new_group(ranks=n_pairs[test][group])
+    #             if self.module.global_rank in n_pairs[test][group]:
+    #                 my_group = new_group
+    #                 my_group_id = group
+    #         dist.barrier(group=self.module.world_group)
+
+    #         if my_group is not None:
+    #             dist.all_reduce(npair_data, group=my_group)
+    #             torch.cuda.synchronize()
+    #             pre = time.perf_counter()
+    #             dist.all_reduce(npair_data, group=my_group)
+    #             torch.cuda.synchronize()
+    #             duration = time.perf_counter() - pre
+    #             busbw = ((size/g) / (duration)) *(2 * (16 - 1) / 16)
+    #             tensor[test] = busbw
+
+    #     dist.all_gather(tensor_list=tensor_list, tensor=tensor, group=self.module.world_group)
+    #     del npair_data
+    #     res = [] ## BusBW for all the tests per nodes
+
+    #     for i in range(node_world_size):
+    #         tmp = torch.zeros(len(n_pairs), dtype=torch.float32).to(self.device)
+    #         cnt = 0
+    #         for j in range(ranks_per_node):
+    #             tmp += tensor_list[(i * ranks_per_node) + j]
+    #             cnt += 1
+    #         tmp /= cnt
+    #         res.append(tmp.tolist())
+
+    #     for test in range(len(n_pairs)):
+    #         for group in range(len(n_pairs[test])):
+    #             allpair_table[allpairs_node[test][group][0]][allpairs_node[test][group][1]] = max(res[allpairs_node[test][group][0]][test], res[allpairs_node[test][group][1]][test])
+    #             allpair_table[allpairs_node[test][group][1]][allpairs_node[test][group][0]] = max(res[allpairs_node[test][group][0]][test], res[allpairs_node[test][group][1]][test])
+
+    #     if self.module.global_rank == 0:
+    #         for i in range(node_world_size):
+    #             print(f"\t\t node-{i}", end="\t")
+    #         print("\n")
+
+    #         for i in range(node_world_size):
+    #             print(f"node-{i}", end="\t")
+    #             for j in range(node_world_size):
+    #                 print(f"{allpair_table[i][j]:.2f}", end="\t")
+    #             print("\n")
+
+    # def generate_pairwise_config(self, n):
+    #     def rotate(lst):
+    #         return lst[1:] + lst[0:1]
+
+    #     if n <= 0:
+    #         raise ValueError("n must be a positive integer")
+
+    #     config = []
+    #     participants = list(range(n))
+
+    #     if n % 2 == 1:
+    #         participants.append(-1)
+
+    #     fixed_participant = participants[0]
+    #     rotating_participants = participants[1:]
+
+    #     for _ in range(len(participants) - 1):
+    #         pairs = [
+    #             [participants[i], participants[-i - 1]]
+    #             for i in range(len(participants) // 2)
+    #             if participants[i] != -1 and participants[-i - 1] != -1
+    #         ]
+    #         config.append(pairs)
+    #         rotating_participants = rotate(rotating_participants)
+    #         participants = [fixed_participant] + rotating_participants
+
+    #     return config
+
+    # def map_ranks_to_nodes(self, ranks_lists, ranks_per_node=8):
+
+    #     if len(ranks_lists) == 0 or len(ranks_lists[0]) == 0:
+    #         return []
+
+    #     tests = []
+
+    #     for i in range(len(ranks_lists)):
+    #         test = []
+    #         for j in range(len(ranks_lists[i])):
+    #             ranks_lists[i][j][0]
+    #             ranks_lists[i][j][1]
+    #             left = [(ranks_lists[i][j][0] * ranks_per_node) + k for k in range(ranks_per_node)]
+    #             right = [(ranks_lists[i][j][1] * ranks_per_node) + k for k in range(ranks_per_node)]
+    #             test.append(left + right)
+    #         tests.append(test)
+
+    #     return tests
 
     def set_has_attention_mask(self, value):
         assert isinstance(value, bool)

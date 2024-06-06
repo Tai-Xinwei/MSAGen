@@ -234,16 +234,21 @@ class TELlamaDecoderLayerMP(TELlamaDecoderLayer, SFMModule):
             elif key == "mlp.down_proj.weight":
                 new_state_dict["layernorm_mlp.fc2_weight"] = param
             else:
-                raise ValueError(f"Unexpected key: {key}")
+                new_state_dict[key] = param
+                logger.warning(f"Check this! Unexpected key: {key}")
 
         # concat layernorm_mlp.fc1_weight.1 and layernorm_mlp.fc1_weight.2
-        new_state_dict["layernorm_mlp.fc1_weight"] = torch.cat(
-            (
-                temp_state_dict["layernorm_mlp.fc1_weight.1"],
-                temp_state_dict["layernorm_mlp.fc1_weight.2"],
-            ),
-            dim=0,
-        )
+        if (
+            "layernorm_mlp.fc1_weight.1" in temp_state_dict
+            and "layernorm_mlp.fc1_weight.2" in temp_state_dict
+        ):
+            new_state_dict["layernorm_mlp.fc1_weight"] = torch.cat(
+                (
+                    temp_state_dict["layernorm_mlp.fc1_weight.1"],
+                    temp_state_dict["layernorm_mlp.fc1_weight.2"],
+                ),
+                dim=0,
+            )
 
         del state_dict
 
