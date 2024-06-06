@@ -1449,7 +1449,7 @@ class DaliPM6DataSource:
         cell = torch.zeros([3, 3], dtype=torch.float)
         pbc = torch.zeros([3], dtype=torch.long)
         forces = torch.zeros([N, 3], dtype=torch.float)
-        energy = torch.tensor(data["total_energy"], dtype=torch.float)
+        energy = torch.tensor(data["energy"], dtype=torch.float)
         adj = torch.zeros([N, N], dtype=torch.long)
         edge_index = torch.tensor(
             np.ascontiguousarray(data["edge_index"]), dtype=torch.long
