@@ -83,10 +83,10 @@ jobs:
   - export gradient_accumulation_steps=4
   - export log_interval=100
   - export data_path=/nfs6/psmdata/
-  - export data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb'
-  - export dataset_name_list='pm6,afdb'
-  - export dataset_split_raito='0.5,0.5'
-  - export dataset_micro_batch_size='128,12'
+  - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-force-filtered'
+  - export dataset_name_list='pm6,mattersim,afdb,mattersim'
+  - export dataset_split_raito='0.3,0.1,0.5,0.1'
+  - export dataset_micro_batch_size='128,32,12'
   - export fp16=False
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v5/checkpoints
   - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v5/checkpoints

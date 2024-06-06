@@ -46,11 +46,14 @@ export MKL_THREADING_LAYER='GNU'
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-# [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
 [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,afdb'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.5'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="256,32"
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-force-filtered'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.1,0.5,0.1'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,32,12'
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${fp16}" ] && fp16=False
 
