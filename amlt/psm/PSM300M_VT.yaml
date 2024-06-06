@@ -86,7 +86,7 @@ jobs:
   - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
   - export dataset_name_list='pm6,mattersim,afdb,mattersim'
   - export dataset_split_raito='0.3,0.1,0.5,0.1'
-  - export dataset_micro_batch_size='128,32,12'
+  - export dataset_micro_batch_size='128,32,12,32'
   - export fp16=False
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v5/checkpoints
   - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v5/checkpoints
