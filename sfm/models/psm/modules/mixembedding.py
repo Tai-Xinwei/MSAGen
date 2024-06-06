@@ -80,6 +80,7 @@ class PSMMix3dEmbedding(nn.Module):
         """
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
+        residue_mask = token_id > 129
 
         if aa_mask is not None:
             mask_token_type = token_id.masked_fill(
@@ -97,15 +98,15 @@ class PSMMix3dEmbedding(nn.Module):
             ).sum(
                 dim=-2
             )  # B x T x #ATOM_FEATURE x D -> # B x T x D
+            atom_feature_embedding = atom_feature_embedding.masked_fill(
+                residue_mask.unsqueeze(-1), 0.0
+            )
             x += atom_feature_embedding
 
         if time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)
             x += time_embed  # .unsqueeze(1)
 
-        # _, pos_embedding = self.pos_embedding_bias(
-        #     batched_data, mask_token_type, padding_mask, pbc_expand_batched
-        # )
         pos_embedding = self._pos_emb(batched_data, padding_mask)
         x += pos_embedding
 

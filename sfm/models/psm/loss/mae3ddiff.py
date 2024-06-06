@@ -317,9 +317,10 @@ class DiffMAE3dCriterions(nn.Module):
             num_aa_mask_token = 0.0
 
         def calculate_energy_loss_ratio(energy_loss_mag):
-            return np.clip(1.0 - (energy_loss_mag - 1.0) / 100, 0.01, 1.0)
+            return np.clip(1.0 - (energy_loss_mag - 1.0) / 1000, 0.001, 1.0)
 
-        energy_loss_ratio = calculate_energy_loss_ratio(energy_loss.item())
+        # energy_loss_ratio = calculate_energy_loss_ratio(energy_loss.item())
+        energy_loss_ratio = 1.0
 
         loss = energy_loss_ratio * energy_loss + force_loss + noise_loss + aa_mlm_loss
 

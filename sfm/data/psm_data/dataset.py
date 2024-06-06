@@ -29,6 +29,7 @@ from sfm.data.mol_data import algos
 from sfm.data.prot_data.util import bstr2obj
 from sfm.data.psm_data.collator import collate_fn, pad_pos_unsqueeze
 from sfm.data.psm_data.utils import (
+    PM6_ATOM_REFERENCE_LIST,
     get_conv_variable_lin,
     get_data_defult_config,
     matrixtoblock_lin,
@@ -196,12 +197,23 @@ class PM6FullLMDBDataset(FoundationModelDataset):
         data["energy"] = torch.tensor(
             [(total_energy - self.energy_mean) / self.energy_std]
         )
-        data["energy_per_atom"] = torch.tensor(
-            [
-                (total_energy / float(data["num_atoms"]) - self.energy_per_atom_mean)
-                # / self.energy_per_atom_std
-            ]
+        # data["energy_per_atom"] = torch.tensor(
+        #     [
+        #         (total_energy / float(data["num_atoms"]) - self.energy_per_atom_mean)
+        #         / self.energy_per_atom_std
+        #     ]
+        # )
+        PM6_ATOM_REFERENCE_tensor = torch.tensor(
+            PM6_ATOM_REFERENCE_LIST, device=x.device, dtype=torch.float64
         )
+        reference_energy = (
+            torch.gather(PM6_ATOM_REFERENCE_tensor, 0, data["token_type"] - 1)
+            .sum()
+            .unsqueeze(0)
+        )
+        data["energy_per_atom"] = (
+            torch.tensor(total_energy) - reference_energy
+        ) / data["num_atoms"]
 
         data = self.generate_2dgraphfeat(data)
 
