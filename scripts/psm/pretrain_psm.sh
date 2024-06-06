@@ -51,7 +51,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.2,0.4'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,1"
-[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
+[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=False
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
@@ -104,6 +104,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=False
+[ -z "${use_dali_pipeline}" ] && use_dali_pipeline=True
 
 
 echo -e "\n\n"
@@ -235,6 +236,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           psm_finetune_reset_head=$psm_finetune_reset_head \
           rescale_loss_with_std=$rescale_loss_with_std \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
+          use_dali_pipeline=True \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
 
 

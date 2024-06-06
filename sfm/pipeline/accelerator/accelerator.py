@@ -577,6 +577,13 @@ class DdpAccelerator(SingleNodeAccelerator):
                         collate_fn=train_data.collate,
                         drop_last=True,
                     )
+            elif self.args.use_dali_pipeline:
+                self.train_sampler = None
+                self.train_data_loader = DataLoader(
+                    train_data,
+                    batch_size=None,
+                    collate_fn=train_data.collate,
+                )
             else:
                 self.train_sampler = None
                 self.train_data_loader = DataLoader(
@@ -601,6 +608,12 @@ class DdpAccelerator(SingleNodeAccelerator):
                     val_data,
                     batch_sampler=valid_sampler,
                     collate_fn=train_data.collate,
+                )
+            elif self.args.use_dali_pipeline:
+                self.valid_data_loader = DataLoader(
+                    val_data,
+                    batch_size=None,
+                    collate_fn=val_data.collate,
                 )
             else:
                 valid_batch_size_per_gpu = self.args.val_batch_size
