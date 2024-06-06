@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from sfm.models.psm.invariant.mixture_bias import PSMBias
 from sfm.models.psm.modules.timestep_encoder import TimeStepEncoder
 from sfm.models.psm.psm_config import PSMConfig
 
@@ -46,16 +45,34 @@ class PSMMix3dEmbedding(nn.Module):
 
         self.psm_config = psm_config
 
-    def _pos_emb(self, batched_data: Dict, padding_mask: torch.Tensor):
-        pos = batched_data["pos"]
+    def _pos_emb(
+        self,
+        pos: Optional[torch.Tensor],
+        expand_pos: torch.Tensor,
+        padding_mask: torch.Tensor,
+        pbc_expand_batched: Optional[Dict[str, Tensor]] = None,
+    ):
         pos = pos.to(self.pos_emb.weight.dtype)
-        delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
+        if pbc_expand_batched is not None:
+            expand_pos = expand_pos.to(self.pos_emb.weight.dtype)
+            expand_pos = torch.cat([pos, expand_pos], dim=1)
+            delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
+            expand_mask = torch.cat(
+                [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
+            )
+        else:
+            delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
+            expand_mask = padding_mask
+            expand_pos = pos
+
         dist = 1.0 / (delta_pos.norm(dim=-1) + 1.0)
         min_dtype = torch.finfo(dist.dtype).min
-        dist = dist.masked_fill(padding_mask.unsqueeze(1), min_dtype)
+        dist = dist.masked_fill(expand_mask.unsqueeze(1), min_dtype)
         dist = dist.masked_fill(padding_mask.unsqueeze(-1), min_dtype)
 
-        pos_emb = self.pos_emb(pos).masked_fill(padding_mask.unsqueeze(-1), 0.0).float()
+        pos_emb = (
+            self.pos_emb(expand_pos).masked_fill(expand_mask.unsqueeze(-1), 0.0).float()
+        )
         dist = torch.nn.functional.softmax(dist.float() * self.scaling, dim=-1)
         pos_feature_emb = torch.matmul(dist, pos_emb).to(self.pos_emb.weight.dtype)
         pos_feature_emb = self.pos_feature_emb(pos_feature_emb)
@@ -68,7 +85,7 @@ class PSMMix3dEmbedding(nn.Module):
         time_step: Optional[Tensor] = None,
         clean_mask: Optional[Tensor] = None,
         aa_mask: Optional[Tensor] = None,
-        pbc_expand_batched: Optional[Dict] = None,
+        pbc_expand_batched: Optional[Dict[str, Tensor]] = None,
     ) -> Tensor:
         """
         Forward pass of the PSMMixEmbedding class.
@@ -106,37 +123,29 @@ class PSMMix3dEmbedding(nn.Module):
         # _, pos_embedding = self.pos_embedding_bias(
         #     batched_data, mask_token_type, padding_mask, pbc_expand_batched
         # )
-        pos_embedding = self._pos_emb(batched_data, padding_mask)
+        pos_embedding = self._pos_emb(
+            batched_data["pos"],
+            pbc_expand_batched["expand_pos"]
+            if pbc_expand_batched is not None
+            else None,
+            padding_mask,
+            pbc_expand_batched=pbc_expand_batched,
+        )
         x += pos_embedding
 
-        # if "init_pos" in batched_data:
-        #     init_pos = batched_data["init_pos"]
-        #     if pbc_expand_batched is not None:
-        #         pos = batched_data["pos"]
-        #         outcell_index = (
-        #             pbc_expand_batched["outcell_index"].unsqueeze(-1).repeat(1, 1, 3)
-        #         )
-        #         expand_pos_no_offset = torch.gather(pos, dim=1, index=outcell_index)
-        #         offset = batched_data["expand_pos"] - expand_pos_no_offset
-        #         init_expand_pos_no_offset = torch.gather(
-        #             init_pos, dim=1, index=outcell_index
-        #         )
-        #         init_expand_pos = torch.cat(
-        #             [init_pos, init_expand_pos_no_offset + offset]
-        #         )
-        #         init_expand_pos = init_expand_pos.masked_fill(
-        #             torch.cat(
-        #                 [padding_mask, pbc_expand_batched["expand_mask"]], dim=1
-        #             ).unsqueeze(-1),
-        #             0.0,
-        #         )
-        #         batched_data["init_expand_pos"] = init_expand_pos
-        #     _, init_pos_embedding = self.init_pos_embedding_bias(
-        #         batched_data, mask_token_type, padding_mask, pbc_expand_batched
-        #     )
-        #     init_pos_mask = (
-        #         (init_pos != 0.0).any(dim=-1, keepdim=False).any(dim=-1, keepdim=False)
-        #     )
-        #     x[init_pos_mask, :] += init_pos_embedding[init_pos_mask, :]
+        if "init_pos" in batched_data and (batched_data["init_pos"] != 0.0).any():
+            init_pos = batched_data["init_pos"]
+            init_pos_embedding = self._pos_emb(
+                init_pos,
+                pbc_expand_batched["init_expand_pos"]
+                if pbc_expand_batched is not None
+                else None,
+                padding_mask,
+                pbc_expand_batched=pbc_expand_batched,
+            )
+            init_pos_mask = (
+                (init_pos != 0.0).any(dim=-1, keepdim=False).any(dim=-1, keepdim=False)
+            )
+            x[init_pos_mask, :] += init_pos_embedding[init_pos_mask, :]
 
-        return x, padding_mask, mask_token_type, time_embed
+        return x, padding_mask, time_embed, None

@@ -239,7 +239,8 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
 
         assert (
             pbc_expand_batched is None
-        ), "memory efficient attention not support pbc_expand_batched"
+            or pbc_expand_batched["local_attention_weight"] is None
+        ), "memory efficient attention not support pbc_use_local_attention=True"
 
         tgt_len, bsz, embed_dim = query.size()
 
@@ -256,6 +257,25 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
         q = self.q_proj(query)
         k = self.k_proj(query)
         v = self.v_proj(query)
+
+        if pbc_expand_batched is not None:
+            outcell_index = pbc_expand_batched["outcell_index"]
+            expand_mask = pbc_expand_batched["expand_mask"]
+        else:
+            outcell_index = None
+            expand_mask = None
+
+        if outcell_index is not None:
+            outcell_index = (
+                outcell_index.transpose(1, 0).unsqueeze(-1).expand(-1, -1, embed_dim)
+            )
+            expand_k = torch.gather(k, dim=0, index=outcell_index)
+            expand_v = torch.gather(v, dim=0, index=outcell_index)
+
+            k = torch.cat([k, expand_k], dim=0)
+            v = torch.cat([v, expand_v], dim=0)
+
+            src_len = k.size()[0]
 
         q = (
             q.contiguous()
@@ -294,6 +314,13 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
             q[is_protein_expanded], k[is_protein_expanded] = self.rot_emb(
                 q[is_protein_expanded], k[is_protein_expanded]
             )
+
+        if key_padding_mask is not None:
+            if outcell_index is not None:
+                assert expand_mask is not None
+                key_padding_mask = torch.cat([key_padding_mask, expand_mask], dim=1)
+            assert key_padding_mask.size(0) == bsz
+            assert key_padding_mask.size(1) == src_len
 
         q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
         k = k.view(bsz, self.num_heads, src_len, self.head_dim)

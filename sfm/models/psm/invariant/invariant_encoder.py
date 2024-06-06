@@ -2,14 +2,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import Dict
+from typing import Dict, Optional
 
 import torch
 import torch.nn as nn
 
-from sfm.models.psm.invariant.graphormer_2d_bias import GraphAttnBias
-
-from ..modules.pbc import CellExpander
 from ..psm_config import PSMConfig
 from .graphormer_sentence_encoder_layer import GraphormerSentenceEncoderLayer
 
@@ -44,16 +41,6 @@ class PSMEncoder(nn.Module):
                     )
                 ]
             )
-
-        self.cell_expander = CellExpander(
-            psm_config.pbc_expanded_distance_cutoff,
-            psm_config.pbc_expanded_token_cutoff,
-            psm_config.pbc_expanded_num_cell_per_direction,
-            psm_config.pbc_multigraph_cutoff,
-        )
-
-        if psm_config.use_2d_bond_features:
-            self.graph_2d_attention_bias = GraphAttnBias(psm_config)
 
         self.psm_config = psm_config
 
@@ -104,7 +91,8 @@ class PSMEncoder(nn.Module):
         x: torch.Tensor,
         padding_mask: torch.Tensor,
         batched_data: Dict,
-        masked_token_type: torch.Tensor,
+        mixed_attn_bias: torch.Tensor,
+        pbc_expand_batched: Optional[Dict] = None,
     ) -> torch.Tensor:
         """
         Forward pass of the PSMEncoder class.
@@ -112,46 +100,21 @@ class PSMEncoder(nn.Module):
             x (torch.Tensor): Input tensor, [L, B, H].
             padding_mask (torch.Tensor): Padding mask, [B, L].
             batched_data (Dict): Input data for the forward pass.
-            masked_token_type (torch.Tensor): The masked token type, [B, L].
+            mixed_attn_bias (Tensor): attention bias by layer, mixing 2D and 3D biases
+            pbc_expand_batched (Dict): periodic boundary expanding results
         Returns:
             torch.Tensor: Encoded tensor, [B, L, H].
         """
         attn_mask = None
-        if (
-            "pbc" in batched_data
-            and batched_data["pbc"] is not None
-            and torch.any(batched_data["pbc"])
-        ):
-            pos = batched_data["pos"]
-            pbc = batched_data["pbc"]
-            atoms = batched_data["token_id"]
-            cell = batched_data["cell"]
-            num_atoms = batched_data["num_atoms"]
-            pbc_expand_batched = self.cell_expander.expand(
-                pos,
-                pbc,
-                num_atoms,
-                atoms,
-                cell,
-                self.psm_config.pbc_use_local_attention,
-            )
-        else:
-            pbc_expand_batched = None
-
-        if self.psm_config.use_2d_bond_features:
-            graph_2d_attention_bias = self.graph_2d_attention_bias(batched_data)
 
         for layer_index, layer in enumerate(self.layers):
             x, _ = layer(
                 x,
                 batched_data,
-                masked_token_type,
                 self_attn_padding_mask=padding_mask,
                 self_attn_mask=attn_mask,
                 pbc_expand_batched=pbc_expand_batched,
-                graph_2d_attention_bias=graph_2d_attention_bias[layer_index]
-                if self.psm_config.use_2d_bond_features
-                else None,
+                mixed_attn_bias=mixed_attn_bias[layer_index],
             )
 
-        return x, pbc_expand_batched
+        return x
