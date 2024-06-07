@@ -6,7 +6,7 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=6
+[ -z "${layers}" ] && layers=24
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
@@ -58,7 +58,8 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.1,0.5,0.1'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,32,12'
-[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=False
+[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
+[ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v4/checkpoints/"
@@ -228,5 +229,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           clean_sample_ratio=$clean_sample_ratio \
           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
-          ifresume=True \
-          use_dali_pipeline=True \
+          use_dali_pipeline=$use_dali_pipeline \
+          # ifresume=True \

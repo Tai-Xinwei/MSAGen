@@ -269,7 +269,7 @@ def get_dali_pipeline(args: Any, dataset: Any, batch_size: int):
         batch_size=batch_size,
         num_threads=4,
         device_id=args.local_rank,
-        prefetch_queue_depth=4,
+        prefetch_queue_depth=2,
         py_num_workers=4,
         py_start_method="spawn",
         source=source,
