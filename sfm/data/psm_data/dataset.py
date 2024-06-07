@@ -346,12 +346,12 @@ class PlainPM6FullLMDBDataset(PM6FullLMDBDataset):
 
 class MatterSimDataset:
     def __init__(self, args: PSMConfig, data_path, split):
-        self.data_name_to_lmdb = None
-        self.data_name_to_txn = None
+        self.data_lmdb = None
+        self.data_txn = None
         self.index_to_key_name = []
         self.data_path = data_path
         lmdb_path = f"{self.data_path}/{split}"
-        self.data_name_to_lmdb = lmdb.open(
+        self.data_lmdb = lmdb.open(
             lmdb_path,
             subdir=True,
             readonly=True,
@@ -359,13 +359,10 @@ class MatterSimDataset:
             readahead=False,
             meminit=False,
         )
-        self.data_name_to_txn = self.data_name_to_lmdb.begin(write=False)
-        for key, _ in tqdm(
-            self.data_name_to_txn.cursor(),
-            miniters=100000,
-            mininterval=10.0,
-        ):
-            self.index_to_key_name.append(key.decode())
+        self.data_txn = self.data_lmdb.begin(write=False)
+        self.index_to_key_name = bstr2obj(
+            self.data_txn.get("index_to_key_name".encode())
+        )
         self.args = args
 
     def switch_lattice_vectors(self, pbc, cell):
@@ -424,7 +421,7 @@ class MatterSimDataset:
     @lru_cache(maxsize=16)
     def __getitem__(self, idx):
         key = self.index_to_key_name[idx]
-        data = pkl.loads(self.data_name_to_txn.get(key.encode()))
+        data = pkl.loads(self.data_txn.get(key.encode()))
         numbers = data.pop(
             "numbers"
         )  # atomic numbers, starting from 1 for hydrogen atoms
