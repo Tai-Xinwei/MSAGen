@@ -6,7 +6,7 @@
 description: psm
 
 env_defaults:
-  NODES: 4
+  NODES: 8
   GPUS_PER_NODE: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -15,13 +15,13 @@ target:
     name: townsend1
 
 environment:
-  image: ai4s-sfm:20240429.081857
+  image: ai4s-sfm:20240531.170731
   registry: msroctocr.azurecr.io
   username: msroctocr
 
 storage:
   blob:
-    storage_account_name: hai1data # Storage account
+    storage_account_name: sfmarca100 # Storage account
     container_name: sfm # Container name
     mount_dir: /blob
 
@@ -29,16 +29,16 @@ code:
   local_dir: ../../
 
 jobs:
-- name: psm-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-test-diffnoise1-fastpreprocess-20240523-0943
+- name: psm-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-test-diffnoise10-fastpreprocess-20240607-0739
   tags:
   - 'ProjectID: PRJ-0209-A40'
   sku: ${NODES}xG${GPUS_PER_NODE}
   mpi: true
   process_count_per_node: 1
   command:
-  - export data_path=/blob/psm/
-  - mkdir -p /blob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-continued-fastpreprocess-20240523-0943
-  - export save_dir=/blob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-continued-fastpreprocess-20240523-0943
+  - export data_path=/nfs/psmdata/
+  - mkdir -p /blob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-continued-fastpreprocess-20240607-0739
+  - export save_dir=/blob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-continued-fastpreprocess-20240607-0739
   - export pbc_cutoff=20.0
   - export pbc_expanded_num_cell_per_direction=5
   - export pbc_expanded_token_cutoff=256
@@ -47,7 +47,7 @@ jobs:
 
   - export num_pred_attn_layer=4
 
-  - export dataset_split_raito=0.4,0.2,0.4
+  - export dataset_split_raito=0.4,0.1,0.4,0.1
 
   - export save_batch_interval=2500
   - export train_batch_size=1024
@@ -55,17 +55,18 @@ jobs:
   - export gradient_accumulation_steps=4
   - export val_batch_interval=0
 
-  - export WANDB_RUN_NAME=psm-mol-pro-periodic-diff-relpos-noise1-zerocentereps-diffnoise1-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-fastpreprocess-20240523-0943
+  - export WANDB_RUN_NAME=psm-mol-pro-periodic-diff-relpos-noise1-relativepos-diffnoise10-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-fastpreprocess-20240607-0739
 
   - export total_num_steps=2000000
   - export warmup_num_steps=12000
-  - export max_lr=1.5e-4
+  - export max_lr=2e-4
 
-  - export diffusion_noise_std=1.0
+  - export diffusion_noise_std=10.0
   - export equivar_vec_init=ZERO_CENTERED_POS
   - export strategy=DDP
   - export fp16=False
   - export clean_sample_ratio=0.5
+  - export mode_prob=0.1,0.2,0.7
 
   - export diff_init_lattice_size=10.0
   - export diffusion_sampling="ddpm"
@@ -77,17 +78,19 @@ jobs:
   - export equivar_use_linear_bias=True
   - export equivar_use_attention_bias=True
 
-  - export data_path_list="PubChemQC-B3LYP-PM6,matter-sim-15M,AFDB50-plddt70.lmdb"
-  - export dataset_name_list="pm6,mattersim,afdb"
-  - export dataset_split_raito="0.4,0.2,0.4"
-  - export dataset_micro_batch_size="16,4,2"
+  - export data_path_list="PubChemQC-B3LYP-PM6,matter-sim-15M-merged,AFDB50-plddt70.lmdb,matter-sim-15M-force-filtered-merged"
+  - export dataset_name_list="pm6,mattersim,afdb,mattersim"
+  - export dataset_split_raito="0.4,0.1,0.4,0.1"
+  - export dataset_micro_batch_size="16,4,2,4"
   - export use_unified_batch_sampler=True
   - export rescale_loss_with_std=True
+  - export only_use_rotary_embedding_for_protein=True
+  - export use_memory_efficient_attention=False
 
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - bash ./scripts/psm/pretrain_psm.sh
   submit_args:
-    env:
-      {SHARED_MEMORY_PERCENT: 1.0}
+    container_args:
+      shm_size: 1024g
   preemptible: false
