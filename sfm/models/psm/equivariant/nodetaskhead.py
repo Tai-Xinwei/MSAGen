@@ -31,7 +31,6 @@ class NodeTaskHead(nn.Module):
         padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
     ) -> Tensor:
-        # query = query.contiguous()
         x = x.transpose(0, 1)
         bsz, n_node, _ = x.size()
         pos = batched_data["pos"]
@@ -69,11 +68,38 @@ class NodeTaskHead(nn.Module):
             .view(bsz, n_node, 3, -1)
         )
 
-        # decoder_x_output = (
-        #     (attn_probs @ v).permute(0, 2, 1, 3).contiguous().view(bsz, n_node, -1)
+        decoder_x_output = x
+
+        return decoder_x_output, decoder_vec_output
+
+
+class Non_equi_head(nn.Module):
+    def __init__(
+        self,
+        psm_config: PSMConfig,
+    ):
         # )
+        super().__init__()
+        embed_dim = psm_config.encoder_embed_dim
+        self.mlp = nn.Sequential(
+            nn.Linear(embed_dim, embed_dim * 4),
+            nn.ReLU(),
+            nn.Linear(embed_dim * 4, embed_dim * 3),
+        )
+
+    def forward(
+        self,
+        batched_data: Dict,
+        x,
+        padding_mask,
+        pbc_expand_batched: Optional[Dict] = None,
+    ) -> Tensor:
+        # query = query.contiguous()
+        x = x.transpose(0, 1)
+        bsz, n_node, _ = x.size()
 
         decoder_x_output = x
+        decoder_vec_output = self.mlp(x).view(bsz, n_node, 3, -1)
 
         return decoder_x_output, decoder_vec_output
 

@@ -17,7 +17,6 @@ import lmdb
 import torch
 from numpy import dot
 from numpy.linalg import norm
-from nvidia import dali
 from sympy.utilities.iterables import multiset_permutations
 from torch.utils.data import Subset
 from torch_geometric.data import Data

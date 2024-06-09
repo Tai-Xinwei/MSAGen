@@ -15,7 +15,11 @@ from sfm.logging import logger
 from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
-from sfm.models.psm.equivariant.nodetaskhead import NodeTaskHead, VectorOutput
+from sfm.models.psm.equivariant.nodetaskhead import (
+    NodeTaskHead,
+    Non_equi_head,
+    VectorOutput,
+)
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
@@ -213,9 +217,12 @@ class PSMModel(Model):
         is_periodic = batched_data["pbc"].any(dim=-1)
         is_molecule = (~is_periodic) & (token_id <= 129).all(dim=-1)
         is_protein = (~is_periodic) & (token_id > 129).any(dim=-1)
+        is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
+
         batched_data["is_periodic"] = is_periodic
         batched_data["is_molecule"] = is_molecule
         batched_data["is_protein"] = is_protein
+        batched_data["is_heavy_atom"] = is_heavy_atom
 
         # atom mask to leave out unit cell corners for periodic systems
         pos = batched_data["pos"]
@@ -365,6 +372,8 @@ class PSMModel(Model):
         clean_mask = (
             clean_mask & ~batched_data["is_protein"]
         )  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
+        # Do not predict energy of molecule with heavy atom avoid loss instability.
+        clean_mask = clean_mask & ~batched_data["is_heavy_atom"]
 
         clean_mask = clean_mask | (
             (batched_data["is_periodic"]) & (~batched_data["is_stable_periodic"])
@@ -731,6 +740,9 @@ class PSM(nn.Module):
             nn.Linear(psm_config.embedding_dim, 1, bias=False),
         )
 
+        if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
+            self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
+
     def _set_aa_mask(self, batched_data, aa_mask):
         token_id = batched_data["token_id"]
         if aa_mask is not None:
@@ -837,6 +849,7 @@ class PSM(nn.Module):
                 batched_data,
                 pbc_expand_batched,
             )
+
             with (
                 torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
                 if self.args.fp16
@@ -877,6 +890,12 @@ class PSM(nn.Module):
             if self.args.fp16
             else nullcontext()
         ):
+            noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
+
+            # stablize energy and force prediction
+            if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
+                decoder_x_output = self.layer_norm(decoder_x_output)
+
             energy_per_atom = torch.where(
                 is_periodic.unsqueeze(-1),
                 self.energy_head["periodic"](decoder_x_output).squeeze(-1),
@@ -892,8 +911,6 @@ class PSM(nn.Module):
                     decoder_x_output, decoder_vec_output
                 ).squeeze(-1),
             )
-
-            noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
 
             if self.args.diffusion_mode == "epsilon":
                 scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)

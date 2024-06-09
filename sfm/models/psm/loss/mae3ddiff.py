@@ -321,8 +321,8 @@ class DiffMAE3dCriterions(nn.Module):
 
         # energy_loss_ratio = calculate_energy_loss_ratio(energy_loss.item())
         energy_loss_ratio = 1.0
-
         loss = energy_loss_ratio * energy_loss + force_loss + noise_loss + aa_mlm_loss
+        # loss = energy_loss_ratio * energy_loss + noise_loss + aa_mlm_loss
 
         # for loss exist in every sample of the batch, no extra number of samples are recorded (will use batch size in loss reduction)
         # for loss does not exist in every example of the batch, use a tuple, where the first element is the averaged loss value

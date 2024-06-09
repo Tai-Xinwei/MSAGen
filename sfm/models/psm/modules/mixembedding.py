@@ -34,8 +34,7 @@ class PSMMix3dEmbedding(nn.Module):
             psm_config.embedding_dim,
             psm_config.diffusion_time_step_encoder_type,
         )
-        # self.pos_embedding_bias = PSMBias(psm_config, key_prefix="")
-        # self.init_pos_embedding_bias = PSMBias(psm_config, key_prefix="init_")
+
         self.pos_emb = nn.Linear(3, psm_config.num_3d_bias_kernel, bias=False)
         self.pos_feature_emb = nn.Linear(
             psm_config.num_3d_bias_kernel, psm_config.embedding_dim, bias=False
@@ -73,6 +72,7 @@ class PSMMix3dEmbedding(nn.Module):
         pos_emb = (
             self.pos_emb(expand_pos).masked_fill(expand_mask.unsqueeze(-1), 0.0).float()
         )
+
         dist = torch.nn.functional.softmax(dist.float() * self.scaling, dim=-1)
         pos_feature_emb = torch.matmul(dist, pos_emb).to(self.pos_emb.weight.dtype)
         pos_feature_emb = self.pos_feature_emb(pos_feature_emb)
@@ -97,7 +97,7 @@ class PSMMix3dEmbedding(nn.Module):
         """
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
-        residue_mask = token_id > 129
+        is_molecule = batched_data["is_molecule"]
 
         if aa_mask is not None:
             mask_token_type = token_id.masked_fill(
@@ -116,7 +116,7 @@ class PSMMix3dEmbedding(nn.Module):
                 dim=-2
             )  # B x T x #ATOM_FEATURE x D -> # B x T x D
             atom_feature_embedding = atom_feature_embedding.masked_fill(
-                residue_mask.unsqueeze(-1), 0.0
+                ~is_molecule.unsqueeze(-1).unsqueeze(-1), 0.0
             )
             x += atom_feature_embedding
 
@@ -124,9 +124,6 @@ class PSMMix3dEmbedding(nn.Module):
             time_embed = self.time_step_encoder(time_step, clean_mask)
             x += time_embed  # .unsqueeze(1)
 
-        # _, pos_embedding = self.pos_embedding_bias(
-        #     batched_data, mask_token_type, padding_mask, pbc_expand_batched
-        # )
         pos_embedding = self._pos_emb(
             batched_data["pos"],
             pbc_expand_batched["expand_pos"]
