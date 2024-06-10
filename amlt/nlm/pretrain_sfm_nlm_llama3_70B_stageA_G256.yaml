@@ -53,9 +53,9 @@ jobs:
   - pip uninstall flash-attn -y
   - export train_batch_size=1024
   - export val_batch_size=1024
-  - export gradient_accumulation_steps=64
+  - export gradient_accumulation_steps=128
   - export tensor_model_parallel_size=1
-  - export pipeline_model_parallel_size=16
+  - export pipeline_model_parallel_size=32
   # - export train_data_path=/sfm/nlm/llama3_300B/train_lmdb/
   # - export valid_data_path=/sfm/nlm/llama3_300B/valid_lmdb/
   - export train_data_path=/tmp/train.npy
