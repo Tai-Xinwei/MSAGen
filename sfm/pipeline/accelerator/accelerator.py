@@ -12,7 +12,6 @@ import deepspeed
 import torch
 from deepspeed.runtime.dataloader import DeepSpeedDataLoader
 from deepspeed.runtime.pipe.topology import PipeModelDataParallelTopology
-from torch.cuda.amp import autocast
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import (
     DataLoader,

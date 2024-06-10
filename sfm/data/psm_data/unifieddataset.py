@@ -19,9 +19,16 @@ from sfm.data.psm_data.dataset import (
     SmallMolDataset,
 )
 from sfm.data.psm_data.ft_mol_dataset import PCQM4Mv2LMDBDataset
-from sfm.data.psm_data.pipeline import get_dali_pipeline, get_dali_pm6_pipeline
-from sfm.data.sampler import WeightedDistributedSampler
 from sfm.logging import logger
+
+try:
+    from sfm.data.psm_data.pipeline import get_dali_pipeline, get_dali_pm6_pipeline
+except:
+    logger.warning(
+        "Please build DALI components with: `pip install nvidia-dali-cuda120`  if nvidia-dali pipeline is needed."
+    )
+
+from sfm.data.sampler import WeightedDistributedSampler
 from sfm.models.psm.psm_config import PSMConfig
 
 try:
