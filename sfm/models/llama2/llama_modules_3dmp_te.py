@@ -168,6 +168,8 @@ class TELlamaDecoderLayer(te.pytorch.TransformerLayer):
         )
         self.te_rope_emb = te_rope(max_seq_len=args.max_position_embeddings).cuda()
 
+        self.dummy = nn.Linear(1, 1)
+
     def forward(self, hidden_states, attention_mask, **kwargs):
         """
         Custom forward to make sure we only pass relevant arguments to the
