@@ -320,8 +320,14 @@ class DiffMAE3dCriterions(nn.Module):
             return np.clip(1.0 - (energy_loss_mag - 1.0) / 1000, 0.001, 1.0)
 
         # energy_loss_ratio = calculate_energy_loss_ratio(energy_loss.item())
-        energy_loss_ratio = 1.0
-        loss = energy_loss_ratio * energy_loss + force_loss + noise_loss + aa_mlm_loss
+        energy_loss_ratio = 0.2
+        force_loss_ratio = 0.2
+        loss = (
+            energy_loss_ratio * energy_loss
+            + force_loss_ratio * force_loss
+            + noise_loss
+            + aa_mlm_loss
+        )
         # loss = energy_loss_ratio * energy_loss + noise_loss + aa_mlm_loss
 
         # for loss exist in every sample of the batch, no extra number of samples are recorded (will use batch size in loss reduction)

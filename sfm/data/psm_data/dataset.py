@@ -327,18 +327,9 @@ class PlainPM6FullLMDBDataset(PM6FullLMDBDataset):
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
 
-        if self.args.preprocess_2d_bond_features_with_cuda:
-            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
-            data["adj"] = adj
-            data["attn_edge_type"] = attn_edge_type
-        else:
-            shortest_path_result = (
-                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
-            )
-            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
-            spatial_pos = torch.from_numpy((shortest_path_result)).long()
-            data["edge_input"] = edge_input
-            data["spatial_pos"] = spatial_pos
+        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+        data["adj"] = adj
+        data["attn_edge_type"] = attn_edge_type
 
         return data
 

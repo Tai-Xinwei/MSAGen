@@ -890,11 +890,11 @@ class PSM(nn.Module):
             if self.args.fp16
             else nullcontext()
         ):
-            noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
-
             # stablize energy and force prediction
             if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
                 decoder_x_output = self.layer_norm(decoder_x_output)
+
+            noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
 
             energy_per_atom = torch.where(
                 is_periodic.unsqueeze(-1),

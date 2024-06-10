@@ -48,6 +48,8 @@ class PSMMix3dEmbedding(nn.Module):
         self,
         pos: Optional[torch.Tensor],
         expand_pos: torch.Tensor,
+        adj: torch.Tensor,
+        is_molecule: torch.Tensor,
         padding_mask: torch.Tensor,
         pbc_expand_batched: Optional[Dict[str, Tensor]] = None,
     ):
@@ -59,6 +61,9 @@ class PSMMix3dEmbedding(nn.Module):
             expand_mask = torch.cat(
                 [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
             )
+            L, expand_L = expand_pos.size()[1:3]
+            expand_adj = torch.ones(L, expand_L, device=adj.device, dtype=torch.bool)
+            adj = torch.cat([adj, expand_adj], dim=-1)
         else:
             delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
             expand_mask = padding_mask
@@ -72,6 +77,9 @@ class PSMMix3dEmbedding(nn.Module):
         pos_emb = (
             self.pos_emb(expand_pos).masked_fill(expand_mask.unsqueeze(-1), 0.0).float()
         )
+
+        adj = adj.masked_fill(~is_molecule.unsqueeze(-1).unsqueeze(-1), True)
+        dist = dist.masked_fill(~adj, min_dtype)
 
         dist = torch.nn.functional.softmax(dist.float() * self.scaling, dim=-1)
         pos_feature_emb = torch.matmul(dist, pos_emb).to(self.pos_emb.weight.dtype)
@@ -129,6 +137,8 @@ class PSMMix3dEmbedding(nn.Module):
             pbc_expand_batched["expand_pos"]
             if pbc_expand_batched is not None
             else None,
+            batched_data["adj"],
+            is_molecule,
             padding_mask,
             pbc_expand_batched=pbc_expand_batched,
         )
