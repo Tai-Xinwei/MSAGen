@@ -162,6 +162,7 @@ class TrainerConfig:
     daliLoader: bool = False
     dynamic_loader: bool = False
     ifstack: bool = False
+    use_dali_pipeline: bool = False
 
     gradient_clipping: float = 1.0
     total_num_steps: int = 1000

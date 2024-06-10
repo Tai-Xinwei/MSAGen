@@ -110,9 +110,6 @@ class PSMConfig(GraphormerConfig):
     psm_finetune_noise_mode: str = "zero"
     only_use_rotary_embedding_for_protein: bool = False
 
-    # dali pipeline
-    use_dali_pipeline: bool = False
-
     def __init__(
         self,
         args,
