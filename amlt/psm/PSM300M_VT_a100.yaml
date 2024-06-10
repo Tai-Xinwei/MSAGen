@@ -38,7 +38,7 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: psmv1_vt_v6
+- name: psmv1_vt_v7
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}-IB
   mpi: true
@@ -49,8 +49,8 @@ jobs:
   - export wandb_project=psm_VT
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - mkdir /blob/pfmexp/output
-  - mkdir /blob/experiment/psm/psmv1_vt_v6
-  - mkdir /blob/experiment/psm/psmv1_vt_v6/checkpoints
+  - mkdir /blob/experiment/psm/psmv1_vt_v7
+  - mkdir /blob/experiment/psm/psmv1_vt_v7/checkpoints
   - mkdir ./output
   - export path=run.sh
   - export num_pred_attn_layer=4
@@ -89,8 +89,8 @@ jobs:
   - export clean_sample_ratio=0.5
   - export use_unified_batch_sampler=True
   - export use_dali_pipeline=False
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v6/checkpoints
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v6/checkpoints
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v7/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v7/checkpoints
   # - export loadcheck_path=/psm/exp/peiran/psmv1_vt_v5/checkpoints
   # - export save_dir=/psm/exp/peiran/psmv1_vt_v5/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
