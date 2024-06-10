@@ -111,13 +111,15 @@ class NLM3dModel(SFMPipelineModelMixin):
                     self_attn_mask_type=AttnMaskType.causal,
                 )
             )
+
         pipe_layer.append(
             PretrainedLayerSpec(
                 FusedLlamaNorm,
                 self.mp_config,
                 load_ckpt=self.args.load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    self.args.pretrained_ckpt_path, f"{prefix1}33{frefix2}"
+                    self.args.pretrained_ckpt_path,
+                    f"{prefix1}{str(self.mp_config.num_hidden_layers+1)}{frefix2}",
                 ),
                 lora_mode="full",
                 tp_model_size=self.args.tensor_model_parallel_size,
@@ -132,7 +134,8 @@ class NLM3dModel(SFMPipelineModelMixin):
                 new_num_tokens=self.mp_config.vocab_size,
                 load_ckpt=self.args.load_ckpt,
                 pretrained_ckpt_path=os.path.join(
-                    self.args.pretrained_ckpt_path, f"{prefix1}34{frefix2}"
+                    self.args.pretrained_ckpt_path,
+                    f"{prefix1}{str(self.mp_config.num_hidden_layers+2)}{frefix2}",
                 ),
                 lora_mode="full",
                 tp_model_size=self.args.tensor_model_parallel_size,
