@@ -159,7 +159,6 @@ class TrainerConfig:
     checkpointable_layers: Optional[list[str]] = None
 
     # dataloader strategy
-    daliLoader: bool = False
     dynamic_loader: bool = False
     ifstack: bool = False
     use_dali_pipeline: bool = False
