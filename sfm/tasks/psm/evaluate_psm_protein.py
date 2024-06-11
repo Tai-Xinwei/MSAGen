@@ -317,7 +317,7 @@ def main(args: DictConfig) -> None:
                 scores.append(score)
 
     logger.info(f"Write TM-score to {args.save_dir}.")
-    score_file = os.path.join(args.save_dir, f"TM-score-rank{args.rank}.csv")
+    score_file = os.path.join(args.save_dir, "TM-score.csv")
     df = pd.DataFrame(scores)
     df.to_csv(score_file)
     print(df)

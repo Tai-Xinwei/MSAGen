@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 '''
 utils.py
 Copyright
@@ -8,15 +7,14 @@ Author: zhujianwei@ict.ac.cn (Jianwei Zhu)
 This module provides utility functions that are used within program
 that are also useful for external consumption.
 '''
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import operator
 import os
-import sys
 import subprocess
+import sys
 import tempfile
 
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os
-import sys
+import logging
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
@@ -10,15 +9,19 @@ from typing import Sequence
 from typing import Tuple
 
 import click
-import numpy as np
 import pandas as pd
-from absl import logging
 from joblib import delayed
 from joblib import Parallel
 from tqdm import tqdm
 
 from LGA4SinglePair import LGA4SinglePair
+from metadata import metadata4target
 from TMscore4SinglePair import TMscore4SinglePair
+
+
+#logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -49,84 +52,48 @@ def _get_servers(target_flag: str) -> Mapping[str, str]:
     else:
         raise ValueError(f"Invalid target flag {target_flag}.")
     servers.update({
-        '888': 'SFM',
         '887': 'ESMFoldGitHub',
         '886': 'AF2NoMSA',
         '885': 'AF2WithMSA',
-        #'880': 'RoseTTAFoldGitHub',
+        '888': 'SFM',
         })
     return servers
 
 
-def _get_groups(meta_information: str) -> Mapping[str, str]:
-    groupdict = {}
-    assert meta_information.endswith('.metainformation'), (
-        f"ERROR: wrong meta information file {meta_information}.")
-    if 'casp' in meta_information:
-        for _, row in pd.read_csv(meta_information).iterrows():
-            groupdict[ row['Domains'].split(':')[0] ] = row['Classification']
-    elif 'cameo' in meta_information:
-        tmpd = {0: 'Easy', 1: 'Medium', 2: 'Hard'}
-        for _, row in pd.read_csv(meta_information).iterrows():
-            pdbchain = row['ref. PDB [Chain]']
-            groupdict[f'{pdbchain[:4]}_{pdbchain[6]}'] = tmpd[row['Difficulty']]
-    else:
-        raise ValueError(f"Invalid group information {meta_information}.")
-    return groupdict
-
-
-def _get_lengths(meta_information: str) -> Mapping[str, int]:
-    lengthdict = {}
-    assert meta_information.endswith('.metainformation'), (
-        f"ERROR: wrong meta information file {meta_information}.")
-    if 'casp' in meta_information:
-        for _, row in pd.read_csv(meta_information).iterrows():
-            lengthdict[row['Domains'].split(':')[0]] = row['Residues in domain']
-    elif 'cameo' in meta_information:
-        for _, row in pd.read_csv(meta_information).iterrows():
-            pdbchain = row['ref. PDB [Chain]']
-            lengthdict[f'{pdbchain[:4]}_{pdbchain[6]}'] = row['Sequence Length (residues)']
-    else:
-        raise ValueError(f"Invalid length information {meta_information}.")
-    return lengthdict
-
-
 def _collect_models(targets: Sequence[str],
                     servers: Mapping[str, str],
-                    prediction_root: Path,
+                    prediction_root: str,
                     top5: bool,
                     ) -> Sequence[Tuple[str, str, int, str, str]]:
-    # check target flag
-    if 'casp' in str(prediction_root):
-        is_casp = True
-    elif 'cameo' in str(prediction_root):
-        is_casp = False
-    else:
-        raise ValueError(f"Invalid prediction root {prediction_root}.")
+    # check prediction directory
+    rootdir = Path(prediction_root)
+    cameodir = Path(rootdir) / 'cameo-official-targets.prediction'
+    assert cameodir.exists(), f"{cameodir} does not exist."
+    caspdir = Path(rootdir) / 'casp-official-targets.prediction'
+    assert caspdir.exists(), f"{caspdir} does not exist."
+    caspdomdir = Path(rootdir) / 'casp-official-trimmed-to-domains.prediction'
+    assert caspdomdir.exists(), f"{caspdomdir} does not exist."
     # collect models
     models = []
-    MAXMODELID = 5 if top5 else 1
-    for target in tqdm(targets, desc="Collecting models"):
-        # parse target target and domain
-        tarname, domain = target, ''
-        if target[-3:-1] == '-D':
-            tarname, domain = target[:-3], target[-3:]
-        # get native model
-        if is_casp:
-            native = prediction_root / f'{target}.pdb'
-        else:
-            native = prediction_root / target / 'target.pdb'
-        if not native.exists():
-            logging.error(f"Native structure {native} does not exist.")
-            continue
+    max_model_num = 5 if top5 else 1
+    for t in tqdm(targets, desc="Collecting models"):
         # get server models and format (model, native) pairs
         for server in servers:
-            for idx in range(1, MAXMODELID+1):
-                if is_casp:
-                    model = prediction_root / target / f'{tarname}TS{server}_{idx}{domain}'
-                else:
-                    model = prediction_root / target / 'servers' / f'server{server}' / f'model-{idx}' / f'model-{idx}.pdb'
-                models.append( (target, server, idx, str(model), str(native)) )
+            for idx in range(1, max_model_num+1):
+                if len(t) >= 8 and t[0] == 'T' and t[-3:-1] == '-D':
+                    # e.g. T1024-D1
+                    native = caspdomdir / f'{t}.pdb'
+                    model = caspdomdir / t / f'{t[:-3]}TS{server}_{idx}{t[-3:]}'
+                elif len(t) >= 5 and t[0] == 'T':
+                    # e.g. T1024
+                    native = caspdir / f'{t}.pdb'
+                    model = caspdir / t / f'{t}TS{server}_{idx}'
+                elif len(t) >= 6 and t[4] == '_':
+                    # e.g. 1ctf_A
+                    native = cameodir / t / 'target.pdb'
+                    prefix = cameodir / t / 'servers' / f'server{server}'
+                    model = prefix / f'model-{idx}' / f'model-{idx}.pdb'
+                models.append( (t, server, idx, str(model), str(native)) )
     return models
 
 
@@ -134,10 +101,6 @@ def _collect_models(targets: Sequence[str],
 @click.option("--target-list",
               type=click.Path(exists=True),
               help="Input list for targets.",
-              required=True)
-@click.option("--meta-information",
-              type=click.Path(exists=True),
-              help="Meta information file for the targets.",
               required=True)
 @click.option("--prediction-root",
               type=click.Path(exists=True),
@@ -163,7 +126,6 @@ def _collect_models(targets: Sequence[str],
               help="Whether to output top5 score.",
               show_default=True)
 def evaluate(target_list: Path,
-             meta_information: Path,
              prediction_root: Path,
              result_directory: Path,
              num_workers: int,
@@ -171,27 +133,40 @@ def evaluate(target_list: Path,
              top5: bool) -> None:
     # get server group
     servers = _get_servers(target_list)
-    print(f"Evaluation for server groups: {servers}")
+    logger.info(f"Evaluation for server groups: {servers}")
 
     # parse target list
+    targets = []
     with open(target_list, 'r') as fp:
-        targets = [_.strip() for _ in fp]
-    assert all([5 <= len(_) <= 10 for _ in targets]), (
-        f"Invalid target name exists in {target_list}.")
-    print(f"Number of targets: {len(targets)}")
+        for line in fp:
+            assert 5 < len(line) < 12, f"Invalid target name {target}."
+            targets.append(line.rstrip('\n'))
+    logger.info(f"Number of targets: {len(targets)}")
 
-    # parse meta information
-    groupdict = _get_groups(meta_information)
-    lengthdict = _get_lengths(meta_information)
-    print(f"Meta information for targets: {len(groupdict)}")
+    # convert metadata information to dictionary
+    groupdict, lengthdict, typedict = {}, {}, {}
+    for target in targets:
+        key = target
+        if len(target) >= 8 and target[-3:-1] == '-D':
+            # e.g. T1024-D1
+            key = target[:-3]
+        logger.info(f"{metadata4target[key]}")
+        for domstr, domlen, domgroup in metadata4target[key]['domain']:
+            if domstr.split(':')[0] == target:
+                groupdict[target] = domgroup
+                lengthdict[target] = domlen
+                typedict[target] = metadata4target[key]['type']
+                break
+        else:
+            logger.error(f"{target} metadata information not found.")
+    logger.info(f"Metadata information for targets: {len(groupdict)}")
 
     # collect models
-    print(f"Predictions root directory: {prediction_root}")
-    prediction_root = Path(prediction_root)
     models = _collect_models(targets, servers, prediction_root, top5)
-    print(f"Number of models: {len(models)}")
-    #for target, server, idx, model, native in models:
-    #    print(target, server, idx, model, native)
+    logger.info(f"{len(models)} models in {prediction_root}")
+    assert len(models) == len(targets) * len(servers) * (5 if top5 else 1)
+    for target, server, idx, model, native in models:
+        logger.debug(f"{target} {server} {idx} {model} {native}")
 
     # collect scores
     def _score4pair(model_info: Tuple[str, str, int, str, str]):
@@ -212,8 +187,9 @@ def evaluate(target_list: Path,
     newscores = {}
     for target, gdf in df.groupby('Target', sort=True):
         score_dict = OrderedDict()
-        score_dict['Groups'] = groupdict.get(target, 'NA')
+        score_dict['Group'] = groupdict.get(target, 'NA')
         score_dict['Length'] = lengthdict.get(target, -1)
+        score_dict['Type'] = typedict.get(target, 'NA')
         for server, server_name in servers.items():
             subdf = gdf[ gdf['Server']==server ]
             k1 = f'{server_name}_{criterion}_Top1'
@@ -222,15 +198,35 @@ def evaluate(target_list: Path,
                 k5 = f'{server_name}_{criterion}_Top5'
                 score_dict[k5] = subdf[criterion].max()
         newscores[target] = score_dict
-    newdf = pd.DataFrame.from_dict(newscores, orient='index')
-    print(newdf)
+    df = pd.DataFrame.from_dict(newscores, orient='index')
+    print(df)
 
     # output results
-    print(f"Evaluation results directory: {result_directory}")
     result_directory = Path(result_directory)
     outfile = result_directory / f'{target_list}_{criterion}.csv'
-    print(f"Output results to {outfile}")
-    newdf.to_csv(outfile)
+    df.to_csv(outfile)
+    logger.info(f"Write evaluation results to {outfile}")
+
+    # simple analysis for results
+    CATEGORY = {
+        "CAMEO  Easy": ["Easy"],
+        "CAMEO  Medi": ["Medium", "Hard"],
+        "CASP14 Easy": ["TBM-easy", "TBM-hard"],
+        "CASP14 Hard": ["FM/TBM", "FM"],
+        "CASP15 Easy": ["TBM-easy", "TBM-hard"],
+        "CASP15 Hard": ["FM/TBM", "FM"],
+    }
+    print(f"{'Category':<12} {'Number':>6} {criterion}_for_different_servers")
+    for category, groups in CATEGORY.items():
+        _subdf = df[df["Type"] == category.split()[0]]
+        dfsub = pd.concat(
+            [_subdf[_subdf["Group"] == g] for g in groups],
+            ignore_index=True,
+            )
+        dfsub.drop(columns=["Type", "Group", "Length"], axis=1, inplace=True)
+        print(f"{category:<12s} {len(dfsub):>6d}", end=" "),
+        print(" ".join([f"{_*100:>6.2f}" for _ in dfsub.mean()]))
+
 
 
 if __name__ == "__main__":
