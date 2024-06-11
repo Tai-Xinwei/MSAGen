@@ -52,7 +52,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.2,0.4'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,1"
-[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
+[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=False
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
@@ -105,6 +105,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=False
+[ -z "${use_dali_pipeline}" ] && use_dali_pipeline=True
 
 [ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=True
 
@@ -239,7 +240,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           use_memory_efficient_attention=$use_memory_efficient_attention \
           decoder_ffn_dim=$decoder_ffn_dim \
-          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          use_dali_pipeline=$use_dali_pipeline \
 
 
           # dynamic_loader --max_tokens=$max_tokens \
