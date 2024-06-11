@@ -165,6 +165,9 @@ PM6_ATOM_REFERENCE_LIST = list(PM6_ATOM_REFERENCE.values())
 # when train ratio is -1, we can use this pre-defined split ratio
 def get_data_defult_config(data_name):
     # train ratio , val ratio,test ratio can be int or float.
+    has_energy, has_forces, is_pbc = 1, 1, 0
+    unit = 0.0433634  # from kcal/mol - > eV
+
     train_ratio, val_ratio, test_ratio = None, None, None
     if data_name.lower() == "qh9":
         train_ratio, val_ratio, test_ratio = 0.8, 0.1, 0.1
@@ -194,11 +197,120 @@ def get_data_defult_config(data_name):
             ]
         )
         system_ref = 0.0
+    elif data_name.lower() == "oc20":
+        unit = 1
+        atom_reference = np.array(
+            [
+                0.0000,
+                -3.3995,
+                0.0000,
+                0.0000,
+                0.0000,
+                -6.0821,
+                -8.2925,
+                -8.4169,
+                -4.9008,
+                0.0000,
+                0.0000,
+                -1.5417,
+                0.0000,
+                -3.6177,
+                -5.3100,
+                -5.2911,
+                -4.6126,
+                -3.0819,
+                0.0000,
+                -1.5323,
+                -2.4426,
+                -6.7297,
+                -7.7538,
+                -8.3827,
+                -8.4383,
+                -7.8442,
+                -7.1843,
+                -6.2366,
+                -4.8882,
+                -2.9629,
+                -0.6659,
+                -2.5736,
+                -4.0672,
+                -4.4946,
+                -3.8119,
+                0.0000,
+                0.0000,
+                -1.3493,
+                -2.3484,
+                -7.0278,
+                -8.5368,
+                -9.5898,
+                -9.8338,
+                -9.2727,
+                -8.3798,
+                -6.7955,
+                -4.7875,
+                -1.8926,
+                -0.2102,
+                -2.0652,
+                -3.3848,
+                -3.6490,
+                -3.0334,
+                0.0000,
+                0.0000,
+                -1.4970,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                -9.9214,
+                -11.1467,
+                -11.6672,
+                -11.0532,
+                -10.1330,
+                -8.2885,
+                -5.7752,
+                -2.6926,
+                0.2878,
+                -1.8088,
+                -3.0232,
+                -3.3307,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+            ]
+        )
+        system_ref = 0.0
+        has_energy, has_forces, is_pbc = 1, 1, 1
     else:
         atom_reference = np.zeros([20])
         system_ref = SYSTEM_REF[data_name]
         train_ratio, val_ratio, test_ratio = DATA_SPLIT_RATIO[data_name]
-    return atom_reference, system_ref, train_ratio, val_ratio, test_ratio
+    return (
+        atom_reference,
+        system_ref,
+        train_ratio,
+        val_ratio,
+        test_ratio,
+        has_energy,
+        has_forces,
+        is_pbc,
+        unit,
+    )
 
 
 ##################################################################

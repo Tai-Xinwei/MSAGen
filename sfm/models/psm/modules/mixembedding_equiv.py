@@ -34,12 +34,12 @@ class PSMMix3DEquivEmbedding(nn.Module):
             psm_config.embedding_dim,
             psm_config.diffusion_time_step_encoder_type,
         )
-        # self.pos_embedding_bias = PSMBias(psm_config, key_prefix="")
-        # self.init_pos_embedding_bias = PSMBias(psm_config, key_prefix="init_")
-        self.ang_emb = nn.Linear(1, psm_config.num_3d_bias_kernel, bias=False)
+        self.pos_emb = nn.Linear(1, psm_config.num_3d_bias_kernel, bias=False)
         self.pos_feature_emb = nn.Linear(
             psm_config.num_3d_bias_kernel, psm_config.embedding_dim, bias=False
         )
+
+        self.scaling = (psm_config.num_3d_bias_kernel) ** -0.5
 
         self.psm_config = psm_config
 
@@ -50,7 +50,7 @@ class PSMMix3DEquivEmbedding(nn.Module):
         padding_mask: torch.Tensor,
         pbc_expand_batched: Optional[Dict[str, Tensor]] = None,
     ):
-        pos = pos.to(self.embed.weight.dtype)
+        pos = pos.to(self.pos_emb.weight.dtype)
         if pbc_expand_batched is not None:
             expand_pos = expand_pos.to(self.pos_emb.weight.dtype)
             expand_pos = torch.cat([pos, expand_pos], dim=1)
@@ -62,20 +62,19 @@ class PSMMix3DEquivEmbedding(nn.Module):
             delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
             expand_mask = padding_mask
             expand_pos = pos
-        dist_ = delta_pos.norm(dim=-1)
-        dist = 1.0 / (dist_ + 1.0)
+
+        dist = 1.0 / (delta_pos.norm(dim=-1) + 1.0)
         min_dtype = torch.finfo(dist.dtype).min
         dist = dist.masked_fill(expand_mask.unsqueeze(1), min_dtype)
         dist = dist.masked_fill(padding_mask.unsqueeze(-1), min_dtype)
 
-        mask = dist_ != 0
-        delta_pos[mask] = delta_pos[mask] / dist_[mask].norm(dim=-1)
-        angles = (delta_pos * delta_pos).sum(dim=-1).sum(dim=-1).unsqueeze(-1)
-        ang_emb = self.ang_emb(angles)
-        dist = torch.nn.functional.softmax(dist, dim=-1)
-        pos_feature_emb = torch.matmul(
-            dist, ang_emb.masked_fill(expand_mask.unsqueeze(-1), 0.0)
+        pos_emb = (
+            self.pos_emb(expand_pos.norm(dim=-1).unsqueeze(-1))
+            .masked_fill(expand_mask.unsqueeze(-1), 0.0)
+            .float()
         )
+        dist = torch.nn.functional.softmax(dist.float() * self.scaling, dim=-1)
+        pos_feature_emb = torch.matmul(dist, pos_emb).to(self.pos_emb.weight.dtype)
         pos_feature_emb = self.pos_feature_emb(pos_feature_emb)
         pos_feature_emb = pos_feature_emb.masked_fill(padding_mask.unsqueeze(-1), 0.0)
         return pos_feature_emb

@@ -240,7 +240,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           use_memory_efficient_attention=$use_memory_efficient_attention \
           decoder_ffn_dim=$decoder_ffn_dim \
-          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          use_dali_pipeline=$use_dali_pipeline \
 
 
           # dynamic_loader --max_tokens=$max_tokens \

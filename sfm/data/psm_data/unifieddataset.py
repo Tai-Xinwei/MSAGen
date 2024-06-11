@@ -137,6 +137,7 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 "stachyose",
                 "buckyball_catcher",  # buckyball_catcher/radius3_broadcast_kmeans
                 "double_walled_nanotube",  # double_walled_nanotube/radius3_broadcast_kmeans
+                "oc20",
             ]:
                 dataset = SmallMolDataset(
                     args, data_path, data_name=dataset_name, **kwargs

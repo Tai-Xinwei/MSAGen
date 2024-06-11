@@ -171,8 +171,8 @@ class DiffMAE3dCriterions(nn.Module):
 
         # energy and force loss only apply on total clean samples
         total_clean = clean_mask.all(dim=-1)
-        energy_mask = total_clean & ~is_protein
-        force_mask = total_clean & is_periodic
+        energy_mask = total_clean & batched_data["has_energy"]
+        force_mask = total_clean & batched_data["has_forces"]
 
         # energy loss and force loss
         unreduced_energy_loss = self.energy_loss(

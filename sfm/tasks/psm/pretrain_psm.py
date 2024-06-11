@@ -14,10 +14,10 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING, DictConfig, OmegaConf
 
+from sfm.data.psm_data.pipeline import UnifiedBatchedIterableDataset
 from sfm.data.psm_data.unifieddataset import (
     BatchedDataDataset,
     BatchedDataDatasetForUnifiedSampler,
-    UnifiedBatchedIterableDataset,
     UnifiedPSMDataset,
 )
 from sfm.logging import logger
