@@ -150,6 +150,8 @@ class PSMMix3dEmbedding(nn.Module):
                 pbc_expand_batched["init_expand_pos"]
                 if pbc_expand_batched is not None
                 else None,
+                batched_data["adj"],
+                is_molecule,
                 padding_mask,
                 pbc_expand_batched=pbc_expand_batched,
             )

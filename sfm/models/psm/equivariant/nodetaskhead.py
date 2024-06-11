@@ -23,6 +23,7 @@ class NodeTaskHead(nn.Module):
         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=False)
         self.num_heads = psm_config.encoder_attention_heads
         self.scaling = (embed_dim // psm_config.encoder_attention_heads) ** -0.5
+        self.embed_dim = embed_dim
 
     def forward(
         self,
@@ -34,27 +35,56 @@ class NodeTaskHead(nn.Module):
         x = x.transpose(0, 1)
         bsz, n_node, _ = x.size()
         pos = batched_data["pos"]
-        delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
-        dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
+
+        if pbc_expand_batched is not None:
+            expand_pos = pbc_expand_batched["expand_pos"]
+            expand_pos = torch.cat([pos, expand_pos], dim=1)
+            delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
+            expand_mask = torch.cat(
+                [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
+            )
+            extend_n_node = expand_pos.shape[1]
+        else:
+            delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
+            expand_mask = padding_mask
+            expand_pos = pos
+            extend_n_node = n_node
+
+        # delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
+        dist = delta_pos.norm(dim=-1).view(-1, n_node, extend_n_node)
         dist = dist.masked_fill(padding_mask.unsqueeze(-1), 10000.0)
-        dist = dist.masked_fill(padding_mask.unsqueeze(1), 10000.0)
+        dist = dist.masked_fill(expand_mask.unsqueeze(1), 10000.0)
         delta_pos /= dist.unsqueeze(-1) + 1e-4
 
-        q = (
-            self.q_proj(x).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
-            * self.scaling
-        )
-        k = self.k_proj(x).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
-        v = self.v_proj(x).view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
+        q = self.q_proj(x) * self.scaling
+        k = self.k_proj(x)
+        v = self.v_proj(x)
+
+        if pbc_expand_batched is not None:
+            outcell_index = pbc_expand_batched["outcell_index"]
+        else:
+            outcell_index = None
+
+        if outcell_index is not None:
+            outcell_index = outcell_index.unsqueeze(-1).expand(-1, -1, self.embed_dim)
+            expand_k = torch.gather(k, dim=1, index=outcell_index)
+            expand_v = torch.gather(v, dim=1, index=outcell_index)
+
+            k = torch.cat([k, expand_k], dim=1)
+            v = torch.cat([v, expand_v], dim=1)
+
+        q = q.view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
+        k = k.view(bsz, extend_n_node, self.num_heads, -1).transpose(1, 2)
+        v = v.view(bsz, extend_n_node, self.num_heads, -1).transpose(1, 2)
 
         attn = q @ k.transpose(-1, -2)  # [bsz, head, n, n]
         min_dtype = torch.finfo(k.dtype).min
-        attn = attn.masked_fill(padding_mask.unsqueeze(1).unsqueeze(2), min_dtype)
+        attn = attn.masked_fill(expand_mask.unsqueeze(1).unsqueeze(2), min_dtype)
         attn = attn.masked_fill(padding_mask.unsqueeze(1).unsqueeze(-1), min_dtype)
 
         attn_probs_float = nn.functional.softmax(attn.float(), dim=-1)
         attn_probs = attn_probs_float.type_as(attn)
-        attn_probs = attn_probs.view(bsz, self.num_heads, n_node, n_node)
+        attn_probs = attn_probs.view(bsz, self.num_heads, n_node, extend_n_node)
 
         delta_pos = delta_pos.masked_fill(padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0)
         rot_attn_probs = attn_probs.unsqueeze(-1) * delta_pos.unsqueeze(1).type_as(
