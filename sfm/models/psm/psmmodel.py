@@ -158,14 +158,19 @@ class PSMModel(Model):
             torch.rand_like(token_id.unsqueeze(-1), dtype=torch.float)
             < self.psm_config.mask_ratio
         ).expand_as(batched_data["pos"])
+
+        # generate a random number [0.15, 0.6] as mask ratio
+        if self.psm_config.mask_ratio < 0.15:
+            mask_ratio = self.psm_config.mask_ratio
+        else:
+            mask_ratio = np.random.uniform(0.15, self.psm_config.mask_ratio)
+
         batched_data["protein_masked_aa"] = (
-            torch.rand_like(token_id, dtype=torch.float) < self.psm_config.mask_ratio
+            torch.rand_like(token_id, dtype=torch.float) < mask_ratio
         )
 
         masked_pos = batched_data["protein_masked_pos"]
-        # masked_aa = (
-        #     batched_data["protein_masked_aa"].unsqueeze(-1).expand_as(masked_pos)
-        # )
+
         masked_protein = (
             ((token_id > 129) & (token_id < 158))
             .any(dim=-1, keepdim=True)
