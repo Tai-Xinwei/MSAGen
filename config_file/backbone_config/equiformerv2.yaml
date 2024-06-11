@@ -1,18 +1,17 @@
 order : 4
 embedding_dim: 128
-bottle_hidden_size: 32
+bottle_hidden_size: 64
 num_gnn_layers: 5
-max_radius: 15
 radius_embed_dim: 16
 load_pretrain: ''
-max_neighbors: 500
-# start_layer: 6
-# load_pretrain: ''
-# use_pbc:                  False
-# regress_forces:           False
-# otf_graph:                False
-# max_neighbors:            20
-# max_num_elements:         90
+max_neighbors: 20 # default 50
+max_radius: 5  # 12
+attn_hidden_channels: 64
+num_heads: 8
+attn_alpha_channels: 32
+attn_value_channels: 16
+ffn_hidden_channels: 128
+max_num_elements:         180
 # sphere_channels:          128
 # attn_hidden_channels:     64              # [64, 96] This determines the hidden size of message passing. Do not necessarily use 96.
 # num_heads:                8

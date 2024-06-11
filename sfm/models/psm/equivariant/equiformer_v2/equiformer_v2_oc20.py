@@ -628,6 +628,7 @@ class EquiformerV2_OC20Backbone(BaseModel):
         drop_path_rate=0.1,
         proj_drop=0.0,
         weight_init="normal",
+        enforce_max_neighbors_strictly: bool = True,
     ):
         super().__init__()
 
@@ -680,6 +681,7 @@ class EquiformerV2_OC20Backbone(BaseModel):
 
         self.weight_init = weight_init
         assert self.weight_init in ["normal", "uniform"]
+        self.enforce_max_neighbors_strictly = enforce_max_neighbors_strictly
 
         self.device = "cpu"  # torch.cuda.current_device()
 
@@ -848,12 +850,12 @@ class EquiformerV2_OC20Backbone(BaseModel):
 
         offset_res = 0
         offset = 0
-        # init_embed = None
+        init_embed = None
         # # Initialize the l = 0, m = 0 coefficients for each resolution
-        # if "token_embedding" in data.keys():
-        #     init_embed = self.unifiedtokentoembedding(data["token_embedding"])
-        # else:
-        init_embed = self.sphere_embedding(atomic_numbers)
+        if "token_embedding" in data.keys():
+            init_embed = self.unifiedtokentoembedding(data["token_embedding"])
+        else:
+            init_embed = self.sphere_embedding(atomic_numbers)
 
         for i in range(self.num_resolutions):
             x.embedding[:, offset_res, :] = init_embed[

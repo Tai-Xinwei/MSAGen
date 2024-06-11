@@ -128,9 +128,11 @@ def collate_fn(
     energy = [i["energy"] for i in items]
     energy_per_atom = [i["energy_per_atom"] for i in items]
     forces = torch.cat([pad_pos_unsqueeze(i["forces"], max_node_num) for i in items])
-
     energy = torch.cat(energy)
+    has_energy = torch.cat([i["has_energy"] for i in items], dim=0)
+    has_forces = torch.cat([i["has_forces"] for i in items], dim=0)
     energy_per_atom = torch.cat(energy_per_atom)
+
     x = torch.cat([pad_2d_unsqueeze(i["node_attr"], max_node_num) for i in items])
 
     attn_bias = torch.cat(
@@ -212,6 +214,8 @@ def collate_fn(
         energy=energy,
         energy_per_atom=energy_per_atom,
         forces=forces,
+        has_energy=has_energy,
+        has_forces=has_forces,
         pos=pos,
         node_type_edge=node_type_edge,
         pbc=pbc,
