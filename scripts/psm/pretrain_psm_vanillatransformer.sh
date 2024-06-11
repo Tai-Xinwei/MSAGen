@@ -25,7 +25,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.5
+[ -z "${mask_ratio}" ] && mask_ratio=0.6
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
 
 [ -z "${d_tilde}" ] && d_tilde=1

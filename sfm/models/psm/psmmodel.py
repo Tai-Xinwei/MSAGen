@@ -432,6 +432,9 @@ class PSMModel(Model):
         result_dict["aa_mask"] = aa_mask
         result_dict["diff_loss_mask"] = batched_data["diff_loss_mask"]
         result_dict["ori_pos"] = batched_data["ori_pos"]
+        result_dict["sqrt_one_minus_alphas_cumprod_t"] = batched_data[
+            "sqrt_one_minus_alphas_cumprod_t"
+        ]
 
         if self.psm_config.sample_in_validation and not self.training:
             result_dict["rmsd"] = rmsds

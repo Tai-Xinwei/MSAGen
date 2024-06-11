@@ -161,6 +161,7 @@ class DiffMAE3dCriterions(nn.Module):
         is_periodic = model_output["is_periodic"]
         diff_loss_mask = model_output["diff_loss_mask"]
         protein_mask = model_output["protein_mask"]
+        # sqrt_one_minus_alphas_cumprod_t = model_output["sqrt_one_minus_alphas_cumprod_t"]
 
         n_graphs = energy_per_atom_label.size()[0]
         if clean_mask is None:
@@ -201,7 +202,9 @@ class DiffMAE3dCriterions(nn.Module):
         )
 
         unreduced_force_loss = self.force_loss(
-            force_pred.to(dtype=force_label.dtype), force_label
+            force_pred.to(dtype=force_label.dtype),
+            force_label
+            # -noise_pred.to(dtype=force_label.dtype), force_label * sqrt_one_minus_alphas_cumprod_t
         )
         force_loss, num_force_sample = self._reduce_force_or_noise_loss(
             unreduced_force_loss,
