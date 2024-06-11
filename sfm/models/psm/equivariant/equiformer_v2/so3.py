@@ -272,6 +272,7 @@ class SO3_Embedding:
 
     # Reshape the embedding m -> l
     def _l_primary(self, mapping):
+        # print(self.embedding.dtype,self.dtype)
         self.embedding = torch.einsum("nac, ab -> nbc", self.embedding, mapping.to_m)
 
     # Rotate the embedding

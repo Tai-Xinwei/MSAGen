@@ -51,6 +51,6 @@ def init_edge_rot_mat(edge_distance_vec):
         edge_rot_mat[edge_vec_0_distance < 0.0001] = torch.eye(
             3, device=edge_rot_mat.device
         )[None, :, :]
-        print("Error edge_vec_0_distance: {}".format(torch.min(edge_vec_0_distance)))
+        # print("Error edge_vec_0_distance: {}".format(torch.min(edge_vec_0_distance)))
 
     return edge_rot_mat.detach()

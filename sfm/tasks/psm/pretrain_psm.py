@@ -14,6 +14,7 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING, DictConfig, OmegaConf
 
+from sfm.data.psm_data.pipeline import UnifiedBatchedIterableDataset
 from sfm.data.psm_data.unifieddataset import (
     BatchedDataDataset,
     BatchedDataDatasetForUnifiedSampler,
@@ -82,6 +83,11 @@ def main(args: DictConfig) -> None:
         train_data = BatchedDataDatasetForUnifiedSampler(
             args, train_data, dataset.train_len, extra_collate_fn=extra_collate_fn
         )
+        valid_data = BatchedDataDatasetForUnifiedSampler(
+            args, valid_data, dataset.valid_len, extra_collate_fn=extra_collate_fn
+        )
+    elif args.use_dali_pipeline:
+        train_data = UnifiedBatchedIterableDataset(args, train_data, dataset.train_len)
         valid_data = BatchedDataDatasetForUnifiedSampler(
             args, valid_data, dataset.valid_len, extra_collate_fn=extra_collate_fn
         )

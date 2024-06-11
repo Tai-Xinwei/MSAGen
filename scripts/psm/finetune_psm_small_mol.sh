@@ -4,19 +4,23 @@
 ulimit -c unlimited
 
 export MKL_SERVICE_FORCE_INTEL=1
-export MKL_THREADING_LAYER="GNU"
+export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=24
+
+[ -z "${backbone_config}" ] && backbone_config='graphormer'
+[ -z "${backbone}" ] && backbone='graphormer'
+[ -z "${order}" ] && order=4
+[ -z "${vsc_debug}" ] && vsc_debug=false
+[ -z "${layers}" ] && layers=12
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-#[ -z "${max_length}" ] && max_length=512
-[ -z "${max_length}" ] && max_length=5120
-#[ -z "${max_tokens}" ] && max_tokens=2000
-[ -z "${max_tokens}" ] && max_tokens=36000
+[ -z "${max_length}" ] && max_length=512
+[ -z "${max_tokens}" ] && max_tokens=2000
+# [ -z "${max_tokens}" ] && max_tokens=36000
 
 [ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -27,38 +31,37 @@ export MKL_THREADING_LAYER="GNU"
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.0
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.0
-
+[ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=1.5e-4
-[ -z "${total_num_steps}" ] && total_num_steps=2000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=12000
-[ -z "${train_batch_size}" ] && train_batch_size=1024
-[ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${max_lr}" ] && max_lr=2e-4
+[ -z "${total_num_steps}" ] && total_num_steps=200000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
+[ -z "${train_batch_size}" ] && train_batch_size=64
+[ -z "${val_batch_size}" ] && val_batch_size=64
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=DDP
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=2500
+[ -z "${save_batch_interval}" ] && save_batch_interval=500
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
+[ -z "${val_batch_interval}" ] && val_batch_interval=30000
 
-[ -z "${mode_prob}" ] && mode_prob="0.1,0.2,0.6,0.1" #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+# [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-#[ -z "${data_path}" ] && data_path="/home/peiranjin/output/sample_result/casp_14and15.lmdb"
-[ -z "${data_path}" ] && data_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm/cameo-subset-casp14-and-casp15-combined.lmdb"
-[ -z "${data_path_list}" ] && data_path_list="PubChemQC-B3LYP-PM6,matter-sim-15M,AFDB50-plddt70.lmdb"
-[ -z "${dataset_name_list}" ] && dataset_name_list="pm6,mattersim,afdb"
-[ -z "${dataset_split_raito}" ] && dataset_split_raito="0.4,0.2,0.4"
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16,4,2"
+# [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
+[ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm'
+# [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
+[ -z "${data_path_list}" ] && data_path_list='matter-sim-15M'
+[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
-[ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
-[ -z "${fp16}" ] && fp16=False
 
-#[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v3_prot/checkpoints/global_step29295/mp_rank_00_model_states.pt"
-#[ -z "${save_dir}" ] && save_dir="/home/peiranjin/expresult/psmexp/output/psmv1_vt_v3/"
-[ -z "${loadcheck_path}" ] && loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/pfmexp/output/psmv1_vt_v4/checkpoints/global_step144189/mp_rank_00_model_states.pt"
-[ -z "${save_dir}" ] && save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/pfmexp/output/psmv1_vt_v4/checkpoints/global_step144189/prediction"
+[ -z "${load_ckpt}" ] && load_ckpt=true
+[ -z "${loadcheck_path}" ] && loadcheck_path='/mntd/shiyu/checkpoints/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-16xG8-truefp32-ddp-unified-sampler/checkpoint_E0_B157499.pt'
+[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-16xG8-truefp32-ddp-unified-sampler-8'
+# [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
@@ -66,23 +69,22 @@ export MKL_THREADING_LAYER="GNU"
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
-[ -z "${wandb_project}" ] && wandb_project=psm_dev
-[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
+[ -z "${wandb_project}" ] && wandb_project=psm_dev_shiyu_debug
+[ -z "${wandb_key}" ] && wandb_key=local-92e9aa662fb8066a31846fb8e57abd4e90ed09d8
 
-[ -z "${launcher}" ] && launcher="openmpi"
-[ -z "${hostfile}" ] && hostfile="/job/hostfile"
+[ -z "${launcher}" ] && launcher='openmpi'
+[ -z "${hostfile}" ] && hostfile='/job/hostfile'
 [ -z "${MASTER_PORT}" ] && MASTER_PORT=62347
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
-[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS"
+[ -z "${equivar_vec_init}" ] && equivar_vec_init="ZERO_CENTERED_POS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
-[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
+[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=256
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=5.0
-[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
-[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
-[ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
+[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=False
+[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
 
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
@@ -91,10 +93,17 @@ export MKL_THREADING_LAYER="GNU"
 [ -z "${ddpm_beta_end}" ] && ddpm_beta_end=2e-3
 [ -z "${ddpm_schedule}" ] && ddpm_schedule=sigmoid
 
-[ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=False
-[ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
-[ -z "${use_2d_atom_features}" ] && use_2d_atom_features=False
-[ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
+[ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=True
+[ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=True
+
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+
+[ -z "${fp16}" ] && fp16=False
+
+[ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
+
+[ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="sample_save_dir"
+
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -149,8 +158,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
-#wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-#export WANDB_API_KEY=$wandb_key
+wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
@@ -171,15 +180,19 @@ fi
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 #   num_attention_heads=$num_head \
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/evaluate_psm_protein.py \
+# export WANDB_RUN_NAME=finetune-mattersim
+
+torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_small_mol.py \
           --config-name=config_psm.yaml \
-          backbone_config=graphormer \
-          backbone=vanillatransformer \
+          ft=True \
+          backbone_config=$backbone_config \
+          backbone=$backbone \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
           encoder_ffn_embed_dim=$ffn_size \
-          num_pred_attn_layer=$num_pred_attn_layer \
           encoder_embed_dim=$hidden_size \
+          droppath_prob=$droppath_prob \
+          attn_dropout=$attn_dropout \
           act_dropout=$act_dropout \
           dropout=$dropout \
           weight_decay=$weight_decay \
@@ -191,11 +204,14 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/evaluate_psm_protein.py \
           save_dir=$save_dir \
           seed=12345 \
           ifresume=True \
-          psm_validation_mode=True \
           mask_ratio=$mask_ratio \
           noise_scale=$noise_scale \
-          diffusion_mode=$diffusion_mode \
+          num_pred_attn_layer=$num_pred_attn_layer \
+          d_tilde=$d_tilde \
+          strategy=$strategy \
+          max_lr=$max_lr \
           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
+          use_2d_atom_features=True use_2d_bond_features=True \
           total_num_steps=$total_num_steps \
           warmup_num_steps=$warmup_num_steps \
           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
@@ -212,4 +228,11 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/evaluate_psm_protein.py \
           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
-          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project wandb_run_name=$WANDB_RUN_NAME \
+          rescale_loss_with_std=$rescale_loss_with_std\
+          vsc_debug=$vsc_debug \
+          +sampled_structure_output_path=$sampled_structure_output_path \
+
+          # dynamic_loader --max_tokens=$max_tokens \
+          # --use_2d_atom_features --use_2d_bond_features \
+          # --dynamic_loader --max_tokens $max_tokens \
