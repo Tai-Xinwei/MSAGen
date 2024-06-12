@@ -52,7 +52,7 @@ class SFMGenerator:
         self.model = model.cuda()
         self.tokenizer = tokenizer
 
-    def chat(self, input_str, response_only=True, do_sample=False, **kwargs):
+    def chat(self, input_str, response_only=True, do_sample=False, use_fast_beam_search=False, **kwargs):
         prompt = f'Instruction: {input_str.strip()}\n\n\nResponse:'
         input_ids = self.tokenizer(prompt, return_tensors='pt').input_ids.cuda()
         if 'max_new_tokens' in kwargs:
@@ -70,6 +70,13 @@ class SFMGenerator:
                 **kwargs
             )
         else:
+            if use_fast_beam_search:
+                # requirements: pip install transformers==4.40.1, instead of 4.34.0
+                from transformers import GenerationMixin
+                from .fast_beam_search import _beam_search, generate
+                GenerationMixin.generate = generate
+                GenerationMixin._beam_search = _beam_search
+
             outputs = self.model.generate(
                 input_ids,
                 num_beams=4,
