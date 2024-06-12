@@ -27,6 +27,7 @@ from sfm.models.psm.modules.mixembedding import PSMMix3dEmbedding
 from sfm.models.psm.modules.mixembedding_equiv import PSMMix3DEquivEmbedding
 from sfm.models.psm.modules.pbc import CellExpander
 from sfm.models.psm.psm_config import PSMConfig
+from sfm.modules.layer_norm import AdaNorm
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
@@ -750,6 +751,7 @@ class PSM(nn.Module):
 
         if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
             self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
+            self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
 
     def _set_aa_mask(self, batched_data, aa_mask):
         token_id = batched_data["token_id"]
@@ -863,6 +865,8 @@ class PSM(nn.Module):
                 if self.args.fp16
                 else nullcontext()
             ):
+                encoder_output = self.layer_norm(encoder_output)
+
                 decoder_x_output, decoder_vec_output = self.decoder(
                     batched_data,
                     encoder_output,
@@ -898,10 +902,6 @@ class PSM(nn.Module):
             if self.args.fp16
             else nullcontext()
         ):
-            # stablize energy and force prediction
-            if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
-                decoder_x_output = self.layer_norm(decoder_x_output)
-
             noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
 
             energy_per_atom = torch.where(

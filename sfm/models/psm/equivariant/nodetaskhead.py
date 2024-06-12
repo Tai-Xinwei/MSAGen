@@ -8,6 +8,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from sfm.models.psm.psm_config import PSMConfig
+from sfm.modules.layer_norm import AdaNorm
 
 
 class NodeTaskHead(nn.Module):
@@ -137,8 +138,14 @@ class Non_equi_head(nn.Module):
 class VectorOutput(nn.Module):
     def __init__(self, hidden_channels=768):
         super(VectorOutput, self).__init__()
-        self.output_network = nn.Linear(hidden_channels, 1, bias=False)
+        self.adanorm = AdaNorm(hidden_channels)
+        self.output_network = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels, bias=False),
+            nn.SiLU(),
+            nn.Linear(hidden_channels, 1, bias=False),
+        )
 
     def forward(self, x, v):
+        v = self.adanorm(v)
         v = self.output_network(v)
         return v.squeeze(-1)

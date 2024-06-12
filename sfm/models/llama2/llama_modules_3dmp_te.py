@@ -38,7 +38,6 @@ from sfm.modules.te_modules.te_tensor import (
     TERMSNorm,
     TERowParallelLinear,
 )
-from sfm.utils import PretrainedLayerSpec
 
 logger.info("Using TEColumnParallelLinear and TERowParallelLinear in tensor parallel")
 

@@ -354,7 +354,7 @@ def get_dali_pipeline(args: Any, dataset: Any, batch_size: int, parallel: bool):
     if parallel is True:
         dataset._close_db()
 
-    dali_pipeline(
+    pipe = dali_pipeline(
         batch_size=batch_size,
         num_threads=4,
         device_id=args.local_rank,
@@ -366,7 +366,10 @@ def get_dali_pipeline(args: Any, dataset: Any, batch_size: int, parallel: bool):
         source_num_outputs=14,
         parallel=parallel,
     )
+    pipe.build()
+
     return DALIGenericIterator(
+        pipe,
         [
             "attn_bias",
             "in_degree",
