@@ -323,7 +323,6 @@ class DiffMAE3dCriterions(nn.Module):
         def calculate_energy_loss_ratio(energy_loss_mag):
             return np.clip(1.0 - (energy_loss_mag - 1.0) / 1000, 0.001, 1.0)
 
-        # energy_loss_ratio = calculate_energy_loss_ratio(energy_loss.item())
         loss = (
             self.energy_loss_ratio * energy_loss
             + self.force_loss_ratio * force_loss
