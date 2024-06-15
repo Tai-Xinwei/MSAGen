@@ -54,6 +54,9 @@ class DiffMAE3dCriterions(nn.Module):
         self.periodic_force_mean = periodic_force_mean
         self.periodic_force_std = periodic_force_std
 
+        self.energy_loss_ratio = args.energy_loss_ratio
+        self.force_loss_ratio = args.force_loss_ratio
+
     def _reduce_energy_loss(
         self, energy_loss, loss_mask, is_molecule, is_periodic, use_per_atom_energy=True
     ):
@@ -321,11 +324,9 @@ class DiffMAE3dCriterions(nn.Module):
             return np.clip(1.0 - (energy_loss_mag - 1.0) / 1000, 0.001, 1.0)
 
         # energy_loss_ratio = calculate_energy_loss_ratio(energy_loss.item())
-        energy_loss_ratio = 0.1
-        force_loss_ratio = 0.4
         loss = (
-            energy_loss_ratio * energy_loss
-            + force_loss_ratio * force_loss
+            self.energy_loss_ratio * energy_loss
+            + self.force_loss_ratio * force_loss
             + noise_loss
             + aa_mlm_loss
         )

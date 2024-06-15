@@ -15,11 +15,7 @@ from sfm.logging import logger
 from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
-from sfm.models.psm.equivariant.nodetaskhead import (
-    NodeTaskHead,
-    Non_equi_head,
-    VectorOutput,
-)
+from sfm.models.psm.equivariant.nodetaskhead import NodeTaskHead, VectorOutput
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
@@ -675,7 +671,9 @@ class PSM(nn.Module):
 
         # Implement the embedding
         if args.backbone == "vanillatransformer":
-            self.embedding = PSMMix3dEmbedding(psm_config)
+            self.embedding = PSMMix3dEmbedding(
+                psm_config, use_unified_batch_sampler=args.use_unified_batch_sampler
+            )
             # self.embedding = PSMMixEmbedding(psm_config)
         elif args.backbone == "vanillatransformer_equiv":
             self.embedding = PSMMix3DEquivEmbedding(psm_config)

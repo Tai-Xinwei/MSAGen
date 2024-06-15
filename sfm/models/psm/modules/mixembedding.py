@@ -14,7 +14,7 @@ class PSMMix3dEmbedding(nn.Module):
     Class for the embedding layer in the PSM model.
     """
 
-    def __init__(self, psm_config: PSMConfig):
+    def __init__(self, psm_config: PSMConfig, use_unified_batch_sampler: bool = False):
         """
         Initialize the PSMMixEmbedding class.
         ## [1, 128]: atom type; [129, 159] amino acid type
@@ -43,6 +43,7 @@ class PSMMix3dEmbedding(nn.Module):
         self.scaling = (psm_config.num_3d_bias_kernel) ** -0.5
 
         self.psm_config = psm_config
+        self.use_unified_batch_sampler = use_unified_batch_sampler
 
     def _pos_emb(
         self,
@@ -55,6 +56,9 @@ class PSMMix3dEmbedding(nn.Module):
     ):
         pos = pos.to(self.pos_emb.weight.dtype)
         if pbc_expand_batched is not None:
+            assert (
+                self.use_unified_batch_sampler
+            ), "Only support unified batch sampler for now"
             expand_pos = expand_pos.to(self.pos_emb.weight.dtype)
             expand_pos = torch.cat([pos, expand_pos], dim=1)
             delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
