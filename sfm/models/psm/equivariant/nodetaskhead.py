@@ -26,6 +26,8 @@ class NodeTaskHead(nn.Module):
         self.scaling = (embed_dim // psm_config.encoder_attention_heads) ** -0.5
         self.embed_dim = embed_dim
 
+        self.o_proj = nn.Linear(embed_dim, embed_dim, bias=False)
+
     def forward(
         self,
         batched_data: Dict,
@@ -53,9 +55,9 @@ class NodeTaskHead(nn.Module):
 
         # delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
         dist = delta_pos.norm(dim=-1).view(-1, n_node, extend_n_node)
-        dist = dist.masked_fill(padding_mask.unsqueeze(-1), 10000.0)
-        dist = dist.masked_fill(expand_mask.unsqueeze(1), 10000.0)
-        delta_pos /= dist.unsqueeze(-1) + 1e-4
+        dist = dist.masked_fill(padding_mask.unsqueeze(-1), 1e6)
+        dist = dist.masked_fill(expand_mask.unsqueeze(1), 1e6)
+        delta_pos /= dist.unsqueeze(-1) + 1.0
 
         q = self.q_proj(x) * self.scaling
         k = self.k_proj(x)
@@ -91,15 +93,21 @@ class NodeTaskHead(nn.Module):
         rot_attn_probs = attn_probs.unsqueeze(-1) * delta_pos.unsqueeze(1).type_as(
             attn_probs
         )  # [bsz, head, n, n, 3]
+
         rot_attn_probs = rot_attn_probs.permute(0, 1, 4, 2, 3)
-        decoder_vec_output = rot_attn_probs @ v.unsqueeze(2)  # [bsz, head , 3, n, d]
+        decoder_vec_output = rot_attn_probs @ v.unsqueeze(2)  # [bsz, head, 3, n, d]
         decoder_vec_output = (
             decoder_vec_output.permute(0, 3, 2, 1, 4)
             .contiguous()
             .view(bsz, n_node, 3, -1)
         )
+        decoder_vec_output = self.o_proj(decoder_vec_output)
 
-        decoder_x_output = x
+        # decoder_x_output = torch.mean(decoder_vec_output, dim=-2)
+
+        decoder_x_output = attn_probs @ v
+        decoder_x_output = decoder_x_output.permute(0, 2, 1, 3).reshape(bsz, n_node, -1)
+        decoder_x_output = self.o_proj(decoder_x_output)
 
         return decoder_x_output, decoder_vec_output
 

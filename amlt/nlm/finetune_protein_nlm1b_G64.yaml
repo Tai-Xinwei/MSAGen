@@ -10,15 +10,8 @@ env_defaults:
 target:
   service: sing
   name: baltic02
-  workspace_name: msrresrchws
+  workspace_name: sfm-ws
 
-# target:
-#     service: aml
-#     name: townsend1
-
-# target:
-    # service: aml
-    # name: townsend1
 
 environment:
   image: ai4s-sfm:20240429.081857

@@ -130,9 +130,11 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
 class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
     def __init__(
         self,
-        path,
-        padding_idx,
+        data_dir: str,
+        path: str,
+        padding_idx: int,
         max_len: int,
+        data_raito: float = None,
         eos_idx: int = -1,
         shuffle_subseq: bool = False,
     ):
@@ -147,16 +149,23 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
         file_list = []
         self.dtype = None
         if isinstance(path, str):
-            if path.endswith(".lmdb"):
-                file_list.append(path)
+            if path.find(",") != -1:
+                for pth in path.split(","):
+                    if os.path.isfile(os.path.join(data_dir, pth)):
+                        file_list.append(os.path.join(data_dir, pth))
+            elif path.endswith(".lmdb"):
+                file_list.append(os.path.join(data_dir, path))
             else:
                 for file_name in os.listdir(path):
                     if file_name.endswith(".lmdb"):
                         file_list.append(os.path.join(path, file_name))
         elif isinstance(path, list):
-            file_list = path
+            for pth in path:
+                if os.path.isfile(os.path.join(data_dir, pth)):
+                    file_list.append(os.path.join(data_dir, pth))
         else:
             raise ValueError(f"{path} error")
+
         logger.info(f"The dataset contains {len(file_list)} files.")
         for file_path in file_list:
             env = lmdb.open(

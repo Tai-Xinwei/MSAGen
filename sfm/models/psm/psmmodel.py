@@ -713,19 +713,35 @@ class PSM(nn.Module):
         self.forces_head = nn.ModuleDict()
 
         for key in {"molecule", "periodic", "protein"}:
-            self.energy_head.update(
-                {
-                    key: nn.Sequential(
-                        nn.Linear(
-                            psm_config.embedding_dim,
-                            psm_config.embedding_dim,
-                            bias=True,
-                        ),
-                        nn.SiLU(),
-                        nn.Linear(psm_config.embedding_dim, 1, bias=True),
-                    )
-                }
-            )
+            if args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
+                self.energy_head.update(
+                    {
+                        key: nn.Sequential(
+                            AdaNorm(psm_config.embedding_dim),
+                            nn.Linear(
+                                psm_config.embedding_dim,
+                                psm_config.embedding_dim,
+                                bias=True,
+                            ),
+                            nn.SiLU(),
+                            nn.Linear(psm_config.embedding_dim, 1, bias=True),
+                        )
+                    }
+                )
+            else:
+                self.energy_head.update(
+                    {
+                        key: nn.Sequential(
+                            nn.Linear(
+                                psm_config.embedding_dim,
+                                psm_config.embedding_dim,
+                                bias=True,
+                            ),
+                            nn.SiLU(),
+                            nn.Linear(psm_config.embedding_dim, 1, bias=True),
+                        )
+                    }
+                )
 
             if args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
                 self.noise_head = VectorOutput(psm_config.embedding_dim)

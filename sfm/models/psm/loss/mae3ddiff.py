@@ -202,9 +202,7 @@ class DiffMAE3dCriterions(nn.Module):
         )
 
         unreduced_force_loss = self.force_loss(
-            force_pred.to(dtype=force_label.dtype),
-            force_label
-            # -noise_pred.to(dtype=force_label.dtype), force_label * sqrt_one_minus_alphas_cumprod_t
+            force_pred.to(dtype=force_label.dtype), force_label
         )
         force_loss, num_force_sample = self._reduce_force_or_noise_loss(
             unreduced_force_loss,
@@ -323,15 +321,14 @@ class DiffMAE3dCriterions(nn.Module):
             return np.clip(1.0 - (energy_loss_mag - 1.0) / 1000, 0.001, 1.0)
 
         # energy_loss_ratio = calculate_energy_loss_ratio(energy_loss.item())
-        energy_loss_ratio = 0.2
-        force_loss_ratio = 0.2
+        energy_loss_ratio = 0.1
+        force_loss_ratio = 0.4
         loss = (
             energy_loss_ratio * energy_loss
             + force_loss_ratio * force_loss
             + noise_loss
             + aa_mlm_loss
         )
-        # loss = energy_loss_ratio * energy_loss + noise_loss + aa_mlm_loss
 
         # for loss exist in every sample of the batch, no extra number of samples are recorded (will use batch size in loss reduction)
         # for loss does not exist in every example of the batch, use a tuple, where the first element is the averaged loss value

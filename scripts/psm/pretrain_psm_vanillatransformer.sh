@@ -231,5 +231,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
           use_dali_pipeline=$use_dali_pipeline \
           preprocess_2d_bond_features_with_cuda=True \
-          only_use_rotary_embedding_for_protein=True \
+          # only_use_rotary_embedding_for_protein=True \
           # ifresume=True \
