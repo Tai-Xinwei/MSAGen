@@ -95,6 +95,8 @@ class PSMConfig(GraphormerConfig):
 
     # loss computation options
     rescale_loss_with_std: bool = False
+    energy_loss_ratio: float = 1.0
+    force_loss_ratio: float = 1.0
 
     # used in force and noise heads
     num_force_and_noise_head_layers: int = 2

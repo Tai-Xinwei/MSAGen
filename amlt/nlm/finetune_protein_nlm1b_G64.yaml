@@ -10,15 +10,8 @@ env_defaults:
 target:
   service: sing
   name: baltic02
-  workspace_name: msrresrchws
+  workspace_name: sfm-ws
 
-# target:
-#     service: aml
-#     name: townsend1
-
-# target:
-    # service: aml
-    # name: townsend1
 
 environment:
   image: ai4s-sfm:20240429.081857
@@ -27,16 +20,16 @@ environment:
 
 storage:
   hai1:
-    storage_account_name: hai1data # Storage account
-    container_name: sfm # Container name
-    mount_dir: /sfm
+    storage_account_name: sfmdataeastus2 # Storage account
+    container_name: nlm # Container name
+    mount_dir: /nlm
 
 code:
   local_dir: ../SFM_framework
 
 jobs:
 - name: sfm_nlm_llama3_stageB
-  sku: ${NODES}xG${GPUS}
+  sku: ${NODES}xG${GPUS}-IB
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
   mpi: true
   process_count_per_node: 1
@@ -49,20 +42,22 @@ jobs:
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - pip install -e . --no-deps
   - python setup_cython.py build_ext --inplace
-  - pip install git+https://github.com/NVIDIA/TransformerEngine.git
+  - pip install git+https://github.com/NVIDIA/TransformerEngine.git@stable
   - pip uninstall flash-attn -y
-  - export train_batch_size=1024
-  - export val_batch_size=1024
-  - export gradient_accumulation_steps=16
+  - export train_batch_size=512
+  - export val_batch_size=512
+  - export gradient_accumulation_steps=4
   - export tensor_model_parallel_size=1
   - export pipeline_model_parallel_size=1
-  - export train_data_path=/sfm/nlm/llama3_processed_data/v5_train/train.npy
-  - export valid_data_path=/sfm/nlm/llama3_processed_data/v5_train/valid.npy
-  - export dict_path=/sfm/llama/Meta-Llama-3-8B/original
-  - export loadcheck_path=/sfm/llama/Meta-Llama-3-8B/original
-  # - export finetune_from_checkpoint_dir=/sfm/nlm/output/llama3_stageA_tp2/
-  - export save_dir=/sfm/nlm/output/llama3_stageB/
-  - bash scripts/nlm/pretrain_nlm_llama3_7b_stageB.sh
+  - export total_num_steps=10000
+  - export warmup_num_steps=500
+  - export max_lr=6e-5
+  - export train_data_path=/nlm/peiran/v5_train_split/v5_processed_protein_train.npy.lmdb/
+  - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split/v5_protein_valid.npy.lmdb/
+  - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
+  - export loadcheck_path=/nlm/peiran/output/nlm_base1b_300B/global_step7805/
+  - export save_dir=/nlm/peiran/output/finetune_llama3_protein_G32/
+  - bash scripts/nlm/finetune_nlm1b_protein.sh
   submit_args:
     env:
       SHARED_MEMORY_PERCENT: 1.0

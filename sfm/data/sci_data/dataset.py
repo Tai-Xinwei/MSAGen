@@ -130,9 +130,10 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
 class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
     def __init__(
         self,
-        path,
-        padding_idx,
+        path: str,
+        padding_idx: int,
         max_len: int,
+        data_dir: str = None,
         eos_idx: int = -1,
         shuffle_subseq: bool = False,
     ):
@@ -147,17 +148,34 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
         file_list = []
         self.dtype = None
         if isinstance(path, str):
-            if path.endswith(".lmdb"):
-                file_list.append(path)
+            if path.find(",") != -1:
+                for pth in path.split(","):
+                    if data_dir is not None:
+                        if os.path.isfile(os.path.join(data_dir, pth)):
+                            file_list.append(os.path.join(data_dir, pth))
+                    else:
+                        file_list.append(pth)
+            elif path.endswith(".lmdb"):
+                if data_dir is not None:
+                    file_list.append(os.path.join(data_dir, path))
+                else:
+                    file_list.append(path)
             else:
                 for file_name in os.listdir(path):
                     if file_name.endswith(".lmdb"):
                         file_list.append(os.path.join(path, file_name))
         elif isinstance(path, list):
-            file_list = path
+            if data_dir is not None:
+                for pth in path:
+                    if os.path.isfile(os.path.join(data_dir, pth)):
+                        file_list.append(os.path.join(data_dir, pth))
+            else:
+                file_list = path
         else:
             raise ValueError(f"{path} error")
+
         logger.info(f"The dataset contains {len(file_list)} files.")
+
         for file_path in file_list:
             env = lmdb.open(
                 file_path, subdir=True, readonly=True, lock=False, readahead=False
@@ -251,6 +269,44 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
         input = SciTokenIdxAndMask(input_ids, padding_mask)
         labels = input
         return SciDataTuple(input, labels)
+
+
+class ProcessedSciWeightedDatasetLmdb(ProcessedSciDatasetLmdb):
+    def __init__(
+        self,
+        data_dir: str,
+        path: str,
+        padding_idx: int,
+        max_len: int,
+        data_raito: float = None,
+        eos_idx: int = -1,
+        shuffle_subseq: bool = False,
+    ):
+        super(ProcessedSciWeightedDatasetLmdb, self).__init__(
+            path, padding_idx, max_len, data_dir, eos_idx, shuffle_subseq
+        )
+
+        self.data_raio = [float(r) for r in data_raito.split(",")]
+        assert len(self.data_raio) == len(
+            self.data_size_list
+        ), f"data_raito must be equal to the number of files, but got {len(self.data_raio)} and {len(self.data_size_list)}"
+        assert (
+            sum(self.data_raio) == 1
+        ), f"sum of data_raito must be equal to 1, but got sum of {self.data_raio}={sum(self.data_raio)}"
+
+    def __getitem__(self, index):
+        # get data from the corresponding dataset with the probability of data_raio
+        list_index = np.random.choice(len(self.data_raio), p=self.data_raio)
+        data_index = np.random.randint(0, self.data_size_list[list_index])
+        data_index, offset = divmod(data_index, self.replicate)
+        key = self.keys_list[list_index][data_index]
+        value = self.txn_list[list_index].get(str(key).encode())
+        data = np.frombuffer(value, dtype=self.dtype)[
+            offset * self.max_len : (offset + 1) * self.max_len
+        ]
+        if self.shuffle_subseq:
+            data = shuffle_sub_sequences(data, self.eos_idx)
+        return torch.from_numpy(data.astype(np.int64))
 
 
 class RawTextSciDataset(torch.utils.data.Dataset):

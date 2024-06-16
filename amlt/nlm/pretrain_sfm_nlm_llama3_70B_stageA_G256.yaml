@@ -35,7 +35,7 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: sfm_nlm_llama3_stageB
+- name: sfm_nlm_llama3_stageA_70B
   sku: ${NODES}xG${GPUS}-IB
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
   mpi: true
@@ -51,18 +51,18 @@ jobs:
   - python setup_cython.py build_ext --inplace
   - pip install git+https://github.com/NVIDIA/TransformerEngine.git@stable
   - pip uninstall flash-attn -y
-  - export train_batch_size=2048
-  - export val_batch_size=2048
-  - export gradient_accumulation_steps=16
-  - export tensor_model_parallel_size=1
-  - export pipeline_model_parallel_size=2
+  - export train_batch_size=1024
+  - export val_batch_size=1024
+  - export gradient_accumulation_steps=256
+  - export tensor_model_parallel_size=8
+  - export pipeline_model_parallel_size=8
   # - export train_data_path=/sfm/nlm/llama3_300B/train_lmdb/
   # - export valid_data_path=/sfm/nlm/llama3_300B/valid_lmdb/
   - export train_data_path=/tmp/train.npy
   - export valid_data_path=/nlm/peiran/llama3_processed_data/v5_train/valid.npy
-  - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
-  - export loadcheck_path=/nlm/llama/Meta-Llama-3-8B/original
-  - export save_dir=/nlm/peiran/output/llama3_stageA_G256/
+  - export dict_path=/nlm/llama/Meta-Llama-3-70B/
+  - export loadcheck_path=/nlm/llama/Meta-Llama-3-70B/
+  - export save_dir=/nlm/peiran/output/llama3_70B_stageA_G256/
   - bash scripts/nlm/pretrain_nlm_llama3_7b_stageA.sh
   submit_args:
     env:

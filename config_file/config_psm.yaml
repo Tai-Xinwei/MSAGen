@@ -46,7 +46,6 @@ unfreeze_param_list: ""
 finetune_from_checkpoint_dir: null
 finetune_from_checkpoint_id: null
 # dataloader strategy
-daliLoader: False
 dynamic_loader: False
 ifstack: False
 gradient_clipping: 1.0
