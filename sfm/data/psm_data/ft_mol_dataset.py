@@ -35,7 +35,7 @@ class PCQM4Mv2LMDBDataset(MoleculeLMDBDataset):
         )
 
         # don't use 3d structure
-        data["coords"] = torch.zeros_like(data["coords"])
+        # data["coords"] = torch.zeros_like(data["coords"])
 
         return data
 
