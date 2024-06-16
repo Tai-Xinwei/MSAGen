@@ -41,7 +41,7 @@ def convert(ckpdir="/home/peiran/FMproj/llama2/llama-2-70b/"):
         num_key_value_heads = n_heads
         key_value_dim = encoder_dim
 
-    vocab_size = params["vocab_size"]
+    params["vocab_size"]
 
     for file in files:
         if not file.endswith(".pth"):
@@ -61,9 +61,10 @@ def convert(ckpdir="/home/peiran/FMproj/llama2/llama-2-70b/"):
                 else:
                     cur_tensor = embckp["embed_tokens.weight"]
                     w, h = ckp[key].shape
-                    if w == vocab_size:
+                    # print(file, w, h, vocab_size)
+                    if w == encoder_dim:
                         new_tensor = torch.cat((cur_tensor, ckp[key]), dim=1)
-                    elif h == vocab_size:
+                    elif h == encoder_dim:
                         new_tensor = torch.cat((cur_tensor, ckp[key]), dim=0)
                     else:
                         raise ValueError(
@@ -74,7 +75,7 @@ def convert(ckpdir="/home/peiran/FMproj/llama2/llama-2-70b/"):
                 if "norm.weight" not in normckp.keys():
                     normckp["norm.weight"] = ckp[key]
                     # torch.save(normckp, ckpdir + "/model.norm.pt")
-                    torch.save(normckp, ckpdir + "/layer_33-model_states.pt")
+                    torch.save(normckp, ckpdir + "/layer_81-model_states.pt")
             elif key == "output.weight":
                 if "lm_head.weight" not in lmheadckp.keys():
                     lmheadckp["lm_head.weight"] = ckp[key]
@@ -158,8 +159,9 @@ def convert(ckpdir="/home/peiran/FMproj/llama2/llama-2-70b/"):
         torch.save(layerckp[layer], ckpdir + layer)
 
     torch.save(embckp, ckpdir + "/layer_00-model_states.pt")
-    torch.save(lmheadckp, ckpdir + "/layer_34-model_states.pt")
+    torch.save(lmheadckp, ckpdir + "/layer_82-model_states.pt")
 
 
 if __name__ == "__main__":
-    convert(ckpdir="/data/peiran/blob/hai1data/sfm/llama/Meta-Llama-3-8B/original/")
+    # convert(ckpdir="/data/peiran/blob/hai1data/sfm/llama/Meta-Llama-3-8B/original/")
+    convert(ckpdir="/data/peiran/llama3/Meta-Llama-3-70B/")

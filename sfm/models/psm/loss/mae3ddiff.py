@@ -54,6 +54,9 @@ class DiffMAE3dCriterions(nn.Module):
         self.periodic_force_mean = periodic_force_mean
         self.periodic_force_std = periodic_force_std
 
+        self.energy_loss_ratio = args.energy_loss_ratio
+        self.force_loss_ratio = args.force_loss_ratio
+
     def _reduce_energy_loss(
         self, energy_loss, loss_mask, is_molecule, is_periodic, use_per_atom_energy=True
     ):
@@ -161,6 +164,7 @@ class DiffMAE3dCriterions(nn.Module):
         is_periodic = model_output["is_periodic"]
         diff_loss_mask = model_output["diff_loss_mask"]
         protein_mask = model_output["protein_mask"]
+        # sqrt_one_minus_alphas_cumprod_t = model_output["sqrt_one_minus_alphas_cumprod_t"]
 
         n_graphs = energy_per_atom_label.size()[0]
         if clean_mask is None:
@@ -319,10 +323,12 @@ class DiffMAE3dCriterions(nn.Module):
         def calculate_energy_loss_ratio(energy_loss_mag):
             return np.clip(1.0 - (energy_loss_mag - 1.0) / 1000, 0.001, 1.0)
 
-        # energy_loss_ratio = calculate_energy_loss_ratio(energy_loss.item())
-        energy_loss_ratio = 1.0
-
-        loss = energy_loss_ratio * energy_loss + force_loss + noise_loss + aa_mlm_loss
+        loss = (
+            self.energy_loss_ratio * energy_loss
+            + self.force_loss_ratio * force_loss
+            + noise_loss
+            + aa_mlm_loss
+        )
 
         # for loss exist in every sample of the batch, no extra number of samples are recorded (will use batch size in loss reduction)
         # for loss does not exist in every example of the batch, use a tuple, where the first element is the averaged loss value

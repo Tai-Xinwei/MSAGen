@@ -23,6 +23,7 @@ from sfm.models.psm.modules.mixembedding import PSMMix3dEmbedding
 from sfm.models.psm.modules.mixembedding_equiv import PSMMix3DEquivEmbedding
 from sfm.models.psm.modules.pbc import CellExpander
 from sfm.models.psm.psm_config import PSMConfig
+from sfm.modules.layer_norm import AdaNorm
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
@@ -154,14 +155,19 @@ class PSMModel(Model):
             torch.rand_like(token_id.unsqueeze(-1), dtype=torch.float)
             < self.psm_config.mask_ratio
         ).expand_as(batched_data["pos"])
+
+        # generate a random number [0.15, 0.6] as mask ratio
+        if self.psm_config.mask_ratio < 0.15:
+            mask_ratio = self.psm_config.mask_ratio
+        else:
+            mask_ratio = np.random.uniform(0.15, self.psm_config.mask_ratio)
+
         batched_data["protein_masked_aa"] = (
-            torch.rand_like(token_id, dtype=torch.float) < self.psm_config.mask_ratio
+            torch.rand_like(token_id, dtype=torch.float) < mask_ratio
         )
 
         masked_pos = batched_data["protein_masked_pos"]
-        # masked_aa = (
-        #     batched_data["protein_masked_aa"].unsqueeze(-1).expand_as(masked_pos)
-        # )
+
         masked_protein = (
             ((token_id > 129) & (token_id < 158))
             .any(dim=-1, keepdim=True)
@@ -213,9 +219,12 @@ class PSMModel(Model):
         is_periodic = batched_data["pbc"].any(dim=-1)
         is_molecule = (~is_periodic) & (token_id <= 129).all(dim=-1)
         is_protein = (~is_periodic) & (token_id > 129).any(dim=-1)
+        is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
+
         batched_data["is_periodic"] = is_periodic
         batched_data["is_molecule"] = is_molecule
         batched_data["is_protein"] = is_protein
+        batched_data["is_heavy_atom"] = is_heavy_atom
 
         # atom mask to leave out unit cell corners for periodic systems
         pos = batched_data["pos"]
@@ -365,6 +374,8 @@ class PSMModel(Model):
         clean_mask = (
             clean_mask & ~batched_data["is_protein"]
         )  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
+        # Do not predict energy of molecule with heavy atom avoid loss instability.
+        clean_mask = clean_mask & ~batched_data["is_heavy_atom"]
 
         clean_mask = clean_mask | (
             (batched_data["is_periodic"]) & (~batched_data["is_stable_periodic"])
@@ -418,6 +429,9 @@ class PSMModel(Model):
         result_dict["aa_mask"] = aa_mask
         result_dict["diff_loss_mask"] = batched_data["diff_loss_mask"]
         result_dict["ori_pos"] = batched_data["ori_pos"]
+        result_dict["sqrt_one_minus_alphas_cumprod_t"] = batched_data[
+            "sqrt_one_minus_alphas_cumprod_t"
+        ]
 
         if self.psm_config.sample_in_validation and not self.training:
             result_dict["rmsd"] = rmsds
@@ -657,7 +671,9 @@ class PSM(nn.Module):
 
         # Implement the embedding
         if args.backbone == "vanillatransformer":
-            self.embedding = PSMMix3dEmbedding(psm_config)
+            self.embedding = PSMMix3dEmbedding(
+                psm_config, use_unified_batch_sampler=args.use_unified_batch_sampler
+            )
             # self.embedding = PSMMixEmbedding(psm_config)
         elif args.backbone == "vanillatransformer_equiv":
             self.embedding = PSMMix3DEquivEmbedding(psm_config)
@@ -695,19 +711,35 @@ class PSM(nn.Module):
         self.forces_head = nn.ModuleDict()
 
         for key in {"molecule", "periodic", "protein"}:
-            self.energy_head.update(
-                {
-                    key: nn.Sequential(
-                        nn.Linear(
-                            psm_config.embedding_dim,
-                            psm_config.embedding_dim,
-                            bias=True,
-                        ),
-                        nn.SiLU(),
-                        nn.Linear(psm_config.embedding_dim, 1, bias=True),
-                    )
-                }
-            )
+            if args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
+                self.energy_head.update(
+                    {
+                        key: nn.Sequential(
+                            AdaNorm(psm_config.embedding_dim),
+                            nn.Linear(
+                                psm_config.embedding_dim,
+                                psm_config.embedding_dim,
+                                bias=True,
+                            ),
+                            nn.SiLU(),
+                            nn.Linear(psm_config.embedding_dim, 1, bias=True),
+                        )
+                    }
+                )
+            else:
+                self.energy_head.update(
+                    {
+                        key: nn.Sequential(
+                            nn.Linear(
+                                psm_config.embedding_dim,
+                                psm_config.embedding_dim,
+                                bias=True,
+                            ),
+                            nn.SiLU(),
+                            nn.Linear(psm_config.embedding_dim, 1, bias=True),
+                        )
+                    }
+                )
 
             if args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
                 self.noise_head = VectorOutput(psm_config.embedding_dim)
@@ -730,6 +762,10 @@ class PSM(nn.Module):
             nn.SiLU(),
             nn.Linear(psm_config.embedding_dim, 1, bias=False),
         )
+
+        if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
+            self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
+            self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
 
     def _set_aa_mask(self, batched_data, aa_mask):
         token_id = batched_data["token_id"]
@@ -837,11 +873,14 @@ class PSM(nn.Module):
                 batched_data,
                 pbc_expand_batched,
             )
+
             with (
                 torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
                 if self.args.fp16
                 else nullcontext()
             ):
+                encoder_output = self.layer_norm(encoder_output)
+
                 decoder_x_output, decoder_vec_output = self.decoder(
                     batched_data,
                     encoder_output,
@@ -877,6 +916,8 @@ class PSM(nn.Module):
             if self.args.fp16
             else nullcontext()
         ):
+            noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
+
             energy_per_atom = torch.where(
                 is_periodic.unsqueeze(-1),
                 self.energy_head["periodic"](decoder_x_output).squeeze(-1),
@@ -892,8 +933,6 @@ class PSM(nn.Module):
                     decoder_x_output, decoder_vec_output
                 ).squeeze(-1),
             )
-
-            noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
 
             if self.args.diffusion_mode == "epsilon":
                 scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)

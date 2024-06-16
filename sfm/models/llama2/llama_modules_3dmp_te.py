@@ -38,7 +38,6 @@ from sfm.modules.te_modules.te_tensor import (
     TERMSNorm,
     TERowParallelLinear,
 )
-from sfm.utils import PretrainedLayerSpec
 
 logger.info("Using TEColumnParallelLinear and TERowParallelLinear in tensor parallel")
 
@@ -167,6 +166,8 @@ class TELlamaDecoderLayer(te.pytorch.TransformerLayer):
             args.hidden_size // args.num_attention_heads, base=args.rope_theta
         )
         self.te_rope_emb = te_rope(max_seq_len=args.max_position_embeddings).cuda()
+
+        self.dummy = nn.Linear(1, 1)
 
     def forward(self, hidden_states, attention_mask, **kwargs):
         """
