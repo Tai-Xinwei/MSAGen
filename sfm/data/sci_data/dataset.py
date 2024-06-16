@@ -130,10 +130,10 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
 class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
     def __init__(
         self,
-        data_dir: str,
         path: str,
         padding_idx: int,
         max_len: int,
+        data_dir: str = None,
         eos_idx: int = -1,
         shuffle_subseq: bool = False,
     ):
@@ -150,18 +150,27 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
         if isinstance(path, str):
             if path.find(",") != -1:
                 for pth in path.split(","):
-                    if os.path.isfile(os.path.join(data_dir, pth)):
-                        file_list.append(os.path.join(data_dir, pth))
+                    if data_dir is not None:
+                        if os.path.isfile(os.path.join(data_dir, pth)):
+                            file_list.append(os.path.join(data_dir, pth))
+                    else:
+                        file_list.append(pth)
             elif path.endswith(".lmdb"):
-                file_list.append(os.path.join(data_dir, path))
+                if data_dir is not None:
+                    file_list.append(os.path.join(data_dir, path))
+                else:
+                    file_list.append(path)
             else:
                 for file_name in os.listdir(path):
                     if file_name.endswith(".lmdb"):
                         file_list.append(os.path.join(path, file_name))
         elif isinstance(path, list):
-            for pth in path:
-                if os.path.isfile(os.path.join(data_dir, pth)):
-                    file_list.append(os.path.join(data_dir, pth))
+            if data_dir is not None:
+                for pth in path:
+                    if os.path.isfile(os.path.join(data_dir, pth)):
+                        file_list.append(os.path.join(data_dir, pth))
+            else:
+                file_list = path
         else:
             raise ValueError(f"{path} error")
 
@@ -274,7 +283,7 @@ class ProcessedSciWeightedDatasetLmdb(ProcessedSciDatasetLmdb):
         shuffle_subseq: bool = False,
     ):
         super(ProcessedSciWeightedDatasetLmdb, self).__init__(
-            data_dir, path, padding_idx, max_len, eos_idx, shuffle_subseq
+            path, padding_idx, max_len, data_dir, eos_idx, shuffle_subseq
         )
 
         self.data_raio = [float(r) for r in data_raito.split(",")]
