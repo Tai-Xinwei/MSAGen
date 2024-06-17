@@ -35,6 +35,7 @@ class HomoLumoGapHead(PSMFinetuneBaseModule):
 
         embedding_dim = args.encoder_embed_dim
         self.head = nn.Sequential(
+            nn.LayerNorm(embedding_dim),
             nn.Linear(embedding_dim, embedding_dim, bias=True),
             nn.SiLU(),
             nn.Linear(embedding_dim, 1, bias=True),
@@ -49,7 +50,8 @@ class HomoLumoGapHead(PSMFinetuneBaseModule):
         decoder_x_output = result_dict["decoder_x_output"]
         out = self.head(decoder_x_output)
         result_dict["homo_lumo_gap"] = (
-            out.squeeze(-1).masked_fill(result_dict["non_atom_mask"], 0.0).mean(dim=-1)
+            out.squeeze(-1).masked_fill(result_dict["non_atom_mask"], 0.0).sum(dim=-1)
+            / result_dict["num_atoms"]
         )
         return result_dict
 

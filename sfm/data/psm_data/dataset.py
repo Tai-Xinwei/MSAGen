@@ -1615,6 +1615,8 @@ class DaliUnifiedDataSource:
         adj = data["adj"]
         attn_edge_type = data["attn_edge_type"]
         is_stable_periodic = torch.tensor(data["is_stable_periodic"], dtype=torch.bool)
+        has_energy = data["has_energy"]
+        has_forces = data["has_forces"]
 
         return (
             attn_bias,
@@ -1631,6 +1633,8 @@ class DaliUnifiedDataSource:
             adj,
             attn_edge_type,
             is_stable_periodic,
+            has_energy,
+            has_forces,
         )
 
     def __len__(self):

@@ -56,7 +56,7 @@ def main(args) -> None:
     )
 
     trainer = Trainer(
-        config,
+        args=config,
         model=model,
         train_data=train_dataset,
         valid_data=valid_dataset,
