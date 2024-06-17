@@ -6,6 +6,7 @@ from collections import namedtuple
 import lmdb
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from sfm.data.prot_data.dataset import DownstreamLMDBDataset
 from sfm.data.prot_data.util import bstr2obj
@@ -51,7 +52,6 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
         shuffle_subseq: bool = False,
     ):
         super().__init__()
-        # self.data = np.load(path, mmap_mode="r")
         data_list = []
         file_list = []
         if isinstance(path, str):
@@ -367,12 +367,14 @@ class RawTextSciDataset(torch.utils.data.Dataset):
 
     def collate(self, samples):
         input_ids_list, labels_list = zip(*samples)
+
         input_ids = torch.nn.utils.rnn.pad_sequence(
             input_ids_list, batch_first=True, padding_value=self.tokenizer.pad_token_id
         )
         labels = torch.nn.utils.rnn.pad_sequence(
             labels_list, batch_first=True, padding_value=-100
         )
+
         padding_mask = input_ids.ne(self.tokenizer.pad_token_id)
 
         input = tuple([input_ids, padding_mask])
