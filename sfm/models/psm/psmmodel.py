@@ -474,7 +474,7 @@ class PSMModel(Model):
         bs = batched_data["pos"].size(0)
         loss, logging_output = self.loss_fn(model_output, batched_data)
         if self.psm_finetune_head and hasattr(self.psm_finetune_head, "update_loss"):
-            self.psm_finetune_head.update_loss(
+            loss, logging_output = self.psm_finetune_head.update_loss(
                 loss, logging_output, model_output, batched_data
             )
         return ModelOutput(loss=loss, num_examples=bs, log_output=logging_output)
