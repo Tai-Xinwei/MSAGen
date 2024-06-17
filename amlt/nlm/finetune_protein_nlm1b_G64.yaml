@@ -49,7 +49,7 @@ jobs:
   - export gradient_accumulation_steps=4
   - export tensor_model_parallel_size=1
   - export pipeline_model_parallel_size=1
-  - export total_num_steps=10000
+  - export total_num_steps=50000
   - export warmup_num_steps=500
   - export max_lr=6e-5
   - export load_ckpt=True
@@ -57,7 +57,7 @@ jobs:
   - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split/v5_protein_valid.npy.lmdb
   - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
   - export loadcheck_path=/nlm/peiran/output/nlm_base1b_300B/global_step7805/
-  - export save_dir=/nlm/peiran/output/finetune_llama3_protein_G32/
+  - export save_dir=/nlm/peiran/output/finetune_llama3_protein_G64/
   - bash scripts/nlm/finetune_base1b_protein.sh
   submit_args:
     env:

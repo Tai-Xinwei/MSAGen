@@ -29,8 +29,8 @@ export MKL_THREADING_LAYER='GNU'
 
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.0
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.9
-[ -z "${psm_finetune_noise_mode}" ] && psm_finetune_noise_mode=T_Diff
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.1
+[ -z "${psm_finetune_noise_mode}" ] && psm_finetune_noise_mode=T_zero
 [ -z "${finetune_module}" ] && finetune_module=homo_lumo_gap_head
 
 [ -z "${d_tilde}" ] && d_tilde=1
