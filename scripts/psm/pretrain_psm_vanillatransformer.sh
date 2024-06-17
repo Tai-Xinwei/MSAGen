@@ -57,7 +57,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
 [ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.1
-[ -z "${force_loss_ratio}" ] && force_loss_ratio=0.2
+[ -z "${force_loss_ratio}" ] && force_loss_ratio=1.0
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v4/checkpoints/"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'

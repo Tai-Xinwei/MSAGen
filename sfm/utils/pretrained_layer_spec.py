@@ -24,7 +24,7 @@ class PretrainedLayerSpec(LayerSpec):
 
         if self.pretrained_ckpt_path is not None and self.load_ckpt and load:
             if os.path.exists(self.pretrained_ckpt_path):
-                if self.tp_model_size is None or self.tp_model_size <= 1:
+                if self.tp_model_size is None or self.tp_model_size < 1:
                     self.load_pretrained(layer, device=device)
                 else:
                     self.partition_load_pretrained(layer, device=device)
@@ -36,8 +36,6 @@ class PretrainedLayerSpec(LayerSpec):
                 layer = self.create_peft_model(layer, lora=True)
             # elif self.lora_mode == "freeze":
             # layer = self.create_peft_model(layer, lora=False)
-
-        # print(layer)
 
         return layer
 

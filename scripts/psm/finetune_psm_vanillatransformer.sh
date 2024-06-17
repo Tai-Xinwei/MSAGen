@@ -27,6 +27,8 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.0
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.1
+[ -z "${psm_finetune_noise_mode}" ] && psm_finetune_noise_mode=T_zero
+[ -z "${finetune_module}" ] && finetune_module=homo_lumo_gap_head
 
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=4e-5
@@ -54,13 +56,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${energy_loss_ratio}" ] && energy_loss_ratio=1.0
 [ -z "${force_loss_ratio}" ] && force_loss_ratio=1.0
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psm/psmv1_vt_v8/global_step45870/mp_rank_00_model_states.pt"
-[ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
-
-[ -z "${wandb_group}" ] && wandb_group=psm_finetune_vt
-[ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psm/psmv1_vt_v8/global_step68805/mp_rank_00_model_states.pt"
 [ -z "${wandb_project}" ] && wandb_project=psm_eval
-[ -z "${wandb_run_name}" ] && wandb_run_name=pcqm4mv2_finetune_vt_v8_45870
+[ -z "${wandb_run_name}" ] && wandb_run_name=pcqm4mv2_finetune_vt_v8_68805
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -163,8 +161,8 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
           psm_finetune_mode=True \
-          psm_finetune_noise_mode=T_zero psm_finetune_valid_noise_mode=T \
-          finetune_module=homo_lumo_gap_head \
+          psm_finetune_noise_mode=$psm_finetune_noise_mode psm_finetune_valid_noise_mode=T \
+          finetune_module=$finetune_module \
           backbone_config=graphormer \
           backbone=vanillatransformer \
           encoder_attention_heads=$num_head \

@@ -149,20 +149,23 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
         self.dtype = None
         if isinstance(path, str):
             if path.find(",") != -1:
+                logger.info(f"Multiple files in {path}")
                 for pth in path.split(","):
                     if data_dir is not None:
                         if os.path.isfile(os.path.join(data_dir, pth)):
                             file_list.append(os.path.join(data_dir, pth))
                     else:
                         file_list.append(pth)
-            elif path.endswith(".lmdb"):
+            elif path.endswith(".lmdb") or os.path.endswith(".lmdb/"):
+                logger.info(f"Single file {path}")
                 if data_dir is not None:
                     file_list.append(os.path.join(data_dir, path))
                 else:
                     file_list.append(path)
             else:
+                logger.info(f"Directory {path}")
                 for file_name in os.listdir(path):
-                    if file_name.endswith(".lmdb"):
+                    if file_name.endswith(".lmdb") or file_name.endswith(".lmdb/"):
                         file_list.append(os.path.join(path, file_name))
         elif isinstance(path, list):
             if data_dir is not None:
@@ -174,7 +177,7 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
         else:
             raise ValueError(f"{path} error")
 
-        logger.info(f"The dataset contains {len(file_list)} files.")
+        logger.info(f"The dataset {file_list} contains {len(file_list)} files.")
 
         for file_path in file_list:
             env = lmdb.open(
@@ -201,6 +204,7 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
                     )
             else:
                 self.dtype = cur_dtype
+
         if self.dtype == "uint16":
             self.dtype = np.uint16
         elif self.dtype == "uint32":
@@ -209,12 +213,14 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
             self.dtype = np.uint64
         else:
             raise ValueError(f"current dtype {self.dtype} error")
+
         self.env_list = env_list
         self.txn_list = txn_list
         if processed_seq_len % max_len != 0:
             raise ValueError(
                 f"processed_seq_len {processed_seq_len} is not divisible by max_len {max_len}"
             )
+
         self.replicate = processed_seq_len // max_len
         self.max_len = max_len
         self.padding_idx = padding_idx
