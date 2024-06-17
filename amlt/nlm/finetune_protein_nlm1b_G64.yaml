@@ -52,12 +52,13 @@ jobs:
   - export total_num_steps=10000
   - export warmup_num_steps=500
   - export max_lr=6e-5
-  - export train_data_path=/nlm/peiran/v5_train_split/v5_processed_protein_train.npy.lmdb/
-  - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split/v5_protein_valid.npy.lmdb/
+  - export load_ckpt=True
+  - export train_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_train_split/v5_processed_protein_train.npy.lmdb
+  - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split/v5_protein_valid.npy.lmdb
   - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
   - export loadcheck_path=/nlm/peiran/output/nlm_base1b_300B/global_step7805/
   - export save_dir=/nlm/peiran/output/finetune_llama3_protein_G32/
-  - bash scripts/nlm/finetune_nlm1b_protein.sh
+  - bash scripts/nlm/finetune_base1b_protein.sh
   submit_args:
     env:
       SHARED_MEMORY_PERCENT: 1.0

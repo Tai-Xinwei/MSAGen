@@ -85,13 +85,19 @@ dp_worldsize=$(($world_size/$pipeline_model_parallel_size/$tensor_model_parallel
 [ -z "${layers}" ] && layers=24
 [ -z "${num_head}" ] && num_head=32
 
+
 MEGATRON_ARGS="--micro-batch-size $micro_batch_size --global-batch-size $global_batch_size \
   --num-layers $layers --hidden-size $llm_hidden_size --seq-length $max_position_embeddings \
   --max-position-embeddings $max_position_embeddings --num-attention-heads $num_head \
   --seq-length $max_position_embeddings --disable-bias-linear --no-position-embedding --no-query-key-layer-scaling"
-# else
-#   MEGATRON_ARGS=""
-# fi
+
+# if load ckpt, default is False
+[ -z "${load_ckpt}" ] && load_ckpt=False
+if [[ "${load_ckpt}" == "True" ]]; then
+  load_ckpt="--load_ckpt"
+else
+  load_ckpt=""
+fi
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -157,6 +163,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm_1Bbase.py \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --pretrained_ckpt_path "$loadcheck_path" \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
-      ${MEGATRON_ARGS} --load_ckpt
+      ${MEGATRON_ARGS} ${load_ckpt}
 
       # --finetune_from_checkpoint_dir $finetune_from_checkpoint_dir \

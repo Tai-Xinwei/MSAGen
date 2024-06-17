@@ -29,8 +29,8 @@ export MKL_THREADING_LAYER='GNU'
 
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.0
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.1
-[ -z "${psm_finetune_noise_mode}" ] && psm_finetune_noise_mode=T_zero
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.9
+[ -z "${psm_finetune_noise_mode}" ] && psm_finetune_noise_mode=T_Diff
 [ -z "${finetune_module}" ] && finetune_module=homo_lumo_gap_head
 
 [ -z "${d_tilde}" ] && d_tilde=1
@@ -53,7 +53,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='PCQM4Mv2'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pcqm4mv2'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="64"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 
