@@ -29,7 +29,9 @@ export MKL_THREADING_LAYER='GNU'
 
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.0
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.9
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.1
+[ -z "${psm_finetune_noise_mode}" ] && psm_finetune_noise_mode=T_zero
+[ -z "${finetune_module}" ] && finetune_module=homo_lumo_gap_head
 
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=4e-5
@@ -177,8 +179,8 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
           psm_finetune_mode=$psm_finetune_mode \
-          psm_finetune_noise_mode=T_zero psm_finetune_valid_noise_mode=T \
-          finetune_module=homo_lumo_gap_head \
+          psm_finetune_noise_mode=$psm_finetune_noise_mode psm_finetune_valid_noise_mode=T \
+          finetune_module=$finetune_module \
           backbone_config=graphormer \
           backbone=graphormer \
           encoder_attention_heads=$num_head \
