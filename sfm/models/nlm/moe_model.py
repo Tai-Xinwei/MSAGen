@@ -19,6 +19,10 @@ from sfm.utils.optim.optimizer import myAdamW
 from sfm.utils.optim.set_lr import DECAY_COSINE_RATE, groupWarmupDecayLR
 
 
+def adam_w(*args, **kwargs):
+    return AdamW(*args, **kwargs, fused=True)
+
+
 class Model(SFMPipelineModelMixin):
     def __init__(self, config: MoeModelConfig):
         super().__init__()
@@ -109,6 +113,7 @@ class Model(SFMPipelineModelMixin):
 
         optimizer, _ = myAdamW(
             model,
+            impl=adam_w,
             lr=self.config.max_lr,
             betas=(self.config.beta1, self.config.beta2),
             weight_decay=self.config.weight_decay,
