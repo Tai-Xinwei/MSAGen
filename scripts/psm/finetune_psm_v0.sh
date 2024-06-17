@@ -29,18 +29,18 @@ export MKL_THREADING_LAYER='GNU'
 
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.0
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.9
 
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=1e-4
+[ -z "${max_lr}" ] && max_lr=4e-5
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${val_batch_size}" ] && val_batch_size=64
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000
+[ -z "${save_batch_interval}" ] && save_batch_interval=0
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=30000
@@ -51,7 +51,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='PCQM4Mv2'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pcqm4mv2'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="256"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 
@@ -177,7 +177,7 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
           psm_finetune_mode=$psm_finetune_mode \
-          psm_finetune_noise_mode=T_Diff psm_finetune_valid_noise_mode=T \
+          psm_finetune_noise_mode=T_zero psm_finetune_valid_noise_mode=T \
           finetune_module=homo_lumo_gap_head \
           backbone_config=graphormer \
           backbone=graphormer \

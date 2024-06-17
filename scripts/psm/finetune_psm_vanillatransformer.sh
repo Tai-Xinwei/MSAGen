@@ -26,18 +26,18 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_mode}" ] && noise_mode=diff
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.0
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.1
 
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=1e-4
+[ -z "${max_lr}" ] && max_lr=4e-5
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000000
+[ -z "${save_batch_interval}" ] && save_batch_interval=0
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
@@ -54,13 +54,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${energy_loss_ratio}" ] && energy_loss_ratio=1.0
 [ -z "${force_loss_ratio}" ] && force_loss_ratio=1.0
 
-[ -z "${loadcheck_path}" ] && loadcheck_path=""
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psm/psmv1_vt_v8/global_step45870/mp_rank_00_model_states.pt"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
 
 [ -z "${wandb_group}" ] && wandb_group=psm_finetune_vt
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_eval
-[ -z "${wandb_run_name}" ] && wandb_run_name=pcqm4mv2_finetune
+[ -z "${wandb_run_name}" ] && wandb_run_name=pcqm4mv2_finetune_vt_v8_45870
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -163,7 +163,7 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
           psm_finetune_mode=True \
-          psm_finetune_noise_mode=mixture psm_finetune_valid_noise_mode=T \
+          psm_finetune_noise_mode=T_zero psm_finetune_valid_noise_mode=T \
           finetune_module=homo_lumo_gap_head \
           backbone_config=graphormer \
           backbone=vanillatransformer \
@@ -211,4 +211,4 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           use_dali_pipeline=$use_dali_pipeline \
           energy_loss_ratio=$energy_loss_ratio force_loss_ratio=$force_loss_ratio \
           preprocess_2d_bond_features_with_cuda=True \
-          # loadcheck_path=$loadcheck_path \
+          loadcheck_path=$loadcheck_path \
