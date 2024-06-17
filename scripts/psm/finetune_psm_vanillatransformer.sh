@@ -25,47 +25,42 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.6
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+[ -z "${mask_ratio}" ] && mask_ratio=0.0
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.1
 
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=1e-4
+[ -z "${max_lr}" ] && max_lr=4e-5
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000000
+[ -z "${save_batch_interval}" ] && save_batch_interval=0
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.7'
 
-[ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,afdb'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.5'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128,12"
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,12,12,12'
-
+[ -z "${data_path}" ] && data_path='/data/peiran/'
+[ -z "${data_path_list}" ] && data_path_list='PCQM4Mv2'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pcqm4mv2'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
-[ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.1
-[ -z "${force_loss_ratio}" ] && force_loss_ratio=0.2
+[ -z "${energy_loss_ratio}" ] && energy_loss_ratio=1.0
+[ -z "${force_loss_ratio}" ] && force_loss_ratio=1.0
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v4/checkpoints/"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psm/psmv1_vt_v8/global_step45870/mp_rank_00_model_states.pt"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
 
-
-[ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
+[ -z "${wandb_group}" ] && wandb_group=psm_finetune_vt
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
-[ -z "${wandb_project}" ] && wandb_project=psm_dev
+[ -z "${wandb_project}" ] && wandb_project=psm_eval
+[ -z "${wandb_run_name}" ] && wandb_run_name=pcqm4mv2_finetune_vt_v8_45870
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -131,7 +126,6 @@ echo "atom_loss_coeff: ${atom_loss_coeff}"
 echo "pos_loss_coeff: ${pos_loss_coeff}"
 echo "data_path: ${data_path}"
 echo "output_path: ${output_path}"
-echo "dataset_name: ${dataset_name}"
 echo "mask_ratio: ${mask_ratio}"
 echo "mode_prob: ${mode_prob}"
 echo "noise_mode: ${noise_mode}"
@@ -168,6 +162,9 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
+          psm_finetune_mode=True \
+          psm_finetune_noise_mode=T_zero psm_finetune_valid_noise_mode=T \
+          finetune_module=homo_lumo_gap_head \
           backbone_config=graphormer \
           backbone=vanillatransformer \
           encoder_attention_heads=$num_head \
@@ -182,8 +179,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           weight_decay=$weight_decay \
           sandwich_ln=True \
           data_path=$data_path \
-          data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
-          dataset_split_raito=\"$dataset_split_raito\" \
+          data_path_list=\"$data_path_list\" \
+          dataset_split_raito=\"$dataset_split_raito\" dataset_name_list=\"$dataset_name_list\" \
           save_dir=$save_dir \
           seed=12345 \
           mask_ratio=$mask_ratio \
@@ -197,7 +194,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
           gradient_accumulation_steps=$gradient_accumulation_steps \
           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
-          save_batch_interval=$save_batch_interval log_interval=$log_interval loadcheck_path=$loadcheck_path \
+          save_batch_interval=$save_batch_interval log_interval=$log_interval \
           equivar_vec_init=$equivar_vec_init pbc_use_local_attention=$pbc_use_local_attention \
           pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
@@ -210,7 +207,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           clean_sample_ratio=$clean_sample_ratio \
           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
-          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project wandb_run_name=$wandb_run_name \
           use_dali_pipeline=$use_dali_pipeline \
           energy_loss_ratio=$energy_loss_ratio force_loss_ratio=$force_loss_ratio \
           preprocess_2d_bond_features_with_cuda=True \
+          loadcheck_path=$loadcheck_path \

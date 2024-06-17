@@ -144,6 +144,8 @@ def dali_pm6_pipeline(source, source_batch_size, source_num_outputs, parallel):
         attn_bias,
         attn_edge_type,
         is_stable_periodic,
+        has_energy,
+        has_forces,
     ) = dali.fn.external_source(
         source=source,
         num_outputs=source_num_outputs,
@@ -230,6 +232,8 @@ def dali_pm6_pipeline(source, source_batch_size, source_num_outputs, parallel):
         adj,
         attn_edge_type,
         is_stable_periodic,
+        has_energy,
+        has_forces,
     )
 
 
@@ -250,6 +254,8 @@ def dali_pipeline(source, source_batch_size, source_num_outputs, parallel):
         adj,
         attn_edge_type,
         is_stable_periodic,
+        has_energy,
+        has_forces,
     ) = dali.fn.external_source(
         source=source,
         num_outputs=source_num_outputs,
@@ -284,6 +290,8 @@ def dali_pipeline(source, source_batch_size, source_num_outputs, parallel):
     )
     adj = dali.fn.pad(adj.gpu(), axes=(0, 1))
     attn_edge_type = dali.fn.pad(attn_edge_type.gpu() + 1, axes=(0, 1))
+    has_energy = dali.fn.squeeze(has_energy.gpu(), axes=0)
+    has_forces = dali.fn.squeeze(has_forces.gpu(), axes=0)
 
     return (
         attn_bias,
@@ -302,6 +310,8 @@ def dali_pipeline(source, source_batch_size, source_num_outputs, parallel):
         adj,
         attn_edge_type,
         is_stable_periodic,
+        has_energy,
+        has_forces,
     )
 
 
@@ -356,14 +366,14 @@ def get_dali_pipeline(args: Any, dataset: Any, batch_size: int, parallel: bool):
 
     pipe = dali_pipeline(
         batch_size=batch_size,
-        num_threads=4,
+        num_threads=2,
         device_id=args.local_rank,
-        prefetch_queue_depth=4,
-        py_num_workers=4,
+        prefetch_queue_depth=2,
+        py_num_workers=2,
         py_start_method="spawn",
         source=source,
         source_batch_size=batch_size,
-        source_num_outputs=14,
+        source_num_outputs=16,
         parallel=parallel,
     )
     pipe.build()
@@ -387,5 +397,7 @@ def get_dali_pipeline(args: Any, dataset: Any, batch_size: int, parallel: bool):
             "adj",
             "attn_edge_type",
             "is_stable_periodic",
+            "has_energy",
+            "has_forces",
         ],
     )
