@@ -455,8 +455,8 @@ class MatterSimDataset:
         data["num_atoms"] = int(x.size()[0] - 8)
         data["forces"] = torch.cat(
             [
-                (torch.tensor(data["forces"], dtype=torch.float64) - self.force_mean)
-                / self.force_std,
+                (torch.tensor(data["forces"], dtype=torch.float64) - self.force_mean),
+                # / self.force_std,
                 torch.zeros([8, 3], dtype=torch.float64),
             ],
             dim=0,
@@ -470,7 +470,7 @@ class MatterSimDataset:
                     (data["info"]["energy"] / float(data["num_atoms"]))
                     - self.energy_per_atom_mean
                 )
-                / self.energy_per_atom_std
+                # / self.energy_per_atom_std
             ]
         )
         data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)

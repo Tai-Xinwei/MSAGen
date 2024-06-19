@@ -27,6 +27,7 @@ from sfm.modules.layer_norm import AdaNorm
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
+from .modules.autograd import GradientHead
 from .modules.diffusion import DIFFUSION_PROCESS_REGISTER
 from .modules.sampled_structure_converter import SampledStructureConverter
 from .modules.timestep_encoder import DiffNoise, TimeStepSampler
@@ -785,6 +786,9 @@ class PSM(nn.Module):
             self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
             self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
 
+        if self.args.AutoGradForce:
+            self.autograd_force_head = GradientHead()
+
     def _set_aa_mask(self, batched_data, aa_mask):
         token_id = batched_data["token_id"]
         if aa_mask is not None:
@@ -942,15 +946,31 @@ class PSM(nn.Module):
                 self.energy_head["molecule"](decoder_x_output).squeeze(-1),
             )
 
-            forces = torch.where(
-                is_periodic.unsqueeze(-1).unsqueeze(-1),
-                self.forces_head["periodic"](
-                    decoder_x_output, decoder_vec_output
-                ).squeeze(-1),
-                self.forces_head["molecule"](
-                    decoder_x_output, decoder_vec_output
-                ).squeeze(-1),
+            # atom mask to leave out unit cell corners for periodic systems
+            non_atom_mask = torch.arange(
+                n_nodes, dtype=torch.long, device=energy_per_atom.device
+            ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(
+                -1
             )
+
+            if self.args.AutoGradForce and pbc_expand_batched is not None:
+                # pos.requires_grad_(True)
+                forces = self.autograd_force_head(
+                    energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
+                        dim=-1, keepdim=True
+                    ),
+                    pos,
+                )
+            else:
+                forces = torch.where(
+                    is_periodic.unsqueeze(-1).unsqueeze(-1),
+                    self.forces_head["periodic"](
+                        decoder_x_output, decoder_vec_output
+                    ).squeeze(-1),
+                    self.forces_head["molecule"](
+                        decoder_x_output, decoder_vec_output
+                    ).squeeze(-1),
+                )
 
             if self.args.diffusion_mode == "epsilon":
                 scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
@@ -973,13 +993,6 @@ class PSM(nn.Module):
                 raise ValueError(
                     f"diffusion mode: {self.args.diffusion_mode} is not supported"
                 )
-
-            # atom mask to leave out unit cell corners for periodic systems
-            non_atom_mask = torch.arange(
-                n_nodes, dtype=torch.long, device=energy_per_atom.device
-            ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(
-                -1
-            )
 
             # per-atom energy prediction
             energy_per_atom = (

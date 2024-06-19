@@ -54,14 +54,14 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,12,12,12'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
+[ -z "${AutoGradForce}" ] && AutoGradForce=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
-[ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.1
+[ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.2
 [ -z "${force_loss_ratio}" ] && force_loss_ratio=1.0
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v4/checkpoints/"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
-
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
@@ -214,4 +214,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           use_dali_pipeline=$use_dali_pipeline \
           energy_loss_ratio=$energy_loss_ratio force_loss_ratio=$force_loss_ratio \
           preprocess_2d_bond_features_with_cuda=True \
-          ifresume=True \
+          AutoGradForce=$AutoGradForce \
+
+          # ifresume=True \

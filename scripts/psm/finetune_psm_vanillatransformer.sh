@@ -56,9 +56,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${energy_loss_ratio}" ] && energy_loss_ratio=1.0
 [ -z "${force_loss_ratio}" ] && force_loss_ratio=1.0
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psm/psmv1_vt_v8/global_step68805/mp_rank_00_model_states.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psm/psmv1_vt_v8/global_step160545/mp_rank_00_model_states.pt"
+[ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
+
 [ -z "${wandb_project}" ] && wandb_project=psm_eval
-[ -z "${wandb_run_name}" ] && wandb_run_name=pcqm4mv2_finetune_vt_v8_68805
+[ -z "${wandb_group}" ] && wandb_group=psm_finetune_vt_v8
+[ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
+[ -z "${wandb_run_name}" ] && wandb_run_name=pcqm4mv2_finetune_vt_v8_160545
 [ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 [ -z "${launcher}" ] && launcher='openmpi'
