@@ -824,7 +824,6 @@ class SmallMolDataset(FoundationModelDataset):
         self.enable_hami = enable_hami
         self._keys, self.envs = [], []
         self.db_paths = sorted(db_paths)
-        # print("self.db_paths", self.db_paths)
         self.open_db()
         self.transforms = transforms  # unused
         self.remove_init = remove_init
