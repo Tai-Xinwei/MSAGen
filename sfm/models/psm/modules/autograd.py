@@ -17,10 +17,8 @@ class GradientHead(torch.nn.Module):
             inputs=pos,
             grad_outputs=grad_outputs,
             create_graph=self.training,
-            allow_unused=True,
         )
-        print(grad)
-        exit()
+
         force_grad = grad[0] / self.force_std
 
         if force_grad is not None:

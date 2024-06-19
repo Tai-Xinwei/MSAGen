@@ -51,7 +51,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,12,12,12'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,6,12,6'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${AutoGradForce}" ] && AutoGradForce=True

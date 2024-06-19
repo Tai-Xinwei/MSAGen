@@ -843,6 +843,10 @@ class PSM(nn.Module):
         """
 
         pos = batched_data["pos"]
+
+        if self.args.AutoGradForce:
+            pos.requires_grad_(True)
+
         n_graphs, n_nodes = pos.size()[:2]
         is_periodic = batched_data["is_periodic"]
         is_molecule = batched_data["is_molecule"]
@@ -954,7 +958,6 @@ class PSM(nn.Module):
             )
 
             if self.args.AutoGradForce and pbc_expand_batched is not None:
-                # pos.requires_grad_(True)
                 forces = self.autograd_force_head(
                     energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
                         dim=-1, keepdim=True

@@ -61,7 +61,7 @@ class NodeTaskHead(nn.Module):
         dist = delta_pos.norm(dim=-1).view(-1, n_node, extend_n_node)
         dist = dist.masked_fill(padding_mask.unsqueeze(-1), 1e6)
         dist = dist.masked_fill(expand_mask.unsqueeze(1), 1e6)
-        delta_pos /= dist.unsqueeze(-1) + 1.0
+        delta_pos = delta_pos / (dist.unsqueeze(-1) + 1.0)
 
         q = self.q_proj(x) * self.scaling
         k = self.k_proj(x)
