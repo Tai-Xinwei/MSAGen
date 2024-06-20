@@ -1,0 +1,79 @@
+description: gene 100m 2k 3d
+
+env_defaults:
+  NODES: 2
+  GPUS: 8
+  # WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+  WANDB_API_KEY: "local-84c43c09161e2c012c3317ccb9becc6148001b8e"
+
+
+target:
+  service: aml
+  # name: msrresrchvc
+  name: sfm-nd96amsra100v4-uksouth
+  # name: sfm-nc96-westus3
+
+# target:
+#   service: sing
+#   name: baltic02
+#   workspace_name: sfm-ws
+environment:
+  image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
+  registry: msroctocr.azurecr.io
+  username: msroctocr
+# environment:
+#   image: pj/mfmds:20230207_b
+#   registry: itpeus4cr.azurecr.io
+#   username: itpeus4cr
+
+storage:
+  hai1:
+    storage_account_name: hai1data # Storage account
+    container_name: mfm # Container name
+    mount_dir: /hai1
+  hai1sfm:
+    storage_account_name: hai1data # Storage account
+    container_name: sfm # Container name
+    mount_dir: /hai1.sfm
+  blob:
+    storage_account_name: msralaphilly2
+    container_name: ml-la
+    mount_dir: /blob
+
+code:
+  local_dir: .
+
+jobs:
+- name: gene100m6kmer2k
+  sku: ${NODES}xG${GPUS}
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0528-A40]
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - mkdir -p /blob/v-zekunguo/gene/checkpoints/100m6kmer2k_3d
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=sfm_test
+  - export WANDB_TEAM=large-scale-pde
+  - export wandb_group=gene_base1b
+  - export NCCL_DEBUG=INFO
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install -e . --no-deps
+  - python setup_cython.py build_ext --inplace
+  - pip install git+https://github.com/NVIDIA/TransformerEngine.git
+  # - pip uninstall flash-attn -y
+  - pip install pybind11
+  - export dict_path=/hai1.sfm/llama/Meta-Llama-3-8B/original
+  - export train_batch_size=4096
+  - export val_batch_size=4096
+  - export max_tokens=2048
+  - export max_position_embeddings=2048
+  - export tokens_per_sample=2048
+  - export gradient_accumulation_steps=8
+  - export train_data_path=/blob/v-zekunguo/gene/data/160klmdb/lmdb
+  - export valid_data_path=/blob/v-zekunguo/gene/data/160klmdb/valid_lmdb
+  - export save_dir=/blob/v-zekunguo/gene/checkpoints/100m6kmer160k
+  - bash scripts/genegpt/pretrain_genegpt_100m_6mer_160k_3d.sh
+  submit_args:
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
+      CUDA_LAUNCH_BLOCKING: 1

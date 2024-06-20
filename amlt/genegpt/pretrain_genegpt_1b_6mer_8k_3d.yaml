@@ -1,0 +1,63 @@
+description: gene 1b 4k 3d
+
+env_defaults:
+  NODES: 4
+  GPUS: 8
+  # WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+  WANDB_API_KEY: "local-84c43c09161e2c012c3317ccb9becc6148001b8e"
+
+target:
+  service: sing
+  name: baltic02
+  workspace_name: sfm-ws
+
+environment:
+  # image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
+  image: ai4s-sfm:20240429.081857
+  registry: msroctocr.azurecr.io
+  username: msroctocr
+
+storage:
+  nlm:
+    storage_account_name: sfmdataeastus2
+    container_name: nlm
+    mount_dir: /nlm
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: gene1b6kmer8k
+  sku: ${NODES}xG${GPUS}
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0528-A40]
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - mkdir -p /nlm/zekun/gene/checkpoints/1b6kmer8k_3d
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=sfm_test
+  - export WANDB_TEAM=large-scale-pde
+  - export wandb_group=gene_base1b
+  - export NCCL_DEBUG=INFO
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install -e . --no-deps
+  - python setup_cython.py build_ext --inplace
+  - pip install git+https://github.com/NVIDIA/TransformerEngine.git@stable
+  - pip uninstall flash-attn -y
+  - pip install pybind11
+  - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
+  - export train_batch_size=4096
+  - export val_batch_size=4096
+  - export max_tokens=8192
+  - export loadcheck_path=/nlm/zekun/gene/checkpoints/1b6kmer4k_3d/global_step11292
+  - export max_position_embeddings=8192
+  - export tokens_per_sample=8192
+  - export gradient_accumulation_steps=16
+  - export train_data_path=/nlm/zekun/gene/data/new160k6mer
+  - export valid_data_path=/nlm/zekun/gene/data/160klmdb_valid_lmdb
+  - export save_dir=/nlm/zekun/gene/checkpoints/1b6kmer8k_3d
+  - bash scripts/genegpt/pretrain_genegpt_1b_6mer_4k_3d.sh
+  submit_args:
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
+      CUDA_LAUNCH_BLOCKING: 1
