@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import torch
+from scipy.spatial.transform import Rotation as R
 
 
 def uniform_random_rotation(
@@ -12,7 +13,9 @@ def uniform_random_rotation(
     Returns:
         torch.Tensor: a random rotation matrix [batch_size, 3, 3]
     """
-    A = torch.randn(batch_size, 3, 3, device=device, dtype=dtype)
-    R, _ = torch.linalg.qr(A)
-    R = R * torch.sign(torch.linalg.det(R)).unsqueeze(-1).unsqueeze(-1)
-    return R
+    # scipy version
+    rot_mats = torch.from_numpy(R.random(num=batch_size).as_matrix()).to(
+        device=device, dtype=dtype
+    )
+
+    return rot_mats

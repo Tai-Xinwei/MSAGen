@@ -115,6 +115,8 @@ class NodeTaskHead(nn.Module):
         decoder_x_output = decoder_x_output.permute(0, 2, 1, 3).reshape(bsz, n_node, -1)
         decoder_x_output = self.o_proj_energy(decoder_x_output)
 
+        # decoder_x_output = x
+
         return decoder_x_output, decoder_vec_output
 
 
