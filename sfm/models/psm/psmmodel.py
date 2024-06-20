@@ -4,6 +4,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+import os
 from contextlib import nullcontext
 
 import numpy as np
@@ -71,7 +72,12 @@ class PSMModel(Model):
         self.net = PSM(args, self.psm_config)
 
         if self.psm_config.psm_finetune_mode or self.psm_config.psm_validation_mode:
-            self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
+            if os.path.exists(args.loadcheck_path):
+                self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
+            else:
+                logger.warning(
+                    "Finetune or validation mode, but no checkpoint is loaded"
+                )
         else:
             logger.info("No checkpoint is loaded")
 

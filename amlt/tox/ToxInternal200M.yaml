@@ -20,8 +20,8 @@ environment:
 
 storage:
   blob:
-    storage_account_name: hai1data
-    container_name: pfm
+    storage_account_name: sfmdata
+    container_name: protein
     mount_dir: /blob
 
 
@@ -39,7 +39,7 @@ jobs:
   process_count_per_node: 1
   command:
   # ToxInternalLMDBDataset dataset args:
-  - export data_path=/blob/data/afdb/AFDB50-plddt70.lmdb/
+  - export data_path=/blob/AFDBv4-cluster/AFDB50-plddt70.lmdb/
   - export max_length=$$((384+2))
   - export min_length=$$((20+2))
   - export num_residues=32
@@ -66,7 +66,7 @@ jobs:
   - export bl_loss_weight=1.0
   - export ba_loss_weight=1.0
   - export && ba_norm_loss_weight=0.5
-  - export da_loss_weight=10.0
+  - export da_loss_weight=1.0
   - export da_norm_loss_weight=0.5
   - export eps=1e-4
 
