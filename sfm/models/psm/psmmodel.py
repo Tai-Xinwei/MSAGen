@@ -906,6 +906,7 @@ class PSM(nn.Module):
                 padding_mask,
                 batched_data,
                 pbc_expand_batched,
+                ifbackprop=self.args.AutoGradForce,
             )
 
             with (
