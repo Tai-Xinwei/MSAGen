@@ -279,6 +279,7 @@ class PSMModel(Model):
                 ori_pos.size(0), device=ori_pos.device, dtype=ori_pos.dtype
             )
             ori_pos = torch.bmm(ori_pos, R)
+            batched_data["forces"] = torch.bmm(batched_data["forces"], R)
 
         self._create_initial_pos_for_diffusion(batched_data)
         batched_data["ori_pos"] = ori_pos
@@ -460,6 +461,7 @@ class PSMModel(Model):
         result_dict["sqrt_one_minus_alphas_cumprod_t"] = batched_data[
             "sqrt_one_minus_alphas_cumprod_t"
         ]
+        result_dict["force_label"] = batched_data["forces"]
 
         if self.psm_config.sample_in_validation and not self.training:
             result_dict["rmsd"] = rmsds
