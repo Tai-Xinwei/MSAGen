@@ -4,6 +4,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+import os
 from contextlib import nullcontext
 
 import numpy as np
@@ -27,6 +28,8 @@ from sfm.modules.layer_norm import AdaNorm
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
+from .modules.autograd import GradientHead
+from .modules.dataaug import uniform_random_rotation
 from .modules.diffusion import DIFFUSION_PROCESS_REGISTER
 from .modules.sampled_structure_converter import SampledStructureConverter
 from .modules.timestep_encoder import DiffNoise, TimeStepSampler
@@ -69,7 +72,12 @@ class PSMModel(Model):
         self.net = PSM(args, self.psm_config)
 
         if self.psm_config.psm_finetune_mode or self.psm_config.psm_validation_mode:
-            self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
+            if os.path.exists(args.loadcheck_path):
+                self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
+            else:
+                logger.warning(
+                    "Finetune or validation mode, but no checkpoint is loaded"
+                )
         else:
             logger.info("No checkpoint is loaded")
 
@@ -273,7 +281,16 @@ class PSMModel(Model):
         ori_pos = ori_pos.masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
         self._create_initial_pos_for_diffusion(batched_data)
-        batched_data["ori_pos"] = batched_data["pos"]
+
+        if self.args.backbone == "vanillatransformer":
+            R = uniform_random_rotation(
+                ori_pos.size(0), device=ori_pos.device, dtype=ori_pos.dtype
+            )
+            ori_pos = torch.bmm(ori_pos, R)
+            batched_data["forces"] = torch.bmm(batched_data["forces"], R)
+            batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
+
+        batched_data["ori_pos"] = ori_pos
 
         noise_pos, noise, sqrt_one_minus_alphas_cumprod_t = self.diffnoise.noise_sample(
             x_start=ori_pos,
@@ -367,6 +384,7 @@ class PSMModel(Model):
         self._create_system_tags(batched_data)
         self._create_protein_mask(batched_data)
         pos = batched_data["pos"]
+
         n_graphs = pos.size(0)
         time_step, clean_mask = self.time_step_sampler.sample(
             n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
@@ -451,6 +469,7 @@ class PSMModel(Model):
         result_dict["sqrt_one_minus_alphas_cumprod_t"] = batched_data[
             "sqrt_one_minus_alphas_cumprod_t"
         ]
+        result_dict["force_label"] = batched_data["forces"]
 
         if self.psm_config.sample_in_validation and not self.training:
             result_dict["rmsd"] = rmsds
@@ -785,6 +804,9 @@ class PSM(nn.Module):
             self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
             self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
 
+        if self.args.AutoGradForce:
+            self.autograd_force_head = GradientHead()
+
     def _set_aa_mask(self, batched_data, aa_mask):
         token_id = batched_data["token_id"]
         if aa_mask is not None:
@@ -839,6 +861,10 @@ class PSM(nn.Module):
         """
 
         pos = batched_data["pos"]
+
+        if self.args.AutoGradForce:
+            pos.requires_grad_(True)
+
         n_graphs, n_nodes = pos.size()[:2]
         is_periodic = batched_data["is_periodic"]
         is_molecule = batched_data["is_molecule"]
@@ -890,6 +916,7 @@ class PSM(nn.Module):
                 padding_mask,
                 batched_data,
                 pbc_expand_batched,
+                ifbackprop=self.args.AutoGradForce,
             )
 
             with (
@@ -942,15 +969,30 @@ class PSM(nn.Module):
                 self.energy_head["molecule"](decoder_x_output).squeeze(-1),
             )
 
-            forces = torch.where(
-                is_periodic.unsqueeze(-1).unsqueeze(-1),
-                self.forces_head["periodic"](
-                    decoder_x_output, decoder_vec_output
-                ).squeeze(-1),
-                self.forces_head["molecule"](
-                    decoder_x_output, decoder_vec_output
-                ).squeeze(-1),
+            # atom mask to leave out unit cell corners for periodic systems
+            non_atom_mask = torch.arange(
+                n_nodes, dtype=torch.long, device=energy_per_atom.device
+            ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(
+                -1
             )
+
+            if self.args.AutoGradForce and pbc_expand_batched is not None:
+                forces = self.autograd_force_head(
+                    energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
+                        dim=-1, keepdim=True
+                    ),
+                    pos,
+                )
+            else:
+                forces = torch.where(
+                    is_periodic.unsqueeze(-1).unsqueeze(-1),
+                    self.forces_head["periodic"](
+                        decoder_x_output, decoder_vec_output
+                    ).squeeze(-1),
+                    self.forces_head["molecule"](
+                        decoder_x_output, decoder_vec_output
+                    ).squeeze(-1),
+                )
 
             if self.args.diffusion_mode == "epsilon":
                 scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
@@ -973,13 +1015,6 @@ class PSM(nn.Module):
                 raise ValueError(
                     f"diffusion mode: {self.args.diffusion_mode} is not supported"
                 )
-
-            # atom mask to leave out unit cell corners for periodic systems
-            non_atom_mask = torch.arange(
-                n_nodes, dtype=torch.long, device=energy_per_atom.device
-            ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(
-                -1
-            )
 
             # per-atom energy prediction
             energy_per_atom = (

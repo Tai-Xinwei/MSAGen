@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-set_before=$( set -o posix; set | sed -e '/^_=*/d' )
-
 ulimit -c unlimited
 
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
+
+[ -z "${backbone_config}" ] && backbone_config='graphormer'
+[ -z "${backbone}" ] && backbone='graphormer'
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=true
+
+[ -z "${order}" ] && order=4
+[ -z "${vsc_debug}" ] && vsc_debug=false
 [ -z "${layers}" ] && layers=18
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
@@ -33,31 +38,33 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=2e-4
 [ -z "${total_num_steps}" ] && total_num_steps=200000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
 [ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${val_batch_size}" ] && val_batch_size=64
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=DDP
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000
+[ -z "${save_batch_interval}" ] && save_batch_interval=500
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=30000
 
-[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.7' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
-[ -z "${data_path}" ] && data_path='/data/peiran/'
+[ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm'
 # [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M,AFDB50-plddt70.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.2,0.4'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,1"
-[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=False
+[ -z "${data_path_list}" ] && data_path_list='matter-sim-15M'
+[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
+[ -z "${shuffle}" ] && shuffle=True
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2"
+[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
-[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
+[ -z "${load_ckpt}" ] && load_ckpt=true
+[ -z "${loadcheck_path}" ] && loadcheck_path='/mntd/shiyu/checkpoints/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-16xG8-truefp32-ddp-unified-sampler/checkpoint_E0_B157499.pt'
+[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-16xG8-truefp32-ddp-unified-sampler-8'
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
@@ -66,8 +73,8 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
-[ -z "${wandb_project}" ] && wandb_project=psm_dev
-[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
+[ -z "${wandb_project}" ] && wandb_project=psm_dev_shiyu_debug
+[ -z "${wandb_key}" ] && wandb_key=local-92e9aa662fb8066a31846fb8e57abd4e90ed09d8
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -81,7 +88,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=5.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
-[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
+[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=0
 
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
@@ -93,7 +100,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=True
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=True
 
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=1
 
 [ -z "${fp16}" ] && fp16=True
 
@@ -106,10 +113,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=True
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=False
-[ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=False
-[ -z "${use_dali_pipeline}" ] && use_dali_pipeline=True
+[ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
 
-[ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=True
+[ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -127,9 +133,33 @@ echo "OMPI_COMM_WORLD_LOCAL_RANK: ${OMPI_COMM_WORLD_LOCAL_RANK}"
 
 echo -e "\n\n"
 echo "=====================================ARGS======================================"
-set_after=$( set -o posix; unset set_before; set | sed -e '/^_=/d' )
-diff  <(echo "$set_before") <(echo "$set_after") | sed -e 's/^> //' -e '/^[[:digit:]].*/d'
-# hack from https://stackoverflow.com/questions/1305237/how-to-list-variables-declared-in-script-in-bash
+echo "n_layers: ${layers}"
+echo "num_pred_attn_layer: ${num_pred_attn_layer}"
+echo "hidden_size: ${hidden_size}"
+echo "ffn_size: ${ffn_size}"
+echo "num_head: ${num_head}"
+echo "d_tilde: ${d_tilde}"
+echo "sandwich_ln: ${sandwich_ln}"
+echo "max_lr: ${max_lr}"
+echo "total_num_steps: ${total_num_steps}"
+echo "warmup_num_steps: ${warmup_num_steps}"
+echo "dropout: ${dropout}"
+echo "attn_dropout: ${attn_dropout}"
+echo "act_dropout: ${act_dropout}"
+echo "weight_decay: ${weight_decay}"
+echo "droppath_prob: ${droppath_prob}"
+echo "atom_loss_coeff: ${atom_loss_coeff}"
+echo "pos_loss_coeff: ${pos_loss_coeff}"
+echo "no_2d: ${no_2d}"
+echo "add_3d: ${add_3d}"
+echo "data_path: ${data_path}"
+echo "output_path: ${output_path}"
+echo "dataset_name: ${dataset_name}"
+echo "noise_scale: ${noise_scale}"
+echo "mask_ratio: ${mask_ratio}"
+echo "mode_prob: ${mode_prob}"
+echo "noise_mode: ${noise_mode}"
+echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 
 # export NCCL_ASYNC_ERROR_HADNLING=1
 # export NCCL_DEBUG=INFO
@@ -162,10 +192,14 @@ fi
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 #   num_attention_heads=$num_head \
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
+# export WANDB_RUN_NAME=finetune-mattersim
+
+torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_small_mol.py \
           --config-name=config_psm.yaml \
-          backbone_config=graphormer \
-          backbone=graphormer \
+          backbone_config=$backbone_config \
+          backbone=$backbone \
+          psm_finetune_mode=$psm_finetune_mode \
+          loss_unit=$loss_unit \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
           encoder_ffn_embed_dim=$ffn_size \
@@ -180,6 +214,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           data_path=$data_path \
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
+          shuffle=$shuffle \
           save_dir=$save_dir \
           seed=12345 \
           ifresume=True \
@@ -218,10 +253,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           use_memory_efficient_attention=$use_memory_efficient_attention \
           decoder_ffn_dim=$decoder_ffn_dim \
-          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
-          use_dali_pipeline=$use_dali_pipeline \
-
-
-          # dynamic_loader --max_tokens=$max_tokens \
-          # --use_2d_atom_features --use_2d_bond_features \
-          # --dynamic_loader --max_tokens $max_tokens \
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project wandb_run_name=$wandb_run_name \
+          vsc_debug=$vsc_debug \

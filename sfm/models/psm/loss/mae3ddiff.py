@@ -147,10 +147,11 @@ class DiffMAE3dCriterions(nn.Module):
         return force_or_noise_loss, num_samples
 
     def forward(self, model_output, batched_data):
-        force_label = batched_data["forces"]
         energy_per_atom_label = batched_data["energy_per_atom"]
         atomic_numbers = batched_data["token_id"]
         noise_label = model_output["noise"]
+        force_label = model_output["force_label"]
+
         if self.diffusion_mode == "x0":
             pos_label = batched_data["ori_pos"]
         force_pred = model_output["forces"]

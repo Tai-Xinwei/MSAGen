@@ -1,15 +1,11 @@
 description: psm
 
 env_defaults:
-  NODES: 4
-  GPUS: 8
-  WANDB_API_KEY: "local-138548ae9c9a3b39646af8ae2c4c6d4e22c51385"
   JOBNAME: mock
 
 
 target:
   service: sing
-  # name: msrresrchlab
   name: msrresrchvc
   workspace_name: msrresrchws
 
@@ -22,8 +18,8 @@ environment:
 
 storage:
   blob:
-    storage_account_name: hai1data
-    container_name: pfm
+    storage_account_name: sfmdata
+    container_name: protein
     mount_dir: /blob
 
 code:

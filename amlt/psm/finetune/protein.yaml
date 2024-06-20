@@ -1,0 +1,231 @@
+
+description: psm-finetune-protein
+
+env_defaults:
+  WANDB_API_KEY: "local-138548ae9c9a3b39646af8ae2c4c6d4e22c51385"
+  RUN_NAME: EC-finetune-0618
+  task_name: EnzymeCommission # 'GeneOntology_cc' # 'GeneOntology_bp' # 'GeneOntology_mf' # , ,
+  seed: "13"
+  lr: "5e-5"
+  run: "06181447-300M-ECGO-checkpoint_E2_B9070-T"
+  epochs: "50"
+  batch_size: "64"
+  label_normalize: "False"
+  dropout: "0.2"
+  weight_decay: "0.0"
+
+# target:
+  # service: sing
+  # name: msrresrchvc
+  # name: msrresrchlab
+  # workspace_name: sfm-ws
+
+target:
+    service: aml
+    name: sfm-nd96amsra100v4-uksouth
+    # workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm:20240531.170731
+  registry: msroctocr.azurecr.io
+  username: msroctocr
+
+storage:
+  input:
+    storage_account_name: sfmarca100
+    container_name: sfm
+    mount_dir: /input
+  ckpt:
+    storage_account_name: sfmdata
+    container_name: protein
+    mount_dir: /ckpt
+
+code:
+  local_dir: ../SFM_framework
+
+
+# search:
+#   job_template:
+#     name: "finetune-multi_classification-{task_name:s}_seed{seed:s}_lr{lr:s}_E{epochs:s}_bs{batch_size:s}_dropout{dropout:s}_weightdecay{weight_decay:s}_{run:s}"
+#     tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+#     sku: 1x80G4-A100-NvLink
+#     priority: high
+#     sla_tier: premium
+#     mpi: true
+#     process_count_per_node: 1
+#     command:
+#     - export save_dir=/ckpt/psm-finetuning-checkpoints/protein-understanding/{task_name}/{run}
+#     - export pbc_cutoff=20.0
+#     - export pbc_expanded_num_cell_per_direction=5
+#     - export pbc_expanded_token_cutoff=256
+#     - export pbc_multigraph_cutoff=5.0
+#     - export pbc_use_local_attention=False
+
+#     - export num_pred_attn_layer=4
+#     - export dataset_split_raito=0.4,0.1,0.4,0.1
+
+#     - export save_batch_interval=0
+#     - export save_epoch_interval=1
+#     - export train_batch_size={batch_size}
+#     - export val_batch_size={batch_size}
+#     - export gradient_accumulation_steps=4
+#     - export val_batch_interval=0
+
+#     - export WANDB_RUN_NAME={task_name}_{run}
+#     - export epochs={epochs}
+#     - export max_lr={lr}
+
+#     - export diffusion_noise_std=10.0
+#     - export equivar_vec_init=ZERO_CENTERED_POS
+#     - export strategy=DDP
+#     - export fp16=False
+#     - export clean_sample_ratio=0.5
+#     - export mode_prob=0.1,0.2,0.7
+
+#     - export diff_init_lattice_size=10.0
+#     - export diffusion_sampling="ddpm"
+#     - export num_timesteps=5000
+#     - export ddpm_beta_start=1e-7
+#     - export ddpm_beta_end=2e-3
+#     - export ddpm_schedule=sigmoid
+
+#     - export equivar_use_linear_bias=True
+#     - export equivar_use_attention_bias=True
+
+#     - export data_path_list="PubChemQC-B3LYP-PM6,matter-sim-15M-merged,AFDB50-plddt70.lmdb,matter-sim-15M-force-filtered-merged"
+#     - export dataset_name_list="pm6,mattersim,afdb,mattersim"
+#     - export dataset_split_raito="0.4,0.1,0.4,0.1"
+#     - export dataset_micro_batch_size="16,4,2,4"
+#     - export use_unified_batch_sampler=True
+#     - export rescale_loss_with_std=True
+#     - export only_use_rotary_embedding_for_protein=True
+#     - export use_memory_efficient_attention=False
+
+#     - export seed={seed}
+#     - export loadcheck_path=/input/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240607-2159/checkpoint_E2_B9070.pt
+#     - export task_name={task_name}
+#     - export data_basepath='/ckpt/yaosen/data/bfm_benchmark/'
+#     - export early_stopping=False
+#     - export early_stopping_patience=5
+#     - export early_stopping_metric="f1_max"
+#     - export early_stopping_mode="max"
+#     - export label_normalize={label_normalize}
+#     - export head_dropout={dropout}
+#     - export weight_decay={weight_decay}
+
+#     - eval "$$(conda shell.bash hook)" && conda activate sfm
+#     - python setup_cython.py build_ext --inplace
+#     - bash ./scripts/psm/finetune_protein_understanding.sh
+#     submit_args:
+#         container_args:
+#           shm_size: 1024g
+#     # preemptible: false
+
+#   type: grid
+#   max_trials: 999
+#   parallel_trials: 1
+#   params:
+#     - name: task_name
+#       spec: discrete
+#       values: ['EnzymeCommission', 'GeneOntology_mf', 'GeneOntology_bp', 'GeneOntology_cc'] # ['EnzymeCommission', 'GeneOntology_mf', 'GeneOntology_bp', 'GeneOntology_cc']
+#     - name: seed
+#       spec: discrete
+#       values: ["13", ] # "21", "42",]
+#     - name: lr
+#       spec: discrete
+#       values: ["1e-5", ]
+#     - name: run
+#       spec: discrete
+#       values: ["0617-300M-ECGO-checkpoint_E2_B9070", ]
+#     - name: epochs
+#       spec: discrete
+#       values: ["2", ]
+#     - name: batch_size
+#       spec: discrete
+#       values: ["96",]
+#     - name: label_normalize
+#       spec: discrete
+#       values: ["False", ]
+#     - name: dropout
+#       spec: discrete
+#       values: ["0.3",]
+#     - name: weight_decay
+#       spec: discrete
+#       values: ["0.0", ]
+
+
+jobs:
+- name: "finetune-multi_classification-${task_name}_seed${seed}_lr${lr}_E${epochs}_bs${batch_size}_dropout${dropout}_weightdecay${weight_decay}_${run}"
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  sku: G8 # 1x80G4-A100-NvLink
+  priority: high
+  sla_tier: premium
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - export save_dir=/ckpt/psm-finetuning-checkpoints/protein-understanding/${task_name}/${run}
+  - export pbc_cutoff=20.0
+  - export pbc_expanded_num_cell_per_direction=5
+  - export pbc_expanded_token_cutoff=256
+  - export pbc_multigraph_cutoff=5.0
+  - export pbc_use_local_attention=False
+
+  - export num_pred_attn_layer=4
+  - export dataset_split_raito=0.4,0.1,0.4,0.1
+
+  - export save_batch_interval=0
+  - export save_epoch_interval=1
+  - export train_batch_size=${batch_size}
+  - export val_batch_size=12
+  - export gradient_accumulation_steps=4
+  - export val_batch_interval=0
+
+  - export WANDB_RUN_NAME=${task_name}_${run}
+  - export epochs=${epochs}
+  - export max_lr=${lr}
+
+  - export diffusion_noise_std=10.0
+  - export equivar_vec_init=ZERO_CENTERED_POS
+  - export strategy=DDP
+  - export fp16=False
+  - export clean_sample_ratio=0.5
+  - export mode_prob=0.0,1.0,0.0
+
+  - export diff_init_lattice_size=10.0
+  - export diffusion_sampling="ddpm"
+  - export num_timesteps=5000
+  - export ddpm_beta_start=1e-7
+  - export ddpm_beta_end=2e-3
+  - export ddpm_schedule=sigmoid
+
+  - export equivar_use_linear_bias=True
+  - export equivar_use_attention_bias=True
+
+  - export data_path_list="PubChemQC-B3LYP-PM6,matter-sim-15M-merged,AFDB50-plddt70.lmdb,matter-sim-15M-force-filtered-merged"
+  - export dataset_name_list="pm6,mattersim,afdb,mattersim"
+  - export dataset_split_raito="0.4,0.1,0.4,0.1"
+  - export dataset_micro_batch_size="16,4,2,4"
+  - export use_unified_batch_sampler=False
+  - export rescale_loss_with_std=True
+  - export only_use_rotary_embedding_for_protein=True
+  - export use_memory_efficient_attention=False
+
+  - export seed=${seed}
+  - export loadcheck_path=/input/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240607-2159/checkpoint_E4_B63140.pt
+  - export task_name=${task_name}
+  - export data_basepath='/ckpt/yaosen/data/bfm_benchmark/'
+  - export early_stopping=True
+  - export early_stopping_patience=5
+  - export early_stopping_metric="f1_max"
+  - export early_stopping_mode="max"
+  - export label_normalize=${label_normalize}
+  - export head_dropout=${dropout}
+  - export weight_decay=${weight_decay}
+  - export psm_finetune_noise_mode="T"
+
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - bash ./scripts/psm/finetune_protein_understanding.sh
+  submit_args:
+      container_args:
+        shm_size: 1024g

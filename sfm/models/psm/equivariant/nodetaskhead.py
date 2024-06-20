@@ -61,7 +61,7 @@ class NodeTaskHead(nn.Module):
         dist = delta_pos.norm(dim=-1).view(-1, n_node, extend_n_node)
         dist = dist.masked_fill(padding_mask.unsqueeze(-1), 1e6)
         dist = dist.masked_fill(expand_mask.unsqueeze(1), 1e6)
-        delta_pos /= dist.unsqueeze(-1) + 1.0
+        delta_pos = delta_pos / (dist.unsqueeze(-1) + 1.0)
 
         q = self.q_proj(x) * self.scaling
         k = self.k_proj(x)
@@ -114,6 +114,8 @@ class NodeTaskHead(nn.Module):
         decoder_x_output = attn_probs @ v_e
         decoder_x_output = decoder_x_output.permute(0, 2, 1, 3).reshape(bsz, n_node, -1)
         decoder_x_output = self.o_proj_energy(decoder_x_output)
+
+        # decoder_x_output = x
 
         return decoder_x_output, decoder_vec_output
 

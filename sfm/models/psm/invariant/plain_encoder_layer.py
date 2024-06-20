@@ -94,6 +94,7 @@ class PSMPlainEncoderLayer(nn.Module):
         padding_mask: torch.Tensor,
         batched_data: Dict,
         pbc_expand_batched: Optional[Dict[str, torch.Tensor]] = None,
+        ifbackprop: bool = False,
     ):
         """
         LayerNorm is applied either before or after the self-attention/ffn
@@ -112,12 +113,15 @@ class PSMPlainEncoderLayer(nn.Module):
                 pbc_expand_batched=pbc_expand_batched,
             )
         else:
+            math_kernel = ifbackprop and pbc_expand_batched is not None
+
             x, _ = self.self_attn(
                 x,
                 key_padding_mask=padding_mask,
                 need_weights=False,
                 attn_mask=None,
                 pbc_expand_batched=pbc_expand_batched,
+                math_kernel=math_kernel,
             )
         x = residual + x
 

@@ -28,10 +28,14 @@ from sfm.models.psm.psm_optimizer import DECAY_COSINE_RATE, groupWarmupDecayLR, 
 from sfm.models.psm.psmmodel import PSMModel
 from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig, ModelOutput
 from sfm.pipeline.accelerator.trainer import Model, Trainer, seed_everything
+from sfm.tasks.psm.ft_modules import PSM_FT_REGISTER, MDEnergyForceHead
 from sfm.utils import env_init
 from sfm.utils.cli_utils import cli, wandb_init
 
 import wandb  # isort: skip
+
+
+kcalmol_to_ev = 0.0433634
 
 
 @dataclass
@@ -41,14 +45,19 @@ class SmallMolConfig(DistributedTrainConfig, PSMConfig):
     train_val_test_split: List[float] = field(
         default_factory=lambda: [0.2, 0.7, 0.1]
     )  # NOTE: This is only for MD data
+    shuffle: bool = True
     vsc_debug: bool = False
+    energy_loss_weight: float = 0.01
+    force_loss_weight: float = 0.99
+    finetune_module: str = "md_energy_force_head"
+    loss_unit: str = "ev"
 
 
 cs = ConfigStore.instance()
 cs.store(name="config_psm_schema", node=SmallMolConfig)
 
 
-def load_data(args):
+def load_data(args, extra_collate_fn=None):
     # Dataset will automatically load based on the args
     sub_data_path_list = args.data_path_list.split(",")
     dataset_name_list = args.dataset_name_list.split(",")
@@ -69,17 +78,7 @@ def load_data(args):
             data_path,
             data_name=dataset_name,
         )
-        shuffle = True
-        if dataset_name in [
-            "Ac_Ala3_NHMe",
-            "AT_AT",
-            "AT_AT_CG_CG",
-            "DHA",
-            "stachyose",
-            "buckyball_catcher",  # buckyball_catcher/radius3_broadcast_kmeans
-            "double_walled_nanotube",  # double_walled_nanotube/radius3_broadcast_kmeans
-        ]:
-            shuffle = False
+        shuffle = args.shuffle
         train_dataset, valid_dataset, test_dataset = dataset.split_train_valid_test(
             args.train_val_test_split, sort=False, shuffle=shuffle
         )
@@ -98,9 +97,15 @@ def load_data(args):
         else BatchedDataDataset
     )
 
-    train_data = BatchedDataset(args, train_dataset_list, train_len)
-    valid_data = BatchedDataset(args, valid_dataset_list, valid_len)
-    test_data = BatchedDataset(args, test_dataset_list, test_len)
+    train_data = BatchedDataset(
+        args, train_dataset_list, train_len, extra_collate_fn=extra_collate_fn
+    )
+    valid_data = BatchedDataset(
+        args, valid_dataset_list, valid_len, extra_collate_fn=extra_collate_fn
+    )
+    test_data = BatchedDataset(
+        args, test_dataset_list, test_len, extra_collate_fn=extra_collate_fn
+    )
 
     return train_data, valid_data, test_data
 
@@ -166,7 +171,13 @@ class PSMSmallMoleculeModel(Model):
 
         f_loss = torch.mean(torch.abs(f_pred - f_true))
 
-        loss = 0.01 * e_loss + 0.99 * f_loss
+        if self.args.loss_unit == "kcal/mol":
+            e_loss /= kcalmol_to_ev
+            f_loss /= kcalmol_to_ev
+
+        loss = (
+            self.args.energy_loss_weight * e_loss + self.args.force_loss_weight * f_loss
+        )
         log_output = {
             "loss": loss,
             "energy_loss": (e_loss, size),
@@ -184,6 +195,7 @@ class PSMSmallMoleculeModel(Model):
 def finetune(cfg: DictConfig) -> None:
     args = OmegaConf.to_object(cfg)
     assert isinstance(args, SmallMolConfig)
+    assert args.clean_sample_ratio >= 1, "clean_sample_ratio should be set to 1.0"
 
     if args.vsc_debug:
         import debugpy
@@ -197,13 +209,24 @@ def finetune(cfg: DictConfig) -> None:
     seed_everything(args.seed)
     env_init.set_env(args)
 
-    train_data, valid_data, test_data = load_data(args)
+    finetune_module = None
+    extra_collate_fn = None
+    if args.psm_finetune_mode:
+        finetune_module = PSM_FT_REGISTER[args.finetune_module](args)
+        extra_collate_fn = finetune_module.update_batched_data
 
-    # define model
-    base = PSMModel(args, load_ckpt=args.load_ckpt, loss_fn=DiffMAE3dCriterions)
-    model = PSMSmallMoleculeModel(args, base)
+    train_data, valid_data, test_data = load_data(
+        args, extra_collate_fn=extra_collate_fn
+    )
 
-    # define optimizer
+    # Define model
+    model = PSMModel(
+        args, loss_fn=DiffMAE3dCriterions, psm_finetune_head=finetune_module
+    )
+    # base = PSMModel(args, loss_fn=DiffMAE3dCriterions)
+    # model = PSMSmallMoleculeModel(args, base)
+
+    # Define optimizer
     optimizer = myAdam(
         model,
         lr=args.max_lr,
