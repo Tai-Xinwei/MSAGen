@@ -156,7 +156,7 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
                             file_list.append(os.path.join(data_dir, pth))
                     else:
                         file_list.append(pth)
-            elif path.endswith(".lmdb") or os.path.endswith(".lmdb/"):
+            elif path.endswith(".lmdb") or path.endswith(".lmdb/"):
                 logger.info(f"Single file {path}")
                 if data_dir is not None:
                     file_list.append(os.path.join(data_dir, path))
