@@ -85,6 +85,8 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
+[ -z "${diffusion_training_loss}" ] && diffusion_training_loss="MSE"
+
 [ -z "${num_timesteps}" ] && num_timesteps=5000
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
 [ -z "${ddpm_beta_end}" ] && ddpm_beta_end=2e-3
@@ -215,5 +217,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           energy_loss_ratio=$energy_loss_ratio force_loss_ratio=$force_loss_ratio \
           preprocess_2d_bond_features_with_cuda=True \
           AutoGradForce=$AutoGradForce \
+          diffusion_training_loss=$diffusion_training_loss \
 
           # ifresume=True \
