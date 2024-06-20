@@ -425,7 +425,8 @@ class DdpAccelerator(SingleNodeAccelerator):
         multiprocessing.set_start_method("spawn", force=True)
 
         logger.critical(
-            f"Initializing DDP by env://. word size: {self.world_size}, rank: {self.rank}, local_rank: {self.local_rank}, master_addr: {master_addr}, master_port: {master_port}"
+            f"Initializing DDP by env://. word size: {self.world_size}, rank: {self.rank}, "
+            f"local_rank: {self.local_rank}, master_addr: {master_addr}, master_port: {master_port}"
         )
         torch.distributed.init_process_group(
             backend=self.args.dist_backend,
@@ -443,7 +444,7 @@ class DdpAccelerator(SingleNodeAccelerator):
             self.model,
             device_ids=[self.local_rank],
             output_device=self.local_rank,
-            find_unused_parameters=True,
+            find_unused_parameters=self.args.find_unused_parameters,
         )
         self.ddp_model = torch_compile(self.ddp_model, self.args.compile)
 
@@ -743,7 +744,8 @@ class DeepSpeedAccelerator(Accelerator):
                     self.args.deepspeed_config = json.load(deepspeed_config_file)
             except Exception as e:
                 logger.warning(
-                    f"Failed to load deepspeed config from {self.args.deepspeed_config}, using default config instead. Error message: {e}"
+                    f"Failed to load deepspeed config from {self.args.deepspeed_config}, "
+                    f"using default config instead. Error message: {e}"
                 )
                 from sfm.utils.defaultdsconfig import DEFAULT_DS_CONFIG
 
@@ -843,6 +845,13 @@ class DeepSpeedAccelerator(Accelerator):
                 "gradient_clipping"
             ] = self.args.gradient_clipping
             self.args.deepspeed_config["steps_per_print"] = self.args.log_interval
+
+            self.args.deepspeed_config["zero_optimization"][
+                "ignore_unused_parameters"
+            ] = not self.args.find_unused_parameters
+            self.args.deepspeed_config["aio"][
+                "ignore_unused_parameters"
+            ] = not self.args.find_unused_parameters
 
             # self.args.deepspeed_config["wandb"]["enabled"] = self.args.wandb
             # self.args.deepspeed_config["wandb"]["team"] = self.args.wandb_team
@@ -1163,7 +1172,8 @@ class DeepSpeedAccelerator(Accelerator):
             )
             if self.args.strategy == TrainStrategy.Pipeline:
                 logger.warning(
-                    f"Using pipeline training of DeepSpeed, will validate with train_batch_size {self.args.deepspeed_config['train_batch_size']}, "
+                    f"Using pipeline training of DeepSpeed, will validate with train_batch_size "
+                    f"{self.args.deepspeed_config['train_batch_size']}, "
                     f"val_batch_size {self.args.val_batch_size} is being ignored."
                 )
                 valid_batch_size_per_gpu = (
