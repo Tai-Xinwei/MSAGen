@@ -28,6 +28,7 @@ from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
 from .modules.autograd import GradientHead
+from .modules.dataaug import uniform_random_rotation
 from .modules.diffusion import DIFFUSION_PROCESS_REGISTER
 from .modules.sampled_structure_converter import SampledStructureConverter
 from .modules.timestep_encoder import DiffNoise, TimeStepSampler
@@ -273,8 +274,14 @@ class PSMModel(Model):
         ori_pos = center_pos(batched_data, padding_mask)
         ori_pos = ori_pos.masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
+        if self.args.backbone == "vanillatransformer":
+            R = uniform_random_rotation(
+                ori_pos.size(0), device=ori_pos.device, dtype=ori_pos.dtype
+            )
+            ori_pos = torch.bmm(ori_pos, R)
+
         self._create_initial_pos_for_diffusion(batched_data)
-        batched_data["ori_pos"] = batched_data["pos"]
+        batched_data["ori_pos"] = ori_pos
 
         noise_pos, noise, sqrt_one_minus_alphas_cumprod_t = self.diffnoise.noise_sample(
             x_start=ori_pos,
@@ -368,6 +375,7 @@ class PSMModel(Model):
         self._create_system_tags(batched_data)
         self._create_protein_mask(batched_data)
         pos = batched_data["pos"]
+
         n_graphs = pos.size(0)
         time_step, clean_mask = self.time_step_sampler.sample(
             n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
