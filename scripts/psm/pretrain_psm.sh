@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
+set_before=$( set -o posix; set | sed -e '/^_=*/d' )
+
 ulimit -c unlimited
 
 export MKL_SERVICE_FORCE_INTEL=1
@@ -125,33 +127,9 @@ echo "OMPI_COMM_WORLD_LOCAL_RANK: ${OMPI_COMM_WORLD_LOCAL_RANK}"
 
 echo -e "\n\n"
 echo "=====================================ARGS======================================"
-echo "n_layers: ${layers}"
-echo "num_pred_attn_layer: ${num_pred_attn_layer}"
-echo "hidden_size: ${hidden_size}"
-echo "ffn_size: ${ffn_size}"
-echo "num_head: ${num_head}"
-echo "d_tilde: ${d_tilde}"
-echo "sandwich_ln: ${sandwich_ln}"
-echo "max_lr: ${max_lr}"
-echo "total_num_steps: ${total_num_steps}"
-echo "warmup_num_steps: ${warmup_num_steps}"
-echo "dropout: ${dropout}"
-echo "attn_dropout: ${attn_dropout}"
-echo "act_dropout: ${act_dropout}"
-echo "weight_decay: ${weight_decay}"
-echo "droppath_prob: ${droppath_prob}"
-echo "atom_loss_coeff: ${atom_loss_coeff}"
-echo "pos_loss_coeff: ${pos_loss_coeff}"
-echo "no_2d: ${no_2d}"
-echo "add_3d: ${add_3d}"
-echo "data_path: ${data_path}"
-echo "output_path: ${output_path}"
-echo "dataset_name: ${dataset_name}"
-echo "noise_scale: ${noise_scale}"
-echo "mask_ratio: ${mask_ratio}"
-echo "mode_prob: ${mode_prob}"
-echo "noise_mode: ${noise_mode}"
-echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
+set_after=$( set -o posix; unset set_before; set | sed -e '/^_=/d' )
+diff  <(echo "$set_before") <(echo "$set_after") | sed -e 's/^> //' -e '/^[[:digit:]].*/d'
+# hack from https://stackoverflow.com/questions/1305237/how-to-list-variables-declared-in-script-in-bash
 
 # export NCCL_ASYNC_ERROR_HADNLING=1
 # export NCCL_DEBUG=INFO
