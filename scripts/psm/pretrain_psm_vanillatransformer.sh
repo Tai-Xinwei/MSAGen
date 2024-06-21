@@ -58,7 +58,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
 [ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.1
-[ -z "${force_loss_ratio}" ] && force_loss_ratio=1.0
+[ -z "${force_loss_ratio}" ] && force_loss_ratio=0.4
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psm/psmv1_vt_v8/"
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step252285"
