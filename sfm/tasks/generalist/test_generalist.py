@@ -22,7 +22,7 @@ from sfm.logging.loggers import logger as sfm_logger
 from sfm.models.generalist import GraphormerLlamaModel
 from sfm.models.generalist.generalist_config import GeneralistConfig
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
-from sfm.pipeline.accelerator.dataclasses import DistributedConfig, TrainerConfig
+from sfm.pipeline.accelerator.dataclasses import DistributedTrainConfig, TrainerConfig
 from sfm.utils.cli_utils import cli
 from sfm.utils.science_tokens import SCIENCE_TAG_TOKENS
 
@@ -505,7 +505,7 @@ def evaluate_score_from_response(response):
     GraphormerConfig,
     GeneralistConfig,
     TestGeneralistConfig,
-    DistributedConfig,
+    DistributedTrainConfig,
     TrainerConfig,
 )
 def main(args) -> None:

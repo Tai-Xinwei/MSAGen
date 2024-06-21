@@ -42,41 +42,6 @@ class TrainStrategy(str, Enum):
     ThreeD = "ThreeD"
 
 
-# Will be removed, use DistributedTrainConfig instead
-@dataclass
-class DistributedConfig:
-    """
-    DistributedConfig serves as a convenient way to store and manage various parameters required for efficient distributed training.
-
-    Args:
-        local_rank (int, default: -1): The local rank of the process within a node.
-
-        world_size (int, default: 1): The total number of processes involved in the distributed training.
-
-        node_rank (int, default: 0): The rank of the current node within the cluster.
-
-        rank (int, default: 0): The global rank of the process.
-
-        pipeline_model_parallel_size (int, default: 0): The size of the pipeline model parallel group.
-
-        tensor_model_parallel_size (int, default: 1): The size of the tensor model parallel group.
-
-        deepspeed_config (str, default: ''): The path to the DeepSpeed configuration file.
-
-        dist_backend (str, default: 'nccl'): The distributed backend to use for communication among processes.
-    """
-
-    local_rank: int = -1
-    world_size: int = 1
-    node_rank: int = 0
-    rank: int = 0
-    pipeline_model_parallel_size: int = 0
-    tensor_model_parallel_size: int = 1
-    deepspeed_config_path: str = ""
-    deepspeed_config: Any = None
-    dist_backend: str = "nccl"
-
-
 @dataclass
 class TrainerConfig:
     """
@@ -157,12 +122,6 @@ class TrainerConfig:
     use_unified_batch_sampler: bool = False
     activation_checkpoint_interval: int = 0
     checkpointable_layers: Optional[list[str]] = None
-
-    # dataloader strategy
-    dynamic_loader: bool = False
-    ifstack: bool = False
-    use_dali_pipeline: bool = False
-
     gradient_clipping: float = 1.0
     total_num_steps: int = 1000
     warmup_num_steps: int = 60
@@ -174,6 +133,17 @@ class TrainerConfig:
     min_lr: float = 8e-6
     weight_decay: float = 0.0
     total_num_epochs: int = 100
+    find_unused_parameters: bool = True
+
+    # adam
+    beta1: float = 0.9
+    beta2: float = 0.999
+    eps: float = 1e-8
+
+    # dataloader strategy
+    dynamic_loader: bool = False
+    ifstack: bool = False
+    use_dali_pipeline: bool = False
 
     # wandb
     wandb: bool = False
@@ -181,10 +151,6 @@ class TrainerConfig:
     wandb_group: str = ""
     wandb_project: str = ""
     wandb_run_name: str = ""
-    # adam
-    beta1: float = 0.9
-    beta2: float = 0.999
-    eps: float = 1e-8
 
     # early stopping
     early_stopping: bool = False

@@ -356,7 +356,8 @@ class Trainer(object):
                 logger.warning(f"Checkpoint path {checkpoint_path} does not exist.")
         else:
             logger.warning(
-                f"Non-empty checkpoint_list.txt or latest file is not present in {path}, or finetune_from_checkpoint_id is not provided. No checkpoint is loaded."
+                f"Non-empty checkpoint_list.txt or latest file is not present in {path}, "
+                f"or finetune_from_checkpoint_id is not provided. No checkpoint is loaded."
             )
 
     def resume(self):
@@ -525,7 +526,7 @@ class Trainer(object):
 
         total_num, trainable_num = self.count_parameters()
         logger.info(
-            "Total number of parameters: {:,}, trainable: {:,}, trainable param may not in optimzier",
+            "Total number of parameters: {:,} - number of trainable parameters: {:,}.",
             total_num,
             trainable_num,
         )
@@ -626,7 +627,8 @@ class Trainer(object):
                             )
                         if value is None:
                             logger.warning(
-                                f"Metric {self.early_stopping.metric} is not available in the validation log, early stopping is set but not not used in this epoch."
+                                f"Metric {self.early_stopping.metric} is not available in the "
+                                f"validation log, early stopping is set but not not used in this epoch."
                             )
                         # update early stopping and save stop flag
                         should_stop = self.early_stopping(value)
@@ -657,12 +659,14 @@ class Trainer(object):
                             )
                         if should_stop:
                             logger.info(
-                                f"Early stopping at epoch {self.state.epoch}, exiting training loop, copying best model to checkpoint_best.pt."
+                                f"Early stopping at epoch {self.state.epoch}, exiting training "
+                                f"loop, copying best model to checkpoint_best.pt."
                             )
                             break
 
                         logger.info(
-                            f"Best {self.early_stopping.metric} is {self.early_stopping.best} at epoch {self.early_stopping.best_at}, "
+                            f"Best {self.early_stopping.metric} is {self.early_stopping.best} "
+                            f"at epoch {self.early_stopping.best_at}, "
                             f"not improving over past {self.early_stopping.counter} epochs. "
                         )
 
