@@ -34,7 +34,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
@@ -57,10 +57,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
-[ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.2
+[ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.1
 [ -z "${force_loss_ratio}" ] && force_loss_ratio=1.0
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/hai1data/sfm/pfmexp/output/psmv1_vt_v4/checkpoints/"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psm/psmv1_vt_v8/"
+[ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step252285"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
@@ -199,7 +200,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
           gradient_accumulation_steps=$gradient_accumulation_steps \
           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
-          save_batch_interval=$save_batch_interval log_interval=$log_interval loadcheck_path=$loadcheck_path \
+          save_batch_interval=$save_batch_interval log_interval=$log_interval \
           equivar_vec_init=$equivar_vec_init pbc_use_local_attention=$pbc_use_local_attention \
           pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
@@ -218,5 +219,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           preprocess_2d_bond_features_with_cuda=True \
           AutoGradForce=$AutoGradForce \
           diffusion_training_loss=$diffusion_training_loss \
-
-          # ifresume=True \
+          ifresume=True \
+          # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \

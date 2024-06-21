@@ -7,7 +7,7 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 8
+  NODES: 2
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -38,7 +38,7 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: psmv1_vt_v8
+- name: psmv1_vt_v9
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}-IB
   mpi: true
@@ -66,7 +66,7 @@ jobs:
   - export act_dropout=0.1
   - export weight_decay=0.0
   - export droppath_prob=0.0
-  - export mask_ratio=0.5
+  - export mask_ratio=0.6
   - export d_tilde=1.0
   - export max_lr=1.0e-4
   - export strategy=Zero1
