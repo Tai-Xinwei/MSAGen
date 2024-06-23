@@ -164,6 +164,7 @@ class DiffMAE3dCriterions(nn.Module):
         is_protein = model_output["is_protein"]
         is_molecule = model_output["is_molecule"]
         is_periodic = model_output["is_periodic"]
+        is_seq_only = model_output["is_seq_only"]
         diff_loss_mask = model_output["diff_loss_mask"]
         protein_mask = model_output["protein_mask"]
         # sqrt_one_minus_alphas_cumprod_t = model_output["sqrt_one_minus_alphas_cumprod_t"]
@@ -295,7 +296,7 @@ class DiffMAE3dCriterions(nn.Module):
                 num_protein_noise_sample,
             ) = self._reduce_force_or_noise_loss(
                 unreduced_noise_loss,
-                ~clean_mask & is_protein.unsqueeze(-1),
+                ~clean_mask & is_protein.unsqueeze(-1) & ~is_seq_only.unsqueeze(-1),
                 diff_loss_mask & ~protein_mask.any(dim=-1),
                 is_molecule,
                 is_periodic,

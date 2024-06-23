@@ -863,6 +863,7 @@ class UR50LMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = pkl.loads(value)
         data["aa"] = list(data["aa_seq"])
+
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
             random_start = random.randint(0, len(data["aa"]) - self.args.max_length)

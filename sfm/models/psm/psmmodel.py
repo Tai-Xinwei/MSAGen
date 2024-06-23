@@ -1059,6 +1059,7 @@ class PSM(nn.Module):
             "is_molecule": is_molecule,
             "is_periodic": is_periodic,
             "is_protein": is_protein,
+            "is_seq_only": batched_data["is_seq_only"],
             "num_atoms": batched_data["num_atoms"],
         }
 
