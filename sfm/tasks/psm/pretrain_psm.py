@@ -18,6 +18,7 @@ from sfm.data.psm_data.pipeline import UnifiedBatchedIterableDataset
 from sfm.data.psm_data.unifieddataset import (
     BatchedDataDataset,
     BatchedDataDatasetForUnifiedSampler,
+    StackedIterableDataset,
     UnifiedPSMDataset,
 )
 from sfm.logging import logger
@@ -77,8 +78,11 @@ def main(args: DictConfig) -> None:
         extra_collate_fn = finetune_module.update_batched_data
 
     if args.ifstack:
-        raise NotImplementedError("ifstack is not finished yet!")
-        # train_data = StackedIterableDataset(train_data, args, dataset.sizes)
+        # raise NotImplementedError("ifstack is not finished yet!")
+        train_data = StackedIterableDataset(train_data, args, dataset.sizes)
+        valid_data = BatchedDataDataset(
+            args, valid_data, dataset.valid_len, extra_collate_fn=extra_collate_fn
+        )
     elif args.use_unified_batch_sampler:
         train_data = BatchedDataDatasetForUnifiedSampler(
             args, train_data, dataset.train_len, extra_collate_fn=extra_collate_fn

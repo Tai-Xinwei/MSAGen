@@ -761,6 +761,245 @@ class AFDBLMDBDataset(FoundationModelDataset):
         return self.sizes[index]
 
 
+class UR50LMDBDataset(FoundationModelDataset):
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: Optional[str],
+    ):
+        self.lmdb_path = lmdb_path
+        self.args = args
+
+        self.vacab_mapping_dict = {
+            0: 158,  # maps '<cls>' from vocab to self.vocab
+            1: 0,  # maps '<pad>' from vocab to self.vocab
+            2: 159,  # maps '<eos>' from vocab to self.vocab
+            3: None,  # there is no equivalent of '' in self.vocab
+            4: 130,  # maps 'L' from vocab to self.vocab
+            5: 131,  # maps 'A' from vocab to self.vocab
+            6: 132,  # maps 'G' from vocab to self.vocab
+            7: 133,  # maps 'V' from vocab to self.vocab
+            8: 134,  # maps 'S' from vocab to self.vocab
+            9: 135,  # maps 'E' from vocab to self.vocab
+            10: 136,  # maps 'R' from vocab to self.vocab
+            11: 137,  # maps 'T' from vocab to self.vocab
+            12: 138,  # maps 'I' from vocab to self.vocab
+            13: 139,  # maps 'D' from vocab to self.vocab
+            14: 140,  # maps 'P' from vocab to self.vocab
+            15: 141,  # maps 'K' from vocab to self.vocab
+            16: 142,  # maps 'Q' from vocab to self.vocab
+            17: 143,  # maps 'N' from vocab to self.vocab
+            18: 144,  # maps 'F' from vocab to self.vocab
+            19: 145,  # maps 'Y' from vocab to self.vocab
+            20: 146,  # maps 'M' from vocab to self.vocab
+            21: 147,  # maps 'H' from vocab to self.vocab
+            22: 148,  # maps 'W' from vocab to self.vocab
+            23: 149,  # maps 'C' from vocab to self.vocab
+            24: 150,  # maps 'X' from vocab to self.vocab
+            25: 151,  # maps 'B' from vocab to self.vocab
+            26: 152,  # maps 'U' from vocab to self.vocab
+            27: 153,  # maps 'Z' from vocab to self.vocab
+            28: 154,  # maps 'O' from vocab to self.vocab
+            29: 156,  # maps '.' from vocab to self.vocab
+            30: 155,  # maps '-' from vocab to self.vocab
+            31: 157,  # maps '<mask>' from vocab to self.vocab
+        }
+
+        # for dataloader with num_workers > 1
+        self._env, self._txn = None, None
+        self._sizes, self._keys = None, None
+
+        # self.filter_indices_by_size(
+        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
+        # )
+
+    def _init_db(self):
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self._txn = self.env.begin(write=False)
+        metadata = bstr2obj(self.txn.get("metadata".encode()))
+        self._sizes, self._keys = metadata["lengths"], metadata["prot_accessions"]
+
+    def _close_db(self):
+        if self._env is not None:
+            self._env.close()
+            self._env = None
+            self._txn = None
+
+    @property
+    def env(self):
+        if self._env is None:
+            self._init_db()
+        return self._env
+
+    @property
+    def txn(self):
+        if self._txn is None:
+            self._init_db()
+        return self._txn
+
+    @property
+    def sizes(self):
+        if self._sizes is None:
+            self._init_db()
+        return self._sizes
+
+    @property
+    def keys(self):
+        if self._keys is None:
+            self._init_db()
+        return self._keys
+
+    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
+        key = self.keys[idx]
+        value = self.txn.get(f"{key}".encode())
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        data = pkl.loads(value)
+        data["aa"] = list(data["aa_seq"])
+        # random cut off the sequence data["aa"] to self.max_length
+        if len(data["aa"]) > self.args.max_length:
+            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
+
+        x = torch.tensor(
+            [self.vacab_mapping_dict[tok] - 1 for tok in data["aa"]], dtype=torch.int64
+        )
+
+        data["sample_type"] = 5
+        data["token_type"] = x
+        data["idx"] = idx
+
+        data["coords"] = torch.zeros(
+            (data["token_type"].size()[0], 3), dtype=torch.float64
+        )
+        data["num_atoms"] = x.size()[0]
+
+        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
+        data["forces"] = torch.zeros(
+            (x.size()[0], 3), dtype=torch.float64, device=x.device
+        )
+        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=x.device
+        )
+
+        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+
+        data = self.generate_2dgraphfeat(data)
+
+        data["is_stable_periodic"] = False
+
+        return data
+
+    def split_dataset(self, validation_ratio=0.03, sort=False):
+        num_samples = len(self.keys)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(12345).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(self.args, self.lmdb_path)
+        dataset_train._keys = [self._keys[idx] for idx in training_indices]
+        dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
+
+        dataset_val = self.__class__(self.args, self.lmdb_path)
+        dataset_val._keys = [self._keys[idx] for idx in validation_indices]
+        dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
+
+        return dataset_train, dataset_val
+
+    def filter_indices_by_size(self, indices, max_sizes):
+        """
+        Filter a list of sample indices. Remove those that are longer than
+        specified in *max_sizes*.
+
+        WARNING: don't update, override method in child classes
+
+        Args:
+            indices (np.array): original array of sample indices
+            max_sizes (int or list[int] or tuple[int]): max sample size,
+                can be defined separately for src and tgt (then list or tuple)
+        """
+        if isinstance(max_sizes, float) or isinstance(max_sizes, int):
+            if hasattr(self, "_sizes") and isinstance(self._sizes, np.ndarray):
+                ignored = indices[self._sizes[indices] > max_sizes].tolist()
+                indices = indices[self._sizes[indices] <= max_sizes]
+            elif hasattr(self, "_sizes") and isinstance(self._sizes, list):
+                sizes = np.array(self._sizes)
+                ignored = indices[np.array(sizes[indices]) > max_sizes].tolist()
+                indices = indices[np.array(sizes[indices]) <= max_sizes]
+            else:
+                indices, ignored = _filter_by_size_dynamic(
+                    indices, self._sizes, max_sizes
+                )
+        else:
+            indices, ignored = _filter_by_size_dynamic(indices, self._sizes, max_sizes)
+
+        logger.warning(
+            f"Removed {len(ignored)} examples from the AFDBLMDBDataset because they are longer than {max_sizes}."
+        )
+        self._sizes = [self._sizes[idx] for idx in indices]
+        self._keys = [self._keys[idx] for idx in indices]
+
+    # protein does not have 2dgraph, create one for mixing data
+    def generate_2dgraphfeat(self, data):
+        N = data["token_type"].shape[0]
+        adj = torch.zeros([N, N], dtype=torch.bool)
+
+        edge_index = torch.zeros([2, 0], dtype=torch.long)
+        edge_attr = torch.zeros([0, 3], dtype=torch.long)
+        indgree = adj.long().sum(dim=1).view(-1)
+
+        data["edge_index"] = edge_index
+        data["edge_attr"] = edge_attr
+        data["node_attr"] = torch.cat(
+            [
+                data["token_type"].unsqueeze(-1),
+                torch.zeros([data["token_type"].size()[0], 8], dtype=torch.long),
+            ],
+            dim=-1,
+        )
+        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        data["in_degree"] = indgree
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result = (
+                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+            )
+            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = edge_input
+            data["spatial_pos"] = spatial_pos
+
+        return data
+
+    def __len__(self) -> int:
+        return len(self.keys)
+
+    def num_tokens(self, index: int) -> int:
+        return self.sizes[index]
+
+
 class SmallMolDataset(FoundationModelDataset):
     r"""Dataset class to load from LMDB files containing relaxation
     trajectories or single point computations.

@@ -6,20 +6,14 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-
-# wget 'https://aka.ms/downloadazcopy-v10-linux' -O /tmp/azcopy.tar.gz
-# tar -xf /tmp/azcopy.tar.gz -C /tmp
-# # find the folder in /tmp and starts with azcopy_linux_amd64
-# azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
-
-[ -z "${layers}" ] && layers=22
-[ -z "${hidden_size}" ] && hidden_size=1024
-[ -z "${ffn_size}" ] && ffn_size=4096
+[ -z "${layers}" ] && layers=34
+[ -z "${hidden_size}" ] && hidden_size=1536
+[ -z "${ffn_size}" ] && ffn_size=6144
 [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${max_length}" ] && max_length=512
+[ -z "${max_length}" ] && max_length=1536
 [ -z "${max_tokens}" ] && max_tokens=2000
 # [ -z "${max_tokens}" ] && max_tokens=36000
 
@@ -31,7 +25,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.6
+[ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
 
 [ -z "${d_tilde}" ] && d_tilde=1
@@ -46,25 +40,26 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
+
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
-[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.7'
+[ -z "${mode_prob}" ] && mode_prob='1.0,0.0,0.0'
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,afdb'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.5'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128,12"
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,12,12,12'
+# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
+[ -z "${data_path_list}" ] && data_path_list='ur50_23_bpe_pack1536.lmdb'
+[ -z "${dataset_name_list}" ] && dataset_name_list='ur50'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16'
 
+[ -z "${ifstack}" ] && ifstack=False
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
+[ -z "${seq_only}" ] && seq_only=True
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
-[ -z "${fp16}" ] && fp16=False
-[ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.1
-[ -z "${force_loss_ratio}" ] && force_loss_ratio=0.4
+[ -z "${fp16}" ] && fp16=True
+[ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.0
+[ -z "${force_loss_ratio}" ] && force_loss_ratio=0.0
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psm/psmv1_vt_v8/"
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step252285"
@@ -223,7 +218,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           use_dali_pipeline=$use_dali_pipeline \
           energy_loss_ratio=$energy_loss_ratio force_loss_ratio=$force_loss_ratio \
           preprocess_2d_bond_features_with_cuda=True \
-          AutoGradForce=$AutoGradForce \
+          AutoGradForce=$AutoGradForce seq_only=$seq_only \
           diffusion_training_loss=$diffusion_training_loss \
+          ifstack=$ifstack \
           # ifresume=True \
           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
