@@ -54,7 +54,7 @@ jobs:
   - export max_lr=1e-4
   - export load_ckpt=True
   - export data_dir=/nlm/peiran/llama3_processed_data/lmdb/
-  - export data_ratio=
+  - export data_ratio=0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0
   - export train_data_path=v5_processed_text_train.npy.lmdb,v5_processed_dna_train.npy.lmdb,v5_processed_fragments_train.npy.lmdb,v5_processed_general_cmpd_text_train.npy.lmdb,v5_processed_general_cmpd_train.npy.lmdb,v5_processed_material_text_train.npy.lmdb,v5_processed_material_train.npy.lmdb,v5_processed_pistachio_train.npy.lmdb,v5_processed_protein_dna_train.npy.lmdb,v5_processed_protein_smile_text_train.npy.lmdb,v5_processed_protein_text_train.npy.lmdb,
   - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split/
   - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
