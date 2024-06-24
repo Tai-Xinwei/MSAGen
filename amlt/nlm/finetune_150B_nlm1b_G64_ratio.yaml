@@ -55,7 +55,7 @@ jobs:
   - export load_ckpt=True
   - export data_dir=/nlm/peiran/llama3_processed_data/lmdb/
   - export data_ratio=
-  - export train_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_train_split/
+  - export train_data_path=v5_processed_text_train.npy.lmdb,v5_processed_dna_train.npy.lmdb,v5_processed_fragments_train.npy.lmdb,v5_processed_general_cmpd_text_train.npy.lmdb,v5_processed_general_cmpd_train.npy.lmdb,v5_processed_material_text_train.npy.lmdb,v5_processed_material_train.npy.lmdb,v5_processed_pistachio_train.npy.lmdb,v5_processed_protein_dna_train.npy.lmdb,v5_processed_protein_smile_text_train.npy.lmdb,v5_processed_protein_text_train.npy.lmdb,
   - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split/
   - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
   - export loadcheck_path=/nlm/peiran/output/nlm_base1b_300B/global_step7805/
