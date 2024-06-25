@@ -16,7 +16,11 @@ from sfm.logging import logger
 from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
-from sfm.models.psm.equivariant.nodetaskhead import NodeTaskHead, VectorOutput
+from sfm.models.psm.equivariant.nodetaskhead import (
+    NodeTaskHead,
+    VectorOutput,
+    VectorProjOutput,
+)
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
@@ -792,6 +796,7 @@ class PSM(nn.Module):
 
             if args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
                 self.noise_head = VectorOutput(psm_config.embedding_dim)
+                # self.noise_head = VectorProjOutput(psm_config.embedding_dim)
                 self.forces_head.update({key: VectorOutput(psm_config.embedding_dim)})
             else:
                 self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
@@ -976,6 +981,7 @@ class PSM(nn.Module):
         ):
             if not self.args.seq_only:
                 noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
+                # noise_pred = self.noise_head(encoder_output.transpose(0, 1), decoder_vec_output)
 
                 energy_per_atom = torch.where(
                     is_periodic.unsqueeze(-1),

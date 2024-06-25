@@ -12,8 +12,10 @@ env_defaults:
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
 target:
-  service: aml
-  name: townsend1
+  service: sing
+  name: baltic02
+  workspace_name: sfm-ws
+
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -22,12 +24,9 @@ environment:
 
 storage:
   blob:
-    storage_account_name: sfmarca100 # Storage account
-    container_name: sfm # Container name
-    mount_dir: /sfm
-    # storage_account_name: sfmdataeastus2 # Storage account
-    # container_name: psm # Container name
-    # mount_dir: /psm
+    storage_account_name: sfmdataeastus2 # Storage account
+    container_name: psm # Container name
+    mount_dir: /psm
 
 code:
   local_dir: ../SFM_framework
@@ -43,12 +42,6 @@ jobs:
   - export wandb_group=psm_VT
   - export wandb_project=psm_VT
   - export WANDB_API_KEY=${WANDB_API_KEY}
-  - mkdir /blob/pfmexp/output
-  - mkdir /blob/experiment/psm/psmv1_vt_v10_1b
-  - mkdir /blob/experiment/psm/psmv1_vt_v10_1b/checkpoints
-  - mkdir ./output
-  - export path=run.sh
-  - export num_pred_attn_layer=4
   - export layers=34
   - export hidden_size=1536
   - export ffn_size=6144
@@ -74,8 +67,7 @@ jobs:
   - export max_length=512
   - export gradient_accumulation_steps=8
   - export log_interval=100
-  - export data_path=/nfs6/psmdata/
-  # - export data_path=/psm/data/
+  - export data_path=/psm/data/
   - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb'
   - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50'
   - export dataset_split_raito='0.2,0.1,0.4,0.1,0.2'
@@ -91,10 +83,8 @@ jobs:
   - export use_unified_batch_sampler=True
   - export use_dali_pipeline=False
   - export save_batch_interval=30000
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v10_1b/checkpoints
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v10_1b/checkpoints
-  # - export loadcheck_path=/psm/exp/peiran/psmv1_vt_v5/checkpoints
-  # - export save_dir=/psm/exp/peiran/psmv1_vt_v5/checkpoints
+  - export loadcheck_path=/psm/exp/peiran/psmv1_vt_v10_1b/checkpoints
+  - export save_dir=/psm/exp/peiran/psmv1_vt_v10_1b/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
