@@ -45,6 +45,8 @@ class MoeModelConfig(MixtralConfig, DistributedTrainConfig):
     prot_spm_path: str = "/blob/shufxi/data/scigpt/ur50bpe/bpe"
     dna_spm_path: str = "/blob/shufxi/data/scigpt/dnabpe/bpe"
     rna_spm_path: str = "/blob/shufxi/data/scigpt/rnabpe/bpe"
+    data_dir: str = ""
+    data_raito: str = ""
     train_data_path: str = ""
     valid_data_path: str = ""
     pretrained_ckpt_path: str = ""
@@ -52,6 +54,7 @@ class MoeModelConfig(MixtralConfig, DistributedTrainConfig):
 
     ft: bool = False
     infer: bool = False
+    weighted_dataset: bool = False
 
 
 def sfm_nlm_moe_tiny_config(config: MoeModelConfig):

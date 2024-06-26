@@ -124,6 +124,7 @@ def collate_fn(
             item["edge_input"] = item["edge_input"][:, :, :multi_hop_max_dist, :]
 
     idx = torch.tensor([i["idx"] for i in items], dtype=torch.long)
+    sample_type = torch.tensor([i["sample_type"] for i in items], dtype=torch.long)
     max_node_num = max(i["token_type"].shape[0] for i in items)
     energy = [i["energy"] for i in items]
     energy_per_atom = [i["energy_per_atom"] for i in items]
@@ -206,6 +207,7 @@ def collate_fn(
 
     batched_data = dict(
         idx=idx,
+        sample_type=sample_type,
         attn_bias=attn_bias,
         in_degree=in_degree,
         out_degree=in_degree,  # for undirected graph

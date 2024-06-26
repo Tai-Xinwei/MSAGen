@@ -79,6 +79,9 @@ def main(args: DictConfig) -> None:
     if args.ifstack:
         raise NotImplementedError("ifstack is not finished yet!")
         # train_data = StackedIterableDataset(train_data, args, dataset.sizes)
+        # valid_data = BatchedDataDataset(
+        #     args, valid_data, dataset.valid_len, extra_collate_fn=extra_collate_fn
+        # )
     elif args.use_unified_batch_sampler:
         train_data = BatchedDataDatasetForUnifiedSampler(
             args, train_data, dataset.train_len, extra_collate_fn=extra_collate_fn

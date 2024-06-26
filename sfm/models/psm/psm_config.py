@@ -98,6 +98,7 @@ class PSMConfig(GraphormerConfig):
     energy_loss_ratio: float = 1.0
     force_loss_ratio: float = 1.0
     AutoGradForce: bool = False
+    seq_only: bool = False
 
     # used in force and noise heads
     num_force_and_noise_head_layers: int = 2

@@ -28,36 +28,39 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: finetune_base_protein_G64_3e4
+- name: sfm_nlm_llama3_stageB
   sku: ${NODES}xG${GPUS}-IB
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
   mpi: true
   process_count_per_node: 1
   command:
   - export WANDB_API_KEY=${WANDB_API_KEY}
-  - export WANDB_PROJECT=nlm_llama3
+  - export WANDB_PROJECT=nlm_base1b_300B
   - export WANDB_TEAM=ai4s-sfm
-  - export wandb_group=finetune_base_protein_G64_3e4
+  - export wandb_group=finetune_base_150B_G64
   - export NCCL_DEBUG=INFO
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - pip install -e . --no-deps
   - python setup_cython.py build_ext --inplace
   - pip install git+https://github.com/NVIDIA/TransformerEngine.git@stable
   - pip uninstall flash-attn -y
-  - export train_batch_size=512
-  - export val_batch_size=512
-  - export gradient_accumulation_steps=4
+  - export train_batch_size=4096
+  - export val_batch_size=4096
+  - export gradient_accumulation_steps=64
   - export tensor_model_parallel_size=1
   - export pipeline_model_parallel_size=1
-  - export total_num_steps=73000
-  - export warmup_num_steps=3600
-  - export max_lr=3e-4
+  - export total_num_steps=50000
+  - export warmup_num_steps=2000
+  - export max_lr=1e-4
   - export load_ckpt=True
-  - export train_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_train_split/v5_processed_protein_train.npy.lmdb
-  - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split/v5_protein_valid.npy.lmdb
+  - export weighted_dataset=True
+  - export data_dir=/nlm/peiran/llama3_processed_data/lmdb/
+  - export data_ratio=0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0
+  - export train_data_path=v5_processed_text_train.npy.lmdb,v5_processed_dna_train.npy.lmdb,v5_processed_fragments_train.npy.lmdb,v5_processed_general_cmpd_text_train.npy.lmdb,v5_processed_general_cmpd_train.npy.lmdb,v5_processed_material_text_train.npy.lmdb,v5_processed_material_train.npy.lmdb,v5_processed_pistachio_train.npy.lmdb,v5_processed_protein_dna_train.npy.lmdb,v5_processed_protein_smile_text_train.npy.lmdb,v5_processed_protein_text_train.npy.lmdb,
+  - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split/
   - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
   - export loadcheck_path=/nlm/peiran/output/nlm_base1b_300B/global_step7805/
-  - export save_dir=/nlm/peiran/output/finetune_base_protein_G64_3e4/
+  - export save_dir=/nlm/peiran/output/finetune_base_150B_G128/
   - bash scripts/nlm/finetune_base1b_protein.sh
   submit_args:
     env:
