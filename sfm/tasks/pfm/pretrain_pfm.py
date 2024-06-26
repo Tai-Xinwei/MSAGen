@@ -47,7 +47,7 @@ def main(args) -> None:
             vocab=trainset.vocab,
         )
 
-    val_data = BatchedDataDataset(
+    BatchedDataDataset(
         valset,
         args=args,
         vocab=trainset.vocab,
@@ -80,7 +80,7 @@ def main(args) -> None:
         args,
         model,
         train_data=train_data,
-        valid_data=val_data,
+        # valid_data=val_data,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
     )

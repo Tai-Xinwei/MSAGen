@@ -774,7 +774,7 @@ class UR50LMDBDataset(FoundationModelDataset):
             0: 158,  # maps '<cls>' from vocab to self.vocab
             1: 0,  # maps '<pad>' from vocab to self.vocab
             2: 159,  # maps '<eos>' from vocab to self.vocab
-            3: None,  # there is no equivalent of '' in self.vocab
+            # 3: None,  # there is no equivalent of '<unk>' in self.vocab
             4: 130,  # maps 'L' from vocab to self.vocab
             5: 131,  # maps 'A' from vocab to self.vocab
             6: 132,  # maps 'G' from vocab to self.vocab
