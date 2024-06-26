@@ -42,7 +42,7 @@ jobs:
   - export wandb_group=psm_VT
   - export wandb_project=psm_VT
   - export WANDB_API_KEY=${WANDB_API_KEY}
-  - export layers=34
+  - export layers=32
   - export hidden_size=1536
   - export ffn_size=6144
   - export num_head=32

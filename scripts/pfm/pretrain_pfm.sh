@@ -61,9 +61,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=BFM
-[ -z "${wandb_team}" ] && wandb_team=peiranjin
-[ -z "${wandb_project}" ] && wandb_project=ds_mfmpre
+[ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
+[ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
+[ -z "${wandb_project}" ] && wandb_project=psm_dev
+[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -126,8 +127,8 @@ export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export OMP_NUM_THREADS=1
 
 
-# wandb login --relogin e9150e973268b83f75cda414757706e08e6a7a93
-# export WANDB_API_KEY=e9150e973268b83f75cda414757706e08e6a7a93
+wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+export WANDB_API_KEY=$wandb_key
 
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then

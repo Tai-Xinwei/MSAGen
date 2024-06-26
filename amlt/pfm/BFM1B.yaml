@@ -36,7 +36,11 @@ jobs:
   mpi: true
   process_count_per_node: 1
   command:
-  - export layers=34
+  - export WANDB_TEAM=ai4s-sfm
+  - export wandb_group=psm_VT_stage0
+  - export wandb_project=psm_VT
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export layers=32
   - export hidden_size=1536
   - export ffn_size=6144
   - export num_head=32
