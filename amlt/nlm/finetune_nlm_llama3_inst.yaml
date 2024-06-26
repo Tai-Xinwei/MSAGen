@@ -1,0 +1,86 @@
+description: finetune_sfm_nlmllama3_inst
+
+env_defaults:
+  NODES: 1
+  GPUS: 8
+  # WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
+  WANDB_API_KEY: "7a4eda8c60b1015329d5dc64869f33d57dde64db"
+
+
+target:
+  service: aml
+  name: sfm-nd96amsra100v4-uksouth
+  # workspace_name: msrresrchws
+
+# target:
+#     service: aml
+#     name: townsend1
+
+# target:
+    # service: aml
+    # name: townsend1
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msroctocr.azurecr.io
+  username: msroctocr
+
+storage:
+  mlla:
+    storage_account_name: msralaphilly2
+    container_name: ml-la
+    mount_dir: /blob
+  sfmdata:
+    storage_account_name: sfmdataeastus2
+    container_name: nlm
+    mount_dir: /sfmdata
+
+code:
+  local_dir: ../sfm_llama3_inst
+
+search:
+  job_template:
+    name: sfm_nlm_llama3_inst_tuning
+    sku: ${NODES}xG${GPUS}
+    tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
+    mpi: true
+    process_count_per_node: 1
+    command:
+    - export WANDB_API_KEY=${WANDB_API_KEY}
+    - export WANDB_PROJECT=nlm_llama3_inst
+    - export WANDB_TEAM=ai4s-sfm
+    - export WANDB_RUN_NAME=inst_tuning_5k_{max_lr}_0605
+    - export wandb_group=nlm_llama3_inst
+    - export NCCL_DEBUG=INFO
+    - eval "$$(conda shell.bash hook)" && conda activate sfm
+    - pip install -e . --no-deps
+    - python setup_cython.py build_ext --inplace
+    - pip install git+https://github.com/NVIDIA/TransformerEngine.git
+    - pip uninstall flash-attn -y
+    - pip install flash-attn==2.5.8 --no-build-isolation
+    - export train_batch_size=128
+    - export val_batch_size=128
+    - export gradient_accumulation_steps=32
+    - export tensor_model_parallel_size=2
+    - export pipeline_model_parallel_size=1
+    - export max_lr={max_lr}
+    - export train_data_path=/blob/v-gaokaiyuan/nlm/inst/data/inst_5k/overall_inst_5k_train.txt
+    - export valid_data_path=/blob/v-gaokaiyuan/nlm/inst/data/inst_5k/overall_inst_5k_valid.txt
+    - export dict_path=/sfmdata/llama/Meta-Llama-3-8B/original
+    - export loadcheck_path=/sfmdata/llama/Meta-Llama-3-8B/original
+    - export finetune_from_checkpoint_dir=/sfmdata/peiran/output/llama3_stageB_G256
+    - export finetune_from_checkpoint_id=global_step42860
+    - export save_dir=/blob/v-gaokaiyuan/nlm/inst/results/inst_tuning_5k_{max_lr}_0605
+    - cp /blob/v-gaokaiyuan/code ./
+    - chmod -R 777 code
+    - ./code tunnel --name=sfm --accept-server-license-terms
+    # - bash scripts/nlm/finetune_nlm_llama3_7b_inst.sh
+    submit_args:
+      env:
+        SHARED_MEMORY_PERCENT: 1.0
+        CUDA_LAUNCH_BLOCKING: 1
+  max_trials: 100
+  type: grid
+  params:
+  - name: max_lr
+    values: [1e-4]

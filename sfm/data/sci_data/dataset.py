@@ -387,6 +387,78 @@ class RawTextSciDataset(torch.utils.data.Dataset):
         return (input, labels)
 
 
+class RawTextSciDatasetwithAltTokenizer(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        path: str,
+        tokenizer: SFMDecTokenizer,
+        tokenize,
+        conditional_generation: bool = False,
+        use_template: bool = False,
+        max_len: int = 1024,
+    ):
+        super().__init__()
+        self.tokenizer = tokenizer
+        self.tokenize = tokenize
+        self.data = []
+        with open(path, "r") as f:
+            for line in f:
+                self.data.append(line.strip())
+
+        logger.info(f"Loaded {path} with {len(self.data)} lines")
+        self.conditional_generation = conditional_generation
+        self.use_template = use_template
+        self.max_len = max_len
+
+    def __getitem__(self, index):
+        text = self.data[index]
+        if self.conditional_generation:
+            prompt, target = text.split("\t")
+
+            if self.use_template:
+                prompt = f"Instruction: {prompt}\n\n\nResponse:"
+
+            prompt_tokens = self.tokenize(prompt)[1:-1]
+            target_tokens = self.tokenize(target)[1:-1]
+            tokens = (
+                [self.tokenizer.bos_token_id]
+                + prompt_tokens
+                + target_tokens
+                + [self.tokenizer.eos_token_id]
+            )
+            labels = tokens[:]
+            labels[: len(prompt_tokens) + 1] = [-100] * (len(prompt_tokens) + 1)
+        else:
+            tokens = (
+                [self.tokenizer.bos_token_id]
+                + self.tokenize(text)
+                + [self.tokenizer.eos_token_id]
+            )
+            labels = tokens[:]
+
+        # keep the last max_len tokens, or there maybe no labels to pred
+        tokens = tokens[-self.max_len :]
+        labels = labels[-self.max_len :]
+
+        return torch.tensor(tokens), torch.tensor(labels)
+
+    def __len__(self):
+        return len(self.data)
+
+    def collate(self, samples):
+        input_ids_list, labels_list = zip(*samples)
+        input_ids = torch.nn.utils.rnn.pad_sequence(
+            input_ids_list, batch_first=True, padding_value=self.tokenizer.pad_token_id
+        )
+        labels = torch.nn.utils.rnn.pad_sequence(
+            labels_list, batch_first=True, padding_value=-100
+        )
+        padding_mask = input_ids.ne(self.tokenizer.pad_token_id)
+
+        input = tuple([input_ids, padding_mask])
+        return (input, labels)
+
+
 class ProteinLmdbDataset(torch.utils.data.Dataset):
     def __init__(self, task_name, lmdb_dataset, lmdb_vocab, tokenizer):
         self.task_name = task_name
