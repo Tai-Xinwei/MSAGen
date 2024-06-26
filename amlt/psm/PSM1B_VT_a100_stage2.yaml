@@ -54,8 +54,7 @@ jobs:
   - mkdir ./output
   - export path=run.sh
   - export num_pred_attn_layer=4
-  - export layers=34
-  - export hidden_size=1536
+  - export layers=32
   - export ffn_size=6144
   - export num_head=32
   - export atom_loss_coeff=1.0
