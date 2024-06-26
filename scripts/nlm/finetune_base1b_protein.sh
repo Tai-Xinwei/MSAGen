@@ -32,6 +32,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dict_path}" ] && dict_path='/data/peiran/blob/sfmdataeastus2/nlm/llama/Meta-Llama-3-8B/original/'
 [ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/sfmdataeastus2/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split/v5_protein_valid.npy.lmdb'
 [ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/sfmdataeastus2/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split/v5_protein_valid.npy.lmdb'
+[ -z "${data_ratio}" ] && data_ratio=""
 [ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/hai1data/sfm/llama/Meta-Llama-3-8B/original'
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
 
@@ -90,6 +91,13 @@ if [[ "${load_ckpt}" == "True" ]]; then
   load_ckpt="--load_ckpt"
 else
   load_ckpt=""
+fi
+
+[ -z "${weighted_dataset}" ] && weighted_dataset=False
+if [[ "${weighted_dataset}" == "True" ]]; then
+  weighted_dataset="--weighted_dataset"
+else
+  weighted_dataset=""
 fi
 
 echo -e "\n\n"
@@ -156,4 +164,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm_1Bbase.py \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --pretrained_ckpt_path "$loadcheck_path" \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
-      ${MEGATRON_ARGS} ${load_ckpt}
+      --data_ratio "$data_ratio" \
+      ${MEGATRON_ARGS} ${load_ckpt} ${weighted_dataset}

@@ -17,6 +17,7 @@ from sfm.data.psm_data.dataset import (
     PlainPM6FullLMDBDataset,
     PM6FullLMDBDataset,
     SmallMolDataset,
+    UR50LMDBDataset,
 )
 from sfm.data.psm_data.ft_mol_dataset import PCQM4Mv2LMDBDataset
 from sfm.data.sampler import WeightedDistributedSampler
@@ -144,6 +145,12 @@ class UnifiedPSMDataset(FoundationModelDataset):
                     args, data_path, split="valid", **kwargs
                 )
                 len_total = len(train_dataset) + len(valid_dataset)
+            elif dataset_name == "ur50":
+                dataset = UR50LMDBDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset()
+                len_total = len(dataset)
+                self.dataset_lens[dataset_name] = len(train_dataset)
+                self.sizes.append(train_dataset.sizes)
             else:
                 raise ValueError(f"Invalid dataset name:{dataset_name}")
 

@@ -10,7 +10,10 @@ sys.path.extend([".", ".."])
 from megatron.arguments import parse_megatron_args
 from megatron.core.transformer.transformer_config import TransformerConfig
 from megatron.initialize import initialize_megatron
-from sfm.data.sci_data.dataset import ProcessedSciDatasetLmdb
+from sfm.data.sci_data.dataset import (
+    ProcessedSciDatasetLmdb,
+    ProcessedSciWeightedDatasetLmdb,
+)
 from sfm.data.sci_data.NlmTokenizer import NlmLlama3Tokenizer
 from sfm.logging import logger
 from sfm.models.nlm.moe_config import MoeModelConfig, sfm_nlm_1b_base_config
@@ -38,12 +41,25 @@ def main(args) -> None:
 
     model = NLMBaseModel(args, len(tokenizer))
 
-    train_dataset = ProcessedSciDatasetLmdb(
-        args.train_data_path, args.pad_token_id, args.max_position_embeddings
-    )
-    valid_dataset = ProcessedSciDatasetLmdb(
-        args.valid_data_path, args.pad_token_id, args.max_position_embeddings
-    )
+    if args.weighted_dataset:
+        train_dataset = ProcessedSciWeightedDatasetLmdb(
+            args.data_dir,
+            args.train_data_path,
+            args.pad_token_id,
+            args.max_position_embeddings,
+            data_raito=args.data_raito,
+        )
+        valid_dataset = ProcessedSciDatasetLmdb(
+            args.valid_data_path, args.pad_token_id, args.max_position_embeddings
+        )
+    else:
+        train_dataset = ProcessedSciDatasetLmdb(
+            args.train_data_path, args.pad_token_id, args.max_position_embeddings
+        )
+        valid_dataset = ProcessedSciDatasetLmdb(
+            args.valid_data_path, args.pad_token_id, args.max_position_embeddings
+        )
+
     logger.info("datasets loaded")
 
     trainer = Trainer(

@@ -115,8 +115,6 @@ class NodeTaskHead(nn.Module):
         decoder_x_output = decoder_x_output.permute(0, 2, 1, 3).reshape(bsz, n_node, -1)
         decoder_x_output = self.o_proj_energy(decoder_x_output)
 
-        # decoder_x_output = x
-
         return decoder_x_output, decoder_vec_output
 
 
@@ -165,3 +163,17 @@ class VectorOutput(nn.Module):
         v = self.adanorm(v)
         v = self.output_network(v)
         return v.squeeze(-1)
+
+
+class VectorProjOutput(nn.Module):
+    def __init__(self, hidden_channels=768):
+        super(VectorProjOutput, self).__init__()
+        self.output_network = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels, bias=False),
+            nn.SiLU(),
+            nn.Linear(hidden_channels, 3, bias=False),
+        )
+
+    def forward(self, x, v):
+        x = self.output_network(x)
+        return x

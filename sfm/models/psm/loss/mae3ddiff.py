@@ -31,6 +31,7 @@ class DiffMAE3dCriterions(nn.Module):
         self.args = args
 
         self.diffusion_mode = args.diffusion_mode
+        self.seq_only = args.seq_only
 
         self.energy_loss = nn.L1Loss(reduction="none")
         self.force_loss = nn.L1Loss(reduction="none")
@@ -163,6 +164,7 @@ class DiffMAE3dCriterions(nn.Module):
         is_protein = model_output["is_protein"]
         is_molecule = model_output["is_molecule"]
         is_periodic = model_output["is_periodic"]
+        is_seq_only = model_output["is_seq_only"]
         diff_loss_mask = model_output["diff_loss_mask"]
         protein_mask = model_output["protein_mask"]
         # sqrt_one_minus_alphas_cumprod_t = model_output["sqrt_one_minus_alphas_cumprod_t"]
@@ -178,125 +180,170 @@ class DiffMAE3dCriterions(nn.Module):
         energy_mask = total_clean & batched_data["has_energy"]
         force_mask = total_clean & batched_data["has_forces"]
 
-        # energy loss and force loss
-        unreduced_energy_loss = self.energy_loss(
-            energy_per_atom_pred.to(torch.float32),
-            energy_per_atom_label.to(torch.float32),
-        )
-        energy_loss, num_energy_sample = self._reduce_energy_loss(
-            unreduced_energy_loss,
-            energy_mask,
-            is_molecule,
-            is_periodic,
-            use_per_atom_energy=True,
-        )
-        molecule_energy_loss, num_molecule_energy_sample = self._reduce_energy_loss(
-            unreduced_energy_loss,
-            energy_mask & is_molecule,
-            is_molecule,
-            is_periodic,
-            use_per_atom_energy=True,
-        )
-        periodic_energy_loss, num_periodic_energy_sample = self._reduce_energy_loss(
-            unreduced_energy_loss,
-            energy_mask & is_periodic,
-            is_molecule,
-            is_periodic,
-            use_per_atom_energy=True,
-        )
-
-        unreduced_force_loss = self.force_loss(
-            force_pred.to(dtype=force_label.dtype), force_label
-        )
-        force_loss, num_force_sample = self._reduce_force_or_noise_loss(
-            unreduced_force_loss,
-            force_mask,
-            ~non_atom_mask,
-            is_molecule,
-            is_periodic,
-            self.molecule_force_std,
-            self.periodic_force_std,
-        )
-        (
-            molecule_force_loss,
-            num_molecule_force_sample,
-        ) = self._reduce_force_or_noise_loss(
-            unreduced_force_loss,
-            force_mask & is_molecule,
-            ~non_atom_mask,
-            is_molecule,
-            is_periodic,
-            self.molecule_force_std,
-            self.periodic_force_std,
-        )
-        (
-            periodic_force_loss,
-            num_periodic_force_sample,
-        ) = self._reduce_force_or_noise_loss(
-            unreduced_force_loss,
-            force_mask & is_periodic,
-            ~non_atom_mask,
-            is_molecule,
-            is_periodic,
-            self.molecule_force_std,
-            self.periodic_force_std,
-        )
-
-        if self.diffusion_mode == "epsilon":
-            # noise pred loss
-            unreduced_noise_loss = self.noise_loss(
-                noise_pred.to(noise_label.dtype), noise_label
+        if not self.seq_only:
+            # energy loss and force loss
+            unreduced_energy_loss = self.energy_loss(
+                energy_per_atom_pred.to(torch.float32),
+                energy_per_atom_label.to(torch.float32),
             )
-        elif self.diffusion_mode == "x0":
-            # x0 pred loss, noise pred is x0 pred here
-            unreduced_noise_loss = self.noise_loss(
-                noise_pred.to(noise_label.dtype), pos_label
+            energy_loss, num_energy_sample = self._reduce_energy_loss(
+                unreduced_energy_loss,
+                energy_mask,
+                is_molecule,
+                is_periodic,
+                use_per_atom_energy=True,
+            )
+            molecule_energy_loss, num_molecule_energy_sample = self._reduce_energy_loss(
+                unreduced_energy_loss,
+                energy_mask & is_molecule,
+                is_molecule,
+                is_periodic,
+                use_per_atom_energy=True,
+            )
+            periodic_energy_loss, num_periodic_energy_sample = self._reduce_energy_loss(
+                unreduced_energy_loss,
+                energy_mask & is_periodic,
+                is_molecule,
+                is_periodic,
+                use_per_atom_energy=True,
+            )
+
+            unreduced_force_loss = self.force_loss(
+                force_pred.to(dtype=force_label.dtype), force_label
+            )
+            force_loss, num_force_sample = self._reduce_force_or_noise_loss(
+                unreduced_force_loss,
+                force_mask,
+                ~non_atom_mask,
+                is_molecule,
+                is_periodic,
+                self.molecule_force_std,
+                self.periodic_force_std,
+            )
+            (
+                molecule_force_loss,
+                num_molecule_force_sample,
+            ) = self._reduce_force_or_noise_loss(
+                unreduced_force_loss,
+                force_mask & is_molecule,
+                ~non_atom_mask,
+                is_molecule,
+                is_periodic,
+                self.molecule_force_std,
+                self.periodic_force_std,
+            )
+            (
+                periodic_force_loss,
+                num_periodic_force_sample,
+            ) = self._reduce_force_or_noise_loss(
+                unreduced_force_loss,
+                force_mask & is_periodic,
+                ~non_atom_mask,
+                is_molecule,
+                is_periodic,
+                self.molecule_force_std,
+                self.periodic_force_std,
+            )
+
+            if self.diffusion_mode == "epsilon":
+                # noise pred loss
+                unreduced_noise_loss = self.noise_loss(
+                    noise_pred.to(noise_label.dtype), noise_label
+                )
+            elif self.diffusion_mode == "x0":
+                # x0 pred loss, noise pred is x0 pred here
+                unreduced_noise_loss = self.noise_loss(
+                    noise_pred.to(noise_label.dtype), pos_label
+                )
+            else:
+                raise ValueError(f"Invalid diffusion mode: {self.diffusion_mode}")
+
+            noise_loss, num_noise_sample = self._reduce_force_or_noise_loss(
+                unreduced_noise_loss,
+                ~clean_mask,
+                diff_loss_mask & ~protein_mask.any(dim=-1),
+                is_molecule,
+                is_periodic,
+                1.0,
+                1.0,
+            )
+            (
+                molecule_noise_loss,
+                num_molecule_noise_sample,
+            ) = self._reduce_force_or_noise_loss(
+                unreduced_noise_loss,
+                ~clean_mask & is_molecule.unsqueeze(-1),
+                diff_loss_mask & ~protein_mask.any(dim=-1),
+                is_molecule,
+                is_periodic,
+                1.0,
+                1.0,
+            )
+            (
+                periodic_noise_loss,
+                num_periodic_noise_sample,
+            ) = self._reduce_force_or_noise_loss(
+                unreduced_noise_loss,
+                ~clean_mask & is_periodic.unsqueeze(-1),
+                diff_loss_mask & ~protein_mask.any(dim=-1),
+                is_molecule,
+                is_periodic,
+                1.0,
+                1.0,
+            )
+            (
+                protein_noise_loss,
+                num_protein_noise_sample,
+            ) = self._reduce_force_or_noise_loss(
+                unreduced_noise_loss,
+                ~clean_mask & is_protein.unsqueeze(-1) & ~is_seq_only.unsqueeze(-1),
+                diff_loss_mask & ~protein_mask.any(dim=-1),
+                is_molecule,
+                is_periodic,
+                1.0,
+                1.0,
             )
         else:
-            raise ValueError(f"Invalid diffusion mode: {self.diffusion_mode}")
-
-        noise_loss, num_noise_sample = self._reduce_force_or_noise_loss(
-            unreduced_noise_loss,
-            ~clean_mask,
-            diff_loss_mask & ~protein_mask.any(dim=-1),
-            is_molecule,
-            is_periodic,
-            1.0,
-            1.0,
-        )
-        (
-            molecule_noise_loss,
-            num_molecule_noise_sample,
-        ) = self._reduce_force_or_noise_loss(
-            unreduced_noise_loss,
-            ~clean_mask & is_molecule.unsqueeze(-1),
-            diff_loss_mask & ~protein_mask.any(dim=-1),
-            is_molecule,
-            is_periodic,
-            1.0,
-            1.0,
-        )
-        (
-            periodic_noise_loss,
-            num_periodic_noise_sample,
-        ) = self._reduce_force_or_noise_loss(
-            unreduced_noise_loss,
-            ~clean_mask & is_periodic.unsqueeze(-1),
-            diff_loss_mask & ~protein_mask.any(dim=-1),
-            is_molecule,
-            is_periodic,
-            1.0,
-            1.0,
-        )
-        protein_noise_loss, num_protein_noise_sample = self._reduce_force_or_noise_loss(
-            unreduced_noise_loss,
-            ~clean_mask & is_protein.unsqueeze(-1),
-            diff_loss_mask & ~protein_mask.any(dim=-1),
-            is_molecule,
-            is_periodic,
-            1.0,
-            1.0,
-        )
+            energy_loss = torch.tensor(
+                0.0, device=energy_per_atom_label.device, requires_grad=True
+            )
+            molecule_energy_loss = torch.tensor(
+                0.0, device=energy_per_atom_label.device, requires_grad=True
+            )
+            periodic_energy_loss = torch.tensor(
+                0.0, device=energy_per_atom_label.device, requires_grad=True
+            )
+            force_loss = torch.tensor(
+                0.0, device=force_label.device, requires_grad=True
+            )
+            molecule_force_loss = torch.tensor(
+                0.0, device=force_label.device, requires_grad=True
+            )
+            periodic_force_loss = torch.tensor(
+                0.0, device=force_label.device, requires_grad=True
+            )
+            noise_loss = torch.tensor(
+                0.0, device=noise_label.device, requires_grad=True
+            )
+            molecule_noise_loss = torch.tensor(
+                0.0, device=noise_label.device, requires_grad=True
+            )
+            periodic_noise_loss = torch.tensor(
+                0.0, device=noise_label.device, requires_grad=True
+            )
+            protein_noise_loss = torch.tensor(
+                0.0, device=noise_label.device, requires_grad=True
+            )
+            num_energy_sample = 0
+            num_molecule_energy_sample = 0
+            num_periodic_energy_sample = 0
+            num_force_sample = 0
+            num_molecule_force_sample = 0
+            num_periodic_force_sample = 0
+            num_noise_sample = 0
+            num_molecule_noise_sample = 0
+            num_periodic_noise_sample = 0
+            num_protein_noise_sample = 0
 
         # mlm loss
         if aa_mask.any():
@@ -324,12 +371,15 @@ class DiffMAE3dCriterions(nn.Module):
         def calculate_energy_loss_ratio(energy_loss_mag):
             return np.clip(1.0 - (energy_loss_mag - 1.0) / 1000, 0.001, 1.0)
 
-        loss = (
-            self.energy_loss_ratio * energy_loss
-            + self.force_loss_ratio * force_loss
-            + noise_loss
-            + aa_mlm_loss
-        )
+        if not self.seq_only:
+            loss = (
+                self.energy_loss_ratio * energy_loss
+                + self.force_loss_ratio * force_loss
+                + noise_loss
+                + aa_mlm_loss
+            )
+        else:
+            loss = aa_mlm_loss
 
         # for loss exist in every sample of the batch, no extra number of samples are recorded (will use batch size in loss reduction)
         # for loss does not exist in every example of the batch, use a tuple, where the first element is the averaged loss value
