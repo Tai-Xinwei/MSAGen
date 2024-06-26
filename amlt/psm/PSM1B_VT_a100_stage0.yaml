@@ -11,11 +11,6 @@ env_defaults:
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
-# target:
-#   service: sing
-#   name: baltic02
-#   workspace_name: msrresrchws
-
 target:
   service: aml
   name: townsend1
@@ -30,9 +25,6 @@ storage:
     storage_account_name: sfmarca100 # Storage account
     container_name: sfm # Container name
     mount_dir: /sfm
-    # storage_account_name: sfmdataeastus2 # Storage account
-    # container_name: psm # Container name
-    # mount_dir: /psm
 
 code:
   local_dir: ../SFM_framework

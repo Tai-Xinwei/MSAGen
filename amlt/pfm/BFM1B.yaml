@@ -4,55 +4,42 @@
 # 3. Specify the Azure storage account and container to use
 # 4. Submit the job with this yaml file
 
-description: pfmtest
+description: PSMV1
 
-# target:
-#     service: amlk8s
-#     name: itphyperdgx2cl1
-#     vc: hai1
-
-# target:
-#     service: amlk8s
-#     name: itphyperdgx2cl2
-#     vc: hcrr08
+env_defaults:
+  NODES: 8
+  GPUS: 8
+  WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
 target:
-    service: aml
-    name: gcrarca100cl1
+  service: aml
+  name: townsend1
 
 environment:
-  image: pj/mfmds:20230207_b
-  registry: itpeus4cr.azurecr.io
-  username: itpeus4cr
+  image: ai4s-sfm:20240531.170731
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
 
 storage:
   blob:
-    storage_account_name: hai1data # Storage account
-    container_name: pfm # Container name
-    mount_dir: /blob
+    storage_account_name: sfmarca100 # Storage account
+    container_name: sfm # Container name
+    mount_dir: /sfm
 
 code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: pfmtestamlt
-  tags:
-  - 'ProjectID: PRJ-0209-A40'
-  sku: 8xG8
+- name: psmv1_vt_v10_stage0
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  sku: ${NODES}xG${GPUS}-IB
   mpi: true
   process_count_per_node: 1
   command:
-  - mkdir /blob/pfmexp/output
-  # - mkdir /blob/pfmexp/output/pfmdiff50M_dyn_mode_prob550
-  - mkdir /blob/pfmexp/output/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2
-  - mkdir /blob/pfmexp/output/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2/checkpoints
-  - mkdir ./output
-  - export path=run.sh
-  - export layers=36
-  - export num_pred_attn_layer=2
-  - export hidden_size=2560
-  - export ffn_size=10240
-  - export num_head=40
+  - export layers=34
+  - export hidden_size=1536
+  - export ffn_size=6144
+  - export num_head=32
   - export atom_loss_coeff=1.0
   - export pos_loss_coeff=1.0
   - export sandwich_ln="true"
@@ -67,31 +54,27 @@ jobs:
   - export mask_prob=0.20
   - export mode_prob=1.0,0.0,0.0
   - export d_tilde=1.0
-  - export max_lr=2e-5
+  - export max_lr=4e-5
   - export strategy=DDP
   - export pipeline_model_parallel_size=0
   - export total_num_steps=600000
   - export warmup_num_steps=30000
-  - export train_batch_size=928
-  - export val_batch_size=928
+  - export train_batch_size=1024
+  - export val_batch_size=1024
   - export max_tokens=3072
   - export max_length=1536
   - export gradient_accumulation_steps=1
   - export log_interval=100
   - export wandb_group=BFM
   - export wandb_project=ds_mfmpre
-  - export loadcheck_path=/blob/pfmexp/output/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2/checkpoints
-  # - export train_data_path=/blob/data/afdb/uniref50_msa_ppi_pack1536_train.lmdb/
-  # - export valid_data_path=/blob/data/afdb/uniref50_pack1024_valid.lmdb/
-  # - export train_data_path=/nfs/uniref50_msa_ppi_pack1536_train.lmdb/
-  # - export valid_data_path=/nfs/uniref50_pack1024_valid.lmdb/
-  - export train_data_path=/mnt/amlt_code/ur50_23_msa_ppi_bpe_pack1536.lmdb/
-  - export valid_data_path=/mnt/amlt_code/ur50_23_msa_ppi_bpe_pack1536_valid.lmdb/
+  - export loadcheck_path=/psm/exp/peiran/psmv1_vt_v10_stage0/checkpoints
+  - export save_dir=/psm/exp/peiran/psmv1_vt_v10_stage0/checkpoints
+  - export train_data_path=/mnt/amlt_code/ur50_23_bpe_pack1536.lmdb/
+  - export valid_data_path=/mnt/amlt_code/uniref50_valid.lmdb/
   - bash ./scripts/pfm/copy_from_nfs.sh
-  - export save_dir=/blob/pfmexp/output/bfm3B_data2_maskspan3_ddp2e5d16mask030drop1L1536B2k_bpev2pairv4_bert2_128A100_adam2/checkpoints
-  - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
-  - bash ./install/install.sh
-  - bash ./install/install_megatron.sh
+  - export save_dir=/blob/pfmexp/output/psmv1_vt_v10_stage0/checkpoints
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
   - bash ./scripts/pfm/pretrain_pfm.sh
   submit_args:
     container_args:
