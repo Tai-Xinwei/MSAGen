@@ -2,15 +2,17 @@
 import math
 from typing import Dict, Optional, Tuple
 
+import e3nn
 import torch
 import torch.nn.functional as F
+from icecream import ic
 from torch import Tensor, nn
 
 from sfm.logging.loggers import logger
 from sfm.models.graphormer.graphormer_config import GraphormerConfig
 from sfm.models.graphormer.modules.graphormer_layers import NodeTaskHead
 from sfm.models.graphormer.modules.pbc import CellExpander
-from sfm.models.graphormer.modules.UnifiedDecoder import UnifiedDecoder
+from sfm.models.graphormer.modules.UnifiedDecoder_backprop import UnifiedDecoder
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
@@ -41,7 +43,7 @@ class GaussianLayer(nn.Module):
         x = mul * x.unsqueeze(-1) + bias
         x = x.expand(-1, -1, -1, self.K)
         mean = self.means.weight.float().view(-1)
-        std = self.stds.weight.float().view(-1).abs() + 1e-2
+        std = self.stds.weight.float().view(-1).abs() + 3e-1
         return gaussian(x.float(), mean, std).type_as(self.means.weight)
 
 
@@ -191,6 +193,8 @@ class MultiheadAttention(nn.Module):
         k = self.k_proj(query)
         v = self.v_proj(query)
 
+        # ic(q, k, v, self.v_proj.weight.data, self.v_proj.bias.data)
+
         q *= self.scaling
 
         if pbc_expand_batched is not None:
@@ -204,8 +208,8 @@ class MultiheadAttention(nn.Module):
             outcell_index = (
                 outcell_index.transpose(1, 0).unsqueeze(-1).expand(-1, -1, embed_dim)
             )
-            expand_k = torch.gather(k, dim=0, index=outcell_index + 1)
-            expand_v = torch.gather(v, dim=0, index=outcell_index + 1)
+            expand_k = torch.gather(k, dim=0, index=outcell_index)
+            expand_v = torch.gather(v, dim=0, index=outcell_index)
 
             k = torch.cat([k, expand_k], dim=0)
             v = torch.cat([v, expand_v], dim=0)
@@ -238,7 +242,6 @@ class MultiheadAttention(nn.Module):
         if key_padding_mask is not None and key_padding_mask.dim() == 0:
             key_padding_mask = None
 
-        if key_padding_mask is not None:
             if outcell_index is not None:
                 assert expand_mask is not None
                 key_padding_mask = torch.cat([key_padding_mask, expand_mask], dim=1)
@@ -255,17 +258,10 @@ class MultiheadAttention(nn.Module):
                 bsz * self.num_heads, tgt_len, src_len
             )
 
-        if attn_mask is not None:
-            attn_mask = attn_mask.unsqueeze(0)
-            attn_weights += attn_mask
-
         if key_padding_mask is not None:
             # don't attend to padding symbols
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            attn_weights = attn_weights.masked_fill(
-                key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
-                float("-inf"),
-            )
+            attn_weights = (attn_weights + 20.0) * attn_mask.unsqueeze(1) - 20.0
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
         if before_softmax:
@@ -275,7 +271,14 @@ class MultiheadAttention(nn.Module):
 
         attn_weights = attn_weights_float.type_as(attn_weights)
 
-        attn_probs = self.dropout_module(attn_weights)
+        if attn_mask is not None:
+            attn_weights = (
+                attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
+                * attn_mask.unsqueeze(1)
+            ).view(bsz * self.num_heads, tgt_len, src_len)
+            # attn_weights = attn_weights / attn_weights.sum(dim=-1, keepdim=True)
+
+        attn_probs = self.dropout_module(attn_weights).type_as(attn_weights)
 
         assert v is not None
         attn = torch.bmm(attn_probs, v)
@@ -412,6 +415,24 @@ class Graph3DBias(nn.Module):
         self.edge_proj = nn.Linear(
             graphormer_config.num_3d_bias_kernel, graphormer_config.embedding_dim
         )
+        self.pbc_multigraph_cutoff = graphormer_config.pbc_multigraph_cutoff
+
+    def polynomial(self, dist: torch.Tensor, cutoff: float) -> torch.Tensor:
+        """
+        Polynomial cutoff function,ref: https://arxiv.org/abs/2204.13639
+        Args:
+            dist (tf.Tensor): distance tensor
+            cutoff (float): cutoff distance
+        Returns: polynomial cutoff functions
+        """
+        ratio = torch.div(dist, cutoff)
+        result = (
+            1
+            - 6 * torch.pow(ratio, 5)
+            + 15 * torch.pow(ratio, 4)
+            - 10 * torch.pow(ratio, 3)
+        )
+        return torch.clamp(result, min=0.0)
 
     def forward(self, batched_data, pos, pbc_expand_batched=None):
         x, node_type_edge = (
@@ -429,24 +450,29 @@ class Graph3DBias(nn.Module):
             expand_pos = expand_pos.masked_fill(
                 expand_mask.unsqueeze(-1).to(torch.bool), 0.0
             )
-            expand_pos = torch.cat([pos, expand_pos], dim=1)
+            total_pos = torch.cat([pos, expand_pos], dim=1)
 
-            expand_n_node = expand_pos.size()[1]
+            expand_n_node = total_pos.size()[1]
 
-            delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(
+            delta_pos = pos.unsqueeze(2) - total_pos.unsqueeze(
                 1
             )  # B x T x (expand T) x 3
             dist = delta_pos.norm(dim=-1).view(-1, n_node, expand_n_node)
             full_mask = torch.cat([padding_mask, expand_mask], dim=-1)
             dist = dist.masked_fill(full_mask.unsqueeze(1).to(torch.bool), 1.0)
             dist = dist.masked_fill(padding_mask.unsqueeze(-1).to(torch.bool), 1.0)
+            attn_mask = pbc_expand_batched["local_attention_mask"]
         else:
             delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
             dist = delta_pos.norm(dim=-1).view(-1, n_node, n_node)
+            attn_mask = self.polynomial(dist, self.pbc_multigraph_cutoff)
 
         n_graph, n_node, _ = pos.shape
 
         delta_pos = delta_pos / (dist.unsqueeze(-1) + 1e-2)
+
+        # attn_mask = self.polynomial(dist, self.pbc_multigraph_cutoff)
+
         atomic_numbers = x[:, :, 0]
         if node_type_edge is None:
             node_type_edge = atomic_numbers.unsqueeze(
@@ -485,18 +511,17 @@ class Graph3DBias(nn.Module):
                 padding_mask.unsqueeze(1).unsqueeze(-1).to(torch.bool), 0.0
             )
         else:
-            graph_attn_bias.masked_fill_(
-                full_mask.unsqueeze(1).unsqueeze(2).to(torch.bool), float("-inf")
-            )
-            graph_attn_bias.masked_fill_(
-                padding_mask.unsqueeze(1).unsqueeze(-1).to(torch.bool), float("-inf")
-            )
-
             edge_feature = edge_feature.masked_fill(
                 full_mask.unsqueeze(1).unsqueeze(-1).to(torch.bool), 0.0
             )
             edge_feature = edge_feature.masked_fill(
                 padding_mask.unsqueeze(-1).unsqueeze(-1).to(torch.bool), 0.0
+            )
+
+            edge_feature = (
+                torch.mul(edge_feature, attn_mask.unsqueeze(-1))
+                .float()
+                .type_as(edge_feature)
             )
 
         sum_edge_features = edge_feature.sum(dim=-2)
@@ -506,42 +531,139 @@ class Graph3DBias(nn.Module):
             padding_mask.unsqueeze(-1), 0.0
         )
 
+        pbc_expand_batched["expand_pos"] = expand_pos
+        pbc_expand_batched["local_attention_mask"] = attn_mask
         return graph_attn_bias, merge_edge_features, delta_pos, node_type_edge
 
 
 class UnifiedDecoderNoMask(UnifiedDecoder):
-    def forward(self, x, pos, node_type_edge, node_type, padding_mask):
+    def __init__(
+        self,
+        args,
+        num_pred_attn_layer: int,
+        embedding_dim: int,
+        num_attention_heads: int,
+        ffn_embedding_dim: int,
+        dropout: float,
+        attention_dropout: float,
+        activation_dropout: float,
+        num_3d_bias_kernel: int,
+        num_edges: int,
+        num_atoms: int,
+        pbc_multigraph_cutoff: float,
+    ):
+        super().__init__(
+            args,
+            num_pred_attn_layer,
+            embedding_dim,
+            num_attention_heads,
+            ffn_embedding_dim,
+            dropout,
+            attention_dropout,
+            activation_dropout,
+            num_3d_bias_kernel,
+            num_edges,
+            num_atoms,
+            pbc_multigraph_cutoff,
+        )
+        self.unified_gbf_vec = GaussianLayer(num_3d_bias_kernel, num_edges)
+        del self.unified_gbf_pos
+        self.unified_gbf_pos = None
+
+        del self.unified_gbf_attn_bias
+        self.unified_gbf_attn_bias = GaussianLayer(num_3d_bias_kernel, num_edges)
+        self.embedding_dim = embedding_dim
+        self.edge_irreps = e3nn.o3.Irreps("1x0e+1x1o")
+        self.edge_num_irreps = self.edge_irreps.num_irreps
+        self.sph_harm = e3nn.o3.SphericalHarmonics(
+            self.edge_irreps, normalize=True, normalization="component"
+        )
+
+    def polynomial(self, dist: torch.Tensor, cutoff: float) -> torch.Tensor:
+        ratio = torch.div(dist, cutoff)
+        result = (
+            1
+            - 6 * torch.pow(ratio, 5)
+            + 15 * torch.pow(ratio, 4)
+            - 10 * torch.pow(ratio, 3)
+        )
+        return torch.clamp(result, min=0.0)
+
+    def forward(
+        self,
+        x,
+        pos,
+        node_type_edge,
+        node_type,
+        padding_mask,
+        pbc_expand_batched: Optional[Dict] = None,
+    ):
         n_node = pos.shape[1]
 
-        uni_delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
-        dist = uni_delta_pos.norm(dim=-1).view(-1, n_node, n_node)
-        uni_delta_pos /= dist.unsqueeze(-1) + 1e-2
+        x = x.contiguous().transpose(0, 1)
 
-        # r_i/||r_i|| * gbf(||r_i||)
-        pos_norm = pos.norm(dim=-1)
+        if pbc_expand_batched is not None:
+            pbc_expand_batched["outcell_index"]
+            expand_pos = torch.cat([pos, pbc_expand_batched["expand_pos"]], dim=1)
+            expand_n_node = expand_pos.shape[1]
+            uni_delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
+            dist = uni_delta_pos.norm(dim=-1).view(-1, n_node, expand_n_node)
+        else:
+            uni_delta_pos = pos.unsqueeze(1) - pos.unsqueeze(2)
+            dist = uni_delta_pos.norm(dim=-1).view(-1, n_node, n_node)
 
-        uni_gbf_pos_feature = self.unified_gbf_pos(pos_norm, node_type.unsqueeze(-1))
-        uni_pos_feature = uni_gbf_pos_feature.masked_fill(
-            padding_mask[:, 1:].unsqueeze(-1), 0.0
-        )
-        uni_vec_value = self.unified_vec_proj(uni_pos_feature).unsqueeze(-2)
-        vec = pos.unsqueeze(-1) * uni_vec_value
+        # attn_mask = self.polynomial(dist, self.pbc_multigraph_cutoff)
+        # uni_delta_pos = uni_delta_pos / (dist.unsqueeze(-1) + 1e-5)
 
-        vec = vec.masked_fill(padding_mask[:, 1:].unsqueeze(-1).unsqueeze(-1), 0.0)
+        # r_ij/||r_ij|| * gbf(||r_ij||)
+        vec_gbf = self.unified_gbf_vec(
+            dist, node_type_edge.long()
+        )  # n_graph x n_node x expand_n_node x num_kernel
+        # vec_gbf = torch.mul(torch.ones_like(vec_gbf,device=vec_gbf.device),dist.unsqueeze(-1))
+        sph = self.sph_harm(uni_delta_pos)
+        vec_gbf = sph.unsqueeze(-1) * vec_gbf.unsqueeze(
+            -2
+        )  # n_graph x n_node x expand_n_node x 4 x num_kernel
+
+        # reduce ij -> i by \sum_j vec_ij * x_j
+        if pbc_expand_batched is not None:
+            expand_mask = pbc_expand_batched["expand_mask"]
+            expand_mask = torch.cat([padding_mask, expand_mask], dim=-1)
+            attn_mask = pbc_expand_batched["local_attention_mask"]
+            vec_gbf = vec_gbf.masked_fill(
+                expand_mask.unsqueeze(1).unsqueeze(-1).unsqueeze(-1), 0.0
+            )
+            vec_gbf = vec_gbf * attn_mask.unsqueeze(-1).unsqueeze(-1)
+        else:
+            attn_mask = self.polynomial(dist, self.pbc_multigraph_cutoff)
+            vec_gbf = vec_gbf.masked_fill(
+                padding_mask.unsqueeze(1).unsqueeze(-1).unsqueeze(-1), 0.0
+            )
+
+        vec_gbf = vec_gbf.sum(dim=2).float().type_as(x)
+        vec = self.unified_vec_proj(vec_gbf)
+        # vec = vec_gbf_feature * x.unsqueeze(-2)
+
         pos_mean_centered_dist = pos.norm(dim=-1)
         pos_mean_centered_unit = pos / (pos_mean_centered_dist.unsqueeze(-1) + 1e-2)
 
-        uni_gbf_feature = self.unified_gbf_attn_bias(dist, node_type_edge)
+        uni_gbf_feature = self.unified_gbf_attn_bias(dist, node_type_edge.long())
 
         uni_graph_attn_bias = (
             self.unified_bias_proj(uni_gbf_feature).permute(0, 3, 1, 2).contiguous()
         )
-        uni_graph_attn_bias = uni_graph_attn_bias.masked_fill(
-            padding_mask[:, 1:].unsqueeze(1).unsqueeze(2), float("-inf")
-        )
 
-        output = x.contiguous().transpose(0, 1)[:, 1:, :]
-        output = output.masked_fill(padding_mask[:, 1:].unsqueeze(-1), 0.0)
+        if pbc_expand_batched is not None:
+            attn_mask = attn_mask.masked_fill(
+                expand_mask.unsqueeze(1), 0.0
+            )  # other nodes don't attend to padding nodes
+        else:
+            attn_mask = attn_mask.masked_fill(
+                padding_mask.unsqueeze(1), 0.0
+            )  # other nodes don't attend to padding nodes
+
+        output = x
+        output = output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
         for i, layer in enumerate(self.unified_encoder_layers):
             output, vec = layer(
@@ -551,18 +673,46 @@ class UnifiedDecoderNoMask(UnifiedDecoder):
                 uni_graph_attn_bias,
                 uni_graph_attn_bias,
                 uni_graph_attn_bias,
-                padding_mask[:, 1:],
+                attn_mask,
                 [pos_mean_centered_unit, uni_delta_pos],
                 [dist, node_type_edge],
+                pbc_expand_batched=pbc_expand_batched,
             )
 
         node_output = self.unified_final_equivariant_ln(vec)
         output = self.unified_final_invariant_ln(output)
 
         node_output = self.unified_output_layer(node_output).squeeze(-1)
-        node_output = node_output.masked_fill(padding_mask[:, 1:].unsqueeze(-1), 0.0)
+        node_output = node_output.masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
         return node_output, output
+
+
+class GradientHead(nn.Module):
+    def __init__(self, force_std, stress_std):
+        super(GradientHead, self).__init__()
+        self.force_std = force_std
+        self.stress_std = stress_std
+
+    def forward(self, energy, pos, strain, volume):
+        grad_outputs = [torch.ones_like(energy)]
+
+        grad = torch.autograd.grad(
+            outputs=[energy],
+            inputs=[pos, strain],
+            grad_outputs=grad_outputs,
+            create_graph=self.training,
+        )
+
+        force_grad = grad[0] / self.force_std
+        stress_grad = grad[1] / self.stress_std
+
+        if force_grad is not None:
+            forces = torch.neg(force_grad)
+
+        if stress_grad is not None:
+            stresses = 1 / volume[:, None, None] * stress_grad * 160.21766208
+        return forces, stresses
 
 
 class GraphormerMatterSim(Model):
@@ -574,6 +724,10 @@ class GraphormerMatterSim(Model):
         force_mean,
         force_std,
         force_loss_factor,
+        stress_mean,
+        stress_std,
+        stress_loss_factor,
+        use_stress_loss,
         *args,
         **kwargs,
     ) -> None:
@@ -585,16 +739,6 @@ class GraphormerMatterSim(Model):
             graphormer_config.embedding_dim,
             padding_idx=0,
         )
-
-        # graph token embedding
-        self.graph_token = nn.Embedding(1, graphormer_config.embedding_dim)
-        self.graph_token.weight.data.zero_()
-
-        # graph token attn bias
-        self.graph_token_virtual_distance = nn.Embedding(
-            1, graphormer_config.num_attention_heads
-        )
-        self.graph_token_virtual_distance.weight.data.zero_()
 
         # GBF encoder
         self.graph_3d_pos_encoder = Graph3DBias(graphormer_config=graphormer_config)
@@ -609,6 +753,9 @@ class GraphormerMatterSim(Model):
             graphormer_config.pbc_cutoff,
             graphormer_config.pbc_expanded_token_cutoff,
             graphormer_config.pbc_expanded_num_cell_per_direction,
+            graphormer_config.pbc_multigraph_cutoff,
+            backprop=True,
+            original_token_count=False,
         )
 
         self.layers = nn.ModuleList(
@@ -618,9 +765,16 @@ class GraphormerMatterSim(Model):
             ]
         )
 
+        self.gradient_head = GradientHead(force_std, stress_std)
+
         self.energy_loss = nn.L1Loss(reduction="mean")
         self.force_loss = nn.L1Loss(reduction="none")
         self.force_mae_loss = nn.L1Loss(reduction="none")
+        self.stress_loss = nn.L1Loss(reduction="none")
+
+        self.energy_huberloss = nn.HuberLoss(reduction="mean", delta=0.01)
+        self.force_huberloss = nn.HuberLoss(reduction="none", delta=0.01)
+        self.stress_huberloss = nn.HuberLoss(reduction="mean", delta=0.01)
 
         if cli_args.use_simple_head:
             self.node_head = NodeTaskHead(
@@ -639,6 +793,7 @@ class GraphormerMatterSim(Model):
                 graphormer_config.num_3d_bias_kernel,
                 graphormer_config.num_edges,
                 graphormer_config.num_atoms,
+                graphormer_config.pbc_multigraph_cutoff,
             )
 
         self.energy_mean = energy_mean
@@ -646,6 +801,9 @@ class GraphormerMatterSim(Model):
         self.force_mean = force_mean
         self.force_std = force_std
         self.force_loss_factor = force_loss_factor
+        self.stress_mean = stress_mean
+        self.stress_std = stress_std
+        self.stress_loss_factor = stress_loss_factor
 
         self.activation_function = nn.GELU()
         self.layer_norm = nn.LayerNorm(graphormer_config.embedding_dim)
@@ -659,6 +817,7 @@ class GraphormerMatterSim(Model):
 
         self.use_simple_head = cli_args.use_simple_head
         self.graphormer_config = graphormer_config
+        self.use_stress_loss = use_stress_loss
 
     def forward(self, batched_data):
         atomic_numbers = batched_data["x"]
@@ -666,64 +825,56 @@ class GraphormerMatterSim(Model):
         cell = batched_data["cell"]
         pos = batched_data["pos"]
 
+        padding_mask = (atomic_numbers[:, :, 0]).eq(0)  # B x T
+        n_graph, n_node = atomic_numbers.size()[:2]
+        # stress
+        if self.use_stress_loss:
+            volume = torch.abs(torch.linalg.det(cell))  # to avoid negative volume
+
         pbc_expand_batched = {}
-        expand_pos, _, outcell_index, expand_mask = self.cell_expander.expand(
+        pbc_dict = self.cell_expander.expand(
             pos,
             pbc,
             atomic_numbers[:, :, 0],
             cell,
             batched_data["natoms"],
+            use_local_attention=True,
         )
+        pos = pbc_dict["pos"]
+        # print(pos.shape)
+        cell = pbc_dict["cell"]
+        expand_pos = pbc_dict["expand_pos"]
+        # print(expand_pos.shape)
+        outcell_index = pbc_dict["outcell_index"]
+        expand_mask = pbc_dict["expand_mask"]
+        local_attention_mask = pbc_dict["local_attention_weight"]
+        strain = pbc_dict["strain"]
+
         pbc_expand_batched["expand_pos"] = expand_pos
         pbc_expand_batched["outcell_index"] = outcell_index
         pbc_expand_batched["expand_mask"] = expand_mask
 
-        n_graph, n_node = atomic_numbers.size()[:2]
-        padding_mask = (atomic_numbers[:, :, 0]).eq(0)  # B x T
-        padding_mask_cls = torch.zeros(
-            n_graph, 1, device=padding_mask.device, dtype=padding_mask.dtype
-        )
-        padding_mask = torch.cat((padding_mask_cls, padding_mask), dim=1)
-
         x: Tensor = self.atom_encoder(atomic_numbers).sum(dim=-2)
 
-        x = torch.cat(
-            [self.graph_token.weight.unsqueeze(1).repeat([n_graph, 1, 1]), x], dim=1
+        local_attention_mask = local_attention_mask.masked_fill(
+            padding_mask.unsqueeze(-1), 1.0
         )
+        expand_mask = torch.cat([padding_mask, expand_mask], dim=-1)
+        local_attention_mask = local_attention_mask.masked_fill(
+            expand_mask.unsqueeze(1), 0.0
+        ).type_as(x)
+
+        pbc_expand_batched["local_attention_mask"] = local_attention_mask
 
         (
-            attn_bias_3d,
+            attn_bias,
             merged_edge_features,
             delta_pos,
             node_type_edge,
         ) = self.graph_3d_pos_encoder(
             batched_data, pos, pbc_expand_batched=pbc_expand_batched
         )
-
-        num_heads, max_len = attn_bias_3d.size()[1], attn_bias_3d.size()[2] + 1
-
-        attn_bias = torch.zeros(
-            [n_graph, num_heads, 1 + n_node, 1 + n_node],
-            dtype=attn_bias_3d.dtype,
-            device=attn_bias_3d.device,
-        )
-
-        t = self.graph_token_virtual_distance.weight.view(
-            1, self.graphormer_config.num_attention_heads, 1
-        ).repeat(1, len(self.layers) + 1, 1)
-        attn_bias[:, :, 1:, 0] = t
-        attn_bias[:, :, 0, :] = t
-
-        extended_bias = torch.gather(
-            attn_bias[:, :, :, 1:],
-            dim=3,
-            index=outcell_index.unsqueeze(1)
-            .unsqueeze(2)
-            .repeat(1, num_heads, max_len, 1),
-        )
-        attn_bias = torch.cat([attn_bias, extended_bias], dim=3)
-
-        attn_bias[:, :, 1:, 1:] += attn_bias_3d
+        attn_mask = local_attention_mask
 
         attn_bias = attn_bias.reshape(
             n_graph,
@@ -731,9 +882,9 @@ class GraphormerMatterSim(Model):
             -1,
             attn_bias.size()[-2],
             attn_bias.size()[-1],
-        )
+        ).type_as(x)
 
-        x[:, 1:, :] = x[:, 1:, :] + merged_edge_features * 0.01
+        x = x + merged_edge_features * 0.01
 
         x = self.emb_layer_norm(x)
 
@@ -743,76 +894,84 @@ class GraphormerMatterSim(Model):
             x, _ = layer(
                 x,
                 attn_bias[:, i, :, :, :],
+                self_attn_mask=attn_mask,
                 self_attn_padding_mask=padding_mask,
                 pbc_expand_batched=pbc_expand_batched,
             )
 
-        outcell_index = pbc_expand_batched["outcell_index"]
-        expand_pos = pbc_expand_batched["expand_pos"]
-        expand_pos = torch.cat([pos, expand_pos], dim=1)
-        expand_x = torch.gather(
-            x.transpose(0, 1),
-            1,
-            outcell_index.unsqueeze(-1).repeat(1, 1, x.size()[-1]) + 1,
-        )
-        expand_x = torch.cat([x.transpose(0, 1), expand_x], dim=1).transpose(0, 1)
         node_type = atomic_numbers[:, :, 0]
-        expand_node_type = torch.gather(node_type, 1, outcell_index)
-        expand_node_type = torch.cat([node_type, expand_node_type], dim=1)
-        expand_mask = pbc_expand_batched["expand_mask"]
-        expand_mask = torch.cat([padding_mask, expand_mask], dim=-1)
-        expand_node_type_edge = torch.gather(
-            node_type_edge,
-            1,
-            outcell_index.unsqueeze(-1)
-            .unsqueeze(-1)
-            .repeat(1, 1, node_type_edge.size(-2), 1),
-        )
-        expand_node_type_edge = torch.cat(
-            [node_type_edge, expand_node_type_edge], dim=1
-        )
+        pbc_expand_batched["local_attention_mask"] = attn_mask
 
         if self.use_simple_head:
             forces = self.node_head(
-                x[1:],
-                attn_bias[:, -1, :, 1:, 1:],
+                x,
+                attn_bias[:, -1, :, :, :],
                 delta_pos,
-                expand_mask[:, 1:],
+                # expand_mask,
                 pbc_expand_batched,
             )
-            x = x.transpose(0, 1)[:, 1:]
+            x = x.transpose(0, 1)
         else:
             forces, x = self.node_head(
-                expand_x,
-                expand_pos,
-                expand_node_type_edge,
-                expand_node_type,
-                expand_mask,
+                x,
+                pos,
+                node_type_edge,
+                node_type,
+                padding_mask,
+                pbc_expand_batched,
             )
-            x = x[:, :n_node]
 
         # use mean pooling
         x = torch.sum(
-            x.masked_fill(padding_mask[:, 1:].unsqueeze(-1), 0.0), dim=1
+            x.masked_fill(padding_mask.unsqueeze(-1), 0.0), dim=1
         ) / batched_data["natoms"].unsqueeze(-1)
         x = self.layer_norm(self.activation_function(self.lm_head_transform_weight(x)))
         energy = self.energy_out(x)  # per atom energy, get from graph token
 
-        forces = forces[:, :n_node]
-        forces = forces.masked_fill(padding_mask[:, 1:].unsqueeze(-1), 0.0)
+        # # additional stress:use energy gradient
+        if self.use_stress_loss:
+            grad_forces, grad_stresses = self.gradient_head(
+                torch.mul(
+                    energy * self.energy_std + self.energy_mean,
+                    batched_data["natoms"].unsqueeze(-1),
+                ),
+                pos,
+                strain,
+                volume,
+            )
+
+        if self.use_simple_head:
+            forces = grad_forces
+        else:
+            forces = grad_forces
+            stresses = grad_stresses
+            forces = forces[:, :n_node]
+            forces = forces.masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
         if torch.any(x.isnan()) or torch.any(forces.isnan()):
             logger.info(
                 f"found nan in: {torch.any(x.isnan())}, {torch.any(forces.isnan())}"
             )
 
-        return energy, forces, padding_mask[:, 1:]
+        if self.use_stress_loss:
+            if torch.any(stresses.isnan()):
+                logger.info(f"found nan in stress: {torch.any(stresses.isnan())}")
+            return energy, forces, stresses, padding_mask
+
+        return energy, forces, padding_mask
 
     def compute_loss(self, model_output, batch_data) -> ModelOutput:
-        energy, forces, padding_mask = model_output
+        if self.use_stress_loss:
+            energy, forces, stress, padding_mask = model_output
+        else:
+            energy, forces, padding_mask = model_output
         bs = energy.shape[0]
         pad_seq_len = forces.size()[1]
         natoms = batch_data["natoms"]
+
+        # pred_energy = energy * self.energy_std + self.energy_mean
+        # pred_forces = forces * self.force_std
+        # pred_stress = stress * self.stress_std
         energy_loss = (
             self.energy_loss(
                 (batch_data["y"].reshape(-1) - self.energy_mean) / self.energy_std,
@@ -820,6 +979,20 @@ class GraphormerMatterSim(Model):
             )
             * self.energy_std
         )
+        # energy_loss = (
+        #         self.energy_huberloss(
+        #         batch_data["y"].reshape(-1).type_as(energy),
+        #         pred_energy.reshape(-1),
+        #     )
+        # )
+        energy_mae_loss = (
+            self.energy_loss(
+                (batch_data["y"].reshape(-1) - self.energy_mean) / self.energy_std,
+                energy.reshape(-1),
+            )
+            * self.energy_std
+        )
+        # batch_data["forces"] = forces.detach()*2
         force_loss = (
             self.force_loss(
                 (batch_data["forces"].reshape(-1) - self.force_mean) / self.force_std,
@@ -827,12 +1000,21 @@ class GraphormerMatterSim(Model):
             ).reshape(bs, pad_seq_len, 3)
             * self.force_std
         )
+        # force_loss = (
+        #         self.force_huberloss(
+        #         batch_data["forces"].type_as(forces),
+        #         pred_forces,
+        #     )
+        # )
         force_loss = force_loss.masked_fill(padding_mask.unsqueeze(-1), 0.0).sum() / (
             natoms.sum() * 3.0
         )
         force_mae_loss = (
             self.force_mae_loss(
-                (batch_data["forces"].reshape(-1).float() - self.force_mean)
+                (
+                    batch_data["forces"].reshape(-1).float().type_as(energy)
+                    - self.force_mean
+                )
                 / self.force_std,
                 forces.reshape(-1),
             ).reshape(bs, pad_seq_len, 3)
@@ -844,16 +1026,63 @@ class GraphormerMatterSim(Model):
             .sum()
             / natoms.sum()
         )
+
+        if self.use_stress_loss:
+            stress_mae_loss = (
+                self.stress_loss(
+                    (batch_data["stress"].reshape(-1)) / self.stress_std,
+                    stress.reshape(-1),
+                ).reshape(bs, 3, 3)
+                * self.stress_std
+            )
+            stress_mae_loss = stress_mae_loss.norm(dim=-1).sum(dim=-1) / natoms
+            stress_loss = (
+                self.stress_loss(
+                    (batch_data["stress"].reshape(-1)) / self.stress_std,
+                    stress.reshape(-1),
+                ).reshape(bs, 3, 3)
+                * self.stress_std
+            )
+            stress_loss = stress_loss.sum() / (bs * 9.0)
+            # stress_loss = (
+            #         self.stress_huberloss(
+            #         batch_data["stress"].type_as(stress),
+            #         pred_stress,
+            #     )
+            # )
+            stress_mae_loss = stress_mae_loss.sum() / bs
+            # stress_loss = self.stress_loss(stress * self.stress_std, batch_data["stress"])
+            # stress_mae_loss = nn.L1Loss()(stress * self.stress_std, batch_data["stress"])
+
         if torch.any(batch_data["forces"].isnan()):
             logger.warning("nan found in force labels")
         if torch.any(batch_data["y"].isnan()):
             logger.warning("nan found in energy labels")
+        stress_non_flag = False
+        if self.use_stress_loss and torch.any(batch_data["stress"].isnan()):
+            logger.warning("nan found in stress labels")
+            stress_non_flag = True
+            stress_loss = 0.0
+            stress_mae_loss = 0.0
         return ModelOutput(
-            loss=(force_loss * self.force_loss_factor + energy_loss).float(),
+            loss=(force_loss * self.force_loss_factor + energy_loss)
+            .float()
+            .type_as(energy)
+            if not self.use_stress_loss or stress_non_flag
+            else (
+                force_loss * self.force_loss_factor
+                + energy_loss
+                + stress_loss * self.stress_loss_factor
+            )
+            .float()
+            .type_as(energy),
             log_output={
                 "energy_loss": energy_loss,
+                "energy_mae_loss": energy_mae_loss,
                 "force_loss": force_loss,
                 "force_mae_loss": force_mae_loss,
+                "stress_loss": stress_loss if self.use_stress_loss else 0,
+                "stress_mae_loss": stress_mae_loss if self.use_stress_loss else 0,
             },
             num_examples=bs,
         )
