@@ -91,11 +91,10 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
 
         if self.shuffle_subseq:
             assert self.eos_idx != -1, "eos_idx must be set if shuffle_subseq is True"
-        self.data_size_list = []
-        self.data_size_list.append(0)
+        self.acc_data_size_list = []
         for i in range(len(self.data_list)):
             cur_num = self.data_list[i].shape[0] * self.replicate
-            self.data_size_list.append(self.data_size_list[i] + cur_num)
+            self.acc_data_size_list.append(self.acc_data_size_list[i] + cur_num)
 
         logger.info(
             f"Loaded {path} with shape ({int(self.__len__()/self.replicate), processed_seq_len}), max_len {max_len}, replicate {self.replicate}"
@@ -113,11 +112,11 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
         return torch.from_numpy(data.astype(np.int64))
 
     def get_real_index(self, index):
-        list_index = bisect.bisect_right(self.data_size_list, index)
-        return list_index - 1, index - self.data_size_list[list_index - 1]
+        list_index = bisect.bisect_right([0] + self.acc_data_size_list, index)
+        return list_index - 1, index - self.acc_data_size_list[list_index - 1]
 
     def __len__(self):
-        return self.data_size_list[-1]
+        return self.acc_data_size_list[-1]
 
     def collate(self, samples):
         input_ids = torch.stack(samples, dim=0)
@@ -142,7 +141,7 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
         txn_list = []
         keys_list = []
         data_size_list = []
-        data_size_list.append(0)
+        acc_data_size_list = []
         processed_seq_len = None
         self.len = 0
         file_list = []
@@ -152,8 +151,12 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
                 logger.info(f"Multiple files in {path}")
                 for pth in path.split(","):
                     if data_dir is not None:
-                        if os.path.isfile(os.path.join(data_dir, pth)):
+                        if os.path.isfile(os.path.join(data_dir, pth, "data.mdb")):
                             file_list.append(os.path.join(data_dir, pth))
+                        else:
+                            logger.warning(
+                                f"File {os.path.join(data_dir, pth)} not found"
+                            )
                     else:
                         file_list.append(pth)
             elif path.endswith(".lmdb") or path.endswith(".lmdb/"):
@@ -230,7 +233,9 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
             metadata = bstr2obj(txn.get("metadata".encode()))
             cur_len, cur_keys = metadata["size"], metadata["keys"]
             self.len += cur_len * self.replicate
-            data_size_list.append(self.len)
+
+            data_size_list.append(cur_len * self.replicate)
+            acc_data_size_list.append(self.len)
 
             keys_list.append(cur_keys)
             cur_processed_seq_len = metadata["processed_seq_len"]
@@ -242,6 +247,7 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
             else:
                 processed_seq_len = cur_processed_seq_len
         self.data_size_list = data_size_list
+        self.acc_data_size_list = acc_data_size_list
         self.keys_list = keys_list
         if self.shuffle_subseq:
             assert self.eos_idx != -1, "eos_idx must be set if shuffle_subseq is True"
@@ -263,8 +269,8 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
         return torch.from_numpy(data.astype(np.int64))
 
     def get_real_index(self, index):
-        list_index = bisect.bisect_right(self.data_size_list, index)
-        return list_index - 1, index - self.data_size_list[list_index - 1]
+        list_index = bisect.bisect_right([0] + self.acc_data_size_list, index)
+        return list_index - 1, index - self.acc_data_size_list[list_index - 1]
 
     def __len__(self):
         return self.len
@@ -293,12 +299,15 @@ class ProcessedSciWeightedDatasetLmdb(ProcessedSciDatasetLmdb):
         )
 
         self.data_raio = [float(r) for r in data_raito.split(",")]
+        ratio_sum = sum(self.data_raio)
+        self.data_raio = [r / ratio_sum for r in self.data_raio]
         assert len(self.data_raio) == len(
-            self.data_size_list
-        ), f"data_raito must be equal to the number of files, but got {len(self.data_raio)} and {len(self.data_size_list)}"
-        assert (
-            sum(self.data_raio) == 1
-        ), f"sum of data_raito must be equal to 1, but got sum of {self.data_raio}={sum(self.data_raio)}"
+            self.acc_data_size_list
+        ), f"data_raito must be equal to the number of files, but got {len(self.data_raio)} and {len(self.acc_data_size_list)}"
+
+        logger.info(f"data_raio {self.data_raio}")
+        logger.info(f"data_size_list {self.data_size_list}")
+        logger.info(f"acc_data_size_list {self.acc_data_size_list}")
 
     def __getitem__(self, index):
         # get data from the corresponding dataset with the probability of data_raio

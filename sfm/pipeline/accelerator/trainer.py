@@ -5,7 +5,8 @@ import random
 import shutil
 import time
 from contextlib import nullcontext
-from dataclasses import asdict, dataclass
+from copy import deepcopy
+from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Union
 
@@ -117,10 +118,10 @@ class LogAccumulator(object):
             return
 
         if type(loss) == torch.Tensor:
-            loss = loss.item()
+            loss = float(loss.clone().item())
 
         if type(num_examples) == torch.Tensor:
-            num_examples = num_examples.item()
+            num_examples = int(num_examples.clone().item())
 
         if num_examples is None or num_examples <= 0:
             return
@@ -139,13 +140,13 @@ class LogAccumulator(object):
                     if k == "total_acc_sample":
                         continue
                     elif isinstance(v, torch.Tensor):
-                        self.extra_log[k] = v.item() * num_examples
+                        self.extra_log[k] = float(v.item()) * num_examples
                         self.extra_log_num[k] = 1 * num_examples
                     elif isinstance(v, tuple):
-                        self.extra_log[k] = v[0] * v[1]
-                        self.extra_log_num[k] = v[1]
+                        self.extra_log[k] = float(v[0]) * float(v[1])
+                        self.extra_log_num[k] = float(v[1])
                     else:
-                        self.extra_log[k] = v * num_examples
+                        self.extra_log[k] = float(v) * num_examples
                         self.extra_log_num[k] = 1 * num_examples
                 elif k in self.extra_log and isinstance(
                     v, (torch.Tensor, float, tuple)
@@ -153,13 +154,13 @@ class LogAccumulator(object):
                     if k == "total_acc_sample":
                         continue
                     elif isinstance(v, torch.Tensor):
-                        self.extra_log[k] += v.item() * num_examples
+                        self.extra_log[k] += float(v.item()) * num_examples
                         self.extra_log_num[k] += 1 * num_examples
                     elif isinstance(v, tuple):
-                        self.extra_log[k] += v[0] * v[1]
-                        self.extra_log_num[k] += v[1]
+                        self.extra_log[k] += float(v[0]) * float(v[1])
+                        self.extra_log_num[k] += float(v[1])
                     else:
-                        self.extra_log[k] += v * num_examples
+                        self.extra_log[k] += float(v) * num_examples
                         self.extra_log_num[k] += 1 * num_examples
 
     def reset(self):
@@ -729,6 +730,20 @@ class Trainer(object):
                     len(self.valid_data_loader),
                     output.valid_loss,
                 )
+                if self.args.val_batch_log_all_metric:
+                    interval_loss_accumulator_for_log = deepcopy(
+                        interval_loss_accumulator
+                    )
+                    valid_log = ValidLogOutput(
+                        valid_loss=output.valid_loss,
+                        num_examples=output.num_examples,
+                        epoch=self.state.epoch,
+                        extra_output={
+                            **interval_loss_accumulator_for_log.averge_log,
+                            **dict(),
+                        },
+                    )
+                    metric_logger.log(valid_log, "valid", self.state.global_step)
 
         # DDP and Zero need to sync loss and num_examples at validation
         total_loss, num_examples = self.accelerator.sync_valid_loss(

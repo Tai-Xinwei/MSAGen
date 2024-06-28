@@ -239,7 +239,7 @@ class SingleNodeAccelerator(Accelerator):
         )
 
         if valid_data:
-            valid_batch_size_per_gpu = self.args.val_batch_size
+            valid_batch_size_per_gpu = self.args.val_batch_size // self.world_size
             assert (
                 valid_batch_size_per_gpu > 0
             ), "valid_batch_size_per_gpu should be greater than 0"
@@ -607,7 +607,7 @@ class DdpAccelerator(SingleNodeAccelerator):
                 self.valid_data_loader = DataLoader(
                     val_data,
                     batch_sampler=valid_sampler,
-                    collate_fn=train_data.collate,
+                    collate_fn=val_data.collate,
                 )
             elif self.args.use_dali_pipeline:
                 self.valid_data_loader = DataLoader(
@@ -616,7 +616,7 @@ class DdpAccelerator(SingleNodeAccelerator):
                     collate_fn=val_data.collate,
                 )
             else:
-                valid_batch_size_per_gpu = self.args.val_batch_size
+                valid_batch_size_per_gpu = self.args.val_batch_size // self.world_size
                 assert (
                     valid_batch_size_per_gpu > 0
                 ), "valid_batch_size_per_gpu should be greater than 0"

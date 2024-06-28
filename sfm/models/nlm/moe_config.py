@@ -48,6 +48,7 @@ class MoeModelConfig(MixtralConfig, DistributedTrainConfig):
     data_dir: str = ""
     data_raito: str = ""
     train_data_path: str = ""
+    train_data_ratio: str = ""
     valid_data_path: str = ""
     pretrained_ckpt_path: str = ""
     load_ckpt: bool = False

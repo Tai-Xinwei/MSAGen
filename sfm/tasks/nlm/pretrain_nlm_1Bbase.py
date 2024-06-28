@@ -47,7 +47,7 @@ def main(args) -> None:
             args.train_data_path,
             args.pad_token_id,
             args.max_position_embeddings,
-            data_raito=args.data_raito,
+            data_raito=args.train_data_ratio,
         )
         valid_dataset = ProcessedSciDatasetLmdb(
             args.valid_data_path, args.pad_token_id, args.max_position_embeddings

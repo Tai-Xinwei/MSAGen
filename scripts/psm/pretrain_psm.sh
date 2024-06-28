@@ -32,8 +32,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=2e-4
-[ -z "${total_num_steps}" ] && total_num_steps=200000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
+[ -z "${total_num_steps}" ] && total_num_steps=2000000
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=12000
 [ -z "${train_batch_size}" ] && train_batch_size=64
 [ -z "${val_batch_size}" ] && val_batch_size=64
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
@@ -50,9 +50,9 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
 [ -z "${data_path}" ] && data_path='/data/peiran/'
 # [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M,AFDB50-plddt70.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.2,0.4'
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,1"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=False
 
@@ -75,13 +75,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
-[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS"
+[ -z "${equivar_vec_init}" ] && equivar_vec_init="ZERO_CENTERED_POS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
-[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
+[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=256
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=5.0
-[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
-[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
+[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=False
+[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
@@ -95,7 +95,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
 
-[ -z "${fp16}" ] && fp16=True
+[ -z "${fp16}" ] && fp16=False
 
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
 [ -z "${sample_in_validation}" ] && sample_in_validation=False
@@ -104,9 +104,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${psm_sample_structure_in_finetune}" ] && psm_sample_structure_in_finetune=False
 [ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=True
+[ -z "${val_batch_log_all_metric}" ] && val_batch_log_all_metric=False
+[ -z "${psm_validate_for_train_set}" ] && psm_validate_for_train_set=False
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=False
-[ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=False
+[ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=True
 
 [ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=True
@@ -214,6 +216,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           psm_finetune_mode=$psm_finetune_mode \
           psm_sample_structure_in_finetune=$psm_sample_structure_in_finetune \
           psm_finetune_reset_head=$psm_finetune_reset_head \
+          val_batch_log_all_metric=$val_batch_log_all_metric \
+          psm_validate_for_train_set=$psm_validate_for_train_set \
           rescale_loss_with_std=$rescale_loss_with_std \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           use_memory_efficient_attention=$use_memory_efficient_attention \
