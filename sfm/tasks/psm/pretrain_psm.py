@@ -152,6 +152,9 @@ def main(args: DictConfig) -> None:
         decay_type=DECAY_COSINE_RATE,
     )
 
+    if args.psm_validate_for_train_set and args.psm_validation_mode:
+        valid_data = train_data
+
     trainer = Trainer(
         args,
         model,

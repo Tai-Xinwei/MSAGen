@@ -114,6 +114,7 @@ class PSMConfig(GraphormerConfig):
     psm_finetune_noise_mode: str = "zero"
     psm_finetune_valid_noise_mode: str = "T"
     only_use_rotary_embedding_for_protein: bool = False
+    psm_validate_for_train_set: bool = False
 
     # dali pipeline
     use_dali_pipeline: bool = False

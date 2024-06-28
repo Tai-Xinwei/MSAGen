@@ -16,11 +16,7 @@ from sfm.logging import logger
 from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
-from sfm.models.psm.equivariant.nodetaskhead import (
-    NodeTaskHead,
-    VectorOutput,
-    VectorProjOutput,
-)
+from sfm.models.psm.equivariant.nodetaskhead import NodeTaskHead, VectorOutput
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
@@ -300,6 +296,7 @@ class PSMModel(Model):
             ori_pos = torch.bmm(ori_pos, R)
             batched_data["forces"] = torch.bmm(batched_data["forces"], R)
             batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
+            batched_data["cell"] = torch.bmm(batched_data["cell"], R)
 
         batched_data["ori_pos"] = ori_pos
 
@@ -366,6 +363,34 @@ class PSMModel(Model):
         """
         return self.net.max_positions
 
+    def sample_and_calc_match_metric(self, batched_data):
+        match_results = {}
+        for sample_time_index in range(self.psm_config.num_sampling_time):
+            original_pos = batched_data["pos"].clone()
+            batched_data["pos"] = torch.zeros_like(
+                batched_data["pos"]
+            )  # zero position to avoid any potential leakage
+            self.sample(batched_data=batched_data)
+            match_result_one_time = self.sampled_structure_converter.convert_and_match(
+                batched_data, original_pos, sample_time_index
+            )
+            for match_result in match_result_one_time:
+                for key in match_result:
+                    if key not in match_results:
+                        match_results[key] = []
+                    match_results[key].append(match_result[key])
+            batched_data[
+                "pos"
+            ] = original_pos  # recover original position, in case that we want to calculate diffusion loss and sampling RMSD at the same time in validation, and for subsequent sampling
+        for key in match_results:
+            match_results[key] = torch.tensor(
+                match_results[key], device=batched_data["pos"].device
+            )
+            match_results[key] = (
+                match_results[key].view(self.psm_config.num_sampling_time, -1).T
+            )
+        return match_results
+
     def forward(self, batched_data, **kwargs):
         """
         Forward pass of the model.
@@ -376,21 +401,7 @@ class PSMModel(Model):
         """
 
         if self.psm_config.sample_in_validation and not self.training:
-            rmsds = []
-            for sample_time_index in range(self.psm_config.num_sampling_time):
-                original_pos = batched_data["pos"].clone()
-                batched_data["pos"] = torch.zeros_like(
-                    batched_data["pos"]
-                )  # zero position to avoid any potential leakage
-                self.sample(batched_data=batched_data)
-                rmsds_one_time = self.sampled_structure_converter.convert_and_match(
-                    batched_data, original_pos, sample_time_index
-                )
-                rmsds.append(rmsds_one_time)
-                batched_data[
-                    "pos"
-                ] = original_pos  # recover original position, in case that we want to calculate diffusion loss and sampling RMSD at the same time in validation, and for subsequent sampling
-            rmsds = torch.cat([rmsd.unsqueeze(-1) for rmsd in rmsds], dim=-1)
+            match_results = self.sample_and_calc_match_metric(batched_data)
 
         self._create_system_tags(batched_data)
         self._create_protein_mask(batched_data)
@@ -488,7 +499,7 @@ class PSMModel(Model):
         result_dict["force_label"] = batched_data["forces"]
 
         if self.psm_config.sample_in_validation and not self.training:
-            result_dict["rmsd"] = rmsds
+            result_dict.update(match_results)
 
         if self.psm_finetune_head:
             result_dict = self.psm_finetune_head(result_dict)
@@ -563,9 +574,7 @@ class PSMModel(Model):
             batched_data["non_atom_mask"],
             batched_data["is_periodic"],
         )
-        batched_data["pos"] = complete_cell(
-            batched_data["pos"], batched_data, is_sampling=True
-        )
+        batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
         batched_data["pos"] = center_pos(
             batched_data, padding_mask=padding_mask
         )  # centering to remove noise translation
@@ -575,6 +584,7 @@ class PSMModel(Model):
             time_step = self.time_step_sampler.get_continuous_time_step(
                 t, n_graphs, device=device, dtype=batched_data["pos"].dtype
             )
+            time_step = time_step.unsqueeze(-1)
             batched_data["sqrt_one_minus_alphas_cumprod_t"] = self.diffnoise._extract(
                 self.diffnoise.sqrt_one_minus_alphas_cumprod,
                 (time_step * self.psm_config.num_timesteps).long(),
@@ -594,9 +604,7 @@ class PSMModel(Model):
                 epsilon,
                 t,
             )
-            batched_data["pos"] = complete_cell(
-                batched_data["pos"], batched_data, is_sampling=True
-            )
+            batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
             batched_data["pos"] = center_pos(
                 batched_data, padding_mask=padding_mask
             )  # centering to remove noise translation
@@ -645,7 +653,7 @@ def center_pos(batched_data, padding_mask):
     return batched_data["pos"]
 
 
-def complete_cell(pos, batched_data, is_sampling=False):
+def complete_cell(pos, batched_data):
     periodic_mask = torch.any(batched_data["pbc"], dim=-1)
     periodic_pos = pos[periodic_mask]
     device = periodic_pos.device
@@ -685,16 +693,6 @@ def complete_cell(pos, batched_data, is_sampling=False):
     cell -= ((cell[:, 0, :] + cell[:, 7, :]) / 2.0).unsqueeze(1)
     periodic_pos = periodic_pos.scatter(1, scatter_index, cell)
     pos[periodic_mask] = periodic_pos
-
-    if is_sampling:
-        corner = torch.gather(periodic_pos, 1, index=gather_index)[:, 0, :].unsqueeze(1)
-        inverse_lattice = torch.inverse(batched_data["cell"][periodic_mask])
-        frac_coords = torch.matmul(pos[periodic_mask] - corner, inverse_lattice) % 1.0
-        pos[periodic_mask] = torch.where(
-            batched_data["non_atom_mask"][periodic_mask].unsqueeze(-1),
-            pos[periodic_mask],
-            torch.matmul(frac_coords, batched_data["cell"][periodic_mask]) + corner,
-        )
 
     token_id = batched_data["token_id"]
     padding_mask = token_id.eq(0)  # B x T x 1
