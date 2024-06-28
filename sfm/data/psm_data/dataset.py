@@ -575,9 +575,9 @@ class AFDBLMDBDataset(FoundationModelDataset):
         self._env, self._txn = None, None
         self._sizes, self._keys = None, None
 
-        self.filter_indices_by_size(
-            indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
-        )
+        # self.filter_indices_by_size(
+        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
+        # )
 
     def _init_db(self):
         self._env = lmdb.open(
@@ -629,10 +629,19 @@ class AFDBLMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
 
+        # random cut off the sequence data["aa"] to self.max_length
+        if len(data["aa"]) > self.args.max_length:
+            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
+            coords = data["pos"][
+                random_start : random_start + self.args.max_length, 1, :
+            ]
+        else:
+            # CA atom positions, assume all values are valid.
+            coords = data["pos"][:, 1, :]
+
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([self.vocab[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
-        # CA atom positions, assume all values are valid.
-        coords = data["pos"][:, 1, :]
 
         data["sample_type"] = 2
         data["token_type"] = x

@@ -21,6 +21,7 @@ from sfm.models.psm.equivariant.nodetaskhead import (
     VectorOutput,
     VectorProjOutput,
 )
+from sfm.models.psm.invariant.dit_encoder import PSMDiTEncoder
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
@@ -724,7 +725,7 @@ class PSM(nn.Module):
         )
 
         # Implement the embedding
-        if args.backbone == "vanillatransformer":
+        if args.backbone in ["vanillatransformer", "dit"]:
             self.embedding = PSMMix3dEmbedding(
                 psm_config, use_unified_batch_sampler=args.use_unified_batch_sampler
             )
@@ -754,6 +755,12 @@ class PSM(nn.Module):
         elif args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
             # Implement the encoder
             self.encoder = PSMPlainEncoder(args, psm_config)
+            # Implement the decoder
+            # self.decoder = EquivariantDecoder(psm_config)
+            self.decoder = NodeTaskHead(psm_config)
+        elif args.backbone in ["dit"]:
+            # Implement the encoder
+            self.encoder = PSMDiTEncoder(args, psm_config)
             # Implement the decoder
             # self.decoder = EquivariantDecoder(psm_config)
             self.decoder = NodeTaskHead(psm_config)
@@ -799,6 +806,11 @@ class PSM(nn.Module):
                 self.noise_head = VectorOutput(psm_config.embedding_dim)
                 # self.noise_head = VectorProjOutput(psm_config.embedding_dim)
                 self.forces_head.update({key: VectorOutput(psm_config.embedding_dim)})
+            elif args.backbone in ["dit"]:
+                self.noise_head = VectorProjOutput(psm_config.embedding_dim)
+                self.forces_head.update(
+                    {key: VectorProjOutput(psm_config.embedding_dim)}
+                )
             else:
                 self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
                 self.forces_head.update(
@@ -818,7 +830,11 @@ class PSM(nn.Module):
             nn.Linear(psm_config.embedding_dim, 1, bias=False),
         )
 
-        if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
+        if self.args.backbone in [
+            "vanillatransformer",
+            "vanillatransformer_equiv",
+            "dit",
+        ]:
             self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
             self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
 
@@ -951,6 +967,25 @@ class PSM(nn.Module):
                         padding_mask,
                         pbc_expand_batched,
                     )
+        elif self.args.backbone in ["dit"]:
+            encoder_output = self.encoder(
+                token_embedding,
+                mixed_attn_bias,
+                padding_mask,
+                batched_data,
+                pbc_expand_batched,
+                ifbackprop=self.args.AutoGradForce,
+            )
+
+            with (
+                torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+                if self.args.fp16
+                else nullcontext()
+            ):
+                encoder_output = self.layer_norm(encoder_output)
+                decoder_x_output, decoder_vec_output = encoder_output, encoder_output
+                encoder_output = encoder_output.transpose(0, 1)
+
         elif self.encoder is not None:
             encoder_output = self.encoder(
                 token_embedding.transpose(0, 1),
@@ -981,7 +1016,10 @@ class PSM(nn.Module):
             else nullcontext()
         ):
             if not self.args.seq_only:
-                noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
+                if self.args.backbone in ["dit"]:
+                    noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
+                else:
+                    noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
                 # noise_pred = self.noise_head(encoder_output.transpose(0, 1), decoder_vec_output)
 
                 energy_per_atom = torch.where(

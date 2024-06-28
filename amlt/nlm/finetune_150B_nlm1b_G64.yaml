@@ -1,7 +1,7 @@
 description: train_sfm_nlmmoe_debug
 
 env_defaults:
-  NODES: 8
+  NODES: 4
   GPUS: 8
   # WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
@@ -46,7 +46,7 @@ jobs:
   - pip uninstall flash-attn -y
   - export train_batch_size=4096
   - export val_batch_size=4096
-  - export gradient_accumulation_steps=64
+  - export gradient_accumulation_steps=128
   - export tensor_model_parallel_size=1
   - export pipeline_model_parallel_size=1
   - export total_num_steps=50000
@@ -56,7 +56,8 @@ jobs:
   - export train_data_path=/nlm/peiran/llama3_processed_data/lmdb_notext/v5_train_split/
   - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb_notext/v5_valid_split/
   - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
-  - export loadcheck_path=/nlm/peiran/output/nlm_base1b_300B/global_step7805/
+  # - export loadcheck_path=/nlm/peiran/output/nlm_base1b_300B/global_step7805/
+  - export loadcheck_path=/nlm/peiran/output/finetune_base_150B_G64/global_step30000/
   - export save_dir=/nlm/peiran/output/finetune_base_150B_G64_notext/
   - bash scripts/nlm/finetune_base1b_protein.sh
   submit_args:
