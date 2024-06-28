@@ -29,6 +29,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=10
 
+[ -z "${data_dir}" ] && data_dir=''
 [ -z "${dict_path}" ] && dict_path='/data/peiran/blob/sfmdataeastus2/nlm/llama/Meta-Llama-3-8B/original/'
 [ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/sfmdataeastus2/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split/v5_protein_valid.npy.lmdb'
 [ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/sfmdataeastus2/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split/v5_protein_valid.npy.lmdb'
@@ -140,6 +141,7 @@ set -x
 torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm_1Bbase.py \
       --model_type "$model_type" \
       --dict_path "$dict_path" \
+      --data_dir "$data_dir" \
       --train_data_path "$train_data_path" \
       --valid_data_path "$valid_data_path" \
       --weight_decay "$weight_decay" \
@@ -164,5 +166,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm_1Bbase.py \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --pretrained_ckpt_path "$loadcheck_path" \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
-      --data_ratio "$data_ratio" \
+      --train_data_ratio "$data_ratio" \
       ${MEGATRON_ARGS} ${load_ckpt} ${weighted_dataset}
