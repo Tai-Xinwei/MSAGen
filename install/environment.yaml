@@ -47,3 +47,4 @@ dependencies:
       - hydra-core
       - e3nn
       - fairchem-core
+      - ase

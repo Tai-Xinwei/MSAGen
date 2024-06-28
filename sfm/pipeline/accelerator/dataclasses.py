@@ -58,7 +58,7 @@ class TrainerConfig:
 
         max_tokens, train_batch_size, val_batch_size: Batch-related parameters for training and validation.
 
-        val_batch_interval, val_batch_log_interval, val_epoch_interval: Settings for validation intervals.
+        val_batch_interval, val_batch_log_interval, val_batch_log_all_metric, val_epoch_interval: Settings for validation intervals.
 
         save_dir, save_batch_interval, save_epoch_interval: Settings for saving checkpoints and their intervals.
 
@@ -103,6 +103,7 @@ class TrainerConfig:
     val_batch_size: int = 1
     val_batch_interval: int = 0
     val_batch_log_interval: int = 1000
+    val_batch_log_all_metric: bool = False
     val_epoch_interval: int = 1
     save_dir: str = "./checkpoints"
     save_batch_interval: int = 0

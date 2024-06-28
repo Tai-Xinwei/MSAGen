@@ -386,40 +386,91 @@ class DiffMAE3dCriterions(nn.Module):
         # and the second element is the number of samples (or token numbers) in the batch with that loss considered
         logging_output = {
             "total_loss": loss,
-            "energy_loss": (energy_loss, num_energy_sample),
-            "molecule_energy_loss": (molecule_energy_loss, num_molecule_energy_sample),
-            "periodic_energy_loss": (periodic_energy_loss, num_periodic_energy_sample),
-            "force_loss": (force_loss, num_force_sample),
-            "molecule_force_loss": (molecule_force_loss, num_molecule_force_sample),
-            "periodic_force_loss": (periodic_force_loss, num_periodic_force_sample),
-            "noise_loss": (noise_loss, num_noise_sample),
-            "molecule_noise_loss": (molecule_noise_loss, num_molecule_noise_sample),
-            "periodic_noise_loss": (periodic_noise_loss, num_periodic_noise_sample),
-            "protein_noise_loss": (protein_noise_loss, num_protein_noise_sample),
-            "aa_mlm_loss": (aa_mlm_loss, num_aa_mask_token),
-            "aa_acc": (aa_acc, num_aa_mask_token),
+            "energy_loss": (float(energy_loss), int(num_energy_sample)),
+            "molecule_energy_loss": (
+                float(molecule_energy_loss),
+                int(num_molecule_energy_sample),
+            ),
+            "periodic_energy_loss": (
+                float(periodic_energy_loss),
+                int(num_periodic_energy_sample),
+            ),
+            "force_loss": (float(force_loss), int(num_force_sample)),
+            "molecule_force_loss": (
+                float(molecule_force_loss),
+                int(num_molecule_force_sample),
+            ),
+            "periodic_force_loss": (
+                float(periodic_force_loss),
+                int(num_periodic_force_sample),
+            ),
+            "noise_loss": (float(noise_loss), int(num_noise_sample)),
+            "molecule_noise_loss": (
+                float(molecule_noise_loss),
+                int(num_molecule_noise_sample),
+            ),
+            "periodic_noise_loss": (
+                float(periodic_noise_loss),
+                int(num_periodic_noise_sample),
+            ),
+            "protein_noise_loss": (
+                float(protein_noise_loss),
+                int(num_protein_noise_sample),
+            ),
+            "aa_mlm_loss": (float(aa_mlm_loss), int(num_aa_mask_token)),
+            "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
         }
 
-        if "rmsd" in model_output:
-            rmsd = model_output["rmsd"]
-            matched_mask = ~rmsd.isnan()
+        def _reduce_matched_result(model_output, metric_name, min_or_max: str):
+            metric = model_output[metric_name]
+            matched_mask = ~metric.isnan()
             num_matched_samples = int(torch.sum(matched_mask.long()))
             matched_rate = float(torch.mean(matched_mask.float()))
-            mean_rmsd = float(torch.sum(rmsd[matched_mask]) / num_matched_samples)
-            logging_output["rmsd"] = (mean_rmsd, num_matched_samples)
-            logging_output["matched_rate"] = (matched_rate, rmsd.numel())
-            if rmsd.size()[-1] > 1:
-                any_matched_mask = ~rmsd.isnan().any(dim=-1)
+            if num_matched_samples > 0:
+                mean_metric = float(
+                    torch.sum(metric[matched_mask]) / num_matched_samples
+                )
+                metric_tuple = (mean_metric, num_matched_samples)
+            else:
+                metric_tuple = (0.0, 0)
+            matched_rate_tuple = (matched_rate, metric.numel())
+            torch_min_or_max_func = torch.min if min_or_max == "min" else torch.max
+            if metric.size()[-1] > 1:
+                any_matched_mask = ~metric.isnan().any(dim=-1)
                 num_any_matched_samples = int(torch.sum(any_matched_mask))
-                min_rmsd = torch.min(rmsd, dim=-1)[0]
-                min_rmsd = float(
-                    torch.sum(min_rmsd[any_matched_mask]) / num_any_matched_samples
+                best_metric = torch_min_or_max_func(metric, dim=-1)[0]
+                if num_any_matched_samples > 0:
+                    best_metric = float(
+                        torch.sum(best_metric[any_matched_mask])
+                        / num_any_matched_samples
+                    )
+                    best_metric_tuple = (best_metric, num_any_matched_samples)
+                else:
+                    best_metric_tuple = (0.0, 0)
+                any_matched_rate_tuple = (
+                    float(torch.mean(any_matched_mask.float())),
+                    int(metric.size()[0]),
                 )
-                any_matched_rate = float(torch.mean(any_matched_mask.float()))
-                logging_output["min_rmsd"] = (min_rmsd, num_any_matched_samples)
-                logging_output["any_matched_rate"] = (
-                    any_matched_rate,
-                    int(rmsd.size()[0]),
-                )
+            return (
+                metric_tuple,
+                matched_rate_tuple,
+                best_metric_tuple,
+                any_matched_rate_tuple,
+            )
+
+        if "rmsd" in model_output:
+            (
+                logging_output["rmsd"],
+                logging_output["matched_rate"],
+                logging_output["min_rmsd"],
+                logging_output["any_matched_rate"],
+            ) = _reduce_matched_result(model_output, "rmsd", "min")
+        if "tm_score" in model_output:
+            (
+                logging_output["tm_score"],
+                _,
+                logging_output["max_tm_score"],
+                _,
+            ) = _reduce_matched_result(model_output, "tm_score", "max")
 
         return loss, logging_output

@@ -15,6 +15,7 @@ from typing import Any, List, Optional, Union
 
 import lmdb
 import torch
+from ase.io import read as ase_read
 from numpy import dot
 from numpy.linalg import norm
 from sympy.utilities.iterables import multiset_permutations
@@ -343,19 +344,36 @@ class MatterSimDataset:
         self.data_txn = None
         self.index_to_key_name = []
         self.data_path = data_path
-        lmdb_path = f"{self.data_path}/{split}"
-        self.data_lmdb = lmdb.open(
-            lmdb_path,
-            subdir=True,
-            readonly=True,
-            lock=False,
-            readahead=False,
-            meminit=False,
-        )
-        self.data_txn = self.data_lmdb.begin(write=False)
-        self.index_to_key_name = bstr2obj(
-            self.data_txn.get("index_to_key_name".encode())
-        )
+        if not os.path.isdir(self.data_path):
+            self.dataset_type = "single structure file"
+            # strip trailing slashes
+            self.data_path = self.data_path.rstrip("/")
+            assert (
+                self.data_path.endswith("xyz")
+                or self.data_path.endswith("cif")
+                or self.data_path.endswith("POSCAR")
+                or self.data_path.endswith("CONTCAR")
+            ), "Structure format not supported"
+            logger.info(
+                "Assuming you are using this functionality for inference only, setting split to None."
+            )
+            split = None
+            self.atoms_list = ase_read(self.data_path, index=":")
+        else:
+            self.dataset_type = "lmdb"
+            lmdb_path = f"{self.data_path}/{split}"
+            self.data_lmdb = lmdb.open(
+                lmdb_path,
+                subdir=True,
+                readonly=True,
+                lock=False,
+                readahead=False,
+                meminit=False,
+            )
+            self.data_txn = self.data_lmdb.begin(write=False)
+            self.index_to_key_name = bstr2obj(
+                self.data_txn.get("index_to_key_name".encode())
+            )
         self.args = args
 
     def switch_lattice_vectors(self, pbc, cell):
@@ -413,8 +431,11 @@ class MatterSimDataset:
 
     @lru_cache(maxsize=16)
     def __getitem__(self, idx):
-        key = self.index_to_key_name[idx]
-        data = pkl.loads(self.data_txn.get(key.encode()))
+        if self.dataset_type == "single structure file":
+            data = self.atoms_list[idx].todict()
+        else:
+            key = self.index_to_key_name[idx]
+            data = pkl.loads(self.data_txn.get(key.encode()))
         numbers = data.pop(
             "numbers"
         )  # atomic numbers, starting from 1 for hydrogen atoms
@@ -453,30 +474,44 @@ class MatterSimDataset:
             [data["coords"], cell_corner_pos], dim=0
         )  # expand pos with cell corners
         data["num_atoms"] = int(x.size()[0] - 8)
-        data["forces"] = torch.cat(
-            [
-                (torch.tensor(data["forces"], dtype=torch.float64) - self.force_mean),
-                # / self.force_std,
-                torch.zeros([8, 3], dtype=torch.float64),
-            ],
-            dim=0,
-        )  # expand forces for cell corners
-        data["energy"] = torch.tensor(
-            [(data["info"]["energy"] - self.energy_mean) / self.energy_std]
-        )
-        data["energy_per_atom"] = torch.tensor(
-            [
-                (
-                    (data["info"]["energy"] / float(data["num_atoms"]))
-                    - self.energy_per_atom_mean
-                )
-                # / self.energy_per_atom_std
-            ]
-        )
-        data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
+        if not self.args.psm_validation_mode:
+            data["forces"] = torch.cat(
+                [
+                    (
+                        torch.tensor(data["forces"], dtype=torch.float64)
+                        - self.force_mean
+                    )
+                    / self.force_std,
+                    torch.zeros([8, 3], dtype=torch.float64),
+                ],
+                dim=0,
+            )  # expand forces for cell corners
+            data["energy"] = torch.tensor(
+                [(data["info"]["energy"] - self.energy_mean) / self.energy_std]
+            )
+            data["energy_per_atom"] = torch.tensor(
+                [
+                    (
+                        (data["info"]["energy"] / float(data["num_atoms"]))
+                        - self.energy_per_atom_mean
+                    )
+                    / self.energy_per_atom_std
+                ]
+            )
+            data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
 
-        data["has_energy"] = torch.tensor([1], dtype=torch.bool)
-        data["has_forces"] = torch.tensor([1], dtype=torch.bool)
+            data["has_energy"] = torch.tensor([1], dtype=torch.bool)
+            data["has_forces"] = torch.tensor([1], dtype=torch.bool)
+        else:
+            data["energy"] = torch.tensor([0.0], dtype=torch.float64)
+            data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
+            data["forces"] = torch.zeros(
+                [data["num_atoms"] + 8, 3], dtype=torch.float64
+            )
+            data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
+            data["has_energy"] = torch.tensor([1], dtype=torch.bool)
+            data["has_forces"] = torch.tensor([1], dtype=torch.bool)
+
         data = self.generate_2dgraphfeat(data)
 
         if self.data_path.find("force-filtered") != -1:
@@ -522,7 +557,10 @@ class MatterSimDataset:
         return data
 
     def __len__(self):
-        return len(self.index_to_key_name)
+        if self.dataset_type == "single structure file":
+            return len(self.atoms_list)
+        else:
+            return len(self.index_to_key_name)
 
 
 class AFDBLMDBDataset(FoundationModelDataset):
