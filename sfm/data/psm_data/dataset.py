@@ -864,10 +864,10 @@ class UR50LMDBDataset(FoundationModelDataset):
         data = pkl.loads(value)
         data["aa"] = list(data["aa_seq"])
 
-        # random cut off the sequence data["aa"] to self.max_length
-        if len(data["aa"]) > self.args.max_length:
-            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
-            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
+        # # random cut off the sequence data["aa"] to self.max_length
+        # if len(data["aa"]) > self.args.max_length:
+        #     random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+        #     data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
 
         x = torch.tensor(
             [self.vacab_mapping_dict[tok] - 1 for tok in data["aa"]], dtype=torch.int64

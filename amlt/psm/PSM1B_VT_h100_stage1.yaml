@@ -70,8 +70,8 @@ jobs:
   - export data_path=/psm/data/
   - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb'
   - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50'
-  - export dataset_split_raito='0.2,0.1,0.4,0.1,0.2'
-  - export dataset_micro_batch_size='64,8,8,8,8'
+  - export dataset_split_raito='0.2,0.1,0.5,0.1,0.1'
+  - export dataset_micro_batch_size='64,8,8,8,2'
   - export mode_prob='0.4,0.4,0.2'
   - export fp16=False
   - export clean_sample_ratio=0.2
@@ -82,7 +82,7 @@ jobs:
   # - export ddpm_beta_end=2e-2
   - export use_unified_batch_sampler=True
   - export use_dali_pipeline=False
-  - export save_batch_interval=30000
+  - export save_batch_interval=10000
   - export loadcheck_path=/psm/exp/peiran/psmv1_vt_v10_1b/checkpoints
   - export save_dir=/psm/exp/peiran/psmv1_vt_v10_1b/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
