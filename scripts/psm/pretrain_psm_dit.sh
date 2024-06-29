@@ -50,10 +50,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mode_prob}" ] && mode_prob='0.4,0.4,0.2'
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
+[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,ur50_23_bpe_pack1536.lmdb'
+[ -z "${dataset_name_list}" ] && dataset_name_list='afdb,ur50'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.7,0.3'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32,12"
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'

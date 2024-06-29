@@ -805,7 +805,6 @@ class PSM(nn.Module):
 
             if args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
                 self.noise_head = VectorOutput(psm_config.embedding_dim)
-                # self.noise_head = VectorProjOutput(psm_config.embedding_dim)
                 self.forces_head.update({key: VectorOutput(psm_config.embedding_dim)})
             elif args.backbone in ["dit"]:
                 self.noise_head = VectorProjOutput(psm_config.embedding_dim)
