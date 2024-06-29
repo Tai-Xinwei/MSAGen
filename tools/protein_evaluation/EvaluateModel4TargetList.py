@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import logging
+import sys
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
@@ -15,8 +16,11 @@ from joblib import Parallel
 from tqdm import tqdm
 
 from LGA4SinglePair import LGA4SinglePair
-from metadata import metadata4target
 from TMscore4SinglePair import TMscore4SinglePair
+
+HERE = Path(__file__).resolve().parent
+sys.path.append( str(HERE.parent / 'protein_data_process') )
+from metadata import metadata4target
 
 
 #logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -29,44 +33,45 @@ def cli():
     pass
 
 
-def _get_servers(target_flag: str) -> Mapping[str, str]:
-    servers = {}
-    if 'casp15' in target_flag:
-        servers = {
+def _get_servers(target: str) -> Mapping[str, str]:
+    servers = OrderedDict()
+    if len(target) >= 5 and target[0] == 'T' and 1104 <= int(target[1:5]) <= 1197:
+        # casp14 targets
+        servers.update({
             '229' : 'Yang-Server',
             '185' : 'BAKER',
             '270' : 'NBIS-AF2-std',
-        }
-    elif 'casp14' in target_flag:
-        servers = {
+        })
+    elif len(target) >= 5 and target[0] == 'T' and 1024 <= int(target[1:5]) <= 1101:
+        # casp15 targets
+        servers.update({
             '427' : 'AlphaFold2',
             '473' : 'BAKER',
             '324' : 'Zhang-Server',
-            }
-    elif 'cameo' in target_flag:
-        servers = {
+            })
+    elif len(target) >= 6 and target[4] == '_':
+        # cameo targets
+        servers.update({
             '999': 'BestSingleT',
             '19': 'RoseTTAFold',
-            '20': 'SWISS-MODEL'
-        }
+            '20': 'SWISS-MODEL',
+        })
     else:
-        raise ValueError(f"Invalid target flag {target_flag}.")
+        logger.warning(f"{target} not in CASP15, CASP14 and CAMEO.")
     servers.update({
-        '887': 'ESMFoldGitHub',
         '886': 'AF2NoMSA',
         '885': 'AF2WithMSA',
+        '887': 'ESMFoldGitHub',
         '888': 'SFM',
         })
     return servers
 
 
 def _collect_models(targets: Sequence[str],
-                    servers: Mapping[str, str],
-                    prediction_root: str,
+                    rootdir: str,
                     top5: bool,
                     ) -> Sequence[Tuple[str, str, int, str, str]]:
     # check prediction directory
-    rootdir = Path(prediction_root)
     cameodir = Path(rootdir) / 'cameo-official-targets.prediction'
     assert cameodir.exists(), f"{cameodir} does not exist."
     caspdir = Path(rootdir) / 'casp-official-targets.prediction'
@@ -77,8 +82,7 @@ def _collect_models(targets: Sequence[str],
     models = []
     max_model_num = 5 if top5 else 1
     for t in tqdm(targets, desc="Collecting models"):
-        # get server models and format (model, native) pairs
-        for server in servers:
+        for server in _get_servers(t):
             for idx in range(1, max_model_num+1):
                 if len(t) >= 8 and t[0] == 'T' and t[-3:-1] == '-D':
                     # e.g. T1024-D1
@@ -93,6 +97,8 @@ def _collect_models(targets: Sequence[str],
                     native = cameodir / t / 'target.pdb'
                     prefix = cameodir / t / 'servers' / f'server{server}'
                     model = prefix / f'model-{idx}' / f'model-{idx}.pdb'
+                else:
+                    logger.warning(f"{t} not in CASP15, CASP14 and CAMEO.")
                 models.append( (t, server, idx, str(model), str(native)) )
     return models
 
@@ -131,10 +137,6 @@ def evaluate(target_list: Path,
              num_workers: int,
              criterion: str,
              top5: bool) -> None:
-    # get server group
-    servers = _get_servers(target_list)
-    logger.info(f"Evaluation for server groups: {servers}")
-
     # parse target list
     targets = []
     with open(target_list, 'r') as fp:
@@ -152,7 +154,8 @@ def evaluate(target_list: Path,
             key = target[:-3]
         logger.info(f"{metadata4target[key]}")
         for domstr, domlen, domgroup in metadata4target[key]['domain']:
-            if domstr.split(':')[0] == target:
+            dom = domstr.split(':')[0]
+            if dom == target or dom == f'{target}-D0':
                 groupdict[target] = domgroup
                 lengthdict[target] = domlen
                 typedict[target] = metadata4target[key]['type']
@@ -162,9 +165,8 @@ def evaluate(target_list: Path,
     logger.info(f"Metadata information for targets: {len(groupdict)}")
 
     # collect models
-    models = _collect_models(targets, servers, prediction_root, top5)
+    models = _collect_models(targets, prediction_root, top5)
     logger.info(f"{len(models)} models in {prediction_root}")
-    assert len(models) == len(targets) * len(servers) * (5 if top5 else 1)
     for target, server, idx, model, native in models:
         logger.debug(f"{target} {server} {idx} {model} {native}")
 
@@ -186,6 +188,7 @@ def evaluate(target_list: Path,
     # analysis scores
     newscores = {}
     for target, gdf in df.groupby('Target', sort=True):
+        servers = _get_servers(target)
         score_dict = OrderedDict()
         score_dict['Group'] = groupdict.get(target, 'NA')
         score_dict['Length'] = lengthdict.get(target, -1)
@@ -211,22 +214,31 @@ def evaluate(target_list: Path,
     CATEGORY = {
         "CAMEO  Easy": ["Easy"],
         "CAMEO  Medi": ["Medium", "Hard"],
+        "CASP14 Full": ["MultiDom"],
         "CASP14 Easy": ["TBM-easy", "TBM-hard"],
         "CASP14 Hard": ["FM/TBM", "FM"],
+        "CASP15 Full": ["MultiDom"],
         "CASP15 Easy": ["TBM-easy", "TBM-hard"],
         "CASP15 Hard": ["FM/TBM", "FM"],
     }
-    print(f"{'Category':<12} {'Number':>6} {criterion}_for_different_servers")
-    for category, groups in CATEGORY.items():
-        _subdf = df[df["Type"] == category.split()[0]]
+    dfs = []
+    for catandgroup, groups in CATEGORY.items():
+        _subdf = df[df["Type"] == catandgroup.split()[0]]
         dfsub = pd.concat(
             [_subdf[_subdf["Group"] == g] for g in groups],
             ignore_index=True,
             )
         dfsub.drop(columns=["Type", "Group", "Length"], axis=1, inplace=True)
-        print(f"{category:<12s} {len(dfsub):>6d}", end=" "),
-        print(" ".join([f"{_*100:>6.2f}" for _ in dfsub.mean()]))
-
+        tmpdf = dfsub.mean()
+        tmpdf["Number"] = len(dfsub)
+        tmpdf["CatAndGroup"] = catandgroup
+        dfs.append(tmpdf)
+    meandf = pd.concat(dfs, axis=1).T.set_index("CatAndGroup")
+    print(f"{'CatAndGroup':<11} {'Number':>6}", end=" ")
+    print(" ".join([f"{_[:7]:7s}" for _ in meandf.columns[:-1]]))
+    for category, row in meandf.iterrows():
+        print(f"{category:<11s} {int(row['Number']):>6d}", end=" "),
+        print(" ".join([f"{_*100:>7.2f}" for _ in row.values[:-1]]))
 
 
 if __name__ == "__main__":

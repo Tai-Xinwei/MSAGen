@@ -71,6 +71,7 @@ class Config(DistributedTrainConfig, PSMConfig):
     backbone_config: Dict[str, Any] = MISSING
     backbone: str = "graphormer"
     ode_mode: bool = False
+    max_model_num: int = 1
 
 
 cs = ConfigStore.instance()
@@ -104,7 +105,7 @@ def select_residues_by_index(atomlines: list, residx: set) -> list:
     return lines
 
 
-def TMscore4Pair(predicted_pdb, native_pdb):
+def TMscore4Pair(predicted_pdb: str, native_pdb: str):
     """Calculate model score by using TMscore program"""
     # intialization
     score = {
@@ -176,6 +177,119 @@ def TMscore4Pair(predicted_pdb, native_pdb):
     return score
 
 
+def generate_pdb_atomlines(coords: list, sequence: str, chain: str = "A") -> list:
+    atomlines = []
+    for i, (x, y, z) in enumerate(coords):
+        atomidx = i + 1
+        resname = VOCAB2AA.get(sequence[i], "UNK")
+        resnumb = i + 1
+        atomlines.append(
+            f"ATOM  {atomidx:>5d}  CA  {resname} {chain}{resnumb:>4d}    "
+            f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
+        )
+    atomlines.append("TER\n")
+    atomlines.append("END\n")
+    return atomlines
+
+
+def evaluate_predicted_structure(metadata: dict, preddir: str, max_model_num: int = 1):
+    # write domain pdblines and align by TMscore
+    def _calculate_score(predlines, natilines, residx):
+        with (
+            tempfile.NamedTemporaryFile() as predpdb,
+            tempfile.NamedTemporaryFile() as natipdb,
+        ):
+            with open(predpdb.name, "w") as fp:
+                fp.writelines(select_residues_by_index(predlines, residx))
+            with open(natipdb.name, "w") as fp:
+                fp.writelines(select_residues_by_index(natilines, residx))
+            return TMscore4Pair(predpdb.name, natipdb.name)
+
+    scores = []
+    for target in tqdm(metadata["keys"]):
+        taridx = metadata["keys"].index(target)
+        # calculate score for each domain
+        for domstr, domlen, domgroup in metadata["domains"][taridx]:
+            try:
+                residx = set()
+                domseg = domstr.split(":")[1]
+                for seg in domseg.split(","):
+                    start, finish = [int(_) for _ in seg.split("-")]
+                    residx.update(range(start, finish + 1))
+                assert domlen == len(residx), f"domain length!={domlen}"
+            except Exception as e:
+                logger.error(f"Domain {domstr} parsing error, {e}")
+                continue
+
+            # process score for each predicted model
+            for num in range(1, max_model_num + 1):
+                score = {
+                    "Target": domstr.split(":")[0],
+                    "Length": domlen,
+                    "Group": domgroup,
+                    "Type": metadata["types"][taridx],
+                    "ModelIndex": num,
+                }
+                try:
+                    pdb_file = os.path.join(preddir, f"{target}-{num}.pdb")
+                    with open(pdb_file, "r") as fp:
+                        predlines = fp.readlines()
+                    natilines = metadata["pdbs"][taridx]
+                    score.update(_calculate_score(predlines, natilines, residx))
+                except Exception as e:
+                    logger.error(f"Failed to evaluate {domstr}, {e}.")
+                    continue
+                scores.append(score)
+    df = pd.DataFrame(scores)
+    return df
+
+
+def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
+    CATEGORY = {
+        "CAMEO  Easy": ["Easy"],
+        "CAMEO  Medi": ["Medium", "Hard"],
+        "CASP14 Full": ["MultiDom"],
+        "CASP14 Easy": ["TBM-easy", "TBM-hard"],
+        "CASP14 Hard": ["FM/TBM", "FM"],
+        "CASP15 Full": ["MultiDom"],
+        "CASP15 Easy": ["TBM-easy", "TBM-hard"],
+        "CASP15 Hard": ["FM/TBM", "FM"],
+    }
+    # group score by target
+    records = []
+    for target, gdf in df.groupby("Target"):
+        record = {
+            "Target": target,
+            "Length": gdf["Length"].iloc[0],
+            "Group": gdf["Group"].iloc[0],
+            "Type": gdf["Type"].iloc[0],
+        }
+        max_model_num = gdf["ModelIndex"].max()
+        maxscore = float("-inf")
+        for num in range(1, max_model_num + 1):
+            score = gdf[gdf["ModelIndex"] == num]["TMscore"].iloc[0]
+            record[f"Model{num}_TMscore"] = score
+            maxscore = max(maxscore, score)
+        record["ModelMax_TMscore"] = maxscore
+        records.append(record)
+    newdf = pd.DataFrame(records)
+    # calculate average score for each category
+    scores = []
+    for key, groups in CATEGORY.items():
+        _type = key.split()[0]
+        subdf = newdf[(newdf["Type"] == _type) & newdf["Group"].isin(groups)]
+        scores.append(
+            {
+                "CatAndGroup": key,
+                "Number": len(subdf),
+                "Top1TMscore": subdf["Model1_TMscore"].mean() * 100,
+                "Top5TMscore": subdf["ModelMax_TMscore"].mean() * 100,
+            }
+        )
+    meandf = pd.DataFrame(scores).set_index("CatAndGroup")
+    return newdf, meandf
+
+
 @hydra.main(
     version_base="1.3", config_path="../../../config_file", config_name="config_psm"
 )
@@ -243,30 +357,19 @@ def main(args: DictConfig) -> None:
         tarname, chain = parse_name_chain_from_target(target)
         logger.success(f"The {target} name is {tarname} and chain is {chain}.")
 
-        # write predicted CA position to pdb file
-        pdb_file = os.path.join(args.save_dir, f"{target}-1.pdb")
-        if os.path.exists(pdb_file):
-            logger.warning(f"{pdb_file} already exists, skip generating.")
-            continue
-
-        logger.success(f"Predicted {target} structure by SFM model.")
-        result = model.sample(data)
-        coords = result["pred_pos"][0].tolist()
-
-        logger.success(f"Write predicted {target} structure to {pdb_file}.")
-        atomlines = []
-        for i, (x, y, z) in enumerate(coords):
-            atomidx = i + 1
-            resname = VOCAB2AA.get(sequence[i], "UNK")
-            resnumb = i + 1
-            atomlines.append(
-                f"ATOM  {atomidx:>5d}  CA  {resname} {chain}{resnumb:>4d}    "
-                f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
-            )
-        atomlines.append("TER\n")
-        atomlines.append("END\n")
-        with open(pdb_file, "w") as fp:
-            fp.writelines(atomlines)
+        for num in range(1, args.max_model_num + 1):
+            # write predicted CA position to pdb file
+            pdb_file = os.path.join(args.save_dir, f"{target}-{num}.pdb")
+            if os.path.exists(pdb_file):
+                logger.warning(f"{pdb_file} already exists, skip generating.")
+                continue
+            logger.success(f"Predicted {target} structure by SFM model.")
+            result = model.sample(data)
+            coords = result["pred_pos"][0].tolist()
+            logger.success(f"Write predicted {target} structure to {pdb_file}.")
+            atomlines = generate_pdb_atomlines(coords, sequence, chain)
+            with open(pdb_file, "w") as fp:
+                fp.writelines(atomlines)
 
     # gather all results from different ranks
     torch.distributed.barrier()
@@ -274,70 +377,15 @@ def main(args: DictConfig) -> None:
         return
 
     logger.info(f"TMscore between predicted.pdb and native.pdb {args.save_dir}")
-    scores = []
-    for target in tqdm(metadata["keys"]):
-        taridx = metadata["keys"].index(target)
-
-        pdb_file = os.path.join(args.save_dir, f"{target}-1.pdb")
-        with open(pdb_file, "r") as fp:
-            predlines = fp.readlines()
-        natilines = metadata["pdbs"][taridx]
-
-        for domstr, domlen, domgroup in metadata["domains"][taridx]:
-            residx = set()
-            try:
-                if domstr[0] == "T":
-                    domseg = domstr.split(":")[1]
-                    for seg in domseg.split(","):
-                        start, finish = [int(_) for _ in seg.split("-")]
-                        residx.update(range(start, finish + 1))
-                else:
-                    residx.update(range(1, domlen + 1))
-                assert domlen == len(residx), f"domain length!={domlen}"
-            except Exception as e:
-                print(f"ERROR: {domstr} parsing error, {e}")
-                continue
-
-            # evaluate predicted structure by TMalign/TMscore
-            score = {
-                "Target": domstr.split(":")[0],
-                "Length": domlen,
-                "Group": domgroup,
-                "Type": metadata["types"][taridx],
-            }
-            with (
-                tempfile.NamedTemporaryFile() as predpdb,
-                tempfile.NamedTemporaryFile() as natipdb,
-            ):
-                with open(predpdb.name, "w") as fp:
-                    fp.writelines(select_residues_by_index(predlines, residx))
-                with open(natipdb.name, "w") as fp:
-                    fp.writelines(select_residues_by_index(natilines, residx))
-                score.update(TMscore4Pair(predpdb.name, natipdb.name))
-                scores.append(score)
-
-    logger.info(f"Write TM-score to {args.save_dir}.")
-    score_file = os.path.join(args.save_dir, "TM-score.csv")
-    df = pd.DataFrame(scores)
-    df.to_csv(score_file)
+    df = evaluate_predicted_structure(metadata, args.save_dir, args.max_model_num)
     print(df)
 
-    CATEGORY = {
-        "CAMEO  Easy": ["Easy"],
-        "CAMEO  Medi": ["Medium", "Hard"],
-        "CASP14 Easy": ["TBM-easy", "TBM-hard"],
-        "CASP14 Hard": ["FM/TBM", "FM"],
-        "CASP15 Easy": ["TBM-easy", "TBM-hard"],
-        "CASP15 Hard": ["FM/TBM", "FM"],
-    }
-    print(f"{'Category':<12} {'Number':>6} {'SFM_TMscore':>11}")
-    for category, groups in CATEGORY.items():
-        domtype = category.split()[0]
-        dfs = []
-        for domgroup in groups:
-            dfs.append(df[(df["Type"] == domtype) & (df["Group"] == domgroup)])
-        dfsub = pd.concat(dfs, ignore_index=True)["TMscore"]
-        print(f"{category:<12s} {len(dfsub):>6d} {dfsub.mean()*100:>11.2f}")
+    logger.info(f"Write TM-score to {args.save_dir} and average it.")
+    df.to_csv(os.path.join(args.save_dir, "TM-score-full.csv"))
+    newdf, meandf = calculate_average_score(df)
+    newdf.to_csv(os.path.join(args.save_dir, "TM-score-only.csv"))
+    with pd.option_context("display.float_format", "{:.2f}".format):
+        print(meandf)
 
 
 if __name__ == "__main__":

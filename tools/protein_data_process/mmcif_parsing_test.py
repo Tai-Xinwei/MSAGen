@@ -33,7 +33,9 @@ obj = parsing_result.mmcif_object
 assert obj.chain_to_seqres.keys() == obj.seqres_to_structure.keys(), (
     f"ERROR: chain_to_seqres and seqres_to_structure have different chains")
 for chain_id, seqres in sorted(obj.chain_to_seqres.items(), key=lambda x: x[0]):
-    print('-'*80, f"Chain_{chain_id} {seqres}", sep='\n')
+    print('-'*80, f"{pdb_code}_{chain_id}", sep='\n')
+    print(seqres)
+    print(obj.chain_to_restype[chain_id])
     for i, (residue, atoms) in enumerate(obj.seqres_to_structure[chain_id]):
         print(i, residue, len(atoms), atoms[0] if atoms else None)
 print(obj.file_id)

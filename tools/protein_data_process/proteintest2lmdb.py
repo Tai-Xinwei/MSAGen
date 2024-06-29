@@ -4,61 +4,15 @@ import sys
 from pathlib import Path
 
 import lmdb
-import pandas as pd
 from tqdm import tqdm
 
 from commons import bstr2obj
 from commons import obj2bstr
-
-
-HERE = Path(__file__).resolve().parent
-casp14_domain_csv = HERE / 'casp14_domain_definations_and_classifications.csv'
-assert casp14_domain_csv.exists(), f"ERROR: {casp14_domain_csv} not found"
-casp15_domain_csv = HERE / 'casp15_domain_definations_and_classifications.csv'
-assert casp15_domain_csv.exists(), f"ERROR: {casp15_domain_csv} not found"
-cameo_subset_csv = HERE / 'cameo_chain_definations_from_20220401_to_20220625.csv'
-assert cameo_subset_csv.exists(), f"ERROR: {cameo_subset_csv} not found"
-
-
-def parse_cameo_metadata(cameo_metadata_csv) -> dict:
-    '''Parse metadata from cameo subset.'''
-    tmpdict = {0: 'Easy', 1: 'Medium', 2: 'Hard'}
-    infodict = {}
-    for _, row in pd.read_csv(cameo_metadata_csv).iterrows():
-        target = f'{row["ref. PDB [Chain]"][:4]}_{row["ref. PDB [Chain]"][6]}'
-        size = row['Sequence Length (residues)']
-        type = 'CAMEO'
-        domain = (target, size, tmpdict.get(row['Difficulty'], 'Hard'))
-        infodict[target] = {
-            'size': size,
-            'type' : type,
-            'domain': [domain],
-        }
-    return infodict
-
-
-def parse_casp_metadata(casp_metadata_csv) -> dict:
-    '''Parse metadata from casp domain definition.'''
-    infodict = {}
-    for _, row in pd.read_csv(casp_metadata_csv).iterrows():
-        target = row['Target']
-        size = row['Residues']
-        type = 'CASP14' if int(target[1:5]) < 1104 else 'CASP15'
-        domain = (row['Domains'], row['Residues in domain'], row['Classification'])
-        if target in infodict:
-            infodict[target]['domain'].append(domain)
-        else:
-            infodict[target] = {
-                'size': size,
-                'type' : type,
-                'domain': [domain],
-            }
-    return infodict
+from metadata import metadata4target
 
 
 def parse_fastafile(fastafile):
     '''Parse fasta file.'''
-
     seqs = []
     try:
         with open(fastafile, 'r') as fin:
@@ -71,10 +25,8 @@ def parse_fastafile(fastafile):
                     seq.append( line.strip() )
             seqs.append( (header, ''.join(seq)) )
             del seqs[0]
-
     except Exception as e:
-        print('ERROR: wrong fasta file "%s"\n      ' % fastafile, e, file=sys.stderr)
-
+        print(f"Failed to parse fasta {fastafile}, {e}", file=sys.stderr)
     return seqs
 
 
@@ -88,13 +40,8 @@ def main():
     print(f"Parsed {len(seqs)} sequences from {inpfas}.")
 
     # parse metainformation
-    metainfo4target = {
-        **parse_cameo_metadata(cameo_subset_csv),
-        **parse_casp_metadata(casp14_domain_csv),
-        **parse_casp_metadata(casp15_domain_csv),
-        }
-    #for target, metainfo in metainfo4target.items():
-    #    print(target, metainfo)
+    #for target, metadata in metadata4target.items():
+    #    print(target, metadata)
 
     # open lmdb and write data
     env = lmdb.open(outlmdb, map_size=1536 ** 4)
@@ -110,8 +57,8 @@ def main():
             f"ERROR: wrong header {header} in fasta file {inpfas}.")
         cols = header[1:].split()
         target, length = cols[0], int(cols[1].split('=')[1])
-        assert target in metainfo4target, f"ERROR: {target} metainfo not found."
-        assert length == len(seq) == metainfo4target[target]['size'], (
+        assert target in metadata4target, f"ERROR: {target} metainfo not found."
+        assert length == len(seq) == metadata4target[target]['size'], (
             f"ERROR: wrong sequence length for {target}")
 
         # read in pdb file
@@ -125,9 +72,9 @@ def main():
         txn.put(f'{target}'.encode(), obj2bstr(seq))
         keys.append(target)
         sizes.append(length)
-        types.append(metainfo4target[target]['type'])
+        types.append(metadata4target[target]['type'])
         pdbs.append(atomlines)
-        domains.append(metainfo4target[target]['domain'])
+        domains.append(metadata4target[target]['domain'])
     metadata = {
         'keys': keys,
         'sizes': sizes,

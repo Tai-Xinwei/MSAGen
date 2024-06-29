@@ -134,32 +134,34 @@ def split_chem_comp(chem_comp_full_string: str) -> dict:
     return chem_comp_strings
 
 
-def process_standard_residue(residue: ResidueAtPosition,
-                             atoms: Sequence[AtomCartn]):
+def process_polymer_residue(residue: ResidueAtPosition,
+                            atoms: Sequence[AtomCartn]) -> dict:
     """
     Tokenize standard protein, DNA and RNA residues.
     """
-    coord = np.full(3, float('inf'), dtype=np.float32)
-    full_coords = np.full((len(ATOMORDER), 3), float('inf'), dtype=np.float32)
-    full_mask = np.full(len(ATOMORDER), 0, dtype=np.int32)
+    coord = np.full(3, float('nan'), dtype=np.float32)
+    full_coords = np.full((len(ATOMORDER), 3), float('nan'), dtype=np.float32)
     token = {'types': residue.name,
              'coords': coord,
-             'full_coords': full_coords,
-             'full_masks': full_mask}
+             'full_coords': full_coords}
     if not residue.is_missing and residue.name in STDRESIDUES:
         for atom in atoms:
-            if atom.type == 'H':
-                # do not consider hydrogen atoms
+            if atom.type in ('H', 'D'):
+                # AlphaFold3 supplementary information section 2.5.4
+                # Filtering of bioassemblies: Hydrogens are removed.
                 continue
             pos = np.array([atom.x, atom.y, atom.z], dtype=np.float32)
-            if atom.name == 'CA' or atom.name == 'P':
+            if atom.name == 'CA' or atom.name == "C1'":
+                # AlphaFold3 supplementary information section 2.5.4
+                # For each token we also designate a token centre atom,
+                # used in various places below:
+                # CA for standard amino acids
+                # C1' for standard nucleotides
                 coord = pos
             if atom.name in RESIDUEATOMS[residue.name]:
                 full_coords[ATOMORDER[atom.name], :] = pos
-                full_mask[ATOMORDER[atom.name]] = 1
         token['coords'] = coord
         token['full_coords'] = full_coords
-        token['full_masks'] = full_mask
 
     return token
 
@@ -176,13 +178,26 @@ def process_nonstandard_residue(residue: ResidueAtPosition,
                                              '_chem_comp_atom.atom_id',
                                              mmcifdict)
         # convert atom name to index
+        idx = 0
         name_to_index = {}
-        for idx, atom in enumerate(atoms):
+        selected_atoms = []
+        for atom in atoms:
+            if removeHs and atom.type in ('H', 'D'):
+                # AlphaFold3 supplementary information section 2.5.4
+                # Filtering of bioassemblies: Hydrogens are removed.
+                continue
             if atom.name in name_to_index:
                 raise ValueError(f"Duplicated name {atom.name} in protein.cif")
             if atom.name not in chem_comp_atoms:
+                # AlphaFold3 supplementary information section 2.5.4
+                # Filtering of bioassemblies: For residues or small molecules
+                # with CCD codes, atoms outside of the CCD code’s defined set
+                # of atom names are removed.
                 raise ValueError(f"Cannot find {atom.name} in components.cif")
-            name_to_index[atom.name] = idx + 1
+            idx += 1
+            name_to_index[atom.name] = idx
+            selected_atoms.append(atom)
+        num_atoms = len(selected_atoms)
         # Get the bond type from _chem_comp_bond
         bonds = []
         for bond in mmcif_loop_to_list('_chem_comp_bond.', mmcifdict):
@@ -195,13 +210,14 @@ def process_nonstandard_residue(residue: ResidueAtPosition,
                 else:
                     index1, index2 = name_to_index[id2], name_to_index[id1]
                 bonds.append( (index1, index2, order) )
+        num_bonds = len(bonds)
         # Write molecule into sdf file, and description from
         # https://www.nonlinear.com/progenesis/sdf-studio/v0.9/faq/sdf-file-format-guidance.aspx
         block = [f'{residue.name}\n'
                  f'  Custom\n'
                  f'\n'
-                 f'{len(atoms):3}{len(bonds):3}  0  0  0  0  0  0  0  0  0\n']
-        for atom in atoms:
+                 f'{num_atoms:3}{num_bonds:3}  0  0  0  0  0  0  0  0  0\n']
+        for atom in selected_atoms:
             charge = chem_comp_atoms[atom.name]['_chem_comp_atom.charge']
             charge = charge if charge != '?' else '0'
             block.append(f'{atom.x:10.4f}{atom.y:10.4f}{atom.z:10.4f} '
@@ -258,57 +274,68 @@ def process_pdb_complex(mmcif_path: str,
         processed_data = {}
         for chain_id in sorted(res.mmcif_object.chain_to_seqres.keys()):
             seqres = res.mmcif_object.chain_to_seqres[chain_id]
+            restype = res.mmcif_object.chain_to_restype[chain_id]
             struct = res.mmcif_object.seqres_to_structure[chain_id]
-            if len(seqres) - seqres.count('?') < 1:
-                # exclude chains without polymer residues
+            if len(seqres) - seqres.count('?') < 4:
+                # AlphaFold3 supplementary information section 2.5.4
+                # Filtering of targets: polymer chain containing fewer than 4
+                # resolved residues is filtered out
                 continue
             current_chain = {}
-            #print('-'*80, f"Chain_{chain_id}", seqres, sep='\n')
+            # print('-'*80, f"{pdbid}_{chain_id}", seqres, restype, sep='\n')
             # process residues one by one
-            polymer_types, polymer_tokens = [], []
-            nonpoly_names, nonpoly_graphs = [], []
+            polymer_tokens = []
+            non_std_resnas = []
+            non_std_graphs = []
             for letter, (residue, atoms) in zip(seqres, struct):
-                if letter != '?' and residue.name in STDRESIDUES:
-                    # process polymer standard residues for protein, DNA and RNA
-                    token = process_standard_residue(residue, atoms)
-                    polymer_types.append(1 if residue.name in STDAAS else 0)
+                if letter != '?':
+                    # Process polymer residues for protein, DNA and RNA.
+                    # Must do this no matter it is standard residue or not.
+                    token = process_polymer_residue(residue, atoms)
                     polymer_tokens.append(token)
-                elif residue.name not in EXCEPTIONS:
-                    # process non-standard residues except some CCDs
-                    if not atoms: # pass ligand without atoms
+                if residue.name not in (STDRESIDUES | EXCEPTIONS):
+                    # Process non-standard residues for polymer and non-polymer.
+                    if not atoms: # pass residue without atoms
+                        logging.warning(f"{pdbid}_{chain_id} non-std residue "
+                                        f"'{residue.name:3}' has no atoms in "
+                                        f"{mmcif_path}.")
                         continue
                     graph, error = process_nonstandard_residue(
                         residue, atoms, chem_comp_strings[residue.name], removeHs)
                     if error:
-                        logging.warning(f"Cannot parse {residue.name:3} "
-                                        f"in {mmcif_path}, {error}.")
+                        logging.warning(f"{pdbid}_{chain_id} non-std residue "
+                                        f"'{residue.name:3}' parse failed in "
+                                        f"{mmcif_path}. {error}")
                     else:
-                        nonpoly_names.append(residue.name)
-                        nonpoly_graphs.append(graph)
-                else:
-                    logging.debug(f"Do not process residue {residue.name:3}")
+                        non_std_resnas.append(residue.name)
+                        non_std_graphs.append(graph)
             # post-process polymer
             polymer = {}
             if not polymer_tokens:
-                logging.warning(f"{mmcif_path} no polymer in Chain_{chain_id}.")
+                # AlphaFold3 supplementary information section 2.5.4
+                # Filtering of bioassemblies: Polymer chains with all unknown
+                # residues are removed.
+                logging.warning(f"{pdbid}_{chain_id} no polymer {mmcif_path}.")
                 continue
-            for key in {'types', 'coords', 'full_coords', 'full_masks'}:
+            for key in {'types', 'coords', 'full_coords'}:
                 polymer[key] = np.stack([_[key] for _ in polymer_tokens])
             polymer['num_residues'] = len(polymer['types'])
+            polymer['polyseq'] = np.array([_ for _ in seqres if _ != '?'])
             polymer['polymer_type'] = 'peptide'
-            if polymer_types.count(1) < polymer_types.count(0):
+            if restype.count('p') < restype.count('n'):
                 polymer['polymer_type'] = 'nucleotide'
             current_chain['polymer'] = polymer
             # post-process non-polymer
-            for i, (n, g) in enumerate( zip(nonpoly_names, nonpoly_graphs) ):
+            for i, (n, g) in enumerate( zip(non_std_resnas, non_std_graphs) ):
                 current_chain[f'mol_{i}_{n}'] = g
             # collect current chain data
             processed_data[chain_id] = current_chain
         assert processed_data, f"{mmcif_path} has no desirable chains."
-        return processed_data
+        logging.info(f"{mmcif_path} processing success.")
+        return pdbid, res.mmcif_object.header, processed_data
     except Exception as e:
         logging.error(f"{mmcif_path} processing failed. {e}")
-        return {}
+        return '', {}, {}
 
 
 def show_one_complex(processed_data: dict):
@@ -322,34 +349,36 @@ def show_one_complex(processed_data: dict):
             if key != 'num_residues' and key != 'polymer_type':
                 print(f"{key}={value.shape}", end=' ')
         print()
-        if polymer['polymer_type'] == 'peptide':
-            polyseq = [PDBData.protein_letters_3to1.get(f'{_:3}', 'X')
-                       for _ in polymer['types']]
-        else:
-            polyseq = [PDBData.nucleic_letters_3to1.get(f'{_:3}', 'N')
-                       for _ in polymer['types']]
-        print("    fasta:", "".join(polyseq))
-        print("    types:", polymer['types'][:5].tolist())
-        print("    coords: [", end='')
-        for coord in polymer['coords'][:5].tolist():
-            print(f"[{coord[0]:.3f}, {coord[1]:.3f}, {coord[2]:.3f}]", end=', ')
-        print(']')
-        del chain_data['polymer']
+        arr = polymer['polyseq']
+        print(f"    polyseq[:]      : {''.join(arr)}")
+        arr = [f'{_:s}' for _ in polymer['types'][:10]]
+        print(f"    types[:10]      : [{', '.join(arr)}]")
+        arr = [f'{_:.3f}' for _ in polymer['coords'][:10, 0]]
+        print(f"    coords[:10,0]   : [{', '.join(arr)}]")
+        arr = [f'{_:.3f}' for _ in polymer['full_coords'][:10, 0, 0]]
+        print(f"    full_co[:10,0,0]: [{', '.join(arr)}]")
 
         for key, value in chain_data.items():
+            if key == 'polymer': continue
             print(f"  {key}: num_nodes={value['num_nodes']}", end=' ')
             for k, v in value.items():
                 k != 'num_nodes' and print(f"{k}={v.shape}", end=' ')
             print()
-            print("    atoms:", "".join(str(_[0]) for _ in value['node_feat']))
-            print("    node_feat:", value['node_feat'][:5].tolist() )
-            print("    coords:", value['coords'][:5].tolist() )
+            arr = [f'{_}' for _ in value['node_feat'][:10, 0]]
+            print(f"    atoms[:10]      : [{', '.join(arr)}]")
+            arr = [f'{_:.3f}' for _ in value['coords'][:10, 0]]
+            print(f"    coords[:10,0]   : [{', '.join(arr)}]")
+            print("    node_feat[:3,:] :", value['node_feat'][:3, :].tolist())
+            print("    edge_inde[:,:10]:", value['edge_index'][:, :10].tolist())
+            print("    edge_feat[:10,:]:", value['edge_feat'][:10, :].tolist())
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        sys.exit(f"Usage: {sys.argv[0]} <input_mmcif_path> <chem_comp_path>")
+    if len(sys.argv) != 3 and len(sys.argv) != 4:
+        sys.exit(f"Usage: {sys.argv[0]} <input_mmcif_path> <chem_comp_path> [--keepHs]")
     mmcif_path, chem_comp_path = sys.argv[1:3]
+    removeHs = False if len(sys.argv) == 4 and sys.argv[3] == '--keepHs' else True
 
-    data = process_pdb_complex(mmcif_path, chem_comp_path, removeHs=True)
+    id, header, data = process_pdb_complex(mmcif_path, chem_comp_path, removeHs)
+    print('-'*80, mmcif_path, chem_comp_path, id, header, sep='\n')
     show_one_complex(data)
