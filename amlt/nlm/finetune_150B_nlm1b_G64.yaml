@@ -44,6 +44,7 @@ jobs:
   - python setup_cython.py build_ext --inplace
   - pip install git+https://github.com/NVIDIA/TransformerEngine.git@stable
   - pip uninstall flash-attn -y
+  - pip install ase
   - export train_batch_size=4096
   - export val_batch_size=4096
   - export gradient_accumulation_steps=128
