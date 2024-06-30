@@ -23,11 +23,11 @@ environment:
   username: msrmoldyn
 
 storage:
-  blob:
+  eastus2:
     storage_account_name: sfmdataeastus2 # Storage account
     container_name: psm # Container name
     mount_dir: /psm
-  blob:
+  arca100:
     storage_account_name: sfmarca100 # Storage account
     container_name: sfm # Container name
     mount_dir: /sfm
