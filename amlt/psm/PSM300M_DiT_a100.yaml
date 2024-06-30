@@ -84,7 +84,7 @@ jobs:
   - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged'
   - export dataset_name_list='pm6,mattersim,afdb,mattersim'
   - export dataset_split_raito='0.4,0.1,0.4,0.1'
-  - export dataset_micro_batch_size='100,20,32,20'
+  - export dataset_micro_batch_size='100,20,24,20'
   - export fp16=False
   - export clean_sample_ratio=0.5
   - export use_unified_batch_sampler=True
