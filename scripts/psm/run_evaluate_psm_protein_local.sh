@@ -6,6 +6,8 @@
 export NODES=8
 export GPUS_PER_NODE=8
 export WANDB_API_KEY="local-094f941ede8eda7a00c307f50595f054be5382f7"
+export data_path=/nfs/psmdata/
+export save_dir=/blob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-continued-fastpreprocess-20240606-2035
 export pbc_cutoff=20.0
 export pbc_expanded_num_cell_per_direction=5
 export pbc_expanded_token_cutoff=256
@@ -48,11 +50,13 @@ export use_memory_efficient_attention=False
 # variables for test
 export max_length=2048
 export psm_validation_mode=True
-export data_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm/cameo-subset-casp14-and-casp15-combined.lmdb"
-export loadcheck_path="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240607-2159/checkpoint_E2_B29070.pt"
-export save_dir="/casp/jianwzhu/workspace/SFM_Evaluation/run_sfm/sfmblob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240607-2159/checkpoint_E2_B29070-prediction"
+export data_path="/casp/sfm/psm/cameo-subset-casp14-and-casp15-combined.lmdb"
+export loadcheck_path="/casp/sfm/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240607-2159/checkpoint_E5_B13925.pt"
+export save_dir="/casp/sfm/sfmexpresults/jianwei/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240607-2159/checkpoint_E5_B13925-prediction"
 HERE="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 inpsh="$HERE/pretrain_psm.sh"
 outsh="$HERE/evaluate_psm_protein.sh"
-sed 's/pretrain_psm.py/evaluate_psm_protein.py/' $inpsh > $outsh
+cp $inpsh $outsh
+sed -i 's/pretrain_psm.py/evaluate_psm_protein.py/' $outsh
+sed -i 's/seed=12345/seed=12345 max_model_num=1/' $outsh
 bash $outsh && rm $outsh
