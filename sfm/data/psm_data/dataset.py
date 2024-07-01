@@ -175,9 +175,9 @@ class MoleculeLMDBDataset(FoundationModelDataset):
 
         if "energy" in data or "total_energy" in data:
             total_energy = data["energy"] if "energy" in data else data["total_energy"]
-            data["energy"] = torch.tensor(
-                [(total_energy - self.energy_mean) / self.energy_std]
-            )
+            # data["energy"] = torch.tensor(
+            #     [(total_energy - self.energy_mean) / self.energy_std]
+            # )
             # data["energy_per_atom"] = torch.tensor(
             #     [
             #         (
@@ -193,6 +193,7 @@ class MoleculeLMDBDataset(FoundationModelDataset):
                 .sum()
                 .unsqueeze(0)
             )
+            data["energy"] = torch.tensor(total_energy) - reference_energy
             data["energy_per_atom"] = (
                 torch.tensor(total_energy) - reference_energy
             ) / data["num_atoms"]
@@ -480,8 +481,8 @@ class MatterSimDataset:
                     (
                         torch.tensor(data["forces"], dtype=torch.float64)
                         - self.force_mean
-                    )
-                    / self.force_std,
+                    ),
+                    # / self.force_std,
                     torch.zeros([8, 3], dtype=torch.float64),
                 ],
                 dim=0,
@@ -495,7 +496,7 @@ class MatterSimDataset:
                         (data["info"]["energy"] / float(data["num_atoms"]))
                         - self.energy_per_atom_mean
                     )
-                    / self.energy_per_atom_std
+                    # / self.energy_per_atom_std
                 ]
             )
             data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
