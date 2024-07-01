@@ -88,6 +88,7 @@ jobs:
   - export use_unified_batch_sampler=True
   - export use_dali_pipeline=False
   - export save_batch_interval=10000
+  - export only_use_rotary_embedding_for_protein=True
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v10_1b/checkpoints
   - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v10_1b/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
