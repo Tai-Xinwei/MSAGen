@@ -1,9 +1,58 @@
 # -*- coding: utf-8 -*-
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import rdkit.Chem as Chem
+import rdkit.Chem.rdDetermineBonds as rdDetermineBonds
 from ogb.utils.features import atom_to_feature_vector, bond_to_feature_vector
+
+
+def xyz2mol(
+    atoms: List[Union[int, str]],
+    coords: np.ndarray,
+    charge: int,
+    bond_orders: List[Tuple[int, int, int]] = None,
+    check_charge: bool = True,
+) -> Chem.Mol:
+    """Create an RDKit molecule using 3D coordinates.
+
+    Args:
+        - atoms (List[Union[int, str]]): list of atomic numbers or symbols
+        - coords (np.ndarray): 3D coordinates of atoms with shape (n_atoms, 3)
+        - charge (int): charge of the molecule
+        - bond_orders (List[Tuple[int, int, int]], optional): list of bond orders.
+          Defaults to None. If None, rdDetermineBonds.DetermineBonds will be used to determine the bonds.
+        - check_charge (bool, optional): check the charge of the molecule. Defaults to True.
+
+    Returns:
+        - Chem.Mol: RDKit molecule
+    """
+    assert len(atoms) == len(coords)
+    with Chem.RWMol() as mw:
+        conf = Chem.Conformer()
+        for i, atm, (x, y, z) in zip(range(len(atoms)), atoms, coords):
+            mw.AddAtom(Chem.Atom(atm))
+            conf.SetAtomPosition(i, (x, y, z))
+        mw.AddConformer(conf)
+
+        if bond_orders:
+            for i, j, order in bond_orders:
+                if order == 1:
+                    mw.AddBond(i, j, Chem.BondType.SINGLE)
+                elif order == 2:
+                    mw.AddBond(i, j, Chem.BondType.DOUBLE)
+                elif order == 3:
+                    mw.AddBond(i, j, Chem.BondType.TRIPLE)
+                else:
+                    mw.AddBond(i, j, Chem.BondType.SINGLE)
+            Chem.SanitizeMol(mw)
+        else:
+            rdDetermineBonds.DetermineBonds(mw, charge=charge)
+
+        if check_charge and Chem.GetFormalCharge(mw) != charge:
+            raise ValueError(f"mol charge={Chem.GetFormalCharge(mw)} != {charge}")
+
+        return mw
 
 
 def mol2graph(mol: Chem.Mol, compress_graph_or_raise: bool = True) -> Dict[str, Any]:

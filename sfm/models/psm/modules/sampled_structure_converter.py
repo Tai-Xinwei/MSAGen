@@ -10,15 +10,13 @@ import rdkit
 import torch
 from ase import Atoms
 from pymatgen.analysis.structure_matcher import StructureMatcher
-from pymatgen.core import Lattice, Structure
-from rdkit import Chem
-from rdkit.Chem import Atom, Mol, RWMol, rdDistGeom
+from pymatgen.core import Structure
+from rdkit.Chem import Mol
 from rdkit.Chem.rdMolAlign import AlignMol
 from rdkit.Chem.rdmolfiles import MolToMolFile
-from rdkit.Chem.rdmolops import SanitizeMol
-from rdkit.Geometry.rdGeometry import Point3D
 from torch import Tensor
 
+from sfm.data.mol_data.utils.molecule import xyz2mol
 from sfm.logging import logger
 from sfm.utils.register import Register
 
@@ -129,65 +127,45 @@ CONVERTER_REGISTER: Union[Dict[str, BaseConverter.__class__], Register] = Regist
 class MoleculeConverter(BaseConverter):
     def __init__(self) -> None:
         super().__init__()
-        self.periodic_table = Chem.GetPeriodicTable()
 
-    def _add_bond_to_mol(self, mol: RWMol, edge_index, edge_attr, num_edges):
-        edge_index = edge_index[:num_edges].reshape(num_edges // 2, 2, -1)[
-            :, 0
-        ]  # deduplicate the bidirectional edges
+    def _get_bond_orders(self, edge_index, edge_attr, num_edges):
+        edge_index = edge_index[:num_edges].reshape(num_edges // 2, 2, -1)[:, 0]
         bond_order = edge_attr[:num_edges].reshape(num_edges // 2, 2, -1)[:, 0, 0]
         num_edges = num_edges // 2
-        for i in range(num_edges):
-            mol.AddBond(
-                int(edge_index[i, 0]),
-                int(edge_index[i, 1]),
-                bond_dict[int(bond_order[i]) + 1],
-            )  # +1 because ogb label bond orders from 0
-
-    def _add_atoms_to_mol(self, mol: RWMol, atomic_numbers: Tensor):
-        for atomic_number in atomic_numbers:
-            mol.AddAtom(Atom(self.periodic_table.GetElementSymbol(int(atomic_number))))
-
-    def _add_pos_to_mol(self, mol: RWMol, pos: Tensor):
-        rdDistGeom.EmbedMolecule(
-            mol,
-            coordMap={
-                i: Point3D(float(pos[i][0]), float(pos[i][1]), float(pos[i][2]))
-                for i in range(mol.GetNumAtoms())
-            },
-        )
+        return [
+            (int(edge_index[i, 0]), int(edge_index[i, 1]), int(bond_order[i]) + 1)
+            for i in range(num_edges)
+        ]
 
     def convert(
         self, batched_data: Dict[str, Tensor], poses: Tensor
     ) -> List[Optional[Mol]]:
-        num_atoms = batched_data["num_atoms"]
-        batch_size = num_atoms.size()[0]
-        is_molecule = batched_data["is_molecule"]
-        all_num_edges = batched_data["num_edges"]
-        all_edge_index = batched_data["edge_index"]
-        all_edge_attr = batched_data["edge_attr"]
-        all_index = batched_data["idx"]
+        is_molecule = batched_data["is_molecule"].cpu().numpy()
+        index = batched_data["idx"].cpu().numpy()
+        num_atoms = batched_data["num_atoms"].cpu().numpy()
+        atm_nums = (batched_data["node_attr"][:, :, 0] - 1).squeeze(-1).cpu().numpy()
+        coords = poses.cpu().numpy()
+        num_edges = batched_data["num_edges"].cpu().numpy()
+        edge_index = batched_data["edge_index"].cpu().numpy()
+        edge_attr = batched_data["edge_attr"].cpu().numpy()
+
         structures: List[Optional[Mol]] = []
+        batch_size = num_atoms.shape[0]
         for i in range(batch_size):
             if is_molecule[i]:
-                atomic_numbers = (
-                    batched_data["node_attr"][i][: num_atoms[i], 0] - 1
-                )  # minus 1 due to padding
-                num_edges = all_num_edges[i]
-                edge_index = all_edge_index[i]
-                edge_attr = all_edge_attr[i]
-                index = int(all_index[i])
-                pos = poses[i]
-                mol = RWMol(Mol())
                 try:
-                    self._add_atoms_to_mol(mol, atomic_numbers)
-                    self._add_bond_to_mol(mol, edge_index, edge_attr, num_edges)
-                    SanitizeMol(mol)
-                    self._add_pos_to_mol(mol, pos)
-                    mol = mol.GetMol()
+                    mol = xyz2mol(
+                        atoms=atm_nums[i][: num_atoms[i]].tolist(),
+                        coords=coords[i][: num_atoms[i]].tolist(),
+                        bond_orders=self._get_bond_orders(
+                            edge_index[i], edge_attr[i], num_edges[i]
+                        ),
+                        charge=None,
+                        check_charge=False,
+                    )
                 except Exception as e:
-                    logger.info(
-                        f"Failed to generate moelcule from sampled structure for index {index}. {e}"
+                    print(
+                        f"Failed to generate moelcule from sampled structure for index {index[i]}. {e}"
                     )
                     mol = None
                 structures.append(mol)
@@ -202,22 +180,29 @@ class MoleculeConverter(BaseConverter):
         sample_index: Optional[int] = -1,
     ) -> float:
         if sampled_structure is None or original_structure is None:
-            return np.nan
+            return {"rmsd": np.nan}
+
+        if sampled_structure_output_path is not None:
+            MolToMolFile(
+                sampled_structure,
+                f"{sampled_structure_output_path}/sampled_{idx}_{sample_index}.mol",
+            )
+            MolToMolFile(
+                original_structure,
+                f"{sampled_structure_output_path}/original_{idx}_{sample_index}.mol",
+            )
+
         rmsd = np.nan
         try:
-            rmsd = AlignMol(sampled_structure, original_structure)
-            if sampled_structure_output_path is not None:
-                MolToMolFile(
-                    sampled_structure,
-                    f"{sampled_structure_output_path}/sampled_{idx}_{sample_index}.mol",
-                )
-                MolToMolFile(
-                    original_structure,
-                    f"{sampled_structure_output_path}/original_{idx}_{sample_index}.mol",
-                )
-        except:
-            logger.info(
-                f"Failed to align molecules for sampled structure with index {idx}."
+            assert sampled_structure.GetNumAtoms() == original_structure.GetNumAtoms()
+            rmsd = AlignMol(
+                sampled_structure,
+                original_structure,
+                atomMap=[(i, i) for i in range(original_structure.GetNumAtoms())],
+            )
+        except Exception as ex:
+            print(
+                f"Failed to align molecules for sampled structure with index {idx}. {ex}"
             )
         if rmsd is None:
             rmsd = np.nan
@@ -267,7 +252,7 @@ class PeriodicConverter(BaseConverter):
         sample_index: Optional[int] = -1,
     ) -> float:
         if sampled_structure is None or original_structure is None:
-            return np.nan
+            return {"rmsd": np.nan}
         rmsd = np.nan
         try:
             sampled_structure.write(
@@ -381,7 +366,7 @@ class SampledStructureConverter:
         if self.sampled_structure_output_path is not None and not os.path.exists(
             self.sampled_structure_output_path
         ):
-            os.system(f"mkdir {self.sampled_structure_output_path}")
+            os.system(f"mkdir -p {self.sampled_structure_output_path}")
 
         if not os.path.exists("TMscore"):
             with tempfile.TemporaryFile() as tmp:

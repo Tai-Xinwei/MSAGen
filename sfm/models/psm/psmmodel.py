@@ -90,6 +90,13 @@ class PSMModel(Model):
 
         self.loss_fn = loss_fn(args)
 
+        if self.args.backbone in ["vanillatransformer"]:
+            self.disable_data_aug = getattr(self.args, "disable_data_aug", False)
+            if self.disable_data_aug:
+                logger.warning(
+                    f"=== N O T E === Data augmentation is disabled for {self.args.backbone}"
+                )
+
         if self.psm_config.sample_in_validation:
             self.sampled_structure_converter = SampledStructureConverter(
                 self.psm_config.sampled_structure_output_path
@@ -289,7 +296,7 @@ class PSMModel(Model):
 
         self._create_initial_pos_for_diffusion(batched_data)
 
-        if self.args.backbone == "vanillatransformer":
+        if self.args.backbone == "vanillatransformer" and not self.disable_data_aug:
             R = uniform_random_rotation(
                 ori_pos.size(0), device=ori_pos.device, dtype=ori_pos.dtype
             )

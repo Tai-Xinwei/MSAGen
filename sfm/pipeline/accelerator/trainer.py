@@ -743,7 +743,9 @@ class Trainer(object):
                             **dict(),
                         },
                     )
-                    metric_logger.log(valid_log, "valid", self.state.global_step)
+                    metric_logger.log(
+                        valid_log, "valid", self.state.global_step, log_wandb=False
+                    )
 
         # DDP and Zero need to sync loss and num_examples at validation
         total_loss, num_examples = self.accelerator.sync_valid_loss(
@@ -786,9 +788,11 @@ class Trainer(object):
             "python": random.getstate(),
             "numpy": np.random.get_state(),
             "cpu": torch.random.get_rng_state(),
-            "cuda": torch.cuda.random.get_rng_state_all()
-            if torch.cuda.is_available()
-            else None,
+            "cuda": (
+                torch.cuda.random.get_rng_state_all()
+                if torch.cuda.is_available()
+                else None
+            ),
             "iteration": self.state.batch,
             "epoch": self.state.epoch,
         }
@@ -925,11 +929,13 @@ class Trainer(object):
             ),
             # custom profiling results (TB in Torch ReadMe:)
             # https://github.com/pytorch/kineto/blob/main/tb_plugin/README.md
-            on_trace_ready=torch.profiler.tensorboard_trace_handler(
-                str(self.prof_dir / "tensorboard")
-            )
-            if self.args.ptensorboard
-            else self.custom_trace_handler,
+            on_trace_ready=(
+                torch.profiler.tensorboard_trace_handler(
+                    str(self.prof_dir / "tensorboard")
+                )
+                if self.args.ptensorboard
+                else self.custom_trace_handler
+            ),
             record_shapes=True,
             profile_memory=True,
             with_stack=True,

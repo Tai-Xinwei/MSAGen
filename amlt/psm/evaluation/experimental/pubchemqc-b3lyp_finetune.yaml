@@ -1,0 +1,88 @@
+description: pubchemqc-b3lyp_finetune_psm300M_v0
+
+env_defaults:
+  SKU: G8-A100
+  # SKU: 8xG8-V100-IB
+
+target:
+  service: aml
+  name: sfm-nd96v4
+  # service: sing
+  # name: msrresrchlab
+  # workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm:20240531.170731
+  registry: msroctocr.azurecr.io
+  username: msroctocr
+
+storage:
+  blob:
+    storage_account_name: sfmarca100
+    container_name: sfm
+    mount_dir: /blob
+    local_dir: /data
+
+code:
+  local_dir: ../sfm
+
+jobs:
+- name: pubchemqc-b3lyp_finetune_psm300M_v0
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  sku: $SKU
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install nvidia-dali-cuda120
+  - python setup_cython.py build_ext --inplace
+
+  - export WANDB_PROJECT=psm_eval
+  - export WANDB_GROUP=pubchemqc-b3lyp_finetune
+  - export WANDB_RUN_NAME=pubchemqc-b3lyp_finetune_psm300M_v0_$$(date -u +%Y%m%d.%H%M%S)
+  - export WANDB_API_KEY=$WANDB_API_KEY
+  - wandb login --relogin --host=https://microsoft-research.wandb.io $$WANDB_API_KEY
+
+  - export config_name=PSM300M_V0
+  - export ckpt_path=/blob/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240607-2159/checkpoint_E6_B79710.pt
+  - export save_dir=/blob/psm-checkpoints/finetune/$$WANDB_RUN_NAME
+
+  - export total_num_steps=2000000
+  - export total_num_epochs=500
+  - export warmup_num_steps=12000
+  - export warmup_num_epochs=10
+  - export max_lr=0.00015
+  - export gradient_accumulation_steps=4
+  - export dataset_micro_batch_size=128
+
+  - export finetune_noise_mode=diffusion
+
+  - torchrun --nproc_per_node 8 sfm/tasks/psm/pretrain_psm.py
+    --config-name=$$config_name
+    psm_finetune_mode=true
+    psm_finetune_noise_mode=$$finetune_noise_mode
+    loadcheck_path=$$ckpt_path
+    save_dir=$$save_dir
+    total_num_steps=$$total_num_steps
+    total_num_epochs=$$total_num_epochs
+    warmup_num_steps=$$warmup_num_steps
+    warmup_num_epochs=$$warmup_num_epochs
+    max_lr=$$max_lr
+    gradient_accumulation_steps=$$gradient_accumulation_steps
+    dataset_micro_batch_size=\'$$dataset_micro_batch_size\'
+    save_batch_interval=10000
+    data_path=/blob/psm
+    data_path_list=PubChemQC-B3LYP
+    dataset_name_list='pubchemqc-b3lyp'
+    dataset_split_raito='1.0'
+    use_unified_batch_sampler=true
+    val_batch_log_interval=100
+    wandb_team=ai4s-sfm
+    wandb_group=$$WANDB_GROUP
+    wandb_project=$$WANDB_PROJECT
+    wandb_run_name=$$WANDB_RUN_NAME
+  submit_args:
+    container_args:
+      shm_size: 1024g
+  priority: High
+  sla_tier: Premium

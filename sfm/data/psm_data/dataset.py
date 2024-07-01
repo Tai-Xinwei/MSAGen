@@ -61,6 +61,16 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
         )
 
+        self.energy_per_atom_scale = getattr(
+            self.args, "energy_per_atom_label_scale", None
+        )
+        if self.energy_per_atom_scale is not None:
+            # Should not be used in general unless you know what you are doing
+            logger.warning(
+                "=== N O T E === Scaling energy_per_atom label by {}",
+                self.energy_per_atom_scale,
+            )
+
     def _ensure_init_db(self):
         if self._env is not None:
             return
@@ -110,6 +120,9 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         random.Random(12345).shuffle(indices)
 
         num_validation_samples = int(num_samples * validation_ratio)
+        max_validation_samples = getattr(self.args, "max_validation_samples", None)
+        if max_validation_samples is not None:
+            num_validation_samples = min(num_validation_samples, max_validation_samples)
         num_training_samples = num_samples - num_validation_samples
 
         training_indices = indices[:num_training_samples]
@@ -131,16 +144,10 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         value = self.txn.get(key.encode())
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
-        data = pkl.loads(value)
-
-        return data
+        return pkl.loads(value)
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
-        key = self.keys[idx]
-        value = self.txn.get(key.encode())
-        if value is None:
-            raise IndexError(f"Name {key} has no data in the dataset")
-        data = pkl.loads(value)
+        data = self.raw(idx)
 
         # node features conversion for embedding, [6, 1, 0, 2] -> [6, 1 + 512, 0 + 512 x 2, 2 + 512 x 3]
         # note that in node_feat from ogb smiles2graph, hydrogen is represented by number 0 in the first dimension of node features
@@ -196,6 +203,9 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             data["energy_per_atom"] = (
                 torch.tensor(total_energy) - reference_energy
             ) / data["num_atoms"]
+
+            if self.energy_per_atom_scale is not None:
+                data["energy_per_atom"] *= self.energy_per_atom_scale
         else:
             data["energy"] = torch.tensor([0.0], dtype=torch.float64)
             data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)

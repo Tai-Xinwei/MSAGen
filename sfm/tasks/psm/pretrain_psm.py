@@ -104,6 +104,16 @@ def main(args: DictConfig) -> None:
 
     # define psm models here, define the diff loss in DiffMAE3dCriterions
     if args.rescale_loss_with_std:
+        molecule_energy_per_atom_std = dataset.molecule_energy_per_atom_std
+        if hasattr(args, "molecule_energy_per_atom_std_override"):
+            # A special fix for models where molecule_energy_per_atom_std was overrided
+            # Should not be used unless you know what you are doing
+            logger.warning(
+                "=== N O T E === dataset.molecule_energy_per_atom_std={} is overrided by {}",
+                molecule_energy_per_atom_std,
+                args.molecule_energy_per_atom_std_override,
+            )
+            molecule_energy_per_atom_std = args.molecule_energy_per_atom_std_override
 
         def loss_fn(args):
             return DiffMAE3dCriterions(
@@ -113,7 +123,7 @@ def main(args: DictConfig) -> None:
                 dataset.periodic_energy_mean,
                 dataset.periodic_energy_std,
                 dataset.molecule_energy_per_atom_mean,
-                dataset.molecule_energy_per_atom_std,
+                molecule_energy_per_atom_std,
                 dataset.periodic_energy_per_atom_mean,
                 dataset.periodic_energy_per_atom_std,
                 dataset.molecule_force_mean,

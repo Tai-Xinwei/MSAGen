@@ -70,9 +70,14 @@ class DiffMAE3dCriterions(nn.Module):
             # note that this works only when using MAE loss
             # for example, with MSE loss, we need to multiply squre of the std
             if use_per_atom_energy:
-                energy_loss[is_molecule] = (
-                    energy_loss[is_molecule] * self.molecule_energy_per_atom_std
-                )
+                mol_loss_scale = self.molecule_energy_per_atom_std
+                if (
+                    hasattr(self.args, "energy_per_atom_label_scale")
+                    and not self.training
+                ):
+                    # energy_per_atom label were scaled so we scale the loss back when evaluating
+                    mol_loss_scale /= self.args.energy_per_atom_label_scale
+                energy_loss[is_molecule] = energy_loss[is_molecule] * mol_loss_scale
                 energy_loss[is_periodic] = (
                     energy_loss[is_periodic] * self.periodic_energy_per_atom_std
                 )
@@ -451,6 +456,9 @@ class DiffMAE3dCriterions(nn.Module):
                     float(torch.mean(any_matched_mask.float())),
                     int(metric.size()[0]),
                 )
+            else:
+                best_metric_tuple = metric_tuple
+                any_matched_rate_tuple = matched_rate_tuple
             return (
                 metric_tuple,
                 matched_rate_tuple,

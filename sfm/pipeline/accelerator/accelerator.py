@@ -5,6 +5,7 @@ import os
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
 from dataclasses import asdict
+from datetime import timedelta
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -424,15 +425,20 @@ class DdpAccelerator(SingleNodeAccelerator):
 
         multiprocessing.set_start_method("spawn", force=True)
 
+        ddp_timeout = os.environ.get("DDP_TIMEOUT_MINUTES", None)
         logger.critical(
             f"Initializing DDP by env://. word size: {self.world_size}, rank: {self.rank}, "
-            f"local_rank: {self.local_rank}, master_addr: {master_addr}, master_port: {master_port}"
+            f"local_rank: {self.local_rank}, master_addr: {master_addr}, master_port: {master_port}, "
+            f"DDP_TIMEOUT_MINUTES: {ddp_timeout}"
         )
         torch.distributed.init_process_group(
             backend=self.args.dist_backend,
             init_method="env://",
             world_size=self.world_size,
             rank=self.rank,
+            timeout=timedelta(minutes=int(ddp_timeout))
+            if ddp_timeout is not None
+            else None,
         )
 
         torch.distributed.barrier()
@@ -1214,9 +1220,11 @@ class DeepSpeedAccelerator(Accelerator):
             self.args.strategy == TrainStrategy.Pipeline
             or self.args.strategy == TrainStrategy.ThreeD
         ):
-            with te.fp8_autocast(
-                enabled=True, fp8_recipe=self.fp8_recipe
-            ) if self.args.fp8 else nullcontext():
+            with (
+                te.fp8_autocast(enabled=True, fp8_recipe=self.fp8_recipe)
+                if self.args.fp8
+                else nullcontext()
+            ):
                 loss = self.model_engine.train_batch(
                     iter(grouped_batch_data),
                     reset_act_each_step=self.args.reset_act_each_step,
@@ -1237,9 +1245,11 @@ class DeepSpeedAccelerator(Accelerator):
                     batch_data, device=self.args.local_rank, non_blocking=True
                 )
                 self.model.before_batch()
-                with te.fp8_autocast(
-                    enabled=True, fp8_recipe=self.fp8_recipe
-                ) if self.args.fp8 else nullcontext():
+                with (
+                    te.fp8_autocast(enabled=True, fp8_recipe=self.fp8_recipe)
+                    if self.args.fp8
+                    else nullcontext()
+                ):
                     pred = self.model_engine(batch_data)
 
                 model_output = self.model.compute_loss(pred, batch_data)
