@@ -320,25 +320,26 @@ class DiffMAE3dCriterions(nn.Module):
 
             R = self._alignment_x0(model_output, batched_data)
             if self.diffusion_mode == "epsilon":
-                # noise pred loss
-                aligned_noise_pred = (
-                    sqrt_alphas_cumprod_t * pos_label
-                    + sqrt_one_minus_alphas_cumprod_t * (noise_label - noise_pred)
-                )
-                aligned_noise_pred = torch.einsum(
-                    "bij,bkj->bki", R, aligned_noise_pred.float()
-                )
-                unreduced_noise_loss = self.noise_loss(
-                    aligned_noise_pred.to(noise_label.dtype),
-                    pos_label * sqrt_alphas_cumprod_t,
-                )
-                unreduced_noise_loss = (
-                    unreduced_noise_loss / sqrt_one_minus_alphas_cumprod_t
-                )
-
-                # unreduced_noise_loss = self.noise_loss(
-                #     noise_pred.to(noise_label.dtype), noise_label
-                # )
+                if is_seq_only.any():
+                    unreduced_noise_loss = self.noise_loss(
+                        noise_pred.to(noise_label.dtype), noise_label
+                    )
+                else:
+                    # noise pred loss
+                    aligned_noise_pred = (
+                        sqrt_alphas_cumprod_t * pos_label
+                        + sqrt_one_minus_alphas_cumprod_t * (noise_label - noise_pred)
+                    )
+                    aligned_noise_pred = torch.einsum(
+                        "bij,bkj->bki", R, aligned_noise_pred.float()
+                    )
+                    unreduced_noise_loss = self.noise_loss(
+                        aligned_noise_pred.to(noise_label.dtype),
+                        pos_label * sqrt_alphas_cumprod_t,
+                    )
+                    unreduced_noise_loss = (
+                        unreduced_noise_loss / sqrt_one_minus_alphas_cumprod_t
+                    )
             elif self.diffusion_mode == "x0":
                 # x0 pred loss, noise pred is x0 pred here
                 unreduced_noise_loss = self.noise_loss(
