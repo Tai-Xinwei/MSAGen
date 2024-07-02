@@ -105,6 +105,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=False
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 
 
 echo -e "\n\n"
@@ -179,6 +180,7 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
+          psm_finetune_mode=$psm_finetune_mode \
           backbone_config=graphormer \
           backbone=vanillatransformer \
           encoder_attention_heads=$num_head \
@@ -229,4 +231,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss \
           ifresume=True \
+          loadcheck_path=$loadcheck_path \
+
           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
