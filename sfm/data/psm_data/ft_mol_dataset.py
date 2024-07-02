@@ -40,6 +40,23 @@ class PCQM4Mv2LMDBDataset(MoleculeLMDBDataset):
         return data
 
 
+class PubChemQCB3LYPLMDBDataset(MoleculeLMDBDataset):
+    latest_version: str = "20240618.1"
+
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: str,
+        version: Optional[str] = None,
+    ):
+        path = os.path.normpath(lmdb_path)
+        if path.endswith("PubChemQC-B3LYP"):
+            path = os.path.join(
+                path, version or PubChemQCB3LYPLMDBDataset.latest_version
+            )
+        super().__init__(args, path)
+
+
 if __name__ == "__main__":
     from dataclasses import dataclass
 

@@ -7,15 +7,18 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 8
+  NODES: 4
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
-target:
-  service: sing
-  name: baltic02
-  workspace_name: sfm-ws
+# target:
+#   service: sing
+#   name: baltic02
+#   workspace_name: msrresrchws
 
+target:
+  service: aml
+  name: townsend1
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -23,33 +26,37 @@ environment:
   username: msrmoldyn
 
 storage:
-  eastus2:
-    storage_account_name: sfmdataeastus2 # Storage account
-    container_name: psm # Container name
-    mount_dir: /psm
-  arca100:
+  blob:
     storage_account_name: sfmarca100 # Storage account
     container_name: sfm # Container name
     mount_dir: /sfm
-
+    # storage_account_name: sfmdataeastus2 # Storage account
+    # container_name: psm # Container name
+    # mount_dir: /psm
 
 code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: psmv1_vt_v10_1b_stage1
+- name: psmv1_dit_v10
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}-IB
   mpi: true
   process_count_per_node: 1
   command:
   - export WANDB_TEAM=ai4s-sfm
-  - export wandb_group=psm_VT
+  - export wandb_group=psm_DiT
   - export wandb_project=psm_VT
   - export WANDB_API_KEY=${WANDB_API_KEY}
-  - export layers=32
-  - export hidden_size=1536
-  - export ffn_size=6144
+  - mkdir /blob/pfmexp/output
+  - mkdir /blob/experiment/psm/psmv1_dit_v10
+  - mkdir /blob/experiment/psm/psmv1_dit_v10/checkpoints
+  - mkdir ./output
+  - export path=run.sh
+  - export num_pred_attn_layer=4
+  - export layers=14
+  - export hidden_size=1024
+  - export ffn_size=4096
   - export num_head=32
   - export atom_loss_coeff=1.0
   - export pos_loss_coeff=1.0
@@ -59,9 +66,9 @@ jobs:
   - export act_dropout=0.1
   - export weight_decay=0.0
   - export droppath_prob=0.0
-  - export mask_ratio=0.5
+  - export mask_ratio=0.6
   - export d_tilde=1.0
-  - export max_lr=1.5e-4
+  - export max_lr=1.0e-4
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=500000
@@ -70,31 +77,26 @@ jobs:
   - export val_batch_size=1024
   - export max_tokens=16000
   - export max_length=512
-  - export gradient_accumulation_steps=8
+  - export gradient_accumulation_steps=4
   - export log_interval=100
-  - export data_path=/psm/data/
-  - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb'
-  - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50'
-  - export dataset_split_raito='0.2,0.1,0.5,0.1,0.1'
-  - export dataset_micro_batch_size='64,8,8,8,2'
-  - export mode_prob='0.4,0.4,0.2'
+  - export data_path=/nfs2/psmdata/
+  # - export data_path=/psm/data/
+  - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged'
+  - export dataset_name_list='pm6,mattersim,afdb,mattersim'
+  - export dataset_split_raito='0.4,0.1,0.4,0.1'
+  - export dataset_micro_batch_size='128,16,28,16'
   - export fp16=False
-  - export clean_sample_ratio=0.2
-  - export energy_loss_ratio=0.001
-  - export force_loss_ratio=0.0
-  # - export num_timesteps=1000
-  # - export ddpm_beta_start=1e-4
-  # - export ddpm_beta_end=2e-2
+  - export clean_sample_ratio=0.5
   - export use_unified_batch_sampler=True
-  - export use_dali_pipeline=False
-  - export save_batch_interval=10000
   - export only_use_rotary_embedding_for_protein=True
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v10_1b/checkpoints
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v10_1b/checkpoints
+  - export diffusion_training_loss=L1
+  - export use_dali_pipeline=False
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v10/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v10/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
-  - bash ./scripts/psm/pretrain_psm_vanillatransformer.sh
+  - bash ./scripts/psm/pretrain_psm_dit.sh
   submit_args:
     container_args:
       shm_size: 1024g

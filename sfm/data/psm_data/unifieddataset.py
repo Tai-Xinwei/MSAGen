@@ -19,7 +19,10 @@ from sfm.data.psm_data.dataset import (
     SmallMolDataset,
     UR50LMDBDataset,
 )
-from sfm.data.psm_data.ft_mol_dataset import PCQM4Mv2LMDBDataset
+from sfm.data.psm_data.ft_mol_dataset import (
+    PCQM4Mv2LMDBDataset,
+    PubChemQCB3LYPLMDBDataset,
+)
 from sfm.data.sampler import WeightedDistributedSampler
 from sfm.logging import logger
 from sfm.models.psm.psm_config import PSMConfig
@@ -151,6 +154,12 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)
                 self.sizes.append(train_dataset.sizes)
+            elif dataset_name == "pubchemqc-b3lyp":
+                dataset = PubChemQCB3LYPLMDBDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset(
+                    validation_ratio=0.01
+                )
+                len_total = len(dataset)
             else:
                 raise ValueError(f"Invalid dataset name:{dataset_name}")
 
@@ -160,7 +169,7 @@ class UnifiedPSMDataset(FoundationModelDataset):
             self.train_len += len(train_dataset)
             self.valid_len += len(valid_dataset)
             logger.info(
-                f"Loaded dataset {dataset_name} with total {len_total/1024/1024:0.2f}M samples, {len(train_dataset)/1024/1024:0.2f}M for training, {len(valid_dataset)/1024/1024:0.2f}M for validation"
+                f"Loaded dataset {dataset_name} with total {len_total/1000/1000:0.2f}M samples, {len(train_dataset)/1000/1000:0.2f}M for training, {len(valid_dataset)/1000/1000:0.2f}M for validation"
             )
 
         self.num_datasets = len(self.train_dataset_list)

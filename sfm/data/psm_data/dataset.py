@@ -61,6 +61,16 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
         )
 
+        self.energy_per_atom_scale = getattr(
+            self.args, "energy_per_atom_label_scale", None
+        )
+        if self.energy_per_atom_scale is not None:
+            # Should not be used in general unless you know what you are doing
+            logger.warning(
+                "=== N O T E === Scaling energy_per_atom label by {}",
+                self.energy_per_atom_scale,
+            )
+
     def _ensure_init_db(self):
         if self._env is not None:
             return
@@ -110,6 +120,9 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         random.Random(12345).shuffle(indices)
 
         num_validation_samples = int(num_samples * validation_ratio)
+        max_validation_samples = getattr(self.args, "max_validation_samples", None)
+        if max_validation_samples is not None:
+            num_validation_samples = min(num_validation_samples, max_validation_samples)
         num_training_samples = num_samples - num_validation_samples
 
         training_indices = indices[:num_training_samples]
@@ -131,16 +144,10 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         value = self.txn.get(key.encode())
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
-        data = pkl.loads(value)
-
-        return data
+        return pkl.loads(value)
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
-        key = self.keys[idx]
-        value = self.txn.get(key.encode())
-        if value is None:
-            raise IndexError(f"Name {key} has no data in the dataset")
-        data = pkl.loads(value)
+        data = self.raw(idx)
 
         # node features conversion for embedding, [6, 1, 0, 2] -> [6, 1 + 512, 0 + 512 x 2, 2 + 512 x 3]
         # note that in node_feat from ogb smiles2graph, hydrogen is represented by number 0 in the first dimension of node features
@@ -175,9 +182,9 @@ class MoleculeLMDBDataset(FoundationModelDataset):
 
         if "energy" in data or "total_energy" in data:
             total_energy = data["energy"] if "energy" in data else data["total_energy"]
-            data["energy"] = torch.tensor(
-                [(total_energy - self.energy_mean) / self.energy_std]
-            )
+            # data["energy"] = torch.tensor(
+            #     [(total_energy - self.energy_mean) / self.energy_std]
+            # )
             # data["energy_per_atom"] = torch.tensor(
             #     [
             #         (
@@ -193,9 +200,13 @@ class MoleculeLMDBDataset(FoundationModelDataset):
                 .sum()
                 .unsqueeze(0)
             )
+            data["energy"] = torch.tensor(total_energy) - reference_energy
             data["energy_per_atom"] = (
                 torch.tensor(total_energy) - reference_energy
             ) / data["num_atoms"]
+
+            if self.energy_per_atom_scale is not None:
+                data["energy_per_atom"] *= self.energy_per_atom_scale
         else:
             data["energy"] = torch.tensor([0.0], dtype=torch.float64)
             data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
@@ -480,8 +491,8 @@ class MatterSimDataset:
                     (
                         torch.tensor(data["forces"], dtype=torch.float64)
                         - self.force_mean
-                    )
-                    / self.force_std,
+                    ),
+                    # / self.force_std,
                     torch.zeros([8, 3], dtype=torch.float64),
                 ],
                 dim=0,
@@ -495,7 +506,7 @@ class MatterSimDataset:
                         (data["info"]["energy"] / float(data["num_atoms"]))
                         - self.energy_per_atom_mean
                     )
-                    / self.energy_per_atom_std
+                    # / self.energy_per_atom_std
                 ]
             )
             data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
@@ -613,9 +624,9 @@ class AFDBLMDBDataset(FoundationModelDataset):
         self._env, self._txn = None, None
         self._sizes, self._keys = None, None
 
-        self.filter_indices_by_size(
-            indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
-        )
+        # self.filter_indices_by_size(
+        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
+        # )
 
     def _init_db(self):
         self._env = lmdb.open(
@@ -667,10 +678,19 @@ class AFDBLMDBDataset(FoundationModelDataset):
             raise IndexError(f"Name {key} has no data in the dataset")
         data = bstr2obj(value)
 
+        # random cut off the sequence data["aa"] to self.max_length
+        if len(data["aa"]) > self.args.max_length:
+            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
+            coords = data["pos"][
+                random_start : random_start + self.args.max_length, 1, :
+            ]
+        else:
+            # CA atom positions, assume all values are valid.
+            coords = data["pos"][:, 1, :]
+
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([self.vocab[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
-        # CA atom positions, assume all values are valid.
-        coords = data["pos"][:, 1, :]
 
         data["sample_type"] = 2
         data["token_type"] = x
@@ -902,10 +922,10 @@ class UR50LMDBDataset(FoundationModelDataset):
         data = pkl.loads(value)
         data["aa"] = list(data["aa_seq"])
 
-        # random cut off the sequence data["aa"] to self.max_length
-        if len(data["aa"]) > self.args.max_length:
-            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
-            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
+        # # random cut off the sequence data["aa"] to self.max_length
+        # if len(data["aa"]) > self.args.max_length:
+        #     random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+        #     data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
 
         x = torch.tensor(
             [self.vacab_mapping_dict[tok] - 1 for tok in data["aa"]], dtype=torch.int64

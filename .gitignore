@@ -191,3 +191,7 @@ docs/result/
 
 # vim swap files
 *.sw*
+
+# TMscore
+TMscore
+TMscoreLinux.*

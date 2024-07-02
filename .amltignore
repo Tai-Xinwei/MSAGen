@@ -19,6 +19,9 @@ output/
 prof/
 outputs/
 
+# Temporary directories
+tmp/
+
 *.py[cod]
 *$py.class
 *.DS_Store
@@ -182,3 +185,7 @@ cube/
 docs
 /blob
 /hai1
+
+# TMscore
+TMscore
+TMscoreLinux.*
