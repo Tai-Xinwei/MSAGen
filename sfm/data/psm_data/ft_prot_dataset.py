@@ -59,6 +59,9 @@ class ProteinSamplingDataset(AFDBLMDBDataset):
             [0.0], dtype=torch.float64, device=x.device
         )
 
+        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+
         data = self.generate_2dgraphfeat(data)
 
         return data

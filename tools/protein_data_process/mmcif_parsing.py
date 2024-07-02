@@ -29,6 +29,7 @@ ChainId = str
 PdbHeader = Mapping[str, Any]
 PdbStructure = PDB.Structure.Structure
 SeqRes = str
+ResType = str
 MmCIFDict = Mapping[str, Sequence[str]]
 
 
@@ -94,6 +95,8 @@ class MmcifObject:
     structure: Biopython structure.
     chain_to_seqres: Dict mapping chain_id to 1 letter amino acid sequence. E.g.
       {'A': 'ABCDEFG'}
+    chain_to_restpye: Dict mapping chain_id to 1 letter amino acid type. E.g.
+      {'A': 'ppppppp'}
     seqres_to_structure: Dict; for each chain_id contains a mapping between
       SEQRES index and a ResidueAtPosition. e.g. {'A': {0: ResidueAtPosition,
                                                         1: ResidueAtPosition,
@@ -104,6 +107,7 @@ class MmcifObject:
   header: PdbHeader
   structure: PdbStructure
   chain_to_seqres: Mapping[ChainId, SeqRes]
+  chain_to_restype: Mapping[ChainId, ResType]
   seqres_to_structure: Mapping[ChainId, Sequence[Tuple[ResidueAtPosition, Sequence[AtomCartn]]]]
   raw_string: Any
 
@@ -485,30 +489,57 @@ def parse_structure(*,
       current.extend(str_info)
       seq_to_structure[chain_id] = current
 
+    # AlphaFold3 supplementary information section 2.1
+    # MSE residues are converted to MET residues
+    for chain_id, str_info in seq_to_structure.items():
+      for idx, (residue, atoms) in enumerate(str_info):
+        if residue.name == 'MSE':
+          residue = ResidueAtPosition(position=residue.position,
+                                      name='MET',
+                                      is_missing=residue.is_missing,
+                                      hetflag=' ')
+          for i, atom in enumerate(atoms):
+            if atom.name == 'SE':
+              atoms[i] = AtomCartn(name='SD',
+                                   type='S',
+                                   x=atom.x,
+                                   y=atom.y,
+                                   z=atom.z)
+          seq_to_structure[chain_id][idx] = (residue, atoms)
+
     # Get chemical compositions. Will allow us to identify which of these polymers
     # are proteins, DNAs and RNAs.
     chem_comps = mmcif_loop_to_dict('_chem_comp.', '_chem_comp.id', parsed_info)
 
     author_chain_to_sequence = {}
+    author_chain_to_restypes = {}
     for author_chain, str_info in seq_to_structure.items():
       seq = []
+      type = []
       for residue, atoms in str_info:
+        name = residue.name if residue.name in chem_comps else 'MSE'
+        restype = chem_comps[name]['_chem_comp.type'].lower()
         resname = f'{residue.name:<3s}'.upper()
-        restype = chem_comps[residue.name]['_chem_comp.type'].lower()
         if 'peptide' in restype:
           code = PDBData.protein_letters_3to1.get(resname, 'X')
+          t = 'p'
         elif 'dna' in restype or 'rna' in restype:
           code = PDBData.nucleic_letters_3to1.get(resname, 'N')
+          t = 'n'
         else:
           code = '?'
+          t = '*'
         seq.append(code if len(code) == 1 else '?')
+        type.append(t if len(t) == 1 else '*')
       author_chain_to_sequence[author_chain] = ''.join(seq)
+      author_chain_to_restypes[author_chain] = ''.join(type)
 
     mmcif_object = MmcifObject(
         file_id=file_id,
         header=header,
         structure=first_model_structure,
         chain_to_seqres=author_chain_to_sequence,
+        chain_to_restype=author_chain_to_restypes,
         seqres_to_structure=seq_to_structure,
         raw_string=parsed_info)
 

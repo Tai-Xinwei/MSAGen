@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from typing import Any, Mapping, Optional, Sequence, Tuple
+import sys
+from pathlib import Path
 
 from Bio.PDB import MMCIF2Dict
-from pathlib import Path
-from mmcif_parsing import mmcif_loop_to_list, mmcif_loop_to_dict
+
+from mmcif_parsing import mmcif_loop_to_list
 
 
-STDRESIDUES = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK', 'A', 'C', 'G', 'U', 'DA', 'DC', 'DG', 'DT', 'N']
+STDRESIDUES = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK', 'A', 'C', 'G', 'U', 'N', 'DA', 'DC', 'DG', 'DT', 'DN']
+
 
 if __name__ == '__main__':
-
-    chem_comp_dir = 'chem_comp_files'
+    if len(sys.argv) != 2:
+        sys.exit(f'Usage: {sys.argv[0]} <chem_comp_directory>')
+    chem_comp_dir = sys.argv[1]
 
     allatoms = []
     for name in STDRESIDUES:
@@ -24,16 +27,21 @@ if __name__ == '__main__':
               _atm.append(atom['_chem_comp_atom.atom_id'])
         allatoms.append( (name, _atm) )
     for name, atoms in allatoms:
-        print(f"\"{name}\": {atoms},".replace('[', '{').replace(']', '}'))
+        key = f'"{name}":'
+        value = '{"' + '", "'.join(atoms) + '"},'
+        print(key, value)
 
-    na = {'A', 'C', 'G', 'U', 'DA', 'DC', 'DG', 'DT', 'N'}
-    order = []
+    baseorder, atomorder = [], []
     for name, atoms in allatoms:
-        if name not in na: continue
-        for atom in atoms:
-            if atom not in order:
-                order.append(atom)
-    print('[', end='')
-    for a in order:
-        print(f'"{a}", ', end='')
-    print(']')
+        if STDRESIDUES.index(name) < 21:
+            for atom in atoms:
+                if atom not in baseorder:
+                    baseorder.append(atom)
+        else:
+            for atom in atoms:
+                if atom not in atomorder:
+                    atomorder.append(atom)
+    line = '["' + '", "'.join(baseorder) + '"]'
+    print(line)
+    line = '["' + '", "'.join(atomorder) + '"]'
+    print(line)

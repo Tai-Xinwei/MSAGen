@@ -44,7 +44,7 @@ def dataclass_to_dict(dataclass_obj: Union[dataclass, Dict]) -> Dict:
 
 
 class MetricLogger(object):
-    def log(self, metrics, prefix="", global_step=None):
+    def log(self, metrics, prefix="", global_step=None, log_wandb=True):
         if not is_master_node():
             return
 
@@ -68,10 +68,10 @@ class MetricLogger(object):
         log_str = ""
         for k, v in log_data.items():
             if v is not None:
-                log_str += f" | {k}={v:.4g} "
+                log_str += f" | {k}={v} "
 
         logger.info(log_str)
-        if wandb.run is not None:
+        if log_wandb and wandb.run is not None:
             # Add prefix
             if prefix:
                 log_data = {f"{prefix}/{k}": v for k, v in log_data.items()}

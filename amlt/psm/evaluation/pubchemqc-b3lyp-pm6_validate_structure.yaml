@@ -1,0 +1,72 @@
+description: pubchemqc-b3lyp-pm6_validate
+
+target:
+  service: aml
+  name: sfm-nc96-westus3
+
+env_defaults:
+  WANDB_PROJECT: psm_eval
+  WANDB_GROUP: pubchemqc-b3lyp-pm6_validate_structure
+  MODEL_CONFIG: PSM300M_V0
+  GPUS: 4
+
+environment:
+  image: ai4s-sfm:20240531.170731
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+  blob:
+    storage_account_name: sfmarca100
+    container_name: sfm
+    mount_dir: /blob
+    local_dir: /data
+
+code:
+  local_dir: ../sfm
+
+jobs:
+- name: ${MODEL_CONFIG}_${WANDB_GROUP}
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install nvidia-dali-cuda120
+  - python setup_cython.py build_ext --inplace
+  - export WANDB_API_KEY=$WANDB_API_KEY
+  - wandb login --relogin --host=https://microsoft-research.wandb.io $$WANDB_API_KEY
+
+  - export WANDB_RUN_NAME=${MODEL_CONFIG}_${WANDB_GROUP}_$$(date -u +%Y%m%d.%H%M%S)
+
+  - if [[ "$MODEL_CONFIG" == "PSM300M_V0" ]]; then
+      export EXTRA_ARGS="+energy_per_atom_label_scale=0.05 +molecule_energy_per_atom_std_override=1.0";
+    elif [[ "$MODEL_CONFIG" == "PSM300M_VT" ]]; then
+      export EXTRA_ARGS="+disable_data_aug=true";
+    else
+      export EXTRA_ARGS="";
+    fi
+
+  - DDP_TIMEOUT_MINUTES=300 torchrun --nproc_per_node $GPUS sfm/tasks/psm/pretrain_psm.py
+    --config-name=$MODEL_CONFIG
+    +max_validation_samples=8192
+    psm_validation_mode=true
+    data_path_list=PubChemQC-B3LYP-PM6
+    dataset_name_list=pm6
+    dataset_split_raito=1.0
+    clean_sample_ratio=0.0
+    use_unified_batch_sampler=false
+    val_batch_size=256
+    val_batch_log_interval=1
+    sample_in_validation=true
+    sampled_structure_output_path=/blob/psm-outputs/$$WANDB_RUN_NAME/sampled_structures
+    wandb_team=ai4s-sfm
+    wandb_project=$WANDB_PROJECT
+    wandb_group=$WANDB_GROUP
+    wandb_run_name=$$WANDB_RUN_NAME
+    $$EXTRA_ARGS
+  submit_args:
+    container_args:
+      shm_size: 1024g
+  priority: High
+  sla_tier: Premium
