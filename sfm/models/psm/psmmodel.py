@@ -312,7 +312,12 @@ class PSMModel(Model):
 
         batched_data["ori_pos"] = ori_pos
 
-        noise_pos, noise, sqrt_one_minus_alphas_cumprod_t = self.diffnoise.noise_sample(
+        (
+            noise_pos,
+            noise,
+            sqrt_one_minus_alphas_cumprod_t,
+            sqrt_alphas_cumprod_t,
+        ) = self.diffnoise.noise_sample(
             x_start=ori_pos,
             t=time_step,
             non_atom_mask=batched_data["non_atom_mask"],
@@ -322,7 +327,7 @@ class PSMModel(Model):
         )
         noise_pos = complete_cell(noise_pos, batched_data)
 
-        return noise_pos, noise, sqrt_one_minus_alphas_cumprod_t
+        return noise_pos, noise, sqrt_one_minus_alphas_cumprod_t, sqrt_alphas_cumprod_t
 
     def load_pretrained_weights(self, args, checkpoint_path):
         """
@@ -483,7 +488,12 @@ class PSMModel(Model):
             else:
                 assert noise_mode == "diffusion"
 
-        pos, noise, sqrt_one_minus_alphas_cumprod_t = self._set_noise(
+        (
+            pos,
+            noise,
+            sqrt_one_minus_alphas_cumprod_t,
+            sqrt_alphas_cumprod_t,
+        ) = self._set_noise(
             padding_mask=padding_mask,
             batched_data=batched_data,
             time_step=time_step,
@@ -505,10 +515,12 @@ class PSMModel(Model):
         result_dict["aa_mask"] = aa_mask
         result_dict["diff_loss_mask"] = batched_data["diff_loss_mask"]
         result_dict["ori_pos"] = batched_data["ori_pos"]
+        result_dict["sqrt_alphas_cumprod_t"] = sqrt_alphas_cumprod_t
         result_dict["sqrt_one_minus_alphas_cumprod_t"] = batched_data[
             "sqrt_one_minus_alphas_cumprod_t"
         ]
         result_dict["force_label"] = batched_data["forces"]
+        result_dict["padding_mask"] = padding_mask
 
         if self.psm_config.sample_in_validation and not self.training:
             result_dict.update(match_results)

@@ -287,7 +287,7 @@ class DiffNoise(nn.Module):
                     f"clean_mask should be [B] or [B, L] tensor, but it's shape is {clean_mask.shape}"
                 )
 
-        return x_t, noise, sqrt_one_minus_alphas_cumprod_t
+        return x_t, noise, sqrt_one_minus_alphas_cumprod_t, sqrt_alphas_cumprod_t
 
     # Here, t is time point in (0, 1]
     def _angle_noise_sample(self, x_start, t):
