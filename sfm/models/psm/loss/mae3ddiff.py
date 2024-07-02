@@ -38,7 +38,7 @@ def svd_superimpose(P, Q, mask=None):
         Q_centered = torch.where(mask, Q_centered, 0.0)
 
     # Find rotation matrix by Kabsch algorithm
-    H = torch.einsum(weights * P_centered, Q_centered, "b n i, b n j -> b i j")
+    H = torch.einsum("bni,bnj->bij", weights * P_centered, Q_centered)
     U, S, Vt = torch.linalg.svd(H.float())
     # ensure right-handedness
     d = torch.sign(torch.linalg.det(torch.einsum("bki,bjk->bij", Vt, U)))
