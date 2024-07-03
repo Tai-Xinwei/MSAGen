@@ -1,24 +1,24 @@
 #!/bin/bash
 # Folders
-[ -z "${results_dir}" ] && results_dir='/home/yeqibai/workspace/SFM_NLM_resources/all_infer_results/8x7b_global_step33216_infer_results'
-[ -z "${input_dir}" ] && input_dir='/home/yeqibai/mount/ml_la/yeqibai/warehouse/nlm_data/instruct/molecules_test/'
-[ -z "${output_dir}" ] && output_dir='/home/yeqibai/workspace/SFM_NLM_resources/all_eval_results/8x7b_global_step33216_infer_results'
+[ -z "${results_dir}" ] && results_dir='/home/t-kaiyuangao/workspace/proj_logs/nlm_inst/inst_0621_bsz256_lr2e5_0624_step89920'
+[ -z "${input_dir}" ] && input_dir='/home/t-kaiyuangao/ml-container/yinxia/wu2/shared/SFM/SFM.overall.data/SFMMolInstruct.20240617.test'
+[ -z "${output_dir}" ] && output_dir='/home/t-kaiyuangao/workspace/proj_logs/nlm_inst/inst_0621_bsz256_lr2e5_0624_step89920/eval_results/'
 
 
 # Files
-[ -z "${bbbp_pkl}" ] && bbbp_pkl='test.bbbp.instruct.tsv.response.pkl'
-[ -z "${bbbp_score_pkl}" ] && bbbp_score_pkl='test.bbbp.instruct.tsv.score.pkl'
-[ -z "${herg_pkl}" ] && herg_pkl='test.hERG.response.pkl'
-[ -z "${i2s_s_txt}" ] && i2s_s_txt='test.raw.i2s_s.txt'
-[ -z "${i2s_i_pkl}" ] && i2s_i_pkl='i2s_i.txt.response.pkl'
-[ -z "${s2i_i_txt}" ] && s2i_i_txt='test.raw.s2i_i.txt'
-[ -z "${s2i_s_pkl}" ] && s2i_s_pkl='s2i_s.txt.response.pkl'
-[ -z "${desc2mol_pkl}" ] && desc2mol_pkl='test.desc2mol.response.pkl'
-[ -z "${molinstruct_pkl}" ] && molinstruct_pkl='test.molinstruct.reaction.response.pkl'
-[ -z "${mol2desc_pkl}" ] && mol2desc_pkl='test.mol2desc.response.pkl'
-[ -z "${bace_tsv}"] && bace_tsv='test.bace.instruct.tsv'
-[ -z "${bace_pkl}"] && bace_pkl='test.bace.instruct.tsv.response.pkl'
-[ -z "${bace_score_pkl}"] && bace_score_pkl='test.bace.instruct.tsv.score.pkl'
+[ -z "${bbbp_pkl}" ] && bbbp_pkl='test.instruct.predict_bbbp.tsv.response.pkl'
+[ -z "${bbbp_score_pkl}" ] && bbbp_score_pkl='test.instruct.predict_bbbp.tsv.score.pkl'
+[ -z "${herg_pkl}" ] && herg_pkl='None'
+[ -z "${i2s_s_txt}" ] && i2s_s_txt='iupac_smiles_translation/test.raw.i2s_s.txt'
+[ -z "${i2s_i_pkl}" ] && i2s_i_pkl='test.new.i2s_i.txt.response.pkl'
+[ -z "${s2i_i_txt}" ] && s2i_i_txt='iupac_smiles_translation/test.raw.s2i_i.txt'
+[ -z "${s2i_s_pkl}" ] && s2i_s_pkl='test.new.s2i_s.txt.response.pkl'
+[ -z "${desc2mol_pkl}" ] && desc2mol_pkl='test.desc2mol.tsv.response.pkl'
+[ -z "${molinstruct_pkl}" ] && molinstruct_pkl='test.molinstruct.reagent_prediction.tsv.response.pkl '
+[ -z "${mol2desc_pkl}" ] && mol2desc_pkl='test.mol2desc.tsv.response.pkl'
+[ -z "${bace_tsv}"] && bace_tsv='test.instruct.predict_bace.tsv '
+[ -z "${bace_pkl}"] && bace_pkl='test.instruct.predict_bace.tsv.response.pkl'
+[ -z "${bace_score_pkl}"] && bace_score_pkl='test.instruct.predict_bace.tsv.score.pkl'
 
 # Launcher
 python3 sfm/tasks/nlm/eval/evaluate_small_molecule.py \

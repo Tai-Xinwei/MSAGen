@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
-from sfm.data.sci_data.SFMDecTokenizer import SFMDecTokenizer
-import torch
 import os
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from sfm.utils.science_tokens import SCIENCE_TAG_TOKENS, SCIENCE_TOKENS
 import re
-from sfm.logging import logger
 from argparse import ArgumentParser
+
+import torch
+import torch.nn.functional as F
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from sfm.data.sci_data.SFMDecTokenizer import SFMDecTokenizer
+from sfm.logging import logger
 from sfm.models.scigpt.config import ScigptConfig
 from sfm.models.scigpt.scigpt import ScigptModel
 from sfm.utils import arg_utils
+from sfm.utils.science_tokens import SCIENCE_TAG_TOKENS, SCIENCE_TOKENS
 
 
 def init_tokenizer(tokenizer_path):
@@ -186,13 +189,9 @@ def tokenize(line):
         # some lines have weird tags that can't be tokenized
         return [], None
 
+
 class NLMGenerator:
-    def __init__(self, ckpt_home):
-        nlm_blob = r"/home/t-kaiyuangao/sfmdata-container"
-        ml_la_blob = r"/home/t-kaiyuangao/ml-container"
-        # tokenizer_home = f'{hai1_blob}/ds_dataset/llama2/llama-2-7b'
-        tokenizer_home = f'{nlm_blob}/llama//Meta-Llama-3-8B'
-        # tokenizer_home = f'{ml_la_blob}/yeqibai/warehouse/llama/llama-2-7b'
+    def __init__(self, ckpt_home, tokenizer_home):
         init_tokenizer(tokenizer_home)
 
         def get_args():
@@ -214,7 +213,6 @@ class NLMGenerator:
             return args
 
         args = get_args()
-
 
         # Loading the extended trained model
         ckpt_dict = {}
@@ -245,15 +243,25 @@ class NLMGenerator:
                 if "dummy" in k or "rotary_emb" in k:
                     continue
                 if k == "self_attention.layernorm_qkv.layer_norm_weight":
-                    ckpt_dict[f"decoder.model.layers.{l}.input_layernorm.weight"] = layer[k]
+                    ckpt_dict[
+                        f"decoder.model.layers.{l}.input_layernorm.weight"
+                    ] = layer[k]
                 elif k == "self_attention.layernorm_qkv.query_weight":
-                    ckpt_dict[f"decoder.model.layers.{l}.self_attn.q_proj.weight"] = layer[k]
+                    ckpt_dict[
+                        f"decoder.model.layers.{l}.self_attn.q_proj.weight"
+                    ] = layer[k]
                 elif k == "self_attention.layernorm_qkv.key_weight":
-                    ckpt_dict[f"decoder.model.layers.{l}.self_attn.k_proj.weight"] = layer[k]
+                    ckpt_dict[
+                        f"decoder.model.layers.{l}.self_attn.k_proj.weight"
+                    ] = layer[k]
                 elif k == "self_attention.layernorm_qkv.value_weight":
-                    ckpt_dict[f"decoder.model.layers.{l}.self_attn.v_proj.weight"] = layer[k]
+                    ckpt_dict[
+                        f"decoder.model.layers.{l}.self_attn.v_proj.weight"
+                    ] = layer[k]
                 elif k == "self_attention.proj.weight":
-                    ckpt_dict[f"decoder.model.layers.{l}.self_attn.o_proj.weight"] = layer[k]
+                    ckpt_dict[
+                        f"decoder.model.layers.{l}.self_attn.o_proj.weight"
+                    ] = layer[k]
                 elif k == "layernorm_mlp.layer_norm_weight":
                     ckpt_dict[
                         f"decoder.model.layers.{l}.post_attention_layernorm.weight"
@@ -262,10 +270,14 @@ class NLMGenerator:
                     weight1, weight2 = torch.split(
                         layer[k], [weight1_size, weight2_size], dim=0
                     )
-                    ckpt_dict[f"decoder.model.layers.{l}.mlp.gate_proj.weight"] = weight1
+                    ckpt_dict[
+                        f"decoder.model.layers.{l}.mlp.gate_proj.weight"
+                    ] = weight1
                     ckpt_dict[f"decoder.model.layers.{l}.mlp.up_proj.weight"] = weight2
                 elif k == "layernorm_mlp.fc2_weight":
-                    ckpt_dict[f"decoder.model.layers.{l}.mlp.down_proj.weight"] = layer[k]
+                    ckpt_dict[f"decoder.model.layers.{l}.mlp.down_proj.weight"] = layer[
+                        k
+                    ]
             del layer
 
         layer = torch.load(
@@ -298,10 +310,10 @@ class NLMGenerator:
 
     def chat(self, input_str, response_only=True, do_sample=False, **kwargs):
         kwargs.update(self.generation_dict)
-        prompt = f'Instruction: {input_str.strip()}\n\n\nResponse:'
+        prompt = f"Instruction: {input_str.strip()}\n\n\nResponse:"
         input_ids = torch.tensor(tokenize(prompt)[:-1]).cuda().unsqueeze(0)  # rm eos
-        if 'max_new_tokens' in kwargs:
-            max_new_tokens = kwargs.pop('max_new_tokens')
+        if "max_new_tokens" in kwargs:
+            max_new_tokens = kwargs.pop("max_new_tokens")
         else:
             max_new_tokens = 100
 
@@ -313,7 +325,7 @@ class NLMGenerator:
                 do_sample=True,
                 temperature=0.75,
                 top_p=0.95,
-                **kwargs
+                **kwargs,
             )
         else:
             outputs = self.model.decoder.generate(
@@ -322,15 +334,74 @@ class NLMGenerator:
                 max_new_tokens=max_new_tokens,
                 num_return_sequences=4,
                 do_sample=do_sample,
-                **kwargs
+                **kwargs,
             )
 
         out_list = []
         for out in outputs:
             s = self.tokenizer.decode(out)
             if response_only:
-                segs = s.split('Response:')
-                s = segs[1].strip().replace("<m>", "").replace("<a>", "").replace("<i>", "")
-            segs = s.split('<|end_of_text|>')
+                segs = s.split("Response:")
+                s = (
+                    segs[1]
+                    .strip()
+                    .replace("<m>", "")
+                    .replace("<a>", "")
+                    .replace("<i>", "")
+                )
+            segs = s.split("<|end_of_text|>")
             out_list.append(segs[0].strip())
         return out_list
+
+    def extract_first_token_prob(self, file_name):
+        from sfm.data.sci_data.dataset import RawTextSciDatasetwithAltTokenizer
+
+        dataset = RawTextSciDatasetwithAltTokenizer(
+            file_name,
+            self.tokenizer,
+            tokenize,
+            conditional_generation=True,
+            use_template=True,
+            max_len=8192,
+            only_prompt=True,
+        )
+        data_loader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=1,
+            shuffle=False,
+            collate_fn=dataset.collate,
+            num_workers=0,
+            pin_memory=True,
+            drop_last=False,
+        )
+
+        from tqdm import tqdm
+
+        from sfm.utils.move_to_device import move_to_device
+
+        with torch.no_grad():
+            buffer = []
+            for data in tqdm(data_loader):
+                device = torch.device("cuda")
+                data = move_to_device(data, device)
+
+                outputs = self.model.decoder(
+                    data[0][0],
+                    data[0][1],
+                    return_dict=True,
+                    output_attentions=False,
+                    output_hidden_states=False,
+                )
+
+                yes_id = self.tokenizer("Yes")["input_ids"][-1]
+                no_id = self.tokenizer("No")["input_ids"][-1]
+                next_token_logits = outputs.logits[:, -1, :]
+                next_token_scores = F.softmax(
+                    next_token_logits, dim=-1
+                )  # (batch_size * num_beams, vocab_size)
+                yes_probs = next_token_scores[:, yes_id]
+                no_probs = next_token_scores[:, no_id]
+                confidences = yes_probs / (yes_probs + no_probs)
+                buffer.extend(confidences.tolist())
+
+        return buffer
