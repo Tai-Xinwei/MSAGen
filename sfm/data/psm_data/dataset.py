@@ -387,6 +387,14 @@ class MatterSimDataset:
             )
         self.args = args
 
+        if args.psm_validation_mode and hasattr(args, "max_validation_samples"):
+            if self.dataset_type == "single structure file":
+                self.atoms_list = self.atoms_list[: args.max_validation_samples]
+            else:
+                self.index_to_key_name = self.index_to_key_name[
+                    : self.args.max_validation_samples
+                ]
+
     def switch_lattice_vectors(self, pbc, cell):
         # simple algorithm to switch lattice vectors so that they are more aligned with the initial lattice vectors
         initial_lattice_vectors = np.array(
@@ -485,43 +493,32 @@ class MatterSimDataset:
             [data["coords"], cell_corner_pos], dim=0
         )  # expand pos with cell corners
         data["num_atoms"] = int(x.size()[0] - 8)
-        if not self.args.psm_validation_mode:
-            data["forces"] = torch.cat(
-                [
-                    (
-                        torch.tensor(data["forces"], dtype=torch.float64)
-                        - self.force_mean
-                    ),
-                    # / self.force_std,
-                    torch.zeros([8, 3], dtype=torch.float64),
-                ],
-                dim=0,
-            )  # expand forces for cell corners
-            data["energy"] = torch.tensor(
-                [(data["info"]["energy"] - self.energy_mean) / self.energy_std]
-            )
-            data["energy_per_atom"] = torch.tensor(
-                [
-                    (
-                        (data["info"]["energy"] / float(data["num_atoms"]))
-                        - self.energy_per_atom_mean
-                    )
-                    # / self.energy_per_atom_std
-                ]
-            )
-            data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
+        data["forces"] = torch.cat(
+            [
+                (torch.tensor(data["forces"], dtype=torch.float64) - self.force_mean),
+                torch.zeros([8, 3], dtype=torch.float64),
+            ],
+            dim=0,
+        )  # expand forces for cell corners
+        data["energy"] = torch.tensor(
+            [(data["info"]["energy"] - self.energy_mean) / self.energy_std]
+        )
+        data["energy_per_atom"] = torch.tensor(
+            [
+                (
+                    (data["info"]["energy"] / float(data["num_atoms"]))
+                    - self.energy_per_atom_mean
+                )
+            ]
+        )
+        data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
 
-            data["has_energy"] = torch.tensor([1], dtype=torch.bool)
-            data["has_forces"] = torch.tensor([1], dtype=torch.bool)
-        else:
-            data["energy"] = torch.tensor([0.0], dtype=torch.float64)
-            data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
-            data["forces"] = torch.zeros(
-                [data["num_atoms"] + 8, 3], dtype=torch.float64
-            )
-            data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
-            data["has_energy"] = torch.tensor([1], dtype=torch.bool)
-            data["has_forces"] = torch.tensor([1], dtype=torch.bool)
+        if self.args.rescale_loss_with_std:
+            data["energy_per_atom"] = data["energy_per_atom"] / self.energy_per_atom_std
+            data["forces"] = data["forces"] / self.force_std
+
+        data["has_energy"] = torch.tensor([1], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([1], dtype=torch.bool)
 
         data = self.generate_2dgraphfeat(data)
 
