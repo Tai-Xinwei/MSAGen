@@ -14,6 +14,7 @@ from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import (
     AFDBLMDBDataset,
     MatterSimDataset,
+    PDBBDataset,
     PlainPM6FullLMDBDataset,
     PM6FullLMDBDataset,
     SmallMolDataset,
@@ -150,6 +151,14 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 len_total = len(train_dataset) + len(valid_dataset)
             elif dataset_name == "ur50":
                 dataset = UR50LMDBDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset()
+                len_total = len(dataset)
+                self.dataset_lens[dataset_name] = len(train_dataset)
+                self.sizes.append(train_dataset.sizes)
+            elif dataset_name == "pdb":
+                dataset = PDBBDataset(
+                    args, data_path, dataset_name=dataset_name, **kwargs
+                )
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)

@@ -671,9 +671,12 @@ def center_pos(batched_data, padding_mask):
     center = non_periodic_center.unsqueeze(1)
     center[is_periodic] = periodic_center
     batched_data["pos"] -= center
+
     batched_data["pos"] = batched_data["pos"].masked_fill(
         padding_mask.unsqueeze(-1), 0.0
     )
+    # # TODO: filter nan/inf to zero in coords from pdb data, needs better solution
+    batched_data["pos"] = batched_data["pos"].masked_fill(protein_mask, 0.0)
     return batched_data["pos"]
 
 
