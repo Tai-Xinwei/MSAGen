@@ -321,13 +321,13 @@ class DiffMAE3dCriterions(nn.Module):
                 self.periodic_force_std,
             )
 
-            R = self._alignment_x0(model_output, batched_data)
             if self.diffusion_mode == "epsilon":
                 if is_seq_only.any():
                     unreduced_noise_loss = self.noise_loss(
                         noise_pred.to(noise_label.dtype), noise_label
                     )
                 else:
+                    R = self._alignment_x0(model_output, batched_data)
                     # noise pred loss
                     aligned_noise_pred = (
                         sqrt_alphas_cumprod_t * pos_label

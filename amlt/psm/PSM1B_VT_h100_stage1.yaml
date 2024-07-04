@@ -59,7 +59,7 @@ jobs:
   - export act_dropout=0.1
   - export weight_decay=0.0
   - export droppath_prob=0.0
-  - export mask_ratio=0.5
+  - export mask_ratio=0.3
   - export d_tilde=1.0
   - export max_lr=1.5e-4
   - export strategy=Zero1
@@ -75,11 +75,11 @@ jobs:
   - export data_path=/psm/data/
   - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
   - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
-  - export dataset_split_raito='0.2,0.1,0.35,0.1,0.1,0.1,0.05'
+  - export dataset_split_raito='0.2,0.1,0.3,0.1,0.1,0.1,0.1'
   - export dataset_micro_batch_size='64,8,12,8,6,12,12'
   - export mode_prob='0.4,0.4,0.2'
   - export fp16=False
-  - export clean_sample_ratio=0.5
+  - export clean_sample_ratio=0.4
   - export energy_loss_ratio=0.05
   - export force_loss_ratio=0.0
   # - export num_timesteps=1000

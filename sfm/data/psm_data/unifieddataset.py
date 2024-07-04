@@ -220,6 +220,8 @@ class BatchedDataDataset(FoundationModelDataset):
             )
             self.dataset_split_raito = [0.9, 0.0, 0.1]
 
+        logger.info(f"Total data Length is {len_data/1000/1000:0.2f}M")
+
         self.multi_hop_max_dist = multi_hop_max_dist
         self.spatial_pos_max = spatial_pos_max
         self.args = args
