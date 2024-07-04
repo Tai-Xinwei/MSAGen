@@ -365,7 +365,7 @@ class DiffMAE3dCriterions(nn.Module):
                 num_molecule_noise_sample,
             ) = self._reduce_force_or_noise_loss(
                 unreduced_noise_loss,
-                ~clean_mask & is_molecule.unsqueeze(-1),
+                (~clean_mask) & is_molecule.unsqueeze(-1),
                 diff_loss_mask & ~protein_mask.any(dim=-1),
                 is_molecule,
                 is_periodic,
@@ -377,7 +377,7 @@ class DiffMAE3dCriterions(nn.Module):
                 num_periodic_noise_sample,
             ) = self._reduce_force_or_noise_loss(
                 unreduced_noise_loss,
-                ~clean_mask & is_periodic.unsqueeze(-1),
+                (~clean_mask) & is_periodic.unsqueeze(-1),
                 diff_loss_mask & ~protein_mask.any(dim=-1),
                 is_molecule,
                 is_periodic,
@@ -389,10 +389,10 @@ class DiffMAE3dCriterions(nn.Module):
                 num_protein_noise_sample,
             ) = self._reduce_force_or_noise_loss(
                 unreduced_noise_loss,
-                ~clean_mask
+                (~clean_mask)
                 & is_protein
-                & ~is_seq_only.unsqueeze(-1)
-                & ~is_complex.unsqueeze(-1),
+                & (~is_seq_only.unsqueeze(-1))
+                & (~is_complex.unsqueeze(-1)),
                 diff_loss_mask & ~protein_mask.any(dim=-1),
                 is_molecule,
                 is_periodic,
@@ -404,7 +404,7 @@ class DiffMAE3dCriterions(nn.Module):
                 num_complex_noise_sample,
             ) = self._reduce_force_or_noise_loss(
                 unreduced_noise_loss,
-                ~clean_mask & is_complex.unsqueeze(-1) & ~is_seq_only.unsqueeze(-1),
+                (~clean_mask) & is_complex.unsqueeze(-1) & (~is_seq_only.unsqueeze(-1)),
                 diff_loss_mask & ~protein_mask.any(dim=-1),
                 is_molecule,
                 is_periodic,

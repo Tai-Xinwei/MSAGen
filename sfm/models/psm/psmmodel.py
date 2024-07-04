@@ -241,24 +241,28 @@ class PSMModel(Model):
         )
         time_step = time_step.unsqueeze(-1).repeat(1, nnodes)
 
-        # mode 0: 50% masked seq and 50% noised structure to structure and seq
+        # mode 0:
         clean_mask = torch.where((mask_choice == 0) & is_protein, ~aa_mask, clean_mask)
-        clean_mask = torch.where(is_seq_only.unsqueeze(-1), False, clean_mask)
 
-        # mode 1: clean seq to structure
-        aa_mask = torch.where(mask_choice == 1, False, aa_mask)
-        # set ligand time t2 < t1 for mode 1
+        # mode 1:
+        aa_mask = torch.where(
+            mask_choice == 1 & ~is_seq_only.unsqueeze(-1), False, aa_mask
+        )
+        # set ligand time t2 > t1 for mode 1
         time_step = torch.where(
             (mask_choice == 1) & is_complex.unsqueeze(-1) & is_protein,
             time_protein,
             time_step,
         )
 
-        # mode 2: 50% masked seq to structure and masked seq
-        # nothing to do
+        # mode 2:
+        aa_mask = torch.where(
+            mask_choice == 2 & is_complex.unsqueeze(-1), False, aa_mask
+        )
 
         # set padding mask to clean
         clean_mask = clean_mask.masked_fill(padding_mask, True)
+        clean_mask = clean_mask.masked_fill(is_seq_only.unsqueeze(-1), False)
         # set T noise if protein is seq only
         time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
         # set 0 noise for padding
@@ -273,7 +277,7 @@ class PSMModel(Model):
         is_molecule = (~is_periodic) & (token_id <= 129).all(dim=-1)
         is_protein = (~is_periodic.unsqueeze(-1)) & (token_id > 129) & (token_id < 157)
         is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
-        is_seq_only = (sample_type == 5) & is_protein.all(dim=-1)
+        is_seq_only = sample_type == 5
         is_complex = sample_type == 6
 
         batched_data["is_periodic"] = is_periodic

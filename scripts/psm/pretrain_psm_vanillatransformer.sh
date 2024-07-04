@@ -12,9 +12,9 @@ export MKL_THREADING_LAYER='GNU'
 # # find the folder in /tmp and starts with azcopy_linux_amd64
 # azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
 
-[ -z "${layers}" ] && layers=32
-[ -z "${hidden_size}" ] && hidden_size=1536
-[ -z "${ffn_size}" ] && ffn_size=6144
+[ -z "${layers}" ] && layers=22
+[ -z "${hidden_size}" ] && hidden_size=1024
+[ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -44,16 +44,16 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=100
+[ -z "${log_interval}" ] && log_interval=10
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.4,0.4,0.2'
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-[ -z "${data_path_list}" ] && data_path_list='20240101_PDB_Training_Data,complex.preprocessed.large,ur50_23_bpe_pack1536.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pdb,complex,ur50'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.3,0.3'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12,12,4"
+[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large,ur50_23_bpe_pack1536.lmdb'
+[ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdb,complex,ur50'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.2,0.2,0.2'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12,12,12,6"
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,ur50_23_bpe_pack1536.lmdb'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,ur50'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.5'
@@ -234,7 +234,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           AutoGradForce=$AutoGradForce \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss \
-          # ifresume=True \
-          # loadcheck_path=$loadcheck_path \
+          ifresume=True \
+          loadcheck_path=$loadcheck_path \
 
           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
