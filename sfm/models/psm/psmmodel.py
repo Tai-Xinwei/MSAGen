@@ -338,6 +338,10 @@ class PSMModel(Model):
         elif "module" in checkpoints_state:
             checkpoints_state = checkpoints_state["module"]
 
+        for key in list(checkpoints_state.keys()):
+            if key.startswith("base."):
+                checkpoints_state[key[5:]] = checkpoints_state.pop(key)
+
         IncompatibleKeys = self.load_state_dict(checkpoints_state, strict=False)
         IncompatibleKeys = IncompatibleKeys._asdict()
 

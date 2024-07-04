@@ -45,16 +45,24 @@ class PSMMix3dEmbedding(nn.Module):
         self.psm_config = psm_config
         self.use_unified_batch_sampler = use_unified_batch_sampler
 
+        # self.unkpos_embedding = nn.Embedding(
+        #     1, psm_config.num_3d_bias_kernel, padding_idx=None
+        # )
+
     def _pos_emb(
         self,
         pos: Optional[torch.Tensor],
         expand_pos: torch.Tensor,
         adj: torch.Tensor,
-        is_molecule: torch.Tensor,
+        molecule_mask: torch.Tensor,
         padding_mask: torch.Tensor,
         pbc_expand_batched: Optional[Dict[str, Tensor]] = None,
     ):
         pos = pos.to(self.pos_emb.weight.dtype)
+
+        # inf_pos_mask = pos.eq(float("inf")).any(dim=-1)
+        # pos = pos.masked_fill(inf_pos_mask.unsqueeze(-1), 0.0)
+
         if pbc_expand_batched is not None:
             assert (
                 self.use_unified_batch_sampler
@@ -80,8 +88,9 @@ class PSMMix3dEmbedding(nn.Module):
         pos_emb = (
             self.pos_emb(expand_pos).masked_fill(expand_mask.unsqueeze(-1), 0.0).float()
         )
+        # pos_emb = torch.where(inf_pos_mask.unsqueeze(-1), self.unkpos_embedding.weight, pos_emb)
 
-        adj = adj.masked_fill(~is_molecule.unsqueeze(-1).unsqueeze(-1), True)
+        adj = adj.masked_fill(~molecule_mask.unsqueeze(-1), True)
         dist = dist.masked_fill(~adj, min_dtype)
 
         dist = torch.nn.functional.softmax(dist.float() * self.scaling, dim=-1)
@@ -108,7 +117,8 @@ class PSMMix3dEmbedding(nn.Module):
         """
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
-        is_molecule = batched_data["is_molecule"]
+        is_periodic = batched_data["is_periodic"]
+        molecule_mask = (token_id <= 129) & (~is_periodic.unsqueeze(-1))
 
         if aa_mask is not None:
             mask_token_type = token_id.masked_fill(
@@ -127,7 +137,7 @@ class PSMMix3dEmbedding(nn.Module):
                 dim=-2
             )  # B x T x #ATOM_FEATURE x D -> # B x T x D
             atom_feature_embedding = atom_feature_embedding.masked_fill(
-                ~is_molecule.unsqueeze(-1).unsqueeze(-1), 0.0
+                ~molecule_mask.unsqueeze(-1), 0.0
             )
             x += atom_feature_embedding
 
@@ -141,7 +151,7 @@ class PSMMix3dEmbedding(nn.Module):
             if pbc_expand_batched is not None
             else None,
             batched_data["adj"],
-            is_molecule,
+            molecule_mask,
             padding_mask,
             pbc_expand_batched=pbc_expand_batched,
         )
@@ -155,7 +165,7 @@ class PSMMix3dEmbedding(nn.Module):
                 if pbc_expand_batched is not None
                 else None,
                 batched_data["adj"],
-                is_molecule,
+                molecule_mask,
                 padding_mask,
                 pbc_expand_batched=pbc_expand_batched,
             )
