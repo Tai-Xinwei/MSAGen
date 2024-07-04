@@ -83,6 +83,8 @@ class DiffMAE3dCriterions(nn.Module):
 
         self.energy_loss = nn.L1Loss(reduction="none")
         self.force_loss = nn.MSELoss(reduction="none")
+        if getattr(args, "use_mae_force_loss", False):
+            self.force_loss = nn.L1Loss(reduction="none")
         self.noise_loss = (
             nn.L1Loss(reduction="none")
             if self.args.diffusion_training_loss == DiffusionTrainingLoss.L1

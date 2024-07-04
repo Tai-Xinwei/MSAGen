@@ -1,0 +1,55 @@
+ # Steps to run:
+# 1. copy data folder https://itpeus4data.blob.core.windows.net/shuz/data/pcq-pos-custom/ to your Azure storage blob container
+# 2. copy script mae_3d.sh in FoundationModelProp/ to your Azure storage blob container
+# 3. Specify the Azure storage account and container to use
+# 4. Submit the job with this yaml file
+
+description: PSMV1-Complex-Eval
+
+env_defaults:
+  NODES: 2
+  GPUS: 8
+  WANDB_API_KEY: "local-61f9c409ec1216f12769c372cb86d6d553ec25e3"
+
+target:
+  service: aml
+  name: sfm-nd96amsra100v4-uksouth
+
+# target:
+#   service: aml
+#   name: townsend1
+
+environment:
+  image: ai4s-sfm:20240531.170731
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+  blob:
+    storage_account_name: sfmarca100 # Storage account
+    container_name: sfm # Container name
+    mount_dir: /sfm
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: SFM_PSM_VT_COMPLEX_EVAL
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  sku: ${NODES}xG${GPUS}-IB
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - mkdir /sfm/sfmexpresults/zhe/predictions
+  - export path=run.sh
+  - export data_path=/sfm/sfmexpresults/zhe/data/preprocessed.large
+  # - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v5/checkpoints
+  # - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v5/checkpoints
+  - export loadcheck_path=/psm/exp/peiran/psmv1_vt_v5_noenergy/checkpoints
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - pip install nvidia-dali-cuda120
+  - bash ./scripts/psm/run_evaluate_psm_vanillatransformer_complex.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g

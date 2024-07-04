@@ -24,7 +24,7 @@ from torch_geometric.data import Data
 from tqdm import tqdm
 
 from sfm.data.data_utils import _filter_by_size_dynamic
-from sfm.data.dataset import FoundationModelDataset
+from sfm.data.dataset import FoundationModelDataset, LMDBFoundationModelDataset
 from sfm.data.mol_data import algos
 from sfm.data.prot_data.util import bstr2obj
 from sfm.data.psm_data.collator import collate_fn
@@ -387,6 +387,14 @@ class MatterSimDataset:
             )
         self.args = args
 
+        if args.psm_validation_mode and hasattr(args, "max_validation_samples"):
+            if self.dataset_type == "single structure file":
+                self.atoms_list = self.atoms_list[: args.max_validation_samples]
+            else:
+                self.index_to_key_name = self.index_to_key_name[
+                    : self.args.max_validation_samples
+                ]
+
     def switch_lattice_vectors(self, pbc, cell):
         # simple algorithm to switch lattice vectors so that they are more aligned with the initial lattice vectors
         initial_lattice_vectors = np.array(
@@ -485,43 +493,32 @@ class MatterSimDataset:
             [data["coords"], cell_corner_pos], dim=0
         )  # expand pos with cell corners
         data["num_atoms"] = int(x.size()[0] - 8)
-        if not self.args.psm_validation_mode:
-            data["forces"] = torch.cat(
-                [
-                    (
-                        torch.tensor(data["forces"], dtype=torch.float64)
-                        - self.force_mean
-                    ),
-                    # / self.force_std,
-                    torch.zeros([8, 3], dtype=torch.float64),
-                ],
-                dim=0,
-            )  # expand forces for cell corners
-            data["energy"] = torch.tensor(
-                [(data["info"]["energy"] - self.energy_mean) / self.energy_std]
-            )
-            data["energy_per_atom"] = torch.tensor(
-                [
-                    (
-                        (data["info"]["energy"] / float(data["num_atoms"]))
-                        - self.energy_per_atom_mean
-                    )
-                    # / self.energy_per_atom_std
-                ]
-            )
-            data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
+        data["forces"] = torch.cat(
+            [
+                (torch.tensor(data["forces"], dtype=torch.float64) - self.force_mean),
+                torch.zeros([8, 3], dtype=torch.float64),
+            ],
+            dim=0,
+        )  # expand forces for cell corners
+        data["energy"] = torch.tensor(
+            [(data["info"]["energy"] - self.energy_mean) / self.energy_std]
+        )
+        data["energy_per_atom"] = torch.tensor(
+            [
+                (
+                    (data["info"]["energy"] / float(data["num_atoms"]))
+                    - self.energy_per_atom_mean
+                )
+            ]
+        )
+        data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
 
-            data["has_energy"] = torch.tensor([1], dtype=torch.bool)
-            data["has_forces"] = torch.tensor([1], dtype=torch.bool)
-        else:
-            data["energy"] = torch.tensor([0.0], dtype=torch.float64)
-            data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
-            data["forces"] = torch.zeros(
-                [data["num_atoms"] + 8, 3], dtype=torch.float64
-            )
-            data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
-            data["has_energy"] = torch.tensor([1], dtype=torch.bool)
-            data["has_forces"] = torch.tensor([1], dtype=torch.bool)
+        if self.args.rescale_loss_with_std:
+            data["energy_per_atom"] = data["energy_per_atom"] / self.energy_per_atom_std
+            data["forces"] = data["forces"] / self.force_std
+
+        data["has_energy"] = torch.tensor([1], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([1], dtype=torch.bool)
 
         data = self.generate_2dgraphfeat(data)
 
@@ -1595,3 +1592,87 @@ class DaliUnifiedDataSource:
 
     def __len__(self):
         return self.size
+
+
+class ComplexDataset(LMDBFoundationModelDataset):
+    def __init__(self, lmdb_path: str, args: PSMConfig):
+        super().__init__(lmdb_path)
+        self.args = args
+        self.lmdb_path = lmdb_path
+
+    def __getitem__(self, index: int) -> dict:
+        data = self.read_txn.get(self.key_list[index].encode())
+        data = bstr2obj(data)
+
+        data["idx"] = index
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=data["token_type"].device
+        )
+
+        N = data["token_type"].shape[0]
+
+        protein_len = data["protein_len"]
+        data["token_type"][:protein_len] -= 1
+        data["token_type"][protein_len:] += 1
+        data["node_attr"][:, 0] = data["token_type"]
+
+        data["node_attr"] = convert_to_single_emb(
+            torch.tensor(data["node_attr"], dtype=torch.long)
+        )
+
+        adj = torch.zeros([N, N], dtype=torch.bool)
+        adj[data["edge_index"][0, :], data["edge_index"][1, :]] = True
+
+        # allow interaction between protein and ligand, and protein and protein
+        protein_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
+        protein_ligand_adj[:protein_len] = True
+        protein_ligand_adj |= (
+            protein_ligand_adj.clone().T
+        )  # torch disallow inplace operation
+        adj |= protein_ligand_adj
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros(
+                [N, N, data["edge_attr"].size(-1)], dtype=torch.long
+            )
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+
+        # replace data['coords'] inf with 0 to avoid nan in the model
+        # as noise loss will only be calculated for ligands
+        data["coords"][data["coords"] == float("inf")] = 0
+        data["coords"] = data["coords"].to(dtype=torch.float64)
+
+        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        return data
+
+    def __len__(self) -> int:
+        return len(self.key_list)
+
+    def collate(self, batch: List[Data]) -> Data:
+        result = collate_fn(batch)
+        protein_len = torch.tensor([i["protein_len"] for i in batch])
+        result.update(dict(protein_len=protein_len))
+        return result
+
+    def split_dataset(self, validation_ratio=0.03, sort=False):
+        num_samples = len(self.key_list)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(666).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(self.lmdb_path, self.args)
+        dataset_train.key_list = [self.key_list[idx] for idx in training_indices]
+
+        dataset_val = self.__class__(self.lmdb_path, self.args)
+        dataset_val.key_list = [self.key_list[idx] for idx in validation_indices]
+
+        return dataset_train, dataset_val
