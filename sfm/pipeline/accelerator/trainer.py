@@ -8,11 +8,13 @@ from contextlib import nullcontext
 from copy import deepcopy
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional, Union
+from typing import Callable, Iterator, Optional, Type, Union
 
 import deepspeed
 import numpy as np
 import torch
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
@@ -32,6 +34,24 @@ from sfm.pipeline.accelerator.dataclasses import (
     ValidLogOutput,
 )
 from sfm.pipeline.accelerator.model import Model
+from sfm.pipeline.accelerator.nnscaler_accelerator import ENABLE_NNSCALER
+
+if ENABLE_NNSCALER:
+    from nnscaler.runtime.device import DeviceGroup
+
+    from sfm.pipeline.accelerator.nnscaler_accelerator import (
+        NNScalerAccelerator,
+        NNScalerTrainConfig,
+    )
+else:
+
+    class NNScalerTrainConfig:
+        pass
+
+    class NNScalerAccelerator:
+        pass
+
+    logger.info("Please note nnscaler is not installed.")
 
 
 def seed_everything(seed):
@@ -251,13 +271,21 @@ class Trainer(object):
     def __init__(
         self,
         args: TrainerConfig,
-        model: Model,
+        model: Union[Model, Type[Model]],
         train_data: Dataset,
         valid_data: Optional[Dataset] = None,
         test_data: Optional[Dataset] = None,
         optimizer: Optional[torch.optim.Optimizer] = None,
         lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
         loss_log_dict: Optional[dict] = {},
+        # use by nnscaler accelerator
+        model_init: Callable[[], torch.nn.Module] = None,
+        optimizer_init: Callable[
+            [Iterator[torch.nn.Parameter], NNScalerTrainConfig], Optimizer
+        ] = None,
+        lr_scheduler_init: Callable[
+            [Optimizer, NNScalerTrainConfig], LRScheduler
+        ] = None,
     ):
         super().__init__()
         self.args = args
@@ -272,6 +300,9 @@ class Trainer(object):
             metric=args.early_stopping_metric,
             mode=args.early_stopping_mode,
         )
+        self.model_init = model_init
+        self.optimizer_init = optimizer_init
+        self.lr_scheduler_init = lr_scheduler_init
 
         if not args.fp16 and not args.bf16:
             torch.set_float32_matmul_precision("high")
@@ -288,10 +319,29 @@ class Trainer(object):
             self.optimizer = optimizer
             self.lr_scheduler = lr_scheduler
 
+        if args.strategy is TrainStrategy.NNScaler:
+            if not ENABLE_NNSCALER:
+                raise RuntimeError(
+                    "NNScaler strategy is used, but nnscaler is not installed."
+                )
+            if optimizer is not None:
+                logger.warn(
+                    "NNScaler will ignore the provided optimizer and lr_scheduler, and use optimizer_init and lr_scheduler_init."
+                )
+            if self.optimizer_init is None or self.lr_scheduler_init is None:
+                raise RuntimeError(
+                    "NNScaler need to provide optimizer_init and lr_scheduler_init."
+                )
+
         self.accelerator = self.build_accelerator(loss_log_dict=loss_log_dict)
         self.accelerator.set_up()
+        if args.strategy is TrainStrategy.NNScaler:
+            self.model = self.accelerator.model
 
-        if args.strategy.find("Zero") == -1:
+        if (
+            args.strategy.find("Zero") == -1
+            and args.strategy is not TrainStrategy.NNScaler
+        ):
             self.accelerator.build_data_loader(train_data, valid_data)
 
         self.state = TrainerState(args=args)
@@ -325,6 +375,10 @@ class Trainer(object):
     def _load_checkpoint(self, path: Path, model_states_only: bool = False):
         checkpoint_list_path = path / "checkpoint_list.txt"
         latest_path = path / "latest"  # latest path for DeepSpeed
+        if ENABLE_NNSCALER:
+            nnscaler_latest_path = path / f"latest.pt.{DeviceGroup().rank}"
+        else:
+            nnscaler_latest_path = None
 
         checkpoint_last = None
         if model_states_only and self.args.finetune_from_checkpoint_id is not None:
@@ -339,6 +393,8 @@ class Trainer(object):
                 latest_list = f.read().splitlines()
             if len(latest_list) > 0:
                 checkpoint_last = latest_list[-1]
+        elif ENABLE_NNSCALER and nnscaler_latest_path.exists():
+            checkpoint_last = f"latest.pt.{DeviceGroup().rank}"
 
         if checkpoint_last is not None:
             checkpoint_path = path / checkpoint_last
@@ -408,6 +464,16 @@ class Trainer(object):
                 self.model,
                 self.optimizer,
                 self.lr_scheduler,
+            )
+        elif self.args.strategy == TrainStrategy.NNScaler:
+            return NNScalerAccelerator(
+                self.args,
+                self.model,
+                self.model_init,
+                self.optimizer_init,
+                self.lr_scheduler_init,
+                self.train_data,
+                self.valid_data,
             )
         else:
             raise ValueError(f"Unknown strategy: {self.args.strategy}")
@@ -519,7 +585,8 @@ class Trainer(object):
 
         assert self.train_data_loader is not None
 
-        self.model.before_training()
+        if hasattr(self.model, "before_training"):
+            self.model.before_training()
         if self.args.ifresume:
             self.resume()
         elif self.args.finetune_from_checkpoint_dir is not None:
@@ -674,8 +741,8 @@ class Trainer(object):
                 if self.should_stop():
                     break
                 self.state.epoch += 1
-
-            self.model.after_training()
+            if hasattr(self.model, "after_training"):
+                self.model.after_training()
 
         # profiling results
         if self.args.profiling:
