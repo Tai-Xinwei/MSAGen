@@ -111,8 +111,8 @@ class PSMConfig(GraphormerConfig):
     psm_finetune_mode: bool = False
     psm_sample_structure_in_finetune: bool = False
     psm_finetune_reset_head: bool = False
-    psm_finetune_noise_mode: str = "zero"
-    psm_finetune_valid_noise_mode: str = "T"
+    psm_finetune_noise_mode: str = "diffusion"
+    psm_finetune_valid_noise_mode: str = "diffusion"
     only_use_rotary_embedding_for_protein: bool = False
     psm_validate_for_train_set: bool = False
 
