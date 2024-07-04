@@ -299,11 +299,27 @@ class NLMMoleculeEvaluator:
             Y.append(y)
             Yhat.append(yhat)
 
-        self.store_result("hERG PearsonR", pearsonr(Y, Yhat))
+        if len(Y) == 0:
+            pearson_r_value = 0
+            pearson_r_p_value = 0
+        else:
+            pearson_r_value, pearson_r_p_value = pearsonr(Y, Yhat)
+
+        # self.store_result("hERG PearsonR", pearsonr(Y, Yhat))
+        # self.store_result("hERG Total Number of Instances", len(predict_list))
+        # self.store_result("hERG Total Number of Vaild Predictions", len(Y))
+        # print("### Performing evaluation on hERG dataset ###")
+        # print("pearsonr(Y, Yhat):", pearsonr(Y, Yhat))
+        # print("len(predict_list):", len(predict_list))
+        # print("len(Y):", len(Y))
+        # print("len(hERG_records):", len(hERG_records))
+        # print("")
+
+        self.store_result("hERG PearsonR", (pearson_r_value, pearson_r_p_value))
         self.store_result("hERG Total Number of Instances", len(predict_list))
-        self.store_result("hERG Total Number of Vaild Predictions", len(Y))
+        self.store_result("hERG Total Number of Valid Predictions", len(Y))
         print("### Performing evaluation on hERG dataset ###")
-        print("pearsonr(Y, Yhat):", pearsonr(Y, Yhat))
+        print("pearsonr(Y, Yhat):", (pearson_r_value, pearson_r_p_value))
         print("len(predict_list):", len(predict_list))
         print("len(Y):", len(Y))
         print("len(hERG_records):", len(hERG_records))

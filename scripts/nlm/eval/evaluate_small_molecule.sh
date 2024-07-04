@@ -1,8 +1,8 @@
 #!/bin/bash
 # Folders
-[ -z "${results_dir}" ] && results_dir='/home/t-kaiyuangao/workspace/proj_logs/nlm_inst/inst_0621_bsz256_lr2e5_0624_step89920'
-[ -z "${input_dir}" ] && input_dir='/home/t-kaiyuangao/ml-container/yinxia/wu2/shared/SFM/SFM.overall.data/SFMMolInstruct.20240617.test'
-[ -z "${output_dir}" ] && output_dir='/home/t-kaiyuangao/workspace/proj_logs/nlm_inst/inst_0621_bsz256_lr2e5_0624_step89920/eval_results/'
+[ -z "${results_dir}" ] && results_dir='/home/v-yinzhezhou/new_branch_SFM/SFM_framework/eval_testing_data/evaluate_small_molecule/results_data'
+[ -z "${input_dir}" ] && input_dir='/home/v-yinzhezhou/new_branch_SFM/SFM_framework/eval_testing_data/evaluate_small_molecule/input_data'
+[ -z "${output_dir}" ] && output_dir='/home/v-yinzhezhou/new_branch_SFM/SFM_framework/eval_testing_data/evaluate_small_molecule/output_data'
 
 
 # Files
