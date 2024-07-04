@@ -1595,7 +1595,7 @@ class DaliUnifiedDataSource:
 
 
 class ComplexDataset(LMDBFoundationModelDataset):
-    def __init__(self, lmdb_path: str, args: PSMConfig):
+    def __init__(self, args: PSMConfig, lmdb_path: str):
         super().__init__(lmdb_path)
         self.args = args
         self.lmdb_path = lmdb_path
@@ -1605,6 +1605,8 @@ class ComplexDataset(LMDBFoundationModelDataset):
         data = bstr2obj(data)
 
         data["idx"] = index
+        data["sample_type"] = 6
+
         data["energy_per_atom"] = torch.tensor(
             [0.0], dtype=torch.float64, device=data["token_type"].device
         )
@@ -1669,10 +1671,10 @@ class ComplexDataset(LMDBFoundationModelDataset):
         validation_indices = indices[num_training_samples:]
 
         # Create training and validation datasets
-        dataset_train = self.__class__(self.lmdb_path, self.args)
+        dataset_train = self.__class__(self.args, self.lmdb_path)
         dataset_train.key_list = [self.key_list[idx] for idx in training_indices]
 
-        dataset_val = self.__class__(self.lmdb_path, self.args)
+        dataset_val = self.__class__(self.args, self.lmdb_path)
         dataset_val.key_list = [self.key_list[idx] for idx in validation_indices]
 
         return dataset_train, dataset_val

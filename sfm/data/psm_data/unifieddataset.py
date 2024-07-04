@@ -13,6 +13,7 @@ from sfm.data.dataset import FoundationModelDataset
 from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import (
     AFDBLMDBDataset,
+    ComplexDataset,
     MatterSimDataset,
     PDBBDataset,
     PlainPM6FullLMDBDataset,
@@ -156,13 +157,17 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 self.dataset_lens[dataset_name] = len(train_dataset)
                 self.sizes.append(train_dataset.sizes)
             elif dataset_name == "pdb":
-                dataset = PDBBDataset(
-                    args, data_path, dataset_name=dataset_name, **kwargs
-                )
+                dataset = PDBBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)
                 self.sizes.append(train_dataset.sizes)
+            elif dataset_name == "complex":
+                dataset = ComplexDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset()
+                len_total = len(dataset)
+                self.dataset_lens[dataset_name] = len(train_dataset)
+                # self.sizes.append(train_dataset.sizes)
             elif dataset_name == "pubchemqc-b3lyp":
                 dataset = PubChemQCB3LYPLMDBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset(

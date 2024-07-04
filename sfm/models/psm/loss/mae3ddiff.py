@@ -236,6 +236,7 @@ class DiffMAE3dCriterions(nn.Module):
         is_protein = model_output["is_protein"]
         is_molecule = model_output["is_molecule"]
         is_periodic = model_output["is_periodic"]
+        is_complex = model_output["is_complex"]
         is_seq_only = model_output["is_seq_only"]
         diff_loss_mask = model_output["diff_loss_mask"]
         protein_mask = model_output["protein_mask"]
@@ -388,7 +389,22 @@ class DiffMAE3dCriterions(nn.Module):
                 num_protein_noise_sample,
             ) = self._reduce_force_or_noise_loss(
                 unreduced_noise_loss,
-                ~clean_mask & is_protein.unsqueeze(-1) & ~is_seq_only.unsqueeze(-1),
+                ~clean_mask
+                & is_protein
+                & ~is_seq_only.unsqueeze(-1)
+                & ~is_complex.unsqueeze(-1),
+                diff_loss_mask & ~protein_mask.any(dim=-1),
+                is_molecule,
+                is_periodic,
+                1.0,
+                1.0,
+            )
+            (
+                complex_noise_loss,
+                num_complex_noise_sample,
+            ) = self._reduce_force_or_noise_loss(
+                unreduced_noise_loss,
+                ~clean_mask & is_complex.unsqueeze(-1) & ~is_seq_only.unsqueeze(-1),
                 diff_loss_mask & ~protein_mask.any(dim=-1),
                 is_molecule,
                 is_periodic,
@@ -508,6 +524,10 @@ class DiffMAE3dCriterions(nn.Module):
             "protein_noise_loss": (
                 float(protein_noise_loss),
                 int(num_protein_noise_sample),
+            ),
+            "complex_noise_loss": (
+                float(complex_noise_loss),
+                int(num_complex_noise_sample),
             ),
             "aa_mlm_loss": (float(aa_mlm_loss), int(num_aa_mask_token)),
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),

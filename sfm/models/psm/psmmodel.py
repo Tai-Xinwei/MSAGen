@@ -210,31 +210,59 @@ class PSMModel(Model):
         batched_data["protein_mask"] = mask
 
     def _protein_pretrain_mode(
-        self, clean_mask, aa_mask, padding_mask, is_protein_mask, is_seq_only, time_step
+        self,
+        clean_mask,
+        aa_mask,
+        padding_mask,
+        is_protein,
+        is_seq_only,
+        is_complex,
+        time_step,
     ):
+        """
+        For protein pretrain mode, we have 3 modes:
+        0: 50% masked seq and 50% noised structure to structure and seq
+        1: clean seq to structure
+        2: 50% masked seq to structure and masked seq
+        For Complex pretrain mode, we have 3 modes:
+        0: 50% masked protein seq and 50% noised structure to protein structure and seq, molecule all clean
+        1: clean protein seq to protein structure and molecule structure, time_protein < time_ligand
+        2: clean protein seq to protein structure and molecule structure, time_protein == time_ligand
+        """
         n_graph, nnodes = aa_mask.size()[:2]
         mask_choice = np.random.choice(np.arange(3), n_graph, p=self.mode_prob)
         mask_choice = torch.tensor([i for i in mask_choice]).to(clean_mask.device)
         clean_mask = clean_mask.unsqueeze(-1).repeat(1, nnodes)
         mask_choice = mask_choice.unsqueeze(-1).repeat(1, nnodes)
+        time_protein = (
+            (torch.rand(n_graph, device=clean_mask.device) * time_step)
+            .unsqueeze(-1)
+            .repeat(1, nnodes)
+        )
         time_step = time_step.unsqueeze(-1).repeat(1, nnodes)
-        # set T noise if protein is seq only
-        time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
 
         # mode 0: 50% masked seq and 50% noised structure to structure and seq
-        clean_mask = torch.where(
-            (mask_choice == 0) & is_protein_mask.unsqueeze(-1), ~aa_mask, clean_mask
-        )
+        clean_mask = torch.where((mask_choice == 0) & is_protein, ~aa_mask, clean_mask)
         clean_mask = torch.where(is_seq_only.unsqueeze(-1), False, clean_mask)
 
         # mode 1: clean seq to structure
         aa_mask = torch.where(mask_choice == 1, False, aa_mask)
+        # set ligand time t2 < t1 for mode 1
+        time_step = torch.where(
+            (mask_choice == 1) & is_complex.unsqueeze(-1) & is_protein,
+            time_protein,
+            time_step,
+        )
 
         # mode 2: 50% masked seq to structure and masked seq
         # nothing to do
 
         # set padding mask to clean
         clean_mask = clean_mask.masked_fill(padding_mask, True)
+        # set T noise if protein is seq only
+        time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
+        # set 0 noise for padding
+        time_step = time_step.masked_fill(padding_mask, 0.0)
 
         return clean_mask, aa_mask, time_step
 
@@ -243,15 +271,17 @@ class PSMModel(Model):
         sample_type = batched_data["sample_type"]
         is_periodic = batched_data["pbc"].any(dim=-1)
         is_molecule = (~is_periodic) & (token_id <= 129).all(dim=-1)
-        is_protein = (~is_periodic) & (token_id > 129).any(dim=-1)
+        is_protein = (~is_periodic.unsqueeze(-1)) & (token_id > 129) & (token_id < 157)
         is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
-        is_seq_only = (sample_type == 5) & is_protein
+        is_seq_only = (sample_type == 5) & is_protein.all(dim=-1)
+        is_complex = sample_type == 6
 
         batched_data["is_periodic"] = is_periodic
         batched_data["is_molecule"] = is_molecule
         batched_data["is_protein"] = is_protein
         batched_data["is_heavy_atom"] = is_heavy_atom
         batched_data["is_seq_only"] = is_seq_only
+        batched_data["is_complex"] = is_complex
 
         # atom mask to leave out unit cell corners for periodic systems
         pos = batched_data["pos"]
@@ -432,9 +462,10 @@ class PSMModel(Model):
         time_step, clean_mask = self.time_step_sampler.sample(
             n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
         )
-        clean_mask = (
-            clean_mask & ~batched_data["is_protein"]
+        clean_mask = clean_mask & ~(
+            batched_data["is_protein"].any(dim=-1)
         )  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
+
         # Do not predict energy of molecule with heavy atom avoid loss instability.
         clean_mask = clean_mask & ~batched_data["is_heavy_atom"]
 
@@ -448,9 +479,7 @@ class PSMModel(Model):
 
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
-        aa_mask = batched_data["protein_masked_aa"] & batched_data[
-            "is_protein"
-        ].unsqueeze(-1)
+        aa_mask = batched_data["protein_masked_aa"] & batched_data["is_protein"]
         aa_mask = aa_mask & ~padding_mask
 
         clean_mask, aa_mask, time_step = self._protein_pretrain_mode(
@@ -459,6 +488,7 @@ class PSMModel(Model):
             padding_mask,
             batched_data["is_protein"],
             batched_data["is_seq_only"],
+            batched_data["is_complex"],
             time_step,
         )
 
@@ -1130,6 +1160,7 @@ class PSM(nn.Module):
             "is_molecule": is_molecule,
             "is_periodic": is_periodic,
             "is_protein": is_protein,
+            "is_complex": batched_data["is_complex"],
             "is_seq_only": batched_data["is_seq_only"],
             "num_atoms": batched_data["num_atoms"],
         }
