@@ -110,7 +110,7 @@ class PSMComplexModel(Model):
 
 
 def load_data(args):
-    dataset = ComplexDataset(args.data_path, args)
+    dataset = ComplexDataset(args, args.data_path)
     train_data, valid_data = dataset.split_dataset()
     return train_data, valid_data
 
