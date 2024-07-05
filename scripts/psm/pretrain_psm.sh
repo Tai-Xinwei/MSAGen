@@ -53,8 +53,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,1"
-[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=False
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,1,4"
+[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
 [ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
@@ -107,11 +107,18 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${val_batch_log_all_metric}" ] && val_batch_log_all_metric=False
 [ -z "${psm_validate_for_train_set}" ] && psm_validate_for_train_set=False
 
-[ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=False
+[ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
-[ -z "${use_dali_pipeline}" ] && use_dali_pipeline=True
+[ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 
-[ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=True
+[ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
+
+[ -z "${psm_matbench_task_name}" ] && psm_matbench_task_name=matbench_dielectric
+[ -z "${psm_matbench_fold_id}" ] && psm_matbench_fold_id=0
+[ -z "${psm_finetune_valid_noise_mode}" ] && psm_finetune_valid_noise_mode="zero"
+[ -z "${force_loss_type}" ] && force_loss_type="L1"
+[ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L1"
+[ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=False
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -224,6 +231,13 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           decoder_ffn_dim=$decoder_ffn_dim \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
           use_dali_pipeline=$use_dali_pipeline \
+          psm_matbench_task_name=$psm_matbench_task_name \
+          psm_matbench_fold_id=$psm_matbench_fold_id \
+          psm_finetune_valid_noise_mode=$psm_finetune_valid_noise_mode \
+          diffusion_training_loss=$diffusion_training_loss \
+          force_loss_type=$force_loss_type \
+          +energy_per_atom_label_scale=0.05 +molecule_energy_per_atom_std_override=1.0 \
+          align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss
 
 
           # dynamic_loader --max_tokens=$max_tokens \

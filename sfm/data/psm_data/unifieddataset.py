@@ -14,6 +14,7 @@ from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import (
     AFDBLMDBDataset,
     ComplexDataset,
+    MatBenchDataset,
     MatterSimDataset,
     PDBDataset,
     PlainPM6FullLMDBDataset,
@@ -126,6 +127,17 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 self.periodic_energy_per_atom_std = train_dataset.energy_per_atom_std
                 self.periodic_force_mean = train_dataset.force_mean
                 self.periodic_force_std = train_dataset.force_std
+            elif dataset_name == "matbench":
+                train_dataset = MatBenchDataset(args, split="train_val", **kwargs)
+                valid_dataset = MatBenchDataset(args, split="test", **kwargs)
+                self.dataset_lens[dataset_name] = len(train_dataset)
+                len_total = len(train_dataset) + len(valid_dataset)
+                self.periodic_energy_mean = 0.0
+                self.periodic_energy_std = 1.0
+                self.periodic_energy_per_atom_mean = 0.0
+                self.periodic_energy_per_atom_std = 1.0
+                self.periodic_force_mean = 0.0
+                self.periodic_force_std = 1.0
             elif dataset_name in [
                 "pubchem5w",
                 "Ac_Ala3_NHMe",
