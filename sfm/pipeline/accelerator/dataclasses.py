@@ -40,6 +40,7 @@ class TrainStrategy(str, Enum):
     Single = "Single"
     Pipeline = "Pipeline"
     ThreeD = "ThreeD"
+    NNScaler = "NNScaler"
 
 
 @dataclass
@@ -218,6 +219,56 @@ class DistributedTrainConfig(TrainerConfig):
     deepspeed_config_path: str = ""
     deepspeed_config: Any = None
     dist_backend: str = "nccl"
+
+
+@dataclass
+class NNScalerTrainConfig(DistributedTrainConfig):
+    """
+    NNScalerTrainConfig is a combination of DistributedTrainConfig and NNScaler needed config.
+    """
+
+    plan_ngpus: int = -1
+    runtime_ngpus: int = -1
+
+    # whether to use dynamic shape to generate code
+    dynamic_shape: bool = True
+
+    use_zero: bool = False
+    zero_ngroups: int = 1
+
+    # whether the generated code is for inference only
+    inference_only: bool = False
+
+    # end2end means,
+    #  1. the first argument of `module.forward` must be the data sample
+    #  2. the first return value of `module.forward` must be the loss
+    #  which must be a scalar tensor
+    use_end2end: bool = False
+
+    # current only end2end module supports in pipeline mode.
+    # so be sure to set use_end2end=True when use_pipeline=True
+    use_pipeline: bool = False
+    # number of micro-batches
+    pipeline_nmicros: int = -1
+    # number of stages
+    pipeline_nstages: int = -1
+    # it is pas's responsibility to apply the scheduler
+    pipeline_scheduler: str = "1f1b"
+
+    # 1. 'match': Reuse if match, error if not match, generate if no previous gerenated code exists.
+    # 2. 'override': Nothing will be reused. Everything will be regenerated.
+    # 3. 'moo': MOO is short for 'match or override'. It will reuse if match, generate if not match or no previous generated code exists.
+    # 4. 'graph': Reuse graph only if match, generate otherwise.
+    file_reuse: str = "match"
+
+    # the folder to save gencode and model init state dict
+    cache_savedir: str = "./.cube"
+
+    # please view the doc of init_module_params in MagicCube/docs/source/parallel_module.md
+    init_module_params: bool = False
+
+    # please view the doc of BroadcastGenFilesStrategy in MagicCube/docs/source/parallel_module.md
+    broadcast_strategy: str = "all"
 
 
 @dataclass

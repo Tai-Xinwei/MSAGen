@@ -18,11 +18,10 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 import pickle as pkl
 
-from glob import glob
 import time
 
-import torch.distributed as dist
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
+from accelerate import init_empty_weights, load_checkpoint_and_dispatch, load_checkpoint_in_model, dispatch_model
 
 sys.path.append(os.path.join(Path(__file__).parent.parent.parent, '.'))
 
@@ -52,7 +51,6 @@ def init_distributed_mode(local_rank=0):
         local_world_size = torch.cuda.device_count()
         local_gpu = local_rank
         print('Use local setting, rank: {}, world_size: {}!'.format(local_rank,local_world_size))
-
     print('| distributed init (rank {}): env://'.format(local_rank), flush=True)
     torch.distributed.init_process_group(
         backend='nccl',
@@ -113,8 +111,14 @@ class NLMGenerator(ABC):
             max_new_tokens = kwargs.pop('max_new_tokens')
         else:
             max_new_tokens = 100
+
+        if isinstance(self.model, torch.nn.parallel.DistributedDataParallel):
+            model = self.model.model
+        else:
+            model = self.model
+
         if do_sample:
-            outputs = self.model.module.generate(
+            outputs = model.generate(
                 input_ids,
                 max_new_tokens=max_new_tokens,
                 num_return_sequences=4,
@@ -124,7 +128,7 @@ class NLMGenerator(ABC):
                 **kwargs
             )
         else:
-            outputs = self.model.module.generate(
+            outputs = model.generate(
                 input_ids,
                 num_beams=4,
                 max_new_tokens=max_new_tokens,
@@ -291,7 +295,6 @@ class Llama2Generator(NLMGenerator):
             dna_spm_path=f'{self.aux_home}/dnabpe/bpe',
             rna_spm_path=f'{self.aux_home}/rnabpe/bpe',
         )
-
         def show_ckpt(name, ckpt):
             for k, v in ckpt.items():
                 if 'dummy' not in k:
@@ -341,13 +344,11 @@ class Llama3Generator(NLMGenerator):
         from sfm.models.scigpt.config import ScigptConfig
         from sfm.utils import arg_utils
         from sfm.utils.science_tokens import SCIENCE_TAG_TOKENS, SCIENCE_TOKENS
-
         IGNORE_INDEX = -100
         DEFAULT_PAD_TOKEN = "[PAD]"
         DEFAULT_EOS_TOKEN = "</s>"
         DEFAULT_BOS_TOKEN = "<s>"
         DEFAULT_UNK_TOKEN = "<unk>"
-
         def get_args_and_tokenizer(use_llama=False):
             parser = ArgumentParser()
             cfg_classes = [ScigptConfig]
@@ -419,7 +420,6 @@ class Llama3Generator(NLMGenerator):
 
         args, tokenizer = get_args_and_tokenizer()
         print(type(tokenizer))
-
         args.vocab_size=130304
 
         # Loading the extended trained model
@@ -490,6 +490,11 @@ class MixtralGenerator(NLMGenerator):
 
     def download_and_convert_ckpt(self, mixtral_blob_path, nlm_blob_path, local_path):
         import safetensors.torch as st
+
+        # skip if local path is not empty
+        if os.path.exists(local_path) and len(os.listdir(local_path)) > 0:
+            print(f"Local path {local_path} is not empty, skip downloading and converting ckpt")
+            return
 
         os.makedirs(local_path, exist_ok=True)
         bar = tqdm(total=35)
@@ -624,7 +629,6 @@ class MixtralGenerator(NLMGenerator):
                 print(os.path.relpath(os.path.join(root, file), local_path))
         print("Done")
         bar.close()
-
     def prepare(self):
 
         from sfm.data.sci_data.NlmTokenizer import NlmTokenizer
@@ -641,6 +645,148 @@ class MixtralGenerator(NLMGenerator):
         )
 
         return tokenizer, model
+
+class MixtralDistGenerator(MixtralGenerator):
+    def __init__(self, base_model_home, model_ckpt_home, aux_home):
+        self.model_parallel_size = int(os.environ.get("MODEL_PARALLEL_SIZE", 1))
+        self.world_size = int(os.environ.get("WORLD_SIZE", 1))
+        self.rank = int(os.environ.get("RANK", 0))
+        self.local_rank = int(os.environ.get("LOCAL_RANK", 0))
+
+        print(f"model parallel size: {self.model_parallel_size}")
+
+        assert self.world_size % self.model_parallel_size == 0
+        self.model_rank = self.rank // self.model_parallel_size
+        super().__init__(base_model_home, model_ckpt_home, aux_home)
+
+    def create_device_map(self):
+        model_rank = self.local_rank // self.model_parallel_size
+        rank_start = model_rank * self.model_parallel_size
+
+        n_layers = 32
+        layer_per_rank = n_layers // self.model_parallel_size
+        device_map = {}
+        device_map["model.embed_tokens.weight"] = rank_start
+        for i in range(n_layers):
+            device_idx = rank_start + i // layer_per_rank
+            device_map[f"model.layers.{i}"] = device_idx
+
+        device_map["model.norm.weight"] = rank_start + (n_layers-1) // layer_per_rank
+        device_map["lm_head.weight"] = rank_start + (n_layers-1) // layer_per_rank
+
+        return device_map
+
+    def prepare(self):
+        from sfm.data.sci_data.NlmTokenizer import NlmTokenizer
+        if self.local_rank % self.model_parallel_size != 0:
+            # wait for rank 0 to download and convert ckpt
+            torch.distributed.barrier()
+            return None, None
+
+        tokenizer = NlmTokenizer.from_pretrained(self.base_model_home)
+        print("vocab size", len(tokenizer))
+        if self.local_rank == 0:
+            self.download_and_convert_ckpt(self.base_model_home, self.model_ckpt_home, self.aux_home)
+
+        if self.world_size > 1:
+            torch.distributed.barrier()
+
+        with init_empty_weights():
+            model = AutoModelForCausalLM.from_pretrained(self.aux_home)
+
+        model = load_checkpoint_and_dispatch(
+            model,
+            self.aux_home,
+            device_map=self.create_device_map(),
+            no_split_module_classes=['MixtralDecoderLayer'],
+            dtype=torch.bfloat16,
+            offload_folder=None,
+            offload_state_dict=True
+        )
+
+        # hack to avoid all past_key_values moved to GPU0
+        model._hf_hook.skip_keys = ['past_key_values']
+        model.eval()
+
+        return tokenizer, model
+
+    def inference(self, input_file, output_dir):
+        if self.local_rank % self.model_parallel_size != 0:
+            return
+
+        text_dataset = TextFileDataset(input_file)
+
+        self.sampler_train = torch.utils.data.DistributedSampler(
+            text_dataset,
+            num_replicas=self.world_size // self.model_parallel_size,
+            rank=self.rank // self.model_parallel_size,
+            shuffle=False,
+        )
+
+        batch_sampler = torch.utils.data.BatchSampler(self.sampler_train, batch_size=1, drop_last=False)
+        data_loader = torch.utils.data.DataLoader(text_dataset, batch_sampler=batch_sampler, pin_memory=False, num_workers=1)
+
+        buffer = []
+
+        start_time = time.time()
+
+        with torch.no_grad():
+            for idx, test_sample in tqdm(enumerate(data_loader), total=len(data_loader)):
+                q = test_sample[0].split('\t')[0].strip()
+
+                r0 = self.chat(q, do_sample=False)
+                r1 = self.chat(q, do_sample=True)
+
+                buffer.append((test_sample[0], r0, r1))
+
+
+
+        print(f"Local rank #[{self.model_rank}]: execution {(time.time() - start_time):.2f} seconds", force=True)
+
+        os.makedirs(output_dir, exist_ok=True)
+
+        with open(os.path.join(output_dir, f'part{self.model_rank}.pkl') , 'wb') as fw:
+            print(f'Local rank #[{self.model_rank}] writing file: {len(buffer)}', force=True)
+            pkl.dump(buffer, fw)
+            print(f'Local rank #[{self.model_rank}] finished writing.', force=True)
+
+    def generate(self, n_seq, entity, output_dir):
+        if self.local_rank % self.model_parallel_size != 0:
+            return
+
+        output_path = os.path.join(output_dir, f'{self.model_rank}.generate.txt')
+
+        input_ids = self.tokenizer(f"<{entity}>", return_tensors="pt").input_ids.cuda()
+
+        printed = False
+
+        with torch.no_grad():
+            with open(output_path, 'wt') as writer:
+                for _ in tqdm(range(n_seq), mininterval=10):
+                    outputs = self.model.module.generate(
+                        input_ids,
+                        max_new_tokens=512,
+                        do_sample=True,
+                        pad_token_id=self.tokenizer.pad_token_id,
+                        num_return_sequences=1,
+                    )
+                    output_text = self.tokenizer.decode(outputs[0])
+                    if not printed:
+                        print(f"raw text: {output_text}")
+                    begin_idx = output_text.find(f"<{entity}>") + len(f"<{entity}>")
+                    end_idx = output_text.find(f"</{entity}>")
+
+                    if end_idx == -1:
+                        end_idx = len(output_text)
+
+                    entity_text = output_text[begin_idx : end_idx]
+                    entity_text = entity_text.replace(' <a>', '').strip()
+                    if not printed:
+                        print(f"ret text: {entity_text}")
+                    writer.write(entity_text + "\n")
+                    printed = True
+
+
 
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -665,7 +811,10 @@ def main():
     elif args.model_name == 'llama3_8b':
         g_cls = Llama3Generator
     elif args.model_name == 'mixtral_8x7b':
-        g_cls = MixtralGenerator
+        if int(os.environ.get("MODEL_PARALLEL_SIZE", 1)) > 1:
+            g_cls = MixtralDistGenerator
+        else:
+            g_cls = MixtralGenerator
 
     g = g_cls(args.base_model_root, args.model_ckpt_home, args.aux_home)
 
@@ -677,5 +826,4 @@ def main():
         raise Exception(f'Unkonwn command: "{args.command}"')
 
 if __name__ == "__main__":
-
     main()

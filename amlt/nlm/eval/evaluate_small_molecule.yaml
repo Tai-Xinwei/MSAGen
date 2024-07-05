@@ -1,0 +1,61 @@
+description: evaluate_small_molecule
+
+target:
+  service: aml
+  name: sfm-nd96amsra100v4-uksouth
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+  msralaphilly2:
+    storage_account_name: msralaphilly2
+    container_name: ml-la
+    mount_dir: /mnt/msralaphilly2
+  sfmdataeastus2:
+    storage_account_name: sfmdataeastus2
+    container_name: nlm
+    mount_dir: /mnt/sfmdataeastus2
+
+code:
+  local_dir: .
+
+jobs:
+- name: "evaluate_small_molecule"
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  sku: 1xG8
+  mpi: true
+  process_count_per_node: 1
+  command:
+    # Folders
+  - export results_dir=/mnt/sfmdataeastus2/kaiyuan/proj_logs/nlm_inst/inst_0621_bsz256_lr2e5_0624_step89920
+  - export input_dir=/mnt/msralaphilly2/yinxia/wu2/shared/SFM/SFM.overall.data/SFMMolInstruct.20240617.test
+  - export output_dir=/mnt/sfmdataeastus2/kaiyuan/proj_logs/nlm_inst/inst_0621_bsz256_lr2e5_0624_step89920/eval_results
+
+  # Files
+  - export bbbp_pkl='test.instruct.predict_bbbp.tsv.response.pkl'
+  - export bbbp_score_pkl='test.instruct.predict_bbbp.tsv.score.pkl'
+  - export herg_pkl='None'
+  - export i2s_s_txt='iupac_smiles_translation/test.raw.i2s_s.txt'
+  - export i2s_i_pkl='test.new.i2s_i.txt.response.pkl'
+  - export s2i_i_txt='iupac_smiles_translation/test.raw.s2i_i.txt'
+  - export s2i_s_pkl='test.new.s2i_s.txt.response.pkl'
+  - export desc2mol_pkl='test.desc2mol.tsv.response.pkl'
+  - export molinstruct_pkl='test.molinstruct.reagent_prediction.tsv.response.pkl'
+  - export mol2desc_pkl='test.mol2desc.tsv.response.pkl'
+  - export bace_tsv='test.instruct.predict_bace.tsv'
+  - export bace_pkl='test.instruct.predict_bace.tsv.response.pkl'
+  - export bace_score_pkl='test.instruct.predict_bace.tsv.score.pkl'
+
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install git+https://github.com/TorchMoE/MoE-Infinity
+  - pip install -e . --no-deps
+  - pip install nltk
+  - pip install rouge_score
+  - bash scripts/nlm/eval/evaluate_small_molecule.sh
+  submit_args:
+      container_args:
+          shm_size: 1024g
