@@ -13,7 +13,9 @@ from sfm.data.dataset import FoundationModelDataset
 from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import (
     AFDBLMDBDataset,
+    ComplexDataset,
     MatterSimDataset,
+    PDBDataset,
     PlainPM6FullLMDBDataset,
     PM6FullLMDBDataset,
     SmallMolDataset,
@@ -154,6 +156,18 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)
                 self.sizes.append(train_dataset.sizes)
+            elif dataset_name == "pdb":
+                dataset = PDBDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset()
+                len_total = len(dataset)
+                self.dataset_lens[dataset_name] = len(train_dataset)
+                self.sizes.append(train_dataset.sizes)
+            elif dataset_name == "complex":
+                dataset = ComplexDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset()
+                len_total = len(dataset)
+                self.dataset_lens[dataset_name] = len(train_dataset)
+                # self.sizes.append(train_dataset.sizes)
             elif dataset_name == "pubchemqc-b3lyp":
                 dataset = PubChemQCB3LYPLMDBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset(
@@ -205,6 +219,8 @@ class BatchedDataDataset(FoundationModelDataset):
                 f"sum of split ratio {self.dataset_split_raito} is not 1.0, use default ratio"
             )
             self.dataset_split_raito = [0.9, 0.0, 0.1]
+
+        logger.info(f"Total data Length is {len_data/1000/1000:0.2f}M")
 
         self.multi_hop_max_dist = multi_hop_max_dist
         self.spatial_pos_max = spatial_pos_max

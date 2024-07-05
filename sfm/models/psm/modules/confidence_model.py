@@ -46,14 +46,20 @@ def _superimpose_np(reference, coords):
     sup = SVDSuperimposer()
     sup.set(reference, coords)
     sup.run()
-    return sup.get_transformed(), sup.get_rms()
+    rot, trans = sup.get_rotran()
+    return sup.get_transformed(), sup.get_rms(), rot, trans
 
 
 def _superimpose_single(reference, coords):
     reference_np = reference.detach().to(torch.float).cpu().numpy()
     coords_np = coords.detach().to(torch.float).cpu().numpy()
-    superimposed, rmsd = _superimpose_np(reference_np, coords_np)
-    return coords.new_tensor(superimposed), coords.new_tensor(rmsd)
+    superimposed, rmsd, rot, trans = _superimpose_np(reference_np, coords_np)
+    return (
+        coords.new_tensor(superimposed),
+        coords.new_tensor(rmsd),
+        coords.new_tensor(rot),
+        coords.new_tensor(trans),
+    )
 
 
 def superimpose(reference, coords, mask):
@@ -68,7 +74,7 @@ def superimpose(reference, coords, mask):
         mask:
             [*, N] tensor
     Returns:
-        A tuple of [*, N, 3] superimposed coords and [*] final RMSDs.
+        A tuple of [*, N, 3] superimposed coords and [*] final RMSDs, and [*, 3, 3] rots.
     """
 
     def select_unmasked_coords(coords, mask):
@@ -86,7 +92,9 @@ def superimpose(reference, coords, mask):
     for r, c, m in zip(flat_reference, flat_coords, flat_mask):
         r_unmasked_coords = select_unmasked_coords(r, m)
         c_unmasked_coords = select_unmasked_coords(c, m)
-        superimposed, rmsd = _superimpose_single(r_unmasked_coords, c_unmasked_coords)
+        superimposed, rmsd, rot, trans = _superimpose_single(
+            r_unmasked_coords, c_unmasked_coords
+        )
 
         # This is very inelegant, but idk how else to invert the masking
         # procedure.

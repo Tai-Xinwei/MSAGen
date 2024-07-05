@@ -30,7 +30,10 @@ def main():
         if file in text_token_per_file:
             total_text_tokens += text_token_per_file[file]
         else:
-            total_sci_tokens += sci_token_per_file[file]
+            if file == 'v5_processed_protein_train.npy.lmdb':
+                total_sci_tokens += 2*sci_token_per_file[file]
+            else:
+                total_sci_tokens += sci_token_per_file[file]
 
     print(f"#text_tokens:\t{total_text_tokens:,}")
     print(f"#sci_tokens:\t{total_sci_tokens:,}")
@@ -41,7 +44,10 @@ def main():
         if file in text_token_per_file:
             weight = alpha * text_token_per_file[file] / total_text_tokens
         else:
-            weight = (1 - alpha) * sci_token_per_file[file] / total_sci_tokens
+            if file == 'v5_processed_protein_train.npy.lmdb':
+                weight = (1 - alpha) * 2*sci_token_per_file[file] / total_sci_tokens
+            else:
+                weight = (1 - alpha) * sci_token_per_file[file] / total_sci_tokens
         ret.append(f"{weight:.12f}")
     for file, weight in zip(files, ret):
         print(f"{file:50}: {weight}")
