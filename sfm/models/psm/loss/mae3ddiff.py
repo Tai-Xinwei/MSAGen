@@ -218,7 +218,24 @@ class DiffMAE3dCriterions(nn.Module):
             pos_pred.float(), pos_label.float(), model_output["padding_mask"]
         )
 
-        return R
+        return R, pos_pred
+
+    def smooth_lddt_loss(self, model_output, batched_data, pos_pred):
+        pos_label = batched_data["ori_pos"]
+        is_protein = model_output["is_protein"]
+        delta_pos_label = (pos_label.unsqueeze(1) - pos_label.unsqueeze(2)).norm(dim=-1)
+        delta_pos_pred = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1)
+        pair_protein_mask = is_protein.unsqueeze(1) & is_protein.unsqueeze(2)
+        dist_mask = (delta_pos_label < 15) & (delta_pos_label > 0.1) & pair_protein_mask
+        delta = torch.abs(delta_pos_label - delta_pos_pred)
+        error = 0.25 * (
+            torch.sigmoid(0.5 - delta)
+            + torch.sigmoid(1 - delta)
+            + torch.sigmoid(2 - delta)
+            + torch.sigmoid(4 - delta)
+        )
+        lddt = error[dist_mask].mean()
+        return 1 - lddt
 
     def forward(self, model_output, batched_data):
         energy_per_atom_label = batched_data["energy_per_atom"]
@@ -326,8 +343,18 @@ class DiffMAE3dCriterions(nn.Module):
                     unreduced_noise_loss = self.noise_loss(
                         noise_pred.to(noise_label.dtype), noise_label
                     )
+                    smooth_lddt_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
+                    num_pddt_loss = 0
                 else:
-                    R = self._alignment_x0(model_output, batched_data)
+                    R, pos_pred = self._alignment_x0(model_output, batched_data)
+                    pos_pred = torch.einsum("bij,bkj->bki", R, pos_pred.float())
+                    smooth_lddt_loss = self.smooth_lddt_loss(
+                        model_output, batched_data, pos_pred
+                    )
+                    num_pddt_loss = 1
+
                     # noise pred loss
                     aligned_noise_pred = (
                         sqrt_alphas_cumprod_t * pos_label
@@ -531,6 +558,7 @@ class DiffMAE3dCriterions(nn.Module):
             ),
             "aa_mlm_loss": (float(aa_mlm_loss), int(num_aa_mask_token)),
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
+            "smooth_lddt_loss": (float(smooth_lddt_loss), int(num_pddt_loss)),
         }
 
         def _reduce_matched_result(model_output, metric_name, min_or_max: str):

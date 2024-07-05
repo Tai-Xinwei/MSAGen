@@ -305,15 +305,11 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
             key_padding_mask = None
 
         # add rope
-        if self.rot_emb:
-            is_protein_expanded = (
-                is_protein.unsqueeze(-1)
-                .repeat(1, self.num_heads)
-                .reshape([bsz * self.num_heads])
-            )
-            q[is_protein_expanded], k[is_protein_expanded] = self.rot_emb(
-                q[is_protein_expanded], k[is_protein_expanded]
-            )
+        if self.rot_emb and is_protein.any():
+            is_protein = is_protein.repeat(self.num_heads, 1).unsqueeze(-1)
+            q_rope, k_rope = self.rot_emb(q, k)
+            q = torch.where(is_protein, q_rope, q)
+            k = torch.where(is_protein, k_rope, k)
 
         if key_padding_mask is not None:
             if outcell_index is not None:
