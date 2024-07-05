@@ -246,7 +246,7 @@ class PSMModel(Model):
 
         # mode 1:
         aa_mask = torch.where(
-            mask_choice == 1 & ~is_seq_only.unsqueeze(-1), False, aa_mask
+            (mask_choice == 1) & ~is_seq_only.unsqueeze(-1), False, aa_mask
         )
         # set ligand time t2 > t1 for mode 1
         time_step = torch.where(
@@ -257,7 +257,7 @@ class PSMModel(Model):
 
         # mode 2:
         aa_mask = torch.where(
-            mask_choice == 2 & is_complex.unsqueeze(-1), False, aa_mask
+            (mask_choice == 2) & is_complex.unsqueeze(-1), False, aa_mask
         )
 
         # set padding mask to clean
