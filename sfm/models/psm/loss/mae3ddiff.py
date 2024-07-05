@@ -228,13 +228,14 @@ class DiffMAE3dCriterions(nn.Module):
         pair_protein_mask = is_protein.unsqueeze(1) & is_protein.unsqueeze(2)
         dist_mask = (delta_pos_label < 15) & (delta_pos_label > 0.1) & pair_protein_mask
         delta = torch.abs(delta_pos_label - delta_pos_pred)
+        delta = delta[dist_mask]
         error = 0.25 * (
             torch.sigmoid(0.5 - delta)
             + torch.sigmoid(1 - delta)
             + torch.sigmoid(2 - delta)
             + torch.sigmoid(4 - delta)
         )
-        lddt = error[dist_mask].mean()
+        lddt = error.mean()
         return 1 - lddt
 
     def forward(self, model_output, batched_data):
@@ -349,11 +350,17 @@ class DiffMAE3dCriterions(nn.Module):
                     num_pddt_loss = 0
                 else:
                     R, pos_pred = self._alignment_x0(model_output, batched_data)
-                    pos_pred = torch.einsum("bij,bkj->bki", R, pos_pred.float())
-                    smooth_lddt_loss = self.smooth_lddt_loss(
-                        model_output, batched_data, pos_pred
-                    )
-                    num_pddt_loss = 1
+                    if is_protein.any():
+                        pos_pred = torch.einsum("bij,bkj->bki", R, pos_pred.float())
+                        smooth_lddt_loss = self.smooth_lddt_loss(
+                            model_output, batched_data, pos_pred
+                        )
+                        num_pddt_loss = 1
+                    else:
+                        smooth_lddt_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        num_pddt_loss = 0
 
                     # noise pred loss
                     aligned_noise_pred = (
