@@ -28,10 +28,11 @@ code:
 
 search:
   job_template:
-    name: sfm_nlm_llama3_stageB_alpha{alpha}
+    name: sfm_nlm_llama3_stageB_alpha{alpha}_doubleProtein
     sku: ${NODES}xG${GPUS}-IB
     tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
     mpi: true
+    identity: managed
     process_count_per_node: 1
     command:
       - export WANDB_API_KEY=${WANDB_API_KEY}
@@ -61,7 +62,7 @@ search:
       - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split/
       - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
       - export loadcheck_path=/nlm/peiran/output/nlm_base1b_300B/global_step7805/
-      - export save_dir=/nlm/shufxi/output/finetune_base_150B_G128/alpha{alpha}
+      - export save_dir=/nlm/shufxi/output/finetune_base_150B_G128/alpha{alpha}_doubleProtein
       - bash scripts/nlm/finetune_base1b_protein.sh
     submit_args:
       env:
@@ -71,4 +72,5 @@ search:
   params:
     - name: alpha
       spec: discrete
-      values: [0.1, 0.3, 0.5]
+      # values: [0.1, 0.3, 0.5]
+      values: [0.3]
