@@ -531,7 +531,7 @@ class MatterSimDataset:
 
     def generate_2dgraphfeat(self, data):
         N = data["num_atoms"] + 8
-        adj = torch.zeros([N, N], dtype=torch.bool)
+        adj = torch.ones([N, N], dtype=torch.bool)
 
         edge_index = torch.zeros([2, 0], dtype=torch.long)
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
@@ -776,7 +776,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
     # protein does not have 2dgraph, create one for mixing data
     def generate_2dgraphfeat(self, data):
         N = data["token_type"].shape[0]
-        adj = torch.zeros([N, N], dtype=torch.bool)
+        adj = torch.ones([N, N], dtype=torch.bool)
 
         edge_index = torch.zeros([2, 0], dtype=torch.long)
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
@@ -1080,7 +1080,7 @@ class UR50LMDBDataset(FoundationModelDataset):
     # protein does not have 2dgraph, create one for mixing data
     def generate_2dgraphfeat(self, data):
         N = data["token_type"].shape[0]
-        adj = torch.zeros([N, N], dtype=torch.bool)
+        adj = torch.ones([N, N], dtype=torch.bool)
 
         edge_index = torch.zeros([2, 0], dtype=torch.long)
         edge_attr = torch.zeros([0, 3], dtype=torch.long)

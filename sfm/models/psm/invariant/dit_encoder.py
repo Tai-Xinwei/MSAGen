@@ -4,7 +4,9 @@ from typing import Callable, Dict, Optional
 import torch
 import torch.nn as nn
 
-from sfm.models.psm.invariant.plain_encoder_layer import PSMPlainEncoderLayer
+from sfm.models.psm.modules.multihead_attention import (
+    MemEffAttnWithProteinRotaryEmbedding,
+)
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.mem_eff_attn import MemEffAttn
 
@@ -23,7 +25,13 @@ class DiTBlock(nn.Module):
         self.norm1 = nn.LayerNorm(
             psm_config.embedding_dim, elementwise_affine=False, eps=1e-6
         )
-        self.attn = MemEffAttn(
+
+        if psm_config.only_use_rotary_embedding_for_protein:
+            attn_cls = MemEffAttnWithProteinRotaryEmbedding
+        else:
+            attn_cls = MemEffAttn
+
+        self.attn = attn_cls(
             psm_config.embedding_dim,
             psm_config.num_attention_heads,
             dropout=psm_config.dropout,
@@ -33,6 +41,7 @@ class DiTBlock(nn.Module):
             o_bias=False,
             add_rope=True,
         )
+
         self.norm2 = nn.LayerNorm(
             psm_config.embedding_dim, elementwise_affine=False, eps=1e-6
         )

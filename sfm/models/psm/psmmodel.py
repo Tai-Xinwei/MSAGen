@@ -335,7 +335,10 @@ class PSMModel(Model):
 
         self._create_initial_pos_for_diffusion(batched_data)
 
-        if self.args.backbone == "vanillatransformer" and not self.disable_data_aug:
+        if (
+            self.args.backbone in ["vanillatransformer", "DiT"]
+            and not self.disable_data_aug
+        ):
             R = uniform_random_rotation(
                 ori_pos.size(0), device=ori_pos.device, dtype=ori_pos.dtype
             )
