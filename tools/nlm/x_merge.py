@@ -23,7 +23,6 @@ def main(input_glob, output_file):
             data = pkl.load(f)
             merged_data.extend([rec for rec in data if 'This is a padding sentence.' not in rec[0]])
         print(f'- {fn}: {len(data)}')
-
     with open(output_file, 'wb') as fw:
         pkl.dump(merged_data, fw)
 
