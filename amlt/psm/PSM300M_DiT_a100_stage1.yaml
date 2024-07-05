@@ -42,6 +42,7 @@ jobs:
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}-IB
   mpi: true
+  identity: managed
   process_count_per_node: 1
   command:
   - export WANDB_TEAM=ai4s-sfm

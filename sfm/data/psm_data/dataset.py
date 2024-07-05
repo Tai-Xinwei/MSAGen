@@ -816,7 +816,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
         return self.sizes[index]
 
 
-class PDBBDataset(AFDBLMDBDataset):
+class PDBDataset(AFDBLMDBDataset):
     def __init__(
         self,
         args: PSMConfig,
