@@ -68,6 +68,7 @@ else
     fi
 fi
 
+mkdir -p ${output_dir}
 torchrun $DISTRIBUTED_ARGS tools/nlm/x_inference.py \
     --model_name ${model_name} \
     --input_file ${input_file} \

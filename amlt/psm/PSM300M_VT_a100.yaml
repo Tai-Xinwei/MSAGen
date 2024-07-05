@@ -22,8 +22,8 @@ target:
 
 environment:
   image: ai4s-sfm:20240531.170731
-  registry: msroctocr.azurecr.io
-  username: msroctocr
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
 
 storage:
   blob:

@@ -816,6 +816,70 @@ class AFDBLMDBDataset(FoundationModelDataset):
         return self.sizes[index]
 
 
+class PDBDataset(AFDBLMDBDataset):
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: Optional[str],
+        dataset_name: Optional[str] = None,
+    ):
+        version = "20240101_snapshot.20240630_8fe6fe4b.subset_release_date_before_20200430.protein_chain.lmdb"
+        if lmdb_path.find(version) == -1:
+            lmdb_path = os.path.join(lmdb_path, version)
+        super().__init__(args, lmdb_path)
+        # self.filter_indices_by_size(
+        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
+        # )
+
+    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
+        key = self.keys[idx]
+        value = self.txn.get(key.encode())
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        data = bstr2obj(value)
+
+        # random cut off the sequence data["aa"] to self.max_length
+        if len(data["aa"]) > self.args.max_length:
+            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
+            coords = data["pos"][random_start : random_start + self.args.max_length, :]
+        else:
+            # CA atom positions, assume all values are valid.
+            coords = data["pos"][:, :]
+
+        # minus 1 due to add padding index=0 in collator
+        x = torch.tensor([self.vocab[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
+
+        data["sample_type"] = 2
+        data["token_type"] = x
+        data["idx"] = idx
+
+        coords = torch.tensor(coords, dtype=torch.float64)
+
+        data["coords"] = coords
+        data["num_atoms"] = x.size()[0]
+
+        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
+        data["forces"] = torch.zeros(
+            (x.size()[0], 3), dtype=torch.float64, device=x.device
+        )
+        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=x.device
+        )
+
+        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+
+        data = self.generate_2dgraphfeat(data)
+
+        data["is_stable_periodic"] = False
+
+        return data
+
+
 class UR50LMDBDataset(FoundationModelDataset):
     def __init__(
         self,
@@ -1531,7 +1595,7 @@ class DaliUnifiedDataSource:
 
 
 class ComplexDataset(LMDBFoundationModelDataset):
-    def __init__(self, lmdb_path: str, args: PSMConfig):
+    def __init__(self, args: PSMConfig, lmdb_path: str):
         super().__init__(lmdb_path)
         self.args = args
         self.lmdb_path = lmdb_path
@@ -1541,6 +1605,8 @@ class ComplexDataset(LMDBFoundationModelDataset):
         data = bstr2obj(data)
 
         data["idx"] = index
+        data["sample_type"] = 6
+
         data["energy_per_atom"] = torch.tensor(
             [0.0], dtype=torch.float64, device=data["token_type"].device
         )
@@ -1605,10 +1671,10 @@ class ComplexDataset(LMDBFoundationModelDataset):
         validation_indices = indices[num_training_samples:]
 
         # Create training and validation datasets
-        dataset_train = self.__class__(self.lmdb_path, self.args)
+        dataset_train = self.__class__(self.args, self.lmdb_path)
         dataset_train.key_list = [self.key_list[idx] for idx in training_indices]
 
-        dataset_val = self.__class__(self.lmdb_path, self.args)
+        dataset_val = self.__class__(self.args, self.lmdb_path)
         dataset_val.key_list = [self.key_list[idx] for idx in validation_indices]
 
         return dataset_train, dataset_val

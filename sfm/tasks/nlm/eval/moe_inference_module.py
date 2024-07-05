@@ -162,7 +162,14 @@ class SFMMoEGenerator:
         """
         tokenizer = NlmTokenizer.from_pretrained(mixtral_path)
         print("vocab size", len(tokenizer))
-        CKPT_READY = True
+        if (
+            os.path.exists(local_path)
+            and os.path.isdir(local_path)
+            and len(os.listdir(local_path)) > 0
+        ):
+            CKPT_READY = True
+        else:
+            CKPT_READY = False
         if not CKPT_READY:
             download_and_convert_ckpt(mixtral_path, nlm_path, local_path)
         quantization_config = BitsAndBytesConfig(

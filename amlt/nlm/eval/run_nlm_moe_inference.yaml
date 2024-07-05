@@ -1,0 +1,51 @@
+description: run_nlm_moe_inference
+
+target:
+  service: aml
+  name: sfm-nd96amsra100v4-uksouth
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+
+storage:
+  msralaphilly2:
+    storage_account_name: msralaphilly2
+    container_name: ml-la
+    mount_dir: /mnt/msralaphilly2
+  sfmdataeastus2:
+    storage_account_name: sfmdataeastus2
+    container_name: nlm
+    mount_dir: /mnt/sfmdataeastus2
+
+code:
+  local_dir: .
+
+jobs:
+- name: "run_nlm_moe_inference"
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  sku: 1xG8
+  mpi: true
+  process_count_per_node: 1
+  command:
+  # Folders
+  - export MIXTRAL_PATH=/mnt/sfmdataeastus2/Mixtral-8x7B-v0.1/
+  - export LOCAL_PATH=/dev/shm/run_nlm_moe_inference
+  - mkdir -p $$LOCAL_PATH
+  - export NLM_PATH=/mnt/sfmdataeastus2/shufxi/nlm/8x7b/inst/20240611215447/global_step33216/
+  - export INPUT_DIR=/mnt/msralaphilly2/yinxia/wu2/shared/SFM/SFM.overall.data/SFMMolInstruct.20240617.test/
+  - export OUTPUT_DIR=/mnt/msralaphilly2/v-yinzhezhou/SFM_NLM_resources/all_eval_results/8x7b_global_step33216_infer_results/
+
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install git+https://github.com/TorchMoE/MoE-Infinity
+  - pip install -i https://pypi.org/simple/ bitsandbytes
+  - pip install -e . --no-deps
+  - pip install nltk
+  - pip install rouge_score
+  - bash scripts/nlm/eval/run_nlm_moe_inference.sh
+  submit_args:
+      container_args:
+          shm_size: 1024g
