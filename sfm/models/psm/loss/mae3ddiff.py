@@ -248,7 +248,7 @@ class DiffMAE3dCriterions(nn.Module):
 
         # # harder distance loss
         time_step = model_output["time_step"]
-        time_mask = time_step < 0.1
+        time_mask = time_step < 0.15
         pair_time_mask = time_mask.unsqueeze(1) & time_mask.unsqueeze(2)
         hard_dist_mask = dist_mask & pair_time_mask
         if hard_dist_mask.any():
