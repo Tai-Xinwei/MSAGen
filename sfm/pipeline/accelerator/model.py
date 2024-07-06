@@ -10,6 +10,10 @@ from sfm.pipeline.accelerator.dataclasses import ModelOutput
 
 
 class Model(nn.Module, ABC):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.checkpoint_loaded = False
+
     @abstractmethod
     def compute_loss(self, pred, batch) -> ModelOutput:
         pass
@@ -62,4 +66,11 @@ class Model(nn.Module, ABC):
         This method is called after each epoch to calculate the metric.
         """
 
+        pass
+
+    def reload_checkpoint(self) -> bool:
+        """
+        For compatibility with DDP, reload checkpoint in a model after DDP is called
+        return True is a checkpoint is loaded (often used in finetuing case)
+        """
         pass

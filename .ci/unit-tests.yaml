@@ -63,6 +63,7 @@ steps:
     conda activate $(CONDA_ENV_DIR)/$(CONDA_ENV_NAME)
     # Install deps that are missing in the cached conda environment
     pip install deepspeed==0.14.0 sacremoses==0.1.1 torch-tb-profiler==0.4.3 hydra-core torch-geometric==2.5.3
+    pip install matbench
     pip install ase==3.23.0
     pip install -e . --no-deps
     python setup_cython.py build_ext --inplace

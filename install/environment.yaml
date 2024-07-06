@@ -48,3 +48,4 @@ dependencies:
       - e3nn
       - fairchem-core
       - ase
+      - matbench
