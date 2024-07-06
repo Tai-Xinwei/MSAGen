@@ -113,6 +113,8 @@ class DiffMAE3dCriterions(nn.Module):
         self.energy_loss_ratio = args.energy_loss_ratio
         self.force_loss_ratio = args.force_loss_ratio
 
+        self.hard_dist_loss_raito = args.hard_dist_loss_raito
+
     def _reduce_energy_loss(
         self, energy_loss, loss_mask, is_molecule, is_periodic, use_per_atom_energy=True
     ):
@@ -225,11 +227,6 @@ class DiffMAE3dCriterions(nn.Module):
             model_output["padding_mask"] | model_output["protein_mask"].any(dim=-1),
         )
 
-        T = T.masked_fill(
-            model_output["padding_mask"].unsqueeze(-1) | model_output["protein_mask"],
-            0.0,
-        )
-
         return R, T, pos_pred
 
     def smooth_lddt_loss(self, model_output, batched_data, pos_pred):
@@ -253,8 +250,11 @@ class DiffMAE3dCriterions(nn.Module):
         time_step = model_output["time_step"]
         time_mask = time_step < 0.1
         pair_time_mask = time_mask.unsqueeze(1) & time_mask.unsqueeze(2)
-        harder_dist_mask = dist_mask & pair_time_mask
-        hard_dist_loss = delta[harder_dist_mask].mean()
+        hard_dist_mask = dist_mask & pair_time_mask
+        if hard_dist_mask.any():
+            hard_dist_loss = delta[hard_dist_mask].mean()
+        else:
+            hard_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
 
         return 1 - lddt, hard_dist_loss
 
@@ -551,7 +551,7 @@ class DiffMAE3dCriterions(nn.Module):
                 + smooth_lddt_loss
             )
             if self.args.use_hard_dist_loss:
-                loss += hard_dist_loss
+                loss += self.hard_dist_loss_raito * hard_dist_loss
         else:
             loss = aa_mlm_loss
 

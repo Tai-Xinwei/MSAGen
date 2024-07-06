@@ -233,7 +233,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           preprocess_2d_bond_features_with_cuda=True \
           AutoGradForce=$AutoGradForce \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
-          diffusion_training_loss=$diffusion_training_loss \
+          diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
           ifresume=True \
           loadcheck_path=$loadcheck_path \
 
