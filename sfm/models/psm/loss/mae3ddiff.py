@@ -240,16 +240,16 @@ class DiffMAE3dCriterions(nn.Module):
         pair_protein_mask = is_protein.unsqueeze(1) & is_protein.unsqueeze(2)
         dist_mask = (delta_pos_label < 15) & (delta_pos_label > 0.1) & pair_protein_mask
         delta = torch.abs(delta_pos_label - delta_pos_pred)
-        delta = delta[dist_mask]
+        delta1 = delta[dist_mask]
         error = 0.25 * (
-            torch.sigmoid(0.5 - delta)
-            + torch.sigmoid(1 - delta)
-            + torch.sigmoid(2 - delta)
-            + torch.sigmoid(4 - delta)
+            torch.sigmoid(0.5 - delta1)
+            + torch.sigmoid(1 - delta1)
+            + torch.sigmoid(2 - delta1)
+            + torch.sigmoid(4 - delta1)
         )
         lddt = error.mean()
 
-        # harder distance loss
+        # # harder distance loss
         time_step = model_output["time_step"]
         time_mask = time_step < 0.1
         pair_time_mask = time_mask.unsqueeze(1) & time_mask.unsqueeze(2)
@@ -549,8 +549,9 @@ class DiffMAE3dCriterions(nn.Module):
                 + noise_loss
                 + aa_mlm_loss
                 + smooth_lddt_loss
-                # + hard_dist_loss
             )
+            if self.args.use_hard_dist_loss:
+                loss += hard_dist_loss
         else:
             loss = aa_mlm_loss
 
