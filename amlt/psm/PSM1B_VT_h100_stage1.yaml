@@ -68,7 +68,7 @@ jobs:
   - export total_num_steps=500000
   - export warmup_num_steps=20000
   - export train_batch_size=1024
-  - export val_batch_size=1024
+  - export val_batch_size=256
   - export max_tokens=16000
   - export max_length=512
   - export gradient_accumulation_steps=8

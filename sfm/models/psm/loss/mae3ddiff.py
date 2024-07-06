@@ -209,9 +209,7 @@ class DiffMAE3dCriterions(nn.Module):
             )
         return force_or_noise_loss, num_samples
 
-    @torch.no_grad()
-    def _alignment_x0(self, model_output, batched_data):
-        pos_label = batched_data["ori_pos"]
+    def calculate_pos_pred(self, model_output, batched_data):
         noise_pred = model_output["noise_pred"]
         sqrt_one_minus_alphas_cumprod_t = model_output[
             "sqrt_one_minus_alphas_cumprod_t"
@@ -220,6 +218,11 @@ class DiffMAE3dCriterions(nn.Module):
         pos_pred = (
             batched_data["pos"] - sqrt_one_minus_alphas_cumprod_t * noise_pred
         ) / sqrt_alphas_cumprod_t
+        return pos_pred
+
+    @torch.no_grad()
+    def _alignment_x0(self, model_output, batched_data, pos_pred):
+        pos_label = batched_data["ori_pos"]
 
         R, T = svd_superimpose(
             pos_pred.float(),
@@ -227,9 +230,13 @@ class DiffMAE3dCriterions(nn.Module):
             model_output["padding_mask"] | model_output["protein_mask"].any(dim=-1),
         )
 
-        return R, T, pos_pred
+        return R, T
 
-    def smooth_lddt_loss(self, model_output, batched_data, pos_pred):
+    def dist_loss(self, model_output, batched_data, R, T, pos_pred):
+        # calculate aligned pred pos
+        pos_pred = torch.einsum("bij,bkj->bki", R, pos_pred.float()) + T
+
+        # smooth lddt loss
         pos_label = batched_data["ori_pos"]
         is_protein = model_output["is_protein"]
         delta_pos_label = (pos_label.unsqueeze(1) - pos_label.unsqueeze(2)).norm(dim=-1)
@@ -248,7 +255,7 @@ class DiffMAE3dCriterions(nn.Module):
 
         # # harder distance loss
         time_step = model_output["time_step"]
-        time_mask = time_step < 0.15
+        time_mask = time_step < 0.1
         pair_time_mask = time_mask.unsqueeze(1) & time_mask.unsqueeze(2)
         hard_dist_mask = dist_mask & pair_time_mask
         if hard_dist_mask.any():
@@ -361,13 +368,13 @@ class DiffMAE3dCriterions(nn.Module):
 
             if self.diffusion_mode == "epsilon":
                 if self.args.align_x0_in_diffusion_loss and not is_seq_only.any():
-                    R, T, pos_pred = self._alignment_x0(model_output, batched_data)
+                    pos_pred = self.calculate_pos_pred(model_output, batched_data)
+                    R, T = self._alignment_x0(model_output, batched_data, pos_pred)
 
                     if is_protein.any():
                         # align pred pos and calculate smooth lddt loss for protein
-                        pos_pred = torch.einsum("bij,bkj->bki", R, pos_pred.float()) + T
-                        smooth_lddt_loss, hard_dist_loss = self.smooth_lddt_loss(
-                            model_output, batched_data, pos_pred
+                        smooth_lddt_loss, hard_dist_loss = self.dist_loss(
+                            model_output, batched_data, R, T, pos_pred
                         )
                         num_pddt_loss = 1
                     else:
@@ -538,9 +545,6 @@ class DiffMAE3dCriterions(nn.Module):
             )
             aa_acc = 0.0
             num_aa_mask_token = 0.0
-
-        def calculate_energy_loss_ratio(energy_loss_mag):
-            return np.clip(1.0 - (energy_loss_mag - 1.0) / 1000, 0.001, 1.0)
 
         if not self.seq_only:
             loss = (

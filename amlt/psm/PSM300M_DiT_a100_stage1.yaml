@@ -76,7 +76,7 @@ jobs:
   - export total_num_steps=500000
   - export warmup_num_steps=20000
   - export train_batch_size=1536
-  - export val_batch_size=1536
+  - export val_batch_size=768
   - export max_tokens=16000
   - export max_length=512
   - export gradient_accumulation_steps=4
@@ -92,7 +92,7 @@ jobs:
   - export force_loss_ratio=0.0
   - export use_unified_batch_sampler=True
   - export only_use_rotary_embedding_for_protein=True
-  - export use_hard_dist_loss=False
+  - export use_hard_dist_loss=True
   - export diffusion_training_loss=L1
   - export use_dali_pipeline=False
   # - export AutoGradForce=True
