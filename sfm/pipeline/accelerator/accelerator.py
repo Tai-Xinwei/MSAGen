@@ -36,6 +36,7 @@ from sfm.pipeline.accelerator.fp16_scaler import FP16Scaler
 from sfm.utils.move_to_device import move_to_device
 from sfm.utils.PPEngine import initialize as initialize_pp_engine
 
+from .model import Model
 from .pipeline_module import SFMPipelineModule
 
 try:
@@ -187,7 +188,9 @@ class Accelerator(ABC):
 
 
 class SingleNodeAccelerator(Accelerator):
-    def __init__(self, args, model, optimizer, lr_scheduler, device: str) -> None:
+    def __init__(
+        self, args, model: Model, optimizer, lr_scheduler, device: str
+    ) -> None:
         super().__init__()
         self.args = args
         self.model = model
@@ -404,7 +407,7 @@ class SingleNodeAccelerator(Accelerator):
 
 
 class DdpAccelerator(SingleNodeAccelerator):
-    def __init__(self, args, model, optimizer, lr_scheduler) -> None:
+    def __init__(self, args, model: Model, optimizer, lr_scheduler) -> None:
         super().__init__(args, model, optimizer, lr_scheduler, device="cuda")
 
     def set_up(self):
@@ -438,7 +441,7 @@ class DdpAccelerator(SingleNodeAccelerator):
             rank=self.rank,
             timeout=timedelta(minutes=int(ddp_timeout))
             if ddp_timeout is not None
-            else None,
+            else timedelta(minutes=5),
         )
 
         torch.distributed.barrier()
@@ -452,6 +455,10 @@ class DdpAccelerator(SingleNodeAccelerator):
             output_device=self.local_rank,
             find_unused_parameters=self.args.find_unused_parameters,
         )
+        if self.model.checkpoint_loaded:
+            logger.info("Reloading checkpoint after DDP to ensure correctness.")
+            self.ddp_model.module.reload_checkpoint()
+
         self.ddp_model = torch_compile(self.ddp_model, self.args.compile)
 
     def barrier(self):

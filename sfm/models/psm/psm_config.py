@@ -22,6 +22,14 @@ class DiffusionTrainingLoss(Enum):
         return self.value
 
 
+class ForceLoss(Enum):
+    L1: str = "L1"
+    MSE: str = "MSE"
+
+    def __str__(self):
+        return self.value
+
+
 class DiffusionTimeStepEncoderType(Enum):
     DISCRETE_LEARNABLE: str = "DISCRETE_LEARNABLE"
     POSITIONAL: str = "POSITIONAL"
@@ -79,6 +87,8 @@ class PSMConfig(GraphormerConfig):
     diffusion_time_step_encoder_type: DiffusionTimeStepEncoderType = (
         DiffusionTimeStepEncoderType.POSITIONAL
     )
+    force_loss_type: ForceLoss = ForceLoss.MSE
+    align_x0_in_diffusion_loss: bool = True
 
     # for equivariant part
     equivar_vec_init: VecInitApproach = VecInitApproach.ZERO_CENTERED_POS
@@ -115,6 +125,10 @@ class PSMConfig(GraphormerConfig):
     psm_finetune_valid_noise_mode: str = "diffusion"
     only_use_rotary_embedding_for_protein: bool = False
     psm_validate_for_train_set: bool = False
+
+    # for matbench finetuning
+    psm_matbench_task_name: str = ""
+    psm_matbench_fold_id: int = 0
 
     # dali pipeline
     use_dali_pipeline: bool = False

@@ -211,7 +211,7 @@ def finetune(cfg: DictConfig) -> None:
 
     finetune_module = None
     extra_collate_fn = None
-    if args.psm_finetune_mode:
+    if args.psm_finetune_mode and args.finetune_module is not None:
         finetune_module = PSM_FT_REGISTER[args.finetune_module](args)
         extra_collate_fn = finetune_module.update_batched_data
 

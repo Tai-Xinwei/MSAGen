@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 from sfm.logging import logger
-from sfm.models.psm.psm_config import DiffusionTrainingLoss
+from sfm.models.psm.psm_config import DiffusionTrainingLoss, ForceLoss, PSMConfig
 
 
 def svd_superimpose(P, Q, mask=None):
@@ -61,7 +61,7 @@ def svd_superimpose(P, Q, mask=None):
 class DiffMAE3dCriterions(nn.Module):
     def __init__(
         self,
-        args,
+        args: PSMConfig,
         molecule_energy_mean: float = 0.0,
         molecule_energy_std: float = 1.0,
         periodic_energy_mean: float = 0.0,
@@ -243,8 +243,8 @@ class DiffMAE3dCriterions(nn.Module):
         atomic_numbers = batched_data["token_id"]
         noise_label = model_output["noise"]
         force_label = model_output["force_label"]
-
-        pos_label = batched_data["ori_pos"]
+        if self.diffusion_mode == "x0" or self.args.align_x0_in_diffusion_loss:
+            pos_label = batched_data["ori_pos"]
         force_pred = model_output["forces"]
         energy_per_atom_pred = model_output["energy_per_atom"]
         noise_pred = model_output["noise_pred"]
@@ -340,17 +340,11 @@ class DiffMAE3dCriterions(nn.Module):
             )
 
             if self.diffusion_mode == "epsilon":
-                if is_seq_only.any():
-                    unreduced_noise_loss = self.noise_loss(
-                        noise_pred.to(noise_label.dtype), noise_label
-                    )
-                    smooth_lddt_loss = torch.tensor(
-                        0.0, device=noise_label.device, requires_grad=True
-                    )
-                    num_pddt_loss = 0
-                else:
+                if self.args.align_x0_in_diffusion_loss and not is_seq_only.any():
                     R, pos_pred = self._alignment_x0(model_output, batched_data)
+
                     if is_protein.any():
+                        # align pred pos and calculate smooth lddt loss for protein
                         pos_pred = torch.einsum("bij,bkj->bki", R, pos_pred.float())
                         smooth_lddt_loss = self.smooth_lddt_loss(
                             model_output, batched_data, pos_pred
@@ -377,6 +371,15 @@ class DiffMAE3dCriterions(nn.Module):
                     unreduced_noise_loss = (
                         unreduced_noise_loss / sqrt_one_minus_alphas_cumprod_t
                     )
+                else:
+                    unreduced_noise_loss = self.noise_loss(
+                        noise_pred.to(noise_label.dtype), noise_label
+                    )
+                    smooth_lddt_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
+                    num_pddt_loss = 0
+
             elif self.diffusion_mode == "x0":
                 # x0 pred loss, noise pred is x0 pred here
                 unreduced_noise_loss = self.noise_loss(

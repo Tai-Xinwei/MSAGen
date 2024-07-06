@@ -326,7 +326,8 @@ class MemEffInvariantAttention(nn.Module):
         # add rope
         if self.rot_emb:
             is_protein_expanded = (
-                is_protein.unsqueeze(-1)
+                is_protein.any(dim=-1)
+                .unsqueeze(-1)
                 .repeat(1, self.num_heads)
                 .reshape([bsz * self.num_heads])
             )
@@ -589,7 +590,8 @@ class InvariantAttention(nn.Module):
         # add rope
         if self.rot_emb:
             is_protein_expanded = (
-                is_protein.unsqueeze(-1)
+                is_protein.any(dim=-1)
+                .unsqueeze(-1)
                 .repeat(1, self.num_heads)
                 .reshape([bsz * self.num_heads])
             )
