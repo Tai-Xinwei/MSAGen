@@ -19,9 +19,9 @@ def svd_superimpose(P, Q, mask=None):
     mask = mask.unsqueeze(-1) if mask is not None else None
     weights = torch.ones_like(mask, dtype=P.dtype)
     if mask is not None:
-        P = torch.where(mask, P, 0.0)
-        Q = torch.where(mask, Q, 0.0)
-        weights = torch.where(mask, weights, 0.0)
+        P = torch.where(mask, 0.0, P)
+        Q = torch.where(mask, 0.0, Q)
+        weights = torch.where(mask, 0.0, weights)
 
     P_centroid = (P * weights).sum(dim=1, keepdim=True) / weights.sum(
         dim=1, keepdim=True
@@ -30,16 +30,21 @@ def svd_superimpose(P, Q, mask=None):
         dim=1, keepdim=True
     )
 
+    # replace nan to 0, weights.sum(dim=1, keepdim=True) could be 0
+    P_centroid[torch.isnan(P_centroid)] = 0.0
+    Q_centroid[torch.isnan(Q_centroid)] = 0.0
+
     P_centered = P - P_centroid
     Q_centered = Q - Q_centroid
 
     if mask is not None:
-        P_centered = torch.where(mask, P_centered, 0.0)
-        Q_centered = torch.where(mask, Q_centered, 0.0)
+        P_centered = torch.where(mask, 0.0, P_centered)
+        Q_centered = torch.where(mask, 0.0, Q_centered)
 
     # Find rotation matrix by Kabsch algorithm
     H = torch.einsum("bni,bnj->bij", weights * P_centered, Q_centered)
     U, S, Vt = torch.linalg.svd(H.float())
+
     # ensure right-handedness
     d = torch.sign(torch.linalg.det(torch.einsum("bki,bjk->bij", Vt, U)))
     # Trick for torch.vmap
@@ -215,10 +220,17 @@ class DiffMAE3dCriterions(nn.Module):
         ) / sqrt_alphas_cumprod_t
 
         R, T = svd_superimpose(
-            pos_pred.float(), pos_label.float(), model_output["padding_mask"]
+            pos_pred.float(),
+            pos_label.float(),
+            model_output["padding_mask"] | model_output["protein_mask"].any(dim=-1),
         )
 
-        return R, pos_pred
+        T = T.masked_fill(
+            model_output["padding_mask"].unsqueeze(-1) | model_output["protein_mask"],
+            0.0,
+        )
+
+        return R, T, pos_pred
 
     def smooth_lddt_loss(self, model_output, batched_data, pos_pred):
         pos_label = batched_data["ori_pos"]
@@ -341,11 +353,11 @@ class DiffMAE3dCriterions(nn.Module):
 
             if self.diffusion_mode == "epsilon":
                 if self.args.align_x0_in_diffusion_loss and not is_seq_only.any():
-                    R, pos_pred = self._alignment_x0(model_output, batched_data)
+                    R, T, pos_pred = self._alignment_x0(model_output, batched_data)
 
                     if is_protein.any():
                         # align pred pos and calculate smooth lddt loss for protein
-                        pos_pred = torch.einsum("bij,bkj->bki", R, pos_pred.float())
+                        pos_pred = torch.einsum("bij,bkj->bki", R, pos_pred.float()) + T
                         smooth_lddt_loss = self.smooth_lddt_loss(
                             model_output, batched_data, pos_pred
                         )

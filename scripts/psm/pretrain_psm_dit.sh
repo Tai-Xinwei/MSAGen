@@ -6,6 +6,7 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
+cd /nfs/psmdata
 
 # wget 'https://aka.ms/downloadazcopy-v10-linux' -O /tmp/azcopy.tar.gz
 # tar -xf /tmp/azcopy.tar.gz -C /tmp
@@ -44,24 +45,24 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=100
+[ -z "${log_interval}" ] && log_interval=1
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.4,0.4,0.2'
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
+[ -z "${data_path_list}" ] && data_path_list='complex.preprocessed.large'
+[ -z "${dataset_name_list}" ] && dataset_name_list='complex'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,ur50_23_bpe_pack1536.lmdb'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,ur50'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.7,0.3'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32,12"
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,12,32,12'
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.3,0.1,0.1,0.1,0.1'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,12,32,12,16,32,32'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
@@ -231,5 +232,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           AutoGradForce=$AutoGradForce \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss \
-          # ifresume=True \
-          # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
+#           # ifresume=True \
+#           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
