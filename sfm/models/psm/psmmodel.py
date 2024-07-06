@@ -562,6 +562,7 @@ class PSMModel(Model):
         ]
         result_dict["force_label"] = batched_data["forces"]
         result_dict["padding_mask"] = padding_mask
+        result_dict["time_step"] = time_step
 
         if self.psm_config.sample_in_validation and not self.training:
             result_dict.update(match_results)

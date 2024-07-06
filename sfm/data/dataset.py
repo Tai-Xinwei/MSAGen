@@ -117,7 +117,14 @@ class InMemoryFoundationModelDataset(FoundationModelDataset):
 class LMDBFoundationModelDataset(FoundationModelDataset):
     def __init__(self, lmdb_path: Path) -> None:
         super().__init__()
-        self.read_env = lmdb.open(lmdb_path)
+        self.read_env = lmdb.open(
+            lmdb_path,
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
         self.read_txn = self.read_env.begin(write=False)
         self.key_list = []
         for key, _ in self.read_txn.cursor():

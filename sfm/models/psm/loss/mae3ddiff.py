@@ -248,7 +248,15 @@ class DiffMAE3dCriterions(nn.Module):
             + torch.sigmoid(4 - delta)
         )
         lddt = error.mean()
-        return 1 - lddt
+
+        # harder distance loss
+        time_step = model_output["time_step"]
+        time_mask = time_step < 0.1
+        pair_time_mask = time_mask.unsqueeze(1) & time_mask.unsqueeze(2)
+        harder_dist_mask = dist_mask & pair_time_mask
+        hard_dist_loss = delta[harder_dist_mask].mean()
+
+        return 1 - lddt, hard_dist_loss
 
     def forward(self, model_output, batched_data):
         energy_per_atom_label = batched_data["energy_per_atom"]
@@ -358,12 +366,15 @@ class DiffMAE3dCriterions(nn.Module):
                     if is_protein.any():
                         # align pred pos and calculate smooth lddt loss for protein
                         pos_pred = torch.einsum("bij,bkj->bki", R, pos_pred.float()) + T
-                        smooth_lddt_loss = self.smooth_lddt_loss(
+                        smooth_lddt_loss, hard_dist_loss = self.smooth_lddt_loss(
                             model_output, batched_data, pos_pred
                         )
                         num_pddt_loss = 1
                     else:
                         smooth_lddt_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        hard_dist_loss = torch.tensor(
                             0.0, device=noise_label.device, requires_grad=True
                         )
                         num_pddt_loss = 0
@@ -388,6 +399,9 @@ class DiffMAE3dCriterions(nn.Module):
                         noise_pred.to(noise_label.dtype), noise_label
                     )
                     smooth_lddt_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
+                    hard_dist_loss = torch.tensor(
                         0.0, device=noise_label.device, requires_grad=True
                     )
                     num_pddt_loss = 0
@@ -535,6 +549,7 @@ class DiffMAE3dCriterions(nn.Module):
                 + noise_loss
                 + aa_mlm_loss
                 + smooth_lddt_loss
+                # + hard_dist_loss
             )
         else:
             loss = aa_mlm_loss
@@ -582,6 +597,7 @@ class DiffMAE3dCriterions(nn.Module):
             "aa_mlm_loss": (float(aa_mlm_loss), int(num_aa_mask_token)),
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
             "smooth_lddt_loss": (float(smooth_lddt_loss), int(num_pddt_loss)),
+            "hard_dist_loss": (float(hard_dist_loss), int(num_pddt_loss)),
         }
 
         def _reduce_matched_result(model_output, metric_name, min_or_max: str):
