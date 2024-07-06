@@ -519,6 +519,7 @@ class DiffMAE3dCriterions(nn.Module):
                 + self.force_loss_ratio * force_loss
                 + noise_loss
                 + aa_mlm_loss
+                + smooth_lddt_loss
             )
         else:
             loss = aa_mlm_loss
