@@ -100,6 +100,7 @@ class PSMPlainEncoderLayer(nn.Module):
         LayerNorm is applied either before or after the self-attention/ffn
         modules similar to the original Transformer implementation.
         """
+        math_kernel = ifbackprop and pbc_expand_batched is not None
 
         residual = x
         x = self.top_layer_norm(x)
@@ -111,10 +112,9 @@ class PSMPlainEncoderLayer(nn.Module):
                 attn_mask=None,
                 is_protein=batched_data["is_protein"],
                 pbc_expand_batched=pbc_expand_batched,
+                math_kernel=math_kernel,
             )
         else:
-            math_kernel = ifbackprop and pbc_expand_batched is not None
-
             x, _ = self.self_attn(
                 x,
                 key_padding_mask=padding_mask,

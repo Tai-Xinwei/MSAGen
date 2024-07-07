@@ -21,6 +21,7 @@ sci_token_per_file = {
 
 def main():
     alpha = float(sys.argv[1])
+    prot_raito = float(sys.argv[2])
     files = list(text_token_per_file.keys() | sci_token_per_file.keys())
 
     total_text_tokens = 0
@@ -31,7 +32,7 @@ def main():
             total_text_tokens += text_token_per_file[file]
         else:
             if file == 'v5_processed_protein_train.npy.lmdb':
-                total_sci_tokens += 2*sci_token_per_file[file]
+                total_sci_tokens += prot_raito*sci_token_per_file[file]
             else:
                 total_sci_tokens += sci_token_per_file[file]
 
@@ -39,13 +40,15 @@ def main():
     print(f"#sci_tokens:\t{total_sci_tokens:,}")
     print(f"#tokens:\t{total_text_tokens + total_sci_tokens:,}")
     print(f"Alpha: {alpha}")
+    print(f"prot_raito: {prot_raito}")
+
     ret = []
     for file in files:
         if file in text_token_per_file:
             weight = alpha * text_token_per_file[file] / total_text_tokens
         else:
             if file == 'v5_processed_protein_train.npy.lmdb':
-                weight = (1 - alpha) * 2*sci_token_per_file[file] / total_sci_tokens
+                weight = (1 - alpha) * prot_raito*sci_token_per_file[file] / total_sci_tokens
             else:
                 weight = (1 - alpha) * sci_token_per_file[file] / total_sci_tokens
         ret.append(f"{weight:.12f}")
