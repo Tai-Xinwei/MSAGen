@@ -50,18 +50,18 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mode_prob}" ] && mode_prob='0.4,0.4,0.2'
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large,ur50_23_bpe_pack1536.lmdb'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdb,complex,ur50'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.2,0.2,0.2'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12,12,12,6"
+[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
+[ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12"
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,ur50_23_bpe_pack1536.lmdb'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,ur50'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.5'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12,2"
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.35,0.1,0.1,0.1,0.05'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64,8,12,8,6,12,12'
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.35,0.1,0.1,0.1,0.05'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64,8,12,8,6,12,12'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
@@ -110,7 +110,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=False
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
-
+[ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
