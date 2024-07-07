@@ -5,11 +5,10 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, Dict
+from typing import Any, Dict, Mapping, Tuple, Union
 
 import hydra
 import lmdb
-import numpy as np
 import pandas as pd
 import torch
 from hydra.core.config_store import ConfigStore
@@ -78,7 +77,7 @@ cs = ConfigStore.instance()
 cs.store(name="config_psm_schema", node=Config)
 
 
-def parse_name_chain_from_target(target: str):
+def parse_name_chain_from_target(target: str) -> Tuple[str, str]:
     # parse target name and chain
     if len(target) == 6 and target[4] == "_":
         # e.g. 1ctf_A
@@ -93,19 +92,7 @@ def parse_name_chain_from_target(target: str):
     return name, chain
 
 
-def select_residues_by_index(atomlines: list, residx: set) -> list:
-    lines = []
-    for line in atomlines:
-        if line.startswith("ATOM"):
-            resnum = int(line[22:26].strip())
-            if resnum in residx:
-                lines.append(line)
-    lines.append("TER\n")
-    lines.append("END\n")
-    return lines
-
-
-def TMscore4Pair(predicted_pdb: str, native_pdb: str):
+def TMscore4Pair(predicted_pdb: str, native_pdb: str) -> Mapping[str, Any]:
     """Calculate model score by using TMscore program"""
     # intialization
     score = {
@@ -177,6 +164,60 @@ def TMscore4Pair(predicted_pdb: str, native_pdb: str):
     return score
 
 
+def lddt4Pair(predicted_pdb: str, native_pdb: str) -> Mapping[str, Any]:
+    """Calculate model score by using TMscore program"""
+    # intialization
+    score = {
+        "PredictedPDB": os.path.basename(predicted_pdb),
+        "NativePDB": os.path.basename(native_pdb),
+        "Radius": 0.0,
+        "Coverage": 0.0,
+        "LDDT": 0.0,
+        "resLDDT": [],
+    }
+
+    status, _ = subprocess.getstatusoutput("which lddt")
+    if status != 0:
+        logger.warning("'lddt' does not exist in $PATH")
+        return score
+
+    if not os.path.exists(predicted_pdb):
+        logger.warning(f"cannot found predicted model {predicted_pdb}")
+        return score
+
+    if not os.path.exists(native_pdb):
+        logger.warning(f"cannot found native structure {native_pdb}")
+        return score
+
+    # execuate command and get output
+    cmds = ["lddt", "-c", predicted_pdb, native_pdb]
+
+    # open a temporary file and write the output to this file
+    lines = []
+    with tempfile.TemporaryFile() as tmp:
+        proc = subprocess.Popen(cmds, stdout=tmp, stderr=tmp)
+        proc.wait()
+        tmp.seek(0)
+        lines = [_.decode("utf-8") for _ in tmp.readlines()]
+
+    # parse model score
+    for i, l in enumerate(lines):
+        cols = l.split()
+        if l.startswith("Inclusion") and len(cols) > 2:
+            score["Radius"] = float(cols[2])
+        elif l.startswith("Coverage") and len(cols) > 6:
+            score["Coverage"] = float(cols[1])
+        elif l.startswith("Global") and len(cols) > 3:
+            score["LDDT"] = float(cols[3])
+        elif l.startswith("Local"):
+            i += 1
+            break
+        else:
+            continue
+
+    return score
+
+
 def generate_pdb_atomlines(coords: list, sequence: str, chain: str = "A") -> list:
     atomlines = []
     for i, (x, y, z) in enumerate(coords):
@@ -192,19 +233,38 @@ def generate_pdb_atomlines(coords: list, sequence: str, chain: str = "A") -> lis
     return atomlines
 
 
-def evaluate_predicted_structure(metadata: dict, preddir: str, max_model_num: int = 1):
-    # write domain pdblines and align by TMscore
-    def _calculate_score(predlines, natilines, residx):
-        with (
-            tempfile.NamedTemporaryFile() as predpdb,
-            tempfile.NamedTemporaryFile() as natipdb,
-        ):
-            with open(predpdb.name, "w") as fp:
-                fp.writelines(select_residues_by_index(predlines, residx))
-            with open(natipdb.name, "w") as fp:
-                fp.writelines(select_residues_by_index(natilines, residx))
-            return TMscore4Pair(predpdb.name, natipdb.name)
+def calculate_score(predlines: list, natilines: list, residx: set) -> dict:
+    """Calculate score between predicted and native structure by TM-score"""
 
+    def _select_residues_by_residx(atomlines: list):
+        lines = []
+        for line in atomlines:
+            if line.startswith("ATOM"):
+                resnum = int(line[22:26].strip())
+                if resnum in residx:
+                    lines.append(line)
+        lines.append("TER\n")
+        lines.append("END\n")
+        return lines
+
+    with (
+        tempfile.NamedTemporaryFile() as predpdb,
+        tempfile.NamedTemporaryFile() as natipdb,
+    ):
+        with open(predpdb.name, "w") as fp:
+            fp.writelines(_select_residues_by_residx(predlines))
+        with open(natipdb.name, "w") as fp:
+            fp.writelines(_select_residues_by_residx(natilines))
+        score = TMscore4Pair(predpdb.name, natipdb.name)
+        score["LDDT"] = lddt4Pair(predpdb.name, natipdb.name)["LDDT"]
+        return score
+
+
+def evaluate_predicted_structure(
+    metadata: Mapping[str, Union[list, str]],
+    preddir: str,
+    max_model_num: int = 1,
+) -> pd.DataFrame:
     scores = []
     for target in tqdm(metadata["keys"]):
         taridx = metadata["keys"].index(target)
@@ -235,7 +295,7 @@ def evaluate_predicted_structure(metadata: dict, preddir: str, max_model_num: in
                     with open(pdb_file, "r") as fp:
                         predlines = fp.readlines()
                     natilines = metadata["pdbs"][taridx]
-                    score.update(_calculate_score(predlines, natilines, residx))
+                    score.update(calculate_score(predlines, natilines, residx))
                 except Exception as e:
                     logger.error(f"Failed to evaluate {domstr}, {e}.")
                     continue
@@ -265,12 +325,13 @@ def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
             "Type": gdf["Type"].iloc[0],
         }
         max_model_num = gdf["ModelIndex"].max()
-        maxscore = float("-inf")
-        for num in range(1, max_model_num + 1):
-            score = gdf[gdf["ModelIndex"] == num]["TMscore"].iloc[0]
-            record[f"Model{num}_TMscore"] = score
-            maxscore = max(maxscore, score)
-        record["ModelMax_TMscore"] = maxscore
+        for col in ["TMscore", "RMSD", "GDT_TS", "LDDT"]:
+            maxscore = float("-inf")
+            for num in range(1, max_model_num + 1):
+                score = gdf[gdf["ModelIndex"] == num][col].iloc[0]
+                record[f"Model{num}_{col}"] = score
+                maxscore = max(maxscore, score)
+            record[f"ModelMax_{col}"] = maxscore
         records.append(record)
     newdf = pd.DataFrame(records)
     # calculate average score for each category
@@ -284,6 +345,8 @@ def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
                 "Number": len(subdf),
                 "Top1TMscore": subdf["Model1_TMscore"].mean() * 100,
                 "Top5TMscore": subdf["ModelMax_TMscore"].mean() * 100,
+                "Top1LDDT": subdf["Model1_LDDT"].mean() * 100,
+                "Top5LDDT": subdf["ModelMax_LDDT"].mean() * 100,
             }
         )
     meandf = pd.DataFrame(scores).set_index("CatAndGroup")
@@ -370,6 +433,13 @@ def main(args: DictConfig) -> None:
             atomlines = generate_pdb_atomlines(coords, sequence, chain)
             with open(pdb_file, "w") as fp:
                 fp.writelines(atomlines)
+            residx = set(range(1, len(sequence) + 1))
+            sco = calculate_score(atomlines, metadata["pdbs"][taridx], residx)
+            logger.success(
+                f"Score of {target}: "
+                f"TM-score={sco['TMscore']:6.4f}, LDDT={sco['LDDT']:6.4f}, "
+                f"RMSD={sco['RMSD']:5.2f}, GDT_TS={sco['GDT_TS']:5.2f}."
+            )
 
     # gather all results from different ranks
     torch.distributed.barrier()

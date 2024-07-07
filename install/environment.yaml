@@ -28,6 +28,7 @@ dependencies:
   - pytorch::torchvision=0.18.0=py311_cu121
   - defaults::cython
   - bioconda::tmalign
+  - bioconda::lddt
   - pip:
       # torch-geometric and additional libs from pyg
       # pyg 2.5.3 is not available in conda pyg channel yet
