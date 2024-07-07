@@ -80,13 +80,21 @@ class DiTBlock(nn.Module):
             scale_mlp,
             gate_mlp,
         ) = self.adaLN_modulation(c).chunk(6, dim=2)
-        x = x + gate_msa * self.attn(
-            modulate(self.norm1(x), shift_msa, scale_msa).transpose(0, 1),
-            key_padding_mask=padding_mask,
-            is_protein=batched_data["is_protein"],
-            pbc_expand_batched=pbc_expand_batched,
-            math_kernel=math_kernel,
-        )[0].transpose(0, 1)
+        if self.psm_config.only_use_rotary_embedding_for_protein:
+            x = x + gate_msa * self.attn(
+                modulate(self.norm1(x), shift_msa, scale_msa).transpose(0, 1),
+                key_padding_mask=padding_mask,
+                is_protein=batched_data["is_protein"],
+                pbc_expand_batched=pbc_expand_batched,
+                math_kernel=math_kernel,
+            )[0].transpose(0, 1)
+        else:
+            x = x + gate_msa * self.attn(
+                modulate(self.norm1(x), shift_msa, scale_msa).transpose(0, 1),
+                key_padding_mask=padding_mask,
+                pbc_expand_batched=pbc_expand_batched,
+                math_kernel=math_kernel,
+            )[0].transpose(0, 1)
         x = x + gate_mlp * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
 
