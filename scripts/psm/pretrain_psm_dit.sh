@@ -33,7 +33,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_mode}" ] && noise_mode=diff
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.6
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=1.0
 
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=1e-4
@@ -55,17 +55,17 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
-# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,ur50_23_bpe_pack1536.lmdb'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,ur50'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.7,0.3'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32,12"
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.3,0.1,0.1,0.1,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,12,32,12,16,32,32'
+[ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged'
+[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12"
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.3,0.1,0.1,0.1,0.1'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,12,32,12,16,32,32'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
-[ -z "${AutoGradForce}" ] && AutoGradForce=False
+[ -z "${AutoGradForce}" ] && AutoGradForce=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
 [ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.1

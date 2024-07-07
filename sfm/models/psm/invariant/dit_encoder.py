@@ -70,6 +70,8 @@ class DiTBlock(nn.Module):
         pbc_expand_batched=None,
         ifbackprop=False,
     ):
+        math_kernel = ifbackprop and pbc_expand_batched is not None
+
         (
             shift_msa,
             scale_msa,
@@ -83,6 +85,7 @@ class DiTBlock(nn.Module):
             key_padding_mask=padding_mask,
             is_protein=batched_data["is_protein"],
             pbc_expand_batched=pbc_expand_batched,
+            math_kernel=math_kernel,
         )[0].transpose(0, 1)
         x = x + gate_mlp * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x

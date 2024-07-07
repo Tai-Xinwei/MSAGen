@@ -212,6 +212,7 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
         need_head_weights: bool = False,
         pbc_expand_batched: Optional[Dict[str, torch.Tensor]] = None,
         is_protein: Optional[torch.Tensor] = None,
+        math_kernel: bool = False,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """Input shape: Time x Batch x Channel
 
@@ -346,7 +347,14 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
         # FutureWarning: torch.backends.cuda.sdp_kernel() is deprecated. In the future, this context manager will be removed.
         # Please see, torch.nn.attention.sdpa_kernel() for the new context manager, with updated signature.
         # with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
-        with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
+        if math_kernel:
+            context = sdpa_kernel([SDPBackend.MATH])
+        else:
+            context = sdpa_kernel(
+                [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
+            )
+
+        with context:
             attn = torch.nn.functional.scaled_dot_product_attention(
                 q,
                 k,

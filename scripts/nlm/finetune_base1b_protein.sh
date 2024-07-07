@@ -124,6 +124,7 @@ echo "warmup_num_steps: ${warmup_num_steps}"
 echo "weight_decay: ${weight_decay}"
 echo "train_data_path: ${train_data_path}"
 echo "valid_data_path: ${valid_data_path}"
+echo "data_ratio: ${data_ratio}"
 echo "train_batch_size: ${train_batch_size}"
 echo "val_batch_size: ${val_batch_size}"
 echo "micro_batch_size: ${micro_batch_size}"
@@ -144,6 +145,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm_1Bbase.py \
       --data_dir "$data_dir" \
       --train_data_path "$train_data_path" \
       --valid_data_path "$valid_data_path" \
+      --train_data_ratio "$data_ratio" \
       --weight_decay "$weight_decay" \
       --save_dir "$save_dir" \
       --seed 666666 \
