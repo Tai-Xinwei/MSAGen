@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 import re
+from dataclasses import dataclass
 
+import numpy as np
+import torch
 from transformers import LlamaTokenizer
 from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
@@ -79,7 +82,7 @@ class NlmTokenizer(LlamaTokenizer):
         elif tag == "rna":
             tokens = self._tokenize_entity(span, "r", tok="list")
         else:
-            tokens = super()._tokenize(span, **kwargs)
+            tokens = super().tokenize(span, **kwargs)
 
         return tokens
 
@@ -128,7 +131,7 @@ class NlmTokenizer(LlamaTokenizer):
 
                 cur_tag = tag
                 span = text[last_idx:start].strip()
-                tokens = super()._tokenize(span, **kwargs)
+                tokens = super().tokenize(span, **kwargs)
 
                 result.extend([t for t in tokens if t] + [f"<{tag}>"])
 
@@ -148,6 +151,12 @@ class NlmTokenizer(LlamaTokenizer):
                 tokens[i] = tokens[i].replace(tag, "")
 
         return super().convert_tokens_to_string(tokens)
+
+
+@dataclass
+class TokenizerResult:
+    input_ids: torch.Tensor
+    attention_mask: torch.Tensor
 
 
 class NlmLlama3Tokenizer(PreTrainedTokenizerFast):
@@ -222,7 +231,7 @@ class NlmLlama3Tokenizer(PreTrainedTokenizerFast):
         elif tag == "rna":
             tokens = self._tokenize_entity(span, "r", tok="list")
         else:
-            tokens = super()._tokenize(span, **kwargs)
+            tokens = super().tokenize(span, **kwargs)
 
         return tokens
 
@@ -271,7 +280,7 @@ class NlmLlama3Tokenizer(PreTrainedTokenizerFast):
 
                 cur_tag = tag
                 span = text[last_idx:start].strip()
-                tokens = super()._tokenize(span, **kwargs)
+                tokens = super().tokenize(span, **kwargs)
 
                 result.extend([t for t in tokens if t] + [f"<{tag}>"])
 
@@ -291,3 +300,56 @@ class NlmLlama3Tokenizer(PreTrainedTokenizerFast):
                 tokens[i] = tokens[i].replace(tag, "")
 
         return super().convert_tokens_to_string(tokens)
+
+    def _add_special_tokens(self, token_ids):
+        return [self.bos_token_id] + token_ids + [self.eos_token_id]
+
+    def _prepend_bos_tokens(self, token_ids):
+        return [self.bos_token_id] + token_ids
+
+    def _append_eos_tokens(self, token_ids):
+        return token_ids + [self.eos_token_id]
+
+    def encode(self, text, **kwargs):
+        token_ids = self.convert_tokens_to_ids(self._tokenize(text))
+        add_special_tokens = kwargs.get("add_special_tokens", False)
+        prepend_bos = kwargs.get("prepend_bos", True)
+        append_eos = kwargs.get("append_eos", False)
+        if add_special_tokens:
+            token_ids = self._add_special_tokens(token_ids)
+        if prepend_bos and not add_special_tokens:
+            token_ids = self._prepend_bos_tokens(token_ids)
+        if append_eos and not add_special_tokens:
+            token_ids = self._append_eos_tokens(token_ids)
+        return token_ids
+
+    def __call__(self, text, **kwargs):
+        add_special_tokens = kwargs.get("add_special_tokens", False)
+        token_ids = self.convert_tokens_to_ids(self._tokenize(text))
+        prepend_bos = kwargs.get("prepend_bos", True)
+        append_eos = kwargs.get("append_eos", False)
+        return_tensors = kwargs.get("return_tensors", None)
+
+        if add_special_tokens:
+            token_ids = self._add_special_tokens(token_ids)
+        if prepend_bos and not add_special_tokens:
+            token_ids = self._prepend_bos_tokens(token_ids)
+        if append_eos and not add_special_tokens:
+            token_ids = self._append_eos_tokens(token_ids)
+
+        attention_mask = [1] * len(token_ids)
+
+        if return_tensors == "np":
+            token_ids = np.array(token_ids)[np.newaxis, :]
+            attention_mask = np.array(attention_mask)[np.newaxis, :]
+        elif return_tensors == "pt":
+            token_ids = torch.tensor(token_ids).unsqueeze(0)
+            attention_mask = torch.tensor(attention_mask).unsqueeze(0)
+        elif return_tensors is not None:
+            raise ValueError(f"Unsupported tensor type: {return_tensors}")
+
+        if return_tensors is not None:
+            return TokenizerResult(input_ids=token_ids, attention_mask=attention_mask)
+        else:
+            result = {"input_ids": token_ids, "attention_mask": attention_mask}
+            return result
