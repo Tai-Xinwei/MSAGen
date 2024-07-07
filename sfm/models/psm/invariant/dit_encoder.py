@@ -25,6 +25,7 @@ class DiTBlock(nn.Module):
         self.norm1 = nn.LayerNorm(
             psm_config.embedding_dim, elementwise_affine=False, eps=1e-6
         )
+        self.psm_config = psm_config
 
         if psm_config.only_use_rotary_embedding_for_protein:
             attn_cls = MemEffAttnWithProteinRotaryEmbedding
