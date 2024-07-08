@@ -95,7 +95,7 @@ class PSMModel(Model):
 
         self.loss_fn = loss_fn(args)
 
-        if self.args.backbone in ["vanillatransformer"]:
+        if self.args.backbone in ["vanillatransformer", "dit"]:
             self.disable_data_aug = getattr(self.args, "disable_data_aug", False)
             if self.disable_data_aug:
                 logger.warning(
@@ -335,7 +335,10 @@ class PSMModel(Model):
 
         self._create_initial_pos_for_diffusion(batched_data)
 
-        if self.args.backbone == "vanillatransformer" and not self.disable_data_aug:
+        if (
+            self.args.backbone in ["vanillatransformer", "dit"]
+            and not self.disable_data_aug
+        ):
             R = uniform_random_rotation(
                 ori_pos.size(0), device=ori_pos.device, dtype=ori_pos.dtype
             )
@@ -559,6 +562,7 @@ class PSMModel(Model):
         ]
         result_dict["force_label"] = batched_data["forces"]
         result_dict["padding_mask"] = padding_mask
+        result_dict["time_step"] = time_step
 
         if self.psm_config.sample_in_validation and not self.training:
             result_dict.update(match_results)
@@ -822,9 +826,6 @@ class PSM(nn.Module):
         elif args.backbone in ["dit"]:
             # Implement the encoder
             self.encoder = PSMDiTEncoder(args, psm_config)
-            # Implement the decoder
-            # self.decoder = EquivariantDecoder(psm_config)
-            self.decoder = NodeTaskHead(psm_config)
         else:
             raise NotImplementedError
 

@@ -28,7 +28,7 @@ code:
 
 search:
   job_template:
-    name: sfm_nlm_llama3_stageB_alpha{alpha}_doubleProtein
+    name: sfm_nlm_llama3_stageB_alpha{alpha}_Protein{prot_raito}
     sku: ${NODES}xG${GPUS}-IB
     tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
     mpi: true
@@ -45,7 +45,8 @@ search:
       - python setup_cython.py build_ext --inplace
       - pip install git+https://github.com/NVIDIA/TransformerEngine.git@stable
       - pip uninstall flash-attn -y
-      - python tools/nlm/compute_text_data_ratio.py {alpha}
+      - pip install ase
+      - python tools/nlm/compute_text_data_ratio.py {alpha} {prot_raito}
       - export train_batch_size=4096
       - export val_batch_size=4096
       - export gradient_accumulation_steps=64
@@ -74,3 +75,6 @@ search:
       spec: discrete
       # values: [0.1, 0.3, 0.5]
       values: [0.3]
+    - name: prot_raito
+      spec: discrete
+      values: [2]

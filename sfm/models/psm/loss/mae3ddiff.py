@@ -19,9 +19,9 @@ def svd_superimpose(P, Q, mask=None):
     mask = mask.unsqueeze(-1) if mask is not None else None
     weights = torch.ones_like(mask, dtype=P.dtype)
     if mask is not None:
-        P = torch.where(mask, P, 0.0)
-        Q = torch.where(mask, Q, 0.0)
-        weights = torch.where(mask, weights, 0.0)
+        P = torch.where(mask, 0.0, P)
+        Q = torch.where(mask, 0.0, Q)
+        weights = torch.where(mask, 0.0, weights)
 
     P_centroid = (P * weights).sum(dim=1, keepdim=True) / weights.sum(
         dim=1, keepdim=True
@@ -30,16 +30,21 @@ def svd_superimpose(P, Q, mask=None):
         dim=1, keepdim=True
     )
 
+    # replace nan to 0, weights.sum(dim=1, keepdim=True) could be 0
+    P_centroid[torch.isnan(P_centroid)] = 0.0
+    Q_centroid[torch.isnan(Q_centroid)] = 0.0
+
     P_centered = P - P_centroid
     Q_centered = Q - Q_centroid
 
     if mask is not None:
-        P_centered = torch.where(mask, P_centered, 0.0)
-        Q_centered = torch.where(mask, Q_centered, 0.0)
+        P_centered = torch.where(mask, 0.0, P_centered)
+        Q_centered = torch.where(mask, 0.0, Q_centered)
 
     # Find rotation matrix by Kabsch algorithm
     H = torch.einsum("bni,bnj->bij", weights * P_centered, Q_centered)
     U, S, Vt = torch.linalg.svd(H.float())
+
     # ensure right-handedness
     d = torch.sign(torch.linalg.det(torch.einsum("bki,bjk->bij", Vt, U)))
     # Trick for torch.vmap
@@ -107,6 +112,8 @@ class DiffMAE3dCriterions(nn.Module):
 
         self.energy_loss_ratio = args.energy_loss_ratio
         self.force_loss_ratio = args.force_loss_ratio
+
+        self.hard_dist_loss_raito = args.hard_dist_loss_raito
 
     def _reduce_energy_loss(
         self, energy_loss, loss_mask, is_molecule, is_periodic, use_per_atom_energy=True
@@ -202,9 +209,7 @@ class DiffMAE3dCriterions(nn.Module):
             )
         return force_or_noise_loss, num_samples
 
-    @torch.no_grad()
-    def _alignment_x0(self, model_output, batched_data):
-        pos_label = batched_data["ori_pos"]
+    def calculate_pos_pred(self, model_output, batched_data):
         noise_pred = model_output["noise_pred"]
         sqrt_one_minus_alphas_cumprod_t = model_output[
             "sqrt_one_minus_alphas_cumprod_t"
@@ -213,12 +218,52 @@ class DiffMAE3dCriterions(nn.Module):
         pos_pred = (
             batched_data["pos"] - sqrt_one_minus_alphas_cumprod_t * noise_pred
         ) / sqrt_alphas_cumprod_t
+        return pos_pred
+
+    @torch.no_grad()
+    def _alignment_x0(self, model_output, batched_data, pos_pred):
+        pos_label = batched_data["ori_pos"]
 
         R, T = svd_superimpose(
-            pos_pred.float(), pos_label.float(), model_output["padding_mask"]
+            pos_pred.float(),
+            pos_label.float(),
+            model_output["padding_mask"] | model_output["protein_mask"].any(dim=-1),
         )
 
-        return R
+        return R, T
+
+    def dist_loss(self, model_output, batched_data, R, T, pos_pred):
+        # calculate aligned pred pos
+        pos_pred = torch.einsum("bij,bkj->bki", R, pos_pred.float()) + T
+
+        # smooth lddt loss
+        pos_label = batched_data["ori_pos"]
+        is_protein = model_output["is_protein"]
+        delta_pos_label = (pos_label.unsqueeze(1) - pos_label.unsqueeze(2)).norm(dim=-1)
+        delta_pos_pred = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1)
+        pair_protein_mask = is_protein.unsqueeze(1) & is_protein.unsqueeze(2)
+        dist_mask = (delta_pos_label < 15) & (delta_pos_label > 0.1) & pair_protein_mask
+        delta = torch.abs(delta_pos_label - delta_pos_pred)
+        delta1 = delta[dist_mask]
+        error = 0.25 * (
+            torch.sigmoid(0.5 - delta1)
+            + torch.sigmoid(1 - delta1)
+            + torch.sigmoid(2 - delta1)
+            + torch.sigmoid(4 - delta1)
+        )
+        lddt = error.mean()
+
+        # # harder distance loss
+        time_step = model_output["time_step"]
+        time_mask = time_step < 0.1
+        pair_time_mask = time_mask.unsqueeze(1) & time_mask.unsqueeze(2)
+        hard_dist_mask = dist_mask & pair_time_mask
+        if hard_dist_mask.any():
+            hard_dist_loss = delta[hard_dist_mask].mean()
+        else:
+            hard_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
+
+        return 1 - lddt, hard_dist_loss
 
     def forward(self, model_output, batched_data):
         energy_per_atom_label = batched_data["energy_per_atom"]
@@ -323,7 +368,24 @@ class DiffMAE3dCriterions(nn.Module):
 
             if self.diffusion_mode == "epsilon":
                 if self.args.align_x0_in_diffusion_loss and not is_seq_only.any():
-                    R = self._alignment_x0(model_output, batched_data)
+                    pos_pred = self.calculate_pos_pred(model_output, batched_data)
+                    R, T = self._alignment_x0(model_output, batched_data, pos_pred)
+
+                    if is_protein.any():
+                        # align pred pos and calculate smooth lddt loss for protein
+                        smooth_lddt_loss, hard_dist_loss = self.dist_loss(
+                            model_output, batched_data, R, T, pos_pred
+                        )
+                        num_pddt_loss = 1
+                    else:
+                        smooth_lddt_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        hard_dist_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        num_pddt_loss = 0
+
                     # noise pred loss
                     aligned_noise_pred = (
                         sqrt_alphas_cumprod_t * pos_label
@@ -343,6 +405,14 @@ class DiffMAE3dCriterions(nn.Module):
                     unreduced_noise_loss = self.noise_loss(
                         noise_pred.to(noise_label.dtype), noise_label
                     )
+                    smooth_lddt_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
+                    hard_dist_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
+                    num_pddt_loss = 0
+
             elif self.diffusion_mode == "x0":
                 # x0 pred loss, noise pred is x0 pred here
                 unreduced_noise_loss = self.noise_loss(
@@ -476,16 +546,16 @@ class DiffMAE3dCriterions(nn.Module):
             aa_acc = 0.0
             num_aa_mask_token = 0.0
 
-        def calculate_energy_loss_ratio(energy_loss_mag):
-            return np.clip(1.0 - (energy_loss_mag - 1.0) / 1000, 0.001, 1.0)
-
         if not self.seq_only:
             loss = (
                 self.energy_loss_ratio * energy_loss
                 + self.force_loss_ratio * force_loss
                 + noise_loss
                 + aa_mlm_loss
+                + smooth_lddt_loss
             )
+            if self.args.use_hard_dist_loss:
+                loss += self.hard_dist_loss_raito * hard_dist_loss
         else:
             loss = aa_mlm_loss
 
@@ -531,6 +601,8 @@ class DiffMAE3dCriterions(nn.Module):
             ),
             "aa_mlm_loss": (float(aa_mlm_loss), int(num_aa_mask_token)),
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
+            "smooth_lddt_loss": (float(smooth_lddt_loss), int(num_pddt_loss)),
+            "hard_dist_loss": (float(hard_dist_loss), int(num_pddt_loss)),
         }
 
         def _reduce_matched_result(model_output, metric_name, min_or_max: str):

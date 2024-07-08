@@ -111,16 +111,11 @@ class MultiheadAttentionWithProteinRotaryEmbedding(MultiheadAttention):
             key_padding_mask = None
 
         # add rope
-        if self.rot_emb:
-            is_protein_expanded = (
-                is_protein.any(dim=-1)
-                .unsqueeze(-1)
-                .repeat(1, self.num_heads)
-                .reshape([bsz * self.num_heads])
-            )
-            q[is_protein_expanded], k[is_protein_expanded] = self.rot_emb(
-                q[is_protein_expanded], k[is_protein_expanded]
-            )
+        if self.rot_emb and is_protein.any():
+            is_protein = is_protein.repeat(self.num_heads, 1).unsqueeze(-1)
+            q_rope, k_rope = self.rot_emb(q, k)
+            q = torch.where(is_protein, q_rope, q)
+            k = torch.where(is_protein, k_rope, k)
 
         if key_padding_mask is not None:
             if outcell_index is not None:
@@ -217,6 +212,7 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
         need_head_weights: bool = False,
         pbc_expand_batched: Optional[Dict[str, torch.Tensor]] = None,
         is_protein: Optional[torch.Tensor] = None,
+        math_kernel: bool = False,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """Input shape: Time x Batch x Channel
 
@@ -306,16 +302,11 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
             key_padding_mask = None
 
         # add rope
-        if self.rot_emb:
-            is_protein_expanded = (
-                is_protein.any(dim=-1)
-                .unsqueeze(-1)
-                .repeat(1, self.num_heads)
-                .reshape([bsz * self.num_heads])
-            )
-            q[is_protein_expanded], k[is_protein_expanded] = self.rot_emb(
-                q[is_protein_expanded], k[is_protein_expanded]
-            )
+        if self.rot_emb and is_protein.any():
+            is_protein = is_protein.repeat(self.num_heads, 1).unsqueeze(-1)
+            q_rope, k_rope = self.rot_emb(q, k)
+            q = torch.where(is_protein, q_rope, q)
+            k = torch.where(is_protein, k_rope, k)
 
         if key_padding_mask is not None:
             if outcell_index is not None:
@@ -356,7 +347,14 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
         # FutureWarning: torch.backends.cuda.sdp_kernel() is deprecated. In the future, this context manager will be removed.
         # Please see, torch.nn.attention.sdpa_kernel() for the new context manager, with updated signature.
         # with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
-        with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
+        if math_kernel:
+            context = sdpa_kernel([SDPBackend.MATH])
+        else:
+            context = sdpa_kernel(
+                [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
+            )
+
+        with context:
             attn = torch.nn.functional.scaled_dot_product_attention(
                 q,
                 k,
@@ -423,17 +421,12 @@ class MemEffSelfAttnWithProteinRotaryEmbedding(MemEffSelfAttn):
         if key_padding_mask is not None and key_padding_mask.dim() == 0:
             key_padding_mask = None
 
-        # TODO: add rope
-        if self.rot_emb is not None:
-            is_protein_expanded = (
-                is_protein.any(dim=-1)
-                .unsqueeze(-1)
-                .repeat(1, self.num_heads)
-                .reshape([bsz * self.num_heads])
-            )
-            q[is_protein_expanded], k[is_protein_expanded] = self.rot_emb(
-                q[is_protein_expanded], k[is_protein_expanded]
-            )
+        # add rope
+        if self.rot_emb and is_protein.any():
+            is_protein = is_protein.repeat(self.num_heads, 1).unsqueeze(-1)
+            q_rope, k_rope = self.rot_emb(q, k)
+            q = torch.where(is_protein, q_rope, q)
+            k = torch.where(is_protein, k_rope, k)
 
         # do not support attn_bias, just key_padding_mask
         if key_padding_mask is not None:

@@ -21,7 +21,9 @@ def apply_rotary_pos_emb(x, cos, sin):
 
         return (x * cos) + (rotate_half(x) * sin)
     else:
-        raise ValueError
+        raise ValueError(
+            "Input tensor must have 3 or 4 dimensions, but got {}".format(x.shape)
+        )
 
 
 class RotaryEmbedding(torch.nn.Module):
