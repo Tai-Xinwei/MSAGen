@@ -1139,10 +1139,10 @@ class PSM(nn.Module):
                     )
 
                 # per-atom energy prediction
-                energy_per_atom = (
-                    energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
-                    / batched_data["num_atoms"]
+                total_energy = energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
+                    dim=-1
                 )
+                energy_per_atom = total_energy / batched_data["num_atoms"]
             else:
                 energy_per_atom = torch.zeros_like(batched_data["num_atoms"])
                 forces = torch.zeros_like(batched_data["pos"])
@@ -1156,6 +1156,7 @@ class PSM(nn.Module):
 
         result_dict = {
             "energy_per_atom": energy_per_atom,
+            "total_energy": total_energy,
             "forces": forces,
             "aa_logits": aa_logits,
             "time_step": time_step,

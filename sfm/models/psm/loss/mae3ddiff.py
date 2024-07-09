@@ -114,6 +114,7 @@ class DiffMAE3dCriterions(nn.Module):
         self.force_loss_ratio = args.force_loss_ratio
 
         self.hard_dist_loss_raito = args.hard_dist_loss_raito
+        self.if_total_energy = args.if_total_energy
 
     def _reduce_energy_loss(
         self, energy_loss, loss_mask, is_molecule, is_periodic, use_per_atom_energy=True
@@ -271,6 +272,7 @@ class DiffMAE3dCriterions(nn.Module):
 
     def forward(self, model_output, batched_data):
         energy_per_atom_label = batched_data["energy_per_atom"]
+        total_energy_label = batched_data["energy"]
         atomic_numbers = batched_data["token_id"]
         noise_label = model_output["noise"]
         force_label = model_output["force_label"]
@@ -278,6 +280,7 @@ class DiffMAE3dCriterions(nn.Module):
             pos_label = batched_data["ori_pos"]
         force_pred = model_output["forces"]
         energy_per_atom_pred = model_output["energy_per_atom"]
+        total_energy_pred = model_output["total_energy"]
         noise_pred = model_output["noise_pred"]
         non_atom_mask = model_output["non_atom_mask"]
         clean_mask = model_output["clean_mask"]
@@ -424,10 +427,16 @@ class DiffMAE3dCriterions(nn.Module):
             )
 
             # energy loss
-            unreduced_energy_loss = self.energy_loss(
-                energy_per_atom_pred.to(torch.float32),
-                energy_per_atom_label.to(torch.float32),
-            )
+            if self.if_total_energy:
+                unreduced_energy_loss = self.energy_loss(
+                    total_energy_pred.to(torch.float32),
+                    total_energy_label.to(torch.float32),
+                )
+            else:
+                unreduced_energy_loss = self.energy_loss(
+                    energy_per_atom_pred.to(torch.float32),
+                    energy_per_atom_label.to(torch.float32),
+                )
             energy_loss, num_energy_sample = self._reduce_energy_loss(
                 unreduced_energy_loss,
                 energy_mask,

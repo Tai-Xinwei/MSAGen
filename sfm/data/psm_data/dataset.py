@@ -508,9 +508,7 @@ class MatterSimDataset:
             ],
             dim=0,
         )  # expand forces for cell corners
-        data["energy"] = torch.tensor(
-            [(data["info"]["energy"] - self.energy_mean) / self.energy_std]
-        )
+        data["energy"] = torch.tensor([(data["info"]["energy"] - self.energy_mean)])
         data["energy_per_atom"] = torch.tensor(
             [
                 (
