@@ -96,6 +96,7 @@ jobs:
   - export use_hard_dist_loss=True
   - export diffusion_training_loss=L1
   - export use_dali_pipeline=False
+  - export if_total_energy=True
   - export save_batch_interval=10000
   # - export AutoGradForce=True
   # - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v11/checkpoints
