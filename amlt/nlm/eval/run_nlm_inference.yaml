@@ -1,0 +1,49 @@
+description: run_nlm_inference
+
+target:
+  service: aml
+  name: sfm-nd96amsra100v4-uksouth
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+
+storage:
+  msralaphilly2:
+    storage_account_name: msralaphilly2
+    container_name: ml-la
+    mount_dir: /mnt/msralaphilly2
+  sfmdataeastus2:
+    storage_account_name: sfmdataeastus2
+    container_name: nlm
+    mount_dir: /mnt/sfmdataeastus2
+
+code:
+  local_dir: .
+
+jobs:
+- name: "run_nlm_inference"
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  sku: 1xG8
+  mpi: true
+  process_count_per_node: 1
+  command:
+  # Folders
+  - export TOKENIZER_HOME='/mnt/msralaphilly2/yeqibai/warehouse/llama/llama-2-7b'
+  - export PROT_SPM_PATH='/mnt/msralaphilly2/yeqibai/warehouse/scigpt/ur50bpe/bpe'
+  - export DNA_SPM_PATH='/mnt/msralaphilly2/yeqibai/warehouse/scigpt/dnabpe/bpe'
+  - export RNA_SPM_PATH='/mnt/msralaphilly2/yeqibai/warehouse/scigpt/rnabpe/bpe'
+  - export CKPT_HOME='/mnt/msralaphilly2/yinxia/scigpt/7bv3/unifyall_v2_full_run1/global_step17984'
+  - export INPUT_DIR='/mnt/msralaphilly2/yinxia/wu2/shared/SFM/SFM.overall.data/SFMMolInstruct.20240617.test/'
+  - export OUTPUT_DIR='/mnt/msralaphilly2/yeqibai/warehouse/sfm_nlm_resources/all_infer_results/unifyall_v2_full_run1_global_step17984_infer_results/'
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install -e . --no-deps
+  - pip install nltk
+  - pip install rouge_score
+  - bash scripts/nlm/eval/run_nlm_inference.sh
+  submit_args:
+      container_args:
+          shm_size: 1024g
