@@ -232,7 +232,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           use_dali_pipeline=$use_dali_pipeline \
           energy_loss_ratio=$energy_loss_ratio force_loss_ratio=$force_loss_ratio \
           preprocess_2d_bond_features_with_cuda=True \
-          AutoGradForce=$AutoGradForce \
+          AutoGradForce=$AutoGradForce psm_finetune_mode=$psm_finetune_mode \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
           if_total_energy=$if_total_energy \

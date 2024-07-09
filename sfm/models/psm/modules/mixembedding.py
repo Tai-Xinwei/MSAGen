@@ -130,16 +130,16 @@ class PSMMix3dEmbedding(nn.Module):
         batched_data["masked_token_type"] = mask_token_type
         x = self.embed(mask_token_type)
 
-        if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
-            atom_feature_embedding = self.atom_feature_embed(
-                batched_data["node_attr"][:, :, 1:]
-            ).sum(
-                dim=-2
-            )  # B x T x #ATOM_FEATURE x D -> # B x T x D
-            atom_feature_embedding = atom_feature_embedding.masked_fill(
-                ~molecule_mask.unsqueeze(-1), 0.0
-            )
-            x += atom_feature_embedding
+        # if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
+        #     atom_feature_embedding = self.atom_feature_embed(
+        #         batched_data["node_attr"][:, :, 1:]
+        #     ).sum(
+        #         dim=-2
+        #     )  # B x T x #ATOM_FEATURE x D -> # B x T x D
+        #     atom_feature_embedding = atom_feature_embedding.masked_fill(
+        #         ~molecule_mask.unsqueeze(-1), 0.0
+        #     )
+        #     x += atom_feature_embedding
 
         if time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)

@@ -88,7 +88,7 @@ jobs:
   - export dataset_micro_batch_size='112,8,24,8,12,24,12'
   - export fp16=False
   - export clean_sample_ratio=0.7
-  - export energy_loss_ratio=0.1
+  - export energy_loss_ratio=0.02
   - export force_loss_ratio=0.01
   - export AutoGradForce=False
   - export use_unified_batch_sampler=True
