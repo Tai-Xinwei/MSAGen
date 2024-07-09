@@ -8,7 +8,7 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=18
+[ -z "${layers}" ] && layers=12
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1024
@@ -47,13 +47,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.7' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-# [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
-[ -z "${data_path}" ] && data_path='/data/peiran/'
+[ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
 # [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,1,4"
+[ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged'
+[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'

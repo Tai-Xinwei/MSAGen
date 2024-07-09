@@ -202,7 +202,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
-          seed=12345 \
+          seed=1666 \
           mask_ratio=$mask_ratio \
           d_tilde=$d_tilde \
           strategy=$strategy \
@@ -234,5 +234,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           AutoGradForce=$AutoGradForce \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
-#           # ifresume=True \
-#           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
+          ifresume=True \
+
+          # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \

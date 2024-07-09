@@ -82,13 +82,14 @@ jobs:
   - export fp16=False
   - export clean_sample_ratio=0.7
   - export energy_loss_ratio=0.1
-  - export force_loss_ratio=0.0
+  - export force_loss_ratio=0.01
   # - export num_timesteps=1000
   # - export ddpm_beta_start=1e-4
   # - export ddpm_beta_end=2e-2
   - export AutoGradForce=False
   - export use_hard_dist_loss=True
   - export use_unified_batch_sampler=True
+  - export only_use_rotary_embedding_for_protein=False
   - export use_dali_pipeline=False
   - export save_batch_interval=5000
   # - export only_use_rotary_embedding_for_protein=True

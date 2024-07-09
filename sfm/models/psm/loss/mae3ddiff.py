@@ -253,15 +253,19 @@ class DiffMAE3dCriterions(nn.Module):
         )
         lddt = error.mean()
 
-        # # harder distance loss
+        # # hard distance loss
         time_step = model_output["time_step"]
-        time_mask = time_step < 0.1
-        pair_time_mask = time_mask.unsqueeze(1) & time_mask.unsqueeze(2)
-        hard_dist_mask = dist_mask & pair_time_mask
-        if hard_dist_mask.any():
-            hard_dist_loss = delta[hard_dist_mask].mean()
-        else:
-            hard_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
+
+        time_coefficient = ((1 - time_step) * torch.exp(-time_step / 0.3)).unsqueeze(-1)
+        hard_dist_loss = (delta * time_coefficient)[dist_mask].mean()
+
+        # time_mask = time_step < 0.1
+        # pair_time_mask = time_mask.unsqueeze(1) & time_mask.unsqueeze(2)
+        # hard_dist_mask = dist_mask & pair_time_mask
+        # if hard_dist_mask.any():
+        #     hard_dist_loss = delta[hard_dist_mask].mean()
+        # else:
+        #     hard_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
 
         return 1 - lddt, hard_dist_loss
 
@@ -302,70 +306,7 @@ class DiffMAE3dCriterions(nn.Module):
         force_mask = total_clean & batched_data["has_forces"]
 
         if not self.seq_only:
-            # energy loss and force loss
-            unreduced_energy_loss = self.energy_loss(
-                energy_per_atom_pred.to(torch.float32),
-                energy_per_atom_label.to(torch.float32),
-            )
-            energy_loss, num_energy_sample = self._reduce_energy_loss(
-                unreduced_energy_loss,
-                energy_mask,
-                is_molecule,
-                is_periodic,
-                use_per_atom_energy=True,
-            )
-            molecule_energy_loss, num_molecule_energy_sample = self._reduce_energy_loss(
-                unreduced_energy_loss,
-                energy_mask & is_molecule,
-                is_molecule,
-                is_periodic,
-                use_per_atom_energy=True,
-            )
-            periodic_energy_loss, num_periodic_energy_sample = self._reduce_energy_loss(
-                unreduced_energy_loss,
-                energy_mask & is_periodic,
-                is_molecule,
-                is_periodic,
-                use_per_atom_energy=True,
-            )
-
-            unreduced_force_loss = self.force_loss(
-                force_pred.to(dtype=force_label.dtype), force_label
-            )
-            force_loss, num_force_sample = self._reduce_force_or_noise_loss(
-                unreduced_force_loss,
-                force_mask,
-                ~non_atom_mask,
-                is_molecule,
-                is_periodic,
-                self.molecule_force_std,
-                self.periodic_force_std,
-            )
-            (
-                molecule_force_loss,
-                num_molecule_force_sample,
-            ) = self._reduce_force_or_noise_loss(
-                unreduced_force_loss,
-                force_mask & is_molecule,
-                ~non_atom_mask,
-                is_molecule,
-                is_periodic,
-                self.molecule_force_std,
-                self.periodic_force_std,
-            )
-            (
-                periodic_force_loss,
-                num_periodic_force_sample,
-            ) = self._reduce_force_or_noise_loss(
-                unreduced_force_loss,
-                force_mask & is_periodic,
-                ~non_atom_mask,
-                is_molecule,
-                is_periodic,
-                self.molecule_force_std,
-                self.periodic_force_std,
-            )
-
+            # diffussion loss
             if self.diffusion_mode == "epsilon":
                 if self.args.align_x0_in_diffusion_loss and not is_seq_only.any():
                     pos_pred = self.calculate_pos_pred(model_output, batched_data)
@@ -480,6 +421,71 @@ class DiffMAE3dCriterions(nn.Module):
                 is_periodic,
                 1.0,
                 1.0,
+            )
+
+            # energy loss
+            unreduced_energy_loss = self.energy_loss(
+                energy_per_atom_pred.to(torch.float32),
+                energy_per_atom_label.to(torch.float32),
+            )
+            energy_loss, num_energy_sample = self._reduce_energy_loss(
+                unreduced_energy_loss,
+                energy_mask,
+                is_molecule,
+                is_periodic,
+                use_per_atom_energy=True,
+            )
+            molecule_energy_loss, num_molecule_energy_sample = self._reduce_energy_loss(
+                unreduced_energy_loss,
+                energy_mask & is_molecule,
+                is_molecule,
+                is_periodic,
+                use_per_atom_energy=True,
+            )
+            periodic_energy_loss, num_periodic_energy_sample = self._reduce_energy_loss(
+                unreduced_energy_loss,
+                energy_mask & is_periodic,
+                is_molecule,
+                is_periodic,
+                use_per_atom_energy=True,
+            )
+
+            # force loss
+            unreduced_force_loss = self.force_loss(
+                force_pred.to(dtype=force_label.dtype), force_label
+            )
+            force_loss, num_force_sample = self._reduce_force_or_noise_loss(
+                unreduced_force_loss,
+                force_mask,
+                ~non_atom_mask,
+                is_molecule,
+                is_periodic,
+                self.molecule_force_std,
+                self.periodic_force_std,
+            )
+            (
+                molecule_force_loss,
+                num_molecule_force_sample,
+            ) = self._reduce_force_or_noise_loss(
+                unreduced_force_loss,
+                force_mask & is_molecule,
+                ~non_atom_mask,
+                is_molecule,
+                is_periodic,
+                self.molecule_force_std,
+                self.periodic_force_std,
+            )
+            (
+                periodic_force_loss,
+                num_periodic_force_sample,
+            ) = self._reduce_force_or_noise_loss(
+                unreduced_force_loss,
+                force_mask & is_periodic,
+                ~non_atom_mask,
+                is_molecule,
+                is_periodic,
+                self.molecule_force_std,
+                self.periodic_force_std,
             )
         else:
             energy_loss = torch.tensor(
