@@ -385,9 +385,14 @@ class MatterSimDataset:
                 meminit=False,
             )
             self.data_txn = self.data_lmdb.begin(write=False)
-            self.index_to_key_name = bstr2obj(
-                self.data_txn.get("index_to_key_name".encode())
-            )
+            if self.data_txn.get("index_to_key_name".encode()) is None:
+                self.index_to_key_name = []
+                for key, val in self.data_txn.cursor():
+                    self.index_to_key_name.append(key.decode())
+            else:
+                self.index_to_key_name = bstr2obj(
+                    self.data_txn.get("index_to_key_name".encode())
+                )
         self.args = args
 
         if args.psm_validation_mode and hasattr(args, "max_validation_samples"):

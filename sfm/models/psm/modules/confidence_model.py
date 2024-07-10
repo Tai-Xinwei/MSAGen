@@ -3,14 +3,8 @@ from typing import List, Optional
 
 import torch
 from Bio.SVDSuperimposer import SVDSuperimposer
+from numpy import flip
 from torch import nn
-
-
-# helper functions
-def permute_final_dims(tensor: torch.Tensor, inds: List[int]):
-    zero_index = -1 * len(inds)
-    first_inds = list(range(len(tensor.shape[:zero_index])))
-    return tensor.permute(first_inds + [zero_index + i for i in inds])
 
 
 def softmax_cross_entropy(logits, labels):
@@ -191,42 +185,26 @@ def lddt(
     all_atom_mask: torch.Tensor,  # (B, N)
     cutoff: float = 15.0,
     eps: float = 1e-10,
-    per_residue: bool = True,
 ) -> torch.Tensor:
-    n = all_atom_mask.shape[-2]
-    dmat_true = torch.sqrt(
-        eps
-        + torch.sum(
-            (all_atom_positions[..., None, :] - all_atom_positions[..., None, :, :])
-            ** 2,
-            dim=-1,
-        )
-    )
-
     # use torch built-in function norm to compute pairwise distances
-    # dmat_true = torch.norm(
-    #     all_atom_positions[..., None, :] - all_atom_positions[..., None, :, :] + eps, dim=-1, p=2, dim=-1
-    # )
-
-    dmat_pred = torch.sqrt(
-        eps
-        + torch.sum(
-            (all_atom_pred_pos[..., None, :] - all_atom_pred_pos[..., None, :, :]) ** 2,
-            dim=-1,
-        )
+    dmat_true = torch.norm(
+        all_atom_positions[..., None, :] - all_atom_positions[..., None, :, :] + eps,
+        dim=-1,
+        p=2,
     )
-
-    # dmat_pred = torch.norm(
-    #     all_atom_pred_pos[..., None, :] - all_atom_pred_pos[..., None, :, :] + eps, dim=-1, p=2, dim=-1
-    # )
-
-    dists_to_score = (
-        (dmat_true < cutoff)
-        * all_atom_mask
-        * permute_final_dims(all_atom_mask, (1, 0))
-        * (1.0 - torch.eye(n, device=all_atom_mask.device))
+    dmat_pred = torch.norm(
+        all_atom_pred_pos[..., None, :] - all_atom_pred_pos[..., None, :, :] + eps,
+        dim=-1,
+        p=2,
     )
-
+    dists_to_score = dmat_true < cutoff
+    dists_to_score = dists_to_score * all_atom_mask.unsqueeze(-1)
+    dists_to_score = dists_to_score * all_atom_mask.unsqueeze(-2)
+    dists_to_score = dists_to_score * (
+        1.0
+        - torch.eye(all_atom_mask.shape[1], device=all_atom_mask.device).unsqueeze(0)
+    )
+    # (B, N, N) * (1, N, N)
     dist_l1 = torch.abs(dmat_true - dmat_pred)
 
     score = (
@@ -234,13 +212,9 @@ def lddt(
         + (dist_l1 < 1.0).type(dist_l1.dtype)
         + (dist_l1 < 2.0).type(dist_l1.dtype)
         + (dist_l1 < 4.0).type(dist_l1.dtype)
-    )
-    score = score * 0.25
-
-    dims = (-1,) if per_residue else (-2, -1)
-    norm = 1.0 / (eps + torch.sum(dists_to_score, dim=dims))
-    score = norm * (eps + torch.sum(dists_to_score * score, dim=dims))
-
+    ) * 0.25  # (B, N, N)
+    norm = 1.0 / (eps + torch.sum(dists_to_score, dim=-1))  # (B, N)
+    score = norm * (eps + torch.sum(dists_to_score * score, dim=-1))
     return score
 
 
@@ -270,6 +244,10 @@ def lddt_loss(
     bin_index = torch.clamp(bin_index, max=(no_bins - 1))
     lddt_ca_one_hot = torch.nn.functional.one_hot(bin_index, num_classes=no_bins)
     errors = softmax_cross_entropy(logits, lddt_ca_one_hot)
+    # accuracy
+    acc = torch.sum(
+        (torch.argmax(logits, dim=-1) == bin_index).type(logits.dtype) * ca_atom_mask
+    ) / (eps + torch.sum(ca_atom_mask))
     ca_atom_mask = ca_atom_mask.squeeze(-1)
     loss = torch.sum(errors * ca_atom_mask, dim=-1) / (
         eps + torch.sum(ca_atom_mask, dim=-1)
@@ -278,7 +256,7 @@ def lddt_loss(
     loss = loss * ((resolution >= min_resolution) & (resolution <= max_resolution))
     # Average over the batch dimension
     loss = torch.mean(loss)
-    return loss
+    return loss, acc
 
 
 def compute_tm(
@@ -332,40 +310,6 @@ def compute_tm(
     return per_alignment[tuple(argmax)]
 
 
-# TODO: tm_score_loss function
-# TODO: add _compute_validation_metrics function
-
-# modules
-
-
-class PerResidueLDDTCaPredictor(nn.Module):
-    def __init__(self, no_bins, c_in, c_hidden):
-        super(PerResidueLDDTCaPredictor, self).__init__()
-
-        self.no_bins = no_bins
-        self.c_in = c_in
-        self.c_hidden = c_hidden
-
-        self.layer_norm = nn.LayerNorm(self.c_in)
-
-        self.linear_1 = nn.Linear(self.c_in, self.c_hidden)
-        self.linear_2 = nn.Linear(self.c_hidden, self.c_hidden)
-        self.linear_3 = nn.Linear(self.c_hidden, self.no_bins)
-        with torch.no_grad():
-            self.linear_3.weight.data.fill_(0.0)
-        self.relu = nn.ReLU()
-
-    def forward(self, s):
-        s = self.layer_norm(s)
-        s = self.linear_1(s)
-        s = self.relu(s)
-        s = self.linear_2(s)
-        s = self.relu(s)
-        s = self.linear_3(s)
-
-        return s
-
-
 class TMScoreHead(nn.Module):
     """
     For use in computation of TM-score, subsection 1.9.7
@@ -400,8 +344,3 @@ class TMScoreHead(nn.Module):
         # [*, N, N, no_bins]
         logits = self.linear(z)
         return logits
-
-
-# test functions
-if __name__ == "__main__":
-    pass

@@ -26,6 +26,7 @@
 [ -z "${command}" ] && command="inference"
 [ -z "${n_seq}" ] && n_seq=128
 [ -z "${entity}" ] && entity=protein
+[ -z "${max_new_tokens}" ] && max_new_tokens=512
 
 echo "input_file: ${input_file}"
 echo "output_dir: ${output_dir}"
@@ -33,6 +34,7 @@ echo "model_name: ${model_name}"
 echo "base_model_root: ${base_model_root}"
 echo "model_ckpt_home: ${model_ckpt_home}"
 echo "aux_home: ${aux_home}"
+echo "max_new_tokens: ${max_new_tokens}"
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -77,6 +79,6 @@ torchrun $DISTRIBUTED_ARGS tools/nlm/x_inference.py \
     --model_ckpt_home ${model_ckpt_home} \
     --aux_home ${aux_home} \
     --command ${command} \
-    --n_seq ${n_seq} --entity ${entity}
+    --n_seq ${n_seq} --entity ${entity} --max_new_tokens ${max_new_tokens}
 
 echo "done"

@@ -24,11 +24,10 @@ import time
 
 import torch.distributed as dist
 from torch.utils.data import Dataset, DataLoader
-from sfm.data.sci_data.NlmTokenizer import NlmLlama3Tokenizer
-
 
 sys.path.append(os.path.join(Path(__file__).parent.parent.parent, "."))
 
+from sfm.data.sci_data.NlmTokenizer import NlmLlama3Tokenizer
 
 def setup_for_distributed(is_master):
     """
@@ -222,7 +221,7 @@ class NLMGenerator(ABC):
 
         # torch.distributed.barrier()
 
-    def generate(self, n_seq, entity, output_dir):
+    def generate(self, n_seq, entity, output_dir, max_new_tokens):
 
         world_size = int(os.environ["WORLD_SIZE"])
         local_rank = int(os.environ["RANK"])
@@ -243,7 +242,7 @@ class NLMGenerator(ABC):
                 for _ in tqdm(range(n_seq), mininterval=10):
                     outputs = self.model.module.generate(
                         input_ids,
-                        max_new_tokens=512,
+                        max_new_tokens=max_new_tokens,
                         do_sample=True,
                         pad_token_id=self.tokenizer.pad_token_id,
                         num_return_sequences=1,
@@ -674,6 +673,145 @@ class MixtralGenerator(NLMGenerator):
 
         return tokenizer, model
 
+class MixtralDistGenerator(MixtralGenerator):
+    def __init__(self, base_model_home, model_ckpt_home, aux_home):
+        self.model_parallel_size = int(os.environ.get("MODEL_PARALLEL_SIZE", 1))
+        self.world_size = int(os.environ.get("WORLD_SIZE", 1))
+        self.rank = int(os.environ.get("RANK", 0))
+        self.local_rank = int(os.environ.get("LOCAL_RANK", 0))
+
+        print(f"model parallel size: {self.model_parallel_size}")
+
+        assert self.world_size % self.model_parallel_size == 0
+        self.model_rank = self.rank // self.model_parallel_size
+        super().__init__(base_model_home, model_ckpt_home, aux_home)
+
+    def create_device_map(self):
+        model_rank = self.local_rank // self.model_parallel_size
+        rank_start = model_rank * self.model_parallel_size
+
+        n_layers = 32
+        layer_per_rank = n_layers // self.model_parallel_size
+        device_map = {}
+        device_map["model.embed_tokens.weight"] = rank_start
+        for i in range(n_layers):
+            device_idx = rank_start + i // layer_per_rank
+            device_map[f"model.layers.{i}"] = device_idx
+
+        device_map["model.norm.weight"] = rank_start + (n_layers-1) // layer_per_rank
+        device_map["lm_head.weight"] = rank_start + (n_layers-1) // layer_per_rank
+
+        return device_map
+
+    def prepare(self):
+        from sfm.data.sci_data.NlmTokenizer import NlmTokenizer
+        if self.local_rank % self.model_parallel_size != 0:
+            # wait for rank 0 to download and convert ckpt
+            torch.distributed.barrier()
+            return None, None
+
+        tokenizer = NlmTokenizer.from_pretrained(self.base_model_home)
+        print("vocab size", len(tokenizer))
+        if self.local_rank == 0:
+            self.download_and_convert_ckpt(self.base_model_home, self.model_ckpt_home, self.aux_home)
+
+        if self.world_size > 1:
+            torch.distributed.barrier()
+
+        with init_empty_weights():
+            model = AutoModelForCausalLM.from_pretrained(self.aux_home)
+
+        model = load_checkpoint_and_dispatch(
+            model,
+            self.aux_home,
+            device_map=self.create_device_map(),
+            no_split_module_classes=['MixtralDecoderLayer'],
+            dtype=torch.bfloat16,
+            offload_folder=None,
+            offload_state_dict=True
+        )
+
+        # hack to avoid all past_key_values moved to GPU0
+        model._hf_hook.skip_keys = ['past_key_values']
+        model.eval()
+
+        return tokenizer, model
+
+    def inference(self, input_file, output_dir):
+        if self.local_rank % self.model_parallel_size != 0:
+            return
+
+        text_dataset = TextFileDataset(input_file)
+
+        self.sampler_train = torch.utils.data.DistributedSampler(
+            text_dataset,
+            num_replicas=self.world_size // self.model_parallel_size,
+            rank=self.rank // self.model_parallel_size,
+            shuffle=False,
+        )
+
+        batch_sampler = torch.utils.data.BatchSampler(self.sampler_train, batch_size=1, drop_last=False)
+        data_loader = torch.utils.data.DataLoader(text_dataset, batch_sampler=batch_sampler, pin_memory=False, num_workers=1)
+
+        buffer = []
+
+        start_time = time.time()
+
+        with torch.no_grad():
+            for idx, test_sample in tqdm(enumerate(data_loader), total=len(data_loader)):
+                q = test_sample[0].split('\t')[0].strip()
+
+                r0 = self.chat(q, do_sample=False)
+                r1 = self.chat(q, do_sample=True)
+
+                buffer.append((test_sample[0], r0, r1))
+
+
+
+        print(f"Local rank #[{self.model_rank}]: execution {(time.time() - start_time):.2f} seconds", force=True)
+
+        os.makedirs(output_dir, exist_ok=True)
+
+        with open(os.path.join(output_dir, f'part{self.model_rank}.pkl') , 'wb') as fw:
+            print(f'Local rank #[{self.model_rank}] writing file: {len(buffer)}', force=True)
+            pkl.dump(buffer, fw)
+            print(f'Local rank #[{self.model_rank}] finished writing.', force=True)
+
+    def generate(self, n_seq, entity, output_dir, max_new_tokens):
+        if self.local_rank % self.model_parallel_size != 0:
+            return
+
+        output_path = os.path.join(output_dir, f'{self.model_rank}.generate.txt')
+
+        input_ids = self.tokenizer(f"<{entity}>", return_tensors="pt").input_ids.cuda()
+
+        printed = False
+
+        with torch.no_grad():
+            with open(output_path, 'wt') as writer:
+                for _ in tqdm(range(n_seq), mininterval=10):
+                    outputs = self.model.module.generate(
+                        input_ids,
+                        max_new_tokens=max_new_tokens,
+                        do_sample=True,
+                        pad_token_id=self.tokenizer.pad_token_id,
+                        num_return_sequences=1,
+                    )
+                    output_text = self.tokenizer.decode(outputs[0])
+                    if not printed:
+                        print(f"raw text: {output_text}")
+                    begin_idx = output_text.find(f"<{entity}>") + len(f"<{entity}>")
+                    end_idx = output_text.find(f"</{entity}>")
+
+                    if end_idx == -1:
+                        end_idx = len(output_text)
+
+                    entity_text = output_text[begin_idx : end_idx]
+                    entity_text = entity_text.replace(' <a>', '').strip()
+                    if not printed:
+                        print(f"ret text: {entity_text}")
+                    writer.write(entity_text + "\n")
+                    printed = True
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -688,6 +826,7 @@ def parse_args():
     parser.add_argument("--aux_home", action="store", help="", default="")
     parser.add_argument("--n_seq", type=int, action="store", help="", default=128)
     parser.add_argument("--entity", action="store", help="", default="protein")
+    parser.add_argument('--max_new_tokens', type=int, action='store', help='', default=512)
     return parser.parse_args()
 
 
@@ -698,18 +837,20 @@ def main():
 
     if args.model_name == "llama2_7b":
         g_cls = Llama2Generator
+    elif args.model_name == "llama3_1b":
+        g_cls = Base1BGenerator
     elif args.model_name == "llama3_8b":
         g_cls = Base8BGenerator
     elif args.model_name == "mixtral_8x7b":
         g_cls = MixtralGenerator
-    elif args.model_name == "base1b":
-        g_cls = Base1BGenerator
+    elif args.model_name == "mixtral_8x7b-dist":
+        g_cls = MixtralDistGenerator
 
     g = g_cls(args.base_model_root, args.model_ckpt_home, args.aux_home)
     if args.command == "inference":
         g.inference(args.input_file, args.output_dir)
     elif args.command == "generate":
-        g.generate(args.n_seq, args.entity, args.output_dir)
+        g.generate(args.n_seq, args.entity, args.output_dir, args.max_new_tokens)
     else:
         raise Exception(f'Unkonwn command: "{args.command}"')
 

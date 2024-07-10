@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
+from sfm.models.psm.modules.confidence_model import compute_plddt, lddt_loss
 from sfm.models.psm.psmmodel import PSMConfig
 from sfm.utils.register import Register
 
@@ -120,4 +121,64 @@ class MDEnergyForceHead(PSMFinetuneBaseModule):
             "energy_loss": (e_loss, size),
             "force_loss": (f_loss, size),
         }
+        return loss, logging_output
+
+
+@PSM_FT_REGISTER.register("plddt_confidence_head")
+class PerResidueLDDTCaPredictor(nn.Module):
+    def __init__(self, args, no_bins=50, c_hidden=128):
+        super(PerResidueLDDTCaPredictor, self).__init__()
+
+        self.no_bins = no_bins
+        self.c_in = args.encoder_embed_dim
+        self.c_hidden = c_hidden
+
+        self.layer_norm = nn.LayerNorm(self.c_in)
+
+        self.linear_1 = nn.Linear(self.c_in, self.c_hidden)
+        self.linear_2 = nn.Linear(self.c_hidden, self.c_hidden)
+        self.linear_3 = nn.Linear(self.c_hidden, self.no_bins)
+        with torch.no_grad():
+            self.linear_3.weight.data.fill_(0.0)
+        self.relu = nn.ReLU()
+
+    def update_batched_data(self, samples, batched_data):
+        return batched_data
+
+    def forward(self, result_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        s = result_dict["decoder_x_output"]
+        s = self.layer_norm(s)
+        s = self.linear_1(s)
+        s = self.relu(s)
+        s = self.linear_2(s)
+        s = self.relu(s)
+        s = self.linear_3(s)
+        result_dict["plddt_logits"] = s
+        with torch.no_grad():
+            result_dict["plddt"] = compute_plddt(s)
+            # calculate mean pLDDT score corresponding to the mask
+            result_dict["mean_plddt"] = result_dict["plddt"][
+                result_dict["is_protein"]
+            ].mean()
+        return result_dict
+
+    def update_loss(self, loss, logging_output, model_output, batched_data):
+        pos_pred = model_output["pred_pos_sample"]
+        pos_orig = model_output["orig_pos_sample"]
+
+        resolution = torch.ones(
+            batched_data["is_protein"].shape[0],
+            device=pos_pred.device,
+            dtype=pos_pred.dtype,
+        )
+        lddt_loss_output, lddt_acc = lddt_loss(
+            model_output["plddt_logits"],
+            pos_pred,
+            pos_orig,
+            batched_data["is_protein"],
+            resolution,
+        )
+        loss += lddt_loss_output
+        logging_output["lddt_loss"] = lddt_loss_output
+        logging_output["lddt_acc"] = lddt_acc
         return loss, logging_output

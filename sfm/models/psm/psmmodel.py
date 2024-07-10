@@ -509,7 +509,7 @@ class PSMModel(Model):
             if noise_mode == "T":
                 time_step = torch.ones_like(time_step)
                 clean_mask = torch.zeros_like(clean_mask)
-                batched_data["pos"] = torch.zeros_like(batched_data["pos"])
+                # batched_data["pos"] = torch.zeros_like(batched_data["pos"])
             elif noise_mode == "zero":
                 time_step = torch.zeros_like(time_step)
                 clean_mask = torch.ones_like(clean_mask)
@@ -545,13 +545,17 @@ class PSMModel(Model):
         batched_data[
             "sqrt_one_minus_alphas_cumprod_t"
         ] = sqrt_one_minus_alphas_cumprod_t
-        result_dict = self.net(
-            batched_data,
-            time_step=time_step,
-            clean_mask=clean_mask,
-            aa_mask=aa_mask,
-            **kwargs,
-        )
+
+        context = torch.no_grad() if self.psm_config.freeze_backbone else nullcontext()
+        with context:
+            result_dict = self.net(
+                batched_data,
+                time_step=time_step,
+                clean_mask=clean_mask,
+                aa_mask=aa_mask,
+                **kwargs,
+            )
+
         result_dict["noise"] = noise
         result_dict["clean_mask"] = clean_mask
         result_dict["aa_mask"] = aa_mask
@@ -570,6 +574,10 @@ class PSMModel(Model):
 
         if self.psm_finetune_head:
             result_dict = self.psm_finetune_head(result_dict)
+            if self.psm_config.psm_sample_structure_in_finetune:
+                sampled_output = self.sample(batched_data)
+                for k, v in sampled_output.items():
+                    result_dict[k + "_sample"] = v
 
         return result_dict
 
@@ -646,7 +654,11 @@ class PSMModel(Model):
             batched_data, padding_mask=padding_mask
         )  # centering to remove noise translation
 
-        for t in tqdm(range(self.psm_config.num_timesteps - 1, -1, -1)):
+        for t in range(
+            self.psm_config.num_timesteps - 1,
+            -1,
+            self.psm_config.num_timesteps_stepsize,
+        ):  # TODO: need to modify the step size
             # forward
             time_step = self.time_step_sampler.get_continuous_time_step(
                 t, n_graphs, device=device, dtype=batched_data["pos"].dtype

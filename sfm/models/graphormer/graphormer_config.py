@@ -41,6 +41,7 @@ class GraphormerConfig:
     transformer_m_pretrain: bool = True
     mode_prob: str = "0.6,0.2,0.2"
     num_timesteps: int = 5000
+    num_timesteps_stepsize: int = -1
     ddpm_beta_start: float = 1e-7
     ddpm_beta_end: float = 0.002
     ddpm_schedule: str = "sigmoid"
