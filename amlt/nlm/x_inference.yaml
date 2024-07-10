@@ -62,9 +62,16 @@ jobs:
   # ----- [llama3_8b] ------
   - export model_name="llama3_8b"
   - export base_model_root="/blob/llama/Meta-Llama-3-8B/original/"
-  - export model_ckpt_home="/blob/kaiyuan/results/nlm/inst/inst_0621_bsz256_lr2e5_0624/global_step89920/"
+  - export model_ckpt_home="/blob/zekun/output/8b/llama3_stageB_G256_bs256_lr2e5/global_step80928/"
   - export aux_home=""
   - export output_dir="/blob/lihe/output/inference/sfmdata.prot.test.sampled100.tsv/llama3_8b"
+
+  # ----- [llama3_1b] ------
+  # - export model_name="llama3_1b"
+  # - export base_model_root="/blob/llama/Meta-Llama-3-8B/original/"
+  # - export model_ckpt_home="/blob/zekun/output/base1b/150B_G64_512/global_step44960/"
+  # - export aux_home=""
+  # - export output_dir="/blob/lihe/output/inference/sfmdata.prot.generation/llama3_1b_maxlen256"
 
   # ----- [mixtral_8x7b] ------
   # - export model_name="mixtral_8x7b"
