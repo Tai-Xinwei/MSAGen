@@ -7,7 +7,7 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 2
+  NODES: 4
   GPUS: 8
   WANDB_API_KEY: "local-138548ae9c9a3b39646af8ae2c4c6d4e22c51385"
 
@@ -37,6 +37,7 @@ code:
 
 jobs:
 - name: psmv1_vt_v10_10m_stage1_scaling_law
+  identity: managed
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}x32G${GPUS}-V100-IB
   mpi: true
@@ -93,7 +94,7 @@ jobs:
   # - export ddpm_beta_end=2e-2
   - export use_unified_batch_sampler=True
   - export use_dali_pipeline=False
-  - export save_batch_interval=30000
+  - export save_batch_interval=10000
   - export loadcheck_path=/sfm/sfmexpresults/yaosen/psmv1_vt_v10_10m_stage1_scaling_law/checkpoints
   - export save_dir=/sfm/sfmexpresults/yaosen/psmv1_vt_v10_10m_stage1_scaling_law/checkpoints
   # - export loadcheck_path=/psm/exp/peiran/psmv1_vt_v5/checkpoints

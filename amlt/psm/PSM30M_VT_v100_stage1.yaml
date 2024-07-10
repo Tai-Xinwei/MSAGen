@@ -9,14 +9,14 @@ description: PSMV1
 
 env_defaults:
   NODES: 4
-  GPUS: 8
+  GPUS: 40
   WANDB_API_KEY: "local-138548ae9c9a3b39646af8ae2c4c6d4e22c51385"
 
 target:
   # service: aml
   # name: townsend1
   service: sing
-  name: msrresrchlab
+  name: msrresrchvc
   workspace_name: sfm-ws
 
 environment:
@@ -38,6 +38,7 @@ code:
 
 jobs:
 - name: psmv1_vt_v10_30m_stage1_scaling_law
+  identity: managed
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}x32G${GPUS}-V100-IB
   mpi: true
@@ -83,7 +84,7 @@ jobs:
   - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb'
   - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50'
   - export dataset_split_raito='0.2,0.1,0.4,0.1,0.2'
-  - export dataset_micro_batch_size='64,8,8,8,8'
+  - export dataset_micro_batch_size='32,4,4,4,4'
   - export mode_prob='0.4,0.4,0.2'
   - export fp16=False
   - export clean_sample_ratio=0.5
