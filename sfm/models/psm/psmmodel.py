@@ -1112,7 +1112,7 @@ class PSM(nn.Module):
                 )
 
                 if self.args.AutoGradForce and pbc_expand_batched is not None:
-                    forces = -1.0 * self.autograd_force_head(
+                    forces = self.autograd_force_head(
                         energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
                             dim=-1, keepdim=True
                         ),
