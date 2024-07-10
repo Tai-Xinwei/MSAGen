@@ -130,20 +130,23 @@ class PSMMix3dEmbedding(nn.Module):
         batched_data["masked_token_type"] = mask_token_type
         x = self.embed(mask_token_type)
 
-        # if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
-        #     atom_feature_embedding = self.atom_feature_embed(
-        #         batched_data["node_attr"][:, :, 1:]
-        #     ).sum(
-        #         dim=-2
-        #     )  # B x T x #ATOM_FEATURE x D -> # B x T x D
-        #     atom_feature_embedding = atom_feature_embedding.masked_fill(
-        #         ~molecule_mask.unsqueeze(-1), 0.0
-        #     )
-        #     x += atom_feature_embedding
+        if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
+            atom_feature_embedding = self.atom_feature_embed(
+                batched_data["node_attr"][:, :, 1:]
+            ).sum(
+                dim=-2
+            )  # B x T x #ATOM_FEATURE x D -> # B x T x D
+            atom_feature_embedding = atom_feature_embedding.masked_fill(
+                ~molecule_mask.unsqueeze(-1), 0.0
+            )
+
+            # time raito is 0 at time step == 0, time raito is 1 at time step >= 0.05, linear increase between 0 and 0.05
+            time_ratio = torch.clamp(time_step / 0.05, 0.0, 1.0)
+            x += atom_feature_embedding * time_ratio.unsqueeze(-1)
 
         if time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)
-            x += time_embed  # .unsqueeze(1)
+            x += time_embed
 
         pos_embedding = self._pos_emb(
             batched_data["pos"],

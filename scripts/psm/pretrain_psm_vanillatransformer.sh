@@ -31,7 +31,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_mode}" ] && noise_mode=diff
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.3
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.7
 
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=4e-5
@@ -53,23 +53,23 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
-[ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged'
-[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="6"
-# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.35,0.1,0.1,0.1,0.05'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64,8,12,8,6,12,12'
+# [ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="6"
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.35,0.1,0.1,0.1,0.05'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64,2,12,2,6,12,12'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
-[ -z "${AutoGradForce}" ] && AutoGradForce=False
+[ -z "${AutoGradForce}" ] && AutoGradForce=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
-[ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.0
+[ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.1
 [ -z "${force_loss_ratio}" ] && force_loss_ratio=0.1
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psmv1_vt_v10_1b/global_step165000/mp_rank_00_model_states.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psmv1_vt_v10_1b/global_step185000/mp_rank_00_model_states.pt"
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step165000"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
 
@@ -201,7 +201,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
-          seed=6668 \
+          seed=6669 \
           mask_ratio=$mask_ratio \
           d_tilde=$d_tilde \
           strategy=$strategy \

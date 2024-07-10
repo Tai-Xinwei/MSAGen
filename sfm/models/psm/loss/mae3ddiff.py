@@ -87,7 +87,7 @@ class DiffMAE3dCriterions(nn.Module):
         self.seq_only = args.seq_only
 
         self.energy_loss = nn.L1Loss(reduction="none")
-        self.force_loss = nn.MSELoss(reduction="none")
+        self.force_loss = nn.L1Loss(reduction="none")
         if getattr(args, "use_mae_force_loss", False):
             self.force_loss = nn.L1Loss(reduction="none")
         self.noise_loss = (
@@ -257,7 +257,7 @@ class DiffMAE3dCriterions(nn.Module):
         # # hard distance loss
         time_step = model_output["time_step"]
 
-        time_coefficient = ((1 - time_step) * torch.exp(-time_step / 0.3)).unsqueeze(-1)
+        time_coefficient = ((1 - time_step) * torch.exp(-time_step / 0.4)).unsqueeze(-1)
         hard_dist_loss = (delta * time_coefficient)[dist_mask].mean()
 
         # time_mask = time_step < 0.1

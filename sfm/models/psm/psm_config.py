@@ -109,7 +109,7 @@ class PSMConfig(GraphormerConfig):
     force_loss_ratio: float = 1.0
     AutoGradForce: bool = False
     seq_only: bool = False
-    hard_dist_loss_raito: float = 10.0
+    hard_dist_loss_raito: float = 20.0
     use_hard_dist_loss: bool = False
     if_total_energy: bool = False
 
