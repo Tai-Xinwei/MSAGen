@@ -33,6 +33,7 @@ jobs:
   # - export model_ckpt_home="/blob/lihe/model/yinxia/scigpt/7bv3/unifyall_full_run1/global_step22144"
   # - export aux_home="/blob/lihe/model/shufxi/data/scigpt/"
   # - export output_dir="/blob/lihe/output/inference/sfmdata.prot.generation/llama2_7b.v1"
+  # - mkdir -p /blob/lihe/output/inference/sfmdata.prot.generation/llama2_7b.v1_maxlen256/
 
   # ----- [llama2_7b v2] ------
   # - export model_name="llama2_7b"
@@ -40,21 +41,31 @@ jobs:
   # - export model_ckpt_home="/blob/lihe/model/yinxia/scigpt/7bv3/unifyall_v2_full_run1/global_step17984"
   # - export aux_home="/blob/lihe/model/shufxi/data/scigpt/"
   # - export output_dir="/blob/lihe/output/inference/sfmdata.prot.generation/llama2_7b.v2"
+  # - mkdir -p /blob/lihe/output/inference/sfmdata.prot.generation/llama2_7b.v2_maxlen256/
 
   # ----- [llama2_7b v3] ------
-  # - export model_name="llama2_7b"
-  # - export base_model_root="/blob/lihe/hai1/ds_dataset/llama2/llama-2-7b/"
-  # - export model_ckpt_home="/blob/lihe/model/yinxia/scigpt/7bv3/unifyall_v3_full_run1/global_step17984"
-  # - export aux_home="/blob/lihe/model/shufxi/data/scigpt/"
-  # - export output_dir="/blob/lihe/output/inference/sfmdata.prot.generation/llama2_7b.v3"
+#   - export model_name="llama2_7b"
+#   - export base_model_root="/blob/lihe/hai1/ds_dataset/llama2/llama-2-7b/"
+#   - export model_ckpt_home="/blob/lihe/model/yinxia/scigpt/7bv3/unifyall_v3_full_run1/global_step17984"
+#   - export aux_home="/blob/lihe/model/shufxi/data/scigpt/"
+#   - export output_dir="/blob/lihe/output/inference/sfmdata.prot.generation/llama2_7b.v3_maxlen256"
+#   - mkdir -p /blob/lihe/output/inference/sfmdata.prot.generation/llama2_7b.v3_maxlen256/
+
+  # ----- [llama3_1b] ------
+#   - export model_name="llama3_1b"
+#   - export base_model_root="/blob/llama/Meta-Llama-3-8B/original/"
+#   - export model_ckpt_home="/blob/zekun/output/base1b/150B_G64_512/global_step44960/"
+#   - export aux_home=""
+#   - export output_dir="/blob/lihe/output/inference/sfmdata.prot.generation/llama3_1b_maxlen256"
+#   - mkdir -p /blob/lihe/output/inference/sfmdata.prot.generation/llama3_1b_maxlen256/
 
   # ----- [llama3_8b] ------
   - export model_name="llama3_8b"
   - export base_model_root="/blob/llama/Meta-Llama-3-8B/original/"
-  # - export model_ckpt_home="/blob/kaiyuan/results/nlm/inst/inst_tuning_full_bsz128_lr5e-5_0616/global_step54000/"
-  - export model_ckpt_home="/blob/kaiyuan/results/nlm/inst/inst_0621_bsz256_lr2e5_0624/global_step89920/"
+  - export model_ckpt_home="/blob/zekun/output/8b/llama3_stageB_G256_bs256_lr2e5/global_step80928/"
   - export aux_home=""
-  - export output_dir="/blob/lihe/output/inference/sfmdata.prot.generation/llama3_8b"
+  - export output_dir="/blob/lihe/output/inference/sfmdata.prot.generation/llama3_8b_maxlen256"
+  - mkdir -p /blob/lihe/output/inference/sfmdata.prot.generation/llama3_8b_maxlen256/
 
   # ----- [mixtral_8x7b] ------
   # - export model_name="mixtral_8x7b"
@@ -62,14 +73,12 @@ jobs:
   # - export model_ckpt_home="/blob/shufxi/nlm/8x7b/inst/20240611215447/global_step33216/"
   # - export aux_home="/tmp/nlm_rank"
   # - export output_dir="/blob/lihe/output/inference/sfmdata.prot.generation/mixtral_8x7b"
-
-  # - export input_file="/blob/lihe/data/generated/sfmdata.prot.test.sampled30.tsv"
+  # - mkdir -p /blob/lihe/output/inference/sfmdata.prot.generation/mixtral_8x7b_maxlen256/
 
   - export command="generate"
-  - export n_seq=128
+  - export n_seq=256
   - export entity=protein
-
-  - mkdir -p /blob/lihe/output/inference/sfmdata.prot.generation/llama3_8b/
+  - export max_new_tokens=256
 
   - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
   - bash ./install/install.sh && bash ./install/install_megatron.sh

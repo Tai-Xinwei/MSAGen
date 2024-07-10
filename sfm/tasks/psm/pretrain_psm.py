@@ -160,6 +160,7 @@ def main(args: DictConfig) -> None:
         warmup_max_lr=args.max_lr,
         warmup_num_steps=args.warmup_num_steps,
         decay_type=DECAY_COSINE_RATE,
+        d_tilde=args.d_tilde,
     )
 
     if args.psm_validate_for_train_set and args.psm_validation_mode:
