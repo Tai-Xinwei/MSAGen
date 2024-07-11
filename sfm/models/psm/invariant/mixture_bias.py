@@ -103,6 +103,7 @@ class PSMBias(nn.Module):
         graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2)
 
         if local_attention_weight is not None:
+            local_attention_weight = local_attention_weight.to(dtype=edge_feature.dtype)
             edge_feature = edge_feature * local_attention_weight.unsqueeze(-1)
         edge_feature = edge_feature.sum(dim=-2)
         pos_embedding_feature = self.pos_embedding_proj(edge_feature)

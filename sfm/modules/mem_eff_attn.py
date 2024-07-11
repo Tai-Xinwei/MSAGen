@@ -39,6 +39,8 @@ class MemEffAttn(nn.Module):
         add_rope=False,
         layer_norm=False,
         add_quant_noise=False,
+        use_smooth_softmax=False,
+        smooth_factor=0.0,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -53,6 +55,9 @@ class MemEffAttn(nn.Module):
         assert (
             self.head_dim * num_heads == self.embed_dim
         ), "embed_dim must be divisible by num_heads"
+        assert (
+            use_smooth_softmax is False
+        ), "smooth softmax is not supported in memory efficient attention"
         self.scaling = (
             (self.head_dim / d_tilde) ** 0.5
         ) / self.head_dim  # when d_tilt == 1, match with original transformer scale

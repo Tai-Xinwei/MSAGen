@@ -9,6 +9,7 @@ from sfm.models.graphormer.graphormer_config import GraphormerConfig
 class VecInitApproach(Enum):
     ZERO_CENTERED_POS: str = "ZERO_CENTERED_POS"
     RELATIVE_POS: str = "RELATIVE_POS"
+    AUGMENTED_RELATIVE_POS: str = "AUGMENTED_RELATIVE_POS"
 
     def __str__(self):
         return self.value
@@ -94,6 +95,9 @@ class PSMConfig(GraphormerConfig):
     equivar_vec_init: VecInitApproach = VecInitApproach.ZERO_CENTERED_POS
     equivar_use_linear_bias: bool = False
     equivar_use_attention_bias: bool = False
+    use_smooth_softmax: bool = False
+    smooth_factor: float = 20.0
+    use_smooth_equviariant_norm: bool = False
 
     # for 2D information
     use_2d_atom_features: bool = False
