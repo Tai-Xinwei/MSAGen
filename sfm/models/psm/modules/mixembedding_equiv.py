@@ -59,7 +59,6 @@ class PSMMix3DEquivEmbedding(nn.Module):
                 [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
             )
             local_attention_weight = pbc_expand_batched["local_attention_weight"]
-            local_attention_weight = local_attention_weight.to(dtype=pos.dtype)
         else:
             delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
             expand_mask = padding_mask
@@ -71,6 +70,7 @@ class PSMMix3DEquivEmbedding(nn.Module):
         dist = dist.masked_fill(expand_mask.unsqueeze(1), min_dtype)
         dist = dist.masked_fill(padding_mask.unsqueeze(-1), min_dtype)
         if local_attention_weight is not None:
+            local_attention_weight = local_attention_weight.to(dtype=pos.dtype)
             dist = dist.masked_fill(local_attention_weight <= 1e-5, min_dtype)
 
         pos_emb = (
