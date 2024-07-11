@@ -12,10 +12,10 @@ export MKL_THREADING_LAYER='GNU'
 # # find the folder in /tmp and starts with azcopy_linux_amd64
 # azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
 
-[ -z "${layers}" ] && layers=32
-[ -z "${hidden_size}" ] && hidden_size=1536
-[ -z "${ffn_size}" ] && ffn_size=6144
-[ -z "${num_head}" ] && num_head=32
+[ -z "${layers}" ] && layers=36
+[ -z "${hidden_size}" ] && hidden_size=2560
+[ -z "${ffn_size}" ] && ffn_size=10240
+[ -z "${num_head}" ] && num_head=40
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
@@ -60,10 +60,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.35,0.1,0.1,0.1,0.05'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64,2,12,2,6,12,12'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,2,4,2,3,4,2'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
-[ -z "${AutoGradForce}" ] && AutoGradForce=True
+[ -z "${AutoGradForce}" ] && AutoGradForce=False
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
 [ -z "${bf16}" ] && bf16=False
@@ -244,7 +244,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           mm_tensorcore=$mm_tensorcore \
           compile=$compile \
           loadcheck_path=$loadcheck_path \
-          ifresume=True \
+          # ifresume=True \
 
           # profiling=True ptensorboard=False
           # ifresume=True \
