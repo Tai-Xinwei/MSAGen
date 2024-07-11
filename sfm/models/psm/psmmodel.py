@@ -1004,6 +1004,7 @@ class PSM(nn.Module):
                     batched_data["cell"],
                     batched_data["node_type_edge"],
                     self.psm_config.pbc_use_local_attention,
+                    use_grad=self.psm_config.AutoGradForce,
                 )
             else:
                 pbc_expand_batched = None
@@ -1080,6 +1081,7 @@ class PSM(nn.Module):
             decoder_x_output, decoder_vec_output = self.decoder(
                 batched_data,
                 token_embedding.transpose(0, 1),
+                None,
                 padding_mask,
                 pbc_expand_batched=pbc_expand_batched,
             )

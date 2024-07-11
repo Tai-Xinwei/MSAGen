@@ -138,19 +138,24 @@ class MultiheadAttentionWithProteinRotaryEmbedding(MultiheadAttention):
             attn_mask = attn_mask.unsqueeze(0)
             attn_weights += attn_mask
 
+        if local_attention_weight is not None:
+            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
+            if self.use_smooth_softmax:
+                attn_weights = (
+                    attn_weights + self.smooth_factor
+                ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+            else:
+                attn_weights = attn_weights.masked_fill(
+                    local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")
+                )
+            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
+
         if key_padding_mask is not None:
             # don't attend to padding symbols
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
             attn_weights = attn_weights.masked_fill(
                 key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
                 float("-inf"),
-            )
-            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
-
-        if local_attention_weight is not None:
-            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            attn_weights = attn_weights.masked_fill(
-                local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")
             )
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 

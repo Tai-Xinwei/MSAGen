@@ -353,26 +353,33 @@ class PlainPM6FullLMDBDataset(PM6FullLMDBDataset):
 
 
 class MatterSimDataset:
-    def __init__(self, args: PSMConfig, data_path, split):
+    def __init__(self, args: PSMConfig, data_path, split, atoms_list=None):
         self.data_lmdb = None
         self.data_txn = None
         self.index_to_key_name = []
         self.data_path = data_path
-        if not os.path.isdir(self.data_path):
+        if atoms_list is not None or (not os.path.isdir(self.data_path)):
             self.dataset_type = "single structure file"
-            # strip trailing slashes
-            self.data_path = self.data_path.rstrip("/")
-            assert (
-                self.data_path.endswith("xyz")
-                or self.data_path.endswith("cif")
-                or self.data_path.endswith("POSCAR")
-                or self.data_path.endswith("CONTCAR")
-            ), "Structure format not supported"
-            logger.info(
-                "Assuming you are using this functionality for inference only, setting split to None."
-            )
-            split = None
-            self.atoms_list = ase_read(self.data_path, index=":")
+            if atoms_list is not None:
+                self.atoms_list = atoms_list
+                # logger.info(
+                #     "atoms_list provided, will use this for inference and not load data from disk. Setting split to None."
+                # )
+                split = None
+            else:
+                # strip trailing slashes
+                self.data_path = self.data_path.rstrip("/")
+                assert (
+                    self.data_path.endswith("xyz")
+                    or self.data_path.endswith("cif")
+                    or self.data_path.endswith("POSCAR")
+                    or self.data_path.endswith("CONTCAR")
+                ), "Structure format not supported"
+                logger.info(
+                    "Assuming you are using this functionality for inference only, setting split to None."
+                )
+                split = None
+                self.atoms_list = ase_read(self.data_path, index=":")
         else:
             self.dataset_type = "lmdb"
             lmdb_path = f"{self.data_path}/{split}"
@@ -501,23 +508,36 @@ class MatterSimDataset:
             [data["coords"], cell_corner_pos], dim=0
         )  # expand pos with cell corners
         data["num_atoms"] = int(x.size()[0] - 8)
-        data["forces"] = torch.cat(
-            [
-                (torch.tensor(data["forces"], dtype=torch.float64) - self.force_mean),
-                torch.zeros([8, 3], dtype=torch.float64),
-            ],
-            dim=0,
-        )  # expand forces for cell corners
-        data["energy"] = torch.tensor([(data["info"]["energy"] - self.energy_mean)])
-        data["energy_per_atom"] = torch.tensor(
-            [
-                (
-                    (data["info"]["energy"] / float(data["num_atoms"]))
-                    - self.energy_per_atom_mean
-                )
-            ]
-        )
-        data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
+        if "forces" not in data and "energy" not in data and "stress" not in data:
+            data["energy"] = torch.tensor([0.0], dtype=torch.float64)
+            data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
+            data["forces"] = torch.zeros(
+                [data["num_atoms"] + 8, 3], dtype=torch.float64
+            )
+            data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
+        else:
+            data["forces"] = torch.cat(
+                [
+                    (
+                        torch.tensor(data["forces"], dtype=torch.float64)
+                        - self.force_mean
+                    ),
+                    torch.zeros([8, 3], dtype=torch.float64),
+                ],
+                dim=0,
+            )  # expand forces for cell corners
+            data["energy"] = torch.tensor(
+                [(data["info"]["energy"] - self.energy_mean) / self.energy_std]
+            )
+            data["energy_per_atom"] = torch.tensor(
+                [
+                    (
+                        (data["info"]["energy"] / float(data["num_atoms"]))
+                        - self.energy_per_atom_mean
+                    )
+                ]
+            )
+            data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
 
         if self.args.rescale_loss_with_std:
             data["energy"] = data["energy"] / self.energy_std
