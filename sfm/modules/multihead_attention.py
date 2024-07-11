@@ -42,6 +42,8 @@ class MultiheadAttention(nn.Module):
         o_bias=True,
         add_rope=False,
         layer_norm=True,
+        use_smooth_softmax=False,
+        smooth_factor=0.0,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -95,6 +97,9 @@ class MultiheadAttention(nn.Module):
         self.rot_emb = None
         if add_rope:
             self.rot_emb = RotaryEmbedding(dim=self.head_dim)
+
+        self.use_smooth_softmax = use_smooth_softmax
+        self.smooth_factor = smooth_factor
 
     def prepare_for_onnx_export_(self):
         raise NotImplementedError
@@ -247,19 +252,24 @@ class MultiheadAttention(nn.Module):
             attn_mask = attn_mask.unsqueeze(0)
             attn_weights += attn_mask
 
+        if local_attention_weight is not None:
+            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
+            if self.use_smooth_softmax:
+                attn_weights = (
+                    attn_weights + self.smooth_factor
+                ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+            else:
+                attn_weights = attn_weights.masked_fill(
+                    local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")
+                )
+            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
+
         if key_padding_mask is not None:
             # don't attend to padding symbols
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
             attn_weights = attn_weights.masked_fill(
                 key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
                 float("-inf"),
-            )
-            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
-
-        if local_attention_weight is not None:
-            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            attn_weights = attn_weights.masked_fill(
-                local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")
             )
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 

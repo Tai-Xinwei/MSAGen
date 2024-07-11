@@ -74,8 +74,9 @@ class CellExpander:
         cell,
         pair_token_type,
         use_local_attention=True,
+        use_grad=False,
     ):
-        with torch.no_grad():  # CL: make this an option?
+        with torch.set_grad_enabled(use_grad):
             device = pos.device
             batch_size, max_num_atoms = pos.size()[:2]
             cell_tensor = (

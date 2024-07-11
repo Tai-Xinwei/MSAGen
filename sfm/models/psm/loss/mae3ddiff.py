@@ -265,6 +265,47 @@ class DiffMAE3dCriterions(nn.Module):
 
         return 1 - lddt, hard_dist_loss
 
+    def _rescale_autograd_force(
+        self,
+        force_pred,
+        sample_mask,
+        is_molecule,
+        is_periodic,
+        use_per_atom_energy=True,
+    ):
+        num_samples = torch.sum(sample_mask.long())
+        if num_samples > 0:
+            if use_per_atom_energy:
+                mol_loss_scale = self.molecule_energy_per_atom_std
+                if (
+                    hasattr(self.args, "energy_per_atom_label_scale")
+                    and not self.training
+                ):
+                    # energy_per_atom label were scaled so we scale the loss back when evaluating
+                    mol_loss_scale /= self.args.energy_per_atom_label_scale
+                force_pred[is_molecule] = (
+                    force_pred[is_molecule] * mol_loss_scale / self.molecule_force_std
+                )
+                force_pred[is_periodic] = (
+                    force_pred[is_periodic]
+                    * self.periodic_energy_per_atom_std
+                    / self.periodic_force_std
+                )
+            else:
+                force_pred[is_molecule] = (
+                    force_pred[is_molecule]
+                    * self.molecule_energy_std
+                    / self.molecule_force_std
+                )
+                force_pred[is_periodic] = (
+                    force_pred[is_periodic]
+                    * self.periodic_energy_std
+                    / self.periodic_force_std
+                )
+            return force_pred
+        else:
+            return force_pred
+
     def forward(self, model_output, batched_data):
         energy_per_atom_label = batched_data["energy_per_atom"]
         atomic_numbers = batched_data["token_id"]
@@ -328,6 +369,15 @@ class DiffMAE3dCriterions(nn.Module):
                 is_periodic,
                 use_per_atom_energy=True,
             )
+
+            if self.args.AutoGradForce:
+                force_pred = self._rescale_autograd_force(
+                    force_pred,
+                    force_mask,
+                    is_molecule,
+                    is_periodic,
+                    use_per_atom_energy=True,
+                )
 
             unreduced_force_loss = self.force_loss(
                 force_pred.to(dtype=force_label.dtype), force_label
