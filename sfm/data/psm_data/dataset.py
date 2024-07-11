@@ -358,6 +358,9 @@ class MatterSimDataset:
         self.data_txn = None
         self.index_to_key_name = []
         self.data_path = data_path
+        self.add_unit_cell_virtual_node = args.add_unit_cell_virtual_node
+        if not os.path.exists(self.data_path):
+            logger.warning(f"Path {self.data_path} does not exists.")
         if atoms_list is not None or (not os.path.isdir(self.data_path)):
             self.dataset_type = "single structure file"
             if atoms_list is not None:
@@ -470,11 +473,24 @@ class MatterSimDataset:
         else:
             key = self.index_to_key_name[idx]
             data = pkl.loads(self.data_txn.get(key.encode()))
+
+        if self.data_path.find("force-filtered") != -1:
+            is_stable_periodic = True
+        else:
+            is_stable_periodic = False | self.add_unit_cell_virtual_node
+
+        data["is_stable_periodic"] = is_stable_periodic
+
         numbers = data.pop(
             "numbers"
         )  # atomic numbers, starting from 1 for hydrogen atoms
         x = torch.tensor(numbers, dtype=torch.long)
-        x = torch.cat([x, torch.full([8], 128)], dim=-1)
+
+        data["num_atoms"] = int(x.size()[0])
+
+        if is_stable_periodic:
+            # for structure generation task, we add virtual nodes for unit cell
+            x = torch.cat([x, torch.full([8], 128)], dim=-1)
 
         positions = data.pop("positions")
 
@@ -483,52 +499,64 @@ class MatterSimDataset:
         data["token_type"] = x
         data["idx"] = idx
 
-        data["pbc"], data["cell"] = self.switch_lattice_vectors(
-            data["pbc"], data["cell"]
-        )
+        if is_stable_periodic:
+            data["pbc"], data["cell"] = self.switch_lattice_vectors(
+                data["pbc"], data["cell"]
+            )
+
         data["cell"] = torch.tensor(data["cell"], dtype=torch.float64)
         data["pbc"] = torch.tensor(data["pbc"], dtype=torch.bool)
 
-        cell_corner_pos_matrix = torch.tensor(
-            [
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 1.0, 1.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 0.0, 1.0],
-                [1.0, 1.0, 0.0],
-                [1.0, 1.0, 1.0],
-            ],
-            dtype=torch.float64,
-        )
+        if is_stable_periodic:
+            cell_corner_pos_matrix = torch.tensor(
+                [
+                    [0.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 1.0],
+                    [1.0, 0.0, 0.0],
+                    [1.0, 0.0, 1.0],
+                    [1.0, 1.0, 0.0],
+                    [1.0, 1.0, 1.0],
+                ],
+                dtype=torch.float64,
+            )
 
-        cell_corner_pos = torch.matmul(cell_corner_pos_matrix, data["cell"])
-        data["coords"] = torch.cat(
-            [data["coords"], cell_corner_pos], dim=0
-        )  # expand pos with cell corners
-        data["num_atoms"] = int(x.size()[0] - 8)
+            cell_corner_pos = torch.matmul(cell_corner_pos_matrix, data["cell"])
+            data["coords"] = torch.cat(
+                [data["coords"], cell_corner_pos], dim=0
+            )  # expand pos with cell corners
+
         if "forces" not in data and "energy" not in data and "stress" not in data:
             data["energy"] = torch.tensor([0.0], dtype=torch.float64)
             data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
-            data["forces"] = torch.zeros(
-                [data["num_atoms"] + 8, 3], dtype=torch.float64
-            )
             data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
+            if is_stable_periodic:
+                data["forces"] = torch.zeros(
+                    [data["num_atoms"] + 8, 3], dtype=torch.float64
+                )
+            else:
+                data["forces"] = torch.zeros(
+                    [data["num_atoms"], 3], dtype=torch.float64
+                )
         else:
-            data["forces"] = torch.cat(
-                [
-                    (
-                        torch.tensor(data["forces"], dtype=torch.float64)
-                        - self.force_mean
-                    ),
-                    torch.zeros([8, 3], dtype=torch.float64),
-                ],
-                dim=0,
-            )  # expand forces for cell corners
-            data["energy"] = torch.tensor(
-                [(data["info"]["energy"] - self.energy_mean) / self.energy_std]
-            )
+            if is_stable_periodic:
+                data["forces"] = torch.cat(
+                    [
+                        (
+                            torch.tensor(data["forces"], dtype=torch.float64)
+                            - self.force_mean
+                        ),
+                        torch.zeros([8, 3], dtype=torch.float64),
+                    ],
+                    dim=0,
+                )  # expand forces for cell corners
+            else:
+                data["forces"] = torch.tensor(
+                    data["forces"] - self.force_mean, dtype=torch.float64
+                )
+
+            data["energy"] = torch.tensor([(data["info"]["energy"] - self.energy_mean)])
             data["energy_per_atom"] = torch.tensor(
                 [
                     (
@@ -549,32 +577,26 @@ class MatterSimDataset:
 
         data = self.generate_2dgraphfeat(data)
 
-        if self.data_path.find("force-filtered") != -1:
-            data["is_stable_periodic"] = True
-        else:
-            data["is_stable_periodic"] = False
-
         return data
 
     def generate_2dgraphfeat(self, data):
-        N = data["num_atoms"] + 8
+        N = data["token_type"].size()[-1]
         adj = torch.ones([N, N], dtype=torch.bool)
 
         edge_index = torch.zeros([2, 0], dtype=torch.long)
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
-        indgree = adj.long().sum(dim=1).view(-1)
+        in_degree = adj.long().sum(dim=1).view(-1)
 
         data["edge_index"] = edge_index
         data["edge_attr"] = edge_attr
         data["node_attr"] = torch.cat(
             [
                 data["token_type"].unsqueeze(-1),
-                torch.zeros([data["token_type"].size()[0], 8], dtype=torch.long),
             ],
             dim=-1,
         )
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
-        data["in_degree"] = indgree
+        data["in_degree"] = in_degree
 
         if self.args.preprocess_2d_bond_features_with_cuda:
             attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
@@ -665,9 +687,6 @@ class MatBenchDataset(MatterSimDataset):
         x = torch.cat([x, torch.full([8], 128)], dim=-1)
         data["token_type"] = x
         data["idx"] = idx
-        data["pbc"], data["cell"] = self.switch_lattice_vectors(
-            data["pbc"], data["cell"]
-        )
         data["cell"] = torch.tensor(data["cell"], dtype=torch.float64)
         data["pbc"] = torch.tensor(data["pbc"], dtype=torch.bool)
 

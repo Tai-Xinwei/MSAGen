@@ -52,7 +52,7 @@ jobs:
     --config-name=$MODEL_CONFIG
     psm_validation_mode=true
     rescale_loss_with_std=true
-    +use_mae_force_loss=true
+    force_loss_type=L1
     +max_validation_samples=1024
     data_path_list=matter-sim-15M-force-filtered-merged
     dataset_name_list=mattersim

@@ -168,7 +168,6 @@ else
 fi
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
-#   num_attention_heads=$num_head \
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
@@ -237,8 +236,3 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           force_loss_type=$force_loss_type \
           +energy_per_atom_label_scale=0.05 +molecule_energy_per_atom_std_override=1.0 \
           align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss
-
-
-          # dynamic_loader --max_tokens=$max_tokens \
-          # --use_2d_atom_features --use_2d_bond_features \
-          # --dynamic_loader --max_tokens $max_tokens \
