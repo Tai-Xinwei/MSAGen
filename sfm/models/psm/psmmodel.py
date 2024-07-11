@@ -209,6 +209,7 @@ class PSMModel(Model):
         mask = masked_protein & (masked_nan | masked_inf)
         batched_data["protein_mask"] = mask
 
+    @torch.compiler.disable(recursive=False)
     def _protein_pretrain_mode(
         self,
         clean_mask,
@@ -279,11 +280,12 @@ class PSMModel(Model):
         is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
         is_seq_only = sample_type == 5
         is_complex = sample_type == 6
+        is_energy_outlier = is_molecule & (torch.abs(batched_data["energy"]) > 1e4)
 
         batched_data["is_periodic"] = is_periodic
         batched_data["is_molecule"] = is_molecule
         batched_data["is_protein"] = is_protein
-        batched_data["is_heavy_atom"] = is_heavy_atom
+        batched_data["is_heavy_atom"] = is_energy_outlier | is_heavy_atom
         batched_data["is_seq_only"] = is_seq_only
         batched_data["is_complex"] = is_complex
 
@@ -695,6 +697,7 @@ class PSMModel(Model):
         return {"loss": loss, "pred_pos": pred_pos, "orig_pos": orig_pos}
 
 
+@torch.compiler.disable(recursive=True)
 def center_pos(batched_data, padding_mask):
     # get center of system positions
     is_periodic = batched_data["is_periodic"]  # B x 3 -> B
@@ -1112,7 +1115,11 @@ class PSM(nn.Module):
                     -1
                 )
 
-                if self.args.AutoGradForce and pbc_expand_batched is not None:
+                if (
+                    self.args.AutoGradForce
+                    and pbc_expand_batched is not None
+                    and (~batched_data["is_stable_periodic"]).any()
+                ):
                     forces = self.autograd_force_head(
                         energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
                             dim=-1, keepdim=True
@@ -1153,10 +1160,10 @@ class PSM(nn.Module):
                     )
 
                 # per-atom energy prediction
-                energy_per_atom = (
-                    energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(dim=-1)
-                    / batched_data["num_atoms"]
+                total_energy = energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
+                    dim=-1
                 )
+                energy_per_atom = total_energy / batched_data["num_atoms"]
             else:
                 energy_per_atom = torch.zeros_like(batched_data["num_atoms"])
                 forces = torch.zeros_like(batched_data["pos"])
@@ -1170,6 +1177,7 @@ class PSM(nn.Module):
 
         result_dict = {
             "energy_per_atom": energy_per_atom,
+            "total_energy": total_energy,
             "forces": forces,
             "aa_logits": aa_logits,
             "time_step": time_step,

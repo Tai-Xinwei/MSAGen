@@ -12,16 +12,15 @@ export MKL_THREADING_LAYER='GNU'
 # # find the folder in /tmp and starts with azcopy_linux_amd64
 # azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
 
-[ -z "${layers}" ] && layers=22
-[ -z "${hidden_size}" ] && hidden_size=1024
-[ -z "${ffn_size}" ] && ffn_size=4096
+[ -z "${layers}" ] && layers=32
+[ -z "${hidden_size}" ] && hidden_size=1536
+[ -z "${ffn_size}" ] && ffn_size=6144
 [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=512
 [ -z "${max_tokens}" ] && max_tokens=2000
-# [ -z "${max_tokens}" ] && max_tokens=36000
 
 [ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -31,47 +30,69 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.5
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+[ -z "${mask_ratio}" ] && mask_ratio=0.3
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.7
 
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=1e-4
+[ -z "${max_lr}" ] && max_lr=4e-5
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
-[ -z "${save_epoch_interval}" ] && save_epoch_interval=1
+[ -z "${save_epoch_interval}" ] && save_epoch_interval=100
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
-[ -z "${log_interval}" ] && log_interval=10
-[ -z "${epochs}" ] && epochs=1000
+[ -z "${log_interval}" ] && log_interval=100
+[ -z "${epochs}" ] && epochs=100
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.4,0.4,0.2'
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12"
-# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,ur50_23_bpe_pack1536.lmdb'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,ur50'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.5'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12,2"
-# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.35,0.1,0.1,0.1,0.05'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64,8,12,8,6,12,12'
+# [ -z "${data_path}" ] && data_path='/scratch/sfmarca100/'
+# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="36"
+
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128"
+
+# [ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-force-filtered-merged'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128"
+
+# [ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="36"
+
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.1,0.5,0.1'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,128,36,36'
+
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.35,0.1,0.1,0.1,0.05'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64,2,12,2,6,12,12'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
-[ -z "${AutoGradForce}" ] && AutoGradForce=False
+[ -z "${AutoGradForce}" ] && AutoGradForce=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
-[ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.1
-[ -z "${force_loss_ratio}" ] && force_loss_ratio=0.4
+[ -z "${bf16}" ] && bf16=False
+[ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
+[ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psm/psmv1_vt_v8/"
-[ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step252285"
+[ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.1
+[ -z "${force_loss_ratio}" ] && force_loss_ratio=0.1
+
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psmv1_vt_v10_1b/global_step185000/mp_rank_00_model_states.pt"
+[ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step165000"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
@@ -159,7 +180,7 @@ echo "noise_mode: ${noise_mode}"
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
-export OMP_NUM_THREADS=4
+export OMP_NUM_THREADS=16
 
 wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 export WANDB_API_KEY=$wandb_key
@@ -179,6 +200,9 @@ else
                       --master_addr $MASTER_ADDR"
   fi
 fi
+
+# clean up previous compilations
+rm -rf /tmp/torchinductor_*/*
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
@@ -202,7 +226,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
-          seed=12345 \
+          seed=6669 \
           mask_ratio=$mask_ratio \
           d_tilde=$d_tilde \
           strategy=$strategy \
@@ -234,7 +258,12 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           AutoGradForce=$AutoGradForce \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
-          ifresume=True \
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          mm_tensorcore=$mm_tensorcore \
+          compile=$compile \
           loadcheck_path=$loadcheck_path \
+          ifresume=True \
 
+          # profiling=True ptensorboard=False
+          # ifresume=True \
           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
