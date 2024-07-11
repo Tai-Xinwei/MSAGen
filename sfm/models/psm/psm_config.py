@@ -42,6 +42,7 @@ class DiffusionTimeStepEncoderType(Enum):
 class ForceHeadType(Enum):
     LINEAR: str = "LINEAR"
     GATED_EQUIVARIANT: str = "GATED_EQUIVARIANT"
+    MLP: str = "MLP"
 
     def __str__(self) -> str:
         return self.value
@@ -100,7 +101,7 @@ class PSMConfig(GraphormerConfig):
     align_x0_in_diffusion_loss: bool = True
 
     # for force
-    force_loss_type: ForceLoss = ForceLoss.MSE
+    force_loss_type: ForceLoss = ForceLoss.L1
     force_head_type: ForceHeadType = ForceHeadType.LINEAR
 
     # for equivariant part

@@ -12,10 +12,10 @@ export MKL_THREADING_LAYER='GNU'
 # # find the folder in /tmp and starts with azcopy_linux_amd64
 # azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
 
-[ -z "${layers}" ] && layers=36
-[ -z "${hidden_size}" ] && hidden_size=2560
-[ -z "${ffn_size}" ] && ffn_size=10240
-[ -z "${num_head}" ] && num_head=40
+[ -z "${layers}" ] && layers=32
+[ -z "${hidden_size}" ] && hidden_size=1536
+[ -z "${ffn_size}" ] && ffn_size=6144
+[ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
@@ -60,16 +60,17 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.35,0.1,0.1,0.1,0.05'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,2,4,2,3,4,2'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64,2,8,2,6,8,6'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
+[ -z "${force_head_type}" ] && force_head_type=MLP
+
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
 [ -z "${bf16}" ] && bf16=False
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
-
 [ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.1
 [ -z "${force_loss_ratio}" ] && force_loss_ratio=0.1
 
@@ -90,10 +91,10 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
-[ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=3
+[ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=256
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=5.0
-[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=False
+[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 [ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
 
@@ -237,14 +238,14 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           use_dali_pipeline=$use_dali_pipeline \
           energy_loss_ratio=$energy_loss_ratio force_loss_ratio=$force_loss_ratio \
           preprocess_2d_bond_features_with_cuda=True \
-          AutoGradForce=$AutoGradForce \
+          AutoGradForce=$AutoGradForce force_head_type=$force_head_type \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
           mm_tensorcore=$mm_tensorcore \
           compile=$compile \
           loadcheck_path=$loadcheck_path \
-          # ifresume=True \
+          ifresume=True \
 
           # profiling=True ptensorboard=False
           # ifresume=True \

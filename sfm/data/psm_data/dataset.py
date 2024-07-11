@@ -1774,9 +1774,7 @@ class ComplexDataset(LMDBFoundationModelDataset):
         data["token_type"][protein_len:] += 1
         data["node_attr"][:, 0] = data["token_type"]
 
-        data["node_attr"] = convert_to_single_emb(
-            torch.tensor(data["node_attr"], dtype=torch.long)
-        )
+        data["node_attr"] = convert_to_single_emb(data["node_attr"].long())
 
         adj = torch.zeros([N, N], dtype=torch.bool)
         adj[data["edge_index"][0, :], data["edge_index"][1, :]] = True
