@@ -39,7 +39,9 @@ class CellExpander:
                         continue
                     self.cells.append([i, j, k])
 
-        self.cell_mask_for_pbc = torch.tensor(self.cells) != 0
+        self.cells = torch.tensor(self.cells)
+
+        self.cell_mask_for_pbc = self.cells != 0
 
         self.cutoff = cutoff
 
@@ -64,6 +66,36 @@ class CellExpander:
         )
         return torch.clamp(result, min=0.0)
 
+    def _get_cell_tensors(self, cell, use_local_attention):
+        # fitler impossible offsets according to cell size and cutoff
+        def _get_max_offset_for_dim(cell, dim):
+            lattice_vec_0 = cell[:, dim, :]
+            lattice_vec_1_2 = cell[
+                :, torch.arange(3, dtype=torch.long, device=cell.device) != dim, :
+            ]
+            normal_vec = torch.cross(lattice_vec_1_2[:, 0, :], lattice_vec_1_2[:, 1, :])
+            normal_vec = normal_vec / normal_vec.norm(dim=-1, keepdim=True)
+            cutoff = self.pbc_multigraph_cutoff if use_local_attention else self.cutoff
+            max_offset = int(
+                torch.max(
+                    torch.ceil(
+                        cutoff
+                        / torch.abs(torch.sum(normal_vec * lattice_vec_0, dim=-1))
+                    )
+                )
+            )
+            return max_offset
+
+        max_offsets = []
+        for i in range(3):
+            max_offsets.append(_get_max_offset_for_dim(cell, i))
+        max_offsets = torch.tensor(max_offsets, device=cell.device)
+        self.cells = self.cells.to(device=cell.device)
+        self.cell_mask_for_pbc = self.cell_mask_for_pbc.to(device=cell.device)
+        mask = (self.cells.abs() <= max_offsets).all(dim=-1)
+        selected_cell = self.cells[mask, :]
+        return selected_cell, self.cell_mask_for_pbc[mask, :]
+
     def expand(
         self,
         pos,
@@ -77,14 +109,12 @@ class CellExpander:
         use_grad=False,
     ):
         with torch.set_grad_enabled(use_grad):
-            device = pos.device
             batch_size, max_num_atoms = pos.size()[:2]
+            cell_tensor, cell_mask = self._get_cell_tensors(cell, use_local_attention)
             cell_tensor = (
-                torch.tensor(self.cells, device=pos.device)
-                .to(cell.dtype)
-                .unsqueeze(0)
-                .expand(batch_size, -1, -1)
+                cell_tensor.unsqueeze(0).repeat(batch_size, 1, 1).to(dtype=cell.dtype)
             )
+            num_expanded_cell = cell_tensor.size()[1]
             offset = torch.bmm(cell_tensor, cell)  # B x 8 x 3
             expand_pos = pos.unsqueeze(1) + offset.unsqueeze(2)  # B x 8 x T x 3
             expand_pos = expand_pos.view(batch_size, -1, 3)  # B x (8 x T) x 3
@@ -99,9 +129,8 @@ class CellExpander:
                 expand_mask, atoms.eq(0).unsqueeze(-1), False
             )
             expand_mask = (torch.sum(expand_mask, dim=1) > 0) & (
-                ~(atoms.eq(0).repeat(1, len(self.cells)))
+                ~(atoms.eq(0).repeat(1, num_expanded_cell))
             )  # B x (8 x T)
-            cell_mask = self.cell_mask_for_pbc.to(device=device)
             cell_mask = (
                 torch.all(pbc.unsqueeze(1) >= cell_mask.unsqueeze(0), dim=-1)
                 .unsqueeze(-1)
@@ -123,7 +152,7 @@ class CellExpander:
                 min_expand_dist = expand_dist.masked_fill(expand_dist <= 1e-5, np.inf)
                 expand_dist_mask = (
                     atoms.eq(0).unsqueeze(-1) | atoms.eq(0).unsqueeze(1)
-                ).repeat(1, 1, len(self.cells))
+                ).repeat(1, 1, num_expanded_cell)
                 min_expand_dist = min_expand_dist.masked_fill_(expand_dist_mask, np.inf)
                 min_expand_dist = min_expand_dist.masked_fill_(
                     ~cell_mask.unsqueeze(1), np.inf
@@ -157,7 +186,7 @@ class CellExpander:
             )
             outcell_all_index = torch.arange(
                 max_num_atoms, dtype=torch.long, device=pos.device
-            ).repeat(len(self.cells))
+            ).repeat(num_expanded_cell)
             for i in range(batch_size):
                 outcell_index[i, : expand_len[i]] = outcell_all_index[expand_mask[i]]
                 # assert torch.all(outcell_index[i, :expand_len[i]] < natoms[i])
@@ -170,7 +199,7 @@ class CellExpander:
                 dim=2,
                 index=outcell_index.unsqueeze(1)
                 .unsqueeze(-1)
-                .repeat(1, max_num_atoms, 1, 2),
+                .repeat(1, max_num_atoms, 1, pair_token_type.size()[-1]),
             )
             expand_node_type_edge = torch.cat(
                 [pair_token_type, expand_pair_token_type], dim=2

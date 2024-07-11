@@ -239,11 +239,6 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
         if need_head_weights:
             pass
 
-        assert (
-            pbc_expand_batched is None
-            or pbc_expand_batched["local_attention_weight"] is None
-        ), "memory efficient attention not support pbc_use_local_attention=True"
-
         tgt_len, bsz, embed_dim = query.size()
 
         src_len = tgt_len
@@ -263,9 +258,12 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
         if pbc_expand_batched is not None:
             outcell_index = pbc_expand_batched["outcell_index"]
             expand_mask = pbc_expand_batched["expand_mask"]
+            local_attention_weight = pbc_expand_batched["local_attention_weight"]
+            local_attention_weight = local_attention_weight.to(dtype=q.dtype)
         else:
             outcell_index = None
             expand_mask = None
+            local_attention_weight = None
 
         if outcell_index is not None:
             outcell_index = (
@@ -320,11 +318,6 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
             assert key_padding_mask.size(0) == bsz
             assert key_padding_mask.size(1) == src_len
 
-        q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
-        k = k.view(bsz, self.num_heads, src_len, self.head_dim)
-        v = v.view(bsz, self.num_heads, src_len, self.head_dim)
-
-        if key_padding_mask is not None:
             if key_padding_mask.bool().any():
                 attn_mask = torch.zeros(
                     (bsz, self.num_heads, tgt_len, src_len),
@@ -346,35 +339,76 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
                         bsz, self.num_heads, tgt_len, src_len
                     )
 
+        if local_attention_weight is not None:
+            attn_weights = torch.bmm(q, k.transpose(1, 2))
+            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
+            if self.use_smooth_softmax:
+                attn_weights = (
+                    attn_weights + self.smooth_factor
+                ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+            else:
+                attn_weights = attn_weights.masked_fill(
+                    local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")
+                )
+
+            if attn_mask is not None:
+                attn_weights += attn_mask
+
+            if self.use_smooth_softmax:
+                attn_weights = (
+                    attn_weights + self.smooth_factor
+                ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+            else:
+                attn_weights = attn_weights.masked_fill(
+                    local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")
+                )
+
+            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
+
+            attn_probs = nn.functional.softmax(attn_weights, dim=-1)
+
+            if local_attention_weight is not None:
+                attn_probs = attn_probs.view(bsz, self.num_heads, tgt_len, src_len)
+                attn_probs = attn_probs * local_attention_weight.unsqueeze(1)
+                attn_probs = attn_probs.view(bsz * self.num_heads, tgt_len, src_len)
+
+            attn = torch.bmm(attn_probs, v)
+            attn = attn.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)
+
         # if attn_bias is not None:
         # raise NotImplementedError("mem efficient attn not support attn_bias")
 
         # FutureWarning: torch.backends.cuda.sdp_kernel() is deprecated. In the future, this context manager will be removed.
         # Please see, torch.nn.attention.sdpa_kernel() for the new context manager, with updated signature.
         # with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
-        if math_kernel:
-            context = sdpa_kernel([SDPBackend.MATH])
         else:
-            context = sdpa_kernel(
-                [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
-            )
+            q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
+            k = k.view(bsz, self.num_heads, src_len, self.head_dim)
+            v = v.view(bsz, self.num_heads, src_len, self.head_dim)
 
-        with context:
-            attn = torch.nn.functional.scaled_dot_product_attention(
-                q,
-                k,
-                v,
-                dropout_p=self.dropout,
-                attn_mask=attn_mask,
-                is_causal=False,
-            )
+            if math_kernel:
+                context = sdpa_kernel([SDPBackend.MATH])
+            else:
+                context = sdpa_kernel(
+                    [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
+                )
 
-        attn = (
-            attn.transpose(1, 2)
-            .contiguous()
-            .view(bsz, tgt_len, embed_dim)
-            .transpose(0, 1)
-        )
+            with context:
+                attn = torch.nn.functional.scaled_dot_product_attention(
+                    q,
+                    k,
+                    v,
+                    dropout_p=self.dropout,
+                    attn_mask=attn_mask,
+                    is_causal=False,
+                )
+
+            attn = (
+                attn.transpose(1, 2)
+                .contiguous()
+                .view(bsz, tgt_len, embed_dim)
+                .transpose(0, 1)
+            )
 
         if self.layer_norm is not None:
             attn = self.layer_norm(attn)

@@ -28,7 +28,7 @@ from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.modules.mixembedding import PSMMix3dEmbedding
 from sfm.models.psm.modules.mixembedding_equiv import PSMMix3DEquivEmbedding
 from sfm.models.psm.modules.pbc import CellExpander
-from sfm.models.psm.psm_config import PSMConfig
+from sfm.models.psm.psm_config import ForceHeadType, PSMConfig
 from sfm.modules.layer_norm import AdaNorm
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
@@ -133,8 +133,8 @@ class PSMModel(Model):
         logger.info(f"protein mode prob: {mode_prob}")
 
     def _create_initial_pos_for_diffusion(self, batched_data):
-        periodic_mask = torch.any(batched_data["pbc"], dim=-1)
-        ori_pos = batched_data["pos"][periodic_mask]
+        is_stable_periodic = batched_data["is_stable_periodic"]
+        ori_pos = batched_data["pos"][is_stable_periodic]
         n_periodic_graphs = ori_pos.size()[0]
         init_cell_pos = torch.zeros_like(ori_pos)
         init_cell_pos_input = torch.tensor(
@@ -158,7 +158,7 @@ class PSMModel(Model):
         scatter_index = torch.arange(8, device=ori_pos.device).unsqueeze(0).unsqueeze(
             -1
         ).repeat([n_periodic_graphs, 1, 3]) + batched_data["num_atoms"][
-            periodic_mask
+            is_stable_periodic
         ].unsqueeze(
             -1
         ).unsqueeze(
@@ -166,7 +166,7 @@ class PSMModel(Model):
         )
         init_cell_pos = init_cell_pos.scatter(1, scatter_index, init_cell_pos_input)
         batched_data["init_pos"] = torch.zeros_like(batched_data["pos"])
-        batched_data["init_pos"][periodic_mask] = init_cell_pos
+        batched_data["init_pos"][is_stable_periodic] = init_cell_pos
 
     def _create_protein_mask(self, batched_data):
         token_id = batched_data["token_id"]  # B x T
@@ -303,16 +303,19 @@ class PSMModel(Model):
         diff_loss_mask = torch.arange(
             n_nodes, dtype=torch.long, device=pos.device
         ).unsqueeze(0).repeat(n_graphs, 1) < batched_data["num_atoms"].unsqueeze(-1)
-        periodic_index = torch.nonzero(is_periodic)[:, 0]
-        diff_loss_mask[periodic_index, batched_data["num_atoms"][is_periodic]] = True
+        is_stable_periodic = batched_data["is_stable_periodic"]
+        stable_periodic_index = torch.nonzero(is_stable_periodic)[:, 0]
         diff_loss_mask[
-            periodic_index, batched_data["num_atoms"][is_periodic] + 1
+            stable_periodic_index, batched_data["num_atoms"][is_stable_periodic]
         ] = True
         diff_loss_mask[
-            periodic_index, batched_data["num_atoms"][is_periodic] + 2
+            stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 1
         ] = True
         diff_loss_mask[
-            periodic_index, batched_data["num_atoms"][is_periodic] + 4
+            stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 2
+        ] = True
+        diff_loss_mask[
+            stable_periodic_index, batched_data["num_atoms"][is_stable_periodic] + 4
         ] = True
         batched_data["diff_loss_mask"] = diff_loss_mask
 
@@ -360,7 +363,7 @@ class PSMModel(Model):
             x_start=ori_pos,
             t=time_step,
             non_atom_mask=batched_data["non_atom_mask"],
-            is_periodic=batched_data["is_periodic"],
+            is_stable_periodic=batched_data["is_stable_periodic"],
             x_init=batched_data["init_pos"],
             clean_mask=clean_mask,
         )
@@ -700,19 +703,19 @@ class PSMModel(Model):
 @torch.compiler.disable(recursive=True)
 def center_pos(batched_data, padding_mask):
     # get center of system positions
-    is_periodic = batched_data["is_periodic"]  # B x 3 -> B
+    is_stable_periodic = batched_data["is_stable_periodic"]  # B x 3 -> B
     periodic_center = (
         torch.gather(
-            batched_data["pos"][is_periodic],
-            index=batched_data["num_atoms"][is_periodic]
+            batched_data["pos"][is_stable_periodic],
+            index=batched_data["num_atoms"][is_stable_periodic]
             .unsqueeze(-1)
             .unsqueeze(-1)
             .repeat(1, 1, 3),
             dim=1,
         )
         + torch.gather(
-            batched_data["pos"][is_periodic],
-            index=batched_data["num_atoms"][is_periodic]
+            batched_data["pos"][is_stable_periodic],
+            index=batched_data["num_atoms"][is_stable_periodic]
             .unsqueeze(-1)
             .unsqueeze(-1)
             .repeat(1, 1, 3)
@@ -720,26 +723,29 @@ def center_pos(batched_data, padding_mask):
             dim=1,
         )
     ) / 2.0
+    periodic_center = (
+        batched_data["cell"][is_stable_periodic].sum(dim=1, keepdim=True) / 2.0
+    )
     protein_mask = batched_data["protein_mask"]
     non_periodic_center = torch.sum(
         batched_data["pos"].masked_fill(padding_mask.unsqueeze(-1) | protein_mask, 0.0),
         dim=1,
     ) / batched_data["num_atoms"].unsqueeze(-1)
     center = non_periodic_center.unsqueeze(1)
-    center[is_periodic] = periodic_center
+    center[is_stable_periodic] = periodic_center
     batched_data["pos"] -= center
 
     batched_data["pos"] = batched_data["pos"].masked_fill(
         padding_mask.unsqueeze(-1), 0.0
     )
-    # # TODO: filter nan/inf to zero in coords from pdb data, needs better solution
+    # TODO: filter nan/inf to zero in coords from pdb data, needs better solution
     batched_data["pos"] = batched_data["pos"].masked_fill(protein_mask, 0.0)
     return batched_data["pos"]
 
 
 def complete_cell(pos, batched_data):
-    periodic_mask = torch.any(batched_data["pbc"], dim=-1)
-    periodic_pos = pos[periodic_mask]
+    is_stable_periodic = batched_data["is_stable_periodic"]
+    periodic_pos = pos[is_stable_periodic]
     device = periodic_pos.device
     dtype = periodic_pos.dtype
     cell_matrix = torch.tensor(
@@ -760,7 +766,7 @@ def complete_cell(pos, batched_data):
     gather_index = torch.tensor(
         [0, 4, 2, 1], device=device, dtype=torch.long
     ).unsqueeze(0).unsqueeze(-1).repeat([n_graphs, 1, 3]) + batched_data["num_atoms"][
-        periodic_mask
+        is_stable_periodic
     ].unsqueeze(
         -1
     ).unsqueeze(
@@ -769,14 +775,14 @@ def complete_cell(pos, batched_data):
     lattice = torch.gather(periodic_pos, 1, index=gather_index)
     corner = lattice[:, 0, :]
     lattice = lattice[:, 1:, :] - corner.unsqueeze(1)
-    batched_data["cell"][periodic_mask, :, :] = lattice
+    batched_data["cell"][is_stable_periodic, :, :] = lattice
     cell = torch.matmul(cell_matrix, lattice) + corner.unsqueeze(1)
     scatter_index = torch.arange(8, device=device).unsqueeze(0).unsqueeze(-1).repeat(
         [n_graphs, 1, 3]
-    ) + batched_data["num_atoms"][periodic_mask].unsqueeze(-1).unsqueeze(-1)
+    ) + batched_data["num_atoms"][is_stable_periodic].unsqueeze(-1).unsqueeze(-1)
     cell -= ((cell[:, 0, :] + cell[:, 7, :]) / 2.0).unsqueeze(1)
     periodic_pos = periodic_pos.scatter(1, scatter_index, cell)
-    pos[periodic_mask] = periodic_pos
+    pos[is_stable_periodic] = periodic_pos
 
     token_id = batched_data["token_id"]
     padding_mask = token_id.eq(0)  # B x T x 1
@@ -889,9 +895,14 @@ class PSM(nn.Module):
                 )
             else:
                 self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
-                self.forces_head.update(
-                    {key: EquivariantVectorOutput(psm_config.embedding_dim)}
-                )
+                if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                    self.forces_head.update(
+                        {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                    )
+                else:
+                    self.forces_head.update(
+                        {key: EquivariantVectorOutput(psm_config.embedding_dim)}
+                    )
 
         # aa mask predict head
         self.aa_mask_head = nn.Sequential(
@@ -1127,15 +1138,26 @@ class PSM(nn.Module):
                         pos,
                     )
                 else:
-                    forces = torch.where(
-                        is_periodic.unsqueeze(-1).unsqueeze(-1),
-                        self.forces_head["periodic"](
-                            decoder_x_output, decoder_vec_output
-                        ).squeeze(-1),
-                        self.forces_head["molecule"](
-                            decoder_x_output, decoder_vec_output
-                        ).squeeze(-1),
-                    )
+                    if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                        forces = torch.where(
+                            is_periodic.unsqueeze(-1).unsqueeze(-1),
+                            self.forces_head["periodic"](decoder_vec_output).squeeze(
+                                -1
+                            ),
+                            self.forces_head["molecule"](decoder_vec_output).squeeze(
+                                -1
+                            ),
+                        )
+                    else:
+                        forces = torch.where(
+                            is_periodic.unsqueeze(-1).unsqueeze(-1),
+                            self.forces_head["periodic"](
+                                decoder_x_output, decoder_vec_output
+                            ).squeeze(-1),
+                            self.forces_head["molecule"](
+                                decoder_x_output, decoder_vec_output
+                            ).squeeze(-1),
+                        )
 
                 if self.args.diffusion_mode == "epsilon":
                     scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)

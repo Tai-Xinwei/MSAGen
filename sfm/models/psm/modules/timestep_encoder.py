@@ -185,8 +185,8 @@ class DiffNoise(nn.Module):
         else:
             raise Exception(f"t shape: {t.shape} not supported")
 
-    def _noise_lattice_vectors(self, pos, non_atom_mask, noise, is_periodic):
-        n_graphs = pos[is_periodic].size()[0]
+    def _noise_lattice_vectors(self, pos, non_atom_mask, noise, is_stable_periodic):
+        n_graphs = pos[is_stable_periodic].size()[0]
         device = pos.device
         lattice_corner_noise = (
             torch.randn([n_graphs, 8, 3], device=device, dtype=pos.dtype)
@@ -221,14 +221,16 @@ class DiffNoise(nn.Module):
         ) + corner_noise.unsqueeze(1)
         corner_noise_center = (corner_noise[:, 0, :] + corner_noise[:, -1, :]) / 2.0
         corner_noise -= corner_noise_center.unsqueeze(1)
-        num_atoms = torch.sum(~non_atom_mask[is_periodic], dim=-1).long()
+        num_atoms = torch.sum(~non_atom_mask[is_stable_periodic], dim=-1).long()
         scatter_index = torch.arange(8, device=device).unsqueeze(0).unsqueeze(
             -1
         ).repeat([n_graphs, 1, 3]) + num_atoms.unsqueeze(-1).unsqueeze(-1)
-        noise[is_periodic] = noise[is_periodic].scatter(1, scatter_index, corner_noise)
+        noise[is_stable_periodic] = noise[is_stable_periodic].scatter(
+            1, scatter_index, corner_noise
+        )
         return noise
 
-    def get_noise(self, pos, non_atom_mask, is_periodic):
+    def get_noise(self, pos, non_atom_mask, is_stable_periodic):
         noise = torch.randn_like(pos) * self.unit_noise_scale
         # for non-cell corner nodes (atoms in molecules, amino acids in proteins and atoms in materials)
         # use zero-centered noise
@@ -236,14 +238,16 @@ class DiffNoise(nn.Module):
         noise_center = noise.sum(dim=1, keepdim=True) / torch.sum(
             (~non_atom_mask).long(), dim=-1
         ).unsqueeze(-1).unsqueeze(-1)
-        noise[~is_periodic] -= noise_center[~is_periodic]
+        noise[~is_stable_periodic] -= noise_center[~is_stable_periodic]
         noise = noise.masked_fill(non_atom_mask.unsqueeze(-1), 0.0)
         # for cell corner nodes (the noise is centered so that the noised cell is centered at the original point)
-        noise = self._noise_lattice_vectors(pos, non_atom_mask, noise, is_periodic)
+        noise = self._noise_lattice_vectors(
+            pos, non_atom_mask, noise, is_stable_periodic
+        )
         return noise
 
-    def get_sampling_start(self, init_pos, non_atom_mask, is_periodic):
-        noise = self.get_noise(init_pos, non_atom_mask, is_periodic)
+    def get_sampling_start(self, init_pos, non_atom_mask, is_stable_periodic):
+        noise = self.get_noise(init_pos, non_atom_mask, is_stable_periodic)
         return init_pos + noise
 
     def noise_sample(
@@ -251,12 +255,12 @@ class DiffNoise(nn.Module):
         x_start,
         t,
         non_atom_mask: Tensor,
-        is_periodic: Tensor,
+        is_stable_periodic: Tensor,
         x_init=None,
         clean_mask: Optional[Tensor] = None,
     ):
         t = (t * self.psm_config.num_timesteps).long()
-        noise = self.get_noise(x_start, non_atom_mask, is_periodic)
+        noise = self.get_noise(x_start, non_atom_mask, is_stable_periodic)
 
         sqrt_alphas_cumprod_t = self._extract(
             self.sqrt_alphas_cumprod, t, x_start.shape
