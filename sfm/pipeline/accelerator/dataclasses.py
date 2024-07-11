@@ -92,13 +92,10 @@ class TrainerConfig:
 
     """
 
+    # training parameters
     seed: int = 46
-    fp16: bool = False
-    fp8: bool = False
-    auto_cast: bool = False
-    bf16: bool = False
-    grad_scaler_init: float = 1.0
-    gradient_accumulation_steps: int = 1
+    total_num_steps: int = 1000
+    total_num_epochs: int = 100
     max_tokens: int = 2048
     train_batch_size: int = 1
     val_batch_size: int = 1
@@ -106,41 +103,60 @@ class TrainerConfig:
     val_batch_log_interval: int = 1000
     val_batch_log_all_metric: bool = False
     val_epoch_interval: int = 1
-    save_dir: str = "./checkpoints"
-    save_batch_interval: int = 0
-    save_epoch_interval: int = 1
-    log_interval: int = 10000
-    strategy: TrainStrategy = TrainStrategy.Single
-    pp_partition_layer_name: str = ""
-    pp_part_list: Optional[List[int]] = None
-    cpu: bool = False
-    ifresume: bool = False
-    load_ckpt: bool = False
     freeze_param_list: str = ""
     unfreeze_param_list: str = ""
-    finetune_from_checkpoint_dir: Optional[str] = None
-    finetune_from_checkpoint_id: Optional[str] = None
     reset_act_each_step: bool = False
     use_unified_batch_sampler: bool = False
     activation_checkpoint_interval: int = 0
     checkpointable_layers: Optional[list[str]] = None
     gradient_clipping: float = 1.0
-    total_num_steps: int = 1000
-    warmup_num_steps: int = 60
-    warmup_factor: float = 0.06
-    warmup_lr: float = 1e-6
-    warmup_num_epochs: int = 10
+
+    # parallelisation parameters
+    strategy: TrainStrategy = TrainStrategy.Single
+    pp_partition_layer_name: str = ""
+    pp_part_list: Optional[List[int]] = None
+    cpu: bool = False
+
+    # IO parameters
+    save_dir: str = "./checkpoints"
+    save_batch_interval: int = 0
+    save_epoch_interval: int = 1
+    log_interval: int = 10000
+    finetune_from_checkpoint_dir: Optional[str] = None
+    finetune_from_checkpoint_id: Optional[str] = None
+    ifresume: bool = False
+    load_ckpt: bool = False
+
+    # optimizer hyperparameters
     max_lr: float = 0.0001
     init_lr: float = 8e-5
     min_lr: float = 8e-6
     weight_decay: float = 0.0
-    total_num_epochs: int = 100
-    find_unused_parameters: bool = True
+    beta1: float = 0.9  # Adam
+    beta2: float = 0.999  # Adam
+    eps: float = 1e-8  # Adam
 
-    # adam
-    beta1: float = 0.9
-    beta2: float = 0.999
-    eps: float = 1e-8
+    # lr scheduler hyperparameters
+    warmup_num_steps: int = 60
+    warmup_factor: float = 0.06
+    warmup_lr: float = 1e-6
+    warmup_num_epochs: int = 10
+
+    # performance parameters
+    gradient_accumulation_steps: int = 1
+    fp16: bool = False
+    auto_cast: bool = False
+    grad_scaler_init: float = 1.0
+    bf16: bool = False
+    fp8: bool = False
+    mm_tensorcore: str = "fp32"  # reduce matrix multiplication precision
+    # (bf16, tf32, or fp32)
+    compile: bool = False  # compile CUDA kernels with torch.compile
+    zero_offload: bool = (
+        False  # offload parameters to CPU/NVMe if Zero optimizer is used
+    )
+    zero_offload_dir: str = "./"
+    find_unused_parameters: bool = True
 
     # dataloader strategy
     dynamic_loader: bool = False
@@ -160,15 +176,8 @@ class TrainerConfig:
     early_stopping_metric: str = "valid_loss"
     early_stopping_mode: str = "min"
 
-    # compile CUDA kernels with torch.compile
-    compile: bool = False
-
     # validate
     calculate_metrics: bool = False
-
-    # offload parameters to CPU/NVMe if Zero optimizer is used
-    zero_offload: bool = False
-    zero_offload_dir: str = "./"
 
     # profiler
     profiling: bool = False

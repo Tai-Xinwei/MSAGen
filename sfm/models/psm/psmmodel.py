@@ -209,6 +209,7 @@ class PSMModel(Model):
         mask = masked_protein & (masked_nan | masked_inf)
         batched_data["protein_mask"] = mask
 
+    @torch.compiler.disable(recursive=False)
     def _protein_pretrain_mode(
         self,
         clean_mask,
@@ -696,6 +697,7 @@ class PSMModel(Model):
         return {"loss": loss, "pred_pos": pred_pos, "orig_pos": orig_pos}
 
 
+@torch.compiler.disable(recursive=True)
 def center_pos(batched_data, padding_mask):
     # get center of system positions
     is_periodic = batched_data["is_periodic"]  # B x 3 -> B

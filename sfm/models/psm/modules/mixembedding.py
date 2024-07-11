@@ -49,6 +49,7 @@ class PSMMix3dEmbedding(nn.Module):
         #     1, psm_config.num_3d_bias_kernel, padding_idx=None
         # )
 
+    @torch.compiler.disable(recursive=False)
     def _pos_emb(
         self,
         pos: Optional[torch.Tensor],
