@@ -276,7 +276,7 @@ class PSMModel(Model):
         is_periodic = batched_data["pbc"].any(dim=-1)
         is_molecule = (~is_periodic) & (token_id <= 129).all(dim=-1)
         is_protein = (~is_periodic.unsqueeze(-1)) & (token_id > 129) & (token_id < 157)
-        # is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
+        is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
         is_seq_only = sample_type == 5
         is_complex = sample_type == 6
         is_energy_outlier = is_molecule & (torch.abs(batched_data["energy"]) > 1e4)
@@ -284,7 +284,7 @@ class PSMModel(Model):
         batched_data["is_periodic"] = is_periodic
         batched_data["is_molecule"] = is_molecule
         batched_data["is_protein"] = is_protein
-        batched_data["is_heavy_atom"] = is_energy_outlier
+        batched_data["is_heavy_atom"] = is_energy_outlier | is_heavy_atom
         batched_data["is_seq_only"] = is_seq_only
         batched_data["is_complex"] = is_complex
 
@@ -1111,7 +1111,11 @@ class PSM(nn.Module):
                     -1
                 )
 
-                if self.args.AutoGradForce and pbc_expand_batched is not None:
+                if (
+                    self.args.AutoGradForce
+                    and pbc_expand_batched is not None
+                    and (~batched_data["is_stable_periodic"]).any()
+                ):
                     forces = self.autograd_force_head(
                         energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
                             dim=-1, keepdim=True
