@@ -259,7 +259,6 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
             outcell_index = pbc_expand_batched["outcell_index"]
             expand_mask = pbc_expand_batched["expand_mask"]
             local_attention_weight = pbc_expand_batched["local_attention_weight"]
-            local_attention_weight = local_attention_weight.to(dtype=q.dtype)
         else:
             outcell_index = None
             expand_mask = None
@@ -340,6 +339,7 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
                     )
 
         if local_attention_weight is not None:
+            local_attention_weight = local_attention_weight.to(dtype=q.dtype)
             attn_weights = torch.bmm(q, k.transpose(1, 2))
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
             if self.use_smooth_softmax:

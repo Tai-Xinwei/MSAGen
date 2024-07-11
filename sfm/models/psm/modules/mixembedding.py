@@ -49,7 +49,7 @@ class PSMMix3dEmbedding(nn.Module):
         #     1, psm_config.num_3d_bias_kernel, padding_idx=None
         # )
 
-    # @torch.compiler.disable(recursive=False)
+    @torch.compiler.disable(recursive=False)
     def _pos_emb(
         self,
         pos: Optional[torch.Tensor],
@@ -77,7 +77,6 @@ class PSMMix3dEmbedding(nn.Module):
             B, L, expand_L = delta_pos.size()[:3]
             adj = torch.ones(B, L, expand_L, device=adj.device, dtype=torch.bool)
             local_attention_weight = pbc_expand_batched["local_attention_weight"]
-            local_attention_weight = local_attention_weight.to(dtype=pos.dtype)
         else:
             delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
             expand_mask = padding_mask
@@ -89,6 +88,7 @@ class PSMMix3dEmbedding(nn.Module):
         dist = dist.masked_fill(expand_mask.unsqueeze(1), min_dtype)
         dist = dist.masked_fill(padding_mask.unsqueeze(-1), min_dtype)
         if local_attention_weight is not None:
+            local_attention_weight = local_attention_weight.to(dtype=pos.dtype)
             dist = dist.masked_fill(local_attention_weight <= 1e-5, min_dtype)
 
         pos_emb = (
