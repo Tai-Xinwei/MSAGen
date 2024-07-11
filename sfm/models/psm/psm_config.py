@@ -114,8 +114,9 @@ class PSMConfig(GraphormerConfig):
     AutoGradForce: bool = False
     seq_only: bool = False
     freeze_backbone: bool = False
-    hard_dist_loss_raito: float = 10.0
+    hard_dist_loss_raito: float = 20.0
     use_hard_dist_loss: bool = False
+    if_total_energy: bool = False
 
     # used in force and noise heads
     num_force_and_noise_head_layers: int = 2

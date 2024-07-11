@@ -112,6 +112,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
+[ -z "${if_total_energy}" ] && if_total_energy=True
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -202,7 +203,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
-          seed=12345 \
+          seed=1666 \
           mask_ratio=$mask_ratio \
           d_tilde=$d_tilde \
           strategy=$strategy \
@@ -231,8 +232,10 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           use_dali_pipeline=$use_dali_pipeline \
           energy_loss_ratio=$energy_loss_ratio force_loss_ratio=$force_loss_ratio \
           preprocess_2d_bond_features_with_cuda=True \
-          AutoGradForce=$AutoGradForce \
+          AutoGradForce=$AutoGradForce psm_finetune_mode=$psm_finetune_mode \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
-#           # ifresume=True \
-#           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
+          if_total_energy=$if_total_energy \
+          ifresume=True \
+
+          # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
