@@ -39,6 +39,14 @@ class DiffusionTimeStepEncoderType(Enum):
         return self.value
 
 
+class ForceHeadType(Enum):
+    LINEAR: str = "LINEAR"
+    GATED_EQUIVARIANT: str = "GATED_EQUIVARIANT"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 @dataclass
 class PSMConfig(GraphormerConfig):
     model_type: str = "psm"
@@ -73,6 +81,7 @@ class PSMConfig(GraphormerConfig):
     pbc_use_local_attention: bool = False
     pbc_multigraph_cutoff: float = 5.0
     diff_init_lattice_size: float = 4.0
+    add_unit_cell_virtual_node: bool = False
 
     lattice_size: float = 4.0
 
@@ -88,8 +97,11 @@ class PSMConfig(GraphormerConfig):
     diffusion_time_step_encoder_type: DiffusionTimeStepEncoderType = (
         DiffusionTimeStepEncoderType.POSITIONAL
     )
-    force_loss_type: ForceLoss = ForceLoss.MSE
     align_x0_in_diffusion_loss: bool = True
+
+    # for force
+    force_loss_type: ForceLoss = ForceLoss.MSE
+    force_head_type: ForceHeadType = ForceHeadType.LINEAR
 
     # for equivariant part
     equivar_vec_init: VecInitApproach = VecInitApproach.ZERO_CENTERED_POS

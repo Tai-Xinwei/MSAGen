@@ -86,6 +86,8 @@ class PSMPlainEncoderLayer(nn.Module):
             v_bias=False,
             o_bias=False,
             add_rope=add_rope,
+            use_smooth_softmax=self.psm_config.use_smooth_softmax,
+            smooth_factor=self.psm_config.smooth_factor,
         )
 
     def forward(
