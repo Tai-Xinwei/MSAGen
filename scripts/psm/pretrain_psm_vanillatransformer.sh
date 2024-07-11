@@ -66,6 +66,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${AutoGradForce}" ] && AutoGradForce=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
+[ -z "${bf16}" ] && bf16=False
+[ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
+[ -z "${compile}" ] && compile=False
+
 [ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.1
 [ -z "${force_loss_ratio}" ] && force_loss_ratio=0.1
 
@@ -158,7 +162,7 @@ echo "noise_mode: ${noise_mode}"
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
-export OMP_NUM_THREADS=4
+export OMP_NUM_THREADS=16
 
 wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 export WANDB_API_KEY=$wandb_key
@@ -178,6 +182,9 @@ else
                       --master_addr $MASTER_ADDR"
   fi
 fi
+
+# clean up previous compilations
+rm -rf /tmp/torchinductor_*/*
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
@@ -233,7 +240,12 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           AutoGradForce=$AutoGradForce \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          mm_tensorcore=$mm_tensorcore \
+          compile=$compile \
           loadcheck_path=$loadcheck_path \
           ifresume=True \
 
+          # profiling=True ptensorboard=False
+          # ifresume=True \
           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \

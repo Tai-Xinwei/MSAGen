@@ -25,10 +25,11 @@ def torch_compile(fn: sfm.models, state: bool) -> torch.compile:
 
     if state:
         logger.info(
-            f"Torch.compile is enabled with \
-            fullgraph:{fullgraph}, dynamic:{dynamic}, backend:{backend}, mode={mode}."
+            f"Torch.compile is enabled with "
+            f"fullgraph:{fullgraph}, dynamic:{dynamic}, backend:{backend}, mode={mode}."
         )
 
+        torch._dynamo.config.cache_size_limit = 128
         torch._dynamo.config.suppress_errors = True
         return torch.compile(
             fn.cuda() if torch.cuda.is_available() else fn,

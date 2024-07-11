@@ -304,8 +304,12 @@ class Trainer(object):
         self.optimizer_init = optimizer_init
         self.lr_scheduler_init = lr_scheduler_init
 
-        if not args.fp16 and not args.bf16:
+        if args.mm_tensorcore == "bf16":
+            torch.set_float32_matmul_precision("medium")
+        elif args.mm_tensorcore == "tf32":
             torch.set_float32_matmul_precision("high")
+        else:
+            torch.set_float32_matmul_precision("highest")
 
         if optimizer is not None and args.strategy in [
             TrainStrategy.Pipeline,
