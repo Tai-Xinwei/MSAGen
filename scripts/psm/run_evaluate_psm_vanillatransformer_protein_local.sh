@@ -3,10 +3,17 @@
 # Licensed under the MIT License.
 
 # Copy variables from amulet yaml file
+WANDB_API_KEY="local-094f941ede8eda7a00c307f50595f054be5382f7"
 export WANDB_TEAM=ai4s-sfm
 export wandb_group=psm_VT
 export wandb_project=psm_VT
-export WANDB_API_KEY="local-094f941ede8eda7a00c307f50595f054be5382f7"
+export WANDB_API_KEY=${WANDB_API_KEY}
+# mkdir /blob/pfmexp/output
+# mkdir /blob/experiment/psm/psmv1_vt_v10_1b
+# mkdir /blob/experiment/psm/psmv1_vt_v10_1b/checkpoints
+# mkdir ./output
+export path=run.sh
+export num_pred_attn_layer=4
 export layers=32
 export hidden_size=1536
 export ffn_size=6144
@@ -32,29 +39,36 @@ export max_tokens=16000
 export max_length=512
 export gradient_accumulation_steps=8
 export log_interval=100
-export data_path=/psm/data/
+export data_path=/nfs6/psmdata/
+# - export data_path=/psm/data/
 export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb'
 export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50'
-export dataset_split_raito='0.2,0.1,0.5,0.1,0.1'
-export dataset_micro_batch_size='64,8,8,8,2'
+export dataset_split_raito='0.2,0.1,0.4,0.1,0.2'
+export dataset_micro_batch_size='64,8,8,8,8'
 export mode_prob='0.4,0.4,0.2'
 export fp16=False
-export clean_sample_ratio=0.2
+export clean_sample_ratio=0.5
 export energy_loss_ratio=0.001
 export force_loss_ratio=0.0
+# - export num_timesteps=1000
+# - export ddpm_beta_start=1e-4
+# - export ddpm_beta_end=2e-2
 export use_unified_batch_sampler=True
 export use_dali_pipeline=False
-export save_batch_interval=10000
-export only_use_rotary_embedding_for_protein=True
+export save_batch_interval=30000
 export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v10_1b/checkpoints
 export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v10_1b/checkpoints
+# - export loadcheck_path=/psm/exp/peiran/psmv1_vt_v5/checkpoints
+# - export save_dir=/psm/exp/peiran/psmv1_vt_v5/checkpoints
 
 # variables for test
+export mask_ratio=0.0
+export mode_prob='0.0,1.0,0.0'
 export max_length=2048
 export psm_validation_mode=True
 export data_path="/casp/sfm/psm/cameo-subset-casp14-and-casp15-combined.lmdb"
-export loadcheck_path="/casp/sfm/sfmexpresults/peiran/psmv1_vt_v10_1b/checkpoints/global_step103463/mp_rank_00_model_states.pt"
-export save_dir="/casp/sfm/sfmexpresults/jianwei/psmv1_vt_v10_1b/checkpoints/global_step103463/prediction"
+export loadcheck_path="/casp/sfm/sfmexpresults/peiran/psmv1_vt_v10_1b/checkpoints/global_step160000/mp_rank_00_model_states.pt"
+export save_dir="/casp/sfm/sfmexpresults/jianwei/psmv1_vt_v10_1b/checkpoints/global_step160000/prediction"
 HERE="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 inpsh="$HERE/pretrain_psm_vanillatransformer.sh"
 outsh="$HERE/evaluate_psm_vanillatransformer_protein.sh"

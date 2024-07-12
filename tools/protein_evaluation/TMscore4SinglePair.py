@@ -67,7 +67,6 @@ def TMscore4SinglePair(predicted_pdb, native_pdb):
             break
         else:
             continue
-        print(l, end='')
 
     # check data format and TMscore output
     if len(lines) != i + 5 or lines[-1] != '\n':

@@ -12,7 +12,7 @@ from tqdm import tqdm
 from commons import bstr2obj
 from commons import obj2bstr
 
-sys.path.append(str(Path.cwd().parent.parent))
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from sfm.logging import logger
 from sfm.tasks.psm.evaluate_psm_protein import calculate_score
 
