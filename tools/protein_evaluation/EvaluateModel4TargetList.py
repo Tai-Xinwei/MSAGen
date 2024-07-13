@@ -17,14 +17,13 @@ from tqdm import tqdm
 
 from LGA4SinglePair import LGA4SinglePair
 from TMscore4SinglePair import TMscore4SinglePair
+from lddt4SinglePair import lddt4SinglePair
 
-HERE = Path(__file__).resolve().parent
-sys.path.append( str(HERE.parent / 'protein_data_process') )
-from metadata import metadata4target
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+from tools.protein_data_process.metadata import metadata4target
 
 
-#logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -124,7 +123,10 @@ def _collect_models(targets: Sequence[str],
 @click.option("--criterion",
               type=str,
               default="TMscore",
-              help="Evaluation metric 'TMscore', 'GDT_TS' or 'GDT_HA'. If it is set to 'TMscore', the program TMscore will be used to evaluate predicted structure; if it is set to 'GDT_TS' or 'GDT_HA', the program LGA will be used.",
+              help=("Evaluation metric 'TMscore', 'GDT_TS', 'GDT_HA' or 'LDDT'. "
+                    "If set to 'TMscore', the program TMscore will be used. "
+                    "If set to 'GDT_TS' or 'GDT_HA', program LGA will be used. "
+                    "If set to 'LDDT', the program lddt will be used."),
               show_default=True)
 @click.option("--top5",
               is_flag=True,
@@ -144,6 +146,11 @@ def evaluate(target_list: Path,
             assert 5 < len(line) < 12, f"Invalid target name {target}."
             targets.append(line.rstrip('\n'))
     logger.info(f"Number of targets: {len(targets)}")
+
+    # check criterion
+    assert criterion in ('TMscore', 'GDT_TS', 'GDT_HA', 'LDDT'), (
+        f"Invalid --criterion parameter: {criterion}. Please use 'TMscore', "
+        f"'GDT_TS', 'GDT_HA' or 'LDDT'.")
 
     # convert metadata information to dictionary
     groupdict, lengthdict, typedict = {}, {}, {}
@@ -175,8 +182,13 @@ def evaluate(target_list: Path,
         target, server, idx, model, native = model_info
         if criterion == 'TMscore':
             s = TMscore4SinglePair(model, native)
-        else:
+        elif criterion == 'GDT_TS' or criterion == 'GDT_HA':
             s = LGA4SinglePair(model, native)
+        elif criterion == 'LDDT':
+            s = lddt4SinglePair(model, native)
+        else:
+            raise ValueError(f"Invalid criterion {criterion}. Use 'TMscore' "
+                             f"'GDT_TS', 'GDT_HA' or 'LDDT'.")
         s['Target'], s['Server'], s['ModelIndex'] = target, server, idx
         return s
     scores = Parallel(n_jobs=num_workers)(

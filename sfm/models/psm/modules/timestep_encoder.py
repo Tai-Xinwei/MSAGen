@@ -4,6 +4,7 @@ from typing import Optional
 
 import numpy as np
 import torch
+import torch.distributed as dist
 import torch.nn as nn
 from torch import Tensor
 
@@ -135,6 +136,7 @@ class DiffNoise(nn.Module):
             psm_config.ddpm_schedule,
         )
         self.unit_noise_scale = psm_config.diffusion_noise_std
+        self.torch_generator = None
 
     def _beta_schedule(
         self, num_timesteps, beta_start, beta_end, schedule_type="sigmoid"
@@ -189,7 +191,12 @@ class DiffNoise(nn.Module):
         n_graphs = pos[is_stable_periodic].size()[0]
         device = pos.device
         lattice_corner_noise = (
-            torch.randn([n_graphs, 8, 3], device=device, dtype=pos.dtype)
+            torch.randn(
+                [n_graphs, 8, 3],
+                device=device,
+                dtype=pos.dtype,
+                generator=self.torch_generator,
+            )
             * self.unit_noise_scale
         )
         corner_noise = lattice_corner_noise[:, 0, :]
@@ -231,7 +238,18 @@ class DiffNoise(nn.Module):
         return noise
 
     def get_noise(self, pos, non_atom_mask, is_stable_periodic):
-        noise = torch.randn_like(pos) * self.unit_noise_scale
+        if self.torch_generator is None:
+            self.torch_generator = torch.Generator(device=pos.device)
+            self.torch_generator.manual_seed(dist.get_rank())
+        noise = (
+            torch.randn(
+                pos.size(),
+                device=pos.device,
+                dtype=pos.dtype,
+                generator=self.torch_generator,
+            )
+            * self.unit_noise_scale
+        )
         # for non-cell corner nodes (atoms in molecules, amino acids in proteins and atoms in materials)
         # use zero-centered noise
         noise = noise.masked_fill(non_atom_mask.unsqueeze(-1), 0.0)

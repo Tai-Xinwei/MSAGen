@@ -9,7 +9,7 @@ import pandas as pd
 from commons import bstr2obj
 from commons import obj2bstr
 
-sys.path.append(str(Path.cwd().parent.parent))
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from sfm.logging import logger
 from sfm.tasks.psm.evaluate_psm_protein import evaluate_predicted_structure
 from sfm.tasks.psm.evaluate_psm_protein import calculate_average_score
@@ -31,9 +31,9 @@ if __name__ == '__main__':
     print(df)
 
     logger.info(f"Average TMscore for different categories.")
-    #df.to_csv(Path(preddir) / "TM-score-full.csv")
+    df.to_csv(Path(preddir) / "Score4EachModel.csv")
     newdf, meandf = calculate_average_score(df)
-    #newdf.to_csv(Path(preddir) / "TM-score-only.csv")
+    newdf.to_csv(Path(preddir) / "Score4Target.csv")
     print(newdf)
     with pd.option_context('display.float_format', '{:.2f}'.format):
         print(meandf)

@@ -1488,11 +1488,21 @@ class GeomFormer(nn.Module):
                 bias=self.psm_config.equivar_use_linear_bias,
             )
 
-        self.unified_vec_proj = nn.Linear(
-            num_3d_bias_kernel,
-            embedding_dim,
-            bias=self.psm_config.equivar_use_linear_bias,
-        )
+        if self.psm_config.equivar_vec_init == VecInitApproach.ZERO_CENTERED_POS:
+            self.unified_vec_proj = nn.Linear(
+                num_3d_bias_kernel,
+                embedding_dim,
+                bias=self.psm_config.equivar_use_linear_bias,
+            )
+        elif self.psm_config.equivar_vec_init in [
+            VecInitApproach.RELATIVE_POS,
+            VecInitApproach.AUGMENTED_RELATIVE_POS,
+        ]:
+            self.unified_vec_proj = nn.Linear(
+                num_3d_bias_kernel,
+                embedding_dim,
+                bias=False,
+            )
 
         self.unified_augmented_vec_proj = nn.Linear(
             num_3d_bias_kernel,
