@@ -34,6 +34,7 @@ from sfm.data.psm_data.utils import (
     PM6_ATOM_ENERGY_OUTLIER_LIST,
     PM6_ATOM_REFERENCE,
     VOCAB,
+    convert_to_single_emb,
     get_conv_variable_lin,
     get_data_defult_config,
     matrixtoblock_lin,
@@ -1450,14 +1451,6 @@ class UR50LMDBDataset(FoundationModelDataset):
         return self.sizes[index]
 
 
-@torch.jit.script
-def convert_to_single_emb(x, offset: int = 512):
-    feature_num = x.size(1) if len(x.size()) > 1 else 1
-    feature_offset = torch.arange(0, feature_num * offset, offset, dtype=torch.long)
-    x = x + feature_offset
-    return x
-
-
 class ComplexDataset(LMDBFoundationModelDataset):
     def __init__(self, args: PSMConfig, lmdb_path: str):
         super().__init__(lmdb_path)
@@ -1572,12 +1565,17 @@ class PDBComplexDataset(AFDBLMDBDataset):
         polymer_chains = data["polymer_chains"]
         non_polymers = data["nonpoly_graphs"]
 
-        # filter DNA/RNA chains, needs to be considered in the future
         polymer_chains_idxes = []
         for key in polymer_chains.keys():
+            # filter DNA/RNA chains, needs to be considered in the future
             if np.any(polymer_chains[key]["restype"] == "N"):
                 continue
-            polymer_chains_idxes.append(key)
+
+            # some croped polymer has all Nan coords, so we need to avoid it
+            if np.any(~np.isnan(polymer_chains[key]["center_coord"])):
+                polymer_chains_idxes.append(key)
+            # else:
+            # print(len(non_polymers), data["pdbid"], polymer_chains[key])
 
         # random generate crop center
         if len(non_polymers) > 0:
@@ -1635,35 +1633,47 @@ class PDBComplexDataset(AFDBLMDBDataset):
         start_position_ids = 0
         polymer_len = 0
         # reconstruct the polymer chains
-        for chain in cropped_chain_idxes_list:
+        for idx, chain in enumerate(cropped_chain_idxes_list):
             chain_name = chain["chain_name"]
             cropped_chain_idxes = chain["cropped_chain_idxes"]
             chain = polymer_chains[chain_name]
 
             # rescontruct the residue sequence
             crop_chain = chain["seqres"][cropped_chain_idxes].tolist()
-            token_type.extend(["<cls>"] + crop_chain + ["<eos>"])
+            if idx == len(cropped_chain_idxes_list) - 1:
+                token_type.extend(crop_chain)
+            else:
+                token_type.extend(crop_chain + ["."])
 
             # rescontruct the coords
-            crop_coords = np.concatenate(
-                [
-                    np.zeros((1, 3)),
-                    chain["center_coord"][cropped_chain_idxes],
-                    np.zeros((1, 3)),
-                ],
-                axis=0,
-            )
+            if idx == len(cropped_chain_idxes_list) - 1:
+                crop_coords = chain["center_coord"][cropped_chain_idxes]
+            else:
+                crop_coords = np.concatenate(
+                    [
+                        chain["center_coord"][cropped_chain_idxes],
+                        np.zeros((1, 3)),
+                    ],
+                    axis=0,
+                )
             coords.append(crop_coords)
 
             # build discontinuous position ids for rope
-            position_ids.extend(
-                range(start_position_ids, start_position_ids + len(crop_chain) + 2)
-            )
-            start_position_ids = start_position_ids + len(crop_chain) + 2 + 2000
-
-            polymer_len += len(crop_chain) + 2
+            if idx == len(cropped_chain_idxes_list) - 1:
+                position_ids.extend(
+                    range(start_position_ids, start_position_ids + len(crop_chain))
+                )
+                start_position_ids = start_position_ids + len(crop_chain) + 2000
+                polymer_len += len(crop_chain)
+            else:
+                position_ids.extend(
+                    range(start_position_ids, start_position_ids + len(crop_chain) + 1)
+                )
+                start_position_ids = start_position_ids + len(crop_chain) + 1 + 2000
+                polymer_len += len(crop_chain) + 1
 
         x = [VOCAB[tok] - 1 for tok in token_type]
+        node_feature = torch.zeros((len(x), 9), dtype=torch.int32)
 
         # reconstruct the ligand
         if center_ligand_idx != -1:
@@ -1671,25 +1681,33 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
             # rescontruct the atom type of the ligand
             atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
-            x.extend([VOCAB["<cls>"] - 1] + atom_ids + [VOCAB["<eos>"] - 1])
+            x.extend([VOCAB["."] - 1] + atom_ids)
 
             # rescontruct the coords of the ligand
-            pos = np.concatenate(
-                [np.zeros((1, 3)), ligand["node_coord"], np.zeros((1, 3))], axis=0
-            )
+            pos = np.concatenate([np.zeros((1, 3)), ligand["node_coord"]], axis=0)
             coords.append(pos)
 
             # build position ids for ligand, but this may not used in the attention, just for length alignment
             position_ids.extend(
-                range(start_position_ids, start_position_ids + len(atom_ids) + 2)
+                range(start_position_ids, start_position_ids + len(atom_ids) + 1)
             )
 
-            node_feature = ligand["node_feat"]
+            node_feature = torch.cat(
+                [
+                    node_feature,
+                    torch.zeros((1, 9), dtype=torch.int32),
+                    torch.from_numpy(ligand["node_feat"]),
+                ],
+                dim=0,
+            )
             edge_index = ligand["edge_index"]
+            # edge_attr = ligand["edge_feat"]
+
+            polymer_len += 1
         else:
-            node_feature = None
             edge_index = None
 
+        edge_attr = torch.zeros([0, 3], dtype=torch.long)
         x = torch.tensor(x, dtype=torch.int32)
         coords = torch.tensor(np.concatenate(coords, axis=0), dtype=torch.float32)
         position_ids = torch.tensor(position_ids, dtype=torch.int32)
@@ -1697,10 +1715,11 @@ class PDBComplexDataset(AFDBLMDBDataset):
         data = {
             "token_type": x,
             "coords": coords,
-            "protein_len": polymer_len,
+            "polymer_len": polymer_len,
             "position_ids": position_ids,
             "node_feature": node_feature,
             "edge_index": edge_index,
+            "edge_attr": edge_attr,
         }
 
         return data
@@ -1717,20 +1736,25 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         data["idx"] = index
         N = data["token_type"].shape[0]
+        data["num_atoms"] = N
 
-        protein_len = data["protein_len"]
+        polymer_len = data["polymer_len"]
 
-        data["node_attr"][:, 0] = data["token_type"]
-        data["node_attr"] = convert_to_single_emb(data["node_attr"].long())
+        data["x"] = data["token_type"]
+        data["node_feature"][:, 0] = data["token_type"]
+        data["node_attr"] = convert_to_single_emb(data["node_feature"].long())
 
-        if data["node_feature"] is not None:
+        if data["edge_index"] is not None:
             # complex
             data["sample_type"] = 6
             adj = torch.zeros([N, N], dtype=torch.bool)
-            adj[data["edge_index"][0, :], data["edge_index"][1, :]] = True
+            adj[
+                data["edge_index"][0, :] + polymer_len,
+                data["edge_index"][1, :] + polymer_len,
+            ] = True
             # allow interaction between protein and ligand, and protein and protein
             protein_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
-            protein_ligand_adj[:protein_len] = True
+            protein_ligand_adj[:polymer_len] = True
             protein_ligand_adj |= (
                 protein_ligand_adj.clone().T
             )  # torch disallow inplace operation
@@ -1740,21 +1764,24 @@ class PDBComplexDataset(AFDBLMDBDataset):
             data["sample_type"] = 7
             adj = torch.ones([N, N], dtype=torch.bool)
 
+        data["adj"] = adj
+
         # redundant, but for compatibility
         attn_edge_type = torch.zeros(
             [N, N, data["edge_attr"].size(-1)], dtype=torch.long
         )
         data["attn_edge_type"] = attn_edge_type
-
+        data["cell"] = torch.zeros((3, 3), dtype=torch.float32)
+        data["pbc"] = torch.zeros(3, dtype=torch.bool)
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float32)
+        data["forces"] = torch.zeros((N, 3), dtype=torch.float32)
+        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
-        data["energy_per_atom"] = torch.tensor(
-            [0.0], dtype=torch.float64, device=data["token_type"].device
-        )
-        data["energy"] = torch.tensor(
-            [0.0], dtype=torch.float64, device=data["token_type"].device
-        )
-
+        data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float32)
+        data["energy"] = torch.tensor([0.0], dtype=torch.float32)
+        data["in_degree"] = adj.long().sum(dim=1).view(-1)
+        data["is_stable_periodic"] = False
         return data
 
     def __len__(self) -> int:

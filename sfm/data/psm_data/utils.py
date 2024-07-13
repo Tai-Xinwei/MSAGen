@@ -1366,3 +1366,11 @@ def block2matrix(Z, diag, non_diag, mask_lin, max_block_size, sym=False):
         )
         rebuild_fock = rebuild_fock[atom_orbitals][:, atom_orbitals]
         return rebuild_fock
+
+
+@torch.jit.script
+def convert_to_single_emb(x, offset: int = 512):
+    feature_num = x.size(1) if len(x.size()) > 1 else 1
+    feature_offset = torch.arange(0, feature_num * offset, offset, dtype=torch.long)
+    x = x + feature_offset
+    return x

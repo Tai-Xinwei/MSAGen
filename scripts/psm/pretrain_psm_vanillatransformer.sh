@@ -56,7 +56,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplex'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='8'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
@@ -179,7 +179,7 @@ then
 else
   if (( $OMPI_COMM_WORLD_SIZE == 1))
   then
-    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
+    DISTRIBUTED_ARGS="--nproc_per_node 1 \
                       --master_port $MASTER_PORT"
   else
     DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
