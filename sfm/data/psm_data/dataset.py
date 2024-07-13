@@ -17,13 +17,6 @@ from typing import Any, List, Optional, Union
 import lmdb
 import torch
 from ase.io import read as ase_read
-
-try:
-    from matbench import MatbenchBenchmark
-except:
-    from sfm.logging import logger
-
-    logger.warning("matbench is not installed successfully")
 from numpy import dot
 from numpy.linalg import norm
 from sympy.utilities.iterables import multiset_permutations
@@ -352,930 +345,6 @@ class PlainPM6FullLMDBDataset(PM6FullLMDBDataset):
         return data
 
 
-class MatterSimDataset:
-    def __init__(self, args: PSMConfig, data_path, split, atoms_list=None):
-        self.data_lmdb = None
-        self.data_txn = None
-        self.index_to_key_name = []
-        self.data_path = data_path
-        self.add_unit_cell_virtual_node = args.add_unit_cell_virtual_node
-        if not os.path.exists(self.data_path):
-            logger.warning(f"Path {self.data_path} does not exists.")
-        if atoms_list is not None or (not os.path.isdir(self.data_path)):
-            self.dataset_type = "single structure file"
-            if atoms_list is not None:
-                self.atoms_list = atoms_list
-                # logger.info(
-                #     "atoms_list provided, will use this for inference and not load data from disk. Setting split to None."
-                # )
-                split = None
-            else:
-                # strip trailing slashes
-                self.data_path = self.data_path.rstrip("/")
-                assert (
-                    self.data_path.endswith("xyz")
-                    or self.data_path.endswith("cif")
-                    or self.data_path.endswith("POSCAR")
-                    or self.data_path.endswith("CONTCAR")
-                ), "Structure format not supported"
-                logger.info(
-                    "Assuming you are using this functionality for inference only, setting split to None."
-                )
-                split = None
-                self.atoms_list = ase_read(self.data_path, index=":")
-        else:
-            self.dataset_type = "lmdb"
-            lmdb_path = f"{self.data_path}/{split}"
-            self.data_lmdb = lmdb.open(
-                lmdb_path,
-                subdir=True,
-                readonly=True,
-                lock=False,
-                readahead=False,
-                meminit=False,
-            )
-            self.data_txn = self.data_lmdb.begin(write=False)
-            if self.data_txn.get("index_to_key_name".encode()) is None:
-                self.index_to_key_name = []
-                for key, val in self.data_txn.cursor():
-                    self.index_to_key_name.append(key.decode())
-            else:
-                self.index_to_key_name = bstr2obj(
-                    self.data_txn.get("index_to_key_name".encode())
-                )
-        self.args = args
-
-        if args.psm_validation_mode and hasattr(args, "max_validation_samples"):
-            if self.dataset_type == "single structure file":
-                self.atoms_list = self.atoms_list[: args.max_validation_samples]
-            else:
-                self.index_to_key_name = self.index_to_key_name[
-                    : self.args.max_validation_samples
-                ]
-
-    def switch_lattice_vectors(self, pbc, cell):
-        # simple algorithm to switch lattice vectors so that they are more aligned with the initial lattice vectors
-        initial_lattice_vectors = np.array(
-            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64
-        )
-        best_permutation = None
-        best_lattice_flip_sign = None
-        max_cosine_sum = 0.0
-        for permutation in multiset_permutations(np.arange(3)):
-            cosine = 0.0
-            lattice_flip_sign = []
-            for i in range(3):
-                index = permutation[i]
-                original_lattice_vector = cell[index]
-                initial_lattice_vector = initial_lattice_vectors[i]
-                cosine_similarity = dot(
-                    original_lattice_vector, initial_lattice_vector
-                ) / (norm(original_lattice_vector) * norm(initial_lattice_vector))
-                cosine += np.abs(cosine_similarity)
-                lattice_flip_sign.append(-1.0 if cosine_similarity < 0.0 else 1.0)
-            if cosine > max_cosine_sum:
-                best_permutation = permutation
-                max_cosine_sum = cosine
-                best_lattice_flip_sign = lattice_flip_sign
-        pbc = pbc[best_permutation]
-        cell = cell[best_permutation] * np.array(best_lattice_flip_sign)[:, None]
-        return pbc, cell
-
-    # energy and std calculated over training part of the dataset
-    @property
-    def energy_mean(self):
-        return -66.0996156928496
-
-    @property
-    def energy_std(self):
-        return 102.91694201560776
-
-    @property
-    def energy_per_atom_mean(self):
-        return -4.707989414326259
-
-    @property
-    def energy_per_atom_std(self):
-        return 3.7324579639110653
-
-    @property
-    def force_mean(self):  # force mean should always be 0.0 to keep equivariance
-        return 0.0
-
-    @property
-    def force_std(self):
-        return 2.155674863803223
-
-    @lru_cache(maxsize=16)
-    def __getitem__(self, idx):
-        if self.dataset_type == "single structure file":
-            data = self.atoms_list[idx].todict()
-        else:
-            key = self.index_to_key_name[idx]
-            data = pkl.loads(self.data_txn.get(key.encode()))
-
-        if self.data_path.find("force-filtered") != -1:
-            is_stable_periodic = True
-        else:
-            is_stable_periodic = False | self.add_unit_cell_virtual_node
-
-        data["is_stable_periodic"] = is_stable_periodic
-
-        numbers = data.pop(
-            "numbers"
-        )  # atomic numbers, starting from 1 for hydrogen atoms
-        x = torch.tensor(numbers, dtype=torch.long)
-
-        data["num_atoms"] = int(x.size()[0])
-
-        if is_stable_periodic:
-            # for structure generation task, we add virtual nodes for unit cell
-            x = torch.cat([x, torch.full([8], 128)], dim=-1)
-
-        positions = data.pop("positions")
-
-        data["sample_type"] = 1
-        data["coords"] = torch.tensor(positions, dtype=torch.float64)
-        data["token_type"] = x
-        data["idx"] = idx
-
-        if is_stable_periodic:
-            data["pbc"], data["cell"] = self.switch_lattice_vectors(
-                data["pbc"], data["cell"]
-            )
-
-        data["cell"] = torch.tensor(data["cell"], dtype=torch.float64)
-        data["pbc"] = torch.tensor(data["pbc"], dtype=torch.bool)
-
-        if is_stable_periodic:
-            cell_corner_pos_matrix = torch.tensor(
-                [
-                    [0.0, 0.0, 0.0],
-                    [0.0, 0.0, 1.0],
-                    [0.0, 1.0, 0.0],
-                    [0.0, 1.0, 1.0],
-                    [1.0, 0.0, 0.0],
-                    [1.0, 0.0, 1.0],
-                    [1.0, 1.0, 0.0],
-                    [1.0, 1.0, 1.0],
-                ],
-                dtype=torch.float64,
-            )
-
-            cell_corner_pos = torch.matmul(cell_corner_pos_matrix, data["cell"])
-            data["coords"] = torch.cat(
-                [data["coords"], cell_corner_pos], dim=0
-            )  # expand pos with cell corners
-
-        if "forces" not in data and "energy" not in data and "stress" not in data:
-            data["energy"] = torch.tensor([0.0], dtype=torch.float64)
-            data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
-            data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
-            if is_stable_periodic:
-                data["forces"] = torch.zeros(
-                    [data["num_atoms"] + 8, 3], dtype=torch.float64
-                )
-            else:
-                data["forces"] = torch.zeros(
-                    [data["num_atoms"], 3], dtype=torch.float64
-                )
-        else:
-            if is_stable_periodic:
-                data["forces"] = torch.cat(
-                    [
-                        (
-                            torch.tensor(data["forces"], dtype=torch.float64)
-                            - self.force_mean
-                        ),
-                        torch.zeros([8, 3], dtype=torch.float64),
-                    ],
-                    dim=0,
-                )  # expand forces for cell corners
-            else:
-                data["forces"] = torch.tensor(
-                    data["forces"] - self.force_mean, dtype=torch.float64
-                )
-
-            data["energy"] = torch.tensor([(data["info"]["energy"] - self.energy_mean)])
-            data["energy_per_atom"] = torch.tensor(
-                [
-                    (
-                        (data["info"]["energy"] / float(data["num_atoms"]))
-                        - self.energy_per_atom_mean
-                    )
-                ]
-            )
-            data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
-
-        if self.args.rescale_loss_with_std:
-            data["energy"] = data["energy"] / self.energy_std
-            data["energy_per_atom"] = data["energy_per_atom"] / self.energy_per_atom_std
-            data["forces"] = data["forces"] / self.force_std
-
-        data["has_energy"] = torch.tensor([1], dtype=torch.bool)
-        data["has_forces"] = torch.tensor([1], dtype=torch.bool)
-
-        data = self.generate_2dgraphfeat(data)
-
-        return data
-
-    def generate_2dgraphfeat(self, data):
-        N = data["token_type"].size()[-1]
-        adj = torch.ones([N, N], dtype=torch.bool)
-
-        edge_index = torch.zeros([2, 0], dtype=torch.long)
-        edge_attr = torch.zeros([0, 3], dtype=torch.long)
-        in_degree = adj.long().sum(dim=1).view(-1)
-
-        data["edge_index"] = edge_index
-        data["edge_attr"] = edge_attr
-        data["node_attr"] = torch.cat(
-            [
-                data["token_type"].unsqueeze(-1),
-            ],
-            dim=-1,
-        )
-        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
-        data["in_degree"] = in_degree
-
-        if self.args.preprocess_2d_bond_features_with_cuda:
-            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
-            data["adj"] = adj
-            data["attn_edge_type"] = attn_edge_type
-        else:
-            shortest_path_result = (
-                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
-            )
-            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
-            spatial_pos = torch.from_numpy((shortest_path_result)).long()
-            data["edge_input"] = edge_input
-            data["spatial_pos"] = spatial_pos
-
-        return data
-
-    def __len__(self):
-        if self.dataset_type == "single structure file":
-            return len(self.atoms_list)
-        else:
-            return len(self.index_to_key_name)
-
-
-class MatBenchDataset(MatterSimDataset):
-    def __init__(self, args: PSMConfig, split):
-        self.args = args
-        self.task_name = args.psm_matbench_task_name
-        self.task = MatbenchBenchmark(autoload=False).tasks_map[self.task_name]
-        self.fold_id = args.psm_matbench_fold_id
-        self.task.load()
-        if split == "train_val":
-            train_val_inputs, train_val_outputs = self.task.get_train_and_val_data(
-                self.fold_id
-            )
-            self.data = self._preprocess(train_val_inputs, train_val_outputs)
-        elif split == "test":
-            test_inputs, test_outputs = self.task.get_test_data(
-                self.fold_id, include_target=True
-            )
-            self.data = self._preprocess(test_inputs, test_outputs)
-
-    def _preprocess(self, mat_inputs, mat_outputs=None):
-        data_list = []
-        if mat_outputs is None:
-            mat_outputs = [None for _ in mat_inputs]
-        for i, (mat_data, mat_y) in enumerate(zip(mat_inputs, mat_outputs)):
-            pos_list = []
-            x_list = list(mat_data.atomic_numbers)
-            num_atoms = 0
-            data = Data()
-            for atom in mat_data.as_dict()["sites"]:
-                pos_list.append(atom["xyz"])
-            pbc_list = list(mat_data.as_dict()["lattice"]["pbc"])
-            cell = np.array(mat_data.as_dict()["lattice"]["matrix"])
-            num_atoms = len(mat_data.as_dict()["sites"])
-
-            data.num_atoms = num_atoms
-            data.cell = cell
-            data.x = torch.as_tensor(x_list)
-            data.pos = torch.as_tensor(pos_list)
-            data.pbc = np.array(pbc_list)
-            data.y = torch.tensor(
-                [float(mat_y) if mat_y is not None else np.nan], dtype=torch.float
-            )
-            data.idx = i
-
-            edge_len = 0
-            edge_feat_len = 3
-            data["edge_attr"] = torch.zeros([edge_len, edge_feat_len], dtype=torch.long)
-            data["edge_index"] = torch.zeros([2, edge_len], dtype=torch.long)
-            assert list(data["edge_attr"].size()) == [edge_len, edge_feat_len]
-            assert list(data["edge_index"].size()) == [2, edge_len]
-            assert list(data["x"].size()) == [num_atoms]
-            assert list(data["pos"].size()) == [num_atoms, 3]
-
-            data_list.append(data)
-
-        return data_list
-
-    @lru_cache(maxsize=16)
-    def __getitem__(self, idx):
-        data = deepcopy(self.data[idx])
-        data["sample_type"] = 1
-        data["coords"] = data.pos.clone()
-        data.pos = None
-        x = data.x.clone()
-        data.x = None
-        x = torch.cat([x, torch.full([8], 128)], dim=-1)
-        data["token_type"] = x
-        data["idx"] = idx
-        data["cell"] = torch.tensor(data["cell"], dtype=torch.float64)
-        data["pbc"] = torch.tensor(data["pbc"], dtype=torch.bool)
-
-        cell_corner_pos_matrix = torch.tensor(
-            [
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 1.0, 1.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 0.0, 1.0],
-                [1.0, 1.0, 0.0],
-                [1.0, 1.0, 1.0],
-            ],
-            dtype=torch.float64,
-        )
-
-        cell_corner_pos = torch.matmul(cell_corner_pos_matrix, data["cell"])
-        data["coords"] = torch.cat(
-            [data["coords"], cell_corner_pos], dim=0
-        )  # expand pos with cell corners
-        data["num_atoms"] = int(x.size()[0] - 8)
-        data["forces"] = torch.zeros_like(data["coords"])
-        data["energy"] = data.y.clone()
-        data["energy_per_atom"] = data.y.clone()
-        data.y = None
-        data["stress"] = torch.zeros_like(data["cell"])
-        data["has_energy"] = torch.tensor([1], dtype=torch.bool)
-        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
-
-        data = self.generate_2dgraphfeat(data)
-
-        data["is_stable_periodic"] = False
-
-        return data
-
-    def __len__(self):
-        return len(self.data)
-
-
-class AFDBLMDBDataset(FoundationModelDataset):
-    def __init__(
-        self,
-        args: PSMConfig,
-        lmdb_path: Optional[str],
-    ):
-        self.lmdb_path = lmdb_path
-        self.args = args
-
-        self.vocab = {
-            # "<pad>": 0,  # padding
-            # "1"-"127": 1-127, # atom type
-            # "<cell_corner>": 128, use for pbc material
-            "L": 130,
-            "A": 131,
-            "G": 132,
-            "V": 133,
-            "S": 134,
-            "E": 135,
-            "R": 136,
-            "T": 137,
-            "I": 138,
-            "D": 139,
-            "P": 140,
-            "K": 141,
-            "Q": 142,
-            "N": 143,
-            "F": 144,
-            "Y": 145,
-            "M": 146,
-            "H": 147,
-            "W": 148,
-            "C": 149,
-            "X": 150,
-            "B": 151,
-            "U": 152,
-            "Z": 153,
-            "O": 154,
-            "-": 155,
-            ".": 156,
-            "<mask>": 157,
-            "<cls>": 158,
-            "<eos>": 159,
-            # "<unk>": 160,
-        }
-
-        # for dataloader with num_workers > 1
-        self._env, self._txn = None, None
-        self._sizes, self._keys = None, None
-
-        # self.filter_indices_by_size(
-        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
-        # )
-
-    def _init_db(self):
-        self._env = lmdb.open(
-            str(self.lmdb_path),
-            subdir=True,
-            readonly=True,
-            lock=False,
-            readahead=False,
-            meminit=False,
-        )
-        self._txn = self.env.begin(write=False)
-        metadata = bstr2obj(self.txn.get("__metadata__".encode()))
-        self._sizes, self._keys = metadata["sizes"], metadata["keys"]
-
-    def _close_db(self):
-        if self._env is not None:
-            self._env.close()
-            self._env = None
-            self._txn = None
-
-    @property
-    def env(self):
-        if self._env is None:
-            self._init_db()
-        return self._env
-
-    @property
-    def txn(self):
-        if self._txn is None:
-            self._init_db()
-        return self._txn
-
-    @property
-    def sizes(self):
-        if self._sizes is None:
-            self._init_db()
-        return self._sizes
-
-    @property
-    def keys(self):
-        if self._keys is None:
-            self._init_db()
-        return self._keys
-
-    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
-        key = self.keys[idx]
-        value = self.txn.get(key.encode())
-        if value is None:
-            raise IndexError(f"Name {key} has no data in the dataset")
-        data = bstr2obj(value)
-
-        # random cut off the sequence data["aa"] to self.max_length
-        if len(data["aa"]) > self.args.max_length:
-            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
-            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
-            coords = data["pos"][
-                random_start : random_start + self.args.max_length, 1, :
-            ]
-        else:
-            # CA atom positions, assume all values are valid.
-            coords = data["pos"][:, 1, :]
-
-        # minus 1 due to add padding index=0 in collator
-        x = torch.tensor([self.vocab[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
-
-        data["sample_type"] = 2
-        data["token_type"] = x
-        data["idx"] = idx
-
-        coords = torch.tensor(coords, dtype=torch.float64)
-        data["coords"] = coords
-        data["num_atoms"] = x.size()[0]
-
-        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
-        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
-        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
-        data["forces"] = torch.zeros(
-            (x.size()[0], 3), dtype=torch.float64, device=x.device
-        )
-        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
-        data["energy_per_atom"] = torch.tensor(
-            [0.0], dtype=torch.float64, device=x.device
-        )
-
-        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
-        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
-
-        data = self.generate_2dgraphfeat(data)
-
-        data["is_stable_periodic"] = False
-
-        return data
-
-    def split_dataset(self, validation_ratio=0.03, sort=False):
-        num_samples = len(self.keys)
-        # Shuffle the indices and split them into training and validation sets
-        indices = list(range(num_samples))
-        random.Random(12345).shuffle(indices)
-
-        num_validation_samples = int(num_samples * validation_ratio)
-        num_training_samples = num_samples - num_validation_samples
-
-        training_indices = indices[:num_training_samples]
-        validation_indices = indices[num_training_samples:]
-
-        # Create training and validation datasets
-        dataset_train = self.__class__(self.args, self.lmdb_path)
-        dataset_train._keys = [self._keys[idx] for idx in training_indices]
-        dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
-
-        dataset_val = self.__class__(self.args, self.lmdb_path)
-        dataset_val._keys = [self._keys[idx] for idx in validation_indices]
-        dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
-
-        return dataset_train, dataset_val
-
-    def filter_indices_by_size(self, indices, max_sizes):
-        """
-        Filter a list of sample indices. Remove those that are longer than
-        specified in *max_sizes*.
-
-        WARNING: don't update, override method in child classes
-
-        Args:
-            indices (np.array): original array of sample indices
-            max_sizes (int or list[int] or tuple[int]): max sample size,
-                can be defined separately for src and tgt (then list or tuple)
-        """
-        if isinstance(max_sizes, float) or isinstance(max_sizes, int):
-            if hasattr(self, "_sizes") and isinstance(self._sizes, np.ndarray):
-                ignored = indices[self._sizes[indices] > max_sizes].tolist()
-                indices = indices[self._sizes[indices] <= max_sizes]
-            elif hasattr(self, "_sizes") and isinstance(self._sizes, list):
-                sizes = np.array(self._sizes)
-                ignored = indices[np.array(sizes[indices]) > max_sizes].tolist()
-                indices = indices[np.array(sizes[indices]) <= max_sizes]
-            else:
-                indices, ignored = _filter_by_size_dynamic(
-                    indices, self._sizes, max_sizes
-                )
-        else:
-            indices, ignored = _filter_by_size_dynamic(indices, self._sizes, max_sizes)
-
-        logger.warning(
-            f"Removed {len(ignored)} examples from the AFDBLMDBDataset because they are longer than {max_sizes}."
-        )
-        self._sizes = [self._sizes[idx] for idx in indices]
-        self._keys = [self._keys[idx] for idx in indices]
-
-    # protein does not have 2dgraph, create one for mixing data
-    def generate_2dgraphfeat(self, data):
-        N = data["token_type"].shape[0]
-        adj = torch.ones([N, N], dtype=torch.bool)
-
-        edge_index = torch.zeros([2, 0], dtype=torch.long)
-        edge_attr = torch.zeros([0, 3], dtype=torch.long)
-        indgree = adj.long().sum(dim=1).view(-1)
-
-        data["edge_index"] = edge_index
-        data["edge_attr"] = edge_attr
-        data["node_attr"] = torch.cat(
-            [
-                data["token_type"].unsqueeze(-1),
-                torch.zeros([data["token_type"].size()[0], 8], dtype=torch.long),
-            ],
-            dim=-1,
-        )
-        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
-        data["in_degree"] = indgree
-
-        if self.args.preprocess_2d_bond_features_with_cuda:
-            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
-            data["adj"] = adj
-            data["attn_edge_type"] = attn_edge_type
-        else:
-            shortest_path_result = (
-                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
-            )
-            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
-            spatial_pos = torch.from_numpy((shortest_path_result)).long()
-            data["edge_input"] = edge_input
-            data["spatial_pos"] = spatial_pos
-
-        return data
-
-    def __len__(self) -> int:
-        return len(self.keys)
-
-    def num_tokens(self, index: int) -> int:
-        return self.sizes[index]
-
-
-class PDBDataset(AFDBLMDBDataset):
-    def __init__(
-        self,
-        args: PSMConfig,
-        lmdb_path: Optional[str],
-        dataset_name: Optional[str] = None,
-    ):
-        version = "20240101_snapshot.20240630_8fe6fe4b.subset_release_date_before_20200430.protein_chain.lmdb"
-        if lmdb_path.find(version) == -1:
-            lmdb_path = os.path.join(lmdb_path, version)
-        super().__init__(args, lmdb_path)
-        # self.filter_indices_by_size(
-        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
-        # )
-
-    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
-        key = self.keys[idx]
-        value = self.txn.get(key.encode())
-        if value is None:
-            raise IndexError(f"Name {key} has no data in the dataset")
-        data = bstr2obj(value)
-
-        # random cut off the sequence data["aa"] to self.max_length
-        if len(data["aa"]) > self.args.max_length:
-            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
-            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
-            coords = data["pos"][random_start : random_start + self.args.max_length, :]
-        else:
-            # CA atom positions, assume all values are valid.
-            coords = data["pos"][:, :]
-
-        # minus 1 due to add padding index=0 in collator
-        x = torch.tensor([self.vocab[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
-
-        data["sample_type"] = 2
-        data["token_type"] = x
-        data["idx"] = idx
-
-        coords = torch.tensor(coords, dtype=torch.float64)
-
-        data["coords"] = coords
-        data["num_atoms"] = x.size()[0]
-
-        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
-        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
-        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
-        data["forces"] = torch.zeros(
-            (x.size()[0], 3), dtype=torch.float64, device=x.device
-        )
-        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
-        data["energy_per_atom"] = torch.tensor(
-            [0.0], dtype=torch.float64, device=x.device
-        )
-
-        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
-        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
-
-        data = self.generate_2dgraphfeat(data)
-
-        data["is_stable_periodic"] = False
-
-        return data
-
-
-class UR50LMDBDataset(FoundationModelDataset):
-    def __init__(
-        self,
-        args: PSMConfig,
-        lmdb_path: Optional[str],
-    ):
-        self.lmdb_path = lmdb_path
-        self.args = args
-
-        self.vacab_mapping_dict = {
-            0: 158,  # maps '<cls>' from vocab to self.vocab
-            1: 0,  # maps '<pad>' from vocab to self.vocab
-            2: 159,  # maps '<eos>' from vocab to self.vocab
-            # 3: None,  # there is no equivalent of '<unk>' in self.vocab
-            4: 130,  # maps 'L' from vocab to self.vocab
-            5: 131,  # maps 'A' from vocab to self.vocab
-            6: 132,  # maps 'G' from vocab to self.vocab
-            7: 133,  # maps 'V' from vocab to self.vocab
-            8: 134,  # maps 'S' from vocab to self.vocab
-            9: 135,  # maps 'E' from vocab to self.vocab
-            10: 136,  # maps 'R' from vocab to self.vocab
-            11: 137,  # maps 'T' from vocab to self.vocab
-            12: 138,  # maps 'I' from vocab to self.vocab
-            13: 139,  # maps 'D' from vocab to self.vocab
-            14: 140,  # maps 'P' from vocab to self.vocab
-            15: 141,  # maps 'K' from vocab to self.vocab
-            16: 142,  # maps 'Q' from vocab to self.vocab
-            17: 143,  # maps 'N' from vocab to self.vocab
-            18: 144,  # maps 'F' from vocab to self.vocab
-            19: 145,  # maps 'Y' from vocab to self.vocab
-            20: 146,  # maps 'M' from vocab to self.vocab
-            21: 147,  # maps 'H' from vocab to self.vocab
-            22: 148,  # maps 'W' from vocab to self.vocab
-            23: 149,  # maps 'C' from vocab to self.vocab
-            24: 150,  # maps 'X' from vocab to self.vocab
-            25: 151,  # maps 'B' from vocab to self.vocab
-            26: 152,  # maps 'U' from vocab to self.vocab
-            27: 153,  # maps 'Z' from vocab to self.vocab
-            28: 154,  # maps 'O' from vocab to self.vocab
-            29: 156,  # maps '.' from vocab to self.vocab
-            30: 155,  # maps '-' from vocab to self.vocab
-            31: 157,  # maps '<mask>' from vocab to self.vocab
-        }
-
-        # for dataloader with num_workers > 1
-        self._env, self._txn = None, None
-        self._sizes, self._keys = None, None
-
-        # self.filter_indices_by_size(
-        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
-        # )
-
-    def _init_db(self):
-        self._env = lmdb.open(
-            str(self.lmdb_path),
-            subdir=True,
-            readonly=True,
-            lock=False,
-            readahead=False,
-            meminit=False,
-        )
-        self._txn = self.env.begin(write=False)
-        metadata = bstr2obj(self.txn.get("metadata".encode()))
-        self._sizes, self._keys = metadata["lengths"], metadata["prot_accessions"]
-
-    def _close_db(self):
-        if self._env is not None:
-            self._env.close()
-            self._env = None
-            self._txn = None
-
-    @property
-    def env(self):
-        if self._env is None:
-            self._init_db()
-        return self._env
-
-    @property
-    def txn(self):
-        if self._txn is None:
-            self._init_db()
-        return self._txn
-
-    @property
-    def sizes(self):
-        if self._sizes is None:
-            self._init_db()
-        return self._sizes
-
-    @property
-    def keys(self):
-        if self._keys is None:
-            self._init_db()
-        return self._keys
-
-    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
-        key = self.keys[idx]
-        value = self.txn.get(f"{key}".encode())
-        if value is None:
-            raise IndexError(f"Name {key} has no data in the dataset")
-        data = pkl.loads(value)
-        data["aa"] = list(data["aa_seq"])
-
-        # # random cut off the sequence data["aa"] to self.max_length
-        # if len(data["aa"]) > self.args.max_length:
-        #     random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
-        #     data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
-
-        x = torch.tensor(
-            [self.vacab_mapping_dict[tok] - 1 for tok in data["aa"]], dtype=torch.int64
-        )
-
-        data["sample_type"] = 5
-        data["token_type"] = x
-        data["idx"] = idx
-
-        data["coords"] = torch.zeros(
-            (data["token_type"].size()[0], 3), dtype=torch.float64
-        )
-        data["num_atoms"] = x.size()[0]
-
-        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
-        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
-        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
-        data["forces"] = torch.zeros(
-            (x.size()[0], 3), dtype=torch.float64, device=x.device
-        )
-        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
-        data["energy_per_atom"] = torch.tensor(
-            [0.0], dtype=torch.float64, device=x.device
-        )
-
-        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
-        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
-
-        data = self.generate_2dgraphfeat(data)
-
-        data["is_stable_periodic"] = False
-
-        return data
-
-    def split_dataset(self, validation_ratio=0.03, sort=False):
-        num_samples = len(self.keys)
-        # Shuffle the indices and split them into training and validation sets
-        indices = list(range(num_samples))
-        random.Random(12345).shuffle(indices)
-
-        num_validation_samples = int(num_samples * validation_ratio)
-        num_training_samples = num_samples - num_validation_samples
-
-        training_indices = indices[:num_training_samples]
-        validation_indices = indices[num_training_samples:]
-
-        # Create training and validation datasets
-        dataset_train = self.__class__(self.args, self.lmdb_path)
-        dataset_train._keys = [self._keys[idx] for idx in training_indices]
-        dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
-
-        dataset_val = self.__class__(self.args, self.lmdb_path)
-        dataset_val._keys = [self._keys[idx] for idx in validation_indices]
-        dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
-
-        return dataset_train, dataset_val
-
-    def filter_indices_by_size(self, indices, max_sizes):
-        """
-        Filter a list of sample indices. Remove those that are longer than
-        specified in *max_sizes*.
-
-        WARNING: don't update, override method in child classes
-
-        Args:
-            indices (np.array): original array of sample indices
-            max_sizes (int or list[int] or tuple[int]): max sample size,
-                can be defined separately for src and tgt (then list or tuple)
-        """
-        if isinstance(max_sizes, float) or isinstance(max_sizes, int):
-            if hasattr(self, "_sizes") and isinstance(self._sizes, np.ndarray):
-                ignored = indices[self._sizes[indices] > max_sizes].tolist()
-                indices = indices[self._sizes[indices] <= max_sizes]
-            elif hasattr(self, "_sizes") and isinstance(self._sizes, list):
-                sizes = np.array(self._sizes)
-                ignored = indices[np.array(sizes[indices]) > max_sizes].tolist()
-                indices = indices[np.array(sizes[indices]) <= max_sizes]
-            else:
-                indices, ignored = _filter_by_size_dynamic(
-                    indices, self._sizes, max_sizes
-                )
-        else:
-            indices, ignored = _filter_by_size_dynamic(indices, self._sizes, max_sizes)
-
-        logger.warning(
-            f"Removed {len(ignored)} examples from the AFDBLMDBDataset because they are longer than {max_sizes}."
-        )
-        self._sizes = [self._sizes[idx] for idx in indices]
-        self._keys = [self._keys[idx] for idx in indices]
-
-    # protein does not have 2dgraph, create one for mixing data
-    def generate_2dgraphfeat(self, data):
-        N = data["token_type"].shape[0]
-        adj = torch.ones([N, N], dtype=torch.bool)
-
-        edge_index = torch.zeros([2, 0], dtype=torch.long)
-        edge_attr = torch.zeros([0, 3], dtype=torch.long)
-        indgree = adj.long().sum(dim=1).view(-1)
-
-        data["edge_index"] = edge_index
-        data["edge_attr"] = edge_attr
-        data["node_attr"] = torch.cat(
-            [
-                data["token_type"].unsqueeze(-1),
-                torch.zeros([data["token_type"].size()[0], 8], dtype=torch.long),
-            ],
-            dim=-1,
-        )
-        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
-        data["in_degree"] = indgree
-
-        if self.args.preprocess_2d_bond_features_with_cuda:
-            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
-            data["adj"] = adj
-            data["attn_edge_type"] = attn_edge_type
-        else:
-            shortest_path_result = (
-                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
-            )
-            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
-            spatial_pos = torch.from_numpy((shortest_path_result)).long()
-            data["edge_input"] = edge_input
-            data["spatial_pos"] = spatial_pos
-
-        return data
-
-    def __len__(self) -> int:
-        return len(self.keys)
-
-    def num_tokens(self, index: int) -> int:
-        return self.sizes[index]
-
-
 class SmallMolDataset(FoundationModelDataset):
     r"""Dataset class to load from LMDB files containing relaxation
     trajectories or single point computations.
@@ -1597,157 +666,831 @@ class SmallMolDataset(FoundationModelDataset):
         return dataset_train, dataset_val, dataset_test
 
 
+class MatterSimDataset:
+    def __init__(self, args: PSMConfig, data_path, split, atoms_list=None):
+        self.data_lmdb = None
+        self.data_txn = None
+        self.index_to_key_name = []
+        self.data_path = data_path
+        self.add_unit_cell_virtual_node = args.add_unit_cell_virtual_node
+        if not os.path.exists(self.data_path):
+            logger.warning(f"Path {self.data_path} does not exists.")
+        if atoms_list is not None or (not os.path.isdir(self.data_path)):
+            self.dataset_type = "single structure file"
+            if atoms_list is not None:
+                self.atoms_list = atoms_list
+                # logger.info(
+                #     "atoms_list provided, will use this for inference and not load data from disk. Setting split to None."
+                # )
+                split = None
+            else:
+                # strip trailing slashes
+                self.data_path = self.data_path.rstrip("/")
+                assert (
+                    self.data_path.endswith("xyz")
+                    or self.data_path.endswith("cif")
+                    or self.data_path.endswith("POSCAR")
+                    or self.data_path.endswith("CONTCAR")
+                ), "Structure format not supported"
+                logger.info(
+                    "Assuming you are using this functionality for inference only, setting split to None."
+                )
+                split = None
+                self.atoms_list = ase_read(self.data_path, index=":")
+        else:
+            self.dataset_type = "lmdb"
+            lmdb_path = f"{self.data_path}/{split}"
+            self.data_lmdb = lmdb.open(
+                lmdb_path,
+                subdir=True,
+                readonly=True,
+                lock=False,
+                readahead=False,
+                meminit=False,
+            )
+            self.data_txn = self.data_lmdb.begin(write=False)
+            if self.data_txn.get("index_to_key_name".encode()) is None:
+                self.index_to_key_name = []
+                for key, val in self.data_txn.cursor():
+                    self.index_to_key_name.append(key.decode())
+            else:
+                self.index_to_key_name = bstr2obj(
+                    self.data_txn.get("index_to_key_name".encode())
+                )
+        self.args = args
+
+        if args.psm_validation_mode and hasattr(args, "max_validation_samples"):
+            if self.dataset_type == "single structure file":
+                self.atoms_list = self.atoms_list[: args.max_validation_samples]
+            else:
+                self.index_to_key_name = self.index_to_key_name[
+                    : self.args.max_validation_samples
+                ]
+
+    def switch_lattice_vectors(self, pbc, cell):
+        # simple algorithm to switch lattice vectors so that they are more aligned with the initial lattice vectors
+        initial_lattice_vectors = np.array(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64
+        )
+        best_permutation = None
+        best_lattice_flip_sign = None
+        max_cosine_sum = 0.0
+        for permutation in multiset_permutations(np.arange(3)):
+            cosine = 0.0
+            lattice_flip_sign = []
+            for i in range(3):
+                index = permutation[i]
+                original_lattice_vector = cell[index]
+                initial_lattice_vector = initial_lattice_vectors[i]
+                cosine_similarity = dot(
+                    original_lattice_vector, initial_lattice_vector
+                ) / (norm(original_lattice_vector) * norm(initial_lattice_vector))
+                cosine += np.abs(cosine_similarity)
+                lattice_flip_sign.append(-1.0 if cosine_similarity < 0.0 else 1.0)
+            if cosine > max_cosine_sum:
+                best_permutation = permutation
+                max_cosine_sum = cosine
+                best_lattice_flip_sign = lattice_flip_sign
+        pbc = pbc[best_permutation]
+        cell = cell[best_permutation] * np.array(best_lattice_flip_sign)[:, None]
+        return pbc, cell
+
+    # energy and std calculated over training part of the dataset
+    @property
+    def energy_mean(self):
+        return -66.0996156928496
+
+    @property
+    def energy_std(self):
+        return 102.91694201560776
+
+    @property
+    def energy_per_atom_mean(self):
+        return -4.707989414326259
+
+    @property
+    def energy_per_atom_std(self):
+        return 3.7324579639110653
+
+    @property
+    def force_mean(self):  # force mean should always be 0.0 to keep equivariance
+        return 0.0
+
+    @property
+    def force_std(self):
+        return 2.155674863803223
+
+    @lru_cache(maxsize=16)
+    def __getitem__(self, idx):
+        if self.dataset_type == "single structure file":
+            data = self.atoms_list[idx].todict()
+        else:
+            key = self.index_to_key_name[idx]
+            data = pkl.loads(self.data_txn.get(key.encode()))
+
+        if self.data_path.find("force-filtered") != -1:
+            is_stable_periodic = True
+        else:
+            is_stable_periodic = False | self.add_unit_cell_virtual_node
+
+        data["is_stable_periodic"] = is_stable_periodic
+
+        numbers = data.pop(
+            "numbers"
+        )  # atomic numbers, starting from 1 for hydrogen atoms
+        x = torch.tensor(numbers, dtype=torch.long)
+
+        data["num_atoms"] = int(x.size()[0])
+
+        if is_stable_periodic:
+            # for structure generation task, we add virtual nodes for unit cell
+            x = torch.cat([x, torch.full([8], 128)], dim=-1)
+
+        positions = data.pop("positions")
+
+        data["sample_type"] = 1
+        data["coords"] = torch.tensor(positions, dtype=torch.float64)
+        data["token_type"] = x
+        data["idx"] = idx
+
+        if is_stable_periodic:
+            data["pbc"], data["cell"] = self.switch_lattice_vectors(
+                data["pbc"], data["cell"]
+            )
+
+        data["cell"] = torch.tensor(data["cell"], dtype=torch.float64)
+        data["pbc"] = torch.tensor(data["pbc"], dtype=torch.bool)
+
+        if is_stable_periodic:
+            cell_corner_pos_matrix = torch.tensor(
+                [
+                    [0.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 1.0],
+                    [1.0, 0.0, 0.0],
+                    [1.0, 0.0, 1.0],
+                    [1.0, 1.0, 0.0],
+                    [1.0, 1.0, 1.0],
+                ],
+                dtype=torch.float64,
+            )
+
+            cell_corner_pos = torch.matmul(cell_corner_pos_matrix, data["cell"])
+            data["coords"] = torch.cat(
+                [data["coords"], cell_corner_pos], dim=0
+            )  # expand pos with cell corners
+
+        if "forces" not in data and "energy" not in data and "stress" not in data:
+            data["energy"] = torch.tensor([0.0], dtype=torch.float64)
+            data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
+            data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
+            if is_stable_periodic:
+                data["forces"] = torch.zeros(
+                    [data["num_atoms"] + 8, 3], dtype=torch.float64
+                )
+            else:
+                data["forces"] = torch.zeros(
+                    [data["num_atoms"], 3], dtype=torch.float64
+                )
+        else:
+            if is_stable_periodic:
+                data["forces"] = torch.cat(
+                    [
+                        (
+                            torch.tensor(data["forces"], dtype=torch.float64)
+                            - self.force_mean
+                        ),
+                        torch.zeros([8, 3], dtype=torch.float64),
+                    ],
+                    dim=0,
+                )  # expand forces for cell corners
+            else:
+                data["forces"] = torch.tensor(
+                    data["forces"] - self.force_mean, dtype=torch.float64
+                )
+
+            data["energy"] = torch.tensor([(data["info"]["energy"] - self.energy_mean)])
+            data["energy_per_atom"] = torch.tensor(
+                [
+                    (
+                        (data["info"]["energy"] / float(data["num_atoms"]))
+                        - self.energy_per_atom_mean
+                    )
+                ]
+            )
+            data["stress"] = torch.tensor(data["info"]["stress"], dtype=torch.float64)
+
+        if self.args.rescale_loss_with_std:
+            data["energy"] = data["energy"] / self.energy_std
+            data["energy_per_atom"] = data["energy_per_atom"] / self.energy_per_atom_std
+            data["forces"] = data["forces"] / self.force_std
+
+        data["has_energy"] = torch.tensor([1], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([1], dtype=torch.bool)
+
+        data = self.generate_2dgraphfeat(data)
+
+        return data
+
+    def generate_2dgraphfeat(self, data):
+        N = data["token_type"].size()[-1]
+        adj = torch.ones([N, N], dtype=torch.bool)
+
+        edge_index = torch.zeros([2, 0], dtype=torch.long)
+        edge_attr = torch.zeros([0, 3], dtype=torch.long)
+        in_degree = adj.long().sum(dim=1).view(-1)
+
+        data["edge_index"] = edge_index
+        data["edge_attr"] = edge_attr
+        data["node_attr"] = torch.cat(
+            [
+                data["token_type"].unsqueeze(-1),
+            ],
+            dim=-1,
+        )
+        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        data["in_degree"] = in_degree
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result = (
+                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+            )
+            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = edge_input
+            data["spatial_pos"] = spatial_pos
+
+        return data
+
+    def __len__(self):
+        if self.dataset_type == "single structure file":
+            return len(self.atoms_list)
+        else:
+            return len(self.index_to_key_name)
+
+
+class AFDBLMDBDataset(FoundationModelDataset):
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: Optional[str],
+    ):
+        self.lmdb_path = lmdb_path
+        self.args = args
+
+        self.vocab = {
+            # "<pad>": 0,  # padding
+            # "1"-"127": 1-127, # atom type
+            # "<cell_corner>": 128, use for pbc material
+            "L": 130,
+            "A": 131,
+            "G": 132,
+            "V": 133,
+            "S": 134,
+            "E": 135,
+            "R": 136,
+            "T": 137,
+            "I": 138,
+            "D": 139,
+            "P": 140,
+            "K": 141,
+            "Q": 142,
+            "N": 143,
+            "F": 144,
+            "Y": 145,
+            "M": 146,
+            "H": 147,
+            "W": 148,
+            "C": 149,
+            "X": 150,
+            "B": 151,
+            "U": 152,
+            "Z": 153,
+            "O": 154,
+            "-": 155,
+            ".": 156,
+            "<mask>": 157,
+            "<cls>": 158,
+            "<eos>": 159,
+            # "<unk>": 160,
+        }
+
+        # for dataloader with num_workers > 1
+        self._env, self._txn = None, None
+        self._sizes, self._keys = None, None
+
+        # self.filter_indices_by_size(
+        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
+        # )
+
+    def _init_db(self):
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self._txn = self.env.begin(write=False)
+        metadata = bstr2obj(self.txn.get("__metadata__".encode()))
+        self._sizes, self._keys = metadata["sizes"], metadata["keys"]
+
+    def _close_db(self):
+        if self._env is not None:
+            self._env.close()
+            self._env = None
+            self._txn = None
+
+    @property
+    def env(self):
+        if self._env is None:
+            self._init_db()
+        return self._env
+
+    @property
+    def txn(self):
+        if self._txn is None:
+            self._init_db()
+        return self._txn
+
+    @property
+    def sizes(self):
+        if self._sizes is None:
+            self._init_db()
+        return self._sizes
+
+    @property
+    def keys(self):
+        if self._keys is None:
+            self._init_db()
+        return self._keys
+
+    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
+        key = self.keys[idx]
+        value = self.txn.get(key.encode())
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        data = bstr2obj(value)
+
+        # random cut off the sequence data["aa"] to self.max_length
+        if len(data["aa"]) > self.args.max_length:
+            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
+            coords = data["pos"][
+                random_start : random_start + self.args.max_length, 1, :
+            ]
+        else:
+            # CA atom positions, assume all values are valid.
+            coords = data["pos"][:, 1, :]
+
+        # minus 1 due to add padding index=0 in collator
+        x = torch.tensor([self.vocab[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
+
+        data["sample_type"] = 2
+        data["token_type"] = x
+        data["idx"] = idx
+
+        coords = torch.tensor(coords, dtype=torch.float64)
+        data["coords"] = coords
+        data["num_atoms"] = x.size()[0]
+
+        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
+        data["forces"] = torch.zeros(
+            (x.size()[0], 3), dtype=torch.float64, device=x.device
+        )
+        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=x.device
+        )
+
+        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+
+        data = self.generate_2dgraphfeat(data)
+
+        data["is_stable_periodic"] = False
+
+        return data
+
+    def split_dataset(self, validation_ratio=0.03, sort=False):
+        num_samples = len(self.keys)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(12345).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(self.args, self.lmdb_path)
+        dataset_train._keys = [self._keys[idx] for idx in training_indices]
+        dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
+
+        dataset_val = self.__class__(self.args, self.lmdb_path)
+        dataset_val._keys = [self._keys[idx] for idx in validation_indices]
+        dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
+
+        return dataset_train, dataset_val
+
+    def filter_indices_by_size(self, indices, max_sizes):
+        """
+        Filter a list of sample indices. Remove those that are longer than
+        specified in *max_sizes*.
+
+        WARNING: don't update, override method in child classes
+
+        Args:
+            indices (np.array): original array of sample indices
+            max_sizes (int or list[int] or tuple[int]): max sample size,
+                can be defined separately for src and tgt (then list or tuple)
+        """
+        if isinstance(max_sizes, float) or isinstance(max_sizes, int):
+            if hasattr(self, "_sizes") and isinstance(self._sizes, np.ndarray):
+                ignored = indices[self._sizes[indices] > max_sizes].tolist()
+                indices = indices[self._sizes[indices] <= max_sizes]
+            elif hasattr(self, "_sizes") and isinstance(self._sizes, list):
+                sizes = np.array(self._sizes)
+                ignored = indices[np.array(sizes[indices]) > max_sizes].tolist()
+                indices = indices[np.array(sizes[indices]) <= max_sizes]
+            else:
+                indices, ignored = _filter_by_size_dynamic(
+                    indices, self._sizes, max_sizes
+                )
+        else:
+            indices, ignored = _filter_by_size_dynamic(indices, self._sizes, max_sizes)
+
+        logger.warning(
+            f"Removed {len(ignored)} examples from the AFDBLMDBDataset because they are longer than {max_sizes}."
+        )
+        self._sizes = [self._sizes[idx] for idx in indices]
+        self._keys = [self._keys[idx] for idx in indices]
+
+    # protein does not have 2dgraph, create one for mixing data
+    def generate_2dgraphfeat(self, data):
+        N = data["token_type"].shape[0]
+        adj = torch.ones([N, N], dtype=torch.bool)
+
+        edge_index = torch.zeros([2, 0], dtype=torch.long)
+        edge_attr = torch.zeros([0, 3], dtype=torch.long)
+        indgree = adj.long().sum(dim=1).view(-1)
+
+        data["edge_index"] = edge_index
+        data["edge_attr"] = edge_attr
+        data["node_attr"] = torch.cat(
+            [
+                data["token_type"].unsqueeze(-1),
+                torch.zeros([data["token_type"].size()[0], 8], dtype=torch.long),
+            ],
+            dim=-1,
+        )
+        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        data["in_degree"] = indgree
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result = (
+                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+            )
+            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = edge_input
+            data["spatial_pos"] = spatial_pos
+
+        return data
+
+    def __len__(self) -> int:
+        return len(self.keys)
+
+    def num_tokens(self, index: int) -> int:
+        return self.sizes[index]
+
+
+class PDBDataset(AFDBLMDBDataset):
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: Optional[str],
+        dataset_name: Optional[str] = None,
+    ):
+        # version = "20240101_snapshot.20240630_8fe6fe4b.subset_release_date_before_20200430.protein_chain.lmdb"
+        version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.protein_chain.lmdb"
+
+        if lmdb_path.find(version) == -1:
+            lmdb_path = os.path.join(lmdb_path, version)
+        super().__init__(args, lmdb_path)
+        # self.filter_indices_by_size(
+        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
+        # )
+
+    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
+        key = self.keys[idx]
+        value = self.txn.get(key.encode())
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        data = bstr2obj(value)
+
+        # random cut off the sequence data["aa"] to self.max_length
+        if len(data["aa"]) > self.args.max_length:
+            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
+            coords = data["pos"][random_start : random_start + self.args.max_length, :]
+        else:
+            # CA atom positions, assume all values are valid.
+            coords = data["pos"][:, :]
+
+        # minus 1 due to add padding index=0 in collator
+        x = torch.tensor([self.vocab[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
+
+        data["sample_type"] = 2
+        data["token_type"] = x
+        data["idx"] = idx
+
+        coords = torch.tensor(coords, dtype=torch.float64)
+
+        data["coords"] = coords
+        data["num_atoms"] = x.size()[0]
+
+        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
+        data["forces"] = torch.zeros(
+            (x.size()[0], 3), dtype=torch.float64, device=x.device
+        )
+        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=x.device
+        )
+
+        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+
+        data = self.generate_2dgraphfeat(data)
+
+        data["is_stable_periodic"] = False
+
+        return data
+
+
+class UR50LMDBDataset(FoundationModelDataset):
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: Optional[str],
+    ):
+        self.lmdb_path = lmdb_path
+        self.args = args
+
+        self.vacab_mapping_dict = {
+            0: 158,  # maps '<cls>' from vocab to self.vocab
+            1: 0,  # maps '<pad>' from vocab to self.vocab
+            2: 159,  # maps '<eos>' from vocab to self.vocab
+            # 3: None,  # there is no equivalent of '<unk>' in self.vocab
+            4: 130,  # maps 'L' from vocab to self.vocab
+            5: 131,  # maps 'A' from vocab to self.vocab
+            6: 132,  # maps 'G' from vocab to self.vocab
+            7: 133,  # maps 'V' from vocab to self.vocab
+            8: 134,  # maps 'S' from vocab to self.vocab
+            9: 135,  # maps 'E' from vocab to self.vocab
+            10: 136,  # maps 'R' from vocab to self.vocab
+            11: 137,  # maps 'T' from vocab to self.vocab
+            12: 138,  # maps 'I' from vocab to self.vocab
+            13: 139,  # maps 'D' from vocab to self.vocab
+            14: 140,  # maps 'P' from vocab to self.vocab
+            15: 141,  # maps 'K' from vocab to self.vocab
+            16: 142,  # maps 'Q' from vocab to self.vocab
+            17: 143,  # maps 'N' from vocab to self.vocab
+            18: 144,  # maps 'F' from vocab to self.vocab
+            19: 145,  # maps 'Y' from vocab to self.vocab
+            20: 146,  # maps 'M' from vocab to self.vocab
+            21: 147,  # maps 'H' from vocab to self.vocab
+            22: 148,  # maps 'W' from vocab to self.vocab
+            23: 149,  # maps 'C' from vocab to self.vocab
+            24: 150,  # maps 'X' from vocab to self.vocab
+            25: 151,  # maps 'B' from vocab to self.vocab
+            26: 152,  # maps 'U' from vocab to self.vocab
+            27: 153,  # maps 'Z' from vocab to self.vocab
+            28: 154,  # maps 'O' from vocab to self.vocab
+            29: 156,  # maps '.' from vocab to self.vocab
+            30: 155,  # maps '-' from vocab to self.vocab
+            31: 157,  # maps '<mask>' from vocab to self.vocab
+        }
+
+        # for dataloader with num_workers > 1
+        self._env, self._txn = None, None
+        self._sizes, self._keys = None, None
+
+        # self.filter_indices_by_size(
+        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
+        # )
+
+    def _init_db(self):
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self._txn = self.env.begin(write=False)
+        metadata = bstr2obj(self.txn.get("metadata".encode()))
+        self._sizes, self._keys = metadata["lengths"], metadata["prot_accessions"]
+
+    def _close_db(self):
+        if self._env is not None:
+            self._env.close()
+            self._env = None
+            self._txn = None
+
+    @property
+    def env(self):
+        if self._env is None:
+            self._init_db()
+        return self._env
+
+    @property
+    def txn(self):
+        if self._txn is None:
+            self._init_db()
+        return self._txn
+
+    @property
+    def sizes(self):
+        if self._sizes is None:
+            self._init_db()
+        return self._sizes
+
+    @property
+    def keys(self):
+        if self._keys is None:
+            self._init_db()
+        return self._keys
+
+    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
+        key = self.keys[idx]
+        value = self.txn.get(f"{key}".encode())
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        data = pkl.loads(value)
+        data["aa"] = list(data["aa_seq"])
+
+        # # random cut off the sequence data["aa"] to self.max_length
+        # if len(data["aa"]) > self.args.max_length:
+        #     random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+        #     data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
+
+        x = torch.tensor(
+            [self.vacab_mapping_dict[tok] - 1 for tok in data["aa"]], dtype=torch.int64
+        )
+
+        data["sample_type"] = 5
+        data["token_type"] = x
+        data["idx"] = idx
+
+        data["coords"] = torch.zeros(
+            (data["token_type"].size()[0], 3), dtype=torch.float64
+        )
+        data["num_atoms"] = x.size()[0]
+
+        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
+        data["forces"] = torch.zeros(
+            (x.size()[0], 3), dtype=torch.float64, device=x.device
+        )
+        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=x.device
+        )
+
+        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+
+        data = self.generate_2dgraphfeat(data)
+
+        data["is_stable_periodic"] = False
+
+        return data
+
+    def split_dataset(self, validation_ratio=0.03, sort=False):
+        num_samples = len(self.keys)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(12345).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(self.args, self.lmdb_path)
+        dataset_train._keys = [self._keys[idx] for idx in training_indices]
+        dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
+
+        dataset_val = self.__class__(self.args, self.lmdb_path)
+        dataset_val._keys = [self._keys[idx] for idx in validation_indices]
+        dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
+
+        return dataset_train, dataset_val
+
+    def filter_indices_by_size(self, indices, max_sizes):
+        """
+        Filter a list of sample indices. Remove those that are longer than
+        specified in *max_sizes*.
+
+        WARNING: don't update, override method in child classes
+
+        Args:
+            indices (np.array): original array of sample indices
+            max_sizes (int or list[int] or tuple[int]): max sample size,
+                can be defined separately for src and tgt (then list or tuple)
+        """
+        if isinstance(max_sizes, float) or isinstance(max_sizes, int):
+            if hasattr(self, "_sizes") and isinstance(self._sizes, np.ndarray):
+                ignored = indices[self._sizes[indices] > max_sizes].tolist()
+                indices = indices[self._sizes[indices] <= max_sizes]
+            elif hasattr(self, "_sizes") and isinstance(self._sizes, list):
+                sizes = np.array(self._sizes)
+                ignored = indices[np.array(sizes[indices]) > max_sizes].tolist()
+                indices = indices[np.array(sizes[indices]) <= max_sizes]
+            else:
+                indices, ignored = _filter_by_size_dynamic(
+                    indices, self._sizes, max_sizes
+                )
+        else:
+            indices, ignored = _filter_by_size_dynamic(indices, self._sizes, max_sizes)
+
+        logger.warning(
+            f"Removed {len(ignored)} examples from the AFDBLMDBDataset because they are longer than {max_sizes}."
+        )
+        self._sizes = [self._sizes[idx] for idx in indices]
+        self._keys = [self._keys[idx] for idx in indices]
+
+    # protein does not have 2dgraph, create one for mixing data
+    def generate_2dgraphfeat(self, data):
+        N = data["token_type"].shape[0]
+        adj = torch.ones([N, N], dtype=torch.bool)
+
+        edge_index = torch.zeros([2, 0], dtype=torch.long)
+        edge_attr = torch.zeros([0, 3], dtype=torch.long)
+        indgree = adj.long().sum(dim=1).view(-1)
+
+        data["edge_index"] = edge_index
+        data["edge_attr"] = edge_attr
+        data["node_attr"] = torch.cat(
+            [
+                data["token_type"].unsqueeze(-1),
+                torch.zeros([data["token_type"].size()[0], 8], dtype=torch.long),
+            ],
+            dim=-1,
+        )
+        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        data["in_degree"] = indgree
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result = (
+                torch.full(adj.size(), 511, dtype=torch.long).cpu().numpy()
+            )
+            edge_input = torch.zeros([N, N, 0, 3], dtype=torch.long)
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = edge_input
+            data["spatial_pos"] = spatial_pos
+
+        return data
+
+    def __len__(self) -> int:
+        return len(self.keys)
+
+    def num_tokens(self, index: int) -> int:
+        return self.sizes[index]
+
+
 @torch.jit.script
 def convert_to_single_emb(x, offset: int = 512):
     feature_num = x.size(1) if len(x.size()) > 1 else 1
     feature_offset = torch.arange(0, feature_num * offset, offset, dtype=torch.long)
     x = x + feature_offset
     return x
-
-
-class DaliPM6DataSource:
-    def __init__(self, args: Any, dataset: Any, batch_size: int):
-        self.dataset = dataset
-        self.batch_size = batch_size
-
-        self.size = len(dataset)
-        self.generator = np.random.default_rng(args.seed)
-
-        self.rank = args.rank
-        self.world_size = args.world_size
-
-        self._set_sample_indices()
-
-    def _set_sample_indices(self):
-        indices = self.generator.permutation(self.size)
-        indices = indices[self.rank : self.size : self.world_size]
-
-        self.indices = indices
-        self.rank_size = len(indices)
-
-    def __call__(self, sample_info):
-        sample_idx = sample_info.idx_in_epoch
-
-        if sample_info.iteration >= self.rank_size // self.batch_size:
-            raise StopIteration
-
-        idx = self.indices[sample_idx]
-        data = self.dataset.raw(idx % self.size)
-
-        N = data["node_feat"].shape[0]
-        F = data["edge_feat"].shape[-1]
-
-        node_feat = torch.tensor(data["node_feat"], dtype=torch.long)
-        if "pos" in data:
-            coords = torch.tensor(data["pos"], dtype=torch.float)
-        elif "coords" in data:
-            coords = torch.tensor(data["coords"], dtype=torch.float)
-        else:
-            coords = torch.zeros((data["node_feat"].size()[0], 3), dtype=torch.float)
-
-        cell = torch.zeros([3, 3], dtype=torch.float)
-        pbc = torch.zeros([3], dtype=torch.long)
-        forces = torch.zeros([N, 3], dtype=torch.float)
-        energy = torch.tensor(data["energy"], dtype=torch.float)
-        adj = torch.zeros([N, N], dtype=torch.long)
-        edge_index = torch.tensor(
-            np.ascontiguousarray(data["edge_index"]), dtype=torch.long
-        )
-        edge_attr = torch.tensor(
-            np.ascontiguousarray(data["edge_feat"]), dtype=torch.long
-        )
-        attn_bias = torch.zeros([N + 1, N + 1], dtype=torch.float)
-        attn_edge_type = torch.zeros([N, N, F], dtype=torch.long)
-        is_stable_periodic = torch.zeros(1, dtype=torch.bool)
-
-        return (
-            node_feat,
-            coords,
-            cell,
-            pbc,
-            forces,
-            energy,
-            adj,
-            edge_index,
-            edge_attr,
-            attn_bias,
-            attn_edge_type,
-            is_stable_periodic,
-        )
-
-    def __len__(self):
-        return self.size
-
-
-class DaliUnifiedDataSource:
-    def __init__(self, args: Any, dataset: Any, batch_size: int):
-        self.dataset = dataset
-        self.batch_size = batch_size
-
-        self.generator = np.random.default_rng(args.seed)
-
-        self.shard_id = args.rank
-        self.world_size = args.world_size
-
-        self.shard_size = len(dataset) // self.world_size
-        self.total_size = self.shard_size * self.world_size
-        self.iterations = self.shard_size // self.batch_size
-
-        self._set_sample_indices()
-
-    def _set_sample_indices(self):
-        indices = self.generator.permutation(self.total_size)
-        indices = indices[self.shard_id :: self.world_size]
-
-        self.indices = indices
-
-    def __call__(self, sample_info):
-        sample_idx = sample_info.idx_in_epoch
-
-        if sample_info.iteration % self.iterations == 0:
-            self._set_sample_indices()
-
-        data_idx = self.indices[sample_idx % self.shard_size]
-        data = self.dataset[data_idx % self.total_size]
-
-        attn_bias = data["attn_bias"]
-        in_degree = data["in_degree"]
-        node_attr = data["node_attr"]
-        energy = data["energy"].to(dtype=torch.float)
-        energy_per_atom = data["energy_per_atom"].to(dtype=torch.float)
-        forces = data["forces"].to(dtype=torch.float)
-        pos = data["coords"].to(dtype=torch.float)
-        token_type = data["token_type"].contiguous().to(dtype=torch.long)
-        pbc = data["pbc"].to(dtype=torch.long)
-        cell = data["cell"].to(dtype=torch.float)
-        num_atoms = torch.tensor(data["num_atoms"], dtype=torch.long)
-        adj = data["adj"]
-        attn_edge_type = data["attn_edge_type"]
-        is_stable_periodic = torch.tensor(data["is_stable_periodic"], dtype=torch.bool)
-        has_energy = data["has_energy"]
-        has_forces = data["has_forces"]
-
-        return (
-            attn_bias,
-            in_degree,
-            node_attr,
-            energy,
-            energy_per_atom,
-            forces,
-            pos,
-            token_type,
-            pbc,
-            cell,
-            num_atoms,
-            adj,
-            attn_edge_type,
-            is_stable_periodic,
-            has_energy,
-            has_forces,
-        )
-
-    def __len__(self):
-        return self.size
 
 
 class ComplexDataset(LMDBFoundationModelDataset):
@@ -1830,5 +1573,149 @@ class ComplexDataset(LMDBFoundationModelDataset):
 
         dataset_val = self.__class__(self.args, self.lmdb_path)
         dataset_val.key_list = [self.key_list[idx] for idx in validation_indices]
+
+        return dataset_train, dataset_val
+
+
+class PDBComplexDataset(AFDBLMDBDataset):
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: Optional[str],
+    ):
+        version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.lmdb"
+
+        if lmdb_path.find(version) == -1:
+            lmdb_path = os.path.join(lmdb_path, version)
+        super().__init__(args, lmdb_path)
+
+    def _init_db(self):
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self._txn = self.env.begin(write=False)
+        metadata = bstr2obj(self.txn.get("__metadata__".encode()))
+        self._keys = metadata["keys"]
+
+    def _reconstruct_graph(self, data):
+        polymer_chains = data["polymer_chains"]
+        non_polymers = data["nonpoly_graphs"]
+
+        polymer_chains_idx = []
+        for key in polymer_chains.keys():
+            if np.any(polymer_chains[key]["restype"] == "N"):
+                continue
+            polymer_chains_idx.append(key)
+
+        if len(non_polymers) > 0:
+            # pick random ligand from non-polymer to choose crop center
+            crop_center_ligand = random.choice(non_polymers)["node_coord"]
+            # pick random atom from ligand as crop center, there is nan in the ligand node_coord, avoid it
+            crop_center_ligand = crop_center_ligand[
+                np.any(~np.isnan(crop_center_ligand), axis=-1)
+            ]
+            random.choice(crop_center_ligand)
+
+        exit()
+
+        print(polymer_chains.keys())
+        print(polymer_chains["A"].keys())
+        print(polymer_chains["A"]["seqres"])
+        print(polymer_chains["A"]["center_coord"].shape)
+        print(len(non_polymers))
+        if len(non_polymers) > 0:
+            print(non_polymers[0].keys())
+            print(non_polymers[0]["residue_number"])
+            print(non_polymers[0]["atomids"])
+            print(non_polymers[0]["edge_index"])
+            print(non_polymers[0]["node_coord"])
+
+        return data
+
+    def __getitem__(self, index: int) -> dict:
+        key = self.keys[index]
+        value = self.txn.get(key.encode())
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        ori_data = bstr2obj(value)
+        data = self._reconstruct_graph(ori_data)
+
+        data["idx"] = index
+        data["sample_type"] = 6
+
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=data["token_type"].device
+        )
+
+        N = data["token_type"].shape[0]
+
+        protein_len = data["protein_len"]
+        data["token_type"][:protein_len] -= 1
+        data["token_type"][protein_len:] += 1
+        data["node_attr"][:, 0] = data["token_type"]
+
+        data["node_attr"] = convert_to_single_emb(data["node_attr"].long())
+
+        adj = torch.zeros([N, N], dtype=torch.bool)
+        adj[data["edge_index"][0, :], data["edge_index"][1, :]] = True
+
+        # allow interaction between protein and ligand, and protein and protein
+        protein_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
+        protein_ligand_adj[:protein_len] = True
+        protein_ligand_adj |= (
+            protein_ligand_adj.clone().T
+        )  # torch disallow inplace operation
+        adj |= protein_ligand_adj
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros(
+                [N, N, data["edge_attr"].size(-1)], dtype=torch.long
+            )
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+
+        # replace data['coords'] inf with 0 to avoid nan in the model
+        # as noise loss will only be calculated for ligands
+        data["coords"][data["coords"] == float("inf")] = 0
+        data["coords"] = data["coords"].to(dtype=torch.float64)
+
+        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        return data
+
+    def __len__(self) -> int:
+        return len(self.keys)
+
+    def collate(self, batch: List[Data]) -> Data:
+        result = collate_fn(batch)
+        protein_len = torch.tensor([i["protein_len"] for i in batch])
+        result.update(dict(protein_len=protein_len))
+        return result
+
+    def split_dataset(self, validation_ratio=0.03, sort=False):
+        num_samples = len(self.keys)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(12345).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(self.args, self.lmdb_path)
+        dataset_train._keys = [self._keys[idx] for idx in training_indices]
+        # dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
+
+        dataset_val = self.__class__(self.args, self.lmdb_path)
+        dataset_val._keys = [self._keys[idx] for idx in validation_indices]
+        # dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
 
         return dataset_train, dataset_val

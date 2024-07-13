@@ -88,10 +88,10 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
-[ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=3
+[ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=256
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=5.0
-[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=False
+[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 [ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
 

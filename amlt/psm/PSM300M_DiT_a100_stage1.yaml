@@ -88,7 +88,7 @@ jobs:
   - export dataset_micro_batch_size='112,8,24,8,12,24,12'
   - export fp16=False
   - export clean_sample_ratio=0.7
-  - export energy_loss_ratio=0.1
+  - export energy_loss_ratio=0.2
   - export force_loss_ratio=0.0
   - export AutoGradForce=False
   - export use_unified_batch_sampler=True
@@ -99,9 +99,9 @@ jobs:
   - export if_total_energy=False
   - export save_batch_interval=10000
   # - export AutoGradForce=True
-  # - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v11/checkpoints
+  # - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v11/checkpoints/global_step30000/mp_rank_00_model_states.pt
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v11/checkpoints
   - export psm_finetune_mode=True
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v11/checkpoints/global_step30000/mp_rank_00_model_states.pt
   - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v11/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace

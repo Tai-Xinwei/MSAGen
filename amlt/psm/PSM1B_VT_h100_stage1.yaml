@@ -74,27 +74,27 @@ jobs:
   - export gradient_accumulation_steps=8
   - export log_interval=100
   - export data_path=/psm/data/
-  - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
+  - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240630_PDB_Training_Data,complex.preprocessed.large'
   - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
   - export dataset_split_raito='0.2,0.05,0.3,0.15,0.1,0.1,0.1'
-  - export dataset_micro_batch_size='64,4,8,4,6,8,4'
+  - export dataset_micro_batch_size='64,3,8,3,6,8,6'
   - export mode_prob='0.4,0.4,0.2'
   - export fp16=False
   - export clean_sample_ratio=0.7
-  - export energy_loss_ratio=0.1
-  - export force_loss_ratio=0.05
+  - export energy_loss_ratio=0.5
+  - export force_loss_ratio=0.1
   # - export num_timesteps=1000
   # - export ddpm_beta_start=1e-4
   # - export ddpm_beta_end=2e-2
   - export AutoGradForce=False
   - export use_hard_dist_loss=True
   - export use_unified_batch_sampler=True
-  - export only_use_rotary_embedding_for_protein=False
+  - export only_use_rotary_embedding_for_protein=True
   - export use_dali_pipeline=False
   - export save_batch_interval=5000
   # - export only_use_rotary_embedding_for_protein=True
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v10_1b/checkpoints
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v10_1b/checkpoints
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v11_1b/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v11_1b/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120

@@ -280,7 +280,9 @@ class PSMModel(Model):
         is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
         is_seq_only = sample_type == 5
         is_complex = sample_type == 6
-        is_energy_outlier = is_molecule & (torch.abs(batched_data["energy"]) > 1e4)
+        is_energy_outlier = is_molecule & (
+            torch.abs(batched_data["energy_per_atom"]) > 23
+        )
 
         batched_data["is_periodic"] = is_periodic
         batched_data["is_molecule"] = is_molecule
@@ -859,7 +861,7 @@ class PSM(nn.Module):
                 self.energy_head.update(
                     {
                         key: nn.Sequential(
-                            AdaNorm(psm_config.embedding_dim),
+                            # AdaNorm(psm_config.embedding_dim),
                             nn.Linear(
                                 psm_config.embedding_dim,
                                 psm_config.embedding_dim,
