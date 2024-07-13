@@ -4,6 +4,8 @@ from typing import Dict
 import numpy as np
 import torch
 
+from sfm.data.psm_data.utils import VOCAB
+
 
 def spatial_crop_psm(
     polymer_chains: Dict,

@@ -32,6 +32,7 @@ from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.utils import (
     PM6_ATOM_ENERGY_OUTLIER_LIST,
     PM6_ATOM_REFERENCE,
+    VOCAB,
     get_conv_variable_lin,
     get_data_defult_config,
     matrixtoblock_lin,
@@ -943,43 +944,6 @@ class AFDBLMDBDataset(FoundationModelDataset):
         self.lmdb_path = lmdb_path
         self.args = args
 
-        self.vocab = {
-            # "<pad>": 0,  # padding
-            # "1"-"127": 1-127, # atom type
-            # "<cell_corner>": 128, use for pbc material
-            "L": 130,
-            "A": 131,
-            "G": 132,
-            "V": 133,
-            "S": 134,
-            "E": 135,
-            "R": 136,
-            "T": 137,
-            "I": 138,
-            "D": 139,
-            "P": 140,
-            "K": 141,
-            "Q": 142,
-            "N": 143,
-            "F": 144,
-            "Y": 145,
-            "M": 146,
-            "H": 147,
-            "W": 148,
-            "C": 149,
-            "X": 150,
-            "B": 151,
-            "U": 152,
-            "Z": 153,
-            "O": 154,
-            "-": 155,
-            ".": 156,
-            "<mask>": 157,
-            "<cls>": 158,
-            "<eos>": 159,
-            # "<unk>": 160,
-        }
-
         # for dataloader with num_workers > 1
         self._env, self._txn = None, None
         self._sizes, self._keys = None, None
@@ -1050,7 +1014,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
             coords = data["pos"][:, 1, :]
 
         # minus 1 due to add padding index=0 in collator
-        x = torch.tensor([self.vocab[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
+        x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
 
         data["sample_type"] = 2
         data["token_type"] = x
@@ -1213,7 +1177,7 @@ class PDBDataset(AFDBLMDBDataset):
             coords = data["pos"][:, :]
 
         # minus 1 due to add padding index=0 in collator
-        x = torch.tensor([self.vocab[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
+        x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
 
         data["sample_type"] = 2
         data["token_type"] = x

@@ -9,6 +9,44 @@ import numpy as np
 # WHEN pretrain with molecule energy, the system/atom reference need
 # to be removed for better NN learning
 
+VOCAB = {
+    "<pad>": 0,  # padding
+    "<unk>": 1,
+    # "2"-"128": 1-127, # atom type
+    "<cell_corner>": 129,  # use for pbc material
+    "L": 130,
+    "A": 131,
+    "G": 132,
+    "V": 133,
+    "S": 134,
+    "E": 135,
+    "R": 136,
+    "T": 137,
+    "I": 138,
+    "D": 139,
+    "P": 140,
+    "K": 141,
+    "Q": 142,
+    "N": 143,
+    "F": 144,
+    "Y": 145,
+    "M": 146,
+    "H": 147,
+    "W": 148,
+    "C": 149,
+    "X": 150,
+    "B": 151,
+    "U": 152,
+    "Z": 153,
+    "O": 154,
+    "-": 155,
+    ".": 156,
+    "<mask>": 157,
+    "<cls>": 158,
+    "<eos>": 159,
+}
+
+
 DATA_SPLIT_RATIO = {
     "buckyball_catcher": [600.0 / 6102, 50.0 / 6102, 1 - 650.0 / 6102],
     "double_walled_nanotube": [800.0 / 5032, 100.0 / 5032, 1 - 900.0 / 5032],

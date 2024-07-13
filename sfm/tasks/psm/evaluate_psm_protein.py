@@ -170,10 +170,13 @@ def lddt4Pair(predicted_pdb: str, native_pdb: str) -> Mapping[str, Any]:
     score = {
         "PredictedPDB": os.path.basename(predicted_pdb),
         "NativePDB": os.path.basename(native_pdb),
+        "PredictedLen": 0,
+        "NativeLen": 0,
+        "AlignLen": 0,
         "Radius": 0.0,
         "Coverage": 0.0,
         "LDDT": 0.0,
-        "resLDDT": [],
+        "LocalLDDT": [],
     }
 
     status, _ = subprocess.getstatusoutput("which lddt")
@@ -201,19 +204,34 @@ def lddt4Pair(predicted_pdb: str, native_pdb: str) -> Mapping[str, Any]:
         lines = [_.decode("utf-8") for _ in tmp.readlines()]
 
     # parse model score
+    start_local = False
+    local_lddts = []
     for i, l in enumerate(lines):
         cols = l.split()
         if l.startswith("Inclusion") and len(cols) > 2:
             score["Radius"] = float(cols[2])
         elif l.startswith("Coverage") and len(cols) > 6:
             score["Coverage"] = float(cols[1])
+            score["NativeLen"] = int(cols[5])
         elif l.startswith("Global") and len(cols) > 3:
             score["LDDT"] = float(cols[3])
         elif l.startswith("Local"):
-            i += 1
-            break
+            continue
+        elif l.startswith("Chain"):
+            start_local = True
+        elif start_local and len(cols) > 5:
+            local_lddts.append(cols)
         else:
             continue
+    score["PredictedLen"] = len(local_lddts)
+    score["AlignLen"] = sum([_[4] != "-" for _ in local_lddts])
+    score["LocalLDDT"] = [
+        float("nan") if _[4] == "-" else float(_[4]) for _ in local_lddts
+    ]
+
+    # check data format and lddt output
+    if len(lines) == i - 1 or lines[-1] != "\n":
+        logger.warning(f"wrong LDDT between {predicted_pdb} and {native_pdb}")
 
     return score
 
@@ -294,6 +312,7 @@ def evaluate_predicted_structure(
                     pdb_file = os.path.join(preddir, f"{target}-{num}.pdb")
                     with open(pdb_file, "r") as fp:
                         predlines = fp.readlines()
+                    assert predlines, f" wrong predicted file {pdb_file}"
                     natilines = metadata["pdbs"][taridx]
                     score.update(calculate_score(predlines, natilines, residx))
                 except Exception as e:
@@ -451,9 +470,9 @@ def main(args: DictConfig) -> None:
     print(df)
 
     logger.info(f"Write TM-score to {args.save_dir} and average it.")
-    df.to_csv(os.path.join(args.save_dir, "TM-score-full.csv"))
+    df.to_csv(os.path.join(args.save_dir, "Score4EachModel.csv"))
     newdf, meandf = calculate_average_score(df)
-    newdf.to_csv(os.path.join(args.save_dir, "TM-score-only.csv"))
+    newdf.to_csv(os.path.join(args.save_dir, "Score4Target.csv"))
     with pd.option_context("display.float_format", "{:.2f}".format):
         print(meandf)
 

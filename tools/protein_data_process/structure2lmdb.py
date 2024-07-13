@@ -19,7 +19,6 @@ from commons import bstr2obj
 from commons import fix_structure
 from commons import obj2bstr
 from commons import Protein
-from process_pdb_complex import process_pdb_complex
 
 
 #logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -58,87 +57,6 @@ def list_keys(env: lmdb.Environment):
 @click.group()
 def cli():
     pass
-
-
-@cli.command()
-@click.option("--mmcif-dir",
-              type=click.Path(exists=True),
-              help="Input directory of mmCIF files rsync from RCSB.")
-@click.option("--chem-comp-file",
-              type=click.Path(exists=True),
-              default="components.cif",
-              help="Input mmCIF file of all chemical components.")
-@click.option("--output-lmdb",
-              type=click.Path(exists=False),
-              default="output.lmdb",
-              help="Output lmdb file.")
-@click.option("--remove-hydrogens",
-              type=bool,
-              default=True,
-              help="Remove hydrogen atoms.")
-@click.option("--num-workers",
-              type=int,
-              default=-1,
-              help="Number of workers.")
-@click.option("--data-comment",
-              type=str,
-              default="PDB snapshot from https://snapshots.pdbj.org/20240101/.",
-              help="Comments for output.")
-def processpdb(mmcif_dir: str, chem_comp_file: str, output_lmdb: str,
-               remove_hydrogens: bool, num_workers: int, data_comment: str):
-    """Process training data from mmCIF files and save to lmdb."""
-    mmcif_dir = Path(mmcif_dir).resolve()
-    mmcif_paths = [_ for _ in Path(mmcif_dir).rglob("*.cif.gz")]
-    assert mmcif_paths and all(11==len(_.name) for _ in mmcif_paths), (
-        f"PDBID should be 4 characters long in {mmcif_dir}.")
-    logger.info(f"Processing {len(mmcif_paths)} structures in {mmcif_dir}.")
-
-    chem_comp_path = Path(chem_comp_file).resolve()
-    logger.info(f"Chemical components information is in {chem_comp_path}")
-
-    if Path(output_lmdb).exists():
-        logger.error(f"Output file {output_lmdb} exists. Stop.")
-        return
-    logger.info(f"Save processed data to {output_lmdb}")
-
-    def _process_one_pdb(mmcif_path):
-        pdbid, header, data = process_pdb_complex(
-            str(mmcif_path), str(chem_comp_path), remove_hydrogens)
-        return pdbid, header, data
-
-    env = lmdb.open(output_lmdb, map_size=1024**4) # 1TB max size
-    metadata = {'keys': [],
-                'structure_methods': [],
-                'release_dates': [],
-                'resolutions': []}
-    metadata['comment'] = (
-        f'Created time: {datetime.datetime.now()}\n'
-        f'Structure directory: {mmcif_dir}\n'
-        f'Chemical components: {chem_comp_path}\n'
-        f'Output lmdb: {output_lmdb}\n'
-        f'Remove hydrogens: {remove_hydrogens}\n'
-        f'Number of workers: {num_workers}\n'
-        f'Comments: {data_comment}\n'
-        )
-
-    pbar = tqdm(total=len(mmcif_paths)//10000+1, desc='Processing chunks (10k)')
-    for path_chunk in chunks(mmcif_paths, 10000):
-        res_chunk = Parallel(n_jobs=num_workers)(
-            delayed(_process_one_pdb)(p) for p in tqdm(path_chunk)
-            )
-        with env.begin(write=True) as txn:
-            for pdbid, header, result in res_chunk:
-                if not result: continue # skip empty data
-                txn.put(pdbid.encode(), obj2bstr(result))
-                metadata['keys'].append(pdbid)
-                metadata['structure_methods'].append(header['structure_method'])
-                metadata['release_dates'].append(header['release_date'])
-                metadata['resolutions'].append(header['resolution'])
-        pbar.update(1)
-    pbar.close()
-    with env.begin(write=True) as txn:
-        txn.put('__metadata__'.encode(), obj2bstr(metadata))
-    env.close()
 
 
 @cli.command()
