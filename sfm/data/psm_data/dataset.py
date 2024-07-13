@@ -29,6 +29,7 @@ from sfm.data.dataset import FoundationModelDataset, LMDBFoundationModelDataset
 from sfm.data.mol_data import algos
 from sfm.data.prot_data.util import bstr2obj
 from sfm.data.psm_data.collator import collate_fn
+from sfm.data.psm_data.crop import spatial_crop_psm
 from sfm.data.psm_data.utils import (
     PM6_ATOM_ENERGY_OUTLIER_LIST,
     PM6_ATOM_REFERENCE,
@@ -1548,6 +1549,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         lmdb_path: Optional[str],
     ):
         version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.lmdb"
+        self.crop_radius = args.crop_radius
 
         if lmdb_path.find(version) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
@@ -1566,24 +1568,58 @@ class PDBComplexDataset(AFDBLMDBDataset):
         metadata = bstr2obj(self.txn.get("__metadata__".encode()))
         self._keys = metadata["keys"]
 
-    def _reconstruct_graph(self, data):
+    def _crop_and_reconstruct_graph(self, data):
         polymer_chains = data["polymer_chains"]
         non_polymers = data["nonpoly_graphs"]
 
-        polymer_chains_idx = []
+        # filter DNA/RNA chains, needs to be considered in the future
+        polymer_chains_idxes = []
         for key in polymer_chains.keys():
             if np.any(polymer_chains[key]["restype"] == "N"):
                 continue
-            polymer_chains_idx.append(key)
+            polymer_chains_idxes.append(key)
 
+        # random generate crop center
         if len(non_polymers) > 0:
+            polymer_chains_idx = -1
             # pick random ligand from non-polymer to choose crop center
-            crop_center_ligand = random.choice(non_polymers)["node_coord"]
+            center_ligand_idx = random.choice(range(len(non_polymers)))
+            crop_center_ligand = non_polymers[center_ligand_idx]["node_coord"]
             # pick random atom from ligand as crop center, there is nan in the ligand node_coord, avoid it
             crop_center_ligand = crop_center_ligand[
                 np.any(~np.isnan(crop_center_ligand), axis=-1)
             ]
-            random.choice(crop_center_ligand)
+            crop_center = random.choice(crop_center_ligand)
+        elif len(polymer_chains_idxes) > 0:
+            center_ligand_idx = -1
+            # pick random polymer from non-polymer to choose crop center
+            polymer_chains_idx = random.choice(range(len(polymer_chains_idxes)))
+            chain_name = polymer_chains_idxes[polymer_chains_idx]
+            crop_center_polymer = polymer_chains[chain_name]["center_coord"]
+            # pick random atom from polymer as crop center, there is nan in the ligand node_coord, avoid it
+            crop_center_polymer = crop_center_polymer[
+                np.any(~np.isnan(crop_center_polymer), axis=-1)
+            ]
+            crop_center = random.choice(crop_center_polymer)
+        else:
+            raise ValueError(
+                "No polymer or ligand in the complex, our model can't handle it"
+            )
+
+        # crop the complex and multimers
+        cropped_chain_idxes_list = spatial_crop_psm(
+            polymer_chains,
+            non_polymers,
+            polymer_chains_idxes,
+            self.crop_radius,
+            center_ligand_idx,
+            crop_center,
+        )
+
+        # reconstruct the graph
+        data = self._reconstruct_graph(
+            cropped_chain_idxes_list, center_ligand_idx, polymer_chains, non_polymers
+        )
 
         exit()
 
@@ -1601,13 +1637,23 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         return data
 
+    def _reconstruct_graph(
+        self, cropped_chain_idxes_list, center_ligand_idx, polymer_chains, non_polymers
+    ):
+        """
+        Reconstruct the graph from the cropped complex and multimers
+        """
+        data = {}
+
+        return data
+
     def __getitem__(self, index: int) -> dict:
         key = self.keys[index]
         value = self.txn.get(key.encode())
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
         ori_data = bstr2obj(value)
-        data = self._reconstruct_graph(ori_data)
+        data = self._crop_and_reconstruct_graph(ori_data)
 
         data["idx"] = index
         data["sample_type"] = 6

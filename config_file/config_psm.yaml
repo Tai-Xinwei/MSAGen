@@ -104,7 +104,6 @@ data_path_list: ""
 dataset_name_list: ""
 dataset_split_raito: ""
 lamb_pde: 0.01
-mode: "score"
 # for PBC
 pbc_expanded_token_cutoff: 512
 pbc_expanded_num_cell_per_direction: 5
