@@ -108,7 +108,7 @@ class MmcifObject:
   structure: PdbStructure
   chain_to_seqres: Mapping[ChainId, SeqRes]
   chain_to_restype: Mapping[ChainId, ResType]
-  seqres_to_structure: Mapping[ChainId, Sequence[Tuple[ResidueAtPosition, Sequence[AtomCartn]]]]
+  seqres_to_structure: Mapping[ChainId, Sequence[Tuple]]
   raw_string: Any
 
 
@@ -185,6 +185,7 @@ def _get_first_model(structure: PdbStructure) -> PdbStructure:
   """Returns the first model in a Biopython structure."""
   return next(structure.get_models())
 
+
 _MIN_LENGTH_OF_CHAIN_TO_BE_COUNTED_AS_PEPTIDE = 21
 
 
@@ -227,20 +228,20 @@ def _get_header(parsed_info: MmCIFDict) -> PdbHeader:
 def _get_atom_site_list(parsed_info: MmCIFDict) -> Sequence[AtomSite]:
   """Returns list of atom sites; contains data not present in the structure."""
   return [AtomSite(*site) for site in zip(  # pylint:disable=g-complex-comprehension
-      parsed_info['_atom_site.label_comp_id'],      #residue_name: str
-      parsed_info['_atom_site.auth_asym_id'],       #author_chain_id: str
-      parsed_info['_atom_site.label_asym_id'],      #mmcif_chain_id: str
-      parsed_info['_atom_site.auth_seq_id'],        #author_seq_num: str
-      parsed_info['_atom_site.label_seq_id'],       #mmcif_seq_num: str
-      parsed_info['_atom_site.pdbx_PDB_ins_code'],  #insertion_code: str
-      parsed_info['_atom_site.label_alt_id'],       #mmcif_alt_id: str
-      parsed_info['_atom_site.group_PDB'],          #hetatm_atom: str
-      parsed_info['_atom_site.pdbx_PDB_model_num'], #model_num: int
-      parsed_info['_atom_site.label_atom_id'],      #name: str
-      parsed_info['_atom_site.type_symbol'],        #type: str
-      parsed_info['_atom_site.Cartn_x'],            #x: float
-      parsed_info['_atom_site.Cartn_y'],            #y: float
-      parsed_info['_atom_site.Cartn_z'],            #z: float
+      parsed_info['_atom_site.label_comp_id'],      # residue_name: str
+      parsed_info['_atom_site.auth_asym_id'],       # author_chain_id: str
+      parsed_info['_atom_site.label_asym_id'],      # mmcif_chain_id: str
+      parsed_info['_atom_site.auth_seq_id'],        # author_seq_num: str
+      parsed_info['_atom_site.label_seq_id'],       # mmcif_seq_num: str
+      parsed_info['_atom_site.pdbx_PDB_ins_code'],  # insertion_code: str
+      parsed_info['_atom_site.label_alt_id'],       # mmcif_alt_id: str
+      parsed_info['_atom_site.group_PDB'],          # hetatm_atom: str
+      parsed_info['_atom_site.pdbx_PDB_model_num'], # model_num: int
+      parsed_info['_atom_site.label_atom_id'],      # name: str
+      parsed_info['_atom_site.type_symbol'],        # type: str
+      parsed_info['_atom_site.Cartn_x'],            # x: float
+      parsed_info['_atom_site.Cartn_y'],            # y: float
+      parsed_info['_atom_site.Cartn_z'],            # z: float
       )]
 
 
@@ -303,6 +304,9 @@ def _get_polymer_structure(*, parsed_info: Mapping[str, Any]) -> Tuple:
 
     if atom.mmcif_alt_id not in ('.', 'A'):
       # We only process atom _atom_site.label_alt_id in ('.', 'A').
+      # Similar to AlphaFold3 supplementary section 2.1
+      # Alternative locations for atoms/residues are resolved by taking the one
+      # with the largest occupancy.
       continue
 
     mmcif_to_author_chain_id[atom.mmcif_chain_id] = atom.author_chain_id
@@ -332,11 +336,11 @@ def _get_polymer_structure(*, parsed_info: Mapping[str, Any]) -> Tuple:
       seq_to_structure_mappings[atom.author_chain_id] = current
       currchain = seq_to_structure_coords.get(atom.author_chain_id, {})
       _coords = currchain.get(seq_idx, [])
-      _coords.append( AtomCartn(name=atom.name,
-                                type=atom.type,
-                                x=float(atom.x),
-                                y=float(atom.y),
-                                z=float(atom.z)) )
+      _coords.append(AtomCartn(name=atom.name,
+                               type=atom.type,
+                               x=float(atom.x),
+                               y=float(atom.y),
+                               z=float(atom.z)))
       currchain[seq_idx] = _coords
       seq_to_structure_coords[atom.author_chain_id] = currchain
 
@@ -394,6 +398,9 @@ def _get_nonpoly_structure(*, parsed_info: Mapping[str, Any]):
 
     if atom.mmcif_alt_id not in ('.', 'A'):
       # We only process atom _atom_site.label_alt_id in ('.', 'A').
+      # Similar to AlphaFold3 supplementary section 2.1
+      # Alternative locations for atoms/residues are resolved by taking the one
+      # with the largest occupancy.
       continue
 
     # Water atoms are assigned a special hetflag of W in Biopython. We
@@ -401,7 +408,8 @@ def _get_nonpoly_structure(*, parsed_info: Mapping[str, Any]):
     # a residue from the Biopython structure by id.
     hetflag = 'H_' + atom.residue_name
     if atom.residue_name in ('HOH', 'WAT'):
-      hetflag = 'W'
+      # Similar to AlphaFold3 supplementary section 2.1: waters are removed.
+      continue
     insertion_code = atom.insertion_code
     if not _is_set(atom.insertion_code):
       insertion_code = ' '
@@ -418,11 +426,11 @@ def _get_nonpoly_structure(*, parsed_info: Mapping[str, Any]):
       seq_to_structure_mappings[atom.author_chain_id] = current
     currchain = seq_to_structure_coords.get(atom.author_chain_id, {})
     _coords = currchain.get(_key, [])
-    _coords.append( AtomCartn(name=atom.name,
-                              type=atom.type,
-                              x=float(atom.x),
-                              y=float(atom.y),
-                              z=float(atom.z)) )
+    _coords.append(AtomCartn(name=atom.name,
+                             type=atom.type,
+                             x=float(atom.x),
+                             y=float(atom.y),
+                             z=float(atom.z)))
     currchain[_key] = _coords
     seq_to_structure_coords[atom.author_chain_id] = currchain
 
@@ -474,20 +482,10 @@ def parse_structure(*,
     header = _get_header(parsed_info)
 
     # Determine the polymer chains
-    polymer_structure = _get_polymer_structure(parsed_info=parsed_info)
-    if not polymer_structure:
+    seq_to_structure = _get_polymer_structure(parsed_info=parsed_info)
+    if not seq_to_structure:
       return ParsingResult(
           None, {(file_id, ''): 'No polymer chains found in this file.'})
-
-    # Determine the nonpolymer chains
-    nonpoly_structure = _get_nonpoly_structure(parsed_info=parsed_info)
-
-    # Combine polymer and nonpolymer chains
-    seq_to_structure = polymer_structure
-    for chain_id, str_info in nonpoly_structure.items():
-      current = seq_to_structure.get(chain_id, [])
-      current.extend(str_info)
-      seq_to_structure[chain_id] = current
 
     # AlphaFold3 supplementary information section 2.1
     # MSE residues are converted to MET residues
@@ -511,6 +509,7 @@ def parse_structure(*,
     # are proteins, DNAs and RNAs.
     chem_comps = mmcif_loop_to_dict('_chem_comp.', '_chem_comp.id', parsed_info)
 
+    # Convert the sequence information to a string.
     author_chain_to_sequence = {}
     author_chain_to_restypes = {}
     for author_chain, str_info in seq_to_structure.items():
@@ -518,21 +517,31 @@ def parse_structure(*,
       type = []
       for residue, atoms in str_info:
         name = residue.name if residue.name in chem_comps else 'MSE'
-        restype = chem_comps[name]['_chem_comp.type'].lower()
+        chem_comp_type = chem_comps[name]['_chem_comp.type'].lower()
         resname = f'{residue.name:<3s}'.upper()
-        if 'peptide' in restype:
+        if 'peptide' in chem_comp_type:
           code = PDBData.protein_letters_3to1.get(resname, 'X')
           t = 'p'
-        elif 'dna' in restype or 'rna' in restype:
+        else: # 'dna' in chem_comp_type or 'rna' in chem_comp_type:
           code = PDBData.nucleic_letters_3to1.get(resname, 'N')
           t = 'n'
-        else:
-          code = '?'
-          t = '*'
         seq.append(code if len(code) == 1 else '?')
         type.append(t if len(t) == 1 else '*')
       author_chain_to_sequence[author_chain] = ''.join(seq)
       author_chain_to_restypes[author_chain] = ''.join(type)
+
+    # Combine polymer and nonpolymer chains
+    nonpoly_structure = _get_nonpoly_structure(parsed_info=parsed_info)
+    for chain_id, str_info in nonpoly_structure.items():
+      current = seq_to_structure.get(chain_id, [])
+      current_seqres = author_chain_to_sequence.get(chain_id, '')
+      current_restype = author_chain_to_restypes.get(chain_id, '')
+      current.extend(str_info)
+      current_seqres += '?' * len(str_info)
+      current_restype += '*' * len(str_info)
+      seq_to_structure[chain_id] = current
+      author_chain_to_sequence[chain_id] = current_seqres
+      author_chain_to_restypes[chain_id] = current_restype
 
     mmcif_object = MmcifObject(
         file_id=file_id,
@@ -549,3 +558,39 @@ def parse_structure(*,
     if not catch_all_errors:
       raise
     return ParsingResult(mmcif_object=None, errors=errors)
+
+if __name__ == '__main__':
+  import sys
+  from pathlib import Path
+
+  if len(sys.argv) != 2:
+    sys.exit(f"Usage: {sys.argv[0]} <input_mmcif_path>")
+  inppath = Path(sys.argv[1])
+
+  assert inppath.suffix == '.cif', f"Input mmCIF file should be .cif, {inppath}"
+  file_id = inppath.stem
+  with open(inppath, 'r') as fp:
+    cif_string = fp.read()
+
+  result = parse_structure(file_id=file_id, mmcif_string=cif_string)
+  assert result.mmcif_object, f"Parsing failed for {inppath}, {result.errors}"
+  seqres = result.mmcif_object.chain_to_seqres
+  restype = result.mmcif_object.chain_to_restype
+  struct = result.mmcif_object.seqres_to_structure
+
+  # show mmcif parsing result
+  print(file_id)
+  print(result.mmcif_object.header)
+  print(sorted(result.mmcif_object.chain_to_seqres.keys()))
+  print(result.mmcif_object.structure)
+  print(type(result.mmcif_object.raw_string))
+  for chain_id in sorted(seqres.keys(), key=lambda x: x[0]):
+    print('-'*80)
+    print(f"{file_id}_{chain_id}")
+    print(seqres[chain_id])
+    print(restype[chain_id])
+    idx = 1
+    for residue, atoms in struct[chain_id]:
+      if idx <= 5 or idx >= len(struct[chain_id]) - 5:
+        print(idx, residue, len(atoms), 'atoms')
+      idx += 1
