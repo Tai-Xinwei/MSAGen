@@ -1621,20 +1621,6 @@ class PDBComplexDataset(AFDBLMDBDataset):
             cropped_chain_idxes_list, center_ligand_idx, polymer_chains, non_polymers
         )
 
-        exit()
-
-        print(polymer_chains.keys())
-        print(polymer_chains["A"].keys())
-        print(polymer_chains["A"]["seqres"])
-        print(polymer_chains["A"]["center_coord"].shape)
-        print(len(non_polymers))
-        if len(non_polymers) > 0:
-            print(non_polymers[0].keys())
-            print(non_polymers[0]["residue_number"])
-            print(non_polymers[0]["atomids"])
-            print(non_polymers[0]["edge_index"])
-            print(non_polymers[0]["node_coord"])
-
         return data
 
     def _reconstruct_graph(
@@ -1643,7 +1629,79 @@ class PDBComplexDataset(AFDBLMDBDataset):
         """
         Reconstruct the graph from the cropped complex and multimers
         """
-        data = {}
+        token_type = []
+        coords = []
+        position_ids = []
+        start_position_ids = 0
+        polymer_len = 0
+        # reconstruct the polymer chains
+        for chain in cropped_chain_idxes_list:
+            chain_name = chain["chain_name"]
+            cropped_chain_idxes = chain["cropped_chain_idxes"]
+            chain = polymer_chains[chain_name]
+
+            # rescontruct the residue sequence
+            crop_chain = chain["seqres"][cropped_chain_idxes].tolist()
+            token_type.extend(["<cls>"] + crop_chain + ["<eos>"])
+
+            # rescontruct the coords
+            crop_coords = np.concatenate(
+                [
+                    np.zeros((1, 3)),
+                    chain["center_coord"][cropped_chain_idxes],
+                    np.zeros((1, 3)),
+                ],
+                axis=0,
+            )
+            coords.append(crop_coords)
+
+            # build discontinuous position ids for rope
+            position_ids.extend(
+                range(start_position_ids, start_position_ids + len(crop_chain) + 2)
+            )
+            start_position_ids = start_position_ids + len(crop_chain) + 2 + 2000
+
+            polymer_len += len(crop_chain) + 2
+
+        x = [VOCAB[tok] - 1 for tok in token_type]
+
+        # reconstruct the ligand
+        if center_ligand_idx != -1:
+            ligand = non_polymers[center_ligand_idx]
+
+            # rescontruct the atom type of the ligand
+            atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
+            x.extend([VOCAB["<cls>"] - 1] + atom_ids + [VOCAB["<eos>"] - 1])
+
+            # rescontruct the coords of the ligand
+            pos = np.concatenate(
+                [np.zeros((1, 3)), ligand["node_coord"], np.zeros((1, 3))], axis=0
+            )
+            coords.append(pos)
+
+            # build position ids for ligand, but this may not used in the attention, just for length alignment
+            position_ids.extend(
+                range(start_position_ids, start_position_ids + len(atom_ids) + 2)
+            )
+
+            node_feature = ligand["node_feat"]
+            edge_index = ligand["edge_index"]
+        else:
+            node_feature = None
+            edge_index = None
+
+        x = torch.tensor(x, dtype=torch.int32)
+        coords = torch.tensor(np.concatenate(coords, axis=0), dtype=torch.float32)
+        position_ids = torch.tensor(position_ids, dtype=torch.int32)
+
+        data = {
+            "token_type": x,
+            "coords": coords,
+            "protein_len": polymer_len,
+            "position_ids": position_ids,
+            "node_feature": node_feature,
+            "edge_index": edge_index,
+        }
 
         return data
 
@@ -1653,49 +1711,50 @@ class PDBComplexDataset(AFDBLMDBDataset):
         if value is None:
             raise IndexError(f"Name {key} has no data in the dataset")
         ori_data = bstr2obj(value)
+
+        # crop and reconstruct the graph
         data = self._crop_and_reconstruct_graph(ori_data)
 
         data["idx"] = index
-        data["sample_type"] = 6
-
-        data["energy_per_atom"] = torch.tensor(
-            [0.0], dtype=torch.float64, device=data["token_type"].device
-        )
-
         N = data["token_type"].shape[0]
 
         protein_len = data["protein_len"]
-        data["token_type"][:protein_len] -= 1
-        data["token_type"][protein_len:] += 1
-        data["node_attr"][:, 0] = data["token_type"]
 
+        data["node_attr"][:, 0] = data["token_type"]
         data["node_attr"] = convert_to_single_emb(data["node_attr"].long())
 
-        adj = torch.zeros([N, N], dtype=torch.bool)
-        adj[data["edge_index"][0, :], data["edge_index"][1, :]] = True
+        if data["node_feature"] is not None:
+            # complex
+            data["sample_type"] = 6
+            adj = torch.zeros([N, N], dtype=torch.bool)
+            adj[data["edge_index"][0, :], data["edge_index"][1, :]] = True
+            # allow interaction between protein and ligand, and protein and protein
+            protein_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
+            protein_ligand_adj[:protein_len] = True
+            protein_ligand_adj |= (
+                protein_ligand_adj.clone().T
+            )  # torch disallow inplace operation
+            adj |= protein_ligand_adj
+        else:
+            # multimers
+            data["sample_type"] = 7
+            adj = torch.ones([N, N], dtype=torch.bool)
 
-        # allow interaction between protein and ligand, and protein and protein
-        protein_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
-        protein_ligand_adj[:protein_len] = True
-        protein_ligand_adj |= (
-            protein_ligand_adj.clone().T
-        )  # torch disallow inplace operation
-        adj |= protein_ligand_adj
-
-        if self.args.preprocess_2d_bond_features_with_cuda:
-            attn_edge_type = torch.zeros(
-                [N, N, data["edge_attr"].size(-1)], dtype=torch.long
-            )
-            data["adj"] = adj
-            data["attn_edge_type"] = attn_edge_type
-
-        # replace data['coords'] inf with 0 to avoid nan in the model
-        # as noise loss will only be calculated for ligands
-        data["coords"][data["coords"] == float("inf")] = 0
-        data["coords"] = data["coords"].to(dtype=torch.float64)
+        # redundant, but for compatibility
+        attn_edge_type = torch.zeros(
+            [N, N, data["edge_attr"].size(-1)], dtype=torch.long
+        )
+        data["attn_edge_type"] = attn_edge_type
 
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=data["token_type"].device
+        )
+        data["energy"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=data["token_type"].device
+        )
+
         return data
 
     def __len__(self) -> int:

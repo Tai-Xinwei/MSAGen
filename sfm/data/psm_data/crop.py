@@ -22,9 +22,11 @@ def crop_chain(
     """
 
     # remove the nan from the chain_coords
-    chain_coords = chain_coords[~np.isnan(chain_coords).any(axis=1)]
+    chain_coords[np.isnan(chain_coords)] = 10000
+
     # Calculate the distance between the atoms and the crop center
     dists = np.linalg.norm(chain_coords - crop_center, axis=1)
+
     # Get the index of the atoms within the crop size
     idxes = np.where(dists < crop_size)[0]
 
