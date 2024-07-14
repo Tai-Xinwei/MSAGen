@@ -117,7 +117,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
-[ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=False
+[ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
 
@@ -179,7 +179,7 @@ then
 else
   if (( $OMPI_COMM_WORLD_SIZE == 1))
   then
-    DISTRIBUTED_ARGS="--nproc_per_node 1 \
+    DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
                       --master_port $MASTER_PORT"
   else
     DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \

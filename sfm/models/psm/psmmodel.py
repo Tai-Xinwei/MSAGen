@@ -219,6 +219,7 @@ class PSMModel(Model):
         is_seq_only,
         is_complex,
         time_step,
+        batched_data,
     ):
         """
         For protein pretrain mode, we have 3 modes:
@@ -264,6 +265,10 @@ class PSMModel(Model):
         # set padding mask to clean
         clean_mask = clean_mask.masked_fill(padding_mask, True)
         clean_mask = clean_mask.masked_fill(is_seq_only.unsqueeze(-1), False)
+        # set special token "<.>" to clean
+        token_id = batched_data["token_id"]
+        clean_mask = clean_mask.masked_fill(token_id == 156, True)
+
         # set T noise if protein is seq only
         time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
         # set 0 noise for padding
@@ -504,6 +509,7 @@ class PSMModel(Model):
             batched_data["is_seq_only"],
             batched_data["is_complex"],
             time_step,
+            batched_data,
         )
 
         if self.psm_config.psm_finetune_mode:

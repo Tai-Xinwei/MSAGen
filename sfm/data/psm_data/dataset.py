@@ -1541,7 +1541,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         args: PSMConfig,
         lmdb_path: Optional[str],
     ):
-        version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.lmdb"
+        version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.ligand_protein.lmdb"
         self.crop_radius = args.crop_radius
 
         if lmdb_path.find(version) == -1:
@@ -1567,15 +1567,15 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         polymer_chains_idxes = []
         for key in polymer_chains.keys():
-            # filter DNA/RNA chains, needs to be considered in the future
-            if np.any(polymer_chains[key]["restype"] == "N"):
-                continue
+            # # TODO: filter DNA/RNA chains, needs to be considered in the future
+            # if np.any(polymer_chains[key]["restype"] == "N"):
+            #     continue
 
             # some croped polymer has all Nan coords, so we need to avoid it
             if np.any(~np.isnan(polymer_chains[key]["center_coord"])):
                 polymer_chains_idxes.append(key)
-            # else:
-            # print(len(non_polymers), data["pdbid"], polymer_chains[key])
+            else:
+                print(len(non_polymers), data["pdbid"], polymer_chains[key])
 
         # random generate crop center
         if len(non_polymers) > 0:
@@ -1663,13 +1663,13 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 position_ids.extend(
                     range(start_position_ids, start_position_ids + len(crop_chain))
                 )
-                start_position_ids = start_position_ids + len(crop_chain) + 2000
+                start_position_ids = start_position_ids + len(crop_chain) + 1000
                 polymer_len += len(crop_chain)
             else:
                 position_ids.extend(
                     range(start_position_ids, start_position_ids + len(crop_chain) + 1)
                 )
-                start_position_ids = start_position_ids + len(crop_chain) + 1 + 2000
+                start_position_ids = start_position_ids + len(crop_chain) + 1 + 1000
                 polymer_len += len(crop_chain) + 1
 
         x = [VOCAB[tok] - 1 for tok in token_type]

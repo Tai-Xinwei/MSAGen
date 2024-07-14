@@ -13,7 +13,7 @@ from torch.nn.attention import SDPBackend, sdpa_kernel
 
 from sfm.logging import logger
 from sfm.modules.quant_noise import quant_noise
-from sfm.modules.rotary_embedding import RotaryEmbedding
+from sfm.modules.rotary_embedding import SFMRotaryEmbedding
 
 
 class MemEffAttn(nn.Module):
@@ -92,7 +92,7 @@ class MemEffAttn(nn.Module):
 
         self.rot_emb = None
         if add_rope:
-            self.rot_emb = RotaryEmbedding(dim=self.head_dim)
+            self.rot_emb = SFMRotaryEmbedding(dim=self.head_dim)
 
     def prepare_for_onnx_export_(self):
         raise NotImplementedError
@@ -128,6 +128,7 @@ class MemEffAttn(nn.Module):
         value: Optional[Tensor] = None,
         attn_bias: Optional[Tensor] = None,
         key_padding_mask: Optional[Tensor] = None,
+        position_ids: Optional[Tensor] = None,
         need_weights: bool = True,
         attn_mask: Optional[Tensor] = None,
         before_softmax: bool = False,
@@ -221,7 +222,7 @@ class MemEffAttn(nn.Module):
 
         # add rope
         if self.rot_emb:
-            q, k = self.rot_emb(q, k)
+            q, k = self.rot_emb(q, k, v, position_ids, self.num_heads)
 
         if key_padding_mask is not None:
             if outcell_index is not None:
@@ -386,7 +387,7 @@ class MemEffSelfAttn(nn.Module):
         self.onnx_trace = False
 
         self.rot_emb = (
-            RotaryEmbedding(
+            SFMRotaryEmbedding(
                 self.head_dim,
             )
             if add_rope
@@ -414,6 +415,7 @@ class MemEffSelfAttn(nn.Module):
         key_padding_mask: Optional[Tensor] = None,
         need_weights: bool = True,
         attn_mask: Optional[Tensor] = None,
+        position_ids: Optional[Tensor] = None,
         before_softmax: bool = False,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """Input shape: Time x Batch x Channel
@@ -449,7 +451,7 @@ class MemEffSelfAttn(nn.Module):
 
         # TODO: add rope
         if self.rot_emb is not None:
-            q, k = self.rot_emb(q, k)
+            q, k = self.rot_emb(q, k, v, position_ids, self.num_heads)
 
         # do not support attn_bias, just key_padding_mask
         if key_padding_mask is not None:
