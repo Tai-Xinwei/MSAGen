@@ -590,8 +590,13 @@ class SmallMolDataset(FoundationModelDataset):
 
         data["edge_index"] = edge_index
         data["edge_attr"] = edge_attr
-        data["node_attr"] = data["token_type"].reshape(-1, 1)
-
+        data["node_attr"] = torch.cat(
+            [
+                data["token_type"].unsqueeze(-1),
+                torch.zeros([data["token_type"].size()[0], 8], dtype=torch.long),
+            ],
+            dim=-1,
+        )
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
 
@@ -873,7 +878,9 @@ class MatterSimDataset:
                     data["forces"] - self.force_mean, dtype=torch.float64
                 )
 
-            data["energy"] = torch.tensor([(data["info"]["energy"] - self.energy_mean)])
+            data["energy"] = torch.tensor(
+                [(data["info"]["energy"] - self.energy_mean)]
+            )  # / self.energy_std
             data["energy_per_atom"] = torch.tensor(
                 [
                     (
@@ -909,6 +916,7 @@ class MatterSimDataset:
         data["node_attr"] = torch.cat(
             [
                 data["token_type"].unsqueeze(-1),
+                torch.zeros([data["token_type"].size()[0], 8], dtype=torch.long),
             ],
             dim=-1,
         )
@@ -1451,102 +1459,20 @@ class UR50LMDBDataset(FoundationModelDataset):
         return self.sizes[index]
 
 
-class ComplexDataset(LMDBFoundationModelDataset):
-    def __init__(self, args: PSMConfig, lmdb_path: str):
-        super().__init__(lmdb_path)
-        self.args = args
-        self.lmdb_path = lmdb_path
-
-    def __getitem__(self, index: int) -> dict:
-        data = self.read_txn.get(self.key_list[index].encode())
-        data = bstr2obj(data)
-
-        data["idx"] = index
-        data["sample_type"] = 6
-
-        data["energy_per_atom"] = torch.tensor(
-            [0.0], dtype=torch.float64, device=data["token_type"].device
-        )
-
-        N = data["token_type"].shape[0]
-
-        protein_len = data["protein_len"]
-        data["token_type"][:protein_len] -= 1
-        data["token_type"][protein_len:] += 1
-        data["node_attr"][:, 0] = data["token_type"]
-
-        data["node_attr"] = convert_to_single_emb(data["node_attr"].long())
-
-        adj = torch.zeros([N, N], dtype=torch.bool)
-        adj[data["edge_index"][0, :], data["edge_index"][1, :]] = True
-
-        # allow interaction between protein and ligand, and protein and protein
-        protein_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
-        protein_ligand_adj[:protein_len] = True
-        protein_ligand_adj |= (
-            protein_ligand_adj.clone().T
-        )  # torch disallow inplace operation
-        adj |= protein_ligand_adj
-
-        if self.args.preprocess_2d_bond_features_with_cuda:
-            attn_edge_type = torch.zeros(
-                [N, N, data["edge_attr"].size(-1)], dtype=torch.long
-            )
-            data["adj"] = adj
-            data["attn_edge_type"] = attn_edge_type
-
-        # replace data['coords'] inf with 0 to avoid nan in the model
-        # as noise loss will only be calculated for ligands
-        data["coords"][data["coords"] == float("inf")] = 0
-        data["coords"] = data["coords"].to(dtype=torch.float64)
-
-        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
-        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
-        return data
-
-    def __len__(self) -> int:
-        return len(self.key_list)
-
-    def collate(self, batch: List[Data]) -> Data:
-        result = collate_fn(batch)
-        protein_len = torch.tensor([i["protein_len"] for i in batch])
-        result.update(dict(protein_len=protein_len))
-        return result
-
-    def split_dataset(self, validation_ratio=0.03, sort=False):
-        num_samples = len(self.key_list)
-        # Shuffle the indices and split them into training and validation sets
-        indices = list(range(num_samples))
-        random.Random(666).shuffle(indices)
-
-        num_validation_samples = int(num_samples * validation_ratio)
-        num_training_samples = num_samples - num_validation_samples
-
-        training_indices = indices[:num_training_samples]
-        validation_indices = indices[num_training_samples:]
-
-        # Create training and validation datasets
-        dataset_train = self.__class__(self.args, self.lmdb_path)
-        dataset_train.key_list = [self.key_list[idx] for idx in training_indices]
-
-        dataset_val = self.__class__(self.args, self.lmdb_path)
-        dataset_val.key_list = [self.key_list[idx] for idx in validation_indices]
-
-        return dataset_train, dataset_val
-
-
 class PDBComplexDataset(AFDBLMDBDataset):
     def __init__(
         self,
         args: PSMConfig,
         lmdb_path: Optional[str],
     ):
-        version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.ligand_protein.lmdb"
+        version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.ligand_protein_filteredNan.lmdb"
         self.crop_radius = args.crop_radius
 
         if lmdb_path.find(version) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
         super().__init__(args, lmdb_path)
+
+        # self.filter_AllNan_indices()
 
     def _init_db(self):
         self._env = lmdb.open(
@@ -1574,8 +1500,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
             # some croped polymer has all Nan coords, so we need to avoid it
             if np.any(~np.isnan(polymer_chains[key]["center_coord"])):
                 polymer_chains_idxes.append(key)
-            else:
-                print(len(non_polymers), data["pdbid"], polymer_chains[key])
+            # else:
+            #     print(len(non_polymers), data["pdbid"], polymer_chains[key])
 
         # random generate crop center
         if len(non_polymers) > 0:
@@ -1672,8 +1598,11 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 start_position_ids = start_position_ids + len(crop_chain) + 1 + 1000
                 polymer_len += len(crop_chain) + 1
 
-        x = [VOCAB[tok] - 1 for tok in token_type]
-        node_feature = torch.zeros((len(x), 9), dtype=torch.int32)
+        if polymer_len > 0:
+            x = [VOCAB[tok] - 1 for tok in token_type]
+            node_feature = torch.zeros((len(x), 9), dtype=torch.int32)
+        else:
+            x = []
 
         # reconstruct the ligand
         if center_ligand_idx != -1:
@@ -1692,18 +1621,22 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 range(start_position_ids, start_position_ids + len(atom_ids) + 1)
             )
 
-            node_feature = torch.cat(
-                [
-                    node_feature,
-                    torch.zeros((1, 9), dtype=torch.int32),
-                    torch.from_numpy(ligand["node_feat"]),
-                ],
-                dim=0,
-            )
+            if polymer_len == 0:
+                node_feature = torch.from_numpy(ligand["node_feat"])
+            else:
+                node_feature = torch.cat(
+                    [
+                        node_feature,
+                        torch.zeros((1, 9), dtype=torch.int32),
+                        torch.from_numpy(ligand["node_feat"]),
+                    ],
+                    dim=0,
+                )
+                polymer_len += 1
+
             edge_index = ligand["edge_index"]
             # edge_attr = ligand["edge_feat"]
 
-            polymer_len += 1
         else:
             edge_index = None
 
@@ -1815,3 +1748,38 @@ class PDBComplexDataset(AFDBLMDBDataset):
         # dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
 
         return dataset_train, dataset_val
+
+    def filter_AllNan_indices(self):
+        """
+        Filter a list of sample indices. Remove those that are longer than
+        specified in *max_sizes*.
+
+        WARNING: don't update, override method in child classes
+
+        Args:
+            indices (np.array): original array of sample indices
+            max_sizes (int or list[int] or tuple[int]): max sample size,
+                can be defined separately for src and tgt (then list or tuple)
+        """
+        indices = []
+        for idx in range(len(self.keys)):
+            key = self.keys[idx]
+            value = self.txn.get(key.encode())
+            if value is None:
+                raise IndexError(f"Name {key} has no data in the dataset")
+            ori_data = bstr2obj(value)
+            polymer_chains = ori_data["polymer_chains"]
+            polymer_chains_idxes = []
+            for key in polymer_chains.keys():
+                # # TODO: filter DNA/RNA chains, needs to be considered in the future
+                # if np.any(polymer_chains[key]["restype"] == "N"):
+                #     continue
+
+                # some croped polymer has all Nan coords, so we need to avoid it
+                if np.any(~np.isnan(polymer_chains[key]["center_coord"])):
+                    polymer_chains_idxes.append(key)
+
+            if len(polymer_chains_idxes) > 0:
+                indices.append(idx)
+
+        self._keys = [self.keys[idx] for idx in indices]

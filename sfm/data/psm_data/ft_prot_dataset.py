@@ -13,7 +13,7 @@ from torch_geometric.data import Data
 from torch_scatter import scatter_mean
 
 from sfm.data.data_utils import _filter_by_size_dynamic
-from sfm.data.dataset import FoundationModelDataset
+from sfm.data.dataset import FoundationModelDataset, LMDBFoundationModelDataset
 from sfm.data.prot_data.util import bstr2obj
 from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import AFDBLMDBDataset
@@ -806,3 +806,87 @@ def collate_fn_protein_downstream(
         )
 
     return batched_data
+
+
+class ComplexDataset(LMDBFoundationModelDataset):
+    def __init__(self, args: PSMConfig, lmdb_path: str):
+        super().__init__(lmdb_path)
+        self.args = args
+        self.lmdb_path = lmdb_path
+
+    def __getitem__(self, index: int) -> dict:
+        data = self.read_txn.get(self.key_list[index].encode())
+        data = bstr2obj(data)
+
+        data["idx"] = index
+        data["sample_type"] = 6
+
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=data["token_type"].device
+        )
+
+        N = data["token_type"].shape[0]
+
+        protein_len = data["protein_len"]
+        data["token_type"][:protein_len] -= 1
+        data["token_type"][protein_len:] += 1
+        data["node_attr"][:, 0] = data["token_type"]
+
+        data["node_attr"] = convert_to_single_emb(data["node_attr"].long())
+
+        adj = torch.zeros([N, N], dtype=torch.bool)
+        adj[data["edge_index"][0, :], data["edge_index"][1, :]] = True
+
+        # allow interaction between protein and ligand, and protein and protein
+        protein_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
+        protein_ligand_adj[:protein_len] = True
+        protein_ligand_adj |= (
+            protein_ligand_adj.clone().T
+        )  # torch disallow inplace operation
+        adj |= protein_ligand_adj
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros(
+                [N, N, data["edge_attr"].size(-1)], dtype=torch.long
+            )
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+
+        # replace data['coords'] inf with 0 to avoid nan in the model
+        # as noise loss will only be calculated for ligands
+        data["coords"][data["coords"] == float("inf")] = 0
+        data["coords"] = data["coords"].to(dtype=torch.float64)
+
+        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        return data
+
+    def __len__(self) -> int:
+        return len(self.key_list)
+
+    def collate(self, batch: List[Data]) -> Data:
+        result = collate_fn(batch)
+        protein_len = torch.tensor([i["protein_len"] for i in batch])
+        result.update(dict(protein_len=protein_len))
+        return result
+
+    def split_dataset(self, validation_ratio=0.03, sort=False):
+        num_samples = len(self.key_list)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(666).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(self.args, self.lmdb_path)
+        dataset_train.key_list = [self.key_list[idx] for idx in training_indices]
+
+        dataset_val = self.__class__(self.args, self.lmdb_path)
+        dataset_val.key_list = [self.key_list[idx] for idx in validation_indices]
+
+        return dataset_train, dataset_val

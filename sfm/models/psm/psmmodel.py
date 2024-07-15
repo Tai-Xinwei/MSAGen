@@ -895,12 +895,24 @@ class PSM(nn.Module):
 
             if args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
                 self.noise_head = VectorOutput(psm_config.embedding_dim)
-                self.forces_head.update({key: VectorOutput(psm_config.embedding_dim)})
+                if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                    self.forces_head.update(
+                        {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                    )
+                else:
+                    self.forces_head.update(
+                        {key: VectorOutput(psm_config.embedding_dim)}
+                    )
             elif args.backbone in ["dit"]:
                 self.noise_head = VectorProjOutput(psm_config.embedding_dim)
-                self.forces_head.update(
-                    {key: VectorProjOutput(psm_config.embedding_dim)}
-                )
+                if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                    self.forces_head.update(
+                        {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                    )
+                else:
+                    self.forces_head.update(
+                        {key: VectorProjOutput(psm_config.embedding_dim)}
+                    )
             else:
                 self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
