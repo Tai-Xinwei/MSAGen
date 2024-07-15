@@ -273,6 +273,8 @@ class PSMModel(Model):
         time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
         # set 0 noise for padding
         time_step = time_step.masked_fill(padding_mask, 0.0)
+        # set T noise for batched_data["protein_mask"] nan/inf coords
+        time_step = time_step.masked_fill(batched_data["protein_mask"], 1.0)
 
         return clean_mask, aa_mask, time_step
 
