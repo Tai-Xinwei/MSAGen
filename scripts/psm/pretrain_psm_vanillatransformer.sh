@@ -255,7 +255,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           mm_tensorcore=$mm_tensorcore compile=$compile \
           if_total_energy=$if_total_energy \
           loadcheck_path=$loadcheck_path \
-          ifresume=True \
+          # ifresume=True \
 
           # profiling=True ptensorboard=False
           # ifresume=True \
