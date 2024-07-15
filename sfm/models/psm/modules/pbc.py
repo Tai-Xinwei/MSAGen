@@ -73,8 +73,8 @@ class CellExpander:
             lattice_vec_1_2 = cell[
                 :, torch.arange(3, dtype=torch.long, device=cell.device) != dim, :
             ]
-            normal_vec = torch.linalg.cross(
-                lattice_vec_1_2[:, 0, :], lattice_vec_1_2[:, 1, :]
+            normal_vec = torch.cross(
+                lattice_vec_1_2[:, 0, :], lattice_vec_1_2[:, 1, :], dim=-1
             )
             normal_vec = normal_vec / normal_vec.norm(dim=-1, keepdim=True)
             cutoff = self.pbc_multigraph_cutoff if use_local_attention else self.cutoff
