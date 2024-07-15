@@ -1341,7 +1341,7 @@ class UR50LMDBDataset(FoundationModelDataset):
         data["num_atoms"] = x.size()[0]
 
         data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
-        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+        data["pbc"] = torch.zeros(3, dtype=torch.bool)
         data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
         data["forces"] = torch.zeros(
             (x.size()[0], 3), dtype=torch.float64, device=x.device
@@ -1704,7 +1704,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             [N, N, data["edge_attr"].size(-1)], dtype=torch.long
         )
         data["attn_edge_type"] = attn_edge_type
-        data["cell"] = torch.zeros((3, 3), dtype=torch.float32)
+        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
         data["pbc"] = torch.zeros(3, dtype=torch.bool)
         data["stress"] = torch.zeros((3, 3), dtype=torch.float32)
         data["forces"] = torch.zeros((N, 3), dtype=torch.float32)
