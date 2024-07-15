@@ -83,10 +83,6 @@ class CellExpander:
             normal_vec = normal_vec / normal_vec.norm(dim=-1, keepdim=True)
             cutoff = self.pbc_multigraph_cutoff if use_local_attention else self.cutoff
 
-            if torch.any(torch.isnan(normal_vec)):
-                print(f"nan in normal_vec: {normal_vec}")
-            if torch.any(torch.isnan(lattice_vec_0)):
-                print(f"nan in lattice_vec_0: {lattice_vec_0}")
             max_offset = int(
                 torch.max(
                     torch.ceil(

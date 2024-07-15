@@ -1159,11 +1159,7 @@ class PSM(nn.Module):
                         pos,
                     )
                 else:
-                    if (
-                        self.psm_config.force_head_type == ForceHeadType.LINEAR
-                        and self.backbone
-                        not in ["vanillatransformer", "vanillatransformer_equiv", "dit"]
-                    ):
+                    if self.psm_config.force_head_type == ForceHeadType.LINEAR:
                         forces = torch.where(
                             is_periodic.unsqueeze(-1).unsqueeze(-1),
                             self.forces_head["periodic"](decoder_vec_output).squeeze(
