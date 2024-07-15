@@ -10,14 +10,19 @@ from typing import List, Optional, Union
 import lmdb
 import torch
 from torch_geometric.data import Data
-from torch_scatter import scatter_mean
+
+from sfm.logging import logger
+
+try:
+    from torch_scatter import scatter_mean
+except:
+    logger.warning("torch_scatter is not installed.")
 
 from sfm.data.data_utils import _filter_by_size_dynamic
 from sfm.data.dataset import FoundationModelDataset, LMDBFoundationModelDataset
 from sfm.data.prot_data.util import bstr2obj
 from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import AFDBLMDBDataset
-from sfm.logging import logger
 from sfm.models.psm.psm_config import PSMConfig
 
 
