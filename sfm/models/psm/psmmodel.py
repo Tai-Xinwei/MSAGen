@@ -800,6 +800,7 @@ class PSM(nn.Module):
         super().__init__()
         self.max_positions = args.max_positions
         self.args = args
+        self.backbone = args.backbone
 
         self.psm_config = psm_config
 
@@ -1138,7 +1139,11 @@ class PSM(nn.Module):
                         pos,
                     )
                 else:
-                    if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                    if (
+                        self.psm_config.force_head_type == ForceHeadType.LINEAR
+                        and self.backbone
+                        not in ["vanillatransformer", "vanillatransformer_equiv", "dit"]
+                    ):
                         forces = torch.where(
                             is_periodic.unsqueeze(-1).unsqueeze(-1),
                             self.forces_head["periodic"](decoder_vec_output).squeeze(

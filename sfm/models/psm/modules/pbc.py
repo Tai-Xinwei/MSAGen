@@ -2,6 +2,8 @@
 import numpy as np
 import torch
 
+from sfm.logging.loggers import logger
+
 
 @torch.jit.script
 def mask_after_k_persample(n_sample: int, n_len: int, persample_k: torch.Tensor):
@@ -49,6 +51,8 @@ class CellExpander:
 
         self.pbc_multigraph_cutoff = pbc_multigraph_cutoff
 
+        self.pbc_expanded_num_cell_per_direction = pbc_expanded_num_cell_per_direction
+
     def polynomial(self, dist: torch.Tensor, cutoff: float) -> torch.Tensor:
         """
         Polynomial cutoff function,ref: https://arxiv.org/abs/2204.13639
@@ -73,7 +77,9 @@ class CellExpander:
             lattice_vec_1_2 = cell[
                 :, torch.arange(3, dtype=torch.long, device=cell.device) != dim, :
             ]
-            normal_vec = torch.cross(lattice_vec_1_2[:, 0, :], lattice_vec_1_2[:, 1, :])
+            normal_vec = torch.cross(
+                lattice_vec_1_2[:, 0, :], lattice_vec_1_2[:, 1, :], dim=-1
+            )
             normal_vec = normal_vec / normal_vec.norm(dim=-1, keepdim=True)
             cutoff = self.pbc_multigraph_cutoff if use_local_attention else self.cutoff
             max_offset = int(
@@ -88,7 +94,12 @@ class CellExpander:
 
         max_offsets = []
         for i in range(3):
-            max_offsets.append(_get_max_offset_for_dim(cell, i))
+            try:
+                max_offset = _get_max_offset_for_dim(cell, i)
+            except Exception as e:
+                logger.warning(f"{e} with cell {cell}")
+                max_offset = self.pbc_expanded_num_cell_per_direction
+            max_offsets.append(max_offset)
         max_offsets = torch.tensor(max_offsets, device=cell.device)
         self.cells = self.cells.to(device=cell.device)
         self.cell_mask_for_pbc = self.cell_mask_for_pbc.to(device=cell.device)
