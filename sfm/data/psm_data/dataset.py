@@ -462,7 +462,7 @@ class SmallMolDataset(FoundationModelDataset):
         data_object.id = el_idx  # f"{db_idx}_{el_idx}"
 
         energy = data_object.energy
-        # out["pyscf_energy"] = copy.deepcopy(energy.astype(np.float32))  # this is pyscf energy ground truth
+        # out["pyscf_energy"] = copy.deepcopy(energy.astype(np.float64))  # this is pyscf energy ground truth
         if self.remove_atomref_energy:
             unique, counts = np.unique(
                 data_object.atomic_numbers.int().numpy(), return_counts=True
@@ -494,7 +494,7 @@ class SmallMolDataset(FoundationModelDataset):
                     [1.0, 1.0, 0.0],
                     [1.0, 1.0, 1.0],
                 ],
-                dtype=torch.float32,
+                dtype=torch.float64,
             )
             out["token_type"] = torch.cat(
                 [out["token_type"], torch.full([8], 128)], dim=-1
@@ -507,32 +507,32 @@ class SmallMolDataset(FoundationModelDataset):
             )  # expand pos with cell corners
             out["forces"] = torch.cat(
                 [
-                    torch.tensor(out["forces"].clone().detach(), dtype=torch.float32),
-                    torch.zeros([8, 3], dtype=torch.float32),
+                    torch.tensor(out["forces"].clone().detach(), dtype=torch.float64),
+                    torch.zeros([8, 3], dtype=torch.float64),
                 ],
                 dim=0,
             )  # expand forces for cell corners
 
             out["cell"] = data_object.cell.squeeze(dim=0)
-            out["pbc"] = torch.ones(3, dtype=torch.float32).bool()
+            out["pbc"] = torch.ones(3, dtype=torch.float64).bool()
             out["stress"] = torch.zeros(
-                (3, 3), dtype=torch.float32, device=energy.device
+                (3, 3), dtype=torch.float64, device=energy.device
             )
             out["cell_offsets"] = data_object.cell_offsets.numpy()
 
             out["energy_per_atom"] = out["energy"] / out["num_atoms"]
 
         else:
-            out["cell"] = torch.zeros((3, 3), dtype=torch.float32)
-            out["pbc"] = torch.zeros(3, dtype=torch.float32).bool()
+            out["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+            out["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
             out["stress"] = torch.zeros(
-                (3, 3), dtype=torch.float32, device=energy.device
+                (3, 3), dtype=torch.float64, device=energy.device
             )
 
             out["energy_per_atom"] = out["energy"] / out["num_atoms"]
 
         if self.enable_hami:
-            # out.update({"init_fock":data_object.init_fock.astype(np.float32)})
+            # out.update({"init_fock":data_object.init_fock.astype(np.float64)})
             if self.remove_init:
                 data_object.fock = data_object.fock - data_object.init_fock
             if self.Htoblock_otf is True:
@@ -571,7 +571,7 @@ class SmallMolDataset(FoundationModelDataset):
                 "has_energy",
                 "has_forces",
             ]:
-                out[key] = torch.tensor(out[key], dtype=torch.float32)
+                out[key] = torch.tensor(out[key], dtype=torch.float64)
 
         out = self.generate_2dgraphfeat(out)
 
@@ -1642,7 +1642,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         edge_attr = torch.zeros([0, 3], dtype=torch.long)
         x = torch.tensor(x, dtype=torch.int32)
-        coords = torch.tensor(np.concatenate(coords, axis=0), dtype=torch.float32)
+        coords = torch.tensor(np.concatenate(coords, axis=0), dtype=torch.float64)
         position_ids = torch.tensor(position_ids, dtype=torch.int32)
 
         data = {
@@ -1706,13 +1706,13 @@ class PDBComplexDataset(AFDBLMDBDataset):
         data["attn_edge_type"] = attn_edge_type
         data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
         data["pbc"] = torch.zeros(3, dtype=torch.bool)
-        data["stress"] = torch.zeros((3, 3), dtype=torch.float32)
-        data["forces"] = torch.zeros((N, 3), dtype=torch.float32)
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float64)
+        data["forces"] = torch.zeros((N, 3), dtype=torch.float64)
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
-        data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float32)
-        data["energy"] = torch.tensor([0.0], dtype=torch.float32)
+        data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
+        data["energy"] = torch.tensor([0.0], dtype=torch.float64)
         data["in_degree"] = adj.long().sum(dim=1).view(-1)
         data["is_stable_periodic"] = False
         return data
@@ -1722,8 +1722,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
     def collate(self, batch: List[Data]) -> Data:
         result = collate_fn(batch)
-        protein_len = torch.tensor([i["protein_len"] for i in batch])
-        result.update(dict(protein_len=protein_len))
+        polymer_len = torch.tensor([i["polymer_len"] for i in batch])
+        result.update(dict(polymer_len=polymer_len))
         return result
 
     def split_dataset(self, validation_ratio=0.03, sort=False):
