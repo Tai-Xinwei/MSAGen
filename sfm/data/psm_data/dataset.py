@@ -1686,12 +1686,12 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 data["edge_index"][1, :] + polymer_len,
             ] = True
             # allow interaction between protein and ligand, and protein and protein
-            protein_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
-            protein_ligand_adj[:polymer_len] = True
-            protein_ligand_adj |= (
-                protein_ligand_adj.clone().T
+            polymer_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
+            polymer_ligand_adj[:polymer_len] = True
+            polymer_ligand_adj |= (
+                polymer_ligand_adj.clone().T
             )  # torch disallow inplace operation
-            adj |= protein_ligand_adj
+            adj |= polymer_ligand_adj
         else:
             # multimers
             data["sample_type"] = 7
