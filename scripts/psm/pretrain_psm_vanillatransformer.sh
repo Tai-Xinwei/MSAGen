@@ -31,7 +31,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_mode}" ] && noise_mode=diff
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.3
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.7
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=1.0
 
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=4e-5
@@ -74,8 +74,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${AutoGradForce}" ] && AutoGradForce=True
 [ -z "${force_head_type}" ] && force_head_type=MLP
-[ -z "${energy_loss_ratio}" ] && energy_loss_ratio=0.1
-[ -z "${force_loss_ratio}" ] && force_loss_ratio=0.02
+[ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1.0
+[ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=0.1
+[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=0.9
 
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
@@ -245,8 +246,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           clean_sample_ratio=$clean_sample_ratio \
           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
-          use_dali_pipeline=$use_dali_pipeline \
-          energy_loss_ratio=$energy_loss_ratio force_loss_ratio=$force_loss_ratio \
+          use_dali_pipeline=$use_dali_pipeline molecule_energy_loss_ratio=$molecule_energy_loss_ratio \
+          material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
           preprocess_2d_bond_features_with_cuda=True \
           AutoGradForce=$AutoGradForce force_head_type=$force_head_type \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \

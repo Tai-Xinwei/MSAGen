@@ -112,8 +112,9 @@ class DiffMAE3dCriterions(nn.Module):
         self.periodic_force_mean = periodic_force_mean
         self.periodic_force_std = periodic_force_std
 
-        self.energy_loss_ratio = args.energy_loss_ratio
-        self.force_loss_ratio = args.force_loss_ratio
+        self.material_force_loss_ratio = args.material_force_loss_ratio
+        self.material_energy_loss_ratio = args.material_energy_loss_ratio
+        self.molecule_energy_loss_ratio = args.molecule_energy_loss_ratio
 
         self.hard_dist_loss_raito = args.hard_dist_loss_raito
         self.if_total_energy = args.if_total_energy
@@ -611,8 +612,9 @@ class DiffMAE3dCriterions(nn.Module):
 
         if not self.seq_only:
             loss = (
-                self.energy_loss_ratio * energy_loss
-                + self.force_loss_ratio * force_loss
+                self.molecule_energy_loss_ratio * molecule_energy_loss
+                + self.material_energy_loss_ratio * periodic_energy_loss
+                + self.material_force_loss_ratio * force_loss
                 + noise_loss
                 + aa_mlm_loss
                 + smooth_lddt_loss

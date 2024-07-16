@@ -878,9 +878,7 @@ class MatterSimDataset:
                     data["forces"] - self.force_mean, dtype=torch.float64
                 )
 
-            data["energy"] = torch.tensor(
-                [(data["info"]["energy"] - self.energy_mean)]
-            )  # / self.energy_std
+            data["energy"] = torch.tensor([(data["info"]["energy"] - self.energy_mean)])
             data["energy_per_atom"] = torch.tensor(
                 [
                     (

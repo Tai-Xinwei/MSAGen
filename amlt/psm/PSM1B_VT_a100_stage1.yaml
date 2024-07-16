@@ -7,7 +7,7 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 8
+  NODES: 4
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -77,8 +77,9 @@ jobs:
   - export mode_prob='0.4,0.4,0.2'
   - export fp16=False
   - export clean_sample_ratio=0.6
-  - export energy_loss_ratio=1.0
-  - export force_loss_ratio=0.00
+  - export molecule_energy_loss_ratio=10.0
+  - export material_energy_loss_ratio=0.1
+  - export material_force_loss_ratio=0.9
   # - export num_timesteps=1000
   # - export ddpm_beta_start=1e-4
   # - export ddpm_beta_end=2e-2

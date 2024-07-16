@@ -122,8 +122,9 @@ class PSMConfig(GraphormerConfig):
 
     # loss computation options
     rescale_loss_with_std: bool = False
-    energy_loss_ratio: float = 1.0
-    force_loss_ratio: float = 1.0
+    material_force_loss_ratio: float = 1.0
+    material_energy_loss_ratio: float = 1.0
+    molecule_energy_loss_ratio: float = 1.0
     AutoGradForce: bool = False
     seq_only: bool = False
     freeze_backbone: bool = False

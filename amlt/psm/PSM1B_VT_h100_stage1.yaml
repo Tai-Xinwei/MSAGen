@@ -81,8 +81,9 @@ jobs:
   - export mode_prob='0.4,0.4,0.2'
   - export fp16=False
   - export clean_sample_ratio=0.7
-  - export energy_loss_ratio=0.05
-  - export force_loss_ratio=0.00
+  - export molecule_energy_loss_ratio=10.0
+  - export material_energy_loss_ratio=0.1
+  - export material_force_loss_ratio=0.9
   # - export num_timesteps=1000
   # - export ddpm_beta_start=1e-4
   # - export ddpm_beta_end=2e-2
@@ -92,8 +93,8 @@ jobs:
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
   - export save_batch_interval=5000
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v11_1b/checkpoints
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v11_1b/checkpoints
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v12_1b/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v12_1b/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
