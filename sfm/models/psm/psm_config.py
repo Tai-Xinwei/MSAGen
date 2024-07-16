@@ -125,6 +125,7 @@ class PSMConfig(GraphormerConfig):
     material_force_loss_ratio: float = 1.0
     material_energy_loss_ratio: float = 1.0
     molecule_energy_loss_ratio: float = 1.0
+    decoder_feat4energy: bool = True
     AutoGradForce: bool = False
     seq_only: bool = False
     freeze_backbone: bool = False

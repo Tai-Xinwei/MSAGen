@@ -870,7 +870,9 @@ class PSM(nn.Module):
                 self.energy_head.update(
                     {
                         key: nn.Sequential(
-                            # AdaNorm(psm_config.embedding_dim),
+                            AdaNorm(psm_config.embedding_dim)
+                            if self.psm_config.decoder_feat4energy
+                            else nn.Identity(),
                             nn.Linear(
                                 psm_config.embedding_dim,
                                 psm_config.embedding_dim,
