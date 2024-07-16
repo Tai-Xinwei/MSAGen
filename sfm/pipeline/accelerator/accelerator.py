@@ -1118,10 +1118,10 @@ class DeepSpeedAccelerator(Accelerator):
                 train_data,
                 batch_sampler=self.train_sampler,
                 collate_fn=train_data.collate,
-                num_workers=1,  # multiprocessing.cpu_count() // torch.cuda.device_count(),
+                num_workers=multiprocessing.cpu_count() // torch.cuda.device_count(),
                 pin_memory=True,
                 persistent_workers=True,
-                # prefetch_factor=4,
+                prefetch_factor=4,
             )
         elif self.args.dynamic_loader:
             assert (
