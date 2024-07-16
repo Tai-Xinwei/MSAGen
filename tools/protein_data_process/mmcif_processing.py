@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import gzip
 import io
-import logging
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +10,7 @@ from typing import Any, Mapping, Sequence, Tuple, Union
 import click
 import lmdb
 import numpy as np
+from absl import logging
 from Bio.PDB import MMCIF2Dict
 from joblib import delayed, Parallel
 from rdkit import Chem
@@ -27,8 +27,9 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from sfm.data.mol_data.utils.molecule import mol2graph
 
 
-logging.basicConfig(stream=sys.stderr, level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging.set_verbosity(logging.INFO)
+
+
 # From AlphaFold 3 Appendix: CCD code and PDB ID tables
 STDRES = {'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK', 'A', 'C', 'G', 'U', 'DA', 'DC', 'DG', 'DT', 'N', 'DN'}
 EXCLUS = {'144', '15P', '1PE', '2F2', '2JC', '3HR', '3SY', '7N5', '7PE', '9JE', 'AAE', 'ABA', 'ACE', 'ACN', 'ACT', 'ACY', 'AZI', 'BAM', 'BCN', 'BCT', 'BDN', 'BEN', 'BME', 'BO3', 'BTB', 'BTC', 'BU1', 'C8E', 'CAD', 'CAQ', 'CBM', 'CCN', 'CIT', 'CL', 'CLR', 'CM', 'CMO', 'CO3', 'CPT', 'CXS', 'D10', 'DEP', 'DIO', 'DMS', 'DN', 'DOD', 'DOX', 'EDO', 'EEE', 'EGL', 'EOH', 'EOX', 'EPE', 'ETF', 'FCY', 'FJO', 'FLC', 'FMT', 'FW5', 'GOL', 'GSH', 'GTT', 'GYF', 'HED', 'IHP', 'IHS', 'IMD', 'IOD', 'IPA', 'IPH', 'LDA', 'MB3', 'MEG', 'MES', 'MLA', 'MLI', 'MOH', 'MPD', 'MRD', 'MSE', 'MYR', 'N', 'NA', 'NH2', 'NH4', 'NHE', 'NO3', 'O4B', 'OHE', 'OLA', 'OLC', 'OMB', 'OME', 'OXA', 'P6G', 'PE3', 'PE4', 'PEG', 'PEO', 'PEP', 'PG0', 'PG4', 'PGE', 'PGR', 'PLM', 'PO4', 'POL', 'POP', 'PVO', 'SAR', 'SCN', 'SEO', 'SEP', 'SIN', 'SO4', 'SPD', 'SPM', 'SR', 'STE', 'STO', 'STU', 'TAR', 'TBU', 'TME', 'TPO', 'TRS', 'UNK', 'UNL', 'UNX', 'UPL', 'URE'}
@@ -63,7 +64,7 @@ def parse_mmcif_string(mmcif_path: str) -> str:
         with gzip.open(mmcif_path, 'rt') as fp:
             mmcif_string = fp.read()
     else:
-        logger.error(f"{mmcif_path} must endswith .cif or .cif.gz.")
+        logging.error(f"{mmcif_path} must endswith .cif or .cif.gz.")
     return mmcif_string
 
 
@@ -261,18 +262,19 @@ def chemcomp2graph(chem_comp_string: str) -> Mapping[str, Any]:
         rdkitmol = create_rdkitmol(symbols, pdbx_formal_charge, orders, charges)
         # convert mol to graph by using sfm.data.mol_data.utils.molecule.mol2graph
         graph = {
-            "name": chem_comp_id,
-            "pdbx_formal_charge": pdbx_formal_charge,
-            "atomids": np.array(atomids),
-            "symbols": np.array(symbols),
-            "orders": np.array(orders),
-            "rdkitmol": rdkitmol,
+            'name': chem_comp_id,
+            'pdbx_formal_charge': pdbx_formal_charge,
+            'atomids': np.array(atomids),
+            'symbols': np.array(symbols),
+            'orders': np.array(orders),
+            'rdkitmol': rdkitmol,
             }
+        # graph update key node_feat, edge_index, edge_feat, num_nodes
         rdkitmol.RemoveAllConformers()
         graph.update(mol2graph(rdkitmol))
         return graph
     except Exception as e:
-        logger.error(f"Failed to parse {chem_comp_id}, {e}")
+        logging.error(f"Failed to parse {chem_comp_id}, {e}")
         return {}
 
 
@@ -359,7 +361,7 @@ def process_one_mmcif(mmcif_path: str,
                 # resolved residues is filtered out
                 polymer_chains[chain_id] = process_polymer_chain(current_chain)
         assert polymer_chains, f"Has no desirable chains for {pdbid}."
-        logger.debug(f"{mmcif_path} processed successfully.")
+        logging.debug(f"{mmcif_path} processed successfully.")
         data = {
             'pdbid': pdbid,
             'structure_method': result.mmcif_object.header['structure_method'],
@@ -370,7 +372,7 @@ def process_one_mmcif(mmcif_path: str,
         }
         return data
     except Exception as e:
-        logger.error(f"{mmcif_path} processed failed, {e}")
+        logging.error(f"{mmcif_path} processed failed, {e}")
         return {}
 
 
@@ -406,7 +408,7 @@ def show_one_mmcif(data: Mapping[str, Union[str, dict, list]]) -> None:
     for i, graph in enumerate(data['nonpoly_graphs']):
         print('-'*80)
         print(graph.keys())
-        print(f"{i}_{data['pdbid']}_{chain_id}_{graph['name']} "
+        print(f"{i}_{data['pdbid']}_{graph['chain_id']}_{graph['name']} "
               f"num_nodes={graph['num_nodes']} "
               f"charge={graph['pdbx_formal_charge']} ",
               end='')
@@ -502,14 +504,14 @@ def process(mmcif_dir: str,
     mmcif_paths = [_ for _ in Path(mmcif_dir).rglob("*.cif.gz")]
     assert mmcif_paths and all(11==len(_.name) for _ in mmcif_paths), (
         f"PDBID should be 4 characters long in {mmcif_dir}.")
-    logger.info(f"Processing {len(mmcif_paths)} structures in {mmcif_dir}.")
+    logging.info(f"Processing {len(mmcif_paths)} structures in {mmcif_dir}.")
 
     chem_comp_path = Path(chem_comp_path).resolve()
-    logger.info(f"Chemical components information is in {chem_comp_path}")
+    logging.info(f"Chemical components information is in {chem_comp_path}")
 
     output_lmdb = Path(output_lmdb).resolve()
     assert not output_lmdb.exists(), f"ERROR: {output_lmdb} exists. Stop."
-    logger.info(f"Will save processed data to {output_lmdb}")
+    logging.info(f"Will save processed data to {output_lmdb}")
 
     env = lmdb.open(str(output_lmdb), map_size=1024**4) # 1TB max size
 
@@ -570,10 +572,10 @@ def process(mmcif_dir: str,
               help="Input directory of SDF files.")
 def check_chem_comp(chem_comp_path: str, sdf_dir: str) -> None:
     chem_comp_path = Path(chem_comp_path).resolve()
-    logger.info(f"Chemical components information is in {chem_comp_path}")
+    logging.info(f"Chemical components information is in {chem_comp_path}")
 
     sdf_dir = Path(sdf_dir).resolve()
-    logger.info(f"The ideal SDF files in {sdf_dir}")
+    logging.info(f"The ideal SDF files in {sdf_dir}")
 
     chem_comp_path = Path(chem_comp_path).resolve()
     chem_comp_full_string = parse_mmcif_string(str(chem_comp_path))
@@ -582,14 +584,14 @@ def check_chem_comp(chem_comp_path: str, sdf_dir: str) -> None:
 
     chem_comp_strings = split_chem_comp_full_string(chem_comp_full_string)
     assert chem_comp_strings, f"Failed to split {chem_comp_path}."
-    logger.info(f"{len(chem_comp_strings)} chem_comp in {chem_comp_path}.")
+    logging.info(f"{len(chem_comp_strings)} chem_comp in {chem_comp_path}.")
 
     def _check_one(name: str) -> int:
         sdf_path = sdf_dir / f"{name}_ideal.sdf"
         assert sdf_path.exists(), f"SDF file does not exist for {name}."
 
         if name in (EXCLUS | GLYCAN):
-            logger.info(f"Skip {name} in EXCLUS or GLYCAN.")
+            logging.info(f"Skip {name} in EXCLUS or GLYCAN.")
             return -1
 
         with open(sdf_path, 'r') as fp:
@@ -614,7 +616,7 @@ def check_chem_comp(chem_comp_path: str, sdf_dir: str) -> None:
 
         return 1 if can1 == can2 else 0
 
-    logger.info(f"Checking {len(chem_comp_strings)} chem_comp one by one ...")
+    logging.info(f"Checking {len(chem_comp_strings)} chem_comp one by one ...")
     for name in chem_comp_strings:
         try:
             status = _check_one(name)
@@ -626,7 +628,7 @@ def check_chem_comp(chem_comp_path: str, sdf_dir: str) -> None:
                 flag = 'SKIP'
             print(flag, name)
         except Exception as e:
-            logger.error(f"Check {name} failed, {e}")
+            logging.error(f"Check {name} failed, {e}")
 
 
 if __name__ == "__main__":

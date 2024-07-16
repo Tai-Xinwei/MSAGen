@@ -22,7 +22,6 @@ from typing import Any, Mapping, Optional, Sequence, Tuple
 
 from absl import logging
 from Bio import PDB
-from Bio.Data import PDBData
 
 # Type aliases:
 ChainId = str
@@ -366,7 +365,7 @@ def _get_polymer_structure(*, parsed_info: Mapping[str, Any]) -> Tuple:
   for chain_id, str_info in seq_to_structure_mappings.items():
     current = []
     for idx, residue in sorted(str_info.items(), key=lambda x: x[0]):
-      current.append( (residue, seq_to_structure_coords[chain_id][idx]) )
+      current.append((residue, seq_to_structure_coords[chain_id][idx]))
     seq_to_structure[chain_id] = current
 
   return seq_to_structure
@@ -440,7 +439,7 @@ def _get_nonpoly_structure(*, parsed_info: Mapping[str, Any]):
     current = []
     for k, residue in sorted(str_info.items(),
                              key=lambda x: x[1].position.residue_number):
-      current.append( (residue, seq_to_structure_coords[chain_id][k]) )
+      current.append((residue, seq_to_structure_coords[chain_id][k]))
     seq_to_structure[chain_id] = current
 
   return seq_to_structure
@@ -514,21 +513,31 @@ def parse_structure(*,
     author_chain_to_restypes = {}
     for author_chain, str_info in seq_to_structure.items():
       seq = []
-      type = []
+      res = []
       for residue, atoms in str_info:
         name = residue.name if residue.name in chem_comps else 'MSE'
         chem_comp_type = chem_comps[name]['_chem_comp.type'].lower()
         resname = f'{residue.name:<3s}'.upper()
         if 'peptide' in chem_comp_type:
-          code = PDBData.protein_letters_3to1.get(resname, 'X')
-          t = 'p'
-        else: # 'dna' in chem_comp_type or 'rna' in chem_comp_type:
-          code = PDBData.nucleic_letters_3to1.get(resname, 'N')
-          t = 'n'
-        seq.append(code if len(code) == 1 else '?')
-        type.append(t if len(t) == 1 else '*')
+          _code = PDB.Polypeptide.protein_letters_3to1.get(resname, 'X')
+          _type = 'p'
+        elif 'dna' in chem_comp_type or 'rna' in chem_comp_type:
+          _code = PDB.Polypeptide.nucleic_letters_3to1.get(resname, 'N')
+          _type = 'n'
+        else:
+          _code = '?'
+          _type = '*'
+        seq.append(_code)
+        res.append(_type)
+      if '*' in res:
+        if res.count('p') >= res.count('n'):
+          seq = ['X' if _ == '?' else _ for _ in seq]
+          res = ['p' if _ == '*' else _ for _ in res]
+        else:
+          seq = ['N' if _ == '?' else _ for _ in seq]
+          res = ['n' if _ == '*' else _ for _ in res]
       author_chain_to_sequence[author_chain] = ''.join(seq)
-      author_chain_to_restypes[author_chain] = ''.join(type)
+      author_chain_to_restypes[author_chain] = ''.join(res)
 
     # Combine polymer and nonpolymer chains
     nonpoly_structure = _get_nonpoly_structure(parsed_info=parsed_info)
@@ -558,6 +567,7 @@ def parse_structure(*,
     if not catch_all_errors:
       raise
     return ParsingResult(mmcif_object=None, errors=errors)
+
 
 if __name__ == '__main__':
   import sys
@@ -592,5 +602,5 @@ if __name__ == '__main__':
     idx = 1
     for residue, atoms in struct[chain_id]:
       if idx <= 5 or idx >= len(struct[chain_id]) - 5:
-        print(idx, residue, len(atoms), 'atoms')
+        print(idx, residue, len(atoms), "atoms")
       idx += 1
