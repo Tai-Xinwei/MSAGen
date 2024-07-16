@@ -1181,37 +1181,52 @@ class DeepSpeedAccelerator(Accelerator):
             )
 
         if self.valid_data:
-            validsampler = torch.utils.data.distributed.DistributedSampler(
-                self.valid_data,
-                num_replicas=self.model_engine.dp_world_size,
-                rank=dp_rank,
-                shuffle=False,
-            )
-            if self.args.strategy == TrainStrategy.Pipeline:
-                logger.warning(
-                    f"Using pipeline training of DeepSpeed, will validate with train_batch_size "
-                    f"{self.args.deepspeed_config['train_batch_size']}, "
-                    f"val_batch_size {self.args.val_batch_size} is being ignored."
+            if self.args.use_unified_batch_sampler:
+                valid_sampler = UnifiedDataSampler(
+                    val_data,
+                    self.args.dataset_split_raito,
+                    self.args.dataset_micro_batch_size,
+                    num_replicas=self.world_size,
+                    rank=self.rank,
+                    seed=self.args.seed,
                 )
-                valid_batch_size_per_gpu = (
-                    self.model_engine.train_micro_batch_size_per_gpu()
+                self.valid_data_loader = DataLoader(
+                    val_data,
+                    batch_sampler=valid_sampler,
+                    collate_fn=train_data.collate,
                 )
             else:
-                valid_batch_size_per_gpu = self.args.val_batch_size // (
-                    self.model_engine.dp_world_size
-                    * self.args.gradient_accumulation_steps
+                validsampler = torch.utils.data.distributed.DistributedSampler(
+                    self.valid_data,
+                    num_replicas=self.model_engine.dp_world_size,
+                    rank=dp_rank,
+                    shuffle=False,
                 )
-            assert (
-                valid_batch_size_per_gpu > 0
-            ), "valid_batch_size_per_gpu should be greater than 0"
+                if self.args.strategy == TrainStrategy.Pipeline:
+                    logger.warning(
+                        f"Using pipeline training of DeepSpeed, will validate with train_batch_size "
+                        f"{self.args.deepspeed_config['train_batch_size']}, "
+                        f"val_batch_size {self.args.val_batch_size} is being ignored."
+                    )
+                    valid_batch_size_per_gpu = (
+                        self.model_engine.train_micro_batch_size_per_gpu()
+                    )
+                else:
+                    valid_batch_size_per_gpu = self.args.val_batch_size // (
+                        self.model_engine.dp_world_size
+                        * self.args.gradient_accumulation_steps
+                    )
+                assert (
+                    valid_batch_size_per_gpu > 0
+                ), "valid_batch_size_per_gpu should be greater than 0"
 
-            self.valid_data_loader = DataLoader(
-                self.valid_data,
-                sampler=validsampler,
-                batch_size=valid_batch_size_per_gpu,
-                collate_fn=self.valid_data.collate,
-                drop_last=False,
-            )
+                self.valid_data_loader = DataLoader(
+                    self.valid_data,
+                    sampler=validsampler,
+                    batch_size=valid_batch_size_per_gpu,
+                    collate_fn=self.valid_data.collate,
+                    drop_last=False,
+                )
 
             if (
                 self.args.strategy == TrainStrategy.Pipeline

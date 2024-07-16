@@ -113,7 +113,7 @@ class MultiheadAttentionWithProteinRotaryEmbedding(MultiheadAttention):
         # add rope
         if self.rot_emb and is_protein.any():
             is_protein = is_protein.repeat(self.num_heads, 1).unsqueeze(-1)
-            q_rope, k_rope = self.rot_emb(q, k)
+            q_rope, k_rope = self.rot_emb(q, k, v, position_ids, self.num_heads)
             q = torch.where(is_protein, q_rope, q)
             k = torch.where(is_protein, k_rope, k)
 
@@ -211,6 +211,7 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
         value: Optional[Tensor] = None,
         attn_bias: Optional[Tensor] = None,
         key_padding_mask: Optional[Tensor] = None,
+        position_ids: Optional[Tensor] = None,
         need_weights: bool = True,
         attn_mask: Optional[Tensor] = None,
         before_softmax: bool = False,
@@ -306,7 +307,7 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
         # add rope
         if self.rot_emb and is_protein.any() and src_len == tgt_len:
             is_protein = is_protein.repeat(self.num_heads, 1).unsqueeze(-1)
-            q_rope, k_rope = self.rot_emb(q, k)
+            q_rope, k_rope = self.rot_emb(q, k, v, position_ids, self.num_heads)
             q = torch.where(is_protein, q_rope, q)
             k = torch.where(is_protein, k_rope, k)
 

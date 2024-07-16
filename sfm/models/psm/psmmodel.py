@@ -219,6 +219,7 @@ class PSMModel(Model):
         is_seq_only,
         is_complex,
         time_step,
+        batched_data,
     ):
         """
         For protein pretrain mode, we have 3 modes:
@@ -264,10 +265,16 @@ class PSMModel(Model):
         # set padding mask to clean
         clean_mask = clean_mask.masked_fill(padding_mask, True)
         clean_mask = clean_mask.masked_fill(is_seq_only.unsqueeze(-1), False)
+        # set special token "<.>" to clean
+        token_id = batched_data["token_id"]
+        clean_mask = clean_mask.masked_fill(token_id == 156, True)
+
         # set T noise if protein is seq only
         time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
         # set 0 noise for padding
         time_step = time_step.masked_fill(padding_mask, 0.0)
+        # set T noise for batched_data["protein_mask"] nan/inf coords
+        time_step = time_step.masked_fill(batched_data["protein_mask"].any(dim=-1), 1.0)
 
         return clean_mask, aa_mask, time_step
 
@@ -276,11 +283,13 @@ class PSMModel(Model):
         sample_type = batched_data["sample_type"]
         is_periodic = batched_data["pbc"].any(dim=-1)
         is_molecule = (~is_periodic) & (token_id <= 129).all(dim=-1)
-        is_protein = (~is_periodic.unsqueeze(-1)) & (token_id > 129) & (token_id < 157)
+        is_protein = (~is_periodic.unsqueeze(-1)) & (token_id > 129) & (token_id < 156)
         is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
         is_seq_only = sample_type == 5
         is_complex = sample_type == 6
-        is_energy_outlier = is_molecule & (torch.abs(batched_data["energy"]) > 1e4)
+        is_energy_outlier = is_molecule & (
+            torch.abs(batched_data["energy_per_atom"]) > 23
+        )
 
         batched_data["is_periodic"] = is_periodic
         batched_data["is_molecule"] = is_molecule
@@ -502,6 +511,7 @@ class PSMModel(Model):
             batched_data["is_seq_only"],
             batched_data["is_complex"],
             time_step,
+            batched_data,
         )
 
         if self.psm_config.psm_finetune_mode:
@@ -860,7 +870,7 @@ class PSM(nn.Module):
                 self.energy_head.update(
                     {
                         key: nn.Sequential(
-                            AdaNorm(psm_config.embedding_dim),
+                            # AdaNorm(psm_config.embedding_dim),
                             nn.Linear(
                                 psm_config.embedding_dim,
                                 psm_config.embedding_dim,
@@ -888,12 +898,24 @@ class PSM(nn.Module):
 
             if args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
                 self.noise_head = VectorOutput(psm_config.embedding_dim)
-                self.forces_head.update({key: VectorOutput(psm_config.embedding_dim)})
+                if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                    self.forces_head.update(
+                        {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                    )
+                else:
+                    self.forces_head.update(
+                        {key: VectorOutput(psm_config.embedding_dim)}
+                    )
             elif args.backbone in ["dit"]:
                 self.noise_head = VectorProjOutput(psm_config.embedding_dim)
-                self.forces_head.update(
-                    {key: VectorProjOutput(psm_config.embedding_dim)}
-                )
+                if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                    self.forces_head.update(
+                        {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                    )
+                else:
+                    self.forces_head.update(
+                        {key: VectorProjOutput(psm_config.embedding_dim)}
+                    )
             else:
                 self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
@@ -1139,11 +1161,7 @@ class PSM(nn.Module):
                         pos,
                     )
                 else:
-                    if (
-                        self.psm_config.force_head_type == ForceHeadType.LINEAR
-                        and self.backbone
-                        not in ["vanillatransformer", "vanillatransformer_equiv", "dit"]
-                    ):
+                    if self.psm_config.force_head_type == ForceHeadType.LINEAR:
                         forces = torch.where(
                             is_periodic.unsqueeze(-1).unsqueeze(-1),
                             self.forces_head["periodic"](decoder_vec_output).squeeze(

@@ -122,6 +122,10 @@ def collate_fn(
             item["num_atoms"] = item["x"].size()[0]
         if not preprocess_2d_bond_features_with_cuda:
             item["edge_input"] = item["edge_input"][:, :, :multi_hop_max_dist, :]
+        if "position_ids" not in item:
+            item["position_ids"] = torch.arange(
+                0, item["token_type"].shape[0], dtype=torch.long
+            )
 
     idx = torch.tensor([i["idx"] for i in items], dtype=torch.long)
     sample_type = torch.tensor([i["sample_type"] for i in items], dtype=torch.long)
@@ -135,6 +139,9 @@ def collate_fn(
     energy_per_atom = torch.cat(energy_per_atom)
 
     x = torch.cat([pad_2d_unsqueeze(i["node_attr"], max_node_num) for i in items])
+    position_ids = torch.cat(
+        [pad_1d_unsqueeze(i["position_ids"], max_node_num) for i in items]
+    )
 
     attn_bias = torch.cat(
         [pad_attn_bias_unsqueeze(i["attn_bias"], max_node_num + 1) for i in items]
@@ -224,6 +231,7 @@ def collate_fn(
         cell=cell,
         num_atoms=num_atoms,
         is_stable_periodic=is_stable_periodic,
+        position_ids=position_ids,
     )
 
     if preprocess_2d_bond_features_with_cuda:

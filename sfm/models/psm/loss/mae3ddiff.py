@@ -112,8 +112,9 @@ class DiffMAE3dCriterions(nn.Module):
         self.periodic_force_mean = periodic_force_mean
         self.periodic_force_std = periodic_force_std
 
-        self.energy_loss_ratio = args.energy_loss_ratio
-        self.force_loss_ratio = args.force_loss_ratio
+        self.material_force_loss_ratio = args.material_force_loss_ratio
+        self.material_energy_loss_ratio = args.material_energy_loss_ratio
+        self.molecule_energy_loss_ratio = args.molecule_energy_loss_ratio
 
         self.hard_dist_loss_raito = args.hard_dist_loss_raito
         self.if_total_energy = args.if_total_energy
@@ -241,7 +242,12 @@ class DiffMAE3dCriterions(nn.Module):
 
         # smooth lddt loss
         pos_label = batched_data["ori_pos"]
-        is_protein = model_output["is_protein"]
+        B, L = pos_label.shape[:2]
+
+        # make is_protein mask contain ligand in complex data
+        is_protein = model_output["is_protein"].any(dim=-1).unsqueeze(-1).repeat(1, L)
+        is_protein = is_protein & (~model_output["padding_mask"])
+
         delta_pos_label = (pos_label.unsqueeze(1) - pos_label.unsqueeze(2)).norm(dim=-1)
         delta_pos_pred = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1)
         pair_protein_mask = is_protein.unsqueeze(1) & is_protein.unsqueeze(2)
@@ -606,8 +612,9 @@ class DiffMAE3dCriterions(nn.Module):
 
         if not self.seq_only:
             loss = (
-                self.energy_loss_ratio * energy_loss
-                + self.force_loss_ratio * force_loss
+                self.molecule_energy_loss_ratio * molecule_energy_loss
+                + self.material_energy_loss_ratio * periodic_energy_loss
+                + self.material_force_loss_ratio * force_loss
                 + noise_loss
                 + aa_mlm_loss
                 + smooth_lddt_loss
@@ -622,45 +629,45 @@ class DiffMAE3dCriterions(nn.Module):
         # and the second element is the number of samples (or token numbers) in the batch with that loss considered
         logging_output = {
             "total_loss": loss,
-            "energy_loss": (float(energy_loss), int(num_energy_sample)),
+            "energy_loss": (float(energy_loss.detach()), int(num_energy_sample)),
             "molecule_energy_loss": (
-                float(molecule_energy_loss),
+                float(molecule_energy_loss.detach()),
                 int(num_molecule_energy_sample),
             ),
             "periodic_energy_loss": (
-                float(periodic_energy_loss),
+                float(periodic_energy_loss.detach()),
                 int(num_periodic_energy_sample),
             ),
             "force_loss": (float(force_loss), int(num_force_sample)),
             "molecule_force_loss": (
-                float(molecule_force_loss),
+                float(molecule_force_loss.detach()),
                 int(num_molecule_force_sample),
             ),
             "periodic_force_loss": (
-                float(periodic_force_loss),
+                float(periodic_force_loss.detach()),
                 int(num_periodic_force_sample),
             ),
             "noise_loss": (float(noise_loss), int(num_noise_sample)),
             "molecule_noise_loss": (
-                float(molecule_noise_loss),
+                float(molecule_noise_loss.detach()),
                 int(num_molecule_noise_sample),
             ),
             "periodic_noise_loss": (
-                float(periodic_noise_loss),
+                float(periodic_noise_loss.detach()),
                 int(num_periodic_noise_sample),
             ),
             "protein_noise_loss": (
-                float(protein_noise_loss),
+                float(protein_noise_loss.detach()),
                 int(num_protein_noise_sample),
             ),
             "complex_noise_loss": (
-                float(complex_noise_loss),
+                float(complex_noise_loss.detach()),
                 int(num_complex_noise_sample),
             ),
-            "aa_mlm_loss": (float(aa_mlm_loss), int(num_aa_mask_token)),
+            "aa_mlm_loss": (float(aa_mlm_loss.detach()), int(num_aa_mask_token)),
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
-            "smooth_lddt_loss": (float(smooth_lddt_loss), int(num_pddt_loss)),
-            "hard_dist_loss": (float(hard_dist_loss), int(num_pddt_loss)),
+            "smooth_lddt_loss": (float(smooth_lddt_loss.detach()), int(num_pddt_loss)),
+            "hard_dist_loss": (float(hard_dist_loss.detach()), int(num_pddt_loss)),
         }
 
         def _reduce_matched_result(model_output, metric_name, min_or_max: str):

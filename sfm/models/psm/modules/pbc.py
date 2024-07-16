@@ -82,6 +82,7 @@ class CellExpander:
             )
             normal_vec = normal_vec / normal_vec.norm(dim=-1, keepdim=True)
             cutoff = self.pbc_multigraph_cutoff if use_local_attention else self.cutoff
+
             max_offset = int(
                 torch.max(
                     torch.ceil(

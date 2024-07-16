@@ -113,6 +113,7 @@ class PSMPlainEncoderLayer(nn.Module):
                 need_weights=False,
                 attn_mask=None,
                 is_protein=batched_data["is_protein"],
+                position_ids=batched_data["position_ids"],
                 pbc_expand_batched=pbc_expand_batched,
                 math_kernel=math_kernel,
             )
@@ -122,6 +123,7 @@ class PSMPlainEncoderLayer(nn.Module):
                 key_padding_mask=padding_mask,
                 need_weights=False,
                 attn_mask=None,
+                position_ids=batched_data["position_ids"],
                 pbc_expand_batched=pbc_expand_batched,
                 math_kernel=math_kernel,
             )

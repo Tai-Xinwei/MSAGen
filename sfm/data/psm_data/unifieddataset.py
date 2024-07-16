@@ -13,19 +13,20 @@ from sfm.data.dataset import FoundationModelDataset
 from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import (
     AFDBLMDBDataset,
-    ComplexDataset,
-    MatBenchDataset,
     MatterSimDataset,
+    PDBComplexDataset,
     PDBDataset,
     PlainPM6FullLMDBDataset,
     PM6FullLMDBDataset,
     SmallMolDataset,
     UR50LMDBDataset,
 )
+from sfm.data.psm_data.ft_mat_dataset import MatBenchDataset
 from sfm.data.psm_data.ft_mol_dataset import (
     PCQM4Mv2LMDBDataset,
     PubChemQCB3LYPLMDBDataset,
 )
+from sfm.data.psm_data.ft_prot_dataset import ComplexDataset
 from sfm.data.sampler import WeightedDistributedSampler
 from sfm.logging import logger
 from sfm.models.psm.psm_config import PSMConfig
@@ -180,6 +181,11 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)
                 # self.sizes.append(train_dataset.sizes)
+            elif dataset_name == "pdbcomplexmultimer":
+                dataset = PDBComplexDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset()
+                len_total = len(dataset)
+                self.dataset_lens[dataset_name] = len(train_dataset)
             elif dataset_name == "pubchemqc-b3lyp":
                 dataset = PubChemQCB3LYPLMDBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset(
