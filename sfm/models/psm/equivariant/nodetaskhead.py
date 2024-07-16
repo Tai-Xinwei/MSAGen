@@ -23,14 +23,14 @@ class NodeTaskHead(nn.Module):
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=False)
 
         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=False)
-        self.v_proj_energy = nn.Linear(embed_dim, embed_dim, bias=False)
+        # self.v_proj_energy = nn.Linear(embed_dim, embed_dim, bias=False)
 
         self.num_heads = psm_config.encoder_attention_heads
         self.scaling = (embed_dim // psm_config.encoder_attention_heads) ** -0.5
         self.embed_dim = embed_dim
 
         self.o_proj = nn.Linear(embed_dim, embed_dim, bias=False)
-        self.o_proj_energy = nn.Linear(embed_dim, embed_dim, bias=False)
+        # self.o_proj_energy = nn.Linear(embed_dim, embed_dim, bias=False)
 
     def forward(
         self,
@@ -66,7 +66,7 @@ class NodeTaskHead(nn.Module):
         q = self.q_proj(x) * self.scaling
         k = self.k_proj(x)
         v = self.v_proj(x)
-        v_e = self.v_proj_energy(x)
+        # v_e = self.v_proj_energy(x)
 
         if pbc_expand_batched is not None:
             outcell_index = pbc_expand_batched["outcell_index"]
@@ -77,16 +77,16 @@ class NodeTaskHead(nn.Module):
             outcell_index = outcell_index.unsqueeze(-1).expand(-1, -1, self.embed_dim)
             expand_k = torch.gather(k, dim=1, index=outcell_index)
             expand_v = torch.gather(v, dim=1, index=outcell_index)
-            expand_v_e = torch.gather(v_e, dim=1, index=outcell_index)
+            # expand_v_e = torch.gather(v_e, dim=1, index=outcell_index)
 
             k = torch.cat([k, expand_k], dim=1)
             v = torch.cat([v, expand_v], dim=1)
-            v_e = torch.cat([v_e, expand_v_e], dim=1)
+            # v_e = torch.cat([v_e, expand_v_e], dim=1)
 
         q = q.view(bsz, n_node, self.num_heads, -1).transpose(1, 2)
         k = k.view(bsz, extend_n_node, self.num_heads, -1).transpose(1, 2)
         v = v.view(bsz, extend_n_node, self.num_heads, -1).transpose(1, 2)
-        v_e = v_e.view(bsz, extend_n_node, self.num_heads, -1).transpose(1, 2)
+        # v_e = v_e.view(bsz, extend_n_node, self.num_heads, -1).transpose(1, 2)
 
         attn = q @ k.transpose(-1, -2)  # [bsz, head, n, n]
         min_dtype = torch.finfo(k.dtype).min
@@ -111,9 +111,11 @@ class NodeTaskHead(nn.Module):
         )
         decoder_vec_output = self.o_proj(decoder_vec_output)
 
-        decoder_x_output = attn_probs @ v_e
-        decoder_x_output = decoder_x_output.permute(0, 2, 1, 3).reshape(bsz, n_node, -1)
-        decoder_x_output = self.o_proj_energy(decoder_x_output)
+        # decoder_x_output = attn_probs @ v_e
+        # decoder_x_output = decoder_x_output.permute(0, 2, 1, 3).reshape(bsz, n_node, -1)
+        # decoder_x_output = self.o_proj_energy(decoder_x_output)
+
+        decoder_x_output = x
 
         return decoder_x_output, decoder_vec_output
 

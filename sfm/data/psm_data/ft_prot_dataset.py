@@ -10,14 +10,20 @@ from typing import List, Optional, Union
 import lmdb
 import torch
 from torch_geometric.data import Data
-from torch_scatter import scatter_mean
+
+from sfm.logging import logger
+
+try:
+    from torch_scatter import scatter_mean
+except:
+    logger.warning("torch_scatter is not installed.")
 
 from sfm.data.data_utils import _filter_by_size_dynamic
-from sfm.data.dataset import FoundationModelDataset
+from sfm.data.dataset import FoundationModelDataset, LMDBFoundationModelDataset
 from sfm.data.prot_data.util import bstr2obj
 from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import AFDBLMDBDataset
-from sfm.logging import logger
+from sfm.data.psm_data.utils import VOCAB
 from sfm.models.psm.psm_config import PSMConfig
 
 
@@ -38,7 +44,7 @@ class ProteinSamplingDataset(AFDBLMDBDataset):
 
         data = {}
 
-        x = torch.tensor([self.vocab[tok] - 1 for tok in toks], dtype=torch.int64)
+        x = torch.tensor([VOCAB[tok] - 1 for tok in toks], dtype=torch.int64)
         coords = torch.zeros([x.size()[0], 3], dtype=torch.float64)
 
         data["sample_type"] = 2
@@ -374,43 +380,6 @@ class ProteinDownstreamDataset(FoundationModelDataset):
         self.split = self.args.split
         self.normalize_label = self.args.normalize_label
 
-        self.vocab = {
-            # "<pad>": 0,  # padding
-            # "1"-"127": 1-127, # atom type
-            # "<cell_corner>": 128, use for pbc material
-            "L": 130,
-            "A": 131,
-            "G": 132,
-            "V": 133,
-            "S": 134,
-            "E": 135,
-            "R": 136,
-            "T": 137,
-            "I": 138,
-            "D": 139,
-            "P": 140,
-            "K": 141,
-            "Q": 142,
-            "N": 143,
-            "F": 144,
-            "Y": 145,
-            "M": 146,
-            "H": 147,
-            "W": 148,
-            "C": 149,
-            "X": 150,
-            "B": 151,
-            "U": 152,
-            "Z": 153,
-            "O": 154,
-            "-": 155,
-            ".": 156,
-            "<mask>": 157,
-            "<cls>": 158,
-            "<eos>": 159,
-            # "<unk>": 160,
-        }
-
         assert (
             self.split in ProteinDownstreamDataset.TASKINFO[self.task_name]["splits"]
         ), f"split must be one of {self.TASKINFO[self.task_name]['splits']} for task {self.task_name}, but got {self.split}"
@@ -507,16 +476,16 @@ class ProteinDownstreamDataset(FoundationModelDataset):
         if isinstance(val["aa"][0], list):
             x = []
             for idx, seq in enumerate(val["aa"]):
-                tokens = [self.vocab[tok] - 1 for tok in seq]
-                tokens.insert(0, self.vocab["<cls>"] - 1)
-                tokens.append(self.vocab["<eos>"] - 1)
+                tokens = [VOCAB[tok] - 1 for tok in seq]
+                tokens.insert(0, VOCAB["<cls>"] - 1)
+                tokens.append(VOCAB["<eos>"] - 1)
                 x.extend(tokens)
             x = torch.tensor(x, dtype=torch.int64)
 
         else:
-            tokens = [self.vocab[tok] - 1 for tok in val["aa"]]
-            tokens.insert(0, self.vocab["<cls>"] - 1)
-            tokens.append(self.vocab["<eos>"] - 1)
+            tokens = [VOCAB[tok] - 1 for tok in val["aa"]]
+            tokens.insert(0, VOCAB["<cls>"] - 1)
+            tokens.append(VOCAB["<eos>"] - 1)
             x = torch.tensor(tokens, dtype=torch.int64)
 
         # minus 1 due to add padding index=0 in collator
@@ -586,10 +555,10 @@ class ProteinDownstreamDataset(FoundationModelDataset):
 
     def size(self, index: int) -> int:
         sz = self.sizes[index]
-        if self.vocab.prepend_bos:
-            sz += 1
-        if self.vocab.append_eos:
-            sz += 1
+        # if self.vocab.prepend_bos:
+        #     sz += 1
+        # if self.vocab.append_eos:
+        #     sz += 1
         raise sz
 
     def num_tokens(self, index: int) -> int:
@@ -613,9 +582,7 @@ class ProteinDownstreamDataset(FoundationModelDataset):
             # return collate_secondary_structure_fn(samples, self.vocab)
             raise NotImplementedError()
         else:
-            return collate_fn_protein_downstream(
-                samples, self.vocab, single_sequence=True
-            )
+            return collate_fn_protein_downstream(samples, single_sequence=True)
 
     @classmethod
     def load_dataset(cls, args):
@@ -806,3 +773,87 @@ def collate_fn_protein_downstream(
         )
 
     return batched_data
+
+
+class ComplexDataset(LMDBFoundationModelDataset):
+    def __init__(self, args: PSMConfig, lmdb_path: str):
+        super().__init__(lmdb_path)
+        self.args = args
+        self.lmdb_path = lmdb_path
+
+    def __getitem__(self, index: int) -> dict:
+        data = self.read_txn.get(self.key_list[index].encode())
+        data = bstr2obj(data)
+
+        data["idx"] = index
+        data["sample_type"] = 6
+
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=data["token_type"].device
+        )
+
+        N = data["token_type"].shape[0]
+
+        protein_len = data["protein_len"]
+        data["token_type"][:protein_len] -= 1
+        data["token_type"][protein_len:] += 1
+        data["node_attr"][:, 0] = data["token_type"]
+
+        data["node_attr"] = convert_to_single_emb(data["node_attr"].long())
+
+        adj = torch.zeros([N, N], dtype=torch.bool)
+        adj[data["edge_index"][0, :], data["edge_index"][1, :]] = True
+
+        # allow interaction between protein and ligand, and protein and protein
+        protein_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
+        protein_ligand_adj[:protein_len] = True
+        protein_ligand_adj |= (
+            protein_ligand_adj.clone().T
+        )  # torch disallow inplace operation
+        adj |= protein_ligand_adj
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            attn_edge_type = torch.zeros(
+                [N, N, data["edge_attr"].size(-1)], dtype=torch.long
+            )
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+
+        # replace data['coords'] inf with 0 to avoid nan in the model
+        # as noise loss will only be calculated for ligands
+        data["coords"][data["coords"] == float("inf")] = 0
+        data["coords"] = data["coords"].to(dtype=torch.float64)
+
+        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        return data
+
+    def __len__(self) -> int:
+        return len(self.key_list)
+
+    def collate(self, batch: List[Data]) -> Data:
+        result = collate_fn(batch)
+        protein_len = torch.tensor([i["protein_len"] for i in batch])
+        result.update(dict(protein_len=protein_len))
+        return result
+
+    def split_dataset(self, validation_ratio=0.03, sort=False):
+        num_samples = len(self.key_list)
+        # Shuffle the indices and split them into training and validation sets
+        indices = list(range(num_samples))
+        random.Random(666).shuffle(indices)
+
+        num_validation_samples = int(num_samples * validation_ratio)
+        num_training_samples = num_samples - num_validation_samples
+
+        training_indices = indices[:num_training_samples]
+        validation_indices = indices[num_training_samples:]
+
+        # Create training and validation datasets
+        dataset_train = self.__class__(self.args, self.lmdb_path)
+        dataset_train.key_list = [self.key_list[idx] for idx in training_indices]
+
+        dataset_val = self.__class__(self.args, self.lmdb_path)
+        dataset_val.key_list = [self.key_list[idx] for idx in validation_indices]
+
+        return dataset_train, dataset_val

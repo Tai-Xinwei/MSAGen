@@ -42,6 +42,7 @@ class DiffusionTimeStepEncoderType(Enum):
 class ForceHeadType(Enum):
     LINEAR: str = "LINEAR"
     GATED_EQUIVARIANT: str = "GATED_EQUIVARIANT"
+    MLP: str = "MLP"
 
     def __str__(self) -> str:
         return self.value
@@ -72,8 +73,6 @@ class PSMConfig(GraphormerConfig):
 
     lamb_pde: float = 0.01
 
-    mode: str = "score"
-
     # for PBC
     pbc_expanded_token_cutoff: int = 512
     pbc_expanded_num_cell_per_direction: int = 5
@@ -82,8 +81,11 @@ class PSMConfig(GraphormerConfig):
     pbc_multigraph_cutoff: float = 5.0
     diff_init_lattice_size: float = 4.0
     add_unit_cell_virtual_node: bool = False
-
     lattice_size: float = 4.0
+
+    # for protein
+    crop_radius: float = 25.0
+    mode_prob: str = "0.1,0.4,0.5"
 
     # for diffusion
     diffusion_sampling: str = "ddpm"
@@ -92,7 +94,6 @@ class PSMConfig(GraphormerConfig):
     ddim_eta: float = 0.0
     ddim_steps: int = 50
     clean_sample_ratio: float = 0.5
-    mode_prob: str = "0.1,0.4,0.5"
     diffusion_training_loss: DiffusionTrainingLoss = DiffusionTrainingLoss.MSE
     diffusion_time_step_encoder_type: DiffusionTimeStepEncoderType = (
         DiffusionTimeStepEncoderType.POSITIONAL
@@ -100,7 +101,7 @@ class PSMConfig(GraphormerConfig):
     align_x0_in_diffusion_loss: bool = True
 
     # for force
-    force_loss_type: ForceLoss = ForceLoss.MSE
+    force_loss_type: ForceLoss = ForceLoss.L1
     force_head_type: ForceHeadType = ForceHeadType.LINEAR
 
     # for equivariant part
@@ -121,8 +122,9 @@ class PSMConfig(GraphormerConfig):
 
     # loss computation options
     rescale_loss_with_std: bool = False
-    energy_loss_ratio: float = 1.0
-    force_loss_ratio: float = 1.0
+    material_force_loss_ratio: float = 1.0
+    material_energy_loss_ratio: float = 1.0
+    molecule_energy_loss_ratio: float = 1.0
     AutoGradForce: bool = False
     seq_only: bool = False
     freeze_backbone: bool = False

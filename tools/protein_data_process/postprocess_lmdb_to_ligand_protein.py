@@ -18,25 +18,6 @@ from commons import obj2bstr
 logging.set_verbosity(logging.INFO)
 
 
-SEQUENCE_IDENTITY = [30, 40, 50, 70, 90, 95, 100]
-
-
-def process_sequence_identity_clusters(seqid_path: str):
-    clusters = {}
-    with open(seqid_path, 'r') as fp:
-        for line in fp:
-            cols = line.split()
-            assert len(cols) == 2, f"Wrong cluster line {line} in {seqid_path}"
-            if cols[0] in clusters:
-                clusters[cols[0]].append(cols[1])
-            else:
-                clusters[cols[0]] = [cols[1]]
-    assert clusters and all(k == v[0] for k, v in clusters.items()), (
-        f"Cluster center must come to the first in each cluster {seqid_path}")
-    clusters = [sorted(v) for _, v in clusters.items()]
-    return sorted(clusters, key=lambda x: len(x), reverse=True)
-
-
 def process_one_pdb(pdbid: str,
                     inplmdb: str,
                     ) -> dict:
@@ -49,30 +30,35 @@ def process_one_pdb(pdbid: str,
             f"data['pdbid']={data['pdbid']} wrong with {pdbid} in {inplmdb}")
 
         assert 'polymer_chains' in data, f"'polymer_chains' not in {pdbid} data"
-        chains = {}
+        polymer_chains = {}
         for chain_id, polymer in data['polymer_chains'].items():
             if sum(polymer['restype'] == 'p') < sum(polymer['restype'] == 'n'):
-                # Only process protein chain
+                raise ValueError(f"Have DNA or RNA in {pdbid}_{chain_id}")
+            if np.all(np.isnan(polymer['center_coord'])):
+                logging.warning(f"All CA is 'nan' for {pdbid}_{chain_id}")
                 continue
-            chains[f'{pdbid}_{chain_id}'] = {
-                'aa': polymer['seqres'],
-                'pos': polymer['center_coord'],
-                'size': len(polymer['seqres']),
-                'structure_method': data['structure_method'],
-                'release_date': data['release_date'],
-                'resolution': data['resolution'],
-            }
-        return chains
+            polymer_chains[chain_id] = polymer
+        assert polymer_chains, f"No valid polymer chain in {pdbid}"
+
+        assert 'nonpoly_graphs' in data, f"'nonpoly_graphs' not in {pdbid} data"
+        nonpoly_graphs = []
+        for graph in data['nonpoly_graphs']:
+            if np.all(np.isnan(graph['node_coord'])):
+                logging.warning(f"All atom is 'nan' in nonpoly graph {pdbid}")
+                continue
+            nonpoly_graphs.append(graph)
+        data['nonpoly_graphs'] = nonpoly_graphs
+        return data
     except Exception as e:
         logging.error(f"Failed to processing {pdbid}, {e}")
         return {}
 
 
 def main():
-    if len(sys.argv) != 4 and len(sys.argv) != 5:
-        sys.exit(f"Usage: {sys.argv[0]} <input_lmdb> <clusters_directory> <output_lmdb> [max_release_date(=2020-04-30)]")
-    inplmdb, cludir, outlmdb = sys.argv[1:4]
-    datestr = sys.argv[4] if len(sys.argv) == 5 else '2020-04-30'
+    if len(sys.argv) != 3 and len(sys.argv) != 4:
+        sys.exit(f"Usage: {sys.argv[0]} <input_lmdb> <output_lmdb> [max_release_date(=2020-04-30)]")
+    inplmdb, outlmdb = sys.argv[1:3]
+    datestr = sys.argv[3] if len(sys.argv) == 4 else '2020-04-30'
 
     assert not Path(outlmdb).exists(), f"{outlmdb} exists, please remove first."
 
@@ -84,27 +70,18 @@ def main():
 
     metadata = {
         'keys': [],
-        'sizes': [],
-        'resolutions': [],
-        'release_dates': [],
+        'num_polymers': [],
+        'num_nonpolys': [],
         'structure_methods': [],
+        'release_dates': [],
+        'resolutions': [],
         'comment' : (
             f'Postprocessed time: {datetime.now()}\n'
             f'Original lmdb: {inplmdb}\n'
-            f'Clusters directory: {cludir}\n'
             f'Postprocessed lmdb: {outlmdb}\n'
             f'PDB release date cutoff: {date_cutoff}\n'
             ),
         }
-
-    for seqid in SEQUENCE_IDENTITY:
-        seqid_path = Path(cludir) / f"pdb{seqid}_cluster.tsv"
-        assert seqid_path.is_file(), f"File not found: {seqid_path}"
-        logging.info(f"Processing sequence identity cluster file {seqid_path}")
-        clusters = process_sequence_identity_clusters(seqid_path)
-        metadata[f'pdb{seqid}'] = clusters
-        metadata['comment'] += (f"Cluster 'pdb{seqid}': {len(clusters)} "
-                                f"clusters in {seqid_path}\n")
 
     with lmdb.open(inplmdb, readonly=True).begin(write=False) as inptxn:
         inpmeta = bstr2obj( inptxn.get('__metadata__'.encode()) )
@@ -135,28 +112,29 @@ def main():
         delayed(process_one_pdb)(p, inplmdb)
         for p in tqdm(filtered_keys, desc='Processing PDBs...')
         )
+    results = [_ for _ in results if _]
 
     with lmdb.open(outlmdb, map_size=1024**4).begin(write=True) as txn:
-        for res in tqdm(results, desc='Writing to lmdb...'):
-            if not res: continue
-            for name, data in res.items():
-                simple_data = {'aa': data['aa'], 'pos': data['pos']}
-                txn.put(name.encode(), obj2bstr(simple_data))
-                metadata["keys"].append(name)
-                metadata["sizes"].append(data['size'])
-                metadata['structure_methods'].append(data['structure_method'])
-                metadata['release_dates'].append(data['release_date'])
-                metadata['resolutions'].append(data['resolution'])
+        for data in tqdm(results, desc='Writing to lmdb...'):
+            if not data: continue
+            pdbid = data['pdbid']
+            txn.put(pdbid.encode(), obj2bstr(data))
+            i = inpmeta['keys'].index(pdbid)
+            metadata["keys"].append(inpmeta['keys'][i])
+            metadata['num_polymers'].append(inpmeta['num_polymers'][i])
+            metadata['num_nonpolys'].append(inpmeta['num_nonpolys'][i])
+            metadata['structure_methods'].append(inpmeta['structure_methods'][i])
+            metadata['release_dates'].append(inpmeta['release_dates'][i])
+            metadata['resolutions'].append(inpmeta['resolutions'][i])
         max_release_date = max([datetime.strptime(_, '%Y-%m-%d')
                                 for _ in metadata['release_dates']])
         metadata['comment'] += f"Current max_release_date: {max_release_date}\n"
         txn.put('__metadata__'.encode(), obj2bstr(metadata))
 
-    logging.info(f"Total postprocessed chains: {len(metadata['keys'])}")
-
     print(metadata['comment'], end='')
     for k, v in metadata.items():
         k != 'comment' and print(f"{k}: {len(v)}")
+    logging.info(f"Total postprocessed complexs: {len(metadata['keys'])}")
 
 
 if __name__ == "__main__":
