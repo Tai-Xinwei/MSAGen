@@ -213,7 +213,8 @@ class SFMRotaryEmbedding(torch.nn.Module):
         """
         # cos = cos.unsqueeze(unsqueeze_dim)
         # sin = sin.unsqueeze(unsqueeze_dim)
-        q_embed = (q * cos) + (rotate_half(q) * sin)
+        sLen = q.shape[-2]
+        q_embed = (q * cos[:, :sLen, :]) + (rotate_half(q) * sin[:, :sLen, :])
         k_embed = (k * cos) + (rotate_half(k) * sin)
         return q_embed, k_embed
 

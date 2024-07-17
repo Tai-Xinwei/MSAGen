@@ -234,9 +234,9 @@ class BatchedDataDataset(FoundationModelDataset):
         ), "split ratio mismatch with number of datasets"
         if sum(self.dataset_split_raito) != 1.0:
             logger.info(
-                f"sum of split ratio {self.dataset_split_raito} is not 1.0, use default ratio"
+                f"sum of split ratio {self.dataset_split_raito} == {sum(self.dataset_split_raito)} is not 1.0, use default ratio"
             )
-            self.dataset_split_raito = [0.9, 0.0, 0.1]
+            self.dataset_split_raito[-1] = 1.0 - sum(self.dataset_split_raito[:-1])
 
         logger.info(f"Total data Length is {len_data/1000/1000:0.2f}M")
 
