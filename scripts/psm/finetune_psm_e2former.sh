@@ -6,17 +6,17 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${backbone_config}" ] && backbone_config='equiformerv2'
-[ -z "${backbone}" ] && backbone='equiformerv2'
+[ -z "${backbone_config}" ] && backbone_config='e2former'
+[ -z "${backbone}" ] && backbone='e2former'
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=true
 
 [ -z "${layers}" ] && layers=8
-[ -z "${hidden_size}" ] && hidden_size=256
+[ -z "${hidden_size}" ] && hidden_size=128
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=8
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
-[ -z "${loss_unit}" ] && loss_unit="ev"
+[ -z "${loss_unit}" ] && loss_unit="kcal/mol"
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=512
 # [ -z "${max_tokens}" ] && max_tokens=24000
@@ -45,7 +45,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=10000000
 [ -z "${log_interval}" ] && log_interval=20
-[ -z "${epochs}" ] && epochs=1000
+[ -z "${epochs}" ] && epochs=3000
 [ -z "${num_timesteps}" ] && num_timesteps=5000
 
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
@@ -135,17 +135,13 @@ echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 # export NCCL_IB_DISABLE=1
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
-export NCCL_TIMEOUT=3600
-export TORCH_DISTRIBUTED_DEBUG=DETAIL
-export NCCL_P2P_LEVEL=PXB
-export NCCL_IB_DISABLE=1
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
 # wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 
-wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-# wandb login --relogin --host=https://api.wandb.ai $wandb_key
+# wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+wandb login --relogin --host=https://api.wandb.ai $wandb_key
 
 export WANDB_API_KEY=$wandb_key
 
@@ -168,16 +164,15 @@ fi
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_small_mol.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_small_mol_debug.py \
           --config-name=config_psm.yaml \
           backbone_config=$backbone_config \
           backbone=$backbone \
           psm_finetune_mode=$psm_finetune_mode \
           loss_unit=$loss_unit \
           encoder_embed_dim=$hidden_size \
-          backbone_config.embedding_dim=$hidden_size \
-          backbone_config.order=2 \
-          backbone_config.num_gnn_layers=$layers \
+          backbone_config.num_layers=$layers \
+          encoder_layers=$layers \
           backbone_config.max_radius=5 \
           droppath_prob=$droppath_prob \
           clean_sample_ratio=1.0 \

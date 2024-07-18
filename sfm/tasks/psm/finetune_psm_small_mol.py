@@ -110,83 +110,83 @@ def load_data(args, extra_collate_fn=None):
     return train_data, valid_data, test_data
 
 
-class PSMSmallMoleculeModel(Model):
-    def __init__(self, args, base):
-        """
-        Initialize the FinetunePSMSmallMol class.
+# class PSMSmallMoleculeModel(Model):
+#     def __init__(self, args, base):
+#         """
+#         Initialize the FinetunePSMSmallMol class.
 
-        Args:
-            args: The arguments passed to the class.
-            base: The foundation model used.
+#         Args:
+#             args: The arguments passed to the class.
+#             base: The foundation model used.
 
-        Attributes:
-            args: The arguments passed to the class.
-            base: The base object.
-            config: The PSMConfig object.
-            net: The neural network model.
+#         Attributes:
+#             args: The arguments passed to the class.
+#             base: The base object.
+#             config: The PSMConfig object.
+#             net: The neural network model.
 
-        """
-        super().__init__()
+#         """
+#         super().__init__()
 
-        self.args = args
-        self.base = base
-        config = PSMConfig(args)
+#         self.args = args
+#         self.base = base
+#         config = PSMConfig(args)
 
-        self.energy_head = nn.Sequential(
-            nn.Linear(
-                config.embedding_dim,
-                config.embedding_dim,
-                bias=True,
-            ),
-            nn.SiLU(),
-            nn.Linear(config.embedding_dim, 1, bias=True),
-        )
+#         self.energy_head = nn.Sequential(
+#             nn.Linear(
+#                 config.embedding_dim,
+#                 config.embedding_dim,
+#                 bias=True,
+#             ),
+#             nn.SiLU(),
+#             nn.Linear(config.embedding_dim, 1, bias=True),
+#         )
 
-        self.force_head = EquivariantVectorOutput(config.embedding_dim)
+#         self.force_head = EquivariantVectorOutput(config.embedding_dim)
 
-    def forward(self, batch_data):
-        base_output = self.base.forward(batch_data)
-        # print("**********************************base:", base_output)
-        # energy = self.energy_head(base_output)
-        # force = self.force_head(base_output)
+#     def forward(self, batch_data):
+#         base_output = self.base.forward(batch_data)
+#         # print("**********************************base:", base_output)
+#         # energy = self.energy_head(base_output)
+#         # force = self.force_head(base_output)
 
-        result_dict = {
-            "energy": base_output["energy_per_atom"] * batch_data["num_atoms"],
-            "forces": base_output["forces"],
-        }
+#         result_dict = {
+#             "energy": base_output["energy_per_atom"] * batch_data["num_atoms"],
+#             "forces": base_output["forces"],
+#         }
 
-        # return result_dict
-        return result_dict
+#         # return result_dict
+#         return result_dict
 
-    def compute_loss(self, model_output, batch_data):
-        """Compute the MAE loss for the energy and forces."""
-        e_pred = model_output["energy"]
-        e_true = batch_data["energy"]
-        size = e_true.shape[0]
+#     def compute_loss(self, model_output, batch_data):
+#         """Compute the MAE loss for the energy and forces."""
+#         e_pred = model_output["energy"]
+#         e_true = batch_data["energy"]
+#         size = e_true.shape[0]
 
-        f_pred = model_output["forces"]
-        f_true = batch_data["forces"]
+#         f_pred = model_output["forces"]
+#         f_true = batch_data["forces"]
 
-        e_loss = torch.mean(torch.abs(e_pred - e_true))
+#         e_loss = torch.mean(torch.abs(e_pred - e_true))
 
-        f_loss = torch.mean(torch.abs(f_pred - f_true))
+#         f_loss = torch.mean(torch.abs(f_pred - f_true))
 
-        if self.args.loss_unit == "kcal/mol":
-            e_loss /= kcalmol_to_ev
-            f_loss /= kcalmol_to_ev
+#         if self.args.loss_unit == "kcal/mol":
+#             e_loss /= kcalmol_to_ev
+#             f_loss /= kcalmol_to_ev
 
-        loss = (
-            self.args.energy_loss_weight * e_loss + self.args.force_loss_weight * f_loss
-        )
-        log_output = {
-            "loss": loss,
-            "energy_loss": (e_loss, size),
-            "force_loss": (f_loss, size),
-        }
-        return ModelOutput(loss=loss, num_examples=size, log_output=log_output)
+#         loss = (
+#             self.args.energy_loss_weight * e_loss + self.args.force_loss_weight * f_loss
+#         )
+#         log_output = {
+#             "loss": loss,
+#             "energy_loss": (e_loss, size),
+#             "force_loss": (f_loss, size),
+#         }
+#         return ModelOutput(loss=loss, num_examples=size, log_output=log_output)
 
-    def config_optimizer(self):
-        return (None, None)
+#     def config_optimizer(self):
+#         return (None, None)
 
 
 @hydra.main(

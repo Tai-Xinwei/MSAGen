@@ -14,6 +14,8 @@ from tqdm import tqdm
 
 from sfm.data.psm_data.utils import VOCAB
 from sfm.logging import logger
+from sfm.models.psm.equivariant.e2former import E2former
+from sfm.models.psm.equivariant.equiformer.graph_attention_transformer import Equiformer
 from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
@@ -843,11 +845,11 @@ class PSM(nn.Module):
             # Implement the decoder
             self.decoder = EquivariantDecoder(psm_config)
         elif args.backbone == "equiformerv2":
-            args.backbone_config[
-                "embedding_dim"
-            ] = psm_config.encoder_embed_dim  # parameter unified!
-
             self.decoder = Equiformerv2SO2(**args.backbone_config)
+        elif args.backbone == "equiformer":
+            self.decoder = Equiformer(**args.backbone_config)
+        elif args.backbone == "e2former":
+            self.decoder = E2former(**args.backbone_config)
         elif args.backbone == "geomformer":
             self.encoder = None
 

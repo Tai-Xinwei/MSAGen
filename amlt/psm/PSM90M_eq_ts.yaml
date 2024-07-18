@@ -32,7 +32,7 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: equiv2-psm-3types-lh-e0.1f9.9-filtered
+- name: equiv2-psm-3types-lh-e0.1f9.9
   # tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS_PER_NODE}-IB
@@ -44,15 +44,13 @@ jobs:
   # - export data_path=/blob/data/
   - export data_path=/nfs6/psmdata/
 
-  - mkdir -p /blob/psm-checkpoints/equiv2-psm-3types-lh-e0.1f9.9-filtered
-  - export wandb_run_name=equiv2-psm-3types-lh-e0.1f9.9-filtered
-  - export save_dir=/blob/psm-checkpoints/equiv2-psm-3types-lh-e0.1f9.9-filtered
-  - export loadcheck_path=/blob/psm-checkpoints/equiv2-psm-3types-lh-e0.1f9.9-filtered
-
+  - mkdir -p /blob/psm-checkpoints/equiv2-psm-3types-lh-e0.1f9.9
+  - export wandb_run_name=equiv2-psm-3types-lh-e0.1f9.9
+  - export save_dir=/blob/psm-checkpoints/equiv2-psm-3types-lh-e0.1f9.9
+  - export loadcheck_path=/blob/psm-checkpoints/equiv2-psm-3types-lh-e0.1f9.9
   - export molecule_energy_loss_ratio=1.0
   - export material_energy_loss_ratio=0.1
   - export material_force_loss_ratio=9.9
-
   - export pbc_cutoff=20.0
   - export pbc_expanded_num_cell_per_direction=5
   - export pbc_expanded_token_cutoff=256

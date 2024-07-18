@@ -346,7 +346,6 @@ class Equiformerv2SO2(BaseModel):
         self.order = order
         self.sh_irrep = o3.Irreps.spherical_harmonics(lmax=self.order)
         self.hs = embedding_dim
-        self.hbs = bottle_hidden_size
         self.radius_embed_dim = radius_embed_dim
         self.max_radius = max_radius
         self.max_neighbors = max_neighbors
@@ -356,20 +355,10 @@ class Equiformerv2SO2(BaseModel):
         self.init_sph_irrep = o3.Irreps(construct_o3irrps(1, order=order))
 
         self.irreps_node_embedding = construct_o3irrps_base(self.hs, order=order)
-        self.hidden_irrep = o3.Irreps(construct_o3irrps(self.hs, order=order))
-        self.hidden_irrep_base = o3.Irreps(self.irreps_node_embedding)
-        self.hidden_bottle_irrep = o3.Irreps(construct_o3irrps(self.hbs, order=order))
-        self.hidden_bottle_irrep_base = o3.Irreps(
-            construct_o3irrps_base(self.hbs, order=order)
-        )
 
-        self.input_irrep = o3.Irreps(f"{self.hs}x0e")
         self.radial_basis_functions = ExponentialBernsteinRadialBasisFunctions(
             self.radius_embed_dim, self.max_radius
         )
-        self.nonlinear_scalars = {1: "ssp", -1: "tanh"}
-        self.nonlinear_gates = {1: "ssp", -1: "abs"}
-        self.num_fc_layer = 1
         # prevent double kwargs
         [
             kwargs.pop(x, None)
@@ -574,8 +563,6 @@ class Equiformerv2SO2(BaseModel):
             # new_batched_data.cell = new_batched_data.cell.to(tensortype)
             new_batched_data.edge_distance = edge_distance.to(tensortype)
             new_batched_data.edge_distance_vec = edge_distance_vec.to(tensortype)
-            # new_batched_data.edge_distance = edge_distance
-            # new_batched_data.edge_distance_vec = edge_distance_vec
             # new_batched_data.cell_offsets = cell_offsets
             # new_batched_data.cell_offset_distances = cell_offset_distances
             # new_batched_data.neighbors = neighbors

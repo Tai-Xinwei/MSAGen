@@ -528,8 +528,8 @@ class TransBlockV2(torch.nn.Module):
         num_heads (int):            Number of attention heads
         attn_alpha_head (int):      Number of channels for alpha vector in each attention head
         attn_value_head (int):      Number of channels for value vector in each attention head
-        ffn_hidden_channels (int):  Number of hidden channels used during feedforward network
-        output_channels (int):      Number of output channels
+        ffn_hiddenchannels (int):  Number of hidden channels used during feedforward network
+        output_chan_nels (int):      Number of output channels
 
         lmax_list (list:int):       List of degrees (l) for each resolution
         mmax_list (list:int):       List of orders (m) for each resolution
@@ -693,7 +693,7 @@ class TransBlockV2(torch.nn.Module):
                 output_embedding.embedding, batch
             )
 
-        if self.ffn_shortcut is not None:
+        if self.ffn_shortcut is not None:  # linear: sphere_channels => output_channels
             shortcut_embedding = SO3_Embedding(
                 0,
                 output_embedding.lmax_list.copy(),
