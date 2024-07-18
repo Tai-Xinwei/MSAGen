@@ -1158,7 +1158,7 @@ class PSM(nn.Module):
             if self.args.fp16
             else nullcontext()
         ):
-            if not self.args.seq_only and not batched_data["is_seq_only"].all():
+            if not self.args.seq_only:
                 if self.args.backbone in ["dit"]:
                     noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
                 else:
