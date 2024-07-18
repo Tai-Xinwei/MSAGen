@@ -1142,7 +1142,6 @@ class PSM(nn.Module):
             decoder_x_output, decoder_vec_output = self.decoder(
                 batched_data,
                 token_embedding.transpose(0, 1),
-                None,
                 padding_mask,
                 pbc_expand_batched=pbc_expand_batched,
             )

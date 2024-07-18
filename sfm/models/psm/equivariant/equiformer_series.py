@@ -451,9 +451,11 @@ class Equiformerv2SO2(BaseModel):
             bs, length = padding_mask.shape
             token_mask = logical_not(padding_mask).reshape(-1)
             new_batched_data = Data()
-            new_batched_data.atomic_numbers = batched_data["token_id"].reshape(-1)[
-                token_mask
-            ]
+            new_batched_data.atomic_numbers = batched_data["masked_token_type"].reshape(
+                -1
+            )[token_mask]
+            new_batched_data.ori_atomic_numbers = batched_data["masked_token_type"]
+            new_batched_data.token_mask = token_mask
             new_batched_data.batch = (
                 torch.arange(bs)
                 .reshape(-1, 1)
@@ -500,10 +502,22 @@ class Equiformerv2SO2(BaseModel):
             new_batched_data.token_embedding = token_embedding.reshape(bs * length, -1)[
                 token_mask
             ]
-            _node_vec = self.node_attr_encoder(new_batched_data)
 
             node_attr = torch.zeros((bs * length, self.hs), device=device)
             node_vec = torch.zeros((bs * length, 3 * self.hs), device=device)
+
+            if edge_distance_vec.numel() == 0:
+                warnings.warn(
+                    f"Edge_distance_vec is empty, skip batch and return zero matrix, please check. "
+                    f"token is protein? {torch.any(batched_data['is_protein']).item()}, "
+                    f"periodic? {torch.any(batched_data['is_periodic']).item()}, "
+                    f"molecular? {torch.any(batched_data['is_molecule']).item()}"
+                )
+                return node_attr.reshape(bs, length, -1), node_vec.reshape(
+                    bs, length, 3, -1
+                )
+
+            _node_vec = self.node_attr_encoder(new_batched_data)
             node_attr[token_mask] = _node_vec[:, : self.hs]
             node_vec[token_mask] = _node_vec[:, self.hs : 4 * self.hs]
             return node_attr.reshape(bs, length, -1), node_vec.reshape(
@@ -518,9 +532,11 @@ class Equiformerv2SO2(BaseModel):
             bs, length = padding_mask.shape
             token_mask = logical_not(padding_mask).reshape(-1)
             new_batched_data = Data()
-            new_batched_data.atomic_numbers = batched_data["token_id"].reshape(-1)[
-                token_mask
-            ]
+            new_batched_data.atomic_numbers = batched_data["masked_token_type"].reshape(
+                -1
+            )[token_mask]
+            new_batched_data.ori_atomic_numbers = batched_data["masked_token_type"]
+            new_batched_data.token_mask = token_mask
             new_batched_data.batch = (
                 torch.arange(bs)
                 .reshape(-1, 1)
@@ -558,8 +574,8 @@ class Equiformerv2SO2(BaseModel):
             # new_batched_data.cell = new_batched_data.cell.to(tensortype)
             new_batched_data.edge_distance = edge_distance.to(tensortype)
             new_batched_data.edge_distance_vec = edge_distance_vec.to(tensortype)
-            new_batched_data.edge_distance = edge_distance
-            new_batched_data.edge_distance_vec = edge_distance_vec
+            # new_batched_data.edge_distance = edge_distance
+            # new_batched_data.edge_distance_vec = edge_distance_vec
             # new_batched_data.cell_offsets = cell_offsets
             # new_batched_data.cell_offset_distances = cell_offset_distances
             # new_batched_data.neighbors = neighbors
@@ -568,10 +584,22 @@ class Equiformerv2SO2(BaseModel):
             new_batched_data.token_embedding = token_embedding.reshape(bs * length, -1)[
                 token_mask
             ]
-            _node_vec = self.node_attr_encoder(new_batched_data)
 
             node_attr = torch.zeros((bs * length, self.hs), device=device)
             node_vec = torch.zeros((bs * length, 3 * self.hs), device=device)
+            if edge_distance_vec.numel() == 0:
+                warnings.warn(
+                    f"Edge_distance_vec is empty, skip batch and return zero matrix, please check. "
+                    f"token is protein? {torch.any(batched_data['is_protein']).item()}, "
+                    f"periodic? {torch.any(batched_data['is_periodic']).item()}, "
+                    f"molecular? {torch.any(batched_data['is_molecule']).item()}"
+                )
+                return node_attr.reshape(bs, length, -1), node_vec.reshape(
+                    bs, length, 3, -1
+                )
+
+            _node_vec = self.node_attr_encoder(new_batched_data)
+
             node_attr[token_mask] = _node_vec[:, : self.hs]
             node_vec[token_mask] = _node_vec[:, self.hs : 4 * self.hs]
             return node_attr.reshape(bs, length, -1), node_vec.reshape(

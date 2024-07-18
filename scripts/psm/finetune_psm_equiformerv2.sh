@@ -133,6 +133,10 @@ echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 # export NCCL_IB_DISABLE=1
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
+export NCCL_TIMEOUT=3600
+export TORCH_DISTRIBUTED_DEBUG=DETAIL
+export NCCL_P2P_LEVEL=PXB
+export NCCL_IB_DISABLE=1
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 

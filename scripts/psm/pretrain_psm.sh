@@ -234,6 +234,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           decoder_ffn_dim=$decoder_ffn_dim \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
           use_dali_pipeline=$use_dali_pipeline \
+          wandb_run_name=$wandb_run_name val_batch_interval=$val_batch_interval \
           psm_matbench_task_name=$psm_matbench_task_name \
           psm_matbench_fold_id=$psm_matbench_fold_id \
           psm_finetune_valid_noise_mode=$psm_finetune_valid_noise_mode \
