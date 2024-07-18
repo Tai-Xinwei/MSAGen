@@ -91,7 +91,7 @@ class PSMEncoder(nn.Module):
         x: torch.Tensor,
         padding_mask: torch.Tensor,
         batched_data: Dict,
-        mixed_attn_bias: torch.Tensor,
+        mixed_attn_bias: Optional[torch.Tensor],
         pbc_expand_batched: Optional[Dict] = None,
     ) -> torch.Tensor:
         """
@@ -114,7 +114,9 @@ class PSMEncoder(nn.Module):
                 self_attn_padding_mask=padding_mask,
                 self_attn_mask=attn_mask,
                 pbc_expand_batched=pbc_expand_batched,
-                mixed_attn_bias=mixed_attn_bias[layer_index],
+                mixed_attn_bias=mixed_attn_bias[layer_index]
+                if mixed_attn_bias is not None
+                else None,
             )
 
         return x

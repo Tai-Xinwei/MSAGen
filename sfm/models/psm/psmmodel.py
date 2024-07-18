@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 
+from sfm.data.psm_data.utils import VOCAB
 from sfm.logging import logger
 from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
@@ -28,7 +29,7 @@ from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.modules.mixembedding import PSMMix3dEmbedding
 from sfm.models.psm.modules.mixembedding_equiv import PSMMix3DEquivEmbedding
 from sfm.models.psm.modules.pbc import CellExpander
-from sfm.models.psm.psm_config import ForceHeadType, PSMConfig
+from sfm.models.psm.psm_config import ForceHeadType, GaussianFeatureNodeType, PSMConfig
 from sfm.modules.layer_norm import AdaNorm
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
@@ -264,10 +265,13 @@ class PSMModel(Model):
 
         # set padding mask to clean
         clean_mask = clean_mask.masked_fill(padding_mask, True)
-        clean_mask = clean_mask.masked_fill(is_seq_only.unsqueeze(-1), False)
+        clean_mask = clean_mask.masked_fill(
+            is_seq_only.unsqueeze(-1),
+            False if self.psm_config.mlm_from_decoder_feature else True,
+        )
         # set special token "<.>" to clean
         token_id = batched_data["token_id"]
-        clean_mask = clean_mask.masked_fill(token_id == 156, True)
+        clean_mask = clean_mask.masked_fill(token_id >= 156, True)
 
         # set T noise if protein is seq only
         time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
@@ -954,6 +958,8 @@ class PSM(nn.Module):
         if self.args.AutoGradForce:
             self.autograd_force_head = GradientHead()
 
+        self.num_vocab = max([VOCAB[key] for key in VOCAB]) + 1
+
     def _set_aa_mask(self, batched_data, aa_mask):
         token_id = batched_data["token_id"]
         if aa_mask is not None:
@@ -974,7 +980,15 @@ class PSM(nn.Module):
         masked_token_type_j = (
             masked_token_type.unsqueeze(1).repeat(1, n_node, 1).unsqueeze(-1)
         )
-        node_type_edge = torch.cat([masked_token_type_i, masked_token_type_j], dim=-1)
+        if (
+            self.psm_config.node_type_edge_method
+            == GaussianFeatureNodeType.NON_EXCHANGABLE
+        ):
+            node_type_edge = masked_token_type_i * self.num_vocab + masked_token_type_j
+        else:
+            node_type_edge = torch.cat(
+                [masked_token_type_i, masked_token_type_j], dim=-1
+            )
         batched_data["node_type_edge"] = node_type_edge
 
     def forward(
@@ -1019,6 +1033,12 @@ class PSM(nn.Module):
 
         self._set_aa_mask(batched_data, aa_mask)
         self._create_node_type_edge(batched_data)
+
+        skip_decoder = (
+            batched_data["is_seq_only"].all()
+            and not self.psm_config.mlm_from_decoder_feature
+            and self.args.backbone == "graphormer"
+        )
 
         # B, L, H is Batch, Length, Hidden
         # token_embedding: B x L x H
@@ -1101,6 +1121,8 @@ class PSM(nn.Module):
                 encoder_output = encoder_output.transpose(0, 1)
 
         elif self.encoder is not None:
+            assert self.args.backbone == "graphormer"
+
             encoder_output = self.encoder(
                 token_embedding.transpose(0, 1),
                 padding_mask,
@@ -1109,13 +1131,14 @@ class PSM(nn.Module):
                 pbc_expand_batched,
             )
 
-            decoder_x_output, decoder_vec_output = self.decoder(
-                batched_data,
-                encoder_output,
-                mixed_attn_bias[-1],
-                padding_mask,
-                pbc_expand_batched,
-            )
+            if not skip_decoder:
+                decoder_x_output, decoder_vec_output = self.decoder(
+                    batched_data,
+                    encoder_output,
+                    mixed_attn_bias[-1] if mixed_attn_bias is not None else None,
+                    padding_mask,
+                    pbc_expand_batched,
+                )
         else:
             decoder_x_output, decoder_vec_output = self.decoder(
                 batched_data,
@@ -1125,12 +1148,17 @@ class PSM(nn.Module):
                 pbc_expand_batched=pbc_expand_batched,
             )
 
+        # atom mask to leave out unit cell corners for periodic systems
+        non_atom_mask = torch.arange(
+            n_nodes, dtype=torch.long, device=pos.device
+        ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(-1)
+
         with (
             torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
             if self.args.fp16
             else nullcontext()
         ):
-            if not self.args.seq_only:
+            if not self.args.seq_only and not batched_data["is_seq_only"].all():
                 if self.args.backbone in ["dit"]:
                     noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
                 else:
@@ -1141,15 +1169,6 @@ class PSM(nn.Module):
                     is_periodic.unsqueeze(-1),
                     self.energy_head["periodic"](decoder_x_output).squeeze(-1),
                     self.energy_head["molecule"](decoder_x_output).squeeze(-1),
-                )
-
-                # atom mask to leave out unit cell corners for periodic systems
-                non_atom_mask = torch.arange(
-                    n_nodes, dtype=torch.long, device=energy_per_atom.device
-                ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data[
-                    "num_atoms"
-                ].unsqueeze(
-                    -1
                 )
 
                 if (
@@ -1214,11 +1233,14 @@ class PSM(nn.Module):
                 energy_per_atom = total_energy / batched_data["num_atoms"]
             else:
                 energy_per_atom = torch.zeros_like(batched_data["num_atoms"])
+                total_energy = torch.zeros_like(batched_data["num_atoms"])
                 forces = torch.zeros_like(batched_data["pos"])
                 noise_pred = torch.zeros_like(batched_data["pos"])
-                non_atom_mask = torch.zeros_like(batched_data["pos"])
 
-            if self.encoder is not None:
+            if (
+                self.encoder is not None
+                and not self.psm_config.mlm_from_decoder_feature
+            ):
                 aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
             else:
                 aa_logits = self.aa_mask_head(decoder_x_output)

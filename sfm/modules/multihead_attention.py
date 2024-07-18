@@ -13,9 +13,7 @@ from torch import Tensor, nn
 from .FairseqDropout import FairseqDropout
 from .layer_norm import Fp32LayerNorm, LayerNorm
 from .quant_noise import quant_noise
-from .rotary_embedding import RotaryEmbedding
-
-# from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding, apply_rotary_pos_emb
+from .rotary_embedding import SFMRotaryEmbedding
 
 
 class MultiheadAttention(nn.Module):
@@ -96,7 +94,7 @@ class MultiheadAttention(nn.Module):
 
         self.rot_emb = None
         if add_rope:
-            self.rot_emb = RotaryEmbedding(dim=self.head_dim)
+            self.rot_emb = SFMRotaryEmbedding(dim=self.head_dim)
 
         self.use_smooth_softmax = use_smooth_softmax
         self.smooth_factor = smooth_factor
@@ -229,7 +227,7 @@ class MultiheadAttention(nn.Module):
 
         # add rope
         if self.rot_emb:
-            q, k = self.rot_emb(q, k)
+            q, k = self.rot_emb(q, k, position_ids=position_ids, nhead=self.num_heads)
 
         if key_padding_mask is not None:
             if outcell_index is not None:
