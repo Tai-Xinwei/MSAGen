@@ -68,9 +68,10 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         self.PM6_ATOM_REFERENCE_tensor = torch.tensor(
             PM6_ATOM_REFERENCE_list, dtype=torch.float64
         )
-        self.filter_indices_by_size(
-            indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
-        )
+
+        # self.filter_indices_by_size(
+        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
+        # )
 
         self.energy_per_atom_scale = getattr(
             self.args, "energy_per_atom_label_scale", None

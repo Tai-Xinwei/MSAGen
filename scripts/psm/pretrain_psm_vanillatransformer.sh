@@ -12,10 +12,15 @@ export MKL_THREADING_LAYER='GNU'
 # # find the folder in /tmp and starts with azcopy_linux_amd64
 # azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
 
-[ -z "${layers}" ] && layers=32
-[ -z "${hidden_size}" ] && hidden_size=1536
-[ -z "${ffn_size}" ] && ffn_size=6144
-[ -z "${num_head}" ] && num_head=32
+# [ -z "${layers}" ] && layers=32
+# [ -z "${hidden_size}" ] && hidden_size=1536
+# [ -z "${ffn_size}" ] && ffn_size=6144
+# [ -z "${num_head}" ] && num_head=32
+[ -z "${layers}" ] && layers=36
+[ -z "${hidden_size}" ] && hidden_size=2560
+[ -z "${ffn_size}" ] && ffn_size=10240
+[ -z "${num_head}" ] && num_head=40
+
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
@@ -31,10 +36,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_mode}" ] && noise_mode=diff
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.3
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=1.0
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
 
 [ -z "${d_tilde}" ] && d_tilde=1
-[ -z "${max_lr}" ] && max_lr=4e-5
+[ -z "${max_lr}" ] && max_lr=1e-4
 [ -z "${total_num_steps}" ] && total_num_steps=2000000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
@@ -42,7 +47,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=200000000
+[ -z "${save_batch_interval}" ] && save_batch_interval=2000
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
@@ -61,11 +66,14 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64'
-[ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged'
-[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="10"
-
+# [ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="10"
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='24,1,4,1'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.35,0.1,0.1,0.1,0.05'
@@ -74,8 +82,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
 [ -z "${force_head_type}" ] && force_head_type=MLP
-[ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1.0
-[ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
+[ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=10.0
+[ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=0.5
 [ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1.0
 
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
