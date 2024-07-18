@@ -51,7 +51,13 @@ class MoleculeLMDBDataset(FoundationModelDataset):
     force_mean: float = 0.0  # force mean should always be 0.0 to keep equivariance
     force_std: float = 1.0
 
-    def __init__(self, args: PSMConfig, lmdb_path: str) -> None:
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: str,
+        keys: Optional[List[str]] = None,
+        sizes: Optional[List[int]] = None,
+    ) -> None:
         assert lmdb_path, "LMDB path must be provided"
         self.lmdb_path = lmdb_path
 
@@ -68,9 +74,25 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         self.PM6_ATOM_REFERENCE_tensor = torch.tensor(
             PM6_ATOM_REFERENCE_list, dtype=torch.float64
         )
-        self.filter_indices_by_size(
-            indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
-        )
+
+        if keys is not None:
+            assert sizes is not None, "sizes must be provided with keys"
+            self._env = lmdb.open(
+                str(self.lmdb_path),
+                subdir=True,
+                readonly=True,
+                lock=False,
+                readahead=False,
+                meminit=False,
+            )
+            self._txn = self._env.begin(write=False)
+            self._keys = keys
+            self._sizes = sizes
+        else:
+            self.filter_indices_by_size(
+                indices=np.array(range(len(self.keys))),
+                max_sizes=self.args.max_length - 2,
+            )
 
         self.energy_per_atom_scale = getattr(
             self.args, "energy_per_atom_label_scale", None
@@ -140,13 +162,18 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         validation_indices = indices[num_training_samples:]
 
         # Create training and validation datasets
-        dataset_train = self.__class__(self.args, self.lmdb_path)
-        dataset_train._keys = [self._keys[idx] for idx in training_indices]
-        dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
-
-        dataset_val = self.__class__(self.args, self.lmdb_path)
-        dataset_val._keys = [self._keys[idx] for idx in validation_indices]
-        dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
+        dataset_train = self.__class__(
+            self.args,
+            self.lmdb_path,
+            keys=[self._keys[idx] for idx in training_indices],
+            sizes=[self._sizes[idx] for idx in training_indices],
+        )
+        dataset_val = self.__class__(
+            self.args,
+            self.lmdb_path,
+            keys=[self._keys[idx] for idx in validation_indices],
+            sizes=[self._sizes[idx] for idx in validation_indices],
+        )
 
         return dataset_train, dataset_val
 
@@ -304,13 +331,15 @@ class PM6FullLMDBDataset(MoleculeLMDBDataset):
         args: PSMConfig,
         lmdb_path: str,
         version: Optional[str] = None,
+        keys: Optional[List[str]] = None,
+        sizes: Optional[List[int]] = None,
     ):
         path = os.path.normpath(lmdb_path)
         if path.endswith("PubChemQC-B3LYP-PM6"):
             path = os.path.join(
                 path, version or PM6FullLMDBDataset.latest_version, "full"
             )
-        super().__init__(args, path)
+        super().__init__(args, path, keys=keys, sizes=sizes)
 
 
 class PlainPM6FullLMDBDataset(PM6FullLMDBDataset):
@@ -318,8 +347,10 @@ class PlainPM6FullLMDBDataset(PM6FullLMDBDataset):
         self,
         args: PSMConfig,
         lmdb_path: Optional[str],
+        keys: Optional[List[str]] = None,
+        sizes: Optional[List[int]] = None,
     ):
-        super().__init__(args, lmdb_path)
+        super().__init__(args, lmdb_path, keys=keys, sizes=sizes)
 
     def generate_2dgraphfeat(self, data):
         N = data["num_atoms"]

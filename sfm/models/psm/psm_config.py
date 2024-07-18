@@ -48,6 +48,14 @@ class ForceHeadType(Enum):
         return self.value
 
 
+class GaussianFeatureNodeType(Enum):
+    EXCHANGABLE: str = "EXCHANGABLE"
+    NON_EXCHANGABLE: str = "NON_EXCHANGABLE"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 @dataclass
 class PSMConfig(GraphormerConfig):
     model_type: str = "psm"
@@ -102,7 +110,10 @@ class PSMConfig(GraphormerConfig):
 
     # for force
     force_loss_type: ForceLoss = ForceLoss.L1
-    force_head_type: ForceHeadType = ForceHeadType.LINEAR
+    force_head_type: ForceHeadType = ForceHeadType.GATED_EQUIVARIANT
+    node_type_edge_method: GaussianFeatureNodeType = (
+        GaussianFeatureNodeType.NON_EXCHANGABLE
+    )
 
     # for equivariant part
     equivar_vec_init: VecInitApproach = VecInitApproach.ZERO_CENTERED_POS
@@ -111,6 +122,8 @@ class PSMConfig(GraphormerConfig):
     use_smooth_softmax: bool = False
     smooth_factor: float = 20.0
     use_smooth_equviariant_norm: bool = False
+    no_rotary_embedding_for_vector: bool = False
+    mlm_from_decoder_feature: bool = True
 
     # for 2D information
     use_2d_atom_features: bool = False

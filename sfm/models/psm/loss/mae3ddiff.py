@@ -225,8 +225,8 @@ class DiffMAE3dCriterions(nn.Module):
         return pos_pred
 
     @torch.no_grad()
-    def _alignment_x0(self, model_output, batched_data, pos_pred):
-        pos_label = batched_data["ori_pos"]
+    def _alignment_x0(self, model_output, pos_pred):
+        pos_label = model_output["ori_pos"]
 
         R, T = svd_superimpose(
             pos_pred.float(),
@@ -236,12 +236,12 @@ class DiffMAE3dCriterions(nn.Module):
 
         return R, T
 
-    def dist_loss(self, model_output, batched_data, R, T, pos_pred):
+    def dist_loss(self, model_output, R, T, pos_pred):
         # calculate aligned pred pos
-        pos_pred = torch.einsum("bij,bkj->bki", R, pos_pred.float()) + T
+        pos_pred = torch.einsum("bij,bkj->bki", R.float(), pos_pred.float()) + T.float()
 
         # smooth lddt loss
-        pos_label = batched_data["ori_pos"]
+        pos_label = model_output["ori_pos"]
         B, L = pos_label.shape[:2]
 
         # make is_protein mask contain ligand in complex data
@@ -325,8 +325,7 @@ class DiffMAE3dCriterions(nn.Module):
         atomic_numbers = batched_data["token_id"]
         noise_label = model_output["noise"]
         force_label = model_output["force_label"]
-        if self.diffusion_mode == "x0" or self.args.align_x0_in_diffusion_loss:
-            pos_label = batched_data["ori_pos"]
+        pos_label = model_output["ori_pos"]
         force_pred = model_output["forces"]
         energy_per_atom_pred = model_output["energy_per_atom"]
         total_energy_pred = model_output["total_energy"]
@@ -360,14 +359,21 @@ class DiffMAE3dCriterions(nn.Module):
         if not self.seq_only:
             # diffussion loss
             if self.diffusion_mode == "epsilon":
-                if self.args.align_x0_in_diffusion_loss and not is_seq_only.any():
+                if not is_seq_only.any():
                     pos_pred = self.calculate_pos_pred(model_output, batched_data)
-                    R, T = self._alignment_x0(model_output, batched_data, pos_pred)
+                    if self.args.align_x0_in_diffusion_loss:
+                        R, T = self._alignment_x0(model_output, pos_pred)
+                    else:
+                        R, T = torch.eye(
+                            3, device=pos_pred.device, dtype=pos_pred.dtype
+                        ).unsqueeze(0).repeat(n_graphs, 1, 1), torch.zeros_like(
+                            pos_pred, device=pos_pred.device, dtype=pos_pred.dtype
+                        )
 
                     if is_protein.any():
                         # align pred pos and calculate smooth lddt loss for protein
                         smooth_lddt_loss, hard_dist_loss = self.dist_loss(
-                            model_output, batched_data, R, T, pos_pred
+                            model_output, R, T, pos_pred
                         )
                         num_pddt_loss = 1
                     else:
@@ -379,21 +385,27 @@ class DiffMAE3dCriterions(nn.Module):
                         )
                         num_pddt_loss = 0
 
-                    # noise pred loss
-                    aligned_noise_pred = (
-                        sqrt_alphas_cumprod_t * pos_label
-                        + sqrt_one_minus_alphas_cumprod_t * (noise_label - noise_pred)
-                    )
-                    aligned_noise_pred = torch.einsum(
-                        "bij,bkj->bki", R, aligned_noise_pred.float()
-                    )
-                    unreduced_noise_loss = self.noise_loss(
-                        aligned_noise_pred.to(noise_label.dtype),
-                        pos_label * sqrt_alphas_cumprod_t,
-                    )
-                    unreduced_noise_loss = (
-                        unreduced_noise_loss / sqrt_one_minus_alphas_cumprod_t
-                    )
+                    if self.args.align_x0_in_diffusion_loss:
+                        # noise pred loss
+                        aligned_noise_pred = (
+                            sqrt_alphas_cumprod_t * pos_label
+                            + sqrt_one_minus_alphas_cumprod_t
+                            * (noise_label - noise_pred)
+                        )
+                        aligned_noise_pred = torch.einsum(
+                            "bij,bkj->bki", R, aligned_noise_pred.float()
+                        )
+                        unreduced_noise_loss = self.noise_loss(
+                            aligned_noise_pred.to(noise_label.dtype),
+                            pos_label * sqrt_alphas_cumprod_t,
+                        )
+                        unreduced_noise_loss = (
+                            unreduced_noise_loss / sqrt_one_minus_alphas_cumprod_t
+                        )
+                    else:
+                        unreduced_noise_loss = self.noise_loss(
+                            noise_pred.to(noise_label.dtype), noise_label
+                        )
                 else:
                     unreduced_noise_loss = self.noise_loss(
                         noise_pred.to(noise_label.dtype), noise_label

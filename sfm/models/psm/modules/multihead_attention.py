@@ -112,7 +112,11 @@ class MultiheadAttentionWithProteinRotaryEmbedding(MultiheadAttention):
 
         # add rope
         if self.rot_emb and is_protein.any():
-            is_protein = is_protein.repeat(self.num_heads, 1).unsqueeze(-1)
+            is_protein = (
+                is_protein.unsqueeze(1)
+                .repeat(1, self.num_heads, 1)
+                .view(bsz * self.num_heads, tgt_len, 1)
+            )
             q_rope, k_rope = self.rot_emb(q, k, v, position_ids, self.num_heads)
             q = torch.where(is_protein, q_rope, q)
             k = torch.where(is_protein, k_rope, k)
@@ -306,7 +310,11 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
 
         # add rope
         if self.rot_emb and is_protein.any() and src_len == tgt_len:
-            is_protein = is_protein.repeat(self.num_heads, 1).unsqueeze(-1)
+            is_protein = (
+                is_protein.unsqueeze(1)
+                .repeat(1, self.num_heads, 1)
+                .view(bsz * self.num_heads, tgt_len, 1)
+            )
             q_rope, k_rope = self.rot_emb(q, k, v, position_ids, self.num_heads)
             q = torch.where(is_protein, q_rope, q)
             k = torch.where(is_protein, k_rope, k)
@@ -427,7 +435,7 @@ class MemEffSelfAttnWithProteinRotaryEmbedding(MemEffSelfAttn):
         key_padding_mask: Optional[Tensor] = None,
         need_weights: bool = True,
         attn_mask: Optional[Tensor] = None,
-        before_softmax: bool = False,
+        position_ids: Optional[Tensor] = None,
         is_protein: Optional[torch.Tensor] = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """Input shape: Time x Batch x Channel
@@ -441,8 +449,7 @@ class MemEffSelfAttnWithProteinRotaryEmbedding(MemEffSelfAttn):
             attn_mask (ByteTensor, optional): typically used to
                 implement causal attention, where the mask prevents the
                 attention from looking forward in time (default: None).
-            before_softmax (bool, optional): return the raw attention
-                weights and values before the attention softmax.
+            position_ids (Tensor, optional): position IDs.
             need_head_weights (bool, optional): return the attention
                 weights for each head. Implies *need_weights*. Default:
                 return the average attention weights over all heads.
@@ -463,8 +470,14 @@ class MemEffSelfAttnWithProteinRotaryEmbedding(MemEffSelfAttn):
 
         # add rope
         if self.rot_emb and is_protein.any():
-            is_protein = is_protein.repeat(self.num_heads, 1).unsqueeze(-1)
-            q_rope, k_rope = self.rot_emb(q, k)
+            is_protein = (
+                is_protein.unsqueeze(1)
+                .repeat(1, self.num_heads, 1)
+                .view(bsz * self.num_heads, tgt_len, 1)
+            )
+            q_rope, k_rope = self.rot_emb(
+                q, k, v, position_ids=position_ids, nhead=self.num_heads
+            )
             q = torch.where(is_protein, q_rope, q)
             k = torch.where(is_protein, k_rope, k)
 

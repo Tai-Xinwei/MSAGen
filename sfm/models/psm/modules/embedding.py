@@ -76,7 +76,11 @@ class PSMMixEmbedding(nn.Module):
         batched_data["masked_token_type"] = mask_token_type
         x = self.embed(mask_token_type)
 
-        if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
+        if (
+            self.psm_config.use_2d_atom_features
+            and "node_attr" in batched_data
+            and is_molecule.any()
+        ):
             atom_feature_embedding = self.atom_feature_embed(
                 batched_data["node_attr"][:, :, 1:]
             ).sum(
@@ -87,9 +91,14 @@ class PSMMixEmbedding(nn.Module):
             )
             x += atom_feature_embedding
 
+        is_protein = batched_data["is_protein"].any()
+
         if time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)
             x += time_embed
+
+        if is_protein and not self.psm_config.mlm_from_decoder_feature:
+            return x, padding_mask, time_embed, None
 
         pos_attn_bias, pos_embedding = self.pos_embedding_bias(
             batched_data, padding_mask, pbc_expand_batched

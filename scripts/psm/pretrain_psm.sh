@@ -8,7 +8,7 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=12
+[ -z "${layers}" ] && layers=18
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1024
@@ -47,16 +47,16 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.7' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-[ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
+[ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
 # [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged'
-[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2"
+[ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb,matter-sim-15M-merged,AFDB50-plddt70.lmdb,matter-sim-15M-force-filtered-merged'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,2,4"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
-[ -z "${save_dir}" ] && save_dir='/fastdata/peiran/tox/checkpoints/psmV0test/'
+[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20240716-1933'
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
@@ -118,6 +118,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${force_loss_type}" ] && force_loss_type="L1"
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L1"
 [ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=False
+[ -z "${num_edges}" ] && num_edges=25600
+[ -z "${no_rotary_embedding_for_vector}" ] && no_rotary_embedding_for_vector=False
+[ -z "${node_type_edge_method}" ] && node_type_edge_method=NON_EXCHANGABLE
+[ -z "${force_head_type}" ] && force_head_type=GATED_EQUIVARIANT
+[ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=True
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -235,4 +240,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           diffusion_training_loss=$diffusion_training_loss \
           force_loss_type=$force_loss_type \
           +energy_per_atom_label_scale=0.05 +molecule_energy_per_atom_std_override=1.0 \
-          align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss
+          align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss \
+          num_edges=$num_edges \
+          no_rotary_embedding_for_vector=$no_rotary_embedding_for_vector \
+          node_type_edge_method=$node_type_edge_method \
+          force_head_type=$force_head_type \
+          mlm_from_decoder_feature=$mlm_from_decoder_feature
