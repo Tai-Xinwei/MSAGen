@@ -189,6 +189,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
                 attn_mask=self_attn_mask,
                 pbc_expand_batched=pbc_expand_batched,
                 is_protein=batched_data["is_protein"],
+                position_ids=batched_data["position_ids"],
             )
         else:
             x, attn = self.self_attn(
@@ -200,6 +201,7 @@ class GraphormerSentenceEncoderLayer(nn.Module):
                 need_weights=False,
                 attn_mask=self_attn_mask,
                 pbc_expand_batched=pbc_expand_batched,
+                position_ids=batched_data["position_ids"],
             )
 
         x = self.dropout_module(x)

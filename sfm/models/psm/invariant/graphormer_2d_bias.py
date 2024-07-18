@@ -39,7 +39,7 @@ class GraphAttnBias(nn.Module):
             psm_config.num_edges + 1, self.edge_hidden_dim, padding_idx=0
         )
         self.edge_dis_encoder = nn.Embedding(
-            psm_config.num_edge_dis * self.edge_hidden_dim * self.num_heads, 1
+            psm_config.num_edge_dis, self.edge_hidden_dim * self.num_heads
         )
         self.spatial_pos_encoder = nn.Embedding(
             psm_config.num_spatial + 10, self.num_heads, padding_idx=0
@@ -149,9 +149,9 @@ class GraphAttnBias(nn.Module):
             )
             edge_input_flat = torch.bmm(
                 edge_input_flat,
-                self.edge_dis_encoder.weight.reshape(
-                    -1, self.edge_hidden_dim, self.num_heads
-                )[:max_dist, :, :],
+                self.edge_dis_encoder(
+                    torch.arange(max_dist, device=edge_input_flat.device)
+                ).reshape(-1, self.edge_hidden_dim, self.num_heads),
             )
             edge_input = edge_input_flat.reshape(
                 max_dist, n_graph, n_node, n_node, self.num_heads

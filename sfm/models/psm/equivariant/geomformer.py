@@ -12,7 +12,7 @@ from torch import Tensor
 from torch.nn.attention import SDPBackend, sdpa_kernel
 
 from sfm.models.psm.psm_config import PSMConfig, VecInitApproach
-from sfm.modules.rotary_embedding import RotaryEmbedding
+from sfm.modules.rotary_embedding import SFMRotaryEmbedding
 
 torch._C._jit_set_profiling_mode(False)
 torch._C._jit_set_profiling_executor(False)
@@ -293,7 +293,7 @@ class MemEffInvariantAttention(nn.Module):
 
         self.rot_emb = None
         if add_rope:
-            self.rot_emb = RotaryEmbedding(dim=self.head_dim)
+            self.rot_emb = SFMRotaryEmbedding(dim=self.head_dim)
 
     def reset_parameters(self, d_tilde):
         nn.init.xavier_uniform_(self.out_proj.weight, gain=1.0 / math.sqrt(d_tilde))
@@ -308,6 +308,7 @@ class MemEffInvariantAttention(nn.Module):
         key_padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
         is_protein: Optional[Tensor] = None,
+        position_ids: Optional[Tensor] = None,
     ):
         if pbc_expand_batched is not None:
             outcell_index = (
@@ -334,33 +335,27 @@ class MemEffInvariantAttention(nn.Module):
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
 
-        q = (
-            q.reshape(bsz, tgt_len, self.num_heads, self.head_dim)
-            .transpose(1, 2)
-            .reshape(bsz * self.num_heads, tgt_len, self.head_dim)
-        )
-        k = (
-            k.reshape(bsz, src_len, self.num_heads, self.head_dim)
-            .transpose(1, 2)
-            .reshape(bsz * self.num_heads, src_len, self.head_dim)
-        )
-        v = (
-            v.reshape(bsz, src_len, self.num_heads, self.head_dim)
-            .transpose(1, 2)
-            .reshape(bsz * self.num_heads, src_len, self.head_dim)
-        )
-
+        q = q.reshape(bsz, tgt_len, self.num_heads, self.head_dim).transpose(1, 2)
+        k = k.reshape(bsz, src_len, self.num_heads, self.head_dim).transpose(1, 2)
+        v = v.reshape(bsz, src_len, self.num_heads, self.head_dim).transpose(1, 2)
         # add rope
-        if self.rot_emb:
+        if self.rot_emb is not None and is_protein is not None and is_protein.any():
+            q = q.reshape(bsz * self.num_heads, tgt_len, self.head_dim)
+            k = k.reshape(bsz * self.num_heads, src_len, self.head_dim)
+            v = v.reshape(bsz * self.num_heads, src_len, self.head_dim)
             is_protein_expanded = (
-                is_protein.any(dim=-1)
-                .unsqueeze(-1)
-                .repeat(1, self.num_heads)
-                .reshape([bsz * self.num_heads])
+                is_protein.unsqueeze(1)
+                .repeat(1, self.num_heads, 1)
+                .view([bsz * self.num_heads, tgt_len, 1])
             )
-            q[is_protein_expanded], k[is_protein_expanded] = self.rot_emb(
-                q[is_protein_expanded], k[is_protein_expanded]
+            rot_q, rot_k = self.rot_emb(
+                q, k, v, position_ids=position_ids, nhead=self.num_heads
             )
+            q = torch.where(is_protein_expanded, rot_q, q)
+            k = torch.where(is_protein_expanded, rot_k, k)
+            q = q.reshape(bsz, self.num_heads, tgt_len, self.head_dim)
+            k = k.reshape(bsz, self.num_heads, src_len, self.head_dim)
+            v = v.reshape(bsz, self.num_heads, src_len, self.head_dim)
 
         if key_padding_mask is not None:
             if pbc_expand_batched is not None:
@@ -368,10 +363,6 @@ class MemEffInvariantAttention(nn.Module):
                 key_padding_mask = torch.cat([key_padding_mask, expand_mask], dim=1)
             assert key_padding_mask.size(0) == bsz
             assert key_padding_mask.size(1) == src_len
-
-        q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
-        k = k.view(bsz, self.num_heads, src_len, self.head_dim)
-        v = v.view(bsz, self.num_heads, src_len, self.head_dim)
 
         if key_padding_mask is not None:
             if key_padding_mask.bool().any():
@@ -424,6 +415,7 @@ class MemEffEquivariantAttention(nn.Module):
         use_smooth_softmax=False,
         use_smooth_equviariant_norm=False,
         smooth_factor=0.0,
+        add_rope=True,
     ):
         super().__init__()
         self.hidden_channels = hidden_channels
@@ -439,6 +431,10 @@ class MemEffEquivariantAttention(nn.Module):
         )
         self.scaling = ((self.head_dim / (d_tilde * 3)) ** 0.5) / self.head_dim
 
+        self.rot_emb = None
+        if add_rope:
+            self.rot_emb = SFMRotaryEmbedding(dim=self.head_dim)
+
         self.reset_parameters(1)
 
     def reset_parameters(self, d_tilde):
@@ -452,6 +448,8 @@ class MemEffEquivariantAttention(nn.Module):
         attn_bias,
         key_padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
+        is_protein: Optional[Tensor] = None,
+        position_ids: Optional[Tensor] = None,
     ):
         if pbc_expand_batched is not None:
             outcell_index = (
@@ -478,21 +476,69 @@ class MemEffEquivariantAttention(nn.Module):
             )
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
-        q = (
-            q.reshape(bsz, tgt_len, 3, self.num_heads, self.head_dim)
-            .permute(0, 3, 1, 2, 4)
-            .reshape(bsz, self.num_heads, tgt_len, 3 * self.head_dim)
-        )
-        k = (
-            k.reshape(bsz, src_len, 3, self.num_heads, self.head_dim)
-            .permute(0, 3, 1, 2, 4)
-            .reshape(bsz, self.num_heads, src_len, 3 * self.head_dim)
-        )
-        v = (
-            v.reshape(bsz, src_len, 3, self.num_heads, self.head_dim)
-            .permute(0, 3, 1, 2, 4)
-            .reshape(bsz, self.num_heads, src_len, 3 * self.head_dim)
-        )
+        pos_feature_num = q.shape[2]
+
+        if self.rot_emb is not None and is_protein is not None and is_protein.any():
+            q = (
+                q.reshape(bsz, tgt_len, pos_feature_num, self.num_heads, self.head_dim)
+                .permute(0, 2, 3, 1, 4)
+                .reshape(bsz * pos_feature_num * self.num_heads, tgt_len, self.head_dim)
+            )
+            k = (
+                k.reshape(bsz, src_len, pos_feature_num, self.num_heads, self.head_dim)
+                .permute(0, 2, 3, 1, 4)
+                .reshape(bsz * pos_feature_num * self.num_heads, src_len, self.head_dim)
+            )
+            v = (
+                v.reshape(bsz, src_len, pos_feature_num, self.num_heads, self.head_dim)
+                .permute(0, 2, 3, 1, 4)
+                .reshape(bsz * pos_feature_num * self.num_heads, src_len, self.head_dim)
+            )
+            is_protein_expanded = (
+                is_protein.unsqueeze(1)
+                .repeat(1, pos_feature_num * self.num_heads, 1)
+                .view(bsz * pos_feature_num * self.num_heads, tgt_len, 1)
+            )
+            rot_q, rot_k = self.rot_emb(
+                q,
+                k,
+                v,
+                position_ids=position_ids,
+                nhead=pos_feature_num * self.num_heads,
+            )
+            q = torch.where(is_protein_expanded, rot_q, q)
+            k = torch.where(is_protein_expanded, rot_k, k)
+            q = (
+                q.reshape(bsz, pos_feature_num, self.num_heads, tgt_len, self.head_dim)
+                .permute(0, 2, 3, 1, 4)
+                .reshape(bsz, self.num_heads, tgt_len, pos_feature_num * self.head_dim)
+            )
+            k = (
+                k.reshape(bsz, pos_feature_num, self.num_heads, src_len, self.head_dim)
+                .permute(0, 2, 3, 1, 4)
+                .reshape(bsz, self.num_heads, src_len, pos_feature_num * self.head_dim)
+            )
+            v = (
+                v.reshape(bsz, pos_feature_num, self.num_heads, src_len, self.head_dim)
+                .permute(0, 2, 3, 1, 4)
+                .reshape(bsz, self.num_heads, src_len, pos_feature_num * self.head_dim)
+            )
+        else:
+            q = (
+                q.reshape(bsz, tgt_len, pos_feature_num, self.num_heads, self.head_dim)
+                .permute(0, 3, 1, 2, 4)
+                .reshape(bsz, self.num_heads, tgt_len, pos_feature_num * self.head_dim)
+            )
+            k = (
+                k.reshape(bsz, src_len, pos_feature_num, self.num_heads, self.head_dim)
+                .permute(0, 3, 1, 2, 4)
+                .reshape(bsz, self.num_heads, src_len, pos_feature_num * self.head_dim)
+            )
+            v = (
+                v.reshape(bsz, src_len, pos_feature_num, self.num_heads, self.head_dim)
+                .permute(0, 3, 1, 2, 4)
+                .reshape(bsz, self.num_heads, src_len, pos_feature_num * self.head_dim)
+            )
 
         if key_padding_mask is not None:
             if pbc_expand_batched is not None:
@@ -575,7 +621,7 @@ class InvariantAttention(nn.Module):
 
         self.rot_emb = None
         if add_rope:
-            self.rot_emb = RotaryEmbedding(dim=self.head_dim)
+            self.rot_emb = SFMRotaryEmbedding(dim=self.head_dim)
 
         self.use_smooth_softmax = use_smooth_softmax
         self.smooth_factor = smooth_factor
@@ -594,6 +640,7 @@ class InvariantAttention(nn.Module):
         key_padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
         is_protein: Optional[Tensor] = None,
+        position_ids: Optional[Tensor] = None,
     ):
         q = q * self.scaling
 
@@ -613,37 +660,30 @@ class InvariantAttention(nn.Module):
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
 
-        q = (
-            q.reshape(bsz, tgt_len, self.num_heads, self.head_dim)
-            .transpose(1, 2)
-            .reshape(bsz * self.num_heads, tgt_len, self.head_dim)
-        )
-        k = (
-            k.reshape(bsz, src_len, self.num_heads, self.head_dim)
-            .transpose(1, 2)
-            .reshape(bsz * self.num_heads, src_len, self.head_dim)
-        )
-        v = (
-            v.reshape(bsz, src_len, self.num_heads, self.head_dim)
-            .transpose(1, 2)
-            .reshape(bsz * self.num_heads, src_len, self.head_dim)
-        )
+        q = q.reshape(bsz, tgt_len, self.num_heads, self.head_dim).transpose(1, 2)
+        k = k.reshape(bsz, src_len, self.num_heads, self.head_dim).transpose(1, 2)
+        v = v.reshape(bsz, src_len, self.num_heads, self.head_dim).transpose(1, 2)
 
         # add rope
-        if self.rot_emb:
-            is_protein_expanded = (
-                is_protein.any(dim=-1)
-                .unsqueeze(-1)
-                .repeat(1, self.num_heads)
-                .reshape([bsz * self.num_heads])
-            )
-            q[is_protein_expanded], k[is_protein_expanded] = self.rot_emb(
-                q[is_protein_expanded], k[is_protein_expanded]
-            )
+        if self.rot_emb is not None and is_protein is not None and is_protein.any():
+            q = q.reshape(bsz * self.num_heads, tgt_len, self.head_dim)
+            k = k.reshape(bsz * self.num_heads, src_len, self.head_dim)
+            v = v.reshape(bsz * self.num_heads, src_len, self.head_dim)
 
-        q = q.view(bsz, self.num_heads, tgt_len, self.head_dim)
-        k = k.view(bsz, self.num_heads, src_len, self.head_dim)
-        v = v.view(bsz, self.num_heads, src_len, self.head_dim)
+            is_protein_expanded = (
+                is_protein.unsqueeze(1)
+                .repeat(1, self.num_heads, 1)
+                .reshape([bsz * self.num_heads, tgt_len, 1])
+            )
+            rot_q, rot_k = self.rot_emb(
+                q, k, v, position_ids=position_ids, nhead=self.num_heads
+            )
+            q = torch.where(is_protein_expanded, rot_q, q)
+            k = torch.where(is_protein_expanded, rot_k, k)
+
+            q = q.reshape(bsz, self.num_heads, tgt_len, self.head_dim)
+            k = k.reshape(bsz, self.num_heads, src_len, self.head_dim)
+            v = v.reshape(bsz, self.num_heads, src_len, self.head_dim)
 
         # This is part of a workaround to get around fork/join parallelism
         # not supporting Optional types.
@@ -710,6 +750,7 @@ class EquivariantAttention(nn.Module):
         use_smooth_equviariant_norm=False,
         use_smooth_softmax=False,
         smooth_factor=0.0,
+        add_rope=True,
     ):
         super().__init__()
         self.hidden_channels = hidden_channels
@@ -725,6 +766,8 @@ class EquivariantAttention(nn.Module):
         self.reset_parameters(1)
 
         self.rot_emb = None
+        if add_rope:
+            self.rot_emb = SFMRotaryEmbedding(dim=self.head_dim)
 
         self.use_smooth_softmax = use_smooth_softmax
         self.smooth_factor = smooth_factor
@@ -740,6 +783,8 @@ class EquivariantAttention(nn.Module):
         attn_bias,
         key_padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
+        is_protein: Optional[Tensor] = None,
+        position_ids: Optional[Tensor] = None,
     ):
         q = q * self.scaling
 
@@ -760,21 +805,68 @@ class EquivariantAttention(nn.Module):
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
         pos_feature_num = q.shape[2]
-        q = (
-            q.reshape(bsz, tgt_len, pos_feature_num, self.num_heads, self.head_dim)
-            .permute(0, 3, 1, 2, 4)
-            .reshape(bsz, self.num_heads, tgt_len, pos_feature_num * self.head_dim)
-        )
-        k = (
-            k.reshape(bsz, src_len, pos_feature_num, self.num_heads, self.head_dim)
-            .permute(0, 3, 1, 2, 4)
-            .reshape(bsz, self.num_heads, src_len, pos_feature_num * self.head_dim)
-        )
-        v = (
-            v.reshape(bsz, src_len, pos_feature_num, self.num_heads, self.head_dim)
-            .permute(0, 3, 1, 2, 4)
-            .reshape(bsz, self.num_heads, src_len, pos_feature_num * self.head_dim)
-        )
+
+        if self.rot_emb is not None and is_protein is not None and is_protein.any():
+            q = (
+                q.reshape(bsz, tgt_len, pos_feature_num, self.num_heads, self.head_dim)
+                .permute(0, 2, 3, 1, 4)
+                .reshape(bsz * pos_feature_num * self.num_heads, tgt_len, self.head_dim)
+            )
+            k = (
+                k.reshape(bsz, src_len, pos_feature_num, self.num_heads, self.head_dim)
+                .permute(0, 2, 3, 1, 4)
+                .reshape(bsz * pos_feature_num * self.num_heads, src_len, self.head_dim)
+            )
+            v = (
+                v.reshape(bsz, src_len, pos_feature_num, self.num_heads, self.head_dim)
+                .permute(0, 2, 3, 1, 4)
+                .reshape(bsz * pos_feature_num * self.num_heads, src_len, self.head_dim)
+            )
+            is_protein_expanded = (
+                is_protein.unsqueeze(1)
+                .repeat(1, pos_feature_num * self.num_heads, 1)
+                .view(bsz * pos_feature_num * self.num_heads, tgt_len, 1)
+            )
+            rot_q, rot_k = self.rot_emb(
+                q,
+                k,
+                v,
+                position_ids=position_ids,
+                nhead=pos_feature_num * self.num_heads,
+            )
+            q = torch.where(is_protein_expanded, rot_q, q)
+            k = torch.where(is_protein_expanded, rot_k, k)
+            q = (
+                q.reshape(bsz, pos_feature_num, self.num_heads, tgt_len, self.head_dim)
+                .permute(0, 2, 3, 1, 4)
+                .reshape(bsz, self.num_heads, tgt_len, pos_feature_num * self.head_dim)
+            )
+            k = (
+                k.reshape(bsz, pos_feature_num, self.num_heads, src_len, self.head_dim)
+                .permute(0, 2, 3, 1, 4)
+                .reshape(bsz, self.num_heads, src_len, pos_feature_num * self.head_dim)
+            )
+            v = (
+                v.reshape(bsz, pos_feature_num, self.num_heads, src_len, self.head_dim)
+                .permute(0, 2, 3, 1, 4)
+                .reshape(bsz, self.num_heads, src_len, pos_feature_num * self.head_dim)
+            )
+        else:
+            q = (
+                q.reshape(bsz, tgt_len, pos_feature_num, self.num_heads, self.head_dim)
+                .permute(0, 3, 1, 2, 4)
+                .reshape(bsz, self.num_heads, tgt_len, pos_feature_num * self.head_dim)
+            )
+            k = (
+                k.reshape(bsz, src_len, pos_feature_num, self.num_heads, self.head_dim)
+                .permute(0, 3, 1, 2, 4)
+                .reshape(bsz, self.num_heads, src_len, pos_feature_num * self.head_dim)
+            )
+            v = (
+                v.reshape(bsz, src_len, pos_feature_num, self.num_heads, self.head_dim)
+                .permute(0, 3, 1, 2, 4)
+                .reshape(bsz, self.num_heads, src_len, pos_feature_num * self.head_dim)
+            )
 
         # This is part of a workaround to get around fork/join parallelism
         # not supporting Optional types.
@@ -895,6 +987,7 @@ class InvariantSelfAttention(nn.Module):
         mask,
         pbc_expand_batched: Optional[Dict] = None,
         is_protein: Optional[Tensor] = None,
+        position_ids: Optional[Tensor] = None,
     ):
         q = self.q_proj(x)
         k = self.k_proj(x)
@@ -908,6 +1001,7 @@ class InvariantSelfAttention(nn.Module):
             mask,
             pbc_expand_batched=pbc_expand_batched,
             is_protein=is_protein,
+            position_ids=position_ids,
         )
 
         return attn
@@ -924,6 +1018,7 @@ class EquivariantSelfAttention(nn.Module):
         use_smooth_equviariant_norm=False,
         use_smooth_softmax=False,
         smooth_factor=0.0,
+        add_rope=True,
     ):
         super().__init__()
         self.head_dim = head_dim
@@ -948,6 +1043,7 @@ class EquivariantSelfAttention(nn.Module):
                 use_smooth_equviariant_norm=use_smooth_equviariant_norm,
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
+                add_rope=add_rope,
             )
 
         self.reset_parameters(1)
@@ -957,13 +1053,28 @@ class EquivariantSelfAttention(nn.Module):
         nn.init.xavier_uniform_(self.k_proj.weight, gain=1.0 / math.sqrt(d_tilde))
         nn.init.xavier_uniform_(self.v_proj.weight, gain=1.0 / math.sqrt(d_tilde))
 
-    def forward(self, vec, attn_bias, mask, pbc_expand_batched: Optional[Dict] = None):
+    def forward(
+        self,
+        vec,
+        attn_bias,
+        mask,
+        pbc_expand_batched: Optional[Dict] = None,
+        is_protein: Optional[Tensor] = None,
+        position_ids: Optional[Tensor] = None,
+    ):
         q = self.q_proj(vec)
         k = self.k_proj(vec)
         v = self.v_proj(vec)
 
         attn = self.equiariant_attention(
-            q, k, v, attn_bias, mask, pbc_expand_batched=pbc_expand_batched
+            q,
+            k,
+            v,
+            attn_bias,
+            mask,
+            pbc_expand_batched=pbc_expand_batched,
+            is_protein=is_protein,
+            position_ids=position_ids,
         )
 
         return attn
@@ -1026,6 +1137,7 @@ class Invariant2EquivariantAttention(nn.Module):
         mask,
         pbc_expand_batched: Optional[Dict] = None,
         is_protein: Optional[Tensor] = None,
+        position_ids: Optional[Tensor] = None,
     ):
         pos_feature_num = vec.shape[2]
         q = self.q_proj(x)
@@ -1048,6 +1160,7 @@ class Invariant2EquivariantAttention(nn.Module):
             mask,
             pbc_expand_batched=pbc_expand_batched,
             is_protein=is_protein,
+            position_ids=position_ids,
         )
 
         return attn
@@ -1067,6 +1180,7 @@ class Equivariant2InvariantAttention(nn.Module):
         use_smooth_equviariant_norm=False,
         use_smooth_softmax=False,
         smooth_factor=0.0,
+        add_rope=True,
     ):
         super().__init__()
         self.head_dim = head_dim
@@ -1093,6 +1207,7 @@ class Equivariant2InvariantAttention(nn.Module):
                 use_smooth_equviariant_norm=use_smooth_equviariant_norm,
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
+                add_rope=add_rope,
             )
         else:
             self.equiariant_attention = EquivariantAttention(
@@ -1102,6 +1217,7 @@ class Equivariant2InvariantAttention(nn.Module):
                 use_smooth_equviariant_norm=use_smooth_equviariant_norm,
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
+                add_rope=add_rope,
             )
 
         self.reset_parameters(1)
@@ -1126,6 +1242,8 @@ class Equivariant2InvariantAttention(nn.Module):
         pos_unit,
         gbf_args,
         pbc_expand_batched: Optional[Dict] = None,
+        is_protein: Optional[Tensor] = None,
+        position_ids: Optional[Tensor] = None,
     ):
         q = self.q_proj(vec)
 
@@ -1205,7 +1323,14 @@ class Equivariant2InvariantAttention(nn.Module):
             )  # (n_graph, n_node, pos_feature_num, feat_dim)
 
         attn = self.equiariant_attention(
-            q, k, v, attn_bias, mask, pbc_expand_batched=pbc_expand_batched
+            q,
+            k,
+            v,
+            attn_bias,
+            mask,
+            pbc_expand_batched=pbc_expand_batched,
+            is_protein=is_protein,
+            position_ids=position_ids,
         )
 
         return attn
@@ -1231,6 +1356,7 @@ class EncoderLayer(nn.Module):
         use_linear_bias=False,
         use_smooth_equviariant_norm=False,
         use_smooth_softmax=False,
+        no_rotary_embedding_for_vector=False,
         smooth_factor=0.0,
     ):
         super().__init__()
@@ -1261,6 +1387,7 @@ class EncoderLayer(nn.Module):
                 use_smooth_equviariant_norm=use_smooth_equviariant_norm,
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
+                add_rope=(not no_rotary_embedding_for_vector),
             )
         else:
             self.invariant2equivariant_attention = Invariant2EquivariantAttention(
@@ -1285,6 +1412,7 @@ class EncoderLayer(nn.Module):
                 use_smooth_equviariant_norm=use_smooth_equviariant_norm,
                 use_smooth_softmax=use_smooth_softmax,
                 smooth_factor=smooth_factor,
+                add_rope=(not no_rotary_embedding_for_vector),
             )
 
         self.invariant_attn_layer_norm = nn.LayerNorm(hidden_channels)
@@ -1369,6 +1497,7 @@ class EncoderLayer(nn.Module):
         gbf_args,
         pbc_expand_batched: Optional[Dict] = None,
         is_protein: Optional[Tensor] = None,
+        position_ids: Optional[Tensor] = None,
     ):
         # attetion
         dx = self.invariant_attn_layer_norm(x)
@@ -1381,12 +1510,18 @@ class EncoderLayer(nn.Module):
                 mask,
                 pbc_expand_batched=pbc_expand_batched,
                 is_protein=is_protein,
+                position_ids=position_ids,
             )
             dx_invariant = F.dropout(
                 dx_invariant, p=self.dropout, training=self.training
             )
             dvec_equivariant = self.equivariant_self_attention(
-                dvec, attn_bias_eself, mask, pbc_expand_batched=pbc_expand_batched
+                dvec,
+                attn_bias_eself,
+                mask,
+                pbc_expand_batched=pbc_expand_batched,
+                is_protein=is_protein,
+                position_ids=position_ids,
             )
             x = x + dx_invariant
             vec = vec + dvec_equivariant
@@ -1398,6 +1533,7 @@ class EncoderLayer(nn.Module):
                 mask,
                 pbc_expand_batched=pbc_expand_batched,
                 is_protein=is_protein,
+                position_ids=position_ids,
             )
             dx_equivariant = F.dropout(
                 dx_equivariant, p=self.dropout, training=self.training
@@ -1410,6 +1546,8 @@ class EncoderLayer(nn.Module):
                 pos_unit,
                 gbf_args,
                 pbc_expand_batched=pbc_expand_batched,
+                is_protein=is_protein,
+                position_ids=position_ids,
             )
 
             x = x + dx_equivariant
@@ -1472,6 +1610,7 @@ class GeomFormer(nn.Module):
                 use_smooth_equviariant_norm=psm_config.use_smooth_equviariant_norm,
                 use_smooth_softmax=psm_config.use_smooth_softmax,
                 smooth_factor=psm_config.smooth_factor,
+                no_rotary_embedding_for_vector=psm_config.no_rotary_embedding_for_vector,
             )
             self.unified_encoder_layers.append(layer)
 
@@ -1655,6 +1794,7 @@ class GeomFormer(nn.Module):
                 [dist, node_type_edge],
                 pbc_expand_batched,
                 is_protein=batched_data["is_protein"],
+                position_ids=batched_data["position_ids"],
             )
 
         node_output = self.unified_final_equivariant_ln(vec)

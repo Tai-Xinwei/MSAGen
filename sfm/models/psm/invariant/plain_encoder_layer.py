@@ -123,7 +123,7 @@ class PSMPlainEncoderLayer(nn.Module):
                 key_padding_mask=padding_mask,
                 need_weights=False,
                 attn_mask=None,
-                position_ids=batched_data["position_ids"],
+                # position_ids=batched_data["position_ids"],
                 pbc_expand_batched=pbc_expand_batched,
                 math_kernel=math_kernel,
             )
