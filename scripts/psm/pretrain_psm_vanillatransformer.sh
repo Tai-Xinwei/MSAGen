@@ -83,8 +83,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
 [ -z "${force_head_type}" ] && force_head_type=MLP
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=10.0
-[ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=0.5
-[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1.0
+[ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
+[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=2.0
 
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
