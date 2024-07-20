@@ -7,8 +7,12 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from sfm.models.psm.modules.multihead_attention import (
+    MemEffAttnWithProteinRotaryEmbedding,
+)
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.layer_norm import AdaNorm
+from sfm.modules.mem_eff_attn import MemEffAttn
 
 
 class NodeTaskHead(nn.Module):
@@ -39,6 +43,7 @@ class NodeTaskHead(nn.Module):
         self,
         batched_data: Dict,
         x,
+        pos_emb,
         padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
     ) -> Tensor:
@@ -128,35 +133,184 @@ class NodeTaskHead(nn.Module):
         return decoder_x_output, decoder_vec_output
 
 
-class Non_equi_head(nn.Module):
+class VectorVanillaTransformer(nn.Module):
+    def __init__(
+        self,
+        psm_config: PSMConfig,
+    ):
+        super().__init__()
+        self.psm_config = psm_config
+        embed_dim = psm_config.encoder_embed_dim
+
+        self.layers = nn.ModuleList([])
+        self.vec_project = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(embed_dim, embed_dim * 3, bias=False),
+        )
+
+        for _ in range(psm_config.num_pred_attn_layer):
+            self.layers.append(VectorTransformerBlock(psm_config))
+
+        self.adaLN_modulation_vec = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(
+                psm_config.embedding_dim, 2 * psm_config.embedding_dim, bias=False
+            ),
+        )
+        self.adaLN_modulation_x = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(
+                psm_config.embedding_dim, 2 * psm_config.embedding_dim, bias=False
+            ),
+        )
+
+    def modulate(self, x, scale, shift):
+        return x * scale + shift
+
+    def forward(
+        self,
+        batched_data: Dict,
+        x,
+        pos_emb,
+        padding_mask,
+        pbc_expand_batched: Optional[Dict] = None,
+    ):
+        x = x.transpose(0, 1)
+        bsz, n_node, _ = x.size()
+
+        pos = batched_data["pos"].to(x.dtype)
+        # if pbc_expand_batched is not None:
+        #     expand_pos = pbc_expand_batched["expand_pos"]
+        #     expand_pos = torch.cat([pos, expand_pos], dim=1)
+        #     delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
+        #     expand_mask = torch.cat(
+        #         [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
+        #     )
+        #     extend_n_node = expand_pos.shape[1]
+        # else:
+        delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
+        expand_mask = padding_mask
+        extend_n_node = n_node
+
+        dist = delta_pos.norm(dim=-1).view(-1, n_node, extend_n_node)
+        dist = dist.masked_fill(padding_mask.unsqueeze(-1), 1e6)
+        dist = dist.masked_fill(expand_mask.unsqueeze(1), 1e6)
+        delta_pos = 1.0 / (dist + 1.0)
+
+        # pos_emb = pos_emb.masked_fill(padding_mask.unsqueeze(-1), 0.0)
+        # delta_pos = delta_pos.masked_fill(padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0)
+        # delta_pos = delta_pos.masked_fill(expand_mask.unsqueeze(1).unsqueeze(-1), 0.0)
+        vec = self.vec_project(pos_emb).view(bsz, n_node, 3, -1)
+        # vec = vec * delta_pos.sum(dim=-2).unsqueeze(-1).type_as(vec)  # [bsz, n, n_expand, 3, H]
+
+        for layer in self.layers:
+            x, vec = layer(
+                batched_data, x, vec, padding_mask, delta_pos, pbc_expand_batched
+            )
+
+        residue_x = x
+        residue_vec = vec
+
+        scale_vec, shift_vec = self.adaLN_modulation_vec(vec).chunk(2, dim=-1)
+        scale_x, shift_x = self.adaLN_modulation_x(x).chunk(2, dim=-1)
+
+        x = self.modulate(x, scale_vec.norm(dim=-2), shift_vec.norm(dim=-2))
+        vec = self.modulate(vec, scale_x.unsqueeze(-2), shift_x.unsqueeze(-2))
+
+        x = x + residue_x
+        vec = vec + residue_vec
+
+        return x, vec
+
+
+class VectorTransformerBlock(nn.Module):
     def __init__(
         self,
         psm_config: PSMConfig,
     ):
         # )
         super().__init__()
+        self.psm_config = psm_config
         embed_dim = psm_config.encoder_embed_dim
-        self.mlp = nn.Sequential(
-            nn.Linear(embed_dim, embed_dim * 4),
-            nn.ReLU(),
-            nn.Linear(embed_dim * 4, embed_dim * 3),
+        self.ln_x = nn.LayerNorm(embed_dim)
+        self.ln_vec = nn.LayerNorm(embed_dim)
+
+        self.adaLN_modulation_vec = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(
+                psm_config.embedding_dim, 2 * psm_config.embedding_dim, bias=False
+            ),
         )
+        self.adaLN_modulation_x = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(
+                psm_config.embedding_dim, 2 * psm_config.embedding_dim, bias=False
+            ),
+        )
+
+        if psm_config.only_use_rotary_embedding_for_protein:
+            attn_cls = MemEffAttnWithProteinRotaryEmbedding
+        else:
+            attn_cls = MemEffAttn
+
+        self.attn = attn_cls(
+            psm_config.embedding_dim,
+            psm_config.num_attention_heads,
+            dropout=psm_config.dropout,
+            k_bias=False,
+            q_bias=False,
+            v_bias=False,
+            o_bias=False,
+            add_rope=True,
+            use_smooth_softmax=psm_config.use_smooth_softmax,
+            smooth_factor=psm_config.smooth_factor,
+        )
+
+    def modulate(self, x, scale, shift):
+        return x * scale + shift
 
     def forward(
         self,
         batched_data: Dict,
         x,
+        vec,
         padding_mask,
+        delta_pos: Tensor = None,
         pbc_expand_batched: Optional[Dict] = None,
-    ) -> Tensor:
-        # query = query.contiguous()
-        x = x.transpose(0, 1)
-        bsz, n_node, _ = x.size()
+    ):
+        residue_x = x
+        residue_vec = vec
 
-        decoder_x_output = x
-        decoder_vec_output = self.mlp(x).view(bsz, n_node, 3, -1)
+        scale_vec, shift_vec = self.adaLN_modulation_vec(vec).chunk(2, dim=-1)
+        scale_x, shift_x = self.adaLN_modulation_x(x).chunk(2, dim=-1)
 
-        return decoder_x_output, decoder_vec_output
+        x = self.ln_x(self.modulate(x, scale_vec.norm(dim=-2), shift_vec.norm(dim=-2)))
+        vec = self.ln_vec(
+            self.modulate(vec, scale_x.unsqueeze(-2), shift_x.unsqueeze(-2))
+        )
+
+        if self.psm_config.only_use_rotary_embedding_for_protein:
+            x = self.attn(
+                x.transpose(0, 1),
+                key_padding_mask=padding_mask,
+                is_protein=batched_data["is_protein"],
+                position_ids=batched_data["position_ids"],
+                pbc_expand_batched=pbc_expand_batched,
+            )[0].transpose(0, 1)
+        else:
+            x = self.attn(
+                x.transpose(0, 1),
+                key_padding_mask=padding_mask,
+                position_ids=batched_data["position_ids"],
+                pbc_expand_batched=pbc_expand_batched,
+            )[0].transpose(0, 1)
+
+        vec = torch.einsum("bkl,blzh->blzh", delta_pos, vec)
+
+        x = x + residue_x
+        vec = vec + residue_vec
+
+        return x, vec
 
 
 class VectorOutput(nn.Module):

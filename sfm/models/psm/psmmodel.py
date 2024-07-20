@@ -21,6 +21,7 @@ from sfm.models.psm.equivariant.nodetaskhead import (
     NodeTaskHead,
     VectorOutput,
     VectorProjOutput,
+    VectorVanillaTransformer,
 )
 from sfm.models.psm.invariant.dit_encoder import PSMDiTEncoder
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
@@ -228,9 +229,10 @@ class PSMModel(Model):
         1: clean seq to structure
         2: 50% masked seq to structure and masked seq
         For Complex pretrain mode, we have 3 modes:
-        0: 50% masked protein seq and 50% noised structure to protein structure and seq, molecule all clean
+        0: clean protein seq to protein structure and molecule structure, time_protein == time_ligand
         1: clean protein seq to protein structure and molecule structure, time_protein < time_ligand
-        2: clean protein seq to protein structure and molecule structure, time_protein == time_ligand
+        2: 50% masked protein seq and 50% noised structure to protein structure and seq, molecule all clean
+
         """
         n_graph, nnodes = aa_mask.size()[:2]
         mask_choice = np.random.choice(np.arange(3), n_graph, p=self.mode_prob)
@@ -245,7 +247,14 @@ class PSMModel(Model):
         time_step = time_step.unsqueeze(-1).repeat(1, nnodes)
 
         # mode 0:
-        clean_mask = torch.where((mask_choice == 0) & is_protein, ~aa_mask, clean_mask)
+        aa_mask = torch.where(
+            (mask_choice == 0) & is_complex.unsqueeze(-1), False, aa_mask
+        )
+        clean_mask = torch.where(
+            (mask_choice == 0) & is_protein & (~is_complex.unsqueeze(-1)),
+            ~aa_mask,
+            clean_mask,
+        )
 
         # mode 1:
         aa_mask = torch.where(
@@ -259,8 +268,10 @@ class PSMModel(Model):
         )
 
         # mode 2:
-        aa_mask = torch.where(
-            (mask_choice == 2) & is_complex.unsqueeze(-1), False, aa_mask
+        clean_mask = torch.where(
+            (mask_choice == 2) & is_protein & is_complex.unsqueeze(-1),
+            ~aa_mask,
+            clean_mask,
         )
 
         # set padding mask to clean
@@ -277,9 +288,14 @@ class PSMModel(Model):
         time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
         # set 0 noise for padding
         time_step = time_step.masked_fill(padding_mask, 0.0)
+
         # # TODO: found this may cause instability issue, need to check
-        # # set T noise for batched_data["protein_mask"] nan/inf coords
+        # # # set T noise for batched_data["protein_mask"] nan/inf coords
         # time_step = time_step.masked_fill(batched_data["protein_mask"].any(dim=-1), 1.0)
+        # # make sure noise really replaces nan/inf coords
+        # clean_mask = clean_mask.masked_fill(
+        #     batched_data["protein_mask"].any(dim=-1), False
+        # )
 
         return clean_mask, aa_mask, time_step
 
@@ -859,7 +875,8 @@ class PSM(nn.Module):
             self.encoder = PSMPlainEncoder(args, psm_config)
             # Implement the decoder
             # self.decoder = EquivariantDecoder(psm_config)
-            self.decoder = NodeTaskHead(psm_config)
+            # self.decoder = NodeTaskHead(psm_config)
+            self.decoder = VectorVanillaTransformer(psm_config)
         elif args.backbone in ["dit"]:
             # Implement the encoder
             self.encoder = PSMDiTEncoder(args, psm_config)
@@ -1098,6 +1115,7 @@ class PSM(nn.Module):
                     decoder_x_output, decoder_vec_output = self.decoder(
                         batched_data,
                         encoder_output,
+                        mixed_attn_bias,
                         padding_mask,
                         pbc_expand_batched,
                     )

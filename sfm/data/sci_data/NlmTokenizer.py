@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import itertools
 import re
 from dataclasses import dataclass
 
@@ -193,7 +194,19 @@ class NlmLlama3Tokenizer(PreTrainedTokenizerFast):
         for i in range(26):
             extra_tokens.append(f"<i>{chr(65 + i)}")
             extra_tokens.append(f"<i>{chr(97 + i)}")
-
+        # DNA six
+        self.is_dna_six = kwargs.get("is_dna_six", False)
+        if self.is_dna_six:
+            nucleotides = ["A", "T", "C", "G"]
+            all_kmers = ["".join(p) for p in itertools.product(nucleotides, repeat=6)]
+            self.dna_six_encode_dict = {}
+            for i in range(len(all_kmers)):
+                extra_tokens.append(f"<d>{all_kmers[i]}")
+                self.dna_six_encode_dict[all_kmers[i]] = i + 130239
+            print("is six")
+            # extra_tokens.extend(
+            #     ["<d>" + "".join(p) for p in itertools.product(nucleotides, repeat=6)]
+            # )
         self.add_tokens(extra_tokens)
         self.split_special_tokens = True  # Ensure _tokenize() can access special tokens
 
@@ -205,7 +218,18 @@ class NlmLlama3Tokenizer(PreTrainedTokenizerFast):
         elif tok == "space":
             tokens = text.split(" ")
         else:
-            tokens = list(text)
+            if self.is_dna_six and prefix == "d":
+                i = 0
+                tokens = []
+                while i < len(text):
+                    if text[i : i + 6] in self.dna_six_encode_dict:
+                        tokens.append(text[i : i + 6])
+                        i += 6
+                    else:
+                        tokens.append(text[i])
+                        i += 1
+            else:
+                tokens = list(text)
 
         ret = []
         for t in tokens:

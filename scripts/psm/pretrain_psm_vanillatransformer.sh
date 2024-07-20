@@ -12,14 +12,14 @@ export MKL_THREADING_LAYER='GNU'
 # # find the folder in /tmp and starts with azcopy_linux_amd64
 # azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
 
-# [ -z "${layers}" ] && layers=32
-# [ -z "${hidden_size}" ] && hidden_size=1536
-# [ -z "${ffn_size}" ] && ffn_size=6144
-# [ -z "${num_head}" ] && num_head=32
-[ -z "${layers}" ] && layers=36
-[ -z "${hidden_size}" ] && hidden_size=2560
-[ -z "${ffn_size}" ] && ffn_size=10240
-[ -z "${num_head}" ] && num_head=40
+[ -z "${layers}" ] && layers=28
+[ -z "${hidden_size}" ] && hidden_size=1536
+[ -z "${ffn_size}" ] && ffn_size=6144
+[ -z "${num_head}" ] && num_head=32
+# [ -z "${layers}" ] && layers=36
+# [ -z "${hidden_size}" ] && hidden_size=2560
+# [ -z "${ffn_size}" ] && ffn_size=10240
+# [ -z "${num_head}" ] && num_head=40
 
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -69,11 +69,11 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="10"
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12"
 [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='24,1,4,1'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64,12,12,12'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.35,0.1,0.1,0.1,0.05'
@@ -84,7 +84,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${force_head_type}" ] && force_head_type=MLP
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=10.0
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
-[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=2.0
+[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1.0
 
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
@@ -107,7 +107,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
-[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS"
+[ -z "${equivar_vec_init}" ] && equivar_vec_init="AUGMENTED_RELATIVE_POS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=256
@@ -127,6 +127,9 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=False
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
+[ -z "${use_smooth_equviariant_norm}" ] && use_smooth_equviariant_norm=True
+[ -z "${num_edges}" ] && num_edges=25600
+
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
@@ -134,7 +137,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
 [ -z "${if_total_energy}" ] && if_total_energy=False
-[ -z "${decoder_feat4energy}" ] && decoder_feat4energy=True
+[ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -246,7 +249,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
           diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
-          psm_validation_mode=$psm_validation_mode \
+          psm_validation_mode=$psm_validation_mode num_edges=$num_edges \
           diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
           num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
           ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \
@@ -257,7 +260,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
           use_dali_pipeline=$use_dali_pipeline molecule_energy_loss_ratio=$molecule_energy_loss_ratio \
           material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
-          preprocess_2d_bond_features_with_cuda=True \
+          preprocess_2d_bond_features_with_cuda=True use_smooth_equviariant_norm=$use_smooth_equviariant_norm \
           AutoGradForce=$AutoGradForce force_head_type=$force_head_type \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \

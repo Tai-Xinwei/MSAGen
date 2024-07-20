@@ -1514,7 +1514,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
         )
         self._txn = self.env.begin(write=False)
         metadata = bstr2obj(self.txn.get("__metadata__".encode()))
-        self._keys = metadata["keys"]
+        if self._keys is None:
+            self._keys = metadata["keys"]
 
     def _crop_and_reconstruct_graph(self, data):
         polymer_chains = data["polymer_chains"]
@@ -1719,7 +1720,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             polymer_ligand_adj[:polymer_len] = True
             polymer_ligand_adj |= (
                 polymer_ligand_adj.clone().T
-            )  # torch disallow inplace operation
+            )  # torch disallow inplace operationS
             adj |= polymer_ligand_adj
         else:
             # multimers
