@@ -71,6 +71,8 @@ class NlmTokenizer(LlamaTokenizer):
         return ret
 
     def _tokenize_by_tag(self, span, tag, **kwargs):
+        span = span.strip(" ")
+
         if tag in ["mol", "product", "reactants", "fragA", "fragB"]:
             tokens = self._tokenize_entity(span, "m", tok="smiles")
         elif tag in ["protein", "antibody"]:
@@ -81,8 +83,8 @@ class NlmTokenizer(LlamaTokenizer):
             tokens = self._tokenize_entity(span, "d", tok="list")
         elif tag == "rna":
             tokens = self._tokenize_entity(span, "r", tok="list")
-        else:
-            tokens = super().tokenize(span, **kwargs)
+        else:  # text
+            tokens = super()._tokenize(span, **kwargs)
 
         return tokens
 
@@ -116,7 +118,7 @@ class NlmTokenizer(LlamaTokenizer):
                 if tag != cur_tag:
                     raise ValueError(f"Tag mismatch: {tag} != {cur_tag} in '{text}'")
 
-                span = text[last_idx:start].strip()
+                span = text[last_idx:start]
                 tokens = self._tokenize_by_tag(span, tag, **kwargs)
 
                 result.extend([t for t in tokens if t] + [f"</{tag}>"])
@@ -130,15 +132,15 @@ class NlmTokenizer(LlamaTokenizer):
                     raise ValueError(f"Nested tag: {tag} in '{text}'")
 
                 cur_tag = tag
-                span = text[last_idx:start].strip()
-                tokens = super().tokenize(span, **kwargs)
+                span = text[last_idx:start]
+                tokens = self._tokenize_by_tag(span, None, **kwargs)
 
                 result.extend([t for t in tokens if t] + [f"<{tag}>"])
 
             last_idx = end
 
         if last_idx < len(text):
-            span = text[last_idx:].strip()
+            span = text[last_idx:]
             tokens = self._tokenize_by_tag(span, cur_tag, **kwargs)
             result.extend(tokens)
 

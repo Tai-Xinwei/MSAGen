@@ -1,0 +1,100 @@
+description: nlm inference
+
+target:
+    service: aml
+    name: sfm-nd96amsra100v4-uksouth
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+    blob:
+        storage_account_name: sfmdataeastus2
+        container_name: nlm
+        mount_dir: /blob
+    mlla:
+        storage_account_name: msralaphilly2
+        container_name: ml-la
+        mount_dir: /mlla
+
+code:
+    local_dir: .
+
+jobs:
+- name: "nlm_inference"
+  identity: managed
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  sku: 1xG8
+  mpi: true
+  process_count_per_node: 1
+  command:
+  # ----- [mixtral_8x7b] ------
+  - export model_name="mixtral_8x7b"
+  - export base_model_root="/blob/Mixtral-8x7B-v0.1/"
+  - export model_ckpt_home="/blob/shufxi/nlm/8x7b/inst/20240611215447/global_step33216/"
+  - export aux_home="/dev/shm/nlm_rank"
+  - export MODEL_PARALLEL_SIZE=2 # use 2 GPUs for model parallelism
+  - export output_dir="/blob/shufxi/output/inference/retro/mixtral_8x7b_mp"
+  - export input_file="/mlla/yinxia/wu2/shared/SFM/SFM.overall.data/SFMMolInstruct.20240617.test/test.uspto50k.retro.osmi.tsv"
+
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - pip install -e . --no-deps
+  - pip install -i https://pypi.org/simple/ bitsandbytes
+  - bash ./tools/nlm/x_inference.sh
+  submit_args:
+      container_args:
+          shm_size: 1024g
+- name: "nlm_inference_11072"
+  identity: managed
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  sku: 1xG8
+  mpi: true
+  process_count_per_node: 1
+  command:
+  # ----- [mixtral_8x7b] ------
+  - export model_name="mixtral_8x7b"
+  - export base_model_root="/blob/Mixtral-8x7B-v0.1/"
+  - export model_ckpt_home="/blob/shufxi/nlm/8x7b/inst/20240611215447/global_step11072/"
+  - export aux_home="/dev/shm/nlm_rank"
+  - export MODEL_PARALLEL_SIZE=2 # use 2 GPUs for model parallelism
+  - export output_dir="/blob/shufxi/output/inference/retro/mixtral_8x7b_mp_11072"
+  - export input_file="/mlla/yinxia/wu2/shared/SFM/SFM.overall.data/SFMMolInstruct.20240617.test/test.uspto50k.retro.osmi.tsv"
+
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - pip install -e . --no-deps
+  - pip install -i https://pypi.org/simple/ bitsandbytes
+  - bash ./tools/nlm/x_inference.sh
+  submit_args:
+      container_args:
+          shm_size: 1024g
+- name: "nlm_inference_22144"
+  identity: managed
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  sku: 1xG8
+  mpi: true
+  process_count_per_node: 1
+  command:
+  # ----- [mixtral_8x7b] ------
+  - export model_name="mixtral_8x7b"
+  - export base_model_root="/blob/Mixtral-8x7B-v0.1/"
+  - export model_ckpt_home="/blob/shufxi/nlm/8x7b/inst/20240611215447/global_step_22144/"
+  - export aux_home="/dev/shm/nlm_rank"
+  - export MODEL_PARALLEL_SIZE=2 # use 2 GPUs for model parallelism
+  - export output_dir="/blob/shufxi/output/inference/retro/mixtral_8x7b_mp_22144"
+  - export input_file="/mlla/yinxia/wu2/shared/SFM/SFM.overall.data/SFMMolInstruct.20240617.test/test.uspto50k.retro.osmi.tsv"
+
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - pip install -e . --no-deps
+  - pip install -i https://pypi.org/simple/ bitsandbytes
+  - bash ./tools/nlm/x_inference.sh
+  submit_args:
+      container_args:
+          shm_size: 1024g

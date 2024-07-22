@@ -205,9 +205,9 @@ class SFMMoEGenerator:
         else:
             outputs = self.model.generate(
                 input_ids,
-                num_beams=2,
+                num_beams=4,
                 max_new_tokens=max_new_tokens,
-                num_return_sequences=2,
+                num_return_sequences=4,
                 do_sample=do_sample,
                 pad_token_id=pad_token_id,
                 **kwargs,
