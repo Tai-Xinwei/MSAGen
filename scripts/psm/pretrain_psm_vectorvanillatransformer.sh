@@ -13,6 +13,7 @@ export MKL_THREADING_LAYER='GNU'
 # azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
 
 [ -z "${layers}" ] && layers=28
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=20
 [ -z "${hidden_size}" ] && hidden_size=1536
 [ -z "${ffn_size}" ] && ffn_size=6144
 [ -z "${num_head}" ] && num_head=32
@@ -21,7 +22,6 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${ffn_size}" ] && ffn_size=10240
 # [ -z "${num_head}" ] && num_head=40
 
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=512
@@ -84,7 +84,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${force_head_type}" ] && force_head_type=MLP
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=10.0
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
-[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=5.0
+[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1.0
 
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
@@ -129,6 +129,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
 [ -z "${use_smooth_equviariant_norm}" ] && use_smooth_equviariant_norm=True
 [ -z "${num_edges}" ] && num_edges=25600
+[ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=32
 
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
@@ -216,7 +217,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
           psm_finetune_mode=$psm_finetune_mode \
           backbone_config=graphormer \
-          backbone=vanillatransformer \
+          backbone=vectorvanillatransformer \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
           num_pred_attn_layer=$num_pred_attn_layer \
@@ -249,7 +250,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
           diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
-          psm_validation_mode=$psm_validation_mode num_edges=$num_edges \
+          psm_validation_mode=$psm_validation_mode num_edges=$num_edges num_3d_bias_kernel=$num_3d_bias_kernel \
           diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
           num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
           ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \

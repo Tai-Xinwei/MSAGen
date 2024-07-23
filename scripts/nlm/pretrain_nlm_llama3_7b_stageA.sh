@@ -183,6 +183,3 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --learnable_cutoff "$learnable_cutoff" \
       --unfreeze_param_list "$unfreeze_param_list" \
       ${MEGATRON_ARGS} ${load_ckpt} ${weighted_dataset}
-
-
-sleep inf

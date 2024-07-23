@@ -50,6 +50,15 @@ class PSMMix3dEmbedding(nn.Module):
         # )
 
     @torch.compiler.disable(recursive=False)
+    def center_pos(self, expand_pos, expand_mask):
+        expand_pos = expand_pos.masked_fill(expand_mask.unsqueeze(-1), 0.0)
+        center_pos = torch.sum(expand_pos, dim=1, keepdim=True) / (~expand_mask).sum(
+            dim=1
+        ).unsqueeze(-1).unsqueeze(-1)
+        expand_pos = expand_pos - center_pos
+        return expand_pos
+
+    @torch.compiler.disable(recursive=False)
     def _pos_emb(
         self,
         pos: Optional[torch.Tensor],
@@ -70,10 +79,12 @@ class PSMMix3dEmbedding(nn.Module):
             ), "Only support unified batch sampler for now"
             expand_pos = expand_pos.to(self.pos_emb.weight.dtype)
             expand_pos = torch.cat([pos, expand_pos], dim=1)
-            delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
             expand_mask = torch.cat(
                 [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
             )
+
+            expand_pos = self.center_pos(expand_pos, expand_mask)
+            delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
             B, L, expand_L = delta_pos.size()[:3]
             adj = torch.ones(B, L, expand_L, device=adj.device, dtype=torch.bool)
             local_attention_weight = pbc_expand_batched["local_attention_weight"]

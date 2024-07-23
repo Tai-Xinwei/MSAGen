@@ -178,35 +178,34 @@ class VectorVanillaTransformer(nn.Module):
         x = x.transpose(0, 1)
         bsz, n_node, _ = x.size()
 
-        pos = batched_data["pos"].to(x.dtype)
-        # if pbc_expand_batched is not None:
-        #     expand_pos = pbc_expand_batched["expand_pos"]
-        #     expand_pos = torch.cat([pos, expand_pos], dim=1)
-        #     delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
-        #     expand_mask = torch.cat(
-        #         [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
-        #     )
-        #     extend_n_node = expand_pos.shape[1]
-        # else:
-        delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
-        expand_mask = padding_mask
-        extend_n_node = n_node
+        # pos = batched_data["pos"].to(x.dtype)
+        # # if pbc_expand_batched is not None:
+        # #     expand_pos = pbc_expand_batched["expand_pos"]
+        # #     expand_pos = torch.cat([pos, expand_pos], dim=1)
+        # #     delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
+        # #     expand_mask = torch.cat(
+        # #         [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
+        # #     )
+        # #     extend_n_node = expand_pos.shape[1]
+        # # else:
+        # delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
+        # expand_mask = padding_mask
+        # extend_n_node = n_node
 
-        dist = delta_pos.norm(dim=-1).view(-1, n_node, extend_n_node)
-        dist = dist.masked_fill(padding_mask.unsqueeze(-1), 1e6)
-        dist = dist.masked_fill(expand_mask.unsqueeze(1), 1e6)
-        delta_pos = 1.0 / (dist + 1.0)
+        # dist = delta_pos.norm(dim=-1).view(-1, n_node, extend_n_node)
+        # dist = dist.masked_fill(padding_mask.unsqueeze(-1), 1e6)
+        # dist = dist.masked_fill(expand_mask.unsqueeze(1), 1e6)
+        # delta_pos = 1.0 / (dist + 1.0)
 
         # pos_emb = pos_emb.masked_fill(padding_mask.unsqueeze(-1), 0.0)
         # delta_pos = delta_pos.masked_fill(padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0)
         # delta_pos = delta_pos.masked_fill(expand_mask.unsqueeze(1).unsqueeze(-1), 0.0)
-        vec = self.vec_project(pos_emb).view(bsz, n_node, 3, -1)
+        # vec = self.vec_project(pos_emb).view(bsz, n_node, 3, -1)
         # vec = vec * delta_pos.sum(dim=-2).unsqueeze(-1).type_as(vec)  # [bsz, n, n_expand, 3, H]
 
+        vec = pos_emb
         for layer in self.layers:
-            x, vec = layer(
-                batched_data, x, vec, padding_mask, delta_pos, pbc_expand_batched
-            )
+            x, vec = layer(batched_data, x, vec, padding_mask, pbc_expand_batched)
 
         residue_x = x
         residue_vec = vec
@@ -247,6 +246,12 @@ class VectorTransformerBlock(nn.Module):
                 psm_config.embedding_dim, 2 * psm_config.embedding_dim, bias=False
             ),
         )
+        self.adaLN_modulation_x_pre_mlp = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(
+                psm_config.embedding_dim, 2 * psm_config.embedding_dim, bias=False
+            ),
+        )
 
         if psm_config.only_use_rotary_embedding_for_protein:
             attn_cls = MemEffAttnWithProteinRotaryEmbedding
@@ -266,6 +271,19 @@ class VectorTransformerBlock(nn.Module):
             smooth_factor=psm_config.smooth_factor,
         )
 
+        self.x_mlp_norm = nn.LayerNorm(psm_config.embedding_dim)
+        self.vec_mlp_norm = nn.LayerNorm(psm_config.embedding_dim)
+
+        self.mlp = nn.Sequential(
+            nn.Linear(
+                psm_config.embedding_dim, psm_config.ffn_embedding_dim, bias=False
+            ),
+            nn.SiLU(),
+            nn.Linear(
+                psm_config.ffn_embedding_dim, psm_config.embedding_dim, bias=False
+            ),
+        )
+
     def modulate(self, x, scale, shift):
         return x * scale + shift
 
@@ -281,13 +299,14 @@ class VectorTransformerBlock(nn.Module):
         residue_x = x
         residue_vec = vec
 
+        x = self.ln_x(x)
+        vec = self.ln_vec(vec)
+
         scale_vec, shift_vec = self.adaLN_modulation_vec(vec).chunk(2, dim=-1)
         scale_x, shift_x = self.adaLN_modulation_x(x).chunk(2, dim=-1)
 
-        x = self.ln_x(self.modulate(x, scale_vec.norm(dim=-2), shift_vec.norm(dim=-2)))
-        vec = self.ln_vec(
-            self.modulate(vec, scale_x.unsqueeze(-2), shift_x.unsqueeze(-2))
-        )
+        x = self.modulate(x, scale_vec.norm(dim=-2), shift_vec.norm(dim=-2))
+        vec = self.modulate(vec, scale_x.unsqueeze(-2), shift_x.unsqueeze(-2))
 
         if self.psm_config.only_use_rotary_embedding_for_protein:
             x = self.attn(
@@ -305,7 +324,18 @@ class VectorTransformerBlock(nn.Module):
                 pbc_expand_batched=pbc_expand_batched,
             )[0].transpose(0, 1)
 
-        vec = torch.einsum("bkl,blzh->blzh", delta_pos, vec)
+        x = x + residue_x
+        vec = vec + residue_vec
+
+        residue_x = x
+        residue_vec = vec
+
+        x = self.x_mlp_norm(x)
+        vec = self.vec_mlp_norm(vec)
+
+        scale_x_mlp, shift_x_mlp = self.adaLN_modulation_x_pre_mlp(x).chunk(2, dim=-1)
+        x = self.mlp(x)
+        vec = self.modulate(vec, scale_x_mlp.unsqueeze(-2), shift_x_mlp.unsqueeze(-2))
 
         x = x + residue_x
         vec = vec + residue_vec

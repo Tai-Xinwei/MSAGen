@@ -289,13 +289,13 @@ class PSMModel(Model):
         # set 0 noise for padding
         time_step = time_step.masked_fill(padding_mask, 0.0)
 
-        # # TODO: found this may cause instability issue, need to check
-        # # # set T noise for batched_data["protein_mask"] nan/inf coords
-        # time_step = time_step.masked_fill(batched_data["protein_mask"].any(dim=-1), 1.0)
-        # # make sure noise really replaces nan/inf coords
-        # clean_mask = clean_mask.masked_fill(
-        #     batched_data["protein_mask"].any(dim=-1), False
-        # )
+        # TODO: found this may cause instability issue, need to check
+        # # set T noise for batched_data["protein_mask"] nan/inf coords
+        time_step = time_step.masked_fill(batched_data["protein_mask"].any(dim=-1), 1.0)
+        # make sure noise really replaces nan/inf coords
+        clean_mask = clean_mask.masked_fill(
+            batched_data["protein_mask"].any(dim=-1), False
+        )
 
         return clean_mask, aa_mask, time_step
 
@@ -848,7 +848,7 @@ class PSM(nn.Module):
                 psm_config, use_unified_batch_sampler=args.use_unified_batch_sampler
             )
             # self.embedding = PSMMixEmbedding(psm_config)
-        elif args.backbone == "vanillatransformer_equiv":
+        elif args.backbone in ["vanillatransformer_equiv", "vectorvanillatransformer"]:
             self.embedding = PSMMix3DEquivEmbedding(psm_config)
         else:
             self.embedding = PSMMixEmbedding(psm_config)
@@ -877,6 +877,9 @@ class PSM(nn.Module):
             # self.decoder = EquivariantDecoder(psm_config)
             # self.decoder = NodeTaskHead(psm_config)
             self.decoder = VectorVanillaTransformer(psm_config)
+        elif args.backbone in ["vectorvanillatransformer"]:
+            self.encoder = None
+            self.decoder = VectorVanillaTransformer(psm_config)
         elif args.backbone in ["dit"]:
             # Implement the encoder
             self.encoder = PSMDiTEncoder(args, psm_config)
@@ -888,7 +891,11 @@ class PSM(nn.Module):
         self.forces_head = nn.ModuleDict()
 
         for key in {"molecule", "periodic", "protein"}:
-            if args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
+            if args.backbone in [
+                "vanillatransformer",
+                "vanillatransformer_equiv",
+                "vectorvanillatransformer",
+            ]:
                 self.energy_head.update(
                     {
                         key: nn.Sequential(
@@ -920,7 +927,11 @@ class PSM(nn.Module):
                     }
                 )
 
-            if args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
+            if args.backbone in [
+                "vanillatransformer",
+                "vanillatransformer_equiv",
+                "vectorvanillatransformer",
+            ]:
                 self.noise_head = VectorOutput(psm_config.embedding_dim)
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
                     self.forces_head.update(
@@ -1157,6 +1168,14 @@ class PSM(nn.Module):
                     padding_mask,
                     pbc_expand_batched,
                 )
+        elif self.args.backbone in ["vectorvanillatransformer"]:
+            decoder_x_output, decoder_vec_output = self.decoder(
+                batched_data,
+                token_embedding.transpose(0, 1),
+                mixed_attn_bias,
+                padding_mask,
+                pbc_expand_batched,
+            )
         else:
             decoder_x_output, decoder_vec_output = self.decoder(
                 batched_data,
