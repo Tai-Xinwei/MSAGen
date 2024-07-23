@@ -222,8 +222,17 @@ class LinearRS(FullyConnectedTensorProductRescale):
         )
 
     def forward(self, x):
-        y = torch.ones_like(x[:, 0:1])
+        shape = None
+        if len(x.shape) == 3:
+            shape = list(x.shape[:-1])
+            num = x.shape[:-1].numel()
+            x = x.reshape(num, -1)
+
+        y = torch.ones_like(x.narrow(-1, 0, 1))
         out = self.forward_tp_rescale_bias(x, y)
+
+        if shape is not None:
+            out = out.reshape(shape + [out.shape[-1]])
         return out
 
 

@@ -4,16 +4,16 @@
 ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
-[ -z "${layers}" ] && layers=24
-[ -z "${hidden_size}" ] && hidden_size=1024
-[ -z "${ffn_size}" ] && ffn_size=4096
+[ -z "${layers}" ] && layers=32
+[ -z "${hidden_size}" ] && hidden_size=1536
+[ -z "${ffn_size}" ] && ffn_size=6144
 [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=512
 [ -z "${max_tokens}" ] && max_tokens=2000
-# [ -z "${max_tokens}" ] && max_tokens=36000
+
 [ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
 [ -z "${attn_dropout}" ] && attn_dropout=0.1
@@ -22,7 +22,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.5
+[ -z "${mask_ratio}" ] && mask_ratio=0.3
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
 
 [ -z "${d_tilde}" ] && d_tilde=1
@@ -31,53 +31,55 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
-[ -z "${strategy}" ] && strategy=Zero1
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${strategy}" ] && strategy=DDP
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000000
+[ -z "${save_batch_interval}" ] && save_batch_interval=200000000
 [ -z "${log_interval}" ] && log_interval=20
-[ -z "${val_batch_interval}" ] && val_batch_interval=10000000
 [ -z "${epochs}" ] && epochs=1000
+[ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.4,0.4,0.2' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+# [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 [ -z "${data_path}" ] && data_path="/"
-[ -z "${data_path_list}" ] && data_path_list="data/used_data/MD22/AT_AT_CG_CG/radius3_broadcast/"
-[ -z "${dataset_name_list}" ] && dataset_name_list="AT_AT_CG_CG"
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
-# [ -z "${data_path}" ] && data_path="/data/used_data/"
-# [ -z "${data_path_list}" ] && data_path_list="matsim3m/,pm6_sfm/pm6_10M_refined4.lmdb,afdb/AFDB50-plddt70.lmdb"
-# [ -z "${dataset_name_list}" ] && dataset_name_list="mattersim,pm6,afdb"
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.33,0.33,0.34'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,8,2"
-
-# [ -z "${data_path_list}" ] && data_path_list="/data/blob/sfm/psm/AFDB50-plddt70.lmdb"
-# [ -z "${dataset_name_list}" ] && dataset_name_list="afdb"
+# [ -z "${data_path_list}" ] && data_path_list="data/used_data/MD22/AT_AT_CG_CG/radius3_broadcast/"
+# [ -z "${dataset_name_list}" ] && dataset_name_list="AT_AT_CG_CG"
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
 
+[ -z "${data_path_list}" ] && data_path_list="/data/blob/sfm/psm/AFDB50-plddt70.lmdb"
+[ -z "${dataset_name_list}" ] && dataset_name_list="afdb"
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
+[ -z "${force_head_type}" ] && force_head_type=LINEAR
+[ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1.0
+[ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
+[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1.0
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
-[ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1.0
-[ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=0.1
-[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=0.9
+[ -z "${bf16}" ] && bf16=False
+[ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
+[ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path=''
-[ -z "${save_dir}" ] && save_dir='./outputs'
+
+
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psmv1_vt_v10_1b/global_step185000/mp_rank_00_model_states.pt"
+[ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step165000"
+[ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
+
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
-[ -z "${dataset_name}" ] && dataset_name="."
 
-[ -z "${wandb_group}" ] && wandb_group=Xinran_psm_dev
+[ -z "${wandb_group}" ] && wandb_group=Lin_psm_dev_afdb
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_dev
-[ -z "${wandb_run_name}" ] && wandb_run_name=pretrain_psm_equiformerv2
 [ -z "${wandb_key}" ] && wandb_key=local-065f023e262b3ae11107532ba5463cd2d800d739
+[ -z "${wandb_run_name}" ] && wandb_run_name=test
 
-[ -z "${add_3d}" ] && add_3d=true
-[ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
+
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -87,10 +89,10 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
-[ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=3
+[ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=256
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=5.0
-[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=False
+[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 [ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
 
@@ -108,10 +110,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
-
-[ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=False
+[ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
+[ -z "${if_total_energy}" ] && if_total_energy=False
+[ -z "${decoder_feat4energy}" ] && decoder_feat4energy=True
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -124,7 +127,9 @@ echo "LOCAL_RANK : ${LOCAL_RANK}"
 echo "OMPI_COMM_WORLD_RANK: ${OMPI_COMM_WORLD_RANK}"
 echo "OMPI_COMM_WORLD_SIZE: ${OMPI_COMM_WORLD_SIZE}"
 echo "OMPI_COMM_WORLD_LOCAL_RANK: ${OMPI_COMM_WORLD_LOCAL_RANK}"
+
 # echo "AZUREML_EXPERIMENT_ID: ${AZUREML_EXPERIMENT_ID}"
+
 echo -e "\n\n"
 echo "=====================================ARGS======================================"
 echo "n_layers: ${layers}"
@@ -144,22 +149,17 @@ echo "weight_decay: ${weight_decay}"
 echo "droppath_prob: ${droppath_prob}"
 echo "atom_loss_coeff: ${atom_loss_coeff}"
 echo "pos_loss_coeff: ${pos_loss_coeff}"
-echo "no_2d: ${no_2d}"
-echo "add_3d: ${add_3d}"
 echo "data_path: ${data_path}"
 echo "output_path: ${output_path}"
-echo "dataset_name: ${dataset_name}"
 echo "mask_ratio: ${mask_ratio}"
 echo "mode_prob: ${mode_prob}"
 echo "noise_mode: ${noise_mode}"
-echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 # export NCCL_ASYNC_ERROR_HADNLING=1
 # export NCCL_DEBUG=INFO
 # export NCCL_IB_PCI_RELAXED_ORDERING=1
 # export NCCL_IB_DISABLE=1
-export NCCL_TIMEOUT_MS=1800000
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
-export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
+# export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export OMPI_COMM_WORLD_SIZE=1
 # export n_gpu=1
 # export NCCL_SOCKET_IFNAME=eth0
@@ -182,89 +182,98 @@ else
                       --master_addr $MASTER_ADDR"
   fi
 fi
-echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
-export wandb=$wandb
-export ifresume=True
+rm -rf /tmp/torchinductor_*/*
 
-# torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_small_mol.py \
-#           --config-name=config_psm.yaml \
-#           wandb_run_name="e2former-draft" \
-#           loss_unit="kcal/mol" \
-#           shuffle=True \
-#           noise_scale=0 \
-#           backbone_config=e2former \
-#           backbone=e2former \
-#           psm_finetune_valid_noise_mode="zero" \
-#           backbone_config.num_layers=9 \
-#           backbone_config.irreps_node_embedding="768x0e+128x1e+32x2e" \
-#           backbone_config.irreps_head="24x0e+4x1e+1x2e" \
-#           backbone_config.num_attn_heads=32 \
-#           backbone_config.number_of_basis=32 \
-#           backbone_config.max_radius=15 \
-#           encoder_embed_dim=768 \
-#           psm_finetune_mode=True \
-#           encoder_layers=$layers \
-#           droppath_prob=$droppath_prob \
-#           clean_sample_ratio=1.0 \
-#           attn_dropout=$attn_dropout \
-#           act_dropout=$act_dropout \
-#           dropout=$dropout \
-#           weight_decay=$weight_decay \
-#           sandwich_ln=True \
-#           add_3d=True \
-#           data_path=$data_path \
-#           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
-#           dataset_split_raito=\"$dataset_split_raito\" \
-#           save_dir=$save_dir \
-#           seed=12345 \
-#           ifresume=$ifresume \
-#           mask_ratio=$mask_ratio \
-#           num_pred_attn_layer=$num_pred_attn_layer \
-#           d_tilde=$d_tilde \
-#           strategy=$strategy \
-#           max_lr=$max_lr \
-#           num_timesteps=$num_timesteps \
-#           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
-#           use_2d_atom_features=False use_2d_bond_features=False \
-#           total_num_steps=$total_num_steps \
-#           warmup_num_steps=$warmup_num_steps \
-#           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
-#           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
-#           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
-#           gradient_accumulation_steps=$gradient_accumulation_steps \
-#           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
-#           save_batch_interval=$save_batch_interval log_interval=$log_interval \
-#           equivar_vec_init=$equivar_vec_init pbc_use_local_attention=$pbc_use_local_attention \
-#           pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
-#           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
-#           diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
-#           diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
-#           num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
-#           ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \
-#           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
-#           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
-#           clean_sample_ratio=$clean_sample_ratio \
-#           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
-#           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project wandb_run_name=$wandb_run_name \
-#           use_dali_pipeline=$use_dali_pipeline \
-#           molecule_energy_loss_ratio=$molecule_energy_loss_ratio material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
-#           preprocess_2d_bond_features_with_cuda=True \
-#           AutoGradForce=$AutoGradForce \
-#           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss val_batch_interval=$val_batch_interval \
-#           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
-#           ifresume=True \
+echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
+
+echo "strategy !!!! ${strategy}"
+
+export wandb=True
+[ -z "${ifresume}" ] && ifresume=False
+
+        #   backbone_config.num_layers=9 \
+        #   backbone_config.irreps_node_embedding="512x0e+512x1e" \
+        #   backbone_config.irreps_head="16x0e+16x1e" \
+        #   backbone_config.num_attn_heads=32 \
+#
+ #
+torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
+          --config-name=config_psm.yaml \
+          wandb=$wandb wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          wandb_run_name=$wandb_run_name \
+          clean_sample_ratio=$clean_sample_ratio \
+          backbone_config=e2former \
+          backbone=e2former \
+          backbone_config.num_layers=8 \
+          backbone_config.irreps_node_embedding="512x0e+512x1e+64x2e" \
+          backbone_config.irreps_head="16x0e+16x1e+2x2e" \
+          backbone_config.num_attn_heads=32 \
+          backbone_config.number_of_basis=32 \
+          backbone_config.max_radius=15 \
+          backbone_config.attn_type=12 \
+          backbone_config.edge_embedtype='highorder' \
+          backbone_config.add_rope=True \
+          encoder_embed_dim=512 \
+          encoder_attention_heads=$num_head \
+          encoder_layers=$layers \
+          num_pred_attn_layer=$num_pred_attn_layer \
+          encoder_ffn_embed_dim=$ffn_size \
+          droppath_prob=$droppath_prob \
+          attn_dropout=$attn_dropout \
+          act_dropout=$act_dropout \
+          dropout=$dropout \
+          weight_decay=$weight_decay \
+          sandwich_ln=True \
+          data_path=$data_path \
+          data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
+          dataset_split_raito=\"$dataset_split_raito\" \
+          save_dir=$save_dir \
+          seed=6666 \
+          loadcheck_path=$loadcheck_path \
+          ifresume=$ifresume \
+          mask_ratio=$mask_ratio \
+          d_tilde=$d_tilde \
+          strategy=$strategy \
+          max_lr=$max_lr \
+          diffusion_mode=\"$diffusion_mode\" \
+          mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
+          total_num_steps=$total_num_steps \
+          warmup_num_steps=$warmup_num_steps \
+          train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
+          gradient_accumulation_steps=$gradient_accumulation_steps \
+          save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
+          save_batch_interval=$save_batch_interval log_interval=$log_interval \
+          equivar_vec_init=$equivar_vec_init pbc_use_local_attention=$pbc_use_local_attention \
+          pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
+          pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
+          diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
+          psm_validation_mode=$psm_validation_mode \
+          diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
+          num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
+          ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \
+          dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
+          equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
+          use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
+          use_dali_pipeline=$use_dali_pipeline molecule_energy_loss_ratio=$molecule_energy_loss_ratio \
+          material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
+          preprocess_2d_bond_features_with_cuda=True \
+          AutoGradForce=$AutoGradForce force_head_type=$force_head_type \
+          only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
+          diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
+          mm_tensorcore=$mm_tensorcore compile=$compile \
+          if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy
 
 
 # torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
 #           --config-name=config_psm.yaml \
-#           backbone_config=e2former \
-#           backbone=e2former \
-#           backbone_config.num_layers=9 \
-#           backbone_config.irreps_node_embedding="768x0e+128x1e+32x2e" \
-#           backbone_config.irreps_head="24x0e+4x1e+1x2e" \
-#           backbone_config.num_attn_heads=32 \
-#           backbone_config.number_of_basis=32 \
-#           encoder_embed_dim=768 \
+#           backbone_config=equiformerv2 \
+#           backbone=equiformerv2 \
+#           backbone_config.embedding_dim=512 \
+#           backbone_config.num_heads=32 \
+#           backbone_config.order=4 \
+#           backbone_config.num_gnn_layers=6 \
+#           backbone_config.max_radius=10 \
+#           encoder_embed_dim=512 \
 #           encoder_attention_heads=$num_head \
 #           encoder_layers=$layers \
 #           num_pred_attn_layer=$num_pred_attn_layer \
@@ -275,103 +284,44 @@ export ifresume=True
 #           dropout=$dropout \
 #           weight_decay=$weight_decay \
 #           sandwich_ln=True \
-#           add_3d=True \
 #           data_path=$data_path \
 #           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
 #           dataset_split_raito=\"$dataset_split_raito\" \
 #           save_dir=$save_dir \
-#           seed=12345 \
+#           seed=6666 \
+#           loadcheck_path=$loadcheck_path \
 #           ifresume=$ifresume \
 #           mask_ratio=$mask_ratio \
 #           d_tilde=$d_tilde \
 #           strategy=$strategy \
 #           max_lr=$max_lr \
+#           diffusion_mode=\"$diffusion_mode\" \
 #           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
 #           total_num_steps=$total_num_steps \
 #           warmup_num_steps=$warmup_num_steps \
 #           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
 #           gradient_accumulation_steps=$gradient_accumulation_steps \
 #           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
-#           save_batch_interval=$save_batch_interval log_interval=$log_interval loadcheck_path=$loadcheck_path \
+#           save_batch_interval=$save_batch_interval log_interval=$log_interval \
 #           equivar_vec_init=$equivar_vec_init pbc_use_local_attention=$pbc_use_local_attention \
 #           pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
 #           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
 #           diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
+#           psm_validation_mode=$psm_validation_mode \
 #           diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
 #           num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
 #           ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \
 #           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
-#           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
-#           clean_sample_ratio=$clean_sample_ratio \
+#           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler
 #           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
-#           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project wandb_run_name=$wandb_run_name \
-#           use_dali_pipeline=$use_dali_pipeline \
-#           molecule_energy_loss_ratio=$molecule_energy_loss_ratio material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
+#           use_dali_pipeline=$use_dali_pipeline molecule_energy_loss_ratio=$molecule_energy_loss_ratio \
+#           material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
 #           preprocess_2d_bond_features_with_cuda=True \
-#           AutoGradForce=$AutoGradForce val_batch_interval=$val_batch_interval \
-#           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
+#           AutoGradForce=$AutoGradForce force_head_type=$force_head_type \
 #           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
-#           ifresume=True \
-
-
-torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
-          --config-name=config_psm.yaml \
-          backbone_config=equiformerv2 \
-          backbone=equiformerv2 \
-          backbone_config.embedding_dim=$hidden_size \
-          backbone_config.num_heads=32 \
-          backbone_config.order=2 \
-          backbone_config.num_gnn_layers=$layers \
-          backbone_config.max_radius=12 \
-          encoder_attention_heads=$num_head \
-          encoder_layers=$layers \
-          num_pred_attn_layer=$num_pred_attn_layer \
-          encoder_ffn_embed_dim=$ffn_size \
-          encoder_embed_dim=$hidden_size \
-          droppath_prob=$droppath_prob \
-          attn_dropout=$attn_dropout \
-          act_dropout=$act_dropout \
-          dropout=$dropout \
-          weight_decay=$weight_decay \
-          sandwich_ln=True \
-          add_3d=True \
-          data_path=$data_path \
-          data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
-          dataset_split_raito=\"$dataset_split_raito\" \
-          save_dir=$save_dir \
-          seed=12345 \
-          ifresume=$ifresume \
-          mask_ratio=$mask_ratio \
-          d_tilde=$d_tilde \
-          strategy=$strategy \
-          max_lr=$max_lr \
-          mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
-          total_num_steps=$total_num_steps \
-          warmup_num_steps=$warmup_num_steps \
-          train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
-          gradient_accumulation_steps=$gradient_accumulation_steps \
-          save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
-          save_batch_interval=$save_batch_interval log_interval=$log_interval loadcheck_path=$loadcheck_path \
-          equivar_vec_init=$equivar_vec_init pbc_use_local_attention=$pbc_use_local_attention \
-          pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
-          pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
-          diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
-          diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
-          num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
-          ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \
-          dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
-          equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
-          clean_sample_ratio=$clean_sample_ratio \
-          use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
-          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project wandb_run_name=$wandb_run_name \
-          use_dali_pipeline=$use_dali_pipeline \
-          molecule_energy_loss_ratio=$molecule_energy_loss_ratio material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
-          preprocess_2d_bond_features_with_cuda=True \
-          AutoGradForce=$AutoGradForce \
-          diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
-          wandb_run_name=$wandb_run_name val_batch_interval=$val_batch_interval \
-          only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
-          ifresume=True \
+#           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
+#           mm_tensorcore=$mm_tensorcore compile=$compile \
+#           if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy
 
 
 # torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
@@ -384,7 +334,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
 #           backbone_config.num_layers=6 \
 #           backbone_config.max_radius=10 \
 #           backbone_config.num_heads=$num_head \
-#           encoder_embed_dim=128 \
+#           encoder_embed_dim=512 \
 #           encoder_attention_heads=$num_head \
 #           encoder_layers=$layers \
 #           num_pred_attn_layer=$num_pred_attn_layer \
@@ -395,151 +345,157 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
 #           dropout=$dropout \
 #           weight_decay=$weight_decay \
 #           sandwich_ln=True \
-#           add_3d=True \
 #           data_path=$data_path \
 #           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
 #           dataset_split_raito=\"$dataset_split_raito\" \
 #           save_dir=$save_dir \
-#           seed=12345 \
+#           seed=6666 \
+#           loadcheck_path=$loadcheck_path \
 #           ifresume=$ifresume \
 #           mask_ratio=$mask_ratio \
 #           d_tilde=$d_tilde \
 #           strategy=$strategy \
 #           max_lr=$max_lr \
+#           diffusion_mode=\"$diffusion_mode\" \
 #           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
 #           total_num_steps=$total_num_steps \
 #           warmup_num_steps=$warmup_num_steps \
 #           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
 #           gradient_accumulation_steps=$gradient_accumulation_steps \
 #           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
-#           save_batch_interval=$save_batch_interval log_interval=$log_interval loadcheck_path=$loadcheck_path \
+#           save_batch_interval=$save_batch_interval log_interval=$log_interval \
 #           equivar_vec_init=$equivar_vec_init pbc_use_local_attention=$pbc_use_local_attention \
 #           pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
 #           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
 #           diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
+#           psm_validation_mode=$psm_validation_mode \
 #           diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
 #           num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
 #           ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \
 #           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
-#           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
-#           clean_sample_ratio=$clean_sample_ratio \
+#           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler
 #           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
-#           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project wandb_run_name=$wandb_run_name \
-#           use_dali_pipeline=$use_dali_pipeline \
-#           molecule_energy_loss_ratio=$molecule_energy_loss_ratio material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
+#           use_dali_pipeline=$use_dali_pipeline molecule_energy_loss_ratio=$molecule_energy_loss_ratio \
+#           material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
 #           preprocess_2d_bond_features_with_cuda=True \
-#           AutoGradForce=$AutoGradForce \
-#           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
-#           wandb_run_name=$wandb_run_name val_batch_interval=$val_batch_interval \
+#           AutoGradForce=$AutoGradForce force_head_type=$force_head_type \
 #           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
-#           ifresume=True \
+#           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
+#           mm_tensorcore=$mm_tensorcore compile=$compile \
+#           if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy
+
+
 
 
 # torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
 #           --config-name=config_psm.yaml \
+#           clean_sample_ratio=1 \
+#           wandb=$wandb wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+#           wandb_run_name="graphormer6L_geo4L" \
 #           backbone_config=graphormer \
 #           backbone=vanillatransformer \
+#           encoder_embed_dim=512 \
 #           encoder_attention_heads=$num_head \
-#           encoder_layers=6 \
+#           encoder_layers=$layers \
 #           num_pred_attn_layer=$num_pred_attn_layer \
 #           encoder_ffn_embed_dim=$ffn_size \
-#           encoder_embed_dim=1024 \
 #           droppath_prob=$droppath_prob \
 #           attn_dropout=$attn_dropout \
 #           act_dropout=$act_dropout \
 #           dropout=$dropout \
 #           weight_decay=$weight_decay \
 #           sandwich_ln=True \
-#           add_3d=True \
 #           data_path=$data_path \
 #           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
 #           dataset_split_raito=\"$dataset_split_raito\" \
 #           save_dir=$save_dir \
-#           seed=12345 \
+#           seed=6666 \
+#           loadcheck_path=$loadcheck_path \
 #           ifresume=$ifresume \
 #           mask_ratio=$mask_ratio \
 #           d_tilde=$d_tilde \
 #           strategy=$strategy \
 #           max_lr=$max_lr \
+#           diffusion_mode=\"$diffusion_mode\" \
 #           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
 #           total_num_steps=$total_num_steps \
 #           warmup_num_steps=$warmup_num_steps \
 #           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
 #           gradient_accumulation_steps=$gradient_accumulation_steps \
 #           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
-#           save_batch_interval=$save_batch_interval log_interval=$log_interval loadcheck_path=$loadcheck_path \
+#           save_batch_interval=$save_batch_interval log_interval=$log_interval \
 #           equivar_vec_init=$equivar_vec_init pbc_use_local_attention=$pbc_use_local_attention \
 #           pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
 #           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
 #           diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
+#           psm_validation_mode=$psm_validation_mode \
 #           diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
 #           num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
 #           ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \
 #           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
-#           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
-#           clean_sample_ratio=$clean_sample_ratio \
+#           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler
 #           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
-#           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project wandb_run_name=$wandb_run_name \
-#           use_dali_pipeline=$use_dali_pipeline \
-#           molecule_energy_loss_ratio=$molecule_energy_loss_ratio material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
+#           use_dali_pipeline=$use_dali_pipeline molecule_energy_loss_ratio=$molecule_energy_loss_ratio \
+#           material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
 #           preprocess_2d_bond_features_with_cuda=True \
-#           AutoGradForce=$AutoGradForce \
-#           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
-#           wandb_run_name=$wandb_run_name val_batch_interval=$val_batch_interval \
+#           AutoGradForce=$AutoGradForce force_head_type=$force_head_type \
 #           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
-#           ifresume=True \
+#           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
+#           mm_tensorcore=$mm_tensorcore compile=$compile \
+#           if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy
+
 
 
 # torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
 #           --config-name=config_psm.yaml \
 #           backbone_config=graphormer \
 #           backbone=graphormer \
+#           encoder_embed_dim=512 \
 #           encoder_attention_heads=$num_head \
-#           encoder_layers=24 \
-#           num_pred_attn_layer=4 \
+#           encoder_layers=$layers \
+#           num_pred_attn_layer=$num_pred_attn_layer \
 #           encoder_ffn_embed_dim=$ffn_size \
-#           encoder_embed_dim=1024 \
 #           droppath_prob=$droppath_prob \
 #           attn_dropout=$attn_dropout \
 #           act_dropout=$act_dropout \
 #           dropout=$dropout \
 #           weight_decay=$weight_decay \
 #           sandwich_ln=True \
-#           add_3d=True \
 #           data_path=$data_path \
 #           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
 #           dataset_split_raito=\"$dataset_split_raito\" \
 #           save_dir=$save_dir \
-#           seed=12345 \
+#           seed=6666 \
+#           loadcheck_path=$loadcheck_path \
 #           ifresume=$ifresume \
 #           mask_ratio=$mask_ratio \
 #           d_tilde=$d_tilde \
 #           strategy=$strategy \
 #           max_lr=$max_lr \
-#           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
+#           diffusion_mode=\"$diffusion_mode\" \
+#           mode_prob=\"$mode_prob\" noise_mode=$noise_mode \
 #           total_num_steps=$total_num_steps \
 #           warmup_num_steps=$warmup_num_steps \
 #           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
 #           gradient_accumulation_steps=$gradient_accumulation_steps \
 #           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
-#           save_batch_interval=$save_batch_interval log_interval=$log_interval loadcheck_path=$loadcheck_path \
+#           save_batch_interval=$save_batch_interval log_interval=$log_interval \
 #           equivar_vec_init=$equivar_vec_init pbc_use_local_attention=$pbc_use_local_attention \
 #           pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
 #           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
 #           diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
+#           psm_validation_mode=$psm_validation_mode \
 #           diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
 #           num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
 #           ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \
 #           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
-#           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
-#           clean_sample_ratio=$clean_sample_ratio \
+#           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler
 #           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
-#           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project wandb_run_name=$wandb_run_name \
-#           use_dali_pipeline=$use_dali_pipeline \
-#           molecule_energy_loss_ratio=$molecule_energy_loss_ratio material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
+#           use_dali_pipeline=$use_dali_pipeline molecule_energy_loss_ratio=$molecule_energy_loss_ratio \
+#           material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
 #           preprocess_2d_bond_features_with_cuda=True \
-#           AutoGradForce=$AutoGradForce \
-#           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
-#           wandb_run_name=$wandb_run_name val_batch_interval=$val_batch_interval \
+#           AutoGradForce=$AutoGradForce force_head_type=$force_head_type \
 #           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
-#           ifresume=True \
+#           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
+#           mm_tensorcore=$mm_tensorcore compile=$compile \
+#           if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy

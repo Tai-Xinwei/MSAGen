@@ -1642,6 +1642,12 @@ class GeomFormer(nn.Module):
                 embedding_dim,
                 bias=False,
             )
+        elif self.psm_config.equivar_vec_init == VecInitApproach.RELATIVE_POS_VEC_BIAS:
+            self.unified_vec_proj = nn.Linear(
+                num_3d_bias_kernel,
+                embedding_dim,
+                bias=True,
+            )
 
         self.unified_augmented_vec_proj = nn.Linear(
             num_3d_bias_kernel,
@@ -1708,6 +1714,7 @@ class GeomFormer(nn.Module):
         elif self.psm_config.equivar_vec_init in [
             VecInitApproach.RELATIVE_POS,
             VecInitApproach.AUGMENTED_RELATIVE_POS,
+            VecInitApproach.RELATIVE_POS_VEC_BIAS,
         ]:
             uni_gbf_pos_feature = self.unified_gbf_vec(
                 dist, node_type_edge

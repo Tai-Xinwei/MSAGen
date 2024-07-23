@@ -213,14 +213,14 @@ class DiffMAE3dCriterions(nn.Module):
             )
         return force_or_noise_loss, num_samples
 
-    def calculate_pos_pred(self, model_output, batched_data):
+    def calculate_pos_pred(self, model_output):
         noise_pred = model_output["noise_pred"]
         sqrt_one_minus_alphas_cumprod_t = model_output[
             "sqrt_one_minus_alphas_cumprod_t"
         ]
         sqrt_alphas_cumprod_t = model_output["sqrt_alphas_cumprod_t"]
         pos_pred = (
-            batched_data["pos"] - sqrt_one_minus_alphas_cumprod_t * noise_pred
+            model_output["pos"] - sqrt_one_minus_alphas_cumprod_t * noise_pred
         ) / sqrt_alphas_cumprod_t
         return pos_pred
 
@@ -360,7 +360,7 @@ class DiffMAE3dCriterions(nn.Module):
             # diffussion loss
             if self.diffusion_mode == "epsilon":
                 if not is_seq_only.any():
-                    pos_pred = self.calculate_pos_pred(model_output, batched_data)
+                    pos_pred = self.calculate_pos_pred(model_output)
                     if self.args.align_x0_in_diffusion_loss:
                         R, T = self._alignment_x0(model_output, pos_pred)
                     else:

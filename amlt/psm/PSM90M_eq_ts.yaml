@@ -6,15 +6,14 @@
 description: equi
 env_defaults:
   NODES: 1
-  GPUS_PER_NODE: 4
+  GPUS_PER_NODE: 8
   WANDB_API_KEY: "local-065f023e262b3ae11107532ba5463cd2d800d739"
 
 target:
   service: aml
-  name: es-madft-nc96-eastus2
-# name: townsend1
-# name: sfm-nd96amsra100v4-uksouth
-#     # name: sfm-nc96-westus3
+  # name: es-madft-nc96-eastus2
+  name: townsend1
+
 environment:
   # image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
   image: ai4s-sfm:20240531.170731
@@ -22,8 +21,11 @@ environment:
   username: msrmoldyn
 storage:
   blob:
-    storage_account_name: sfmdataeastus2 # Storage account
-    container_name: psm # Container name
+    # storage_account_name: sfmdataeastus2 # Storage account
+    # container_name: psm # Container name
+    # mount_dir: /blob
+    storage_account_name: sfmarca100 # Storage account
+    container_name: sfm # Container name
     mount_dir: /blob
 
 code:
@@ -32,17 +34,20 @@ code:
 jobs:
 - name: equiv2-psm-3types-lh-e0.1f9.9
   # tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
-  tags: [ProjectID:PRJ-0192-A37]
-  sku: ${NODES}xG${GPUS_PER_NODE}
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  sku: ${NODES}xG${GPUS_PER_NODE}-IB
   identity: managed
   mpi: true
   process_count_per_node: 1
     # sla_tier: premium
   command:
-  - export data_path=/blob/data/
+  # - export data_path=/blob/data/
+  - export data_path=/nfs6/psmdata/
+
   - mkdir -p /blob/psm-checkpoints/equiv2-psm-3types-lh-e0.1f9.9
   - export wandb_run_name=equiv2-psm-3types-lh-e0.1f9.9
   - export save_dir=/blob/psm-checkpoints/equiv2-psm-3types-lh-e0.1f9.9
+  - export loadcheck_path=/blob/psm-checkpoints/equiv2-psm-3types-lh-e0.1f9.9
   - export molecule_energy_loss_ratio=1.0
   - export material_energy_loss_ratio=0.1
   - export material_force_loss_ratio=9.9

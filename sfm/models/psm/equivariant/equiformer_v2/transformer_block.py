@@ -7,6 +7,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch_geometric
 
+from sfm.modules.rotary_embedding import RotaryEmbedding
+
 from .activation import (
     GateActivation,
     S2Activation,
@@ -87,6 +89,7 @@ class SO2EquivariantGraphAttention(torch.nn.Module):
         use_gate_act=False,
         use_sep_s2_act=True,
         alpha_drop=0.0,
+        add_rope=True,
     ):
         super(SO2EquivariantGraphAttention, self).__init__()
 
@@ -230,15 +233,35 @@ class SO2EquivariantGraphAttention(torch.nn.Module):
             self.output_channels,
             lmax=self.lmax_list[0],
         )
+        self.add_rope = add_rope
+        if add_rope:
+            self.rot_emb = RotaryEmbedding(dim=self.edge_channels_list[-1])
 
     def forward(self, x, atomic_numbers, edge_distance, edge_index):
         # Compute edge scalar features (invariant to rotations)
         # Uses atomic numbers and edge distance as inputs
         if self.use_atom_edge_embedding:
-            source_element = atomic_numbers[edge_index[0]]  # Source atom atomic number
-            target_element = atomic_numbers[edge_index[1]]  # Target atom atomic number
-            source_embedding = self.source_embedding(source_element)
-            target_embedding = self.target_embedding(target_element)
+            # source_element = atomic_numbers[edge_index[0]]  # Source atom atomic number
+            # target_element = atomic_numbers[edge_index[1]]  # Target atom atomic number
+            # source_embedding = self.source_embedding(source_element)
+            # target_embedding = self.target_embedding(target_element)
+            ori_atomic_numbers, token_mask = atomic_numbers
+            source_embedding = self.source_embedding(ori_atomic_numbers)
+            target_embedding = self.target_embedding(ori_atomic_numbers)
+            if self.add_rope:
+                (
+                    source_embedding,
+                    target_embedding,
+                ) = self.rot_emb(source_embedding, target_embedding)
+
+            bs, length = ori_atomic_numbers.shape[0], ori_atomic_numbers.shape[1]
+            source_embedding = source_embedding.reshape(bs * length, -1)[token_mask]
+            target_embedding = target_embedding.reshape(bs * length, -1)[token_mask]
+            atomic_numbers = ori_atomic_numbers.reshape(-1)[token_mask]
+
+            source_embedding = source_embedding[edge_index[0]]
+            target_embedding = target_embedding[edge_index[1]]
+
             x_edge = torch.cat(
                 (edge_distance, source_embedding, target_embedding), dim=1
             )
@@ -505,8 +528,8 @@ class TransBlockV2(torch.nn.Module):
         num_heads (int):            Number of attention heads
         attn_alpha_head (int):      Number of channels for alpha vector in each attention head
         attn_value_head (int):      Number of channels for value vector in each attention head
-        ffn_hidden_channels (int):  Number of hidden channels used during feedforward network
-        output_channels (int):      Number of output channels
+        ffn_hiddenchannels (int):  Number of hidden channels used during feedforward network
+        output_chan_nels (int):      Number of output channels
 
         lmax_list (list:int):       List of degrees (l) for each resolution
         mmax_list (list:int):       List of orders (m) for each resolution
@@ -565,6 +588,7 @@ class TransBlockV2(torch.nn.Module):
         alpha_drop=0.0,
         drop_path_rate=0.0,
         proj_drop=0.0,
+        add_rope=True,
     ):
         super(TransBlockV2, self).__init__()
 
@@ -595,6 +619,7 @@ class TransBlockV2(torch.nn.Module):
             use_gate_act=use_gate_act,
             use_sep_s2_act=use_sep_s2_act,
             alpha_drop=alpha_drop,
+            add_rope=add_rope,
         )
 
         self.drop_path = GraphDropPath(drop_path_rate) if drop_path_rate > 0.0 else None
@@ -668,7 +693,7 @@ class TransBlockV2(torch.nn.Module):
                 output_embedding.embedding, batch
             )
 
-        if self.ffn_shortcut is not None:
+        if self.ffn_shortcut is not None:  # linear: sphere_channels => output_channels
             shortcut_embedding = SO3_Embedding(
                 0,
                 output_embedding.lmax_list.copy(),

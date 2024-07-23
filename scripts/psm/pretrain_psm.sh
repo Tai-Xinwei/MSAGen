@@ -16,7 +16,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${max_length}" ] && max_length=512
+[ -z "${max_length}" ] && max_length=1024
 [ -z "${max_tokens}" ] && max_tokens=2000
 # [ -z "${max_tokens}" ] && max_tokens=36000
 
@@ -39,7 +39,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=DDP
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000
+[ -z "${save_batch_interval}" ] && save_batch_interval=2500
 [ -z "${log_interval}" ] && log_interval=100
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=30000
@@ -49,10 +49,10 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
 # [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='pm6_10M_refined4.lmdb,matter-sim-15M-merged,AFDB50-plddt70.lmdb,matter-sim-15M-force-filtered-merged'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,2,4"
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.05,0.3,0.15,0.1,0.1,0.1'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,2,4,2,2,2"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
@@ -66,7 +66,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${wandb_group}" ] && wandb_group=psm_dev
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_dev
-[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
+[ -z "${wandb_key}" ] && wandb_key=local-92e9aa662fb8066a31846fb8e57abd4e90ed09d8
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -74,12 +74,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
-[ -z "${equivar_vec_init}" ] && equivar_vec_init="ZERO_CENTERED_POS"
+[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=256
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=5.0
-[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=False
+[ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
@@ -123,6 +123,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${node_type_edge_method}" ] && node_type_edge_method=NON_EXCHANGABLE
 [ -z "${force_head_type}" ] && force_head_type=GATED_EQUIVARIANT
 [ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=True
+[ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=128
+[ -z "${use_smooth_equviariant_norm}" ] && use_smooth_equviariant_norm=True
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -234,6 +236,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           decoder_ffn_dim=$decoder_ffn_dim \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
           use_dali_pipeline=$use_dali_pipeline \
+          wandb_run_name=$wandb_run_name val_batch_interval=$val_batch_interval \
           psm_matbench_task_name=$psm_matbench_task_name \
           psm_matbench_fold_id=$psm_matbench_fold_id \
           psm_finetune_valid_noise_mode=$psm_finetune_valid_noise_mode \
@@ -245,4 +248,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           no_rotary_embedding_for_vector=$no_rotary_embedding_for_vector \
           node_type_edge_method=$node_type_edge_method \
           force_head_type=$force_head_type \
-          mlm_from_decoder_feature=$mlm_from_decoder_feature
+          mlm_from_decoder_feature=$mlm_from_decoder_feature \
+          num_3d_bias_kernel=$num_3d_bias_kernel \
+          use_smooth_equviariant_norm=$use_smooth_equviariant_norm

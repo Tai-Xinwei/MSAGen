@@ -150,7 +150,7 @@ class SO2_Convolution(torch.nn.Module):
         if self.rad_func is not None:
             x_edge_0 = x_edge.narrow(1, 0, self.fc_m0.in_features)
             x_0 = x_0 * x_edge_0
-        x_0 = self.fc_m0(x_0)
+        x_0 = self.fc_m0(x_0)  # Linear
 
         x_0_extra = None
         # extract extra m0 features

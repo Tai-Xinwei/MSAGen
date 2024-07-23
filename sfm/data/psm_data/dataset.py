@@ -416,9 +416,9 @@ class SmallMolDataset(FoundationModelDataset):
         (
             self.atom_reference,
             self.system_ref,
-            _,
-            _,
-            _,
+            self.train_ratio,
+            self.val_ratio,
+            self.test_ratio,
             self.has_energy,
             self.has_forces,
             self.is_pbc,
@@ -493,7 +493,7 @@ class SmallMolDataset(FoundationModelDataset):
         data_object.id = el_idx  # f"{db_idx}_{el_idx}"
 
         energy = data_object.energy
-        # out["pyscf_energy"] = copy.deepcopy(energy.astype(np.float64))  # this is pyscf energy ground truth
+        # out["pyscf_energy"] = copy.deepcopy(energy.astype(np.float32))  # this is pyscf energy ground truth
         if self.remove_atomref_energy:
             unique, counts = np.unique(
                 data_object.atomic_numbers.int().numpy(), return_counts=True
@@ -502,6 +502,7 @@ class SmallMolDataset(FoundationModelDataset):
             energy = torch.Tensor([energy - self.system_ref])
 
         out = {
+            "sample_type": 0,
             "coords": data_object.pos,
             "forces": data_object.forces * self.unit,
             "num_atoms": data_object.pos.shape[0],
@@ -525,7 +526,7 @@ class SmallMolDataset(FoundationModelDataset):
                     [1.0, 1.0, 0.0],
                     [1.0, 1.0, 1.0],
                 ],
-                dtype=torch.float64,
+                dtype=torch.float32,
             )
             out["token_type"] = torch.cat(
                 [out["token_type"], torch.full([8], 128)], dim=-1
@@ -538,32 +539,32 @@ class SmallMolDataset(FoundationModelDataset):
             )  # expand pos with cell corners
             out["forces"] = torch.cat(
                 [
-                    torch.tensor(out["forces"].clone().detach(), dtype=torch.float64),
-                    torch.zeros([8, 3], dtype=torch.float64),
+                    torch.tensor(out["forces"].clone().detach(), dtype=torch.float32),
+                    torch.zeros([8, 3], dtype=torch.float32),
                 ],
                 dim=0,
             )  # expand forces for cell corners
 
             out["cell"] = data_object.cell.squeeze(dim=0)
-            out["pbc"] = torch.ones(3, dtype=torch.float64).bool()
+            out["pbc"] = torch.ones(3, dtype=torch.float32).bool()
             out["stress"] = torch.zeros(
-                (3, 3), dtype=torch.float64, device=energy.device
+                (3, 3), dtype=torch.float32, device=energy.device
             )
             out["cell_offsets"] = data_object.cell_offsets.numpy()
 
             out["energy_per_atom"] = out["energy"] / out["num_atoms"]
 
         else:
-            out["cell"] = torch.zeros((3, 3), dtype=torch.float64)
-            out["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+            out["cell"] = torch.zeros((3, 3), dtype=torch.float32)
+            out["pbc"] = torch.zeros(3, dtype=torch.float32).bool()
             out["stress"] = torch.zeros(
-                (3, 3), dtype=torch.float64, device=energy.device
+                (3, 3), dtype=torch.float32, device=energy.device
             )
 
             out["energy_per_atom"] = out["energy"] / out["num_atoms"]
 
         if self.enable_hami:
-            # out.update({"init_fock":data_object.init_fock.astype(np.float64)})
+            # out.update({"init_fock":data_object.init_fock.astype(np.float32)})
             if self.remove_init:
                 data_object.fock = data_object.fock - data_object.init_fock
             if self.Htoblock_otf is True:
@@ -601,8 +602,9 @@ class SmallMolDataset(FoundationModelDataset):
                 "edge_index",
                 "has_energy",
                 "has_forces",
+                "sample_type",
             ]:
-                out[key] = torch.tensor(out[key], dtype=torch.float64)
+                out[key] = torch.tensor(out[key], dtype=torch.float32)
 
         out = self.generate_2dgraphfeat(out)
 
@@ -621,13 +623,8 @@ class SmallMolDataset(FoundationModelDataset):
 
         data["edge_index"] = edge_index
         data["edge_attr"] = edge_attr
-        data["node_attr"] = torch.cat(
-            [
-                data["token_type"].unsqueeze(-1),
-                torch.zeros([data["token_type"].size()[0], 8], dtype=torch.long),
-            ],
-            dim=-1,
-        )
+        data["node_attr"] = data["token_type"].reshape(-1, 1)
+
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
 
@@ -987,10 +984,6 @@ class AFDBLMDBDataset(FoundationModelDataset):
         self._env, self._txn = None, None
         self._sizes, self._keys = None, None
 
-        # self.filter_indices_by_size(
-        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
-        # )
-
     def _init_db(self):
         self._env = lmdb.open(
             str(self.lmdb_path),
@@ -1195,9 +1188,6 @@ class PDBDataset(AFDBLMDBDataset):
         if lmdb_path.find(version) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
         super().__init__(args, lmdb_path)
-        # self.filter_indices_by_size(
-        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
-        # )
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
@@ -1501,8 +1491,6 @@ class PDBComplexDataset(AFDBLMDBDataset):
             lmdb_path = os.path.join(lmdb_path, version)
         super().__init__(args, lmdb_path)
 
-        # self.filter_AllNan_indices()
-
     def _init_db(self):
         self._env = lmdb.open(
             str(self.lmdb_path),
@@ -1514,7 +1502,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
         )
         self._txn = self.env.begin(write=False)
         metadata = bstr2obj(self.txn.get("__metadata__".encode()))
-        self._keys = metadata["keys"]
+        if self._keys is None:
+            self._keys = metadata["keys"]
 
     def _crop_and_reconstruct_graph(self, data):
         polymer_chains = data["polymer_chains"]
