@@ -984,10 +984,6 @@ class AFDBLMDBDataset(FoundationModelDataset):
         self._env, self._txn = None, None
         self._sizes, self._keys = None, None
 
-        # self.filter_indices_by_size(
-        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
-        # )
-
     def _init_db(self):
         self._env = lmdb.open(
             str(self.lmdb_path),
@@ -1192,9 +1188,6 @@ class PDBDataset(AFDBLMDBDataset):
         if lmdb_path.find(version) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
         super().__init__(args, lmdb_path)
-        # self.filter_indices_by_size(
-        #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length - 2
-        # )
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
@@ -1497,8 +1490,6 @@ class PDBComplexDataset(AFDBLMDBDataset):
         if lmdb_path.find(version) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
         super().__init__(args, lmdb_path)
-
-        # self.filter_AllNan_indices()
 
     def _init_db(self):
         self._env = lmdb.open(

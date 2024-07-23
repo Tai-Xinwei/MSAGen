@@ -188,7 +188,7 @@ class SFMRotaryEmbedding(torch.nn.Module):
                 / self.dim
             )
         )
-        self.register_buffer("inv_freq", inv_freq, persistent=False)
+        self.register_buffer("inv_freq", inv_freq, persistent=True)
         self.max_seq_len_cached = max_position_embeddings
 
     def apply_rotary_pos_emb(self, q, k, cos, sin, position_ids=None, unsqueeze_dim=1):

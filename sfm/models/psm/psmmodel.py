@@ -281,6 +281,10 @@ class PSMModel(Model):
         time_step = time_step.masked_fill(padding_mask, 0.0)
         # set T noise for batched_data["protein_mask"] nan/inf coords
         time_step = time_step.masked_fill(batched_data["protein_mask"].any(dim=-1), 1.0)
+        # make sure noise really replaces nan/inf coords
+        clean_mask = clean_mask.masked_fill(
+            batched_data["protein_mask"].any(dim=-1), False
+        )
 
         return clean_mask, aa_mask, time_step
 
@@ -1260,6 +1264,7 @@ class PSM(nn.Module):
             "is_complex": batched_data["is_complex"],
             "is_seq_only": batched_data["is_seq_only"],
             "num_atoms": batched_data["num_atoms"],
+            "pos": batched_data["pos"],
         }
 
         if self.psm_config.psm_finetune_mode:

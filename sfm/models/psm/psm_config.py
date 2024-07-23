@@ -10,6 +10,7 @@ class VecInitApproach(Enum):
     ZERO_CENTERED_POS: str = "ZERO_CENTERED_POS"
     RELATIVE_POS: str = "RELATIVE_POS"
     AUGMENTED_RELATIVE_POS: str = "AUGMENTED_RELATIVE_POS"
+    RELATIVE_POS_VEC_BIAS: str = "RELATIVE_POS_VEC_BIAS"
 
     def __str__(self):
         return self.value
