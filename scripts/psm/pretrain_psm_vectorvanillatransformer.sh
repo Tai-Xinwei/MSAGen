@@ -13,7 +13,7 @@ export MKL_THREADING_LAYER='GNU'
 # azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
 
 [ -z "${layers}" ] && layers=28
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=20
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=24
 [ -z "${hidden_size}" ] && hidden_size=1536
 [ -z "${ffn_size}" ] && ffn_size=6144
 [ -z "${num_head}" ] && num_head=32

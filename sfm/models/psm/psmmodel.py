@@ -843,12 +843,12 @@ class PSM(nn.Module):
         )
 
         # Implement the embedding
-        if args.backbone in ["vanillatransformer", "dit"]:
+        if args.backbone in ["vanillatransformer", "dit", "vectorvanillatransformer"]:
             self.embedding = PSMMix3dEmbedding(
                 psm_config, use_unified_batch_sampler=args.use_unified_batch_sampler
             )
             # self.embedding = PSMMixEmbedding(psm_config)
-        elif args.backbone in ["vanillatransformer_equiv", "vectorvanillatransformer"]:
+        elif args.backbone in ["vanillatransformer_equiv"]:
             self.embedding = PSMMix3DEquivEmbedding(psm_config)
         else:
             self.embedding = PSMMixEmbedding(psm_config)
@@ -874,9 +874,9 @@ class PSM(nn.Module):
             # Implement the encoder
             self.encoder = PSMPlainEncoder(args, psm_config)
             # Implement the decoder
-            # self.decoder = EquivariantDecoder(psm_config)
+            self.decoder = EquivariantDecoder(psm_config)
             # self.decoder = NodeTaskHead(psm_config)
-            self.decoder = VectorVanillaTransformer(psm_config)
+            # self.decoder = VectorVanillaTransformer(psm_config)
         elif args.backbone in ["vectorvanillatransformer"]:
             self.encoder = None
             self.decoder = VectorVanillaTransformer(psm_config)

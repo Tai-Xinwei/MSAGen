@@ -12,7 +12,7 @@ export MKL_THREADING_LAYER='GNU'
 # # find the folder in /tmp and starts with azcopy_linux_amd64
 # azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
 
-[ -z "${layers}" ] && layers=28
+[ -z "${layers}" ] && layers=26
 [ -z "${hidden_size}" ] && hidden_size=1536
 [ -z "${ffn_size}" ] && ffn_size=6144
 [ -z "${num_head}" ] && num_head=32
@@ -84,7 +84,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${force_head_type}" ] && force_head_type=MLP
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=10.0
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
-[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=5.0
+[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1.0
 
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False

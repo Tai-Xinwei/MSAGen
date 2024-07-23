@@ -200,10 +200,10 @@ class VectorVanillaTransformer(nn.Module):
         # pos_emb = pos_emb.masked_fill(padding_mask.unsqueeze(-1), 0.0)
         # delta_pos = delta_pos.masked_fill(padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0)
         # delta_pos = delta_pos.masked_fill(expand_mask.unsqueeze(1).unsqueeze(-1), 0.0)
-        # vec = self.vec_project(pos_emb).view(bsz, n_node, 3, -1)
+        vec = self.vec_project(pos_emb).view(bsz, n_node, 3, -1)
         # vec = vec * delta_pos.sum(dim=-2).unsqueeze(-1).type_as(vec)  # [bsz, n, n_expand, 3, H]
 
-        vec = pos_emb
+        # vec = pos_emb
         for layer in self.layers:
             x, vec = layer(batched_data, x, vec, padding_mask, pbc_expand_batched)
 
@@ -284,8 +284,11 @@ class VectorTransformerBlock(nn.Module):
             ),
         )
 
-    def modulate(self, x, scale, shift):
-        return x * scale + shift
+    def modulate(self, x, scale, shift=None):
+        if shift is not None:
+            return x * scale + shift
+        else:
+            return x * scale
 
     def forward(
         self,
@@ -306,7 +309,7 @@ class VectorTransformerBlock(nn.Module):
         scale_x, shift_x = self.adaLN_modulation_x(x).chunk(2, dim=-1)
 
         x = self.modulate(x, scale_vec.norm(dim=-2), shift_vec.norm(dim=-2))
-        vec = self.modulate(vec, scale_x.unsqueeze(-2), shift_x.unsqueeze(-2))
+        vec = self.modulate(vec, scale_x.unsqueeze(-2))
 
         if self.psm_config.only_use_rotary_embedding_for_protein:
             x = self.attn(

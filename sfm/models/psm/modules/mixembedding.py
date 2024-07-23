@@ -196,4 +196,4 @@ class PSMMix3dEmbedding(nn.Module):
             )
             x[init_pos_mask, :] += init_pos_embedding[init_pos_mask, :]
 
-        return x, padding_mask, time_embed, pos_embedding + time_embed
+        return x, padding_mask, time_embed, pos_embedding
