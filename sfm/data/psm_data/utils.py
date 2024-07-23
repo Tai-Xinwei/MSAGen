@@ -316,7 +316,6 @@ def get_data_defult_config(data_name):
     # train ratio , val ratio,test ratio can be int or float.
     has_energy, has_forces, is_pbc = 1, 1, 0
     unit = 0.0433634  # from kcal/mol - > eV
-
     train_ratio, val_ratio, test_ratio = None, None, None
     if data_name.lower() == "qh9":
         train_ratio, val_ratio, test_ratio = 0.8, 0.1, 0.1

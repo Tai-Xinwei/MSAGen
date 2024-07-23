@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from datetime import timedelta
 import torch
 import os
 
@@ -11,23 +12,22 @@ from pathlib import Path
 from abc import ABC, abstractmethod
 
 import argparse
-from argparse import ArgumentParser
 
 from tqdm import tqdm
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM
 from transformers import LlamaConfig, LlamaForCausalLM
 
 import pickle as pkl
 
-from glob import glob
 import time
 
-import torch.distributed as dist
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 sys.path.append(os.path.join(Path(__file__).parent.parent.parent, "."))
 
 from sfm.data.sci_data.NlmTokenizer import NlmLlama3Tokenizer
+from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+
 
 def setup_for_distributed(is_master):
     """
@@ -72,6 +72,7 @@ def init_distributed_mode(local_rank=0):
         init_method="env://",
         world_size=local_world_size,
         rank=local_rank,
+        timeout=timedelta(seconds=30*60*1000) # 30 minutes as the model can be large,
     )
     torch.cuda.set_device(local_gpu)
 
@@ -132,8 +133,14 @@ class NLMGenerator(ABC):
             max_new_tokens = kwargs.pop("max_new_tokens")
         else:
             max_new_tokens = 100
+
+        if isinstance(self.model, torch.nn.parallel.DistributedDataParallel):
+            model = self.model.module
+        else:
+            model = self.model
+
         if do_sample:
-            outputs = self.model.module.generate(
+            outputs = model.generate(
                 input_ids,
                 attention_mask=attention_mask,
                 max_new_tokens=max_new_tokens,
@@ -141,16 +148,20 @@ class NLMGenerator(ABC):
                 do_sample=True,
                 temperature=0.75,
                 top_p=0.95,
+                pad_token_id=self.tokenizer.pad_token_id,
+                eos_token_id=self.tokenizer.eos_token_id,
                 **kwargs,
             )
         else:
-            outputs = self.model.module.generate(
+            outputs = model.generate(
                 input_ids,
                 attention_mask=attention_mask,
                 num_beams=4,
                 max_new_tokens=max_new_tokens,
                 num_return_sequences=4,
                 do_sample=False,
+                pad_token_id=self.tokenizer.pad_token_id,
+                eos_token_id=self.tokenizer.eos_token_id,
                 **kwargs,
             )
 
@@ -164,6 +175,8 @@ class NLMGenerator(ABC):
             resp = segs[0].strip()
             if "<protein>" in resp:
                 resp = resp.replace(" <a>", "")
+            if '<mol>' in resp or '<prodcut>' in resp or '<reactant>' in resp:
+                resp = resp.replace(' <m>', '')
             out_list.append(resp)
         return out_list
 
@@ -512,6 +525,10 @@ class MixtralGenerator(NLMGenerator):
     def download_and_convert_ckpt(self, mixtral_blob_path, nlm_blob_path, local_path):
         import safetensors.torch as st
 
+        if os.path.exists(local_path) and os.listdir(local_path):
+            print(f"local_path {local_path} exists and not empty, skip")
+            return
+
         os.makedirs(local_path, exist_ok=True)
         bar = tqdm(total=35)
 
@@ -657,6 +674,7 @@ class MixtralGenerator(NLMGenerator):
         from sfm.data.sci_data.NlmTokenizer import NlmTokenizer
 
         tokenizer = NlmTokenizer.from_pretrained(self.base_model_home)
+        tokenizer.padding_side = "left"
         print("vocab size", len(tokenizer))
 
         from transformers import BitsAndBytesConfig
@@ -832,6 +850,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    print('args:', args)
 
     init_distributed_mode()
 

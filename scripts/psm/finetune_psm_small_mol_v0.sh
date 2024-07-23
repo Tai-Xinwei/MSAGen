@@ -20,6 +20,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
+[ -z "${loss_unit}" ] && loss_unit="ev"
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=512
 [ -z "${max_tokens}" ] && max_tokens=2000
@@ -33,6 +34,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
+[ -z "${psm_finetune_valid_noise_mode}" ] && psm_finetune_valid_noise_mode=zero
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
@@ -225,6 +227,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_small_mol.py \
           strategy=$strategy \
           max_lr=$max_lr \
           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
+          psm_finetune_valid_noise_mode=$psm_finetune_valid_noise_mode \
           use_2d_atom_features=True use_2d_bond_features=True \
           total_num_steps=$total_num_steps \
           warmup_num_steps=$warmup_num_steps \

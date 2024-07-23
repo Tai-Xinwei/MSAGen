@@ -105,21 +105,23 @@ class MDEnergyForceHead(PSMFinetuneBaseModule):
         e_true = batched_data["energy"]
         f_pred = model_output["pred_forces"]
         f_true = batched_data["forces"]
+        if self.args.loss_unit == "kcal/mol":
+            e_true /= kcalmol_to_ev
+            f_true /= kcalmol_to_ev
 
         e_loss = torch.mean(torch.abs(e_pred - e_true))
         f_loss = torch.mean(torch.abs(f_pred - f_true))
-
-        if self.args.loss_unit == "kcal/mol":
-            e_loss /= kcalmol_to_ev
-            f_loss /= kcalmol_to_ev
+        # f_loss_mse = torch.mean(torch.abs(f_pred - f_true)**2)
 
         size = e_true.shape[0]
 
         loss = self.energy_loss_weight * e_loss + self.force_loss_weight * f_loss
+
         logging_output = {
             "loss": loss,
             "energy_loss": (e_loss, size),
             "force_loss": (f_loss, size),
+            # "force_loss_mse": (f_loss_mse, size),
         }
         return loss, logging_output
 

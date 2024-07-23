@@ -493,7 +493,6 @@ class GraphAttention(torch.nn.Module):
         nonlinear_message=False,
         alpha_drop=0.1,
         proj_drop=0.1,
-        internal_weights=False,
     ):
         super().__init__()
         self.irreps_node_input = o3.Irreps(irreps_node_input)
@@ -509,7 +508,7 @@ class GraphAttention(torch.nn.Module):
         self.num_heads = num_heads
         self.rescale_degree = rescale_degree
         self.nonlinear_message = nonlinear_message
-        self.internal_weights = internal_weights
+
         # Merge src and dst
         self.merge_src = LinearRS(
             self.irreps_node_input, self.irreps_pre_attn, bias=True
@@ -535,10 +534,10 @@ class GraphAttention(torch.nn.Module):
                 self.irreps_pre_attn,
                 self.irreps_edge_attr,
                 self.irreps_pre_attn,
-                fc_neurons=fc_neurons if not self.internal_weights else None,
+                fc_neurons,
                 use_activation=True,
                 norm_layer=None,
-                internal_weights=self.internal_weights,
+                internal_weights=False,
             )
             self.sep_alpha = LinearRS(self.sep_act.dtp.irreps_out, irreps_alpha)
             self.sep_value = SeparableFCTP(
@@ -559,10 +558,9 @@ class GraphAttention(torch.nn.Module):
                 self.irreps_pre_attn,
                 self.irreps_edge_attr,
                 irreps_attn_all,
-                fc_neurons=fc_neurons if not self.internal_weights else None,
+                fc_neurons,
                 use_activation=False,
                 norm_layer=None,
-                internal_weights=self.internal_weights,
             )
             self.vec2heads = Vec2AttnHeads(
                 (o3.Irreps("{}x0e".format(mul_alpha_head)) + irreps_head).simplify(),
@@ -732,7 +730,6 @@ class TransBlock(torch.nn.Module):
         drop_path_rate=0.0,
         irreps_mlp_mid=None,
         norm_layer="layer",
-        internal_weights=False,
     ):
         super().__init__()
         self.irreps_node_input = o3.Irreps(irreps_node_input)
@@ -753,7 +750,6 @@ class TransBlock(torch.nn.Module):
             if irreps_mlp_mid is not None
             else self.irreps_node_input
         )
-        self.internal_weights = internal_weights
 
         self.norm_1 = get_norm_layer(norm_layer)(self.irreps_node_input)
         self.ga = GraphAttention(
@@ -769,7 +765,6 @@ class TransBlock(torch.nn.Module):
             nonlinear_message=self.nonlinear_message,
             alpha_drop=alpha_drop,
             proj_drop=proj_drop,
-            internal_weights=internal_weights,
         )
 
         self.drop_path = GraphDropPath(drop_path_rate) if drop_path_rate > 0.0 else None
@@ -889,7 +884,6 @@ class EdgeDegreeEmbeddingNetwork(torch.nn.Module):
         self.exp = LinearRS(
             o3.Irreps("1x0e"), irreps_node_embedding, bias=_USE_BIAS, rescale=_RESCALE
         )
-        self.internal_weights = internal_weights
         self.dw = DepthwiseTensorProduct(
             irreps_node_embedding,
             irreps_edge_attr,
@@ -897,21 +891,17 @@ class EdgeDegreeEmbeddingNetwork(torch.nn.Module):
             internal_weights=internal_weights,
             bias=False,
         )
-        if not self.internal_weights:
-            self.rad = RadialProfile(fc_neurons + [self.dw.tp.weight_numel])
-            for slice, slice_sqrt_k in self.dw.slices_sqrt_k.values():
-                self.rad.net[-1].weight.data[slice, :] *= slice_sqrt_k
-                self.rad.offset.data[slice] *= slice_sqrt_k
+        self.rad = RadialProfile(fc_neurons + [self.dw.tp.weight_numel])
+        for slice, slice_sqrt_k in self.dw.slices_sqrt_k.values():
+            self.rad.net[-1].weight.data[slice, :] *= slice_sqrt_k
+            self.rad.offset.data[slice] *= slice_sqrt_k
         self.proj = LinearRS(self.dw.irreps_out.simplify(), irreps_node_embedding)
         self.scale_scatter = ScaledScatter(avg_aggregate_num)
 
     def forward(self, node_input, edge_attr, edge_scalars, edge_src, edge_dst, batch):
         node_features = torch.ones_like(node_input.narrow(1, 0, 1))
         node_features = self.exp(node_features)
-        if self.internal_weights:
-            weight = None
-        else:
-            weight = self.rad(edge_scalars)
+        weight = self.rad(edge_scalars)
         edge_features = self.dw(node_features[edge_src], edge_attr, weight)
         edge_features = self.proj(edge_features)
         node_features = self.scale_scatter(
@@ -942,7 +932,7 @@ class Equiformer(torch.nn.Module):
         proj_drop=0.0,
         out_drop=0.0,
         drop_path_rate=0.0,
-        internal_weights=False,
+        interal_weight=False,
         mean=None,
         std=None,
         scale=None,
@@ -951,7 +941,7 @@ class Equiformer(torch.nn.Module):
     ):
         super().__init__()
         irreps_mlp_mid = irreps_node_embedding
-        self.internal_weights = internal_weights
+        self.interal_weight = interal_weight
         self.max_radius = max_radius
         self.number_of_basis = number_of_basis
         self.alpha_drop = alpha_drop
@@ -1007,7 +997,6 @@ class Equiformer(torch.nn.Module):
             self.irreps_edge_attr,
             self.fc_neurons,
             _AVG_DEGREE,
-            internal_weights=self.internal_weights,
         )
 
         self.blocks = torch.nn.ModuleList()
@@ -1042,7 +1031,6 @@ class Equiformer(torch.nn.Module):
                 drop_path_rate=self.drop_path_rate,
                 irreps_mlp_mid=self.irreps_mlp_mid,
                 norm_layer=self.norm_layer,
-                internal_weights=self.internal_weights,
             )
             self.blocks.append(blk)
 

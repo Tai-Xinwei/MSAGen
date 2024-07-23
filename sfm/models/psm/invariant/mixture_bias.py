@@ -106,7 +106,10 @@ class PSMBias(nn.Module):
             local_attention_weight = local_attention_weight.to(dtype=edge_feature.dtype)
             edge_feature = edge_feature * local_attention_weight.unsqueeze(-1)
         edge_feature = edge_feature.sum(dim=-2)
-        pos_embedding_feature = self.pos_embedding_proj(edge_feature)
+        # print(edge_feature.dtype,self.pos_embedding_proj.weight.data.dtype)
+        pos_embedding_feature = self.pos_embedding_proj(
+            edge_feature.to(self.pos_embedding_proj.weight.data.dtype)
+        )
         pos_embedding_feature = pos_embedding_feature.masked_fill(
             padding_mask.unsqueeze(-1), 0.0
         )

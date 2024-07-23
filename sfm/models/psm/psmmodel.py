@@ -14,6 +14,8 @@ from tqdm import tqdm
 
 from sfm.data.psm_data.utils import VOCAB
 from sfm.logging import logger
+from sfm.models.psm.equivariant.e2former import E2former
+from sfm.models.psm.equivariant.equiformer.graph_attention_transformer import Equiformer
 from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
@@ -860,11 +862,11 @@ class PSM(nn.Module):
             # Implement the decoder
             self.decoder = EquivariantDecoder(psm_config)
         elif args.backbone == "equiformerv2":
-            args.backbone_config[
-                "embedding_dim"
-            ] = psm_config.encoder_embed_dim  # parameter unified!
-
             self.decoder = Equiformerv2SO2(**args.backbone_config)
+        elif args.backbone == "equiformer":
+            self.decoder = Equiformer(**args.backbone_config)
+        elif args.backbone == "e2former":
+            self.decoder = E2former(**args.backbone_config)
         elif args.backbone == "geomformer":
             self.encoder = None
 
@@ -1180,7 +1182,6 @@ class PSM(nn.Module):
             decoder_x_output, decoder_vec_output = self.decoder(
                 batched_data,
                 token_embedding.transpose(0, 1),
-                None,
                 padding_mask,
                 pbc_expand_batched=pbc_expand_batched,
             )
@@ -1297,6 +1298,7 @@ class PSM(nn.Module):
             "is_complex": batched_data["is_complex"],
             "is_seq_only": batched_data["is_seq_only"],
             "num_atoms": batched_data["num_atoms"],
+            "pos": batched_data["pos"],
         }
 
         if self.psm_config.psm_finetune_mode:

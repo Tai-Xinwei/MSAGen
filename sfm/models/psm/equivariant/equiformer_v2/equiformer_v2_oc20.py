@@ -629,6 +629,7 @@ class EquiformerV2_OC20Backbone(BaseModel):
         proj_drop=0.0,
         weight_init="normal",
         enforce_max_neighbors_strictly: bool = True,
+        add_rope=True,
     ):
         super().__init__()
 
@@ -678,6 +679,7 @@ class EquiformerV2_OC20Backbone(BaseModel):
         self.alpha_drop = alpha_drop
         self.drop_path_rate = drop_path_rate
         self.proj_drop = proj_drop
+        self.add_rope = add_rope
 
         self.weight_init = weight_init
         assert self.weight_init in ["normal", "uniform"]
@@ -798,6 +800,7 @@ class EquiformerV2_OC20Backbone(BaseModel):
                 self.alpha_drop,
                 self.drop_path_rate,
                 self.proj_drop,
+                self.add_rope,
             )
             self.blocks.append(block)
 
@@ -888,7 +891,8 @@ class EquiformerV2_OC20Backbone(BaseModel):
         for i in range(self.num_layers):
             x = self.blocks[i](
                 x,  # SO3_Embedding
-                atomic_numbers,
+                (data.ori_atomic_numbers, data.token_mask),
+                # atomic_numbers,
                 edge_distance,
                 edge_index,
                 batch=data.batch,  # for GraphDropPath

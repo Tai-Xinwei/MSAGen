@@ -1,0 +1,73 @@
+export HYDRA_FULL_ERROR=1
+export load_ckpt=False
+export MASTER_PORT=62352
+#   mkdir /blob/pfmexp/output
+#   mkdir /blob/experiment/psm/psmV0test_0507
+#   mkdir /blob/experiment/psm/psmV0test_0507/checkpoints
+
+export pbc_cutoff=20.0
+export pbc_expanded_num_cell_per_direction=5
+export pbc_expanded_token_cutoff=256
+export pbc_multigraph_cutoff=5.0
+export pbc_use_local_attention=False
+
+export num_pred_attn_layer=4
+export layers=14
+export hidden_size=256
+
+export dataset_split_raito=0.4,0.2,0.4
+
+export save_batch_interval=2500
+export train_batch_size=16
+export val_batch_size=16
+export gradient_accumulation_steps=4
+export val_batch_interval=0
+
+
+export total_num_steps=200000000
+export warmup_num_steps=1000
+export max_lr=1.5e-4
+
+export diffusion_noise_std=0
+export equivar_vec_init=ZERO_CENTERED_POS
+export strategy=DDP
+export fp16=False
+export clean_sample_ratio=1.0
+
+export diff_init_lattice_size=10.0
+export diffusion_sampling="ddpm"
+export num_timesteps=5000
+export ddpm_beta_start=1e-7
+export ddpm_beta_end=2e-3
+export ddpm_schedule=sigmoid
+
+export equivar_use_linear_bias=True
+export equivar_use_attention_bias=True
+
+export dataset_micro_batch_size="16"
+export use_unified_batch_sampler=True
+export rescale_loss_with_std=True
+export only_use_rotary_embedding_for_protein=True
+export use_memory_efficient_attention=False
+
+# Zhihao
+export save_epoch_interval=20
+export wandb_team=''
+export wandb_group=psm_E2former_test
+export wandb_project=psm_dev
+export wandb_key="027c1cc85f4e19ca1c378cfc81418c9ea526bb6d"
+export wandb_run_name="256xall_warm@${warmup_num_steps}"
+
+export backbone='e2former'
+export backbone_config='e2former'
+export psm_finetune_mode=true
+
+export data_path="/data"
+export data_path_list="MD22/AT_AT_CG_CG/radius3_broadcast"
+export dataset_name_list='AT_AT_CG_CG'
+export dataset_split_raito='1.0'
+export loadcheck_path=''
+export save_dir='/data/ckpt/'
+# python setup_cython.py build_ext --inplace
+bash ./scripts/psm/finetune_psm_e2former.sh
+# bash ./scripts/psm/pretrain_psm.sh

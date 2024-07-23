@@ -1,0 +1,19 @@
+irreps_node_embedding: "512x0e+512x1e+64x2e"
+num_layers: 8
+max_radius: 15.0
+basis_type: "gaussian"
+number_of_basis: 32
+num_attn_heads: 32
+attn_scalar_head: 32
+irreps_head: "16x0e+16x1e+2x2e"
+rescale_degree: False
+nonlinear_message: False
+norm_layer: "layer"
+alpha_drop: 0.2
+proj_drop: 0.0
+out_drop: 0.0
+drop_path_rate: 0.0
+tp_type : "v2"
+attn_type: "v2"
+edge_embedtype: "scalarvector"
+add_rope: False
