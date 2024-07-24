@@ -30,10 +30,12 @@ SCIENCE_TAG_TOKENS = [
     "</fragA>",
     "<fragB>",
     "</fragB>",
+    "<reagent>",
+    "</reagent>",
 ]
 
 # may need to use in future
-for i in range(50):
+for i in range(49):
     SCIENCE_TAG_TOKENS.append(f"<dummy{i}>")
     SCIENCE_TAG_TOKENS.append(f"</dummy{i}>")
 
