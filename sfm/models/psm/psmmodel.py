@@ -23,8 +23,8 @@ from sfm.models.psm.equivariant.nodetaskhead import (
     NodeTaskHead,
     VectorOutput,
     VectorProjOutput,
-    VectorVanillaTransformer,
 )
+from sfm.models.psm.equivariant.vectorVT import VectorVanillaTransformer
 from sfm.models.psm.invariant.dit_encoder import PSMDiTEncoder
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
@@ -876,9 +876,9 @@ class PSM(nn.Module):
             # Implement the encoder
             self.encoder = PSMPlainEncoder(args, psm_config)
             # Implement the decoder
-            self.decoder = EquivariantDecoder(psm_config)
+            # self.decoder = EquivariantDecoder(psm_config)
             # self.decoder = NodeTaskHead(psm_config)
-            # self.decoder = VectorVanillaTransformer(psm_config)
+            self.decoder = VectorVanillaTransformer(psm_config)
         elif args.backbone in ["vectorvanillatransformer"]:
             self.encoder = None
             self.decoder = VectorVanillaTransformer(psm_config)

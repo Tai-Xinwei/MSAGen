@@ -159,8 +159,8 @@ class PSMMix3dEmbedding(nn.Module):
                 ~molecule_mask.unsqueeze(-1), 0.0
             )
 
-            # time raito is 0 at time step == 0, time raito is 1 at time step >= 0.05, linear increase between 0 and 0.05
-            time_ratio = torch.clamp(time_step / 0.05, 0.0, 1.0)
+            # # time raito is 0 at time step == 0, time raito is 1 at time step >= 0.05, linear increase between 0 and 0.05
+            time_ratio = torch.clamp(time_step / 0.001, 0.0, 1.0)
             x += atom_feature_embedding * time_ratio.unsqueeze(-1)
 
         if time_step is not None:
