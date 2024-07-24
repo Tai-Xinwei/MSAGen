@@ -86,6 +86,10 @@ class NlmTokenizer(LlamaTokenizer):
             if t.startswith("<sg") and t.endswith(">"):
                 # No <i> tag for subgroups
                 ret.append(t)
+            elif t.isdigit():
+                ret.append(t)
+            elif t == ".":
+                ret.append(t)
             else:
                 ret.append(f"<{prefix}>{t}")
         return ret
@@ -98,6 +102,8 @@ class NlmTokenizer(LlamaTokenizer):
         elif tag in ["protein", "antibody"]:
             tokens = self._tokenize_entity(span, "a", tok="list")
         elif tag == "material":
+            tokens = self._tokenize_entity(span, "i", tok="space")
+        elif tag in ["cf1", "cf2", "fcf"]:
             tokens = self._tokenize_entity(span, "i", tok="space")
         elif tag == "dna":
             tokens = self._tokenize_entity(span, "d", tok="list")
@@ -124,6 +130,9 @@ class NlmTokenizer(LlamaTokenizer):
             "fragA",
             "fragB",
             "rna",
+            "cf1",
+            "cf2",
+            "fcf",
         ]
 
         for match in self.tag_re.finditer(text):
