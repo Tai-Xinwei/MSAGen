@@ -48,7 +48,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
@@ -88,7 +88,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${force_head_type}" ] && force_head_type=MLP
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=10.0
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
-[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=5.0
+[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1.0
 
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
@@ -276,3 +276,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           # profiling=True ptensorboard=False
           # ifresume=True \
           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
+
+sleep infinity

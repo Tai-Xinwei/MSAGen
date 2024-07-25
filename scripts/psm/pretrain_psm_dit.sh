@@ -60,14 +60,14 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='12'
-# [ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12"
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='112,12,16,12'
+[ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged'
+[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12"
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.1,0.4,0.1'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='112,12,16,12'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.3,0.1,0.1,0.1,0.1'
@@ -83,7 +83,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${compile}" ] && compile=False
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=5.0
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
-[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1.0
+[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=5.0
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psm/psmv1_vt_v8/"
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step252285"
@@ -127,6 +127,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
 [ -z "${if_total_energy}" ] && if_total_energy=False
+[ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -249,7 +250,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           AutoGradForce=$AutoGradForce force_head_type=$force_head_type psm_finetune_mode=$psm_finetune_mode \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
-          if_total_energy=$if_total_energy \
+          if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy \
           mm_tensorcore=$mm_tensorcore \
           compile=$compile \
           # ifresume=True \

@@ -121,6 +121,8 @@ class CellExpander:
         use_grad=False,
     ):
         with torch.set_grad_enabled(use_grad):
+            pos = pos.float()
+            cell = cell.float()
             batch_size, max_num_atoms = pos.size()[:2]
             cell_tensor, cell_mask = self._get_cell_tensors(cell, use_local_attention)
             cell_tensor = (

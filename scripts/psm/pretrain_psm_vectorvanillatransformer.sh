@@ -24,7 +24,7 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${hidden_size}" ] && hidden_size=2560
 # [ -z "${ffn_size}" ] && ffn_size=10240
 # [ -z "${num_head}" ] && num_head=40
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=14
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=16
 
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
