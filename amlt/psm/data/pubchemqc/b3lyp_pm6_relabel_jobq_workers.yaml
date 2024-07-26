@@ -1,0 +1,78 @@
+description: pubchemqc_b3lyp_pm6_relabel_jobq_workers
+
+environment:
+  image: lightaimd-1.0:20240708.105201_sm75
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+env_defaults:
+  CLUSTER_REGION: southcentralus
+  CLUSTER_PREFIX: sfm-nc6sv3
+  SKU: V100 # should be consistent with the SKU of the target
+  NODES: 1
+  QUEUE: test-queue
+  OUTPUT_SUBDIR: lightaimd/test
+  APPLICATIONINSIGHTS_CONNECTION_STRING: InstrumentationKey=ba13eba2-46dc-4af3-86ea-b2914c29334b;IngestionEndpoint=https://westus3-1.in.applicationinsights.azure.com/;ApplicationId=bbb1412b-e8c8-4113-b849-b9054a276169
+
+target:
+  service: aml
+  # NOTE: capacity and eviction rate changes over time
+  #   sfm-nc24adsa100v4-uksouth         373
+  #   sfm-nc24adsa100v4-uksouth2        -
+  #   sfm-nc24adsa100v4-japaneast       373
+  #   sfm-nc24adsa100v4-swedencentral   240
+  #   sfm-nc24adsa100v4-germany         200
+  #   sfm-nc6sv3-southcentralus         1500
+  #   sfm-nc6sv3-australiaeast          ~300
+  #   sfm-nc24adsa100v4-eastus2         -
+  #   sfm-nc24adsa100v4-southcentralus  -
+  #   sfm-nc24adsa100v4-centralus       capacity low
+  #   sfm-nc24adsa100v4-italynorth      capacity low
+  name: ${CLUSTER_PREFIX}-${CLUSTER_REGION}
+
+code:
+  local_dir: $CONFIG_DIR/../../../../.. # parent directory including sfm and feynman
+  ignore:
+  # use .amltignore to ignore other folders except for sfm and feynman
+  # TODO: how to ignore other content directly under sfm or feynman?
+  - "sfm/sfm/*"
+  - "feynman/projects/*"
+  - "!sfm/sfm/data"
+  - "!feynman/projects/ai4s-jobq"
+
+storage:
+  blob:
+    storage_account_name: sfmdataeastus2
+    container_name: psm
+    mount_dir: /blob
+    local_dir: /data
+
+search:
+  type: grid
+  params:
+  - name: rank
+    spec: discrete
+    values: "range(0,$NODES)"
+  max_trials: $NODES
+  job_template:
+    name: pubchemqc_b3lyp_pm6_relabel_jobq_worker_{rank}
+    tags: [ProjectID:PRJ-0209-A40]
+    command:
+    - set -e
+    - echo {rank}
+    - eval "$$(conda shell.bash hook)" && conda activate madft
+    - pip install -e feynman/projects/ai4s-jobq
+    - pip install aiofiles
+    - cd sfm
+    - PYTHONPATH=. python sfm/data/mol_data/pubchemqc/relabel_b3lyp_pm6.py
+      --storage-account sfmdataeastus2
+      --queue $QUEUE
+      --input-dir /blob/data/PubChemQC-B3LYP-PM6/raw/Compounds
+      --output-dir /blob/data/PubChemQC-B3LYP-PM6/$OUTPUT_SUBDIR
+      --sku $SKU
+    submit_args:
+      env:
+        APPLICATIONINSIGHTS_CONNECTION_STRING: $APPLICATIONINSIGHTS_CONNECTION_STRING
+        ENQUEUE_WORLD_SIZE: $NODES
+      container_args:
+        shm_size: 1024g
