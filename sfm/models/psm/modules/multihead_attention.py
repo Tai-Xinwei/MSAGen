@@ -347,30 +347,23 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
                         bsz, self.num_heads, tgt_len, src_len
                     )
 
-        if local_attention_weight is not None:
-            local_attention_weight = local_attention_weight.to(dtype=q.dtype)
+        if local_attention_weight is not None or attn_bias is not None:
             attn_weights = torch.bmm(q, k.transpose(1, 2))
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            if self.use_smooth_softmax:
-                attn_weights = (
-                    attn_weights + self.smooth_factor
-                ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
-            else:
-                attn_weights = attn_weights.masked_fill(
-                    local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")
-                )
 
             if attn_mask is not None:
                 attn_weights += attn_mask
 
-            if self.use_smooth_softmax:
-                attn_weights = (
-                    attn_weights + self.smooth_factor
-                ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
-            else:
-                attn_weights = attn_weights.masked_fill(
-                    local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")
-                )
+            if local_attention_weight is not None:
+                local_attention_weight = local_attention_weight.to(dtype=q.dtype)
+                if self.use_smooth_softmax:
+                    attn_weights = (
+                        attn_weights + self.smooth_factor
+                    ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+                else:
+                    attn_weights = attn_weights.masked_fill(
+                        local_attention_weight.unsqueeze(1) <= 1e-5, float("-inf")
+                    )
 
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
@@ -401,7 +394,6 @@ class MemEffAttnWithProteinRotaryEmbedding(MemEffAttn):
                 context = sdpa_kernel(
                     [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
                 )
-
             with context:
                 attn = torch.nn.functional.scaled_dot_product_attention(
                     q,

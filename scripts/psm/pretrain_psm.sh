@@ -8,10 +8,10 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=18
-[ -z "${hidden_size}" ] && hidden_size=1024
-[ -z "${ffn_size}" ] && ffn_size=4096
-[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=1024
+[ -z "${layers}" ] && layers=24
+[ -z "${hidden_size}" ] && hidden_size=1536
+[ -z "${ffn_size}" ] && ffn_size=6144
+[ -z "${decoder_ffn_dim}" ]  && decoder_ffn_dim=6144
 [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -49,14 +49,14 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
 # [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data'
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.05,0.3,0.15,0.1,0.1,0.1'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,2,4,2,2,2"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
-[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20240716-1933'
+[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20240723-1529'
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
@@ -110,7 +110,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 
-[ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
+[ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=True
 
 [ -z "${psm_matbench_task_name}" ] && psm_matbench_task_name=matbench_dielectric
 [ -z "${psm_matbench_fold_id}" ] && psm_matbench_fold_id=0
@@ -122,9 +122,15 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_rotary_embedding_for_vector}" ] && no_rotary_embedding_for_vector=False
 [ -z "${node_type_edge_method}" ] && node_type_edge_method=NON_EXCHANGABLE
 [ -z "${force_head_type}" ] && force_head_type=GATED_EQUIVARIANT
-[ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=True
+[ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=False
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=128
 [ -z "${use_smooth_equviariant_norm}" ] && use_smooth_equviariant_norm=True
+[ -z "${unified_data_num_workers}" ] && unified_data_num_workers=0
+[ -z "${use_fp32_in_decoder}" ] && use_fp32_in_decoder=True
+[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1
+[ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1
+[ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1
+[ -z "${energy_per_atom_label_scale}" ] && energy_per_atom_label_scale=0.05
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -242,7 +248,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           psm_finetune_valid_noise_mode=$psm_finetune_valid_noise_mode \
           diffusion_training_loss=$diffusion_training_loss \
           force_loss_type=$force_loss_type \
-          +energy_per_atom_label_scale=0.05 +molecule_energy_per_atom_std_override=1.0 \
+          +energy_per_atom_label_scale=$energy_per_atom_label_scale +molecule_energy_per_atom_std_override=1.0 \
           align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss \
           num_edges=$num_edges \
           no_rotary_embedding_for_vector=$no_rotary_embedding_for_vector \
@@ -250,4 +256,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           force_head_type=$force_head_type \
           mlm_from_decoder_feature=$mlm_from_decoder_feature \
           num_3d_bias_kernel=$num_3d_bias_kernel \
-          use_smooth_equviariant_norm=$use_smooth_equviariant_norm
+          use_smooth_equviariant_norm=$use_smooth_equviariant_norm \
+          unified_data_num_workers=$unified_data_num_workers \
+          use_fp32_in_decoder=$use_fp32_in_decoder \
+          material_force_loss_ratio=$material_force_loss_ratio \
+          material_energy_loss_ratio=$material_energy_loss_ratio \
+          molecule_energy_loss_ratio=$molecule_energy_loss_ratio

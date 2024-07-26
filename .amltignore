@@ -190,3 +190,11 @@ docs
 # TMscore
 TMscore
 TMscoreLinux.*
+sample_save_dir/
+sample_save_dir_mol/
+protein_sampled_latest/
+apex/
+sample_save_dir*
+*.diff
+*.patch
+log/
