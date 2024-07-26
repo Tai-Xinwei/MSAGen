@@ -38,10 +38,12 @@ SCIENCE_TAG_TOKENS = [
     "</cf2>",
     "<fcf>",
     "</fcf>",
+    "<dna6mer>",
+    "</dna6mer>",
 ]
 
 # may need to use in future
-for i in range(46):
+for i in range(45):
     SCIENCE_TAG_TOKENS.append(f"<dummy{i}>")
     SCIENCE_TAG_TOKENS.append(f"</dummy{i}>")
 

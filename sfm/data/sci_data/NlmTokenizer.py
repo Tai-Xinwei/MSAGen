@@ -45,68 +45,87 @@ class NlmTokenizer(LlamaTokenizer):
         for i in range(26):
             extra_tokens.append(f"<i>{chr(65 + i)}")
             extra_tokens.append(f"<i>{chr(97 + i)}")
-        self.is_dna_six = kwargs.get("is_dna_six", False)
-        if self.is_dna_six:
-            nucleotides = ["A", "T", "C", "G"]
-            all_kmers = ["".join(p) for p in itertools.product(nucleotides, repeat=6)]
-            self.dna_six_encode_dict = {}
-            for i in range(len(all_kmers)):
-                extra_tokens.append(f"<d>{all_kmers[i]}")
-                self.dna_six_encode_dict[all_kmers[i]] = True
-            logger.info("Tokenizer use DNA six mer")
+
+        nucleotides = ["A", "T", "C", "G"]
+        all_kmers = ["".join(p) for p in itertools.product(nucleotides, repeat=6)]
+        self.dna_six_encode_dict = {}
+        for i in range(len(all_kmers)):
+            extra_tokens.append(f"<d>{all_kmers[i]}")
+            self.dna_six_encode_dict[all_kmers[i]] = True
+
         self.add_tokens(extra_tokens)
         self.split_special_tokens = True  # Ensure _tokenize() can access special tokens
 
         logger.info(f"Tokenizer has {len(self)} tokens")
 
-    def _tokenize_entity(self, text: str, prefix: str, tok: str):
-        if tok == "smiles":
-            tokens = self.smiles_re.findall(text)
-        elif tok == "space":
-            tokens = text.split(" ")
-        else:
-            if self.is_dna_six and prefix == "d":
-                i = 0
-                tokens = []
-                while i < len(text):
-                    if text[i : i + 6] in self.dna_six_encode_dict:
-                        tokens.append(text[i : i + 6])
-                        i += 6
-                    else:
-                        tokens.append(text[i])
-                        i += 1
+    def _tokenize_smiles(self, text):
+        return self.smiles_re.findall(text)
+
+    def _tokenize_by_space(self, text):
+        return text.split(" ")
+
+    def _tokeinze_as_list(self, text):
+        return list(text)
+
+    def _tokenize_dna6mer(self, text):
+        i = 0
+        tokens = []
+        while i < len(text):
+            if text[i : i + 6] in self.dna_six_encode_dict:
+                tokens.append(text[i : i + 6])
+                i += 6
             else:
-                tokens = list(text)
+                tokens.append(text[i])
+                i += 1
+        return tokens
+
+    def _tokenize_entity(
+        self, text: str, prefix: str, tok: str, use_text_num: bool = False
+    ):
+        if tok == "smiles":
+            tokens = self._tokenize_smiles(text)
+        elif tok == "space":
+            tokens = self._tokenize_by_space(text)
+        elif tok == "list":
+            tokens = self._tokeinze_as_list(text)
+        elif tok == "dna6mer":
+            tokens = self._tokenize_dna6mer(text)
+        else:
+            raise Exception(f"unknown token type {tokens}")
 
         ret = []
         for t in tokens:
             if t == "":
                 continue
 
+            should_add_prefix = True
             if t.startswith("<sg") and t.endswith(">"):
-                # No <i> tag for subgroups
-                ret.append(t)
-            elif t.isdigit():
-                ret.append(t)
-            elif t == ".":
-                ret.append(t)
-            else:
+                # No <i> tag for spacegroups
+                should_add_prefix = False
+            elif use_text_num and t in "01234567890.":
+                should_add_prefix = False
+
+            if should_add_prefix:
                 ret.append(f"<{prefix}>{t}")
+            else:
+                ret.append(t)
         return ret
 
     def _tokenize_by_tag(self, span, tag, **kwargs):
         span = span.strip(" ")
 
-        if tag in ["mol", "product", "reactants", "fragA", "fragB"]:
+        if tag in ["mol", "product", "reactants", "fragA", "fragB", "reagent"]:
             tokens = self._tokenize_entity(span, "m", tok="smiles")
         elif tag in ["protein", "antibody"]:
             tokens = self._tokenize_entity(span, "a", tok="list")
-        elif tag == "material":
+        elif tag in ["material", "fcf"]:
             tokens = self._tokenize_entity(span, "i", tok="space")
-        elif tag in ["cf1", "cf2", "fcf"]:
-            tokens = self._tokenize_entity(span, "i", tok="space")
+        elif tag in ["cf1", "cf2"]:
+            tokens = self._tokenize_entity(span, "i", tok="space", use_text_num=True)
         elif tag == "dna":
             tokens = self._tokenize_entity(span, "d", tok="list")
+        elif tag == "dna6mer":
+            tokens = self._tokenize_entity(span, "d", tok="dna6mer")
         elif tag == "rna":
             tokens = self._tokenize_entity(span, "r", tok="list")
         else:  # text
@@ -130,9 +149,11 @@ class NlmTokenizer(LlamaTokenizer):
             "fragA",
             "fragB",
             "rna",
+            "reagent",
             "cf1",
             "cf2",
             "fcf",
+            "dna6mer",
         ]
 
         for match in self.tag_re.finditer(text):
