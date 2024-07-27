@@ -143,6 +143,7 @@ class PSMConfig(GraphormerConfig):
     molecule_energy_loss_ratio: float = 1.0
     decoder_feat4energy: bool = True
     AutoGradForce: bool = False
+    NoisePredForce: bool = False
     seq_only: bool = False
     freeze_backbone: bool = False
     hard_dist_loss_raito: float = 20.0

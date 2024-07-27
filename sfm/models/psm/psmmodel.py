@@ -1237,39 +1237,6 @@ class PSM(nn.Module):
                     self.energy_head["molecule"](decoder_x_output).squeeze(-1),
                 )
 
-                if (
-                    self.args.AutoGradForce
-                    and pbc_expand_batched is not None
-                    and (~batched_data["is_stable_periodic"]).any()
-                ):
-                    forces = self.autograd_force_head(
-                        energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
-                            dim=-1, keepdim=True
-                        ),
-                        pos,
-                    )
-                else:
-                    if self.psm_config.force_head_type == ForceHeadType.LINEAR:
-                        forces = torch.where(
-                            is_periodic.unsqueeze(-1).unsqueeze(-1),
-                            self.forces_head["periodic"](decoder_vec_output).squeeze(
-                                -1
-                            ),
-                            self.forces_head["molecule"](decoder_vec_output).squeeze(
-                                -1
-                            ),
-                        )
-                    else:
-                        forces = torch.where(
-                            is_periodic.unsqueeze(-1).unsqueeze(-1),
-                            self.forces_head["periodic"](
-                                decoder_x_output, decoder_vec_output
-                            ).squeeze(-1),
-                            self.forces_head["molecule"](
-                                decoder_x_output, decoder_vec_output
-                            ).squeeze(-1),
-                        )
-
                 if self.args.diffusion_mode == "epsilon":
                     scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
                     logit_bias = torch.logit(
@@ -1292,7 +1259,44 @@ class PSM(nn.Module):
                         f"diffusion mode: {self.args.diffusion_mode} is not supported"
                     )
 
-                # forces = - noise_pred / batched_data["sqrt_one_minus_alphas_cumprod_t"] / 20 #* self.inv_KbT
+                if (
+                    self.args.AutoGradForce
+                    and pbc_expand_batched is not None
+                    and (~batched_data["is_stable_periodic"]).any()
+                ):
+                    forces = self.autograd_force_head(
+                        energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
+                            dim=-1, keepdim=True
+                        ),
+                        pos,
+                    )
+                elif self.args.NoisePredForce:
+                    forces = (
+                        -noise_pred
+                        / batched_data["sqrt_one_minus_alphas_cumprod_t"]
+                        / 20
+                    )  # * self.inv_KbT
+                else:
+                    if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                        forces = torch.where(
+                            is_periodic.unsqueeze(-1).unsqueeze(-1),
+                            self.forces_head["periodic"](decoder_vec_output).squeeze(
+                                -1
+                            ),
+                            self.forces_head["molecule"](decoder_vec_output).squeeze(
+                                -1
+                            ),
+                        )
+                    else:
+                        forces = torch.where(
+                            is_periodic.unsqueeze(-1).unsqueeze(-1),
+                            self.forces_head["periodic"](
+                                decoder_x_output, decoder_vec_output
+                            ).squeeze(-1),
+                            self.forces_head["molecule"](
+                                decoder_x_output, decoder_vec_output
+                            ).squeeze(-1),
+                        )
 
                 # per-atom energy prediction
                 total_energy = energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
