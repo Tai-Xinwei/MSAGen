@@ -39,7 +39,7 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: psmv1_dit_v11_1b
+- name: psmv1_dit_v13_1b
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}-IB
   mpi: true
@@ -66,11 +66,11 @@ jobs:
   - export droppath_prob=0.0
   - export mask_ratio=0.3
   - export d_tilde=1.0
-  - export max_lr=1.0e-4
+  - export max_lr=1.5e-4
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=500000
-  - export warmup_num_steps=20000
+  - export warmup_num_steps=5000
   - export train_batch_size=1536
   - export val_batch_size=768
   - export max_tokens=16000
@@ -82,27 +82,28 @@ jobs:
   # - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
   # - export dataset_split_raito='0.3,0.05,0.3,0.15,0.1,0.1,0.1'
   # - export dataset_micro_batch_size='112,8,24,8,12,24,12'
-  - export data_path_list='PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data'
-  - export dataset_name_list='pm6,afdb,ur50,pdb,pdbcomplexmultimer'
-  - export dataset_split_raito='0.4,0.3,0.1,0.1,0.1'
-  - export dataset_micro_batch_size='48,12,6,12,12'
+  - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data'
+  - export dataset_name_list='mattersim,mattersim,pm6,afdb,pdb,pdbcomplexmultimer'
+  - export dataset_split_raito='0.1,0.1,0.3,0.3,0.1,0.1'
+  - export dataset_micro_batch_size='6,6,48,12,12,12'
   - export fp16=False
-  - export clean_sample_ratio=0.7
-  - export energy_loss_ratio=1.0
-  - export force_loss_ratio=0.0
+  - export clean_sample_ratio=0.5
+  - export molecule_energy_loss_ratio=20.0
+  - export material_energy_loss_ratio=5.0
+  - export material_force_loss_ratio=1.0
+  # - export num_timesteps=1000
+  # - export ddpm_beta_start=1e-4
+  # - export ddpm_beta_end=2e-2
   - export AutoGradForce=False
-  - export use_unified_batch_sampler=True
-  - export only_use_rotary_embedding_for_protein=True
   - export use_hard_dist_loss=True
-  - export diffusion_training_loss=L1
-  - export use_dali_pipeline=False
+  - export use_unified_batch_sampler=True
+  - export decoder_feat4energy=True
+  - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
-  - export save_batch_interval=10000
-  # - export AutoGradForce=True
-  # - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v11/checkpoints/global_step30000/mp_rank_00_model_states.pt
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v11_1b/checkpoints
-  - export psm_finetune_mode=True
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v11_1b/checkpoints
+  - export save_batch_interval=5000
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints
+  - export psm_finetune_mode=False
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120

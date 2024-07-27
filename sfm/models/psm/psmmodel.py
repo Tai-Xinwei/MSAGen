@@ -29,7 +29,7 @@ from sfm.models.psm.invariant.dit_encoder import PSMDiTEncoder
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
-from sfm.models.psm.modules.mixembedding import PSMMix3dEmbedding
+from sfm.models.psm.modules.mixembedding import PSMMix3dDitEmbedding, PSMMix3dEmbedding
 from sfm.models.psm.modules.mixembedding_equiv import PSMMix3DEquivEmbedding
 from sfm.models.psm.modules.pbc import CellExpander
 from sfm.models.psm.psm_config import ForceHeadType, GaussianFeatureNodeType, PSMConfig
@@ -291,8 +291,8 @@ class PSMModel(Model):
         # set 0 noise for padding
         time_step = time_step.masked_fill(padding_mask, 0.0)
 
-        # TODO: found this may cause instability issue, need to check
-        # # set T noise for batched_data["protein_mask"] nan/inf coords
+        # # TODO: found this may cause instability issue, need to check
+        # # # set T noise for batched_data["protein_mask"] nan/inf coords
         time_step = time_step.masked_fill(batched_data["protein_mask"].any(dim=-1), 1.0)
         # make sure noise really replaces nan/inf coords
         clean_mask = clean_mask.masked_fill(
@@ -845,11 +845,12 @@ class PSM(nn.Module):
         )
 
         # Implement the embedding
-        if args.backbone in ["vanillatransformer", "dit", "vectorvanillatransformer"]:
+        if args.backbone in ["vanillatransformer", "vectorvanillatransformer"]:
             self.embedding = PSMMix3dEmbedding(
                 psm_config, use_unified_batch_sampler=args.use_unified_batch_sampler
             )
-            # self.embedding = PSMMixEmbedding(psm_config)
+        elif args.backbone in ["dit"]:
+            self.embedding = PSMMix3dDitEmbedding(psm_config)
         elif args.backbone in ["vanillatransformer_equiv"]:
             self.embedding = PSMMix3DEquivEmbedding(psm_config)
         else:
@@ -876,9 +877,9 @@ class PSM(nn.Module):
             # Implement the encoder
             self.encoder = PSMPlainEncoder(args, psm_config)
             # Implement the decoder
-            self.decoder = EquivariantDecoder(psm_config)
+            # self.decoder = EquivariantDecoder(psm_config)
             # self.decoder = NodeTaskHead(psm_config)
-            # self.decoder = VectorVanillaTransformer(psm_config)
+            self.decoder = VectorVanillaTransformer(psm_config)
         elif args.backbone in ["vectorvanillatransformer"]:
             self.encoder = None
             self.decoder = VectorVanillaTransformer(psm_config)
@@ -901,9 +902,9 @@ class PSM(nn.Module):
                 self.energy_head.update(
                     {
                         key: nn.Sequential(
-                            AdaNorm(psm_config.embedding_dim)
-                            if self.psm_config.decoder_feat4energy
-                            else nn.Identity(),
+                            # AdaNorm(psm_config.embedding_dim)
+                            # if self.psm_config.decoder_feat4energy
+                            # else nn.Identity(),
                             nn.Linear(
                                 psm_config.embedding_dim,
                                 psm_config.embedding_dim,
@@ -990,6 +991,8 @@ class PSM(nn.Module):
 
         self.num_vocab = max([VOCAB[key] for key in VOCAB]) + 1
 
+        # self.inv_KbT = nn.Parameter(torch.zeros(1), requires_grad=True)
+
     def _set_aa_mask(self, batched_data, aa_mask):
         token_id = batched_data["token_id"]
         if aa_mask is not None:
@@ -1075,7 +1078,7 @@ class PSM(nn.Module):
         # padding_mask: B x L
         # token_type: B x L  (0 is used for PADDING)
         with (
-            torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+            torch.autocast(enabled=True, dtype=torch.float32)
             if self.args.fp16
             else nullcontext()
         ):
@@ -1098,13 +1101,37 @@ class PSM(nn.Module):
             else:
                 pbc_expand_batched = None
 
-            token_embedding, padding_mask, time_embed, mixed_attn_bias = self.embedding(
-                batched_data,
-                time_step,
-                clean_mask,
-                aa_mask,
-                pbc_expand_batched=pbc_expand_batched,
-            )
+            if self.args.backbone in [
+                "vanillatransformer",
+                "vanillatransformer_equiv",
+                "dit",
+            ]:
+                (
+                    token_embedding,
+                    padding_mask,
+                    time_embed,
+                    mixed_attn_bias,
+                    pos_embedding,
+                ) = self.embedding(
+                    batched_data,
+                    time_step,
+                    clean_mask,
+                    aa_mask,
+                    pbc_expand_batched=pbc_expand_batched,
+                )
+            else:
+                (
+                    token_embedding,
+                    padding_mask,
+                    time_embed,
+                    mixed_attn_bias,
+                ) = self.embedding(
+                    batched_data,
+                    time_step,
+                    clean_mask,
+                    aa_mask,
+                    pbc_expand_batched=pbc_expand_batched,
+                )
 
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
@@ -1114,11 +1141,12 @@ class PSM(nn.Module):
                 padding_mask,
                 batched_data,
                 pbc_expand_batched,
+                mixed_attn_bias=mixed_attn_bias,
                 ifbackprop=self.args.AutoGradForce,
             )
 
             with (
-                torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+                torch.autocast(enabled=True, dtype=torch.float32)
                 if self.args.fp16
                 else nullcontext()
             ):
@@ -1135,15 +1163,16 @@ class PSM(nn.Module):
         elif self.args.backbone in ["dit"]:
             encoder_output = self.encoder(
                 token_embedding,
-                mixed_attn_bias,
+                pos_embedding,
                 padding_mask,
                 batched_data,
                 pbc_expand_batched,
+                # mixed_attn_bias=mixed_attn_bias,
                 ifbackprop=self.args.AutoGradForce,
             )
 
             with (
-                torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+                torch.autocast(enabled=True, dtype=torch.float32)
                 if self.args.fp16
                 else nullcontext()
             ):
@@ -1192,7 +1221,7 @@ class PSM(nn.Module):
         ).unsqueeze(0).repeat(n_graphs, 1) >= batched_data["num_atoms"].unsqueeze(-1)
 
         with (
-            torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+            torch.autocast(enabled=True, dtype=torch.float32)
             if self.args.fp16
             else nullcontext()
         ):
@@ -1201,7 +1230,6 @@ class PSM(nn.Module):
                     noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
                 else:
                     noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
-                # noise_pred = self.noise_head(encoder_output.transpose(0, 1), decoder_vec_output)
 
                 energy_per_atom = torch.where(
                     is_periodic.unsqueeze(-1),
@@ -1263,6 +1291,8 @@ class PSM(nn.Module):
                     raise ValueError(
                         f"diffusion mode: {self.args.diffusion_mode} is not supported"
                     )
+
+                # forces = - noise_pred / batched_data["sqrt_one_minus_alphas_cumprod_t"] / 20 #* self.inv_KbT
 
                 # per-atom energy prediction
                 total_energy = energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(

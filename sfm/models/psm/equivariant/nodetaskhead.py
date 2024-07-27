@@ -43,7 +43,7 @@ class NodeTaskHead(nn.Module):
         self,
         batched_data: Dict,
         x,
-        pos_emb,
+        attn_bias,
         padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
     ) -> Tensor:
@@ -99,6 +99,7 @@ class NodeTaskHead(nn.Module):
             v_e = v_e.view(bsz, extend_n_node, self.num_heads, -1).transpose(1, 2)
 
         attn = q @ k.transpose(-1, -2)  # [bsz, head, n, n]
+        attn = attn + attn_bias
         min_dtype = torch.finfo(k.dtype).min
         attn = attn.masked_fill(expand_mask.unsqueeze(1).unsqueeze(2), min_dtype)
         attn = attn.masked_fill(padding_mask.unsqueeze(1).unsqueeze(-1), min_dtype)
@@ -107,6 +108,7 @@ class NodeTaskHead(nn.Module):
         attn_probs = attn_probs_float.type_as(attn)
         attn_probs = attn_probs.view(bsz, self.num_heads, n_node, extend_n_node)
 
+        # [bsz, n, n_extend, 3]
         delta_pos = delta_pos.masked_fill(padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0)
         rot_attn_probs = attn_probs.unsqueeze(-1) * delta_pos.unsqueeze(1).type_as(
             attn_probs
@@ -136,7 +138,8 @@ class NodeTaskHead(nn.Module):
 class VectorOutput(nn.Module):
     def __init__(self, hidden_channels=768):
         super(VectorOutput, self).__init__()
-        self.adanorm = AdaNorm(hidden_channels)
+        # self.adanorm = AdaNorm(hidden_channels)
+        # self.output_network = nn.Linear(hidden_channels, 1, bias=False)
         self.output_network = nn.Sequential(
             nn.Linear(hidden_channels, hidden_channels, bias=False),
             nn.SiLU(),
@@ -144,7 +147,7 @@ class VectorOutput(nn.Module):
         )
 
     def forward(self, x, v):
-        v = self.adanorm(v)
+        # v = self.adanorm(v)
         v = self.output_network(v)
         return v.squeeze(-1)
 

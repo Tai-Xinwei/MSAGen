@@ -87,11 +87,12 @@ class DiffMAE3dCriterions(nn.Module):
         self.seq_only = args.seq_only
 
         self.energy_loss = nn.L1Loss(reduction="none")
-        self.force_loss = (
-            nn.L1Loss(reduction="none")
-            if self.args.force_loss_type == ForceLoss.L1
-            else nn.MSELoss(reduction="none")
-        )
+        # self.force_loss = (
+        #     nn.L1Loss(reduction="none")
+        #     if self.args.force_loss_type == ForceLoss.L1
+        #     else nn.MSELoss(reduction="none")
+        # )
+        self.force_loss = nn.HuberLoss(reduction="none", delta=1.0)
         self.noise_loss = (
             nn.L1Loss(reduction="none")
             if self.args.diffusion_training_loss == DiffusionTrainingLoss.L1
@@ -631,6 +632,7 @@ class DiffMAE3dCriterions(nn.Module):
                 + aa_mlm_loss
                 + smooth_lddt_loss
             )
+            # loss = self.material_force_loss_ratio * force_loss
             if self.args.use_hard_dist_loss:
                 loss += self.hard_dist_loss_raito * hard_dist_loss
         else:
