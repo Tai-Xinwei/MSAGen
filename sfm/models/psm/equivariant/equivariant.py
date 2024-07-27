@@ -55,8 +55,15 @@ class EquivariantDecoder(nn.Module):
         mixed_attn_bias,
         padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
+        time_embed: Optional[torch.Tensor] = None,
     ):
         pos = batched_data["pos"]
         return self.model(
-            batched_data, x, pos, mixed_attn_bias, padding_mask, pbc_expand_batched
+            batched_data,
+            x,
+            pos,
+            mixed_attn_bias,
+            padding_mask,
+            pbc_expand_batched,
+            time_embed=time_embed,
         )

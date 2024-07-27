@@ -578,6 +578,14 @@ class DdpAccelerator(SingleNodeAccelerator):
                         train_data,
                         batch_sampler=self.train_sampler,
                         collate_fn=train_data.collate,
+                        num_workers=self.args.unified_data_num_workers,
+                        pin_memory=True,
+                        persistent_workers=True
+                        if self.args.unified_data_num_workers > 0
+                        else False,
+                        prefetch_factor=4
+                        if self.args.unified_data_num_workers > 0
+                        else None,
                     )
                 else:
                     self.train_sampler = DistributedSampler(
@@ -1118,10 +1126,12 @@ class DeepSpeedAccelerator(Accelerator):
                 train_data,
                 batch_sampler=self.train_sampler,
                 collate_fn=train_data.collate,
-                num_workers=1,  # multiprocessing.cpu_count() // torch.cuda.device_count(),
-                # pin_memory=True,
-                # persistent_workers=True,
-                # prefetch_factor=4,
+                num_workers=self.args.unified_data_num_workers,
+                pin_memory=True,
+                persistent_workers=True
+                if self.args.unified_data_num_workers > 0
+                else False,
+                prefetch_factor=4 if self.args.unified_data_num_workers > 0 else None,
             )
         elif self.args.dynamic_loader:
             assert (

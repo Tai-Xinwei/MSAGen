@@ -34,16 +34,16 @@ code:
   local_dir: ../../
 
 jobs:
-- name: psm-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-test-diffnoise10-fastpreprocess-20240719-2222
+- name: psm-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-test-diffnoise10-fastpreprocess-20240725-1050
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
-  sku: ${NODES}xG${GPUS_PER_NODE}
+  sku: ${NODES}xG${GPUS_PER_NODE}-IB
   mpi: true
   identity: managed
   process_count_per_node: 1
   command:
   - export data_path=/psm/data/
-  - mkdir -p /sfm/sfmexpresults/shiyu/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-continued-fastpreprocess-20240719-2222
-  - export save_dir=/sfm/sfmexpresults/shiyu/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-continued-fastpreprocess-20240719-2222
+  - mkdir -p /sfm/sfmexpresults/shiyu/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-continued-fastpreprocess-20240725-1050
+  - export save_dir=/sfm/sfmexpresults/shiyu/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-continued-fastpreprocess-20240725-1050
   - export pbc_cutoff=20.0
   - export pbc_expanded_num_cell_per_direction=5
   - export pbc_expanded_token_cutoff=256
@@ -61,20 +61,20 @@ jobs:
   - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data'
   - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer'
   - export dataset_split_raito='0.2,0.05,0.3,0.15,0.1,0.1,0.1'
-  - export dataset_micro_batch_size="8,4,2,4,2,2,2"
+  - export dataset_micro_batch_size="12,4,3,4,3,3,3"
 
   - export save_batch_interval=2500
   - export train_batch_size=1024
   - export val_batch_size=1024
-  - export gradient_accumulation_steps=4
+  - export gradient_accumulation_steps=8
   - export val_batch_interval=0
 
   - export wandb_project=psm_dev_shiyu_20240719
   - export wandb_group=psm_dev_shiyu_20240719
-  - export WANDB_RUN_NAME=psm-mol-pro-periodic-diff-relpos-noise1-relativepos-diffnoise10-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-fastpreprocess-20240719-2222
+  - export WANDB_RUN_NAME=psm-mol-pro-periodic-diff-relpos-noise1-relativepos-diffnoise10-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-fastpreprocess-20240725-1050
 
-  - export total_num_steps=2000000
-  - export warmup_num_steps=12000
+  - export total_num_steps=4000000
+  - export warmup_num_steps=24000
   - export max_lr=2e-4
 
   - export diffusion_noise_std=10.0
@@ -82,7 +82,7 @@ jobs:
   - export strategy=DDP
   - export fp16=False
   - export clean_sample_ratio=0.5
-  - export mode_prob=0.1,0.2,0.7
+  - export mode_prob='0.4,0.5,0.1'
 
   - export diff_init_lattice_size=10.0
   - export diffusion_sampling="ddpm"
@@ -98,6 +98,13 @@ jobs:
   - export rescale_loss_with_std=True
   - export only_use_rotary_embedding_for_protein=True
   - export use_memory_efficient_attention=False
+  - export unified_data_num_workers=4
+  - export use_fp32_in_decoder=False
+  - export material_force_loss_ratio=1.0
+  - export material_energy_loss_ratio=1.0
+  - export molecule_energy_loss_ratio=1.0
+  - export energy_per_atom_label_scale=1.0
+  - export mlm_from_decoder_feature=True
 
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace

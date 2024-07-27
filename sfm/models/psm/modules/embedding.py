@@ -91,14 +91,20 @@ class PSMMixEmbedding(nn.Module):
             )
             x += atom_feature_embedding
 
-        is_protein = batched_data["is_protein"].any()
+        is_protein = (
+            (~batched_data["is_periodic"].unsqueeze(-1)) & (token_id > 129)
+        ).all()
 
         if time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)
-            x += time_embed
+        else:
+            time_embed = None
 
         if is_protein and not self.psm_config.mlm_from_decoder_feature:
             return x, padding_mask, time_embed, None
+
+        if time_embed is not None:
+            x += time_embed
 
         pos_attn_bias, pos_embedding = self.pos_embedding_bias(
             batched_data, padding_mask, pbc_expand_batched

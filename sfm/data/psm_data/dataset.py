@@ -318,6 +318,29 @@ class MoleculeLMDBDataset(FoundationModelDataset):
     def num_tokens(self, index: int) -> int:
         return self.sizes[index]
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        if state["_env"] is not None:
+            state["_env"].close()
+            del state["_env"]
+            state["_env"] = None
+        if state["_txn"] is not None:
+            del state["_txn"]
+            state["_txn"] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self._txn = self._env.begin(write=False)
+
 
 class PM6FullLMDBDataset(MoleculeLMDBDataset):
     latest_version = "20240527.1"
@@ -709,6 +732,7 @@ class MatterSimDataset:
         self.index_to_key_name = []
         self.data_path = data_path
         self.add_unit_cell_virtual_node = args.add_unit_cell_virtual_node
+        self.split = split
         if not os.path.exists(self.data_path):
             logger.warning(f"Path {self.data_path} does not exists.")
         if atoms_list is not None or (not os.path.isdir(self.data_path)):
@@ -718,7 +742,7 @@ class MatterSimDataset:
                 # logger.info(
                 #     "atoms_list provided, will use this for inference and not load data from disk. Setting split to None."
                 # )
-                split = None
+                self.split = None
             else:
                 # strip trailing slashes
                 self.data_path = self.data_path.rstrip("/")
@@ -731,11 +755,11 @@ class MatterSimDataset:
                 logger.info(
                     "Assuming you are using this functionality for inference only, setting split to None."
                 )
-                split = None
+                self.split = None
                 self.atoms_list = ase_read(self.data_path, index=":")
         else:
             self.dataset_type = "lmdb"
-            lmdb_path = f"{self.data_path}/{split}"
+            lmdb_path = f"{self.data_path}/{self.split}"
             self.data_lmdb = lmdb.open(
                 lmdb_path,
                 subdir=True,
@@ -970,6 +994,32 @@ class MatterSimDataset:
         else:
             return len(self.index_to_key_name)
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        if self.dataset_type == "lmdb":
+            if state["data_lmdb"] is not None:
+                state["data_lmdb"].close()
+                del state["data_lmdb"]
+                state["data_lmdb"] = None
+            if state["data_txn"] is not None:
+                del state["data_txn"]
+                state["data_txn"] = None
+            return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        if self.dataset_type == "lmdb":
+            self.lmdb_path = f"{self.data_path}/{self.split}"
+            self.data_lmdb = lmdb.open(
+                self.lmdb_path,
+                subdir=True,
+                readonly=True,
+                lock=False,
+                readahead=False,
+                meminit=False,
+            )
+            self.data_txn = self.data_lmdb.begin(write=False)
+
 
 class AFDBLMDBDataset(FoundationModelDataset):
     def __init__(
@@ -1173,6 +1223,29 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
     def num_tokens(self, index: int) -> int:
         return self.sizes[index]
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        if state["_env"] is not None:
+            state["_env"].close()
+            del state["_env"]
+            state["_env"] = None
+        if state["_txn"] is not None:
+            del state["_txn"]
+            state["_txn"] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self._txn = self._env.begin(write=False)
 
 
 class PDBDataset(AFDBLMDBDataset):
@@ -1476,6 +1549,29 @@ class UR50LMDBDataset(FoundationModelDataset):
 
     def num_tokens(self, index: int) -> int:
         return self.sizes[index]
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        if state["_env"] is not None:
+            state["_env"].close()
+            del state["_env"]
+            state["_env"] = None
+        if state["_txn"] is not None:
+            del state["_txn"]
+            state["_txn"] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self._txn = self._env.begin(write=False)
 
 
 class PDBComplexDataset(AFDBLMDBDataset):

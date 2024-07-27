@@ -136,6 +136,17 @@ class PSMModel(Model):
         self.mode_prob = mode_prob
         logger.info(f"protein mode prob: {mode_prob}")
 
+    def half(self):
+        to_return = super().half()
+        if self.args.backbone == "graphormer" and self.psm_config.use_fp32_in_decoder:
+            self.net.decoder = self.net.decoder.float()
+            for key in self.net.forces_head:
+                self.net.forces_head[key] = self.net.forces_head[key].float()
+            for key in self.net.energy_head:
+                self.net.energy_head[key] = self.net.energy_head[key].float()
+            self.net.noise_head = self.net.noise_head.float()
+        return to_return
+
     def _create_initial_pos_for_diffusion(self, batched_data):
         is_stable_periodic = batched_data["is_stable_periodic"]
         ori_pos = batched_data["pos"][is_stable_periodic]
@@ -1198,6 +1209,7 @@ class PSM(nn.Module):
                     mixed_attn_bias[-1] if mixed_attn_bias is not None else None,
                     padding_mask,
                     pbc_expand_batched,
+                    time_embed=time_embed,
                 )
         elif self.args.backbone in ["vectorvanillatransformer"]:
             decoder_x_output, decoder_vec_output = self.decoder(

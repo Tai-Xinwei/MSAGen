@@ -280,15 +280,14 @@ class MemEffInvariantAttention(nn.Module):
         self.head_dim = head_dim
         self.num_heads = hidden_channels // head_dim
 
-        assert (
-            use_smooth_softmax is False
-        ), "Smooth softmax is not supported in the memory efficient attention"
-
         self.out_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
 
         self.dropout = dropout
         self.attn_ln = nn.LayerNorm(hidden_channels)
         self.scaling = ((self.head_dim / d_tilde) ** 0.5) / self.head_dim
+
+        self.use_smooth_softmax = use_smooth_softmax
+        self.smooth_factor = smooth_factor
 
         self.reset_parameters(1)
 
@@ -328,11 +327,6 @@ class MemEffInvariantAttention(nn.Module):
         else:
             local_attention_weight = None
             expand_mask = None
-
-        if local_attention_weight is not None:
-            raise Exception(
-                "periodic systems with pbc_use_local_attention=True is not supported in the mem efficient attention"
-            )
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
 
@@ -387,17 +381,55 @@ class MemEffInvariantAttention(nn.Module):
                         bsz, self.num_heads, tgt_len, src_len
                     )
 
-        with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
-            if attn_mask is not None:
-                attn_mask = attn_mask.to(dtype=q.dtype)
-            attn = torch.nn.functional.scaled_dot_product_attention(
-                q,
-                k,
-                v,
-                dropout_p=self.dropout,
-                attn_mask=attn_mask,
-                is_causal=False,
+        if local_attention_weight is not None or attn_bias is not None:
+            attn_weights = q.matmul(
+                k.transpose(-1, -2)
+            )  # (bsz, num_heads, tgt_len, src_len)
+
+            if attn_bias is not None:
+                attn_weights = attn_weights + attn_bias
+
+            if local_attention_weight is not None:
+                local_attention_weight = local_attention_weight.to(dtype=q.dtype)
+                if self.use_smooth_softmax:
+                    attn_weights = (
+                        attn_weights + self.smooth_factor
+                    ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+                else:
+                    attn_weights = attn_weights.masked_fill(
+                        (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
+                    )
+
+            attn_probs_float = F.dropout(
+                F.softmax(attn_weights, dim=-1, dtype=torch.float32),
+                self.dropout,
+                training=self.training,
             )
+
+            if local_attention_weight is not None:
+                attn_probs_float = attn_probs_float * local_attention_weight.unsqueeze(
+                    1
+                )
+
+            attn_probs = attn_probs_float.type_as(
+                v
+            )  # (bsz, num_heads, tgt_len, src_len)
+
+            attn = attn_probs.matmul(v)
+        else:
+            with sdpa_kernel(
+                [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
+            ):
+                if attn_mask is not None:
+                    attn_mask = attn_mask.to(dtype=q.dtype)
+                attn = torch.nn.functional.scaled_dot_product_attention(
+                    q,
+                    k,
+                    v,
+                    dropout_p=self.dropout,
+                    attn_mask=attn_mask,
+                    is_causal=False,
+                )
 
         attn = attn.transpose(1, 2).reshape(bsz, tgt_len, self.hidden_channels)
         attn = self.attn_ln(attn)
@@ -436,6 +468,9 @@ class MemEffEquivariantAttention(nn.Module):
         if add_rope:
             self.rot_emb = SFMRotaryEmbedding(dim=self.head_dim)
 
+        self.use_smooth_softmax = use_smooth_softmax
+        self.smooth_factor = smooth_factor
+
         self.reset_parameters(1)
 
     def reset_parameters(self, d_tilde):
@@ -470,11 +505,6 @@ class MemEffEquivariantAttention(nn.Module):
         else:
             local_attention_weight = None
             expand_mask = None
-
-        if local_attention_weight is not None:
-            raise Exception(
-                "periodic systems with pbc_use_local_attention=True is not supported in the mem efficient attention"
-            )
 
         bsz, tgt_len, src_len = q.shape[0], q.shape[1], k.shape[1]
         pos_feature_num = q.shape[2]
@@ -566,17 +596,49 @@ class MemEffEquivariantAttention(nn.Module):
                         bsz, self.num_heads, tgt_len, src_len
                     )
 
-        with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
+        if local_attention_weight is not None or attn_bias is not None:
+            attn_weights = q.matmul(
+                k.transpose(-1, -2)
+            )  # (bsz, num_heads, tgt_len, src_len)
             if attn_mask is not None:
-                attn_mask = attn_mask.to(dtype=q.dtype)
-            attn = torch.nn.functional.scaled_dot_product_attention(
-                q,
-                k,
-                v,
-                dropout_p=self.dropout,
-                attn_mask=attn_mask,
-                is_causal=False,
+                attn_weights = attn_weights + attn_mask
+            if local_attention_weight is not None:
+                local_attention_weight = local_attention_weight.to(dtype=q.dtype)
+                if self.use_smooth_softmax:
+                    attn_weights = (
+                        attn_weights + self.smooth_factor
+                    ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+                else:
+                    attn_weights = attn_weights.masked_fill(
+                        (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
+                    )
+            attn_probs_float = F.dropout(
+                F.softmax(attn_weights, dim=-1, dtype=torch.float32),
+                self.dropout,
+                self.training,
             )
+            if local_attention_weight is not None:
+                attn_probs_float = attn_probs_float * local_attention_weight.unsqueeze(
+                    1
+                )
+            attn_probs = attn_probs_float.type_as(
+                v
+            )  # (bsz, num_heads, tgt_len, src_len)
+            attn = attn_probs.matmul(v)
+        else:
+            with sdpa_kernel(
+                [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
+            ):
+                if attn_mask is not None:
+                    attn_mask = attn_mask.to(dtype=q.dtype)
+                attn = torch.nn.functional.scaled_dot_product_attention(
+                    q,
+                    k,
+                    v,
+                    dropout_p=self.dropout,
+                    attn_mask=attn_mask,
+                    is_causal=False,
+                )
 
         attn = (
             attn.transpose(1, 2)
@@ -1664,6 +1726,12 @@ class GeomFormer(nn.Module):
 
         self.unified_final_feature_ln = nn.LayerNorm(embedding_dim)
 
+        self.time_embed_proj = nn.Sequential(
+            nn.Linear(embedding_dim, embedding_dim, bias=True),
+            nn.SiLU(),
+            nn.Linear(embedding_dim, psm_config.num_3d_bias_kernel, bias=True),
+        )
+
     def forward(
         self,
         batched_data,
@@ -1672,8 +1740,13 @@ class GeomFormer(nn.Module):
         mixed_attn_bias,
         padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
+        time_embed: Optional[Tensor] = None,
     ):
+        if x.dtype != torch.float32 and self.psm_config.use_fp32_in_decoder:
+            x = x.to(dtype=torch.float32)
         pos = pos.to(dtype=x.dtype)
+        if time_embed is not None:
+            time_embed = time_embed.to(dtype=x.dtype)
         n_node = pos.shape[1]
         if pbc_expand_batched is not None:
             # use pbc and multi-graph
@@ -1711,6 +1784,10 @@ class GeomFormer(nn.Module):
                 padding_mask.unsqueeze(-1), 0.0
             )
             uni_vec_value = self.unified_vec_proj(uni_pos_feature).unsqueeze(-2)
+
+            if time_embed is not None:
+                uni_vec_value += time_embed
+
             vec = pos.unsqueeze(-1) * uni_vec_value
         elif self.psm_config.equivar_vec_init in [
             VecInitApproach.RELATIVE_POS,
@@ -1720,6 +1797,9 @@ class GeomFormer(nn.Module):
             uni_gbf_pos_feature = self.unified_gbf_vec(
                 dist, node_type_edge
             )  # n_graph x n_node x n_expand_node x num_kernel
+
+            if time_embed is not None:
+                uni_gbf_pos_feature += self.time_embed_proj(time_embed).unsqueeze(-2)
 
             uni_pos_feature = uni_gbf_pos_feature.masked_fill(
                 padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0

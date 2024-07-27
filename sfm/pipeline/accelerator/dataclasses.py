@@ -162,6 +162,7 @@ class TrainerConfig:
     dynamic_loader: bool = False
     ifstack: bool = False
     use_dali_pipeline: bool = False
+    unified_data_num_workers: int = 0
 
     # wandb
     wandb: bool = False

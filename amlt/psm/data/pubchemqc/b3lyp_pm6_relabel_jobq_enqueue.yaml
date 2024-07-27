@@ -1,0 +1,61 @@
+description: pubchemqc_b3lyp_pm6_relabel_jobq_enqueue
+
+environment:
+  image: lightaimd-1.0:20240708.105201_sm75
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+target:
+  service: aml
+  name: sfm-prem-e32adsv5-eastus
+
+env_defaults:
+  NODES: 1
+  APPLICATIONINSIGHTS_CONNECTION_STRING: InstrumentationKey=ba13eba2-46dc-4af3-86ea-b2914c29334b;IngestionEndpoint=https://westus3-1.in.applicationinsights.azure.com/;ApplicationId=bbb1412b-e8c8-4113-b849-b9054a276169
+
+code:
+  local_dir: $CONFIG_DIR/../../../../.. # parent directory including sfm and feynman
+  ignore:
+  # use .amltignore to ignore other folders except for sfm and feynman
+  # TODO: how to ignore other content directly under sfm or feynman?
+  - "sfm/sfm/*"
+  - "feynman/projects/*"
+  - "!sfm/sfm/data"
+  - "!feynman/projects/ai4s-jobq"
+
+storage:
+  blob:
+    storage_account_name: sfmdataeastus2
+    container_name: psm
+    mount_dir: /blob
+    local_dir: /data
+
+search:
+  type: grid
+  params:
+  - name: rank
+    spec: discrete
+    values: "range(0,$NODES)"
+  max_trials: $NODES
+  job_template:
+    name: pubchemqc_b3lyp_pm6_relabel_jobq_enqueue_{rank}
+    tags: [ProjectID:PRJ-0209-A40]
+    command:
+    - set -e
+    - eval "$$(conda shell.bash hook)" && conda activate madft
+    - pip install -e feynman/projects/ai4s-jobq
+    - pip install aiofiles
+    - cd sfm
+    - PYTHONPATH=. python sfm/data/mol_data/pubchemqc/relabel_b3lyp_pm6.py
+      --storage-account sfmdataeastus2
+      --queue test-queue
+      --enqueue
+      --enqueue-worldsize $$ENQUEUE_WORLD_SIZE
+      --enqueue-rank {rank}
+      --input-dir /blob/data/PubChemQC-B3LYP-PM6/raw/Compounds
+    submit_args:
+      env:
+        APPLICATIONINSIGHTS_CONNECTION_STRING: $APPLICATIONINSIGHTS_CONNECTION_STRING
+        ENQUEUE_WORLD_SIZE: $NODES
+      container_args:
+        shm_size: 1024g
