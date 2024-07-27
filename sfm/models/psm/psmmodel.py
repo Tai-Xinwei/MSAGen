@@ -1167,7 +1167,7 @@ class PSM(nn.Module):
                 padding_mask,
                 batched_data,
                 pbc_expand_batched,
-                # mixed_attn_bias=mixed_attn_bias,
+                mixed_attn_bias=mixed_attn_bias,
                 ifbackprop=self.args.AutoGradForce,
             )
 
@@ -1189,6 +1189,7 @@ class PSM(nn.Module):
                 batched_data,
                 mixed_attn_bias,
                 pbc_expand_batched,
+                time_embed=time_embed,
             )
 
             if not skip_decoder:
