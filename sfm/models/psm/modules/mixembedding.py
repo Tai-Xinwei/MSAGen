@@ -122,9 +122,7 @@ class PSMMix3dEmbedding(nn.Module):
             local_attention_weight = local_attention_weight.to(dtype=pos.dtype)
             dist = dist.masked_fill(local_attention_weight <= 1e-5, min_dtype)
 
-        pos_emb = (
-            self.pos_emb(expand_pos).masked_fill(expand_mask.unsqueeze(-1), 0.0).float()
-        )
+        pos_emb = self.pos_emb(expand_pos).masked_fill(expand_mask.unsqueeze(-1), 0.0)
         # pos_emb = torch.where(inf_pos_mask.unsqueeze(-1), self.unkpos_embedding.weight, pos_emb)
 
         adj = adj.masked_fill(~molecule_mask.unsqueeze(-1), True)
@@ -145,7 +143,9 @@ class PSMMix3dEmbedding(nn.Module):
         edge_feature = edge_feature.sum(dim=-2)
         pos_feature_emb += self.pos_embedding_proj(edge_feature)
 
-        pos_feature_emb = pos_feature_emb.masked_fill(padding_mask.unsqueeze(-1), 0.0)
+        pos_feature_emb = pos_feature_emb.masked_fill(
+            padding_mask.unsqueeze(-1), 0.0
+        ).to(self.pos_emb.weight.dtype)
         return pos_feature_emb, graph_attn_bias
 
     def forward(
@@ -298,7 +298,6 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             batched_data,
             pbc_expand_batched=pbc_expand_batched,
         )
-
         if time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)
 
@@ -325,4 +324,6 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             )
             pos_attn_bias += init_pos_attn_bias
 
-        return pos_embedding + time_embed, padding_mask, time_embed, pos_attn_bias, c
+        pos_embedding += time_embed
+
+        return pos_embedding, padding_mask, time_embed, pos_attn_bias, c
