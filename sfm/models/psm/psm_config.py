@@ -125,6 +125,7 @@ class PSMConfig(GraphormerConfig):
     use_smooth_equviariant_norm: bool = False
     no_rotary_embedding_for_vector: bool = False
     mlm_from_decoder_feature: bool = True
+    use_fp32_in_decoder: bool = False
 
     # for 2D information
     use_2d_atom_features: bool = False

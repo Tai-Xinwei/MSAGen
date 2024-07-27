@@ -32,10 +32,18 @@ SCIENCE_TAG_TOKENS = [
     "</fragB>",
     "<reagent>",
     "</reagent>",
+    "<cf1>",
+    "</cf1>",
+    "<cf2>",
+    "</cf2>",
+    "<fcf>",
+    "</fcf>",
+    "<dna6mer>",
+    "</dna6mer>",
 ]
 
 # may need to use in future
-for i in range(49):
+for i in range(45):
     SCIENCE_TAG_TOKENS.append(f"<dummy{i}>")
     SCIENCE_TAG_TOKENS.append(f"</dummy{i}>")
 
