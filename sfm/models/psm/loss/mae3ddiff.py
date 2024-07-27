@@ -87,17 +87,27 @@ class DiffMAE3dCriterions(nn.Module):
         self.seq_only = args.seq_only
 
         self.energy_loss = nn.L1Loss(reduction="none")
-        # self.force_loss = (
-        #     nn.L1Loss(reduction="none")
-        #     if self.args.force_loss_type == ForceLoss.L1
-        #     else nn.MSELoss(reduction="none")
-        # )
-        self.force_loss = nn.HuberLoss(reduction="none", delta=1.0)
-        self.noise_loss = (
-            nn.L1Loss(reduction="none")
-            if self.args.diffusion_training_loss == DiffusionTrainingLoss.L1
-            else nn.MSELoss(reduction="none")
-        )
+
+        if self.args.force_loss_type == ForceLoss.L1:
+            self.force_loss = nn.L1Loss(reduction="none")
+        elif self.args.force_loss_type == ForceLoss.MSE:
+            self.force_loss = nn.MSELoss(reduction="none")
+        elif self.args.force_loss_type == ForceLoss.SmoothL1:
+            self.force_loss = nn.SmoothL1Loss(reduction="none")
+        else:
+            raise ValueError(f"Invalid force loss type: {self.args.force_loss_type}")
+
+        if self.args.diffusion_training_loss == DiffusionTrainingLoss.L1:
+            self.noise_loss = nn.L1Loss(reduction="none")
+        elif self.args.diffusion_training_loss == DiffusionTrainingLoss.MSE:
+            self.noise_loss = nn.MSELoss(reduction="none")
+        elif self.args.diffusion_training_loss == DiffusionTrainingLoss.SmoothL1:
+            self.noise_loss = nn.SmoothL1Loss(reduction="none")
+        else:
+            raise ValueError(
+                f"Invalid diffusion training loss type: {self.args.diffusion_training_loss}"
+            )
+
         self.aa_mlm_loss = nn.CrossEntropyLoss(reduction="mean")
 
         self.molecule_energy_mean = molecule_energy_mean
