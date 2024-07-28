@@ -25,7 +25,7 @@ class NoiseTolerentL1Loss(nn.Module):
         diff = torch.where(
             diff < self.noise_tolerance,
             diff,
-            2 * (torch.sqrt(diff * self.noise_tolerance) - self.noise_tolerance) + 1,
+            2 * (torch.sqrt(diff * self.noise_tolerance) - 0.5 * self.noise_tolerance),
         )
 
         if self.reduction == "mean":
