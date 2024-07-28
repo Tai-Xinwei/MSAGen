@@ -12,6 +12,7 @@ from sfm.data.prot_data.dataset import DownstreamLMDBDataset
 from sfm.data.prot_data.util import bstr2obj
 from sfm.data.sci_data import SFMDecTokenizer
 from sfm.logging import logger
+from sfm.pipeline.accelerator.dataclasses import TrainStrategy
 
 # we have to use named tuple to avoid being convreted to list by pytorch,
 # but also compatible with DeepSpeed PP
@@ -313,8 +314,13 @@ class ProcessedSciWeightedDatasetLmdb(ProcessedSciDatasetLmdb):
         self.__init_seed(args)
 
     def __init_seed(self, args):
-        self.seed = args.rank // args.pipeline_model_parallel_size
-        np.random.seed(self.seed)
+        if args.strategy == TrainStrategy.ThreeD:
+            from megatron.core import mpu
+
+            seed = mpu.get_data_parallel_rank()
+        else:
+            seed = args.rank // args.pipeline_model_parallel_size
+        np.random.seed(seed)
 
     def __getitem__(self, index):
         # get data from the corresponding dataset with the probability of data_raio
