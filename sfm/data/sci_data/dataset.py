@@ -286,6 +286,7 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
 class ProcessedSciWeightedDatasetLmdb(ProcessedSciDatasetLmdb):
     def __init__(
         self,
+        args,
         data_dir: str,
         path: str,
         padding_idx: int,
@@ -308,6 +309,12 @@ class ProcessedSciWeightedDatasetLmdb(ProcessedSciDatasetLmdb):
         logger.info(f"data_raio {self.data_raio}")
         logger.info(f"data_size_list {self.data_size_list}")
         logger.info(f"acc_data_size_list {self.acc_data_size_list}")
+
+        self.__init_seed(args)
+
+    def __init_seed(self, args):
+        self.seed = args.rank // args.pipeline_model_parallel_size
+        np.random.seed(self.seed)
 
     def __getitem__(self, index):
         # get data from the corresponding dataset with the probability of data_raio

@@ -46,6 +46,7 @@ def main(args) -> None:
 
     if args.weighted_dataset:
         train_dataset = ProcessedSciWeightedDatasetLmdb(
+            args,
             args.data_dir,
             args.train_data_path,
             args.pad_token_id,
