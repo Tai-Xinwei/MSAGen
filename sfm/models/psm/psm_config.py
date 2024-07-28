@@ -29,6 +29,7 @@ class ForceLoss(Enum):
     L1: str = "L1"
     MSE: str = "MSE"
     SmoothL1: str = "SmoothL1"
+    NoiseTolerentL1: str = "NoiseTolerentL1"
 
     def __str__(self):
         return self.value

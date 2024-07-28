@@ -2,12 +2,40 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from typing import Callable, Optional
+
 import numpy as np
 import torch
 import torch.nn as nn
+from torch import Tensor
+from typing_extensions import deprecated
 
 from sfm.logging import logger
 from sfm.models.psm.psm_config import DiffusionTrainingLoss, ForceLoss, PSMConfig
+
+
+class NoiseTolerentL1Loss(nn.Module):
+    def __init__(self, noise_tolerance: float = 1.0, reduction: str = "mean"):
+        super().__init__()
+        self.reduction = reduction
+        self.noise_tolerance = noise_tolerance
+
+    def forward(self, input, target):
+        diff = torch.abs(input - target)
+        diff = torch.where(
+            diff < self.noise_tolerance,
+            diff,
+            2 * (torch.sqrt(diff * self.noise_tolerance) - self.noise_tolerance) + 1,
+        )
+
+        if self.reduction == "mean":
+            return torch.mean(diff)
+        elif self.reduction == "sum":
+            return torch.sum(diff)
+        elif self.reduction == "none":
+            return diff
+        else:
+            raise ValueError(f"Invalid reduction: {self.reduction}")
 
 
 def svd_superimpose(P, Q, mask=None):
@@ -94,6 +122,8 @@ class DiffMAE3dCriterions(nn.Module):
             self.force_loss = nn.MSELoss(reduction="none")
         elif self.args.force_loss_type == ForceLoss.SmoothL1:
             self.force_loss = nn.SmoothL1Loss(reduction="none")
+        elif self.args.force_loss_type == ForceLoss.NoiseTolerentL1:
+            self.force_loss = NoiseTolerentL1Loss(noise_tolerance=0.6, reduction="none")
         else:
             raise ValueError(f"Invalid force loss type: {self.args.force_loss_type}")
 

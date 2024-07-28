@@ -20,6 +20,7 @@ from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.equivariant.nodetaskhead import (
+    ForceVecOutput,
     NodeTaskHead,
     VectorOutput,
     VectorProjOutput,
@@ -911,6 +912,7 @@ class PSM(nn.Module):
                                 bias=True,
                             ),
                             nn.SiLU(),
+                            AdaNorm(psm_config.embedding_dim),
                             nn.Linear(psm_config.embedding_dim, 1, bias=True),
                         )
                     }
@@ -942,7 +944,7 @@ class PSM(nn.Module):
                     )
                 else:
                     self.forces_head.update(
-                        {key: VectorOutput(psm_config.embedding_dim)}
+                        {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
             elif args.backbone in ["dit"]:
                 self.noise_head = VectorProjOutput(psm_config.embedding_dim)
@@ -952,7 +954,7 @@ class PSM(nn.Module):
                     )
                 else:
                     self.forces_head.update(
-                        {key: VectorProjOutput(psm_config.embedding_dim)}
+                        {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
             else:
                 self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)

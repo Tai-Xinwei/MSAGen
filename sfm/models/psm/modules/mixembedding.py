@@ -324,8 +324,8 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
                 ~molecule_mask.unsqueeze(-1), 0.0
             )
 
-            # # time raito is 0 at time step == 0, time raito is 1 at time step >= 1e-4, linear increase between 0 and 1e-4
-            time_ratio = torch.clamp(time_step / 0.0001, 0.0, 1.0)
+            # # time raito is 0 at time step == 0, time raito is 1 at time step >= 1e-3, linear increase between 0 and 1e-3
+            time_ratio = torch.clamp(time_step / 0.001, 0.0, 1.0)
             pos_embedding += atom_feature_embedding * time_ratio.unsqueeze(-1)
 
         return (

@@ -158,6 +158,22 @@ class VectorProjOutput(nn.Module):
         self.output_network = nn.Sequential(
             nn.Linear(hidden_channels, hidden_channels, bias=False),
             nn.SiLU(),
+            AdaNorm(hidden_channels),
+            nn.Linear(hidden_channels, 3, bias=False),
+        )
+
+    def forward(self, x, v):
+        x = self.output_network(x)
+        return x
+
+
+class ForceVecOutput(nn.Module):
+    def __init__(self, hidden_channels=768):
+        super(ForceVecOutput, self).__init__()
+        self.output_network = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels, bias=False),
+            nn.SiLU(),
+            AdaNorm(hidden_channels),
             nn.Linear(hidden_channels, 3, bias=False),
         )
 
