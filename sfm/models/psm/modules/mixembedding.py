@@ -104,6 +104,8 @@ class PSMMix3dEmbedding(nn.Module):
 
         dist = delta_pos.norm(dim=-1)
 
+        adj = adj.masked_fill(~molecule_mask.unsqueeze(-1), True)
+
         edge_feature = self.gbf(dist, node_type_edge.long())
         graph_attn_bias = self.gbf_proj(edge_feature)
         graph_attn_bias = graph_attn_bias.masked_fill(
@@ -123,9 +125,7 @@ class PSMMix3dEmbedding(nn.Module):
             dist = dist.masked_fill(local_attention_weight <= 1e-5, min_dtype)
 
         pos_emb = self.pos_emb(expand_pos).masked_fill(expand_mask.unsqueeze(-1), 0.0)
-        # pos_emb = torch.where(inf_pos_mask.unsqueeze(-1), self.unkpos_embedding.weight, pos_emb)
 
-        adj = adj.masked_fill(~molecule_mask.unsqueeze(-1), True)
         dist = dist.masked_fill(~adj, min_dtype)
 
         dist = torch.nn.functional.softmax(dist.float() * self.scaling, dim=-1)
@@ -146,6 +146,7 @@ class PSMMix3dEmbedding(nn.Module):
         pos_feature_emb = pos_feature_emb.masked_fill(
             padding_mask.unsqueeze(-1), 0.0
         ).to(self.pos_emb.weight.dtype)
+
         return pos_feature_emb, graph_attn_bias
 
     def forward(
@@ -271,21 +272,7 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             mask_token_type = token_id
 
         batched_data["masked_token_type"] = mask_token_type
-        c = self.embed(mask_token_type)
-
-        if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
-            atom_feature_embedding = self.atom_feature_embed(
-                batched_data["node_attr"][:, :, 1:]
-            ).sum(
-                dim=-2
-            )  # B x T x #ATOM_FEATURE x D -> # B x T x D
-            atom_feature_embedding = atom_feature_embedding.masked_fill(
-                ~molecule_mask.unsqueeze(-1), 0.0
-            )
-
-            # # time raito is 0 at time step == 0, time raito is 1 at time step >= 0.05, linear increase between 0 and 0.05
-            time_ratio = torch.clamp(time_step / 0.001, 0.0, 1.0)
-            c += atom_feature_embedding * time_ratio.unsqueeze(-1)
+        condition_embedding = self.embed(mask_token_type)
 
         pos_embedding, pos_attn_bias = self._pos_emb(
             batched_data["pos"],
@@ -298,8 +285,6 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             batched_data,
             pbc_expand_batched=pbc_expand_batched,
         )
-        if time_step is not None:
-            time_embed = self.time_step_encoder(time_step, clean_mask)
 
         if "init_pos" in batched_data and (batched_data["init_pos"] != 0.0).any():
             init_pos = batched_data["init_pos"]
@@ -324,6 +309,29 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             )
             pos_attn_bias += init_pos_attn_bias
 
+        if time_step is not None:
+            time_embed = self.time_step_encoder(time_step, clean_mask)
+
         pos_embedding += time_embed
 
-        return pos_embedding, padding_mask, time_embed, pos_attn_bias, c
+        if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
+            atom_feature_embedding = self.atom_feature_embed(
+                batched_data["node_attr"][:, :, 1:]
+            ).sum(
+                dim=-2
+            )  # B x T x #ATOM_FEATURE x D -> # B x T x D
+            atom_feature_embedding = atom_feature_embedding.masked_fill(
+                ~molecule_mask.unsqueeze(-1), 0.0
+            )
+
+            # # time raito is 0 at time step == 0, time raito is 1 at time step >= 1e-4, linear increase between 0 and 1e-4
+            time_ratio = torch.clamp(time_step / 0.0001, 0.0, 1.0)
+            pos_embedding += atom_feature_embedding * time_ratio.unsqueeze(-1)
+
+        return (
+            pos_embedding,
+            padding_mask,
+            time_embed,
+            pos_attn_bias,
+            condition_embedding,
+        )
