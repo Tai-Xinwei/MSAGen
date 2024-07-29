@@ -321,11 +321,18 @@ class ProcessedSciWeightedDatasetLmdb(ProcessedSciDatasetLmdb):
         else:
             self.dp_rank = args.rank // args.pipeline_model_parallel_size
 
+        self.global_index = 0
+
     def __getitem__(self, index):
         # get data from the corresponding dataset with the probability of data_raio
-        np.random.seed(self.dp_rank + index)
+        np.random.seed(self.dp_rank + self.global_index)
+        self.global_index += 1
+        if self.global_index >= 2147480000:
+            self.global_index = 0
+
         list_index = np.random.choice(len(self.data_raio), p=self.data_raio)
         data_index = np.random.randint(0, self.data_size_list[list_index])
+
         data_index, offset = divmod(data_index, self.replicate)
         key = self.keys_list[list_index][data_index]
         value = self.txn_list[list_index].get(str(key).encode())

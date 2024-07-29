@@ -111,6 +111,7 @@ class PSMMix3dEmbedding(nn.Module):
         graph_attn_bias = graph_attn_bias.masked_fill(
             expand_mask.unsqueeze(1).unsqueeze(-1), float("-inf")
         )
+        graph_attn_bias = graph_attn_bias.masked_fill(~adj.unsqueeze(-1), float("-inf"))
         graph_attn_bias = graph_attn_bias.masked_fill(
             padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0
         )
