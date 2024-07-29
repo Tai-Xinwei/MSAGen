@@ -67,7 +67,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged,'
 [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12"
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,pdbcomplexmultimer'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.05,0.3,0.15,0.1'
@@ -82,15 +82,17 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
 [ -z "${NoisePredForce}" ] && NoisePredForce=False
 [ -z "${force_head_type}" ] && force_head_type=MLP
-[ -z "${force_loss_type}" ] && force_loss_type=NoiseTolerentL1
+[ -z "${force_loss_type}" ] && force_loss_type=SmoothL1
+[ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1.0
+[ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
+[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1.0
+[ -z "${energy_per_atom_label_scale}" ] && energy_per_atom_label_scale=0.05
+[ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
-[ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=20.0
-[ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=2.0
-[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=5.0
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psm/psmv1_vt_v8/"
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step252285"
@@ -258,6 +260,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
           use_dali_pipeline=$use_dali_pipeline molecule_energy_loss_ratio=$molecule_energy_loss_ratio \
           material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
+          energy_per_atom_label_scale=$energy_per_atom_label_scale molecule_energy_per_atom_std_override=1.0 \
           preprocess_2d_bond_features_with_cuda=True use_smooth_equviariant_norm=$use_smooth_equviariant_norm \
           AutoGradForce=$AutoGradForce force_head_type=$force_head_type psm_finetune_mode=$psm_finetune_mode \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
@@ -265,6 +268,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           mm_tensorcore=$mm_tensorcore compile=$compile disable_data_aug=$disable_data_aug \
           if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy \
           NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
+          rescale_loss_with_std=$rescale_loss_with_std \
           # ifresume=True \
 
 #           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \

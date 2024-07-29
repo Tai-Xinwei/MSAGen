@@ -152,31 +152,55 @@ class VectorOutput(nn.Module):
         return v.squeeze(-1)
 
 
-class VectorProjOutput(nn.Module):
+class VectorGatedOutput(nn.Module):
     def __init__(self, hidden_channels=768):
-        super(VectorProjOutput, self).__init__()
-        self.output_network = nn.Sequential(
+        super(VectorGatedOutput, self).__init__()
+        self.up_proj = nn.Sequential(
+            nn.Linear(hidden_channels, 3 * hidden_channels, bias=False),
+            nn.SiLU(),
+            nn.LayerNorm(3 * hidden_channels),
+        )
+        self.gate_proj = nn.Sequential(
             nn.Linear(hidden_channels, hidden_channels, bias=False),
             nn.SiLU(),
-            AdaNorm(hidden_channels),
-            nn.Linear(hidden_channels, 3, bias=False),
+            nn.LayerNorm(hidden_channels),
+        )
+        self.vec_proj = nn.Sequential(
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 1, bias=False),
         )
 
     def forward(self, x, v):
-        x = self.output_network(x)
+        gate = self.gate_proj(x)
+        vec = self.up_proj(x)
+        vec = vec.view(x.size(0), x.size(1), 3, -1)
+        x = self.vec_proj(vec * gate.unsqueeze(-2)).squeeze(-1)
         return x
 
 
 class ForceVecOutput(nn.Module):
     def __init__(self, hidden_channels=768):
         super(ForceVecOutput, self).__init__()
-        self.output_network = nn.Sequential(
+        self.up_proj = nn.Sequential(
+            nn.Linear(hidden_channels, 3 * hidden_channels, bias=False),
+            nn.SiLU(),
+            nn.LayerNorm(3 * hidden_channels),
+        )
+        self.gate_proj = nn.Sequential(
             nn.Linear(hidden_channels, hidden_channels, bias=False),
             nn.SiLU(),
-            AdaNorm(hidden_channels),
-            nn.Linear(hidden_channels, 3, bias=False),
+            nn.LayerNorm(hidden_channels),
+        )
+        self.vec_proj = nn.Sequential(
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 1, bias=False),
         )
 
     def forward(self, x, v):
-        x = self.output_network(x)
+        gate = self.gate_proj(x)
+        vec = self.up_proj(x)
+        vec = vec.view(x.size(0), x.size(1), 3, -1)
+        x = self.vec_proj(vec * gate.unsqueeze(-2)).squeeze(-1)
         return x

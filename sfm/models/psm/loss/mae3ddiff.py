@@ -15,7 +15,7 @@ from sfm.models.psm.psm_config import DiffusionTrainingLoss, ForceLoss, PSMConfi
 
 
 class NoiseTolerentL1Loss(nn.Module):
-    def __init__(self, noise_tolerance: float = 1.0, reduction: str = "mean"):
+    def __init__(self, noise_tolerance: float = 1.0, reduction: str = "none"):
         super().__init__()
         self.reduction = reduction
         self.noise_tolerance = noise_tolerance
@@ -123,7 +123,7 @@ class DiffMAE3dCriterions(nn.Module):
         elif self.args.force_loss_type == ForceLoss.SmoothL1:
             self.force_loss = nn.SmoothL1Loss(reduction="none")
         elif self.args.force_loss_type == ForceLoss.NoiseTolerentL1:
-            self.force_loss = NoiseTolerentL1Loss(noise_tolerance=0.6, reduction="none")
+            self.force_loss = NoiseTolerentL1Loss(noise_tolerance=2.0, reduction="none")
         else:
             raise ValueError(f"Invalid force loss type: {self.args.force_loss_type}")
 

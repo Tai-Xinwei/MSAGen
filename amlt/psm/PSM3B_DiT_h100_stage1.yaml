@@ -72,7 +72,7 @@ jobs:
   - export max_tokens=16000
   - export max_length=512
   - export gradient_accumulation_steps=8
-  - export log_interval=20
+  - export log_interval=100
   - export data_path=/psm/data/
   # - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
   # - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'

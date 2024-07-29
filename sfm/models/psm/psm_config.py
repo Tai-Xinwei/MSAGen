@@ -144,6 +144,8 @@ class PSMConfig(GraphormerConfig):
     material_force_loss_ratio: float = 1.0
     material_energy_loss_ratio: float = 1.0
     molecule_energy_loss_ratio: float = 1.0
+    energy_per_atom_label_scale: float = 1.0
+    molecule_energy_per_atom_std_override: float = 1.0
     decoder_feat4energy: bool = True
     AutoGradForce: bool = False
     NoisePredForce: bool = False

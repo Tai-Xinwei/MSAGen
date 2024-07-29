@@ -22,8 +22,8 @@ from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.equivariant.nodetaskhead import (
     ForceVecOutput,
     NodeTaskHead,
+    VectorGatedOutput,
     VectorOutput,
-    VectorProjOutput,
 )
 from sfm.models.psm.equivariant.vectorVT import VectorVanillaTransformer
 from sfm.models.psm.invariant.dit_encoder import PSMDiTEncoder
@@ -136,6 +136,11 @@ class PSMModel(Model):
             mode_prob = [0.0, 0.0, 1.0]
         self.mode_prob = mode_prob
         logger.info(f"protein mode prob: {mode_prob}")
+
+    def half(self):
+        super().half()
+        if self.args.backbone == "graphormer" and self.psm_config.use_fp32_in_decoder:
+            self.net.decoder = self.net.decoder.float()
 
     def _create_initial_pos_for_diffusion(self, batched_data):
         is_stable_periodic = batched_data["is_stable_periodic"]
@@ -912,7 +917,7 @@ class PSM(nn.Module):
                                 bias=True,
                             ),
                             nn.SiLU(),
-                            AdaNorm(psm_config.embedding_dim),
+                            nn.LayerNorm(psm_config.embedding_dim),
                             nn.Linear(psm_config.embedding_dim, 1, bias=True),
                         )
                     }
@@ -947,7 +952,7 @@ class PSM(nn.Module):
                         {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
             elif args.backbone in ["dit"]:
-                self.noise_head = VectorProjOutput(psm_config.embedding_dim)
+                self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
                     self.forces_head.update(
                         {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
