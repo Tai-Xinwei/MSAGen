@@ -1257,8 +1257,8 @@ class PDBDataset(AFDBLMDBDataset):
     ):
         # version = "20240101_snapshot.20240630_8fe6fe4b.subset_release_date_before_20200430.protein_chain.lmdb"
         version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.protein_chain.lmdb"
-
-        if lmdb_path.find(version) == -1:
+        testflag = "ProteinTest"
+        if lmdb_path.find(version) == -1 and lmdb_path.find(testflag) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
         super().__init__(args, lmdb_path)
 
@@ -1284,6 +1284,7 @@ class PDBDataset(AFDBLMDBDataset):
         data["sample_type"] = 2
         data["token_type"] = x
         data["idx"] = idx
+        data["key"] = key
 
         coords = torch.tensor(coords, dtype=torch.float64)
 

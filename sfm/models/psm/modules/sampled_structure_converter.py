@@ -28,64 +28,29 @@ bond_dict = {
     4: rdkit.Chem.rdchem.BondType.AROMATIC,
 }
 
-AA1TO3 = {
-    "A": "ALA",
-    "C": "CYS",
-    "D": "ASP",
-    "E": "GLU",
-    "F": "PHE",
-    "G": "GLY",
-    "H": "HIS",
-    "I": "ILE",
-    "K": "LYS",
-    "L": "LEU",
-    "M": "MET",
-    "N": "ASN",
-    "P": "PRO",
-    "Q": "GLN",
-    "R": "ARG",
-    "S": "SER",
-    "T": "THR",
-    "V": "VAL",
-    "W": "TRP",
-    "Y": "TYR",
-}
-
-VOCAB = {
-    # "<pad>": 0,  # padding
-    # "1"-"127": 1-127, # atom type
-    # "<cell_corner>": 128, use for pbc material
-    "L": 130,
-    "A": 131,
-    "G": 132,
-    "V": 133,
-    "S": 134,
-    "E": 135,
-    "R": 136,
-    "T": 137,
-    "I": 138,
-    "D": 139,
-    "P": 140,
-    "K": 141,
-    "Q": 142,
-    "N": 143,
-    "F": 144,
-    "Y": 145,
-    "M": 146,
-    "H": 147,
-    "W": 148,
-    "C": 149,
-    "X": 150,
-    "B": 151,
-    "U": 152,
-    "Z": 153,
-    "O": 154,
-    "-": 155,
-    ".": 156,
-    "<mask>": 157,
-    "<cls>": 158,
-    "<eos>": 159,
-    # "<unk>": 160,
+VOCAB2AA = {
+    130: "LEU",  # "L"
+    131: "ALA",  # "A"
+    132: "GLY",  # "G"
+    133: "VAL",  # "V"
+    134: "SER",  # "S"
+    135: "GLU",  # "E"
+    136: "ARG",  # "R"
+    137: "THR",  # "T"
+    138: "ILE",  # "I"
+    139: "ASP",  # "D"
+    140: "PRO",  # "P"
+    141: "LYS",  # "K"
+    142: "GLN",  # "Q"
+    143: "ASN",  # "N"
+    144: "PHE",  # "F"
+    145: "TYR",  # "Y"
+    146: "MET",  # "M"
+    147: "HIS",  # "H"
+    148: "TRP",  # "W"
+    149: "CYS",  # "C"
+    150: "UNK",  # "X"
+    # other_code: "UNK",
 }
 
 
@@ -287,20 +252,18 @@ class ProteinConverter(BaseConverter):
         batch_size = num_residues.shape[0]
         structures: List[Optional[List[str]]] = []
         token_ids = batched_data["token_id"]
+        keys = batched_data.get("key", ["TEMP"] * batch_size)
         for i in range(batch_size):
             try:
                 pos = poses[i].cpu()
                 pos = pos[: num_residues[i]]
                 residue_ids = token_ids[i][: num_residues[i]].cpu().numpy()
-                pdb_lines = []
-                sequence = []
-                for token_id in residue_ids:
-                    for key in VOCAB:
-                        if VOCAB[key] == int(token_id):
-                            sequence.append(key)
+                pdb_lines = [f"HEADER    {keys[i]}\n"]
                 for i, (x, y, z) in enumerate(pos):
+                    if np.isnan(x):
+                        continue
                     atomidx = i + 1
-                    resname = AA1TO3.get(sequence[i], "UNK")
+                    resname = VOCAB2AA.get(residue_ids[i], "UNK")
                     resnumb = i + 1
                     pdb_lines.append(
                         f"ATOM  {atomidx:>5d}  CA  {resname}  {resnumb:>4d}    "
@@ -308,10 +271,9 @@ class ProteinConverter(BaseConverter):
                     )
                 pdb_lines.append("TER\n")
                 pdb_lines.append("END\n")
-
                 structures.append(pdb_lines)
             except Exception as e:
-                logger.warning(f"{e}")
+                logger.warning(f"Failed to sample for protein {keys[i]}, {e}")
                 structures.append(None)
         return structures
 
@@ -323,63 +285,68 @@ class ProteinConverter(BaseConverter):
         sampled_structure_output_path: Optional[str] = None,
         sample_index: Optional[int] = -1,
     ) -> float:
-        if sampled_structure is None or original_structure is None:
-            return {"rmsd": np.nan, "tm_score": np.nan}
-        tm_score = np.nan
-        rmsd = np.nan
+        rmsd, tm_score, lddt = np.nan, np.nan, np.nan
         try:
-            sampled_path = (
-                f"{sampled_structure_output_path}/sampled_{idx}_{sample_index}.pdb"
-            )
-            original_path = (
-                f"{sampled_structure_output_path}/original_{idx}_{sample_index}.pdb"
+            assert (
+                sampled_structure and sampled_structure[0][:6] == "HEADER"
+            ), f"Wrong sample structure {sampled_structure[0]}"
+            assert (
+                original_structure and original_structure[0][:6] == "HEADER"
+            ), f"Wrong original structure {original_structure[0]}"
+            assert (
+                sampled_structure[0] == original_structure[0]
+            ), f"Wrong name for sample {sampled_structure[0]}"
+            key = sampled_structure[0].split()[1]
+            sampled_path = os.path.join(
+                sampled_structure_output_path, f"{key}-{sample_index+1}.pdb"
             )
             with open(sampled_path, "w") as out_file:
                 out_file.writelines(sampled_structure)
-            with open(original_path, "w") as out_file:
-                out_file.writelines(original_structure)
-
             lines = []
-            with tempfile.TemporaryFile() as tmp:
-                proc = subprocess.Popen(
-                    ["./TMscore", sampled_path, original_path], stdout=tmp, stderr=tmp
+            with tempfile.NamedTemporaryFile() as original_path:
+                with open(original_path.name, "w") as fp:
+                    fp.writelines(original_structure)
+                lines.extend(
+                    subprocess.run(
+                        f"TMscore {sampled_path} {original_path.name}",
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                    ).stdout.split("\n")
                 )
-                proc.wait()
-                tmp.seek(0)
-                lines = [_.decode("utf-8") for _ in tmp.readlines()]
-            for i, line in enumerate(lines):
+                lines.extend(
+                    subprocess.run(
+                        f"lddt -c {sampled_path} {original_path.name}",
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                    ).stdout.split("\n")
+                )
+            for line in lines:
                 cols = line.split()
                 if line.startswith("RMSD") and len(cols) > 5:
                     rmsd = float(cols[5])
                 elif line.startswith("TM-score") and len(cols) > 2:
                     tm_score = float(cols[2])
-        except Exception as e:
-            logger.info(
-                f"Failed to calculate TM-score for sampled structure with index {idx} {e}."
+                elif line.startswith("Global LDDT") and len(cols) > 3:
+                    lddt = float(cols[3])
+            logger.success(
+                f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
+                f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}."
             )
-        return {"rmsd": rmsd, "tm_score": tm_score}
+        except Exception as e:
+            logger.warning(f"Failed to evaluate sample {idx}, {e}.")
+        return {"rmsd": rmsd, "tm_score": tm_score, "lddt": lddt}
 
 
 class SampledStructureConverter:
     def __init__(self, sampled_structure_output_path: Optional[str]) -> None:
         self.sampled_structure_output_path = sampled_structure_output_path
-        if self.sampled_structure_output_path is not None and not os.path.exists(
-            self.sampled_structure_output_path
-        ):
-            os.system(f"mkdir -p {self.sampled_structure_output_path}")
-
-        if not os.path.exists("TMscore"):
-            with tempfile.TemporaryFile() as tmp:
-                subprocess.Popen(
-                    ["wget", "https://zhanggroup.org/TM-score/TMscoreLinux.zip"],
-                    stdout=tmp,
-                    stderr=tmp,
-                )
-                if not os.path.exists("TMscore"):
-                    subprocess.Popen(
-                        ["unzip", "TMscoreLinux.zip"], stdout=tmp, stderr=tmp
-                    )
-                subprocess.Popen(["rm", "TMscoreLinux.zip*"], stdout=tmp, stderr=tmp)
+        if self.sampled_structure_output_path is not None:
+            os.makedirs(self.sampled_structure_output_path, exist_ok=True)
+        exitcode, output = subprocess.getstatusoutput("which TMscore")
+        if exitcode != 0:
+            raise ValueError(f"Program 'TMscore' not installed, {output}.")
 
     def convert_and_match(
         self,
@@ -391,6 +358,8 @@ class SampledStructureConverter:
         all_results = [None for _ in range(batch_size)]
         for system_tag in ["molecule", "periodic", "protein"]:
             is_mask = batched_data[f"is_{system_tag}"]
+            if system_tag == "protein":
+                is_mask = is_mask.any(dim=-1)
             indexes_in_batch = is_mask.nonzero().squeeze(-1)
             if torch.any(is_mask):
                 indexes = batched_data["idx"][is_mask]

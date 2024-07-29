@@ -1,0 +1,196 @@
+description: proteintest_sample
+
+target:
+  service: aml
+  name: sfm-nd96amsra100v4-uksouth
+
+env_defaults:
+  WANDB_PROJECT: psm_eval
+  WANDB_GROUP: proteintest_sample_structure
+  MODEL_CONFIG: PSM1B_V0
+  CKPT_PATH: /sfm/sfmexpresults/shiyu/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240725-1050/checkpoint_E0_B37500.pt
+  SMPL_PATH: /sfm/sfmexpresults/jianwei/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240725-1050/checkpoint_E0_B37500-prediction
+  GPUS: 8
+
+environment:
+  image: ai4s-sfm:20240531.170731
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+  sfm:
+    storage_account_name: sfmarca100
+    container_name: sfm
+    mount_dir: /sfm
+
+code:
+  local_dir: $CONFIG_DIR/../../../
+
+jobs:
+- name: ${MODEL_CONFIG}_${WANDB_GROUP}_CAMEO_EASY
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  mpi: true
+  process_count_per_node: 1
+  identity: managed
+  command:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install nvidia-dali-cuda120
+  - python setup_cython.py build_ext --inplace
+  - conda install bioconda::lddt
+  - export WANDB_API_KEY=$WANDB_API_KEY
+  - wandb login --relogin --host=https://microsoft-research.wandb.io $$WANDB_API_KEY
+
+  - export WANDB_RUN_NAME=${MODEL_CONFIG}_${WANDB_GROUP}_$$(date -u +%Y%m%d.%H%M%S)
+
+  - DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_psm.py
+    --config-name=$MODEL_CONFIG
+    psm_validation_mode=true
+    sample_in_validation=true
+    mode_prob=\"0.0,1.0,0.0\"
+    max_length=2048
+    mask_ratio=0.0
+    data_path=/sfm/psm
+    data_path_list=ProteinTest/proteintest-cameo-easy.lmdb
+    dataset_name_list=proteintest
+    dataset_split_raito=1.0
+    use_unified_batch_sampler=false
+    val_batch_size=16
+    val_batch_log_interval=1
+    num_sampling_time=5
+    loadcheck_path=$CKPT_PATH
+    sampled_structure_output_path=$SMPL_PATH
+    wandb_team=ai4s-sfm
+    wandb_project=$WANDB_PROJECT
+    wandb_group=$WANDB_GROUP
+    wandb_run_name=$$WANDB_RUN_NAME
+  submit_args:
+    container_args:
+      shm_size: 1024g
+  priority: High
+  sla_tier: Premium
+
+- name: ${MODEL_CONFIG}_${WANDB_GROUP}_CAMEO_MEDI
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  mpi: true
+  process_count_per_node: 1
+  identity: managed
+  command:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install nvidia-dali-cuda120
+  - python setup_cython.py build_ext --inplace
+  - conda install bioconda::lddt
+  - export WANDB_API_KEY=$WANDB_API_KEY
+  - wandb login --relogin --host=https://microsoft-research.wandb.io $$WANDB_API_KEY
+
+  - export WANDB_RUN_NAME=${MODEL_CONFIG}_${WANDB_GROUP}_$$(date -u +%Y%m%d.%H%M%S)
+
+  - DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_psm.py
+    --config-name=$MODEL_CONFIG
+    psm_validation_mode=true
+    sample_in_validation=true
+    mode_prob=\"0.0,1.0,0.0\"
+    max_length=2048
+    mask_ratio=0.0
+    data_path=/sfm/psm
+    data_path_list=ProteinTest/proteintest-cameo-medi.lmdb
+    dataset_name_list=proteintest
+    dataset_split_raito=1.0
+    use_unified_batch_sampler=false
+    val_batch_size=16
+    val_batch_log_interval=1
+    num_sampling_time=5
+    loadcheck_path=$CKPT_PATH
+    sampled_structure_output_path=$SMPL_PATH
+    wandb_team=ai4s-sfm
+    wandb_project=$WANDB_PROJECT
+    wandb_group=$WANDB_GROUP
+    wandb_run_name=$$WANDB_RUN_NAME
+  submit_args:
+    container_args:
+      shm_size: 1024g
+  priority: High
+  sla_tier: Premium
+
+- name: ${MODEL_CONFIG}_${WANDB_GROUP}_CASP14_FULL
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  mpi: true
+  process_count_per_node: 1
+  identity: managed
+  command:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install nvidia-dali-cuda120
+  - python setup_cython.py build_ext --inplace
+  - conda install bioconda::lddt
+  - export WANDB_API_KEY=$WANDB_API_KEY
+  - wandb login --relogin --host=https://microsoft-research.wandb.io $$WANDB_API_KEY
+
+  - export WANDB_RUN_NAME=${MODEL_CONFIG}_${WANDB_GROUP}_$$(date -u +%Y%m%d.%H%M%S)
+
+  - DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_psm.py
+    --config-name=$MODEL_CONFIG
+    psm_validation_mode=true
+    sample_in_validation=true
+    mode_prob=\"0.0,1.0,0.0\"
+    max_length=2048
+    mask_ratio=0.0
+    data_path=/sfm/psm
+    data_path_list=ProteinTest/proteintest-casp14-full.lmdb
+    dataset_name_list=proteintest
+    dataset_split_raito=1.0
+    use_unified_batch_sampler=false
+    val_batch_size=16
+    val_batch_log_interval=1
+    num_sampling_time=5
+    loadcheck_path=$CKPT_PATH
+    sampled_structure_output_path=$SMPL_PATH
+    wandb_team=ai4s-sfm
+    wandb_project=$WANDB_PROJECT
+    wandb_group=$WANDB_GROUP
+    wandb_run_name=$$WANDB_RUN_NAME
+  submit_args:
+    container_args:
+      shm_size: 1024g
+  priority: High
+  sla_tier: Premium
+
+- name: ${MODEL_CONFIG}_${WANDB_GROUP}_CASP15_FULL
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  mpi: true
+  process_count_per_node: 1
+  identity: managed
+  command:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install nvidia-dali-cuda120
+  - python setup_cython.py build_ext --inplace
+  - conda install bioconda::lddt
+  - export WANDB_API_KEY=$WANDB_API_KEY
+  - wandb login --relogin --host=https://microsoft-research.wandb.io $$WANDB_API_KEY
+
+  - export WANDB_RUN_NAME=${MODEL_CONFIG}_${WANDB_GROUP}_$$(date -u +%Y%m%d.%H%M%S)
+
+  - DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_psm.py
+    --config-name=$MODEL_CONFIG
+    psm_validation_mode=true
+    sample_in_validation=true
+    mode_prob=\"0.0,1.0,0.0\"
+    max_length=2048
+    mask_ratio=0.0
+    data_path=/sfm/psm
+    data_path_list=ProteinTest/proteintest-casp15-full.lmdb
+    dataset_name_list=proteintest
+    dataset_split_raito=1.0
+    use_unified_batch_sampler=false
+    val_batch_size=16
+    val_batch_log_interval=1
+    num_sampling_time=5
+    loadcheck_path=$CKPT_PATH
+    sampled_structure_output_path=$SMPL_PATH
+    wandb_team=ai4s-sfm
+    wandb_project=$WANDB_PROJECT
+    wandb_group=$WANDB_GROUP
+    wandb_run_name=$$WANDB_RUN_NAME
+  submit_args:
+    container_args:
+      shm_size: 1024g
+  priority: High
+  sla_tier: Premium
