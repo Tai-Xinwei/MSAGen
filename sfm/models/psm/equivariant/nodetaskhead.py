@@ -152,6 +152,43 @@ class VectorOutput(nn.Module):
         return v.squeeze(-1)
 
 
+class VectorProjOutput(nn.Module):
+    def __init__(self, hidden_channels=768):
+        super(VectorProjOutput, self).__init__()
+        self.output_network = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels, bias=False),
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 3, bias=False),
+        )
+
+    def forward(self, x, v):
+        x = self.output_network(x)
+        return x
+
+
+class ForceVecOutput(nn.Module):
+    def __init__(self, hidden_channels=768):
+        super(ForceVecOutput, self).__init__()
+        self.mlp = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels, bias=False),
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 3 * hidden_channels, bias=False),
+        )
+        self.proj = nn.Sequential(
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 1, bias=False),
+        )
+
+    def forward(self, x, v):
+        x = self.mlp(x)
+        x = x.view(x.size(0), x.size(1), 3, -1)
+        x = self.proj(x).squeeze(-1)
+        return x
+
+
 class VectorGatedOutput(nn.Module):
     def __init__(self, hidden_channels=768):
         super(VectorGatedOutput, self).__init__()
@@ -179,18 +216,18 @@ class VectorGatedOutput(nn.Module):
         return x
 
 
-class ForceVecOutput(nn.Module):
+class ForceGatedOutput(nn.Module):
     def __init__(self, hidden_channels=768):
-        super(ForceVecOutput, self).__init__()
+        super(ForceGatedOutput, self).__init__()
         self.up_proj = nn.Sequential(
             nn.Linear(hidden_channels, 3 * hidden_channels, bias=False),
             nn.SiLU(),
             nn.LayerNorm(3 * hidden_channels),
         )
         self.gate_proj = nn.Sequential(
-            nn.Linear(hidden_channels, hidden_channels, bias=False),
             nn.SiLU(),
             nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 3, bias=False),
         )
         self.vec_proj = nn.Sequential(
             nn.SiLU(),
@@ -202,5 +239,5 @@ class ForceVecOutput(nn.Module):
         gate = self.gate_proj(x)
         vec = self.up_proj(x)
         vec = vec.view(x.size(0), x.size(1), 3, -1)
-        x = self.vec_proj(vec * gate.unsqueeze(-2)).squeeze(-1)
+        x = self.vec_proj(vec).squeeze(-1) * gate
         return x

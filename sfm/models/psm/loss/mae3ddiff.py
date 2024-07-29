@@ -123,7 +123,7 @@ class DiffMAE3dCriterions(nn.Module):
         elif self.args.force_loss_type == ForceLoss.SmoothL1:
             self.force_loss = nn.SmoothL1Loss(reduction="none")
         elif self.args.force_loss_type == ForceLoss.NoiseTolerentL1:
-            self.force_loss = NoiseTolerentL1Loss(noise_tolerance=2.0, reduction="none")
+            self.force_loss = NoiseTolerentL1Loss(noise_tolerance=3.0, reduction="none")
         else:
             raise ValueError(f"Invalid force loss type: {self.args.force_loss_type}")
 
@@ -667,12 +667,11 @@ class DiffMAE3dCriterions(nn.Module):
             loss = (
                 self.molecule_energy_loss_ratio * molecule_energy_loss
                 + self.material_energy_loss_ratio * periodic_energy_loss
-                + self.material_force_loss_ratio * force_loss
+                + self.material_force_loss_ratio * periodic_force_loss
                 + noise_loss
                 + aa_mlm_loss
                 + smooth_lddt_loss
             )
-            # loss = self.material_force_loss_ratio * force_loss
             if self.args.use_hard_dist_loss:
                 loss += self.hard_dist_loss_raito * hard_dist_loss
         else:

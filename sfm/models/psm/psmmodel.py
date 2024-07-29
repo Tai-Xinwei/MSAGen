@@ -20,10 +20,12 @@ from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.equivariant.nodetaskhead import (
+    ForceGatedOutput,
     ForceVecOutput,
     NodeTaskHead,
     VectorGatedOutput,
     VectorOutput,
+    VectorProjOutput,
 )
 from sfm.models.psm.equivariant.vectorVT import VectorVanillaTransformer
 from sfm.models.psm.invariant.dit_encoder import PSMDiTEncoder
@@ -138,9 +140,15 @@ class PSMModel(Model):
         logger.info(f"protein mode prob: {mode_prob}")
 
     def half(self):
-        super().half()
+        to_return = super().half()
         if self.args.backbone == "graphormer" and self.psm_config.use_fp32_in_decoder:
             self.net.decoder = self.net.decoder.float()
+            for key in self.net.forces_head:
+                self.net.forces_head[key] = self.net.forces_head[key].float()
+            for key in self.net.energy_head:
+                self.net.energy_head[key] = self.net.energy_head[key].float()
+            self.net.noise_head = self.net.noise_head.float()
+        return to_return
 
     def _create_initial_pos_for_diffusion(self, batched_data):
         is_stable_periodic = batched_data["is_stable_periodic"]
@@ -952,7 +960,7 @@ class PSM(nn.Module):
                         {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
             elif args.backbone in ["dit"]:
-                self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
+                self.noise_head = VectorProjOutput(psm_config.embedding_dim)
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
                     self.forces_head.update(
                         {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
@@ -1184,7 +1192,7 @@ class PSM(nn.Module):
                 else nullcontext()
             ):
                 encoder_output = self.layer_norm(encoder_output)
-                decoder_x_output, decoder_vec_output = encoder_output, encoder_output
+                decoder_x_output, decoder_vec_output = encoder_output, None
                 encoder_output = encoder_output.transpose(0, 1)
 
         elif self.encoder is not None:

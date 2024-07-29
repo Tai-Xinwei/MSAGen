@@ -317,13 +317,13 @@ class ProcessedSciWeightedDatasetLmdb(ProcessedSciDatasetLmdb):
         if args.strategy == TrainStrategy.ThreeD:
             from megatron.core import mpu
 
-            seed = mpu.get_data_parallel_rank()
+            self.dp_rank = mpu.get_data_parallel_rank()
         else:
-            seed = args.rank // args.pipeline_model_parallel_size
-        np.random.seed(seed)
+            self.dp_rank = args.rank // args.pipeline_model_parallel_size
 
     def __getitem__(self, index):
         # get data from the corresponding dataset with the probability of data_raio
+        np.random.seed(self.dp_rank + index)
         list_index = np.random.choice(len(self.data_raio), p=self.data_raio)
         data_index = np.random.randint(0, self.data_size_list[list_index])
         data_index, offset = divmod(data_index, self.replicate)

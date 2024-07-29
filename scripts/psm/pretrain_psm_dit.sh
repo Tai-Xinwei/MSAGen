@@ -34,7 +34,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_mode}" ] && noise_mode=diff
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.3
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=1.0
 
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=1e-4
@@ -67,7 +67,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged,'
 [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,pdbcomplexmultimer'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.05,0.3,0.15,0.1'
@@ -79,13 +79,13 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,12,32,12,16,32,32'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
-[ -z "${AutoGradForce}" ] && AutoGradForce=False
+[ -z "${AutoGradForce}" ] && AutoGradForce=True
 [ -z "${NoisePredForce}" ] && NoisePredForce=False
 [ -z "${force_head_type}" ] && force_head_type=MLP
-[ -z "${force_loss_type}" ] && force_loss_type=SmoothL1
+[ -z "${force_loss_type}" ] && force_loss_type=L1
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1.0
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
-[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1.0
+[ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=5.0
 [ -z "${energy_per_atom_label_scale}" ] && energy_per_atom_label_scale=0.05
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 
