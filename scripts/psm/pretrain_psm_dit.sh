@@ -274,6 +274,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy \
           NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
           rescale_loss_with_std=$rescale_loss_with_std \
-          # ifresume=True \
+          ifresume=True \
 
 #           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
