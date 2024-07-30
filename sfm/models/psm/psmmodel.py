@@ -227,94 +227,6 @@ class PSMModel(Model):
         mask = masked_protein & (masked_nan | masked_inf)
         batched_data["protein_mask"] = mask
 
-    # @torch.compiler.disable(recursive=False)
-    # def _protein_pretrain_mode(
-    #     self,
-    #     clean_mask,
-    #     aa_mask,
-    #     padding_mask,
-    #     is_protein,
-    #     is_seq_only,
-    #     is_complex,
-    #     time_step,
-    #     batched_data,
-    # ):
-    #     """
-    #     For protein pretrain mode, we have 3 modes:
-    #     0: 50% masked seq and 50% noised structure to structure and seq
-    #     1: clean seq to structure
-    #     2: 50% masked seq to structure and masked seq
-    #     For Complex pretrain mode, we have 3 modes:
-    #     0: clean protein seq to protein structure and molecule structure, time_protein == time_ligand
-    #     1: clean protein seq to protein structure and molecule structure, time_protein < time_ligand
-    #     2: 50% masked protein seq and 50% noised structure to protein structure and seq, molecule all clean
-
-    #     """
-    #     n_graph, nnodes = aa_mask.size()[:2]
-    #     mask_choice = np.random.choice(np.arange(3), n_graph, p=self.mode_prob)
-    #     mask_choice = torch.tensor([i for i in mask_choice]).to(clean_mask.device)
-    #     clean_mask = clean_mask.unsqueeze(-1).repeat(1, nnodes)
-    #     mask_choice = mask_choice.unsqueeze(-1).repeat(1, nnodes)
-    #     time_protein = (
-    #         (torch.rand(n_graph, device=clean_mask.device) * time_step)
-    #         .unsqueeze(-1)
-    #         .repeat(1, nnodes)
-    #     )
-    #     time_step = time_step.unsqueeze(-1).repeat(1, nnodes)
-
-    #     # mode 0:
-    #     aa_mask = torch.where(
-    #         (mask_choice == 0) & is_complex.unsqueeze(-1), False, aa_mask
-    #     )
-    #     clean_mask = torch.where(
-    #         (mask_choice == 0) & is_protein & (~is_complex.unsqueeze(-1)),
-    #         ~aa_mask,
-    #         clean_mask,
-    #     )
-
-    #     # mode 1:
-    #     aa_mask = torch.where(
-    #         (mask_choice == 1) & ~is_seq_only.unsqueeze(-1), False, aa_mask
-    #     )
-    #     # set ligand time t2 > t1 for mode 1
-    #     time_step = torch.where(
-    #         (mask_choice == 1) & is_complex.unsqueeze(-1) & is_protein,
-    #         time_protein,
-    #         time_step,
-    #     )
-
-    #     # mode 2:
-    #     clean_mask = torch.where(
-    #         (mask_choice == 2) & is_protein & is_complex.unsqueeze(-1),
-    #         ~aa_mask,
-    #         clean_mask,
-    #     )
-
-    #     # set padding mask to clean
-    #     clean_mask = clean_mask.masked_fill(padding_mask, True)
-    #     clean_mask = clean_mask.masked_fill(
-    #         is_seq_only.unsqueeze(-1),
-    #         False if self.psm_config.mlm_from_decoder_feature else True,
-    #     )
-    #     # set special token "<.>" to clean
-    #     token_id = batched_data["token_id"]
-    #     clean_mask = clean_mask.masked_fill(token_id >= 156, True)
-
-    #     # set T noise if protein is seq only
-    #     time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
-    #     # set 0 noise for padding
-    #     time_step = time_step.masked_fill(padding_mask, 0.0)
-
-    #     # # TODO: found this may cause instability issue, need to check
-    #     # # # set T noise for batched_data["protein_mask"] nan/inf coords
-    #     time_step = time_step.masked_fill(batched_data["protein_mask"].any(dim=-1), 1.0)
-    #     # make sure noise really replaces nan/inf coords
-    #     clean_mask = clean_mask.masked_fill(
-    #         batched_data["protein_mask"].any(dim=-1), False
-    #     )
-
-    #     return clean_mask, aa_mask, time_step
-
     @torch.compiler.disable(recursive=False)
     def _protein_pretrain_mode(
         self,
@@ -333,9 +245,10 @@ class PSMModel(Model):
         1: clean seq to structure
         2: 50% masked seq to structure and masked seq
         For Complex pretrain mode, we have 3 modes:
-        0: 50% masked protein seq and 50% noised structure to protein structure and seq, molecule all clean
+        0: clean protein seq to protein structure and molecule structure, time_protein == time_ligand
         1: clean protein seq to protein structure and molecule structure, time_protein < time_ligand
-        2: clean protein seq to protein structure and molecule structure, time_protein == time_ligand
+        2: 50% masked protein seq and 50% noised structure to protein structure and seq, molecule all clean
+
         """
         n_graph, nnodes = aa_mask.size()[:2]
         mask_choice = np.random.choice(np.arange(3), n_graph, p=self.mode_prob)
@@ -350,7 +263,14 @@ class PSMModel(Model):
         time_step = time_step.unsqueeze(-1).repeat(1, nnodes)
 
         # mode 0:
-        clean_mask = torch.where((mask_choice == 0) & is_protein, ~aa_mask, clean_mask)
+        aa_mask = torch.where(
+            (mask_choice == 0) & is_complex.unsqueeze(-1), False, aa_mask
+        )
+        clean_mask = torch.where(
+            (mask_choice == 0) & is_protein & (~is_complex.unsqueeze(-1)),
+            ~aa_mask,
+            clean_mask,
+        )
 
         # mode 1:
         aa_mask = torch.where(
@@ -364,8 +284,10 @@ class PSMModel(Model):
         )
 
         # mode 2:
-        aa_mask = torch.where(
-            (mask_choice == 2) & is_complex.unsqueeze(-1), False, aa_mask
+        clean_mask = torch.where(
+            (mask_choice == 2) & is_protein & is_complex.unsqueeze(-1),
+            ~aa_mask,
+            clean_mask,
         )
 
         # set padding mask to clean
@@ -382,7 +304,9 @@ class PSMModel(Model):
         time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
         # set 0 noise for padding
         time_step = time_step.masked_fill(padding_mask, 0.0)
-        # set T noise for batched_data["protein_mask"] nan/inf coords
+
+        # # TODO: found this may cause instability issue, need to check
+        # # # set T noise for batched_data["protein_mask"] nan/inf coords
         time_step = time_step.masked_fill(batched_data["protein_mask"].any(dim=-1), 1.0)
         # make sure noise really replaces nan/inf coords
         clean_mask = clean_mask.masked_fill(
@@ -390,6 +314,82 @@ class PSMModel(Model):
         )
 
         return clean_mask, aa_mask, time_step
+
+    # @torch.compiler.disable(recursive=False)
+    # def _protein_pretrain_mode(
+    #     self,
+    #     clean_mask,
+    #     aa_mask,
+    #     padding_mask,
+    #     is_protein,
+    #     is_seq_only,
+    #     is_complex,
+    #     time_step,
+    #     batched_data,
+    # ):
+    #     """
+    #     For protein pretrain mode, we have 3 modes:
+    #     0: 50% masked seq and 50% noised structure to structure and seq
+    #     1: clean seq to structure
+    #     2: 50% masked seq to structure and masked seq
+    #     For Complex pretrain mode, we have 3 modes:
+    #     0: 50% masked protein seq and 50% noised structure to protein structure and seq, molecule all clean
+    #     1: clean protein seq to protein structure and molecule structure, time_protein < time_ligand
+    #     2: clean protein seq to protein structure and molecule structure, time_protein == time_ligand
+    #     """
+    #     n_graph, nnodes = aa_mask.size()[:2]
+    #     mask_choice = np.random.choice(np.arange(3), n_graph, p=self.mode_prob)
+    #     mask_choice = torch.tensor([i for i in mask_choice]).to(clean_mask.device)
+    #     clean_mask = clean_mask.unsqueeze(-1).repeat(1, nnodes)
+    #     mask_choice = mask_choice.unsqueeze(-1).repeat(1, nnodes)
+    #     time_protein = (
+    #         (torch.rand(n_graph, device=clean_mask.device) * time_step)
+    #         .unsqueeze(-1)
+    #         .repeat(1, nnodes)
+    #     )
+    #     time_step = time_step.unsqueeze(-1).repeat(1, nnodes)
+
+    #     # mode 0:
+    #     clean_mask = torch.where((mask_choice == 0) & is_protein, ~aa_mask, clean_mask)
+
+    #     # mode 1:
+    #     aa_mask = torch.where(
+    #         (mask_choice == 1) & ~is_seq_only.unsqueeze(-1), False, aa_mask
+    #     )
+    #     # set ligand time t2 > t1 for mode 1
+    #     time_step = torch.where(
+    #         (mask_choice == 1) & is_complex.unsqueeze(-1) & is_protein,
+    #         time_protein,
+    #         time_step,
+    #     )
+
+    #     # mode 2:
+    #     aa_mask = torch.where(
+    #         (mask_choice == 2) & is_complex.unsqueeze(-1), False, aa_mask
+    #     )
+
+    #     # set padding mask to clean
+    #     clean_mask = clean_mask.masked_fill(padding_mask, True)
+    #     clean_mask = clean_mask.masked_fill(
+    #         is_seq_only.unsqueeze(-1),
+    #         False if self.psm_config.mlm_from_decoder_feature else True,
+    #     )
+    #     # set special token "<.>" to clean
+    #     token_id = batched_data["token_id"]
+    #     clean_mask = clean_mask.masked_fill(token_id >= 156, True)
+
+    #     # set T noise if protein is seq only
+    #     time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
+    #     # set 0 noise for padding
+    #     time_step = time_step.masked_fill(padding_mask, 0.0)
+    #     # set T noise for batched_data["protein_mask"] nan/inf coords
+    #     time_step = time_step.masked_fill(batched_data["protein_mask"].any(dim=-1), 1.0)
+    #     # make sure noise really replaces nan/inf coords
+    #     clean_mask = clean_mask.masked_fill(
+    #         batched_data["protein_mask"].any(dim=-1), False
+    #     )
+
+    #     return clean_mask, aa_mask, time_step
 
     def _create_system_tags(self, batched_data):
         token_id = batched_data["token_id"]

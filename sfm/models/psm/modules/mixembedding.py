@@ -69,6 +69,7 @@ class PSMMix3dEmbedding(nn.Module):
         pos: Optional[torch.Tensor],
         expand_pos: torch.Tensor,
         adj: torch.Tensor,
+        clean_mask: torch.Tensor,
         molecule_mask: torch.Tensor,
         padding_mask: torch.Tensor,
         batched_data: torch.Tensor,
@@ -111,7 +112,10 @@ class PSMMix3dEmbedding(nn.Module):
         graph_attn_bias = graph_attn_bias.masked_fill(
             expand_mask.unsqueeze(1).unsqueeze(-1), float("-inf")
         )
-        graph_attn_bias = graph_attn_bias.masked_fill(~adj.unsqueeze(-1), float("-inf"))
+        graph_attn_bias = graph_attn_bias.masked_fill(
+            (~adj.unsqueeze(-1)) & (~clean_mask.unsqueeze(-1).unsqueeze(-1)),
+            float("-inf"),
+        )
         graph_attn_bias = graph_attn_bias.masked_fill(
             padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0
         )
@@ -201,6 +205,7 @@ class PSMMix3dEmbedding(nn.Module):
             if pbc_expand_batched is not None
             else None,
             batched_data["adj"],
+            clean_mask,
             molecule_mask,
             padding_mask,
             batched_data,
@@ -219,6 +224,7 @@ class PSMMix3dEmbedding(nn.Module):
                 if pbc_expand_batched is not None
                 else None,
                 batched_data["adj"],
+                clean_mask,
                 molecule_mask,
                 padding_mask,
                 batched_data,
@@ -281,6 +287,7 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             if pbc_expand_batched is not None
             else None,
             batched_data["adj"],
+            clean_mask,
             molecule_mask,
             padding_mask,
             batched_data,
@@ -295,6 +302,7 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
                 if pbc_expand_batched is not None
                 else None,
                 batched_data["adj"],
+                clean_mask,
                 molecule_mask,
                 padding_mask,
                 batched_data,
