@@ -28,9 +28,9 @@ code:
 
 search:
   job_template:
-    name: sfm_nlm_llama3_stageA
+    name: sfm_nlm_llama3_stageB
     sku: ${NODES}xG${GPUS}-IB
-    tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
+    tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1]
     mpi: true
     identity: managed
     process_count_per_node: 1
@@ -43,7 +43,7 @@ search:
       - eval "$$(conda shell.bash hook)" && conda activate sfm
       - pip install -e . --no-deps
       - python setup_cython.py build_ext --inplace
-      - pip install git+https://github.com/NVIDIA/TransformerEngine.git@stable
+      - pip install git+https://github.com/NVIDIA/TransformerEngine.git@v1.6
       - pip uninstall flash-attn -y
       - pip install ase
       - python tools/nlm/compute_text_data_ratio.py {text_raito} {prot_raito} {dna_raito} {other_raito}
@@ -59,8 +59,9 @@ search:
       - export data_ratio=`cat /tmp/data_ratio.txt`
       - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split_dna_six/
       - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
-      - export loadcheck_path=/nlm/peiran/output/llama3_stageA_G256/global_step19000
-      - export save_dir=/nlm/peiran/output/llama3_stageA_G128/
+      # - export loadcheck_path=/nlm/peiran/output/llama3_stageA_G256/global_step19000
+      - export loadcheck_path=/nlm/zekun/output/base8b/stageB/global_step11000
+      - export save_dir=/nlm/peiran/output/llama3_stageB_G128_ratio/
       - bash scripts/nlm/pretrain_nlm_llama3_7b_stageB.sh
     submit_args:
       env:

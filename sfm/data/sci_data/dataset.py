@@ -311,6 +311,7 @@ class ProcessedSciWeightedDatasetLmdb(ProcessedSciDatasetLmdb):
         logger.info(f"data_size_list {self.data_size_list}")
         logger.info(f"acc_data_size_list {self.acc_data_size_list}")
 
+        self.args = args
         self.__init_seed(args)
 
     def __init_seed(self, args):
@@ -318,6 +319,7 @@ class ProcessedSciWeightedDatasetLmdb(ProcessedSciDatasetLmdb):
             from megatron.core import mpu
 
             self.dp_rank = mpu.get_data_parallel_rank()
+            logger.warning(f"global_rank {args.rank}, dp_rank {self.dp_rank}")
         else:
             self.dp_rank = args.rank // args.pipeline_model_parallel_size
 

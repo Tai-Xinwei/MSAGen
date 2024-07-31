@@ -1102,6 +1102,11 @@ class PSM(nn.Module):
                 and batched_data["pbc"] is not None
                 and torch.any(batched_data["pbc"])
             ):
+                if self.psm_config.pbc_use_local_attention and clean_mask.all():
+                    self.psm_config.pbc_use_local_attention = True
+                else:
+                    self.psm_config.pbc_use_local_attention = False
+
                 pbc_expand_batched = self.cell_expander.expand(
                     batched_data["pos"],
                     batched_data["init_pos"],
