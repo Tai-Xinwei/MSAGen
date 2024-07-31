@@ -913,7 +913,7 @@ class PSM(nn.Module):
                 "vanillatransformer",
                 "vanillatransformer_equiv",
                 "vectorvanillatransformer",
-                # "dit",
+                "dit",
             ]:
                 self.energy_head.update(
                     {
