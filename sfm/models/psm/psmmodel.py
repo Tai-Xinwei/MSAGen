@@ -95,7 +95,7 @@ class PSMModel(Model):
 
         self.loss_fn = loss_fn(args)
 
-        if self.args.backbone in ["vanillatransformer", "dit"]:
+        if self.args.backbone in ["vanillatransformer", "dit", "e2dit"]:
             self.disable_data_aug = getattr(self.args, "disable_data_aug", False)
             if self.disable_data_aug:
                 logger.warning(
@@ -396,7 +396,7 @@ class PSMModel(Model):
         self._create_initial_pos_for_diffusion(batched_data)
 
         if (
-            self.args.backbone in ["vanillatransformer", "dit"]
+            self.args.backbone in ["vanillatransformer", "dit", "e2dit"]
             and not self.disable_data_aug
         ):
             R = uniform_random_rotation(
@@ -872,7 +872,7 @@ class PSM(nn.Module):
             self.embedding = PSMMix3dEmbedding(
                 psm_config, use_unified_batch_sampler=args.use_unified_batch_sampler
             )
-        elif args.backbone in ["dit"]:
+        elif args.backbone in ["dit", "e2dit"]:
             self.embedding = PSMMix3dDitEmbedding(psm_config)
         elif args.backbone in ["vanillatransformer_equiv"]:
             self.embedding = PSMMix3DEquivEmbedding(psm_config)
@@ -884,7 +884,8 @@ class PSM(nn.Module):
             # Implement the encoder
             self.encoder = PSMEncoder(args, psm_config)
             # Implement the decoder
-            self.decoder = EquivariantDecoder(psm_config)
+            # self.decoder = EquivariantDecoder(psm_config)
+            self.decoder = E2former(**args.backbone_config)
         if args.backbone == "graphormer-e2":
             # Implement the encoder
             self.encoder = PSMEncoder(args, psm_config)
@@ -914,7 +915,11 @@ class PSM(nn.Module):
         elif args.backbone in ["dit"]:
             # Implement the encoder
             self.encoder = PSMDiTEncoder(args, psm_config)
-            self.decoder = EquivariantDecoder(psm_config)
+        elif args.backbone in ["e2dit"]:
+            # Implement the encoder
+            self.encoder = PSMDiTEncoder(args, psm_config)
+            self.decoder = E2former(**args.backbone_config)
+            # self.decoder = EquivariantDecoder(psm_config)
         else:
             raise NotImplementedError
 
@@ -928,6 +933,7 @@ class PSM(nn.Module):
                 "vanillatransformer_equiv",
                 "vectorvanillatransformer",
                 "dit",
+                "e2dit",
             ]:
                 self.energy_head.update(
                     {
@@ -975,16 +981,16 @@ class PSM(nn.Module):
                     self.forces_head.update(
                         {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
-            # elif args.backbone in ["dit"]:
-            #     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
-            #     if self.psm_config.force_head_type == ForceHeadType.LINEAR:
-            #         self.forces_head.update(
-            #             {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
-            #         )
-            #     else:
-            #         self.forces_head.update(
-            #             {key: ForceGatedOutput(psm_config.embedding_dim)}
-            #         )
+            elif args.backbone in ["dit"]:
+                self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
+                if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                    self.forces_head.update(
+                        {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                    )
+                else:
+                    self.forces_head.update(
+                        {key: ForceGatedOutput(psm_config.embedding_dim)}
+                    )
             else:
                 self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
@@ -1141,6 +1147,7 @@ class PSM(nn.Module):
                 "vanillatransformer",
                 "vanillatransformer_equiv",
                 "dit",
+                "e2dit",
             ]:
                 (
                     token_embedding,
@@ -1212,11 +1219,27 @@ class PSM(nn.Module):
                 if self.args.fp16
                 else nullcontext()
             ):
-                # encoder_output = self.layer_norm(encoder_output)
-                # decoder_x_output, decoder_vec_output = encoder_output, None
-                # encoder_output = encoder_output.transpose(0, 1)
-                # encoder_output = self.layer_norm(encoder_output)
+                encoder_output = self.layer_norm(encoder_output)
+                decoder_x_output, decoder_vec_output = encoder_output, None
+                encoder_output = encoder_output.transpose(0, 1)
+                encoder_output = self.layer_norm(encoder_output)
 
+        elif self.args.backbone in ["e2dit"]:
+            encoder_output = self.encoder(
+                token_embedding,
+                pos_embedding,
+                padding_mask,
+                batched_data,
+                pbc_expand_batched,
+                mixed_attn_bias=mixed_attn_bias,
+                ifbackprop=self.args.AutoGradForce,
+            )
+
+            with (
+                torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+                if self.args.fp16
+                else nullcontext()
+            ):
                 if not self.args.seq_only:
                     decoder_x_output, decoder_vec_output = self.decoder(
                         batched_data,
@@ -1225,7 +1248,6 @@ class PSM(nn.Module):
                         padding_mask,
                         pbc_expand_batched,
                     )
-
         elif self.encoder is not None:
             assert self.args.backbone in ["graphormer", "graphormer-e2"]
 
@@ -1273,7 +1295,7 @@ class PSM(nn.Module):
             else nullcontext()
         ):
             if not self.args.seq_only:
-                if self.args.backbone in ["dit"]:
+                if self.args.backbone in ["dit", "e2dit"]:
                     noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
                 else:
                     noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)

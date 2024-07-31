@@ -14,7 +14,7 @@ export MKL_THREADING_LAYER='GNU'
 # # $azcopy_path/azcopy copy ... ... --recursive
 
 
-[ -z "${layers}" ] && layers=14
+[ -z "${layers}" ] && layers=10
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
@@ -72,8 +72,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,pdbcomplexmultimer'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.05,0.3,0.15,0.1'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='200,32,48,32'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,24,12,24'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='112,12,24,12,24'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='112,12,24,12,24'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,afdb,pdbcomplexmultimer'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.4,0.1'
@@ -107,7 +107,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_dev
-[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -222,10 +221,23 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
           backbone_config=graphormer \
-          backbone=dit \
+          backbone=e2dit \
+          node_type_edge_method=EXCHANGABLE \
+          backbone_config=e2former \
+          backbone_config.num_layers=$num_pred_attn_layer \
+          backbone_config.irreps_node_embedding="1024x0e+1024x1e+64x2e" \
+          backbone_config.irreps_head="32x0e+32x1e+2x2e" \
+          backbone_config.num_attn_heads=$num_head \
+          backbone_config.number_of_basis=32 \
+          backbone_config.pbc_max_radius=5 \
+          backbone_config.max_radius=5 \
+          backbone_config.attn_type=None \
+          backbone_config.tp_type='v2' \
+          backbone_config.edge_embedtype='highorder' \
+          backbone_config.basis_type='gaussiansmear' \
+          backbone_config.add_rope=True \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
-          num_pred_attn_layer=$num_pred_attn_layer \
           encoder_ffn_embed_dim=$ffn_size \
           encoder_embed_dim=$hidden_size \
           droppath_prob=$droppath_prob \
