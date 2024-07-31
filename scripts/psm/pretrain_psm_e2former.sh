@@ -4,9 +4,9 @@
 ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
-[ -z "${layers}" ] && layers=32
-[ -z "${hidden_size}" ] && hidden_size=1536
-[ -z "${ffn_size}" ] && ffn_size=6144
+[ -z "${layers}" ] && layers=18
+[ -z "${hidden_size}" ] && hidden_size=1024
+[ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -54,6 +54,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
+[ -z "${node_type_edge_method}" ] && node_type_edge_method=EXCHANGABLE
 [ -z "${force_head_type}" ] && force_head_type=LINEAR
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1.0
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
@@ -202,18 +203,22 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           wandb=$wandb wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
           wandb_run_name=$wandb_run_name \
           clean_sample_ratio=$clean_sample_ratio \
+          node_type_edge_method=EXCHANGABLE \
           backbone_config=e2former \
           backbone=e2former \
-          backbone_config.num_layers=8 \
-          backbone_config.irreps_node_embedding="512x0e+512x1e+64x2e" \
-          backbone_config.irreps_head="16x0e+16x1e+2x2e" \
+          backbone_config.num_layers=6 \
+          backbone_config.irreps_node_embedding="1024x0e+1024x1e+64x2e" \
+          backbone_config.irreps_head="32x0e+32x1e+2x2e" \
           backbone_config.num_attn_heads=32 \
           backbone_config.number_of_basis=32 \
-          backbone_config.max_radius=15 \
-          backbone_config.attn_type=12 \
+          backbone_config.pbc_max_radius=5 \
+          backbone_config.max_radius=5 \
+          backbone_config.attn_type=None \
+          backbone_config.tp_type='v2' \
           backbone_config.edge_embedtype='highorder' \
+          backbone_config.basis_type='gaussiansmear' \
           backbone_config.add_rope=True \
-          encoder_embed_dim=512 \
+          encoder_embed_dim=1024 \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
           num_pred_attn_layer=$num_pred_attn_layer \
@@ -261,6 +266,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
           mm_tensorcore=$mm_tensorcore compile=$compile \
+          node_type_edge_method=$node_type_edge_method \
           if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy
 
 

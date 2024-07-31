@@ -50,3 +50,4 @@ dependencies:
       - fairchem-core
       - ase
       - matbench
+      - nvidia-dali-cuda120

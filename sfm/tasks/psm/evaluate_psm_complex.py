@@ -30,7 +30,6 @@ from torch.utils.data import DataLoader, DistributedSampler
 
 from sfm.data.prot_data.util import bstr2obj, obj2bstr
 from sfm.data.psm_data.dataset import ComplexDataset
-from sfm.data.psm_data.ft_prot_dataset import ProteinSamplingDataset
 from sfm.logging import logger
 from sfm.models.psm.complexmodel import ComplexModel
 from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions

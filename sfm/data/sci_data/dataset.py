@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import bisect
 import os
+import pickle as pkl
 from collections import namedtuple
 
 import lmdb
@@ -557,6 +558,52 @@ class ProteinLmdbDataset(torch.utils.data.Dataset):
             labels_list, batch_first=True, padding_value=-100
         )
         padding_mask = input_ids.ne(self.tokenizer.pad_token_id)
+
+        input = tuple([input_ids, padding_mask])
+        return (input, labels)
+
+
+class LMDBInstDataset(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        path: str,
+        padding_idx: int,
+        max_len: int = 8192,
+    ):
+        super().__init__()
+        env = lmdb.open(
+            str(path), subdir=True, readonly=True, lock=False, readahead=False
+        )
+        self.txn = env.begin(write=False)
+        metadata = bstr2obj(self.txn.get("metadata".encode()))
+        self.size, self.keys = metadata["size"], metadata["keys"]
+
+        logger.info(f"Loaded {path} with {self.size} lines")
+        self.max_len = max_len
+        self.padding_idx = padding_idx
+
+    def __getitem__(self, index):
+        value = self.txn.get(str(self.keys[index]).encode())
+        tokens, labels = pkl.loads(value)
+
+        tokens = tokens[-self.max_len :]
+        labels = labels[-self.max_len :]
+        return torch.tensor(tokens), torch.tensor(labels)
+
+    def __len__(self):
+        return self.size
+
+    def collate(self, samples):
+        input_ids_list, labels_list = zip(*samples)
+
+        input_ids = torch.nn.utils.rnn.pad_sequence(
+            input_ids_list, batch_first=True, padding_value=self.padding_idx
+        )
+        labels = torch.nn.utils.rnn.pad_sequence(
+            labels_list, batch_first=True, padding_value=-100
+        )
+
+        padding_mask = input_ids.ne(self.padding_idx)
 
         input = tuple([input_ids, padding_mask])
         return (input, labels)

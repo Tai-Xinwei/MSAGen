@@ -43,3 +43,22 @@ class GaussianRadialBasisLayer(torch.nn.Module):
         return "mean_init_max={}, mean_init_min={}, std_init_max={}, std_init_min={}".format(
             self.mean_init_max, self.mean_init_min, self.std_init_max, self.std_init_min
         )
+
+
+class GaussianSmearing(torch.nn.Module):
+    def __init__(
+        self,
+        num_basis,
+        cutoff: float = 5.0,
+        basis_width_scalar: float = 2.0,
+    ) -> None:
+        super().__init__()
+        offset = torch.linspace(0, cutoff, num_basis)
+        self.coeff = -0.5 / (basis_width_scalar * (offset[1] - offset[0])).item() ** 2
+        self.register_buffer("offset", offset)
+
+    def forward(self, dist) -> torch.Tensor:
+        shape = dist.shape
+        dist = dist.view(-1, 1) - self.offset.view(1, -1)
+        dist = torch.exp(self.coeff * torch.pow(dist, 2))
+        return dist.reshape(*shape, -1)

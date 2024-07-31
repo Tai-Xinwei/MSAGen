@@ -1,0 +1,78 @@
+description: finetune_sfm_nlmllama3_inst_base_table_mask_protein_1b
+
+# env_defaults:
+#   NODES: 1
+#   GPUS: 8
+#   WANDB_API_KEY: "local-84c43c09161e2c012c3317ccb9becc6148001b8e"
+env_defaults:
+  NODES: 1
+  GPUS: 8
+  WANDB_API_KEY: "local-84c43c09161e2c012c3317ccb9becc6148001b8e"
+
+# target:
+#   service: sing
+#   name: baltic02
+#   workspace_name: sfm-ws
+target:
+  service: aml
+  # name: msrresrchvc
+  # name: sfm-nc96-westus3
+  name: sfm-nd96amsra100v4-uksouth
+# target:
+#   service: sing
+#   name: baltic02
+#   workspace_name: sfm-ws
+
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+  hai1:
+    storage_account_name: sfmdataeastus2 # Storage account
+    container_name: nlm # Container name
+    mount_dir: /nlm
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: finetune_sfm_nlmllama3_inst_nest_table_1b
+  sku: ${NODES}xG${GPUS}-IB
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Instruct]
+  mpi: true
+  identity: managed
+  process_count_per_node: 1
+  command:
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=nlm_llama3_zekun
+  - export WANDB_TEAM=ai4s-sfm
+  - export WANDB_RUN_NAME=finetune_sfm_nlmllama3_inst_nest_table_1b
+  - export wandb_group=instruct
+  - export NCCL_DEBUG=INFO
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install -e . --no-deps
+  - python setup_cython.py build_ext --inplace
+  - pip install git+https://github.com/NVIDIA/TransformerEngine.git@release_v1.6
+  # - pip uninstall flash-attn -y
+  - pip install flash-attn==2.5.8 --no-build-isolation
+  - export train_batch_size=64
+  - export val_batch_size=64
+  - export gradient_accumulation_steps=8
+  - export tensor_model_parallel_size=1
+  - export pipeline_model_parallel_size=1
+  - export max_lr=2e-5
+  - export total_num_steps=2000
+  - export warmup_num_steps=200
+  - export train_data_path=/nlm/zekun/data/scidata/table/lmdb/train.nest.table.lmdb
+  - export valid_data_path=/nlm/zekun/data/scidata/table/lmdb/test.nest.table.lmdb
+  - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
+  - export loadcheck_path=/nlm/peiran/output/finetune_base_150B_G64/global_step28464/
+  - export save_dir=/nlm/zekun/output/1b/table_nest/
+  - bash scripts/nlm/finetune_nlm_llama3_inst_processed_1b.sh
+  submit_args:
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
+      CUDA_LAUNCH_BLOCKING: 1

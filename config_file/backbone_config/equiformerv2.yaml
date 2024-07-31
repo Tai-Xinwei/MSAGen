@@ -18,7 +18,6 @@ add_rope: False
 # num_heads:                8
 # attn_alpha_channels:      64              # Not used when `use_s2_act_attn` is True.
 # attn_value_channels:      16
-ffn_hidden_channels:      128
 norm_type:                'layer_norm_sh' # ['rms_norm_sh', 'layer_norm', 'layer_norm_sh']
 # lmax_list:                [4]
 # mmax_list:                [2]

@@ -13,7 +13,7 @@ env_defaults:
 
 target:
   service: aml
-  name: es-madft-nc96-eastus2
+  name: sfm-madft-nc96adsa100v4-eastus2
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -31,12 +31,16 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: e2former-Lin-afdb-15
+- name: e2former-3types-DDP-lp-test-spiky
   identity: managed
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: 80G4-A100
   priority: high
   command:
+  - export wandb_run_name=e2former-3types-DDP-lp-test-spiky
+  - mkdir -p /blob/psm-checkpoints/e2former-3types-DDP-lp-test-spiky
+  - export save_dir=/blob/psm-checkpoints/e2former-3types-DDP-lp-test-spiky
+  - export loadcheck_path=/blob/psm-checkpoints/e2former-3types-DDP-lp-test-spiky
   - export HYDRA_FULL_ERROR=1
   - export load_ckpt=False
   - export MASTER_PORT=62352
@@ -45,17 +49,18 @@ jobs:
   - export pbc_expanded_token_cutoff=256
   - export pbc_multigraph_cutoff=5.0
 
-
+  - export molecule_energy_loss_ratio=1.0
+  - export material_energy_loss_ratio=0.5
+  - export material_force_loss_ratio=4.5
 
   - export gradient_accumulation_steps=4
-
-
   - export total_num_steps=200000000
   - export warmup_num_steps=12000
   - export max_lr=1.5e-4
+  - export clean_sample_ratio=0.5
 
   - export equivar_vec_init=ZERO_CENTERED_POS
-  - export strategy=DDP
+  - export strategy=Zero1
   - export fp16=False
 
   - export diff_init_lattice_size=10.0
@@ -68,32 +73,34 @@ jobs:
   - export equivar_use_linear_bias=True
   - export equivar_use_attention_bias=True
 
-  - export dataset_micro_batch_size="4"
   - export use_unified_batch_sampler=True
   - export rescale_loss_with_std=True
   - export only_use_rotary_embedding_for_protein=True
   - export use_memory_efficient_attention=False
 
-  - export data_path=/blob/
-  - export data_path_list="data/AFDB70-plddt70.lmdb" #"psm/data/matter-sim-15M-force-filtered-merged"
+  - export data_path=/blob/data/
+  # - export data_path=/nfs6/psmdata/
+
+  - export data_path_list="PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged"
+  - export dataset_name_list="pm6,mattersim,afdb,mattersim"
+  - export dataset_split_raito="0.4,0.1,0.4,0.1"
+  - export dataset_micro_batch_size="16,8,4,8"
   - ls /blob
-  - export dataset_name_list='afdb'
-  - export dataset_split_raito='1.0'
+  # - export dataset_name_list='afdb'
+  # - export dataset_split_raito='1.0'
+  # - export dataset_micro_batch_size="4"
+  # - export data_path_list="data/AFDB70-plddt70.lmdb" #"psm/data/matter-sim-15M-force-filtered-merged"
 
   - export ifresume=True
   - export loadcheck_path=$$AMLT_OUTPUT_DIR
   - export save_dir=$$AMLT_OUTPUT_DIR
 
   - export wandb_group='Lin_psm_dev_afdb'
-  # - export save_dir='/blob/'
-  # - mkdir -p /blob/psm-checkpoints
-  # - mkdir -p /blob/psm-checkpoints/EQV2-oc20+SPICE(100k+400k)-06-29
-  # -   - export save_dir=/blob/psm-checkpoints/EQV2-oc20+SPICE(100k+400k)-06-29
   - df -hl
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
-  - bash scripts/psm/pretrain_localafdb_1.sh
+  - bash scripts/psm/pretrain_psm_e2former.sh
   submit_args:
     container_args:
       shm_size: 512g
