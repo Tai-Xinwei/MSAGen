@@ -27,8 +27,6 @@ class AutoregressiveThreeDCriterion(nn.Module):
 
         loss_mask = loss_mask[..., 1:].contiguous().transpose(0, 1)
 
-        print(f"device={labels.device}, labels={labels}")
-
         logits = model_output[0]
 
         shift_logits = logits[..., :-1, :].contiguous()

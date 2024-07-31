@@ -14,7 +14,7 @@ export MKL_THREADING_LAYER='GNU'
 # # $azcopy_path/azcopy copy ... ... --recursive
 
 
-[ -z "${layers}" ] && layers=14
+[ -z "${layers}" ] && layers=10
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
@@ -52,10 +52,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mode_prob}" ] && mode_prob='0.4,0.4,0.2'
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
-# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="112"
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="80"
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,20240630_PDB_Training_Data,AFDB50-plddt70.lmdb'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,pdbcomplexmultimer,afdb'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.1,0.4'
@@ -72,12 +72,12 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,pdbcomplexmultimer'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.05,0.3,0.15,0.1'
 # # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='200,32,48,32'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='112,23,24,12,24'
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,afdb,pdbcomplexmultimer'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.4,0.1'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='200,32,48,32'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='112,24,24'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='112,12,24,12,24'
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,afdb,pdbcomplexmultimer'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.4,0.1'
+# # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='200,32,48,32'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='112,24,24'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.1,0.3,0.1,0.1,0.1,0.1'
@@ -114,15 +114,15 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
-[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS"
+[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=256
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=10.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
+
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 [ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
-
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L1"
@@ -274,6 +274,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy \
           NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
           rescale_loss_with_std=$rescale_loss_with_std \
-          ifresume=True \
+          # ifresume=True \
 
 #           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \

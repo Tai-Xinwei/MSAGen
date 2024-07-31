@@ -83,7 +83,7 @@ jobs:
   # - export dataset_micro_batch_size='112,8,24,8,12,24,12'
   - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data' #,ur50_23_bpe_pack512.lmdb'
   - export dataset_name_list='mattersim,mattersim,pm6,afdb,pdb,pdbcomplexmultimer' #,ur50'
-  - export dataset_split_raito='0.05,0.15,0.3,0.35,0.1,0.05' #,0.1'
+  - export dataset_split_raito='0.1,0.1,0.3,0.35,0.1,0.05' #,0.1'
   - export dataset_micro_batch_size='12,12,112,24,24,24'
   - export fp16=False
   - export clean_sample_ratio=0.5

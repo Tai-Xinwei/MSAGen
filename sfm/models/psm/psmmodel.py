@@ -900,6 +900,7 @@ class PSM(nn.Module):
         elif args.backbone in ["dit"]:
             # Implement the encoder
             self.encoder = PSMDiTEncoder(args, psm_config)
+            self.decoder = EquivariantDecoder(psm_config)
         else:
             raise NotImplementedError
 
@@ -912,6 +913,7 @@ class PSM(nn.Module):
                 "vanillatransformer",
                 "vanillatransformer_equiv",
                 "vectorvanillatransformer",
+                # "dit",
             ]:
                 self.energy_head.update(
                     {
@@ -959,16 +961,16 @@ class PSM(nn.Module):
                     self.forces_head.update(
                         {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
-            elif args.backbone in ["dit"]:
-                self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
-                if self.psm_config.force_head_type == ForceHeadType.LINEAR:
-                    self.forces_head.update(
-                        {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
-                    )
-                else:
-                    self.forces_head.update(
-                        {key: ForceGatedOutput(psm_config.embedding_dim)}
-                    )
+            # elif args.backbone in ["dit"]:
+            #     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
+            #     if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+            #         self.forces_head.update(
+            #             {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+            #         )
+            #     else:
+            #         self.forces_head.update(
+            #             {key: ForceGatedOutput(psm_config.embedding_dim)}
+            #         )
             else:
                 self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
@@ -1102,10 +1104,10 @@ class PSM(nn.Module):
                 and batched_data["pbc"] is not None
                 and torch.any(batched_data["pbc"])
             ):
-                if self.psm_config.pbc_use_local_attention and clean_mask.all():
-                    self.psm_config.pbc_use_local_attention = True
-                else:
-                    self.psm_config.pbc_use_local_attention = False
+                # if self.psm_config.pbc_use_local_attention and clean_mask.all():
+                #     self.psm_config.pbc_use_local_attention = True
+                # else:
+                #     self.psm_config.pbc_use_local_attention = False
 
                 pbc_expand_batched = self.cell_expander.expand(
                     batched_data["pos"],
@@ -1196,9 +1198,19 @@ class PSM(nn.Module):
                 if self.args.fp16
                 else nullcontext()
             ):
-                encoder_output = self.layer_norm(encoder_output)
-                decoder_x_output, decoder_vec_output = encoder_output, None
-                encoder_output = encoder_output.transpose(0, 1)
+                # encoder_output = self.layer_norm(encoder_output)
+                # decoder_x_output, decoder_vec_output = encoder_output, None
+                # encoder_output = encoder_output.transpose(0, 1)
+                # encoder_output = self.layer_norm(encoder_output)
+
+                if not self.args.seq_only:
+                    decoder_x_output, decoder_vec_output = self.decoder(
+                        batched_data,
+                        encoder_output.transpose(0, 1),
+                        mixed_attn_bias,
+                        padding_mask,
+                        pbc_expand_batched,
+                    )
 
         elif self.encoder is not None:
             assert self.args.backbone == "graphormer"
