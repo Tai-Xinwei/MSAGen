@@ -22,7 +22,7 @@ environment:
 
 storage:
     storageA:
-      storage_account_name: ai4science0eastus
+      storage_account_name: sfmdataeastus2
       container_name: madft-nn
       mount_dir: /blob
 

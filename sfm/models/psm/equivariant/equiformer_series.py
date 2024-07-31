@@ -356,9 +356,6 @@ class Equiformerv2SO2(BaseModel):
 
         self.irreps_node_embedding = construct_o3irrps_base(self.hs, order=order)
 
-        self.radial_basis_functions = ExponentialBernsteinRadialBasisFunctions(
-            self.radius_embed_dim, self.max_radius
-        )
         # prevent double kwargs
         [
             kwargs.pop(x, None)

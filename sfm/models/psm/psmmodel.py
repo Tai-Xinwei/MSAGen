@@ -859,6 +859,11 @@ class PSM(nn.Module):
             self.encoder = PSMEncoder(args, psm_config)
             # Implement the decoder
             self.decoder = EquivariantDecoder(psm_config)
+        if args.backbone == "graphormer-e2":
+            # Implement the encoder
+            self.encoder = PSMEncoder(args, psm_config)
+            # Implement the decoder
+            self.decoder = E2former(**args.backbone_config)
         elif args.backbone == "equiformerv2":
             self.decoder = Equiformerv2SO2(**args.backbone_config)
         elif args.backbone == "equiformer":
@@ -1137,7 +1142,7 @@ class PSM(nn.Module):
                 encoder_output = encoder_output.transpose(0, 1)
 
         elif self.encoder is not None:
-            assert self.args.backbone == "graphormer"
+            assert self.args.backbone in ["graphormer", "graphormer-e2"]
 
             encoder_output = self.encoder(
                 token_embedding.transpose(0, 1),
@@ -1160,7 +1165,7 @@ class PSM(nn.Module):
             decoder_x_output, decoder_vec_output = self.decoder(
                 batched_data,
                 token_embedding.transpose(0, 1),
-                padding_mask,
+                padding_mask=padding_mask,
                 pbc_expand_batched=pbc_expand_batched,
             )
 

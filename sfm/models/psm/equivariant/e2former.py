@@ -16,12 +16,16 @@ from torch import logical_not, nn
 from torch_cluster import radius_graph
 from torch_scatter import scatter
 
-from sfm.models.psm.equivariant.equiformer.graph_attention_transformer import (
+from sfm.models.psm.equivariant.equiformer.gaussian_rbf import (
     GaussianRadialBasisLayer,
+    GaussianSmearing,
+)
+from sfm.models.psm.equivariant.equiformer.graph_attention_transformer import (
     RadialProfile,
     irreps2gate,
     sort_irreps_even_first,
 )
+from sfm.models.psm.equivariant.equiformer_v2.drop import DropPath
 
 # from .e2former_att import *
 from sfm.models.psm.equivariant.layer_norm import (  # ,\; EquivariantInstanceNorm,EquivariantGraphNorm
@@ -55,88 +59,6 @@ class SmoothLeakyReLU(torch.nn.Module):
 
     def extra_repr(self):
         return "negative_slope={}".format(self.alpha)
-
-
-# class Irreps2Scalar(torch.nn.Module):
-#     def __init__(
-#         self,
-#         irreps_in,
-#         out_dim,
-#         bias=_USE_BIAS,
-#         act="smoothleakyrelu",
-#         rescale=_RESCALE,
-#     ):
-#         """
-#         1. from irreps to scalar output: [...,irreps] - > [...,out_dim]
-#         2. bias is used for l=0
-#         3. act is used for l=0
-#         4. rescale is default, e.g. irreps is c0*l0+c1*l1+c2*l2+c3*l3, rescale weight is 1/c0**0.5 1/c1**0.5 ...
-#         """
-#         super().__init__()
-#         self.irreps_in = (
-#             o3.Irreps(irreps_in) if isinstance(irreps_in, str) else irreps_in
-#         )
-#         self.out_dim = out_dim
-#         self.act = act
-#         self.bias = bias
-#         self.rescale = rescale
-
-#         self.weight_list = nn.ParameterList()
-#         # self.irreps_in_len = sum([mul*(ir.l*2+1) for mul, ir in self.irreps_in])
-#         # self.scalar_in_len = sum([mul for mul, ir in self.irreps_in])
-#         self.scalar_in_len = self.irreps_in[0][0]
-#         self.output_mlp = nn.Sequential(
-#             SmoothLeakyReLU(0.2) if self.act == "smoothleakyrelu" else nn.Identity(),
-#             nn.Linear(self.scalar_in_len, out_dim // 2),
-#             SmoothLeakyReLU(0.2) if self.act == "smoothleakyrelu" else nn.Identity(),
-#             nn.Linear(out_dim // 2, out_dim),
-#         )
-
-#         for idx in range(len(self.irreps_in)):
-#             self.irreps_in[idx][1].l
-#             in_feature = self.irreps_in[idx][0]
-
-#             weight = torch.nn.Parameter(torch.randn(1, in_feature))
-#             bound = 1 / math.sqrt(in_feature) if self.rescale else 1
-#             torch.nn.init.uniform_(weight, -bound, bound)
-#             self.weight_list.append(weight)
-
-#     def forward(self, input_embedding):
-#         """
-#         from e3nn import o3
-#         irreps_in = o3.Irreps("100x1e+40x2e+10x3e")
-#         irreps_out = o3.Irreps("20x1e+20x2e+20x3e")
-#         irrepslinear = IrrepsLinear(irreps_in, irreps_out)
-#         irreps2scalar = Irreps2Scalar(irreps_in, 128)
-#         node_embed = irreps_in.randn(200,30,5,-1)
-#         out_scalar = irreps2scalar(node_embed)
-#         out_irreps = irrepslinear(node_embed)
-#         """
-
-#         # if input_embedding.shape[-1]!=self.irreps_in_len:
-#         #     raise ValueError("input_embedding should have same length as irreps_in_len")
-
-#         # shape = list(input_embedding.shape[:-1])
-#         # num = input_embedding.shape[:-1].numel()
-#         # input_embedding = input_embedding.reshape(num,-1)
-
-#         # start_idx = 0
-#         # output_embedding = []
-#         # for idx,(mul, ir) in enumerate(self.irreps_in):
-#         #     weight = self.weight_list[idx]
-#         # out = torch.sqrt(torch.sum(input_embedding[:,start_idx:start_idx+mul*(2*ir.l+1)]
-#         #                 .reshape(-1,mul,(2*ir.l+1))**2,dim = -1))*weight
-#         #     output_embedding.append(out)
-#         #     start_idx += mul*(2*ir.l+1)
-
-#         # output_embedding = self.output_mlp(
-#         #     torch.cat(output_embedding,dim = 1))
-#         # output_embedding = output_embedding.reshape(shape+[self.out_dim])
-#         output_embedding = self.output_mlp(input_embedding[..., : self.irreps_in[0][0]])
-#         return output_embedding
-
-#     def __repr__(self):
-#         return f"{self.__class__.__name__}(in_features={self.irreps_in}, out_features={self.out_dim}"
 
 
 class Irreps2Scalar(torch.nn.Module):
@@ -208,9 +130,12 @@ class Irreps2Scalar(torch.nn.Module):
         input_embedding = input_embedding.reshape(num, -1)
 
         start_idx = 0
-        scalars = self.vec_proj_list[0](input_embedding[..., : self.irreps_in[0][0]])
+        scalars = 0
         for idx, (mul, ir) in enumerate(self.irreps_in):
-            if idx == 0:
+            if idx == 0 and ir.l == 0:
+                scalars = self.vec_proj_list[0](
+                    input_embedding[..., : self.irreps_in[0][0]]
+                )
                 start_idx += mul * (2 * ir.l + 1)
                 continue
             vec_proj = self.vec_proj_list[idx]
@@ -340,78 +265,9 @@ class IrrepsLinear(torch.nn.Module):
         return output_embedding
 
 
-class IrrepsHadamardProduct(torch.nn.Module):
-    def __init__(self, irreps_in, act="smoothleakyrelu", rescale=_RESCALE):
-        """
-        irreps hadamard product scalars
-        """
-        super().__init__()
-        self.irreps_in = (
-            o3.Irreps(irreps_in) if isinstance(irreps_in, str) else irreps_in
-        )
-        self.irreps_in_len = sum([mul * (ir.l * 2 + 1) for mul, ir in self.irreps_in])
-
-        self.act = act
-        self.rescale = rescale
-        self.act_list = nn.ModuleList()
-        self.instructions = []
-        self.mul_sizes = []
-
-        start_idx = 0
-        for idx1 in range(len(self.irreps_in)):
-            l = self.irreps_in[idx1][1].l
-            mul = self.irreps_in[idx1][0]
-            self.instructions.append(
-                [idx1, mul, l, start_idx, start_idx + (l * 2 + 1) * mul]
-            )
-            activation = (
-                nn.Sequential(SmoothLeakyReLU())
-                if self.act == "smoothleakyrelu" and l == 0
-                else nn.Sequential()
-            )
-            self.act_list.append(activation)
-
-            start_idx += (l * 2 + 1) * mul
-            self.mul_sizes.append(mul)
-
-    def forward(self, input_embedding, scalars):
-        """ """
-
-        assert (
-            input_embedding.shape[-1] == self.irreps_in_len
-        ), "input_embedding should have same length as irreps_in_len"
-        assert scalars.shape[-1] == sum(
-            self.mul_sizes
-        ), f"scalars should have dim {sum(self.mul_sizes)} but got {scalars.shape[-1]}"
-
-        shape = list(input_embedding.shape[:-1])
-        num = input_embedding.shape[:-1].numel()
-        input_embedding = input_embedding.reshape(num, -1)
-        scalars = scalars.reshape(num, -1)
-
-        output_embedding = []
-        scalar_start = 0
-        for idx, (_, mul, l, start, end) in enumerate(self.instructions):
-            activation = self.act_list[idx]
-            scalar = scalars[:, scalar_start : scalar_start + mul]
-
-            out = input_embedding[:, start:end].reshape(
-                -1, mul, (2 * l + 1)
-            ) * scalar.unsqueeze(-1)
-            out = activation(out).reshape(num, -1)
-            output_embedding.append(out)
-            scalar_start += mul
-
-        output_embedding = torch.cat(output_embedding, dim=1)
-        output_embedding = output_embedding.reshape(shape + [self.irreps_in_len])
-        return output_embedding
-
-
 class EquivariantAttention(torch.nn.Module):
     def __init__(self, irreps_in, attn_type="v0", num_attn_heads=8):
-        """
-        irreps hadamard product scalars
-        """
+        """ """
         super().__init__()
         self.irreps_in = (
             o3.Irreps(irreps_in) if isinstance(irreps_in, str) else irreps_in
@@ -827,7 +683,9 @@ class SeparableFCTP(torch.nn.Module):
         if use_activation:
             irreps_lin_output = irreps_scalars + irreps_gates + irreps_gated
             irreps_lin_output = irreps_lin_output.simplify()
-        self.lin = IrrepsLinear(self.dtp.irreps_out.simplify(), irreps_lin_output)
+        self.lin = IrrepsLinear(
+            self.dtp.irreps_out.simplify(), irreps_lin_output, bias=False, act=None
+        )
 
         self.norm = None
         if norm_layer is not None:
@@ -908,9 +766,8 @@ class E2Attention(torch.nn.Module):
         nonlinear_message=False,
         alpha_drop=0.1,
         proj_drop=0.1,
-        irreps_pre_attn=None,
         tp_type="v1",
-        attn_type="v0",
+        attn_type="v2",
         add_rope=True,
         **kwargs,
     ):
@@ -937,6 +794,9 @@ class E2Attention(torch.nn.Module):
         self.gbf_attn = GaussianLayer(
             self.attn_weight_input_dim
         )  # default output_dim = 128
+        self.node_embedding = nn.Embedding(256, 32)
+        nn.init.uniform_(self.node_embedding.weight.data, -0.001, 0.001)
+
         self.attn_weight2heads = nn.Sequential(
             nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
             nn.LayerNorm(attn_weight_input_dim),
@@ -946,11 +806,6 @@ class E2Attention(torch.nn.Module):
             torch.nn.SiLU(),
             nn.Linear(attn_weight_input_dim, 2 * num_attn_heads),
         )
-
-        # if irreps_pre_attn is None:
-        #     self.irreps_pre_attn = self.irreps_node_input
-        # else:
-        #     self.irreps_pre_attn = o3.Irreps(irreps_pre_attn) if isinstance(irreps_pre_attn,str) else irreps_pre_attn
 
         self.multiheadatten_irreps = (
             (self.irreps_head * num_attn_heads).sort().irreps.simplify()
@@ -988,12 +843,7 @@ class E2Attention(torch.nn.Module):
         self.alpha_dropout = None
         if alpha_drop != 0.0:
             self.alpha_dropout = torch.nn.Dropout(alpha_drop)
-        if self.attn_type.startswith("v1") or self.attn_type.startswith("v3"):
-            self.alpha_dot = torch.nn.Parameter(
-                torch.randn(num_attn_heads, attn_scalar_head)
-            )
-            std = 1.0 / math.sqrt(attn_scalar_head)
-            torch.nn.init.uniform_(self.alpha_dot, -std, std)
+
         self.rescale_degree = rescale_degree
         self.nonlinear_message = nonlinear_message
 
@@ -1025,17 +875,18 @@ class E2Attention(torch.nn.Module):
                     internal_weights=False,
                 )
 
-            if self.tp_type == "v1":
-                self.gbf = GaussianLayer(self.scalar_dim)  # default output_dim = 128
-                self.pos_embedding_proj = nn.Linear(self.scalar_dim, self.scalar_dim)
-            elif self.tp_type == "v2":
-                self.gbf = GaussianLayer(self.scalar_dim)  # default output_dim = 128
-                self.pos_embedding_proj = nn.Linear(self.scalar_dim, self.scalar_dim)
-                self.node_scalar_proj = nn.Linear(self.scalar_dim, self.scalar_dim)
-            else:
-                raise ValueError(
-                    f"attn_type should be None or v0 or v1 or v2 but got {self.attn_type}"
-                )
+                if self.tp_type == "v2":
+                    self.gbf = GaussianLayer(
+                        self.attn_weight_input_dim
+                    )  # default output_dim = 128
+                    self.pos_embedding_proj = nn.Linear(
+                        self.attn_weight_input_dim, self.scalar_dim
+                    )
+                    self.node_scalar_proj = nn.Linear(self.scalar_dim, self.scalar_dim)
+                else:
+                    raise ValueError(
+                        f"attn_type should be None or v0 or v1 or v2 but got {self.attn_type}"
+                    )
 
         self.proj = IrrepsLinear(
             (self.irreps_head * num_attn_heads).sort().irreps.simplify(),
@@ -1049,6 +900,1139 @@ class E2Attention(torch.nn.Module):
         self.add_rope = add_rope
         if add_rope:
             self.rot_emb = RotaryEmbedding(dim=self.attn_scalar_head)
+
+    def forward(
+        self,
+        node_pos,
+        node_irreps_input,
+        edge_dis,
+        attn_weight,  # e.g. rbf(|r_ij|) or relative pos in sequence
+        atomic_numbers,
+        attn_mask=None,  # non-adj is True
+        batch=None,
+        batched_data=None,
+        **kwargs,
+    ):
+        """
+        irreps_in = o3.Irreps("256x0e+64x1e+32x2e")
+        B,L = 4,20
+        node_pos = torch.randn(B,L,3)
+        node_dis = torch.sqrt(torch.sum((node_pos.view(B,L,1,3)-node_pos.view(B,1,L,3))**2,dim = -1))
+
+        attn_scalar_head = 32
+        func = GraphAttention(
+            irreps_node_input = irreps_in,
+            attn_weight_input_dim = 32, # e.g. rbf(|r_ij|) or relative pos in sequence
+            num_attn_heads = 8,
+            attn_scalar_head = attn_scalar_head,
+            irreps_head = "32x0e+8x1e+4x2e",
+            rescale_degree=False,
+            nonlinear_message=False,
+            alpha_drop=0.1,
+            proj_drop=0.1,
+        )
+        out = func(node_pos,
+            irreps_in.randn(B,L,-1),
+            node_dis,
+            torch.randn(B,L,L,attn_scalar_head))
+        print(out.shape)
+        """
+
+        # attn_weight f(|r_ij|): B*L*L*heads
+        # edge_dis: B*L*L
+        # node_input: B*L*irreps (irreps e.g. 128x0e+64x1e+32x2e)
+        # ir2scalar: B*L*irreps -> N*L*hidden (hidden e.g. head*32)
+        # attn_weight: B*L*L*rbf_dim
+        B, L, _ = node_irreps_input.shape
+        query = self.q_ir2scalar(node_irreps_input)
+        key = self.k_ir2scalar(node_irreps_input)
+        value = self.v_irlinear(node_irreps_input)  # B*L*irreps
+        # embed = self.node_embedding(atomic_numbers)
+        # if self.attn_type.startswith('v3'):
+        # attn_weight = self.gbf_attn(edge_dis, batched_data["node_type_edge"].long()) # B*L*L*-1
+        attn_weight = self.attn_weight2heads(attn_weight)
+        # torch.cat(
+        #     [
+        #         attn_weight,
+        #         embed.reshape(B, L, 1, -1)
+        #         .repeat(1, 1, L, 1),
+        #         embed.reshape(B, 1, L, -1)
+        #         .repeat(1, L, 1, 1),
+        #     ],
+        #     dim=-1,
+        # ))
+
+        if batched_data["mol_type"] == 1:  # mol_type 0 mol, 1 material, 2 protein
+            outcell_index = batched_data["outcell_index"]  # B*(L2-L1)
+            outcell_index_0 = batched_data["outcell_index_0"]
+            key = torch.cat([key, key[outcell_index_0, outcell_index]], dim=1)
+            value = torch.cat([value, value[outcell_index_0, outcell_index]], dim=1)
+            node_pos = torch.cat([node_pos, batched_data["expand_pos"].float()], dim=1)
+
+        elif self.add_rope and batched_data["mol_type"] == 2:
+            query = query.reshape(B, L, self.num_attention_heads, self.attn_scalar_head)
+            key = key.reshape(B, -1, self.num_attention_heads, self.attn_scalar_head)
+            query, key = self.rot_emb(
+                query.transpose(1, 2).reshape(
+                    B * self.num_attention_heads, L, self.attn_scalar_head
+                ),
+                key.transpose(1, 2).reshape(
+                    B * self.num_attention_heads, L, self.attn_scalar_head
+                ),
+            )
+            query = query.reshape(
+                B, self.num_attention_heads, L, self.attn_scalar_head
+            ).transpose(1, 2)
+            key = key.reshape(
+                B, self.num_attention_heads, L, self.attn_scalar_head
+            ).transpose(1, 2)
+
+        query = query.reshape(B, L, self.num_attention_heads, self.attn_scalar_head)
+        key = key.reshape(B, -1, self.num_attention_heads, self.attn_scalar_head)
+
+        # attn_weight: RBF(|r_ij|)
+        alpha = attn_weight[..., : self.num_attention_heads] * torch.einsum(
+            "bmhs,bnhs->bmnh", query, key
+        )
+        alpha = self.alpha_act(alpha)
+
+        # if attn_mask is not None:
+        #     # alpha = alpha.masked_fill(attn_mask, float('-inf'))
+        alpha = alpha.masked_fill(attn_mask, -1e6)
+        alpha = torch.nn.functional.softmax(alpha, dim=2)
+        alpha = self.alpha_dropout(alpha)
+        # alpha = alpha / (edge_dis.unsqueeze(dim=-1) + 1e-8)  # B*L*L*head
+        alpha = (
+            alpha * attn_weight[..., self.num_attention_heads :]
+        )  # add attn weight in messages
+        # alpha = alpha.masked_fill(attn_mask, 0)
+
+        if self.tp_type is None or self.tp_type == "None":
+            node_scalars = None
+        elif self.tp_type == "v2":
+            edge_feature = self.gbf(
+                edge_dis, batched_data["node_type_edge"].long()
+            )  # B*L*L*-1
+            edge_feature = edge_feature.sum(dim=-2)  # B*L*-1
+            node_scalars = self.pos_embedding_proj(
+                edge_feature
+            ) + self.node_scalar_proj(node_irreps_input[..., : self.scalar_dim])
+            if batched_data["mol_type"] == 1:  # mol_type 0 mol, 1 material, 2 protein
+                outcell_index = batched_data["outcell_index"]  # B*(L2-L1)
+                outcell_index_0 = batched_data["outcell_index_0"]
+                node_scalars = torch.cat(
+                    [node_scalars, node_scalars[outcell_index_0, outcell_index]], dim=1
+                )
+        else:
+            raise ValueError(f"tp_type should be v0 or v1 or v2 but got {self.tp_type}")
+
+        node_pos_abs = torch.sqrt(torch.sum(node_pos**2, dim=-1, keepdim=True) + 1e-8)
+        node_pos = node_pos / node_pos_abs
+        value_1 = self.sep_tp(
+            value, node_pos, node_scalars
+        )  # B*N*irreps, B*N*3 uvw - > B*N*irreps
+        value_1 = self.vec2heads(value_1)  # B*L*heads*irreps_head
+        value_1 = -torch.einsum(
+            "bmlh,blhi->bmhi",
+            alpha * node_pos_abs.unsqueeze(dim=1) / (edge_dis.unsqueeze(dim=-1) + 1e-8),
+            value_1,
+        )
+        value_1 = self.heads2vec(value_1)
+        # alpha = alpha / (edge_dis.unsqueeze(dim=-1) + 1e-8)  # B*L*L*head
+
+        # value_0 = self.vec2heads(value) # B*L*heads*irreps_head
+        # value_0 = torch.einsum("bmlh,blhi->bmhi",alpha,value_0)
+        # value_0 = self.heads2vec(value_0)
+        # value_0 = self.sep_tp(value_0,node_pos,node_scalars) # TODO: different scalars?
+        value = self.vec2heads(value)  # B*L*heads*irreps_head
+        value = torch.einsum(
+            "bmlh,blhi->bmhi",
+            alpha
+            * node_pos_abs[:, :L].unsqueeze(dim=2)
+            / (edge_dis.unsqueeze(dim=-1) + 1e-8),
+            value,
+        )
+        value = self.heads2vec(value)
+        value_0 = self.sep_tp(
+            value[:, :L],
+            node_pos[:, :L],
+            None if node_scalars is None else node_scalars[:, :L],
+        )  # TODO: different scalars?
+
+        node_output = value_0 + value_1 + value
+        # if self.rescale_degree:
+        #     degree = torch_geometric.utils.degree(
+        #         edge_dst, num_nodes=node_input.shape[0], dtype=node_input.dtype
+        #     )
+        #     degree = degree.view(-1, 1)
+        #     node_output = node_output * degree
+        node_output = self.proj(node_output)
+
+        if self.proj_drop is not None:
+            node_output = self.proj_drop(node_output)
+
+        return node_output
+
+        # B*L*L*head
+
+    def extra_repr(self):
+        output_str = "rescale_degree={}, ".format(self.rescale_degree)
+        return output_str
+
+
+class CosineCutoff(torch.nn.Module):
+    r"""Appies a cosine cutoff to the input distances.
+
+    .. math::
+        \text{cutoffs} =
+        \begin{cases}
+        0.5 * (\cos(\frac{\text{distances} * \pi}{\text{cutoff}}) + 1.0),
+        & \text{if } \text{distances} < \text{cutoff} \\
+        0, & \text{otherwise}
+        \end{cases}
+
+    Args:
+        cutoff (float): A scalar that determines the point at which the cutoff
+            is applied.
+    """
+
+    def __init__(self, cutoff: float) -> None:
+        super().__init__()
+        self.cutoff = cutoff
+
+    def forward(self, distances):
+        r"""Applies a cosine cutoff to the input distances.
+
+        Args:
+            distances (torch.Tensor): A tensor of distances.
+
+        Returns:
+            cutoffs (torch.Tensor): A tensor where the cosine function
+                has been applied to the distances,
+                but any values that exceed the cutoff are set to 0.
+        """
+        cutoffs = 0.5 * ((distances * math.pi / self.cutoff).cos() + 1.0)
+        cutoffs = cutoffs * (distances < self.cutoff).float()
+        return cutoffs
+
+
+@compile_mode("script")
+class E2Attention13(torch.nn.Module):
+    """
+    1. Message = Alpha * Value
+    2. Two Linear to merge src and dst -> Separable FCTP -> 0e + (0e+1e+...)
+    3. 0e -> Activation -> Inner Product -> (Alpha)
+    4. (0e+1e+...) -> (Value)
+
+
+    tp_type:
+    v0: use irreps_node_input 0e
+    v1: use sum of edge features
+    v2: use sum of edge features and irreps_node_input 0e
+
+    attn_type
+    v0: initial implementation with attn_weight multiplication
+    v1: GATv2 implementation without attn bias
+
+
+    """
+
+    def __init__(
+        self,
+        irreps_node_input="256x0e+64x1e+32x2e",
+        attn_weight_input_dim: int = 32,  # e.g. rbf(|r_ij|) or relative pos in sequence
+        num_attn_heads: int = 8,
+        attn_scalar_head: int = 32,
+        irreps_head="32x0e+8x1e+4x2e",
+        rescale_degree=False,
+        nonlinear_message=False,
+        alpha_drop=0.1,
+        proj_drop=0.1,
+        tp_type="v1",
+        attn_type="v2",
+        add_rope=True,
+        max_radius=12,
+        **kwargs,
+    ):
+        super().__init__()
+
+        self.irreps_node_input = (
+            o3.Irreps(irreps_node_input)
+            if isinstance(irreps_node_input, str)
+            else irreps_node_input
+        )
+        self.scalar_dim = self.irreps_node_input[0][0]  # scalar_dim x 0e
+        self.num_attention_heads = num_attn_heads
+        self.attn_scalar_head = attn_scalar_head
+        self.attn_weight_input_dim = attn_weight_input_dim
+        self.irreps_head = (
+            o3.Irreps(irreps_head) if isinstance(irreps_head, str) else irreps_head
+        )
+        # irreps_node_output,  attention will not change the input shape/embeding length
+        self.irreps_node_output = self.irreps_node_input
+        # new params
+        self.tp_type = tp_type
+        self.attn_type = attn_type
+        self.cutoff = CosineCutoff(max_radius)
+
+        self.gbf_attn = GaussianLayer(
+            self.attn_weight_input_dim
+        )  # default output_dim = 128
+        self.node_embedding = nn.Embedding(256, 32)
+        nn.init.uniform_(self.node_embedding.weight.data, -0.001, 0.001)
+
+        self.attn_weight2heads = nn.Sequential(
+            nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
+            nn.LayerNorm(attn_weight_input_dim),
+            torch.nn.SiLU(),
+            nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
+            nn.LayerNorm(attn_weight_input_dim),
+            torch.nn.SiLU(),
+            nn.Linear(attn_weight_input_dim, num_attn_heads),
+        )
+
+        self.multiheadatten_irreps = (
+            (self.irreps_head * num_attn_heads).sort().irreps.simplify()
+        )
+
+        self.q_ir2scalar = Irreps2Scalar(
+            self.irreps_node_input,
+            num_attn_heads * attn_scalar_head,
+            bias=True,
+            act="smoothleakyrelu",
+        )
+        self.k_ir2scalar = Irreps2Scalar(
+            self.irreps_node_input,
+            num_attn_heads * attn_scalar_head,
+            bias=True,
+            act="smoothleakyrelu",
+        )
+
+        self.v_irlinear = IrrepsLinear(
+            self.irreps_node_input,
+            self.multiheadatten_irreps,
+            bias=True,
+            act="smoothleakyrelu",
+        )  # B*L*irreps
+
+        self.vec2heads = Vec2AttnHeads(
+            self.irreps_head,
+            num_attn_heads,
+        )
+        self.heads2vec = AttnHeads2Vec(irreps_head=self.irreps_head)
+
+        # alpha_dot, used for scalar to num_heads dimension
+        # self.alpha_dot = torch.nn.Parameter(torch.randn(1, num_heads, mul_alpha_head))
+        self.alpha_act = SmoothLeakyReLU(0.2)  # used for attention_ij
+        self.alpha_dropout = None
+        if alpha_drop != 0.0:
+            self.alpha_dropout = torch.nn.Dropout(alpha_drop)
+
+        self.rescale_degree = rescale_degree
+        self.nonlinear_message = nonlinear_message
+
+        self.sep_tp = None
+        if self.nonlinear_message or self.rescale_degree:
+            raise ValueError(
+                "sorry, rescale_degree or non linear message passing is not supported in tp transformer"
+            )
+
+        else:
+            if self.tp_type is None or self.tp_type == "None":
+                self.sep_tp = SeparableFCTP(
+                    self.multiheadatten_irreps,
+                    "1x1e",
+                    self.multiheadatten_irreps,
+                    fc_neurons=None,
+                    use_activation=False,
+                    norm_layer=None,
+                    internal_weights=True,
+                )
+            else:
+                self.sep_tp = SeparableFCTP(
+                    self.multiheadatten_irreps,
+                    "1x1e",
+                    self.multiheadatten_irreps,
+                    fc_neurons=[self.scalar_dim, self.scalar_dim, self.scalar_dim],
+                    use_activation=False,
+                    norm_layer=None,
+                    internal_weights=False,
+                )
+
+                if self.tp_type == "v2":
+                    self.gbf = GaussianLayer(
+                        self.attn_weight_input_dim
+                    )  # default output_dim = 128
+                    self.pos_embedding_proj = nn.Linear(
+                        self.attn_weight_input_dim, self.scalar_dim
+                    )
+                    self.node_scalar_proj = nn.Linear(self.scalar_dim, self.scalar_dim)
+                else:
+                    raise ValueError(
+                        f"attn_type should be None or v0 or v1 or v2 but got {self.attn_type}"
+                    )
+
+        self.proj = IrrepsLinear(
+            (self.irreps_head * num_attn_heads).sort().irreps.simplify(),
+            self.irreps_node_input,
+            bias=True,
+            act="smoothleakyrelu",
+        )  # B*L*irrep
+        self.proj_drop = None
+        if proj_drop != 0.0:
+            self.proj_drop = EquivariantDropout()
+        self.add_rope = add_rope
+        if add_rope:
+            self.rot_emb = RotaryEmbedding(dim=self.attn_scalar_head)
+
+    def forward(
+        self,
+        node_pos,
+        node_irreps_input,
+        edge_dis,
+        attn_weight,  # e.g. rbf(|r_ij|) or relative pos in sequence
+        atomic_numbers,
+        attn_mask=None,  # non-adj is True
+        batch=None,
+        batched_data=None,
+        **kwargs,
+    ):
+        """
+        irreps_in = o3.Irreps("256x0e+64x1e+32x2e")
+        B,L = 4,20
+        node_pos = torch.randn(B,L,3)
+        node_dis = torch.sqrt(torch.sum((node_pos.view(B,L,1,3)-node_pos.view(B,1,L,3))**2,dim = -1))
+
+        attn_scalar_head = 32
+        func = GraphAttention(
+            irreps_node_input = irreps_in,
+            attn_weight_input_dim = 32, # e.g. rbf(|r_ij|) or relative pos in sequence
+            num_attn_heads = 8,
+            attn_scalar_head = attn_scalar_head,
+            irreps_head = "32x0e+8x1e+4x2e",
+            rescale_degree=False,
+            nonlinear_message=False,
+            alpha_drop=0.1,
+            proj_drop=0.1,
+        )
+        out = func(node_pos,
+            irreps_in.randn(B,L,-1),
+            node_dis,
+            torch.randn(B,L,L,attn_scalar_head))
+        print(out.shape)
+        """
+
+        # attn_weight f(|r_ij|): B*L*L*heads
+        # edge_dis: B*L*L
+        # node_input: B*L*irreps (irreps e.g. 128x0e+64x1e+32x2e)
+        # ir2scalar: B*L*irreps -> N*L*hidden (hidden e.g. head*32)
+        # attn_weight: B*L*L*rbf_dim
+        B, L, _ = node_irreps_input.shape
+        query = self.q_ir2scalar(node_irreps_input)
+        key = self.k_ir2scalar(node_irreps_input)
+        value = self.v_irlinear(node_irreps_input)  # B*L*irreps
+        # embed = self.node_embedding(atomic_numbers)
+        # if self.attn_type.startswith('v3'):
+        # attn_weight = self.gbf_attn(edge_dis, batched_data["node_type_edge"].long()) # B*L*L*-1
+        attn_weight = self.attn_weight2heads(attn_weight)
+        # torch.cat(
+        #     [
+        #         attn_weight,
+        #         embed.reshape(B, L, 1, -1)
+        #         .repeat(1, 1, L, 1),
+        #         embed.reshape(B, 1, L, -1)
+        #         .repeat(1, L, 1, 1),
+        #     ],
+        #     dim=-1,
+        # ))
+
+        if batched_data["mol_type"] == 1:  # mol_type 0 mol, 1 material, 2 protein
+            outcell_index = batched_data["outcell_index"]  # B*(L2-L1)
+            outcell_index_0 = batched_data["outcell_index_0"]
+            key = torch.cat([key, key[outcell_index_0, outcell_index]], dim=1)
+            value = torch.cat([value, value[outcell_index_0, outcell_index]], dim=1)
+            node_pos = torch.cat([node_pos, batched_data["expand_pos"].float()], dim=1)
+
+        elif self.add_rope and batched_data["mol_type"] == 2:
+            query = query.reshape(B, L, self.num_attention_heads, self.attn_scalar_head)
+            key = key.reshape(B, -1, self.num_attention_heads, self.attn_scalar_head)
+            query, key = self.rot_emb(
+                query.transpose(1, 2).reshape(
+                    B * self.num_attention_heads, L, self.attn_scalar_head
+                ),
+                key.transpose(1, 2).reshape(
+                    B * self.num_attention_heads, L, self.attn_scalar_head
+                ),
+            )
+            query = query.reshape(
+                B, self.num_attention_heads, L, self.attn_scalar_head
+            ).transpose(1, 2)
+            key = key.reshape(
+                B, self.num_attention_heads, L, self.attn_scalar_head
+            ).transpose(1, 2)
+
+        query = query.reshape(B, L, self.num_attention_heads, self.attn_scalar_head)
+        key = key.reshape(B, -1, self.num_attention_heads, self.attn_scalar_head)
+
+        # attn_weight: RBF(|r_ij|)
+        alpha = attn_weight[..., : self.num_attention_heads] * torch.einsum(
+            "bmhs,bnhs->bmnh", query, key
+        )
+        alpha = self.alpha_act(alpha)
+
+        # if attn_mask is not None:
+        #     # alpha = alpha.masked_fill(attn_mask, float('-inf'))
+        alpha = alpha.masked_fill(attn_mask, -1e6)
+        alpha = torch.nn.functional.softmax(alpha, dim=2)
+        alpha = self.alpha_dropout(alpha)
+        # alpha = alpha / (edge_dis.unsqueeze(dim=-1) + 1e-8)  # B*L*L*head
+
+        alpha = alpha * self.cutoff(edge_dis).unsqueeze(
+            dim=-1
+        )  # add attn weight in messages
+        # alpha = (
+        #     alpha * attn_weight[..., self.num_attention_heads :]
+        # )  # add attn weight in messages
+        # alpha = alpha.masked_fill(attn_mask, 0)
+
+        if self.tp_type is None or self.tp_type == "None":
+            node_scalars = None
+        elif self.tp_type == "v2":
+            edge_feature = self.gbf(
+                edge_dis, batched_data["node_type_edge"].long()
+            )  # B*L*L*-1
+            edge_feature = edge_feature.sum(dim=-2)  # B*L*-1
+            node_scalars = self.pos_embedding_proj(
+                edge_feature
+            ) + self.node_scalar_proj(node_irreps_input[..., : self.scalar_dim])
+            if batched_data["mol_type"] == 1:  # mol_type 0 mol, 1 material, 2 protein
+                outcell_index = batched_data["outcell_index"]  # B*(L2-L1)
+                outcell_index_0 = batched_data["outcell_index_0"]
+                node_scalars = torch.cat(
+                    [node_scalars, node_scalars[outcell_index_0, outcell_index]], dim=1
+                )
+        else:
+            raise ValueError(f"tp_type should be v0 or v1 or v2 but got {self.tp_type}")
+
+        node_pos_abs = torch.sqrt(torch.sum(node_pos**2, dim=-1, keepdim=True) + 1e-8)
+        node_pos = node_pos / node_pos_abs
+        value_1 = self.sep_tp(
+            value, node_pos, node_scalars
+        )  # B*N*irreps, B*N*3 uvw - > B*N*irreps
+        value_1 = self.vec2heads(value_1)  # B*L*heads*irreps_head
+        value_1 = -torch.einsum(
+            "bmlh,blhi->bmhi",
+            alpha * node_pos_abs.unsqueeze(dim=1) / (edge_dis.unsqueeze(dim=-1) + 1e-8),
+            value_1,
+        )
+        value_1 = self.heads2vec(value_1)
+        # alpha = alpha / (edge_dis.unsqueeze(dim=-1) + 1e-8)  # B*L*L*head
+
+        # value_0 = self.vec2heads(value) # B*L*heads*irreps_head
+        # value_0 = torch.einsum("bmlh,blhi->bmhi",alpha,value_0)
+        # value_0 = self.heads2vec(value_0)
+        # value_0 = self.sep_tp(value_0,node_pos,node_scalars) # TODO: different scalars?
+        value = self.vec2heads(value)  # B*L*heads*irreps_head
+        value = torch.einsum(
+            "bmlh,blhi->bmhi",
+            alpha
+            * node_pos_abs[:, :L].unsqueeze(dim=2)
+            / (edge_dis.unsqueeze(dim=-1) + 1e-8),
+            value,
+        )
+        value = self.heads2vec(value)
+        value_0 = self.sep_tp(
+            value[:, :L],
+            node_pos[:, :L],
+            None if node_scalars is None else node_scalars[:, :L],
+        )  # TODO: different scalars?
+
+        node_output = value_0 + value_1 + value
+        # if self.rescale_degree:
+        #     degree = torch_geometric.utils.degree(
+        #         edge_dst, num_nodes=node_input.shape[0], dtype=node_input.dtype
+        #     )
+        #     degree = degree.view(-1, 1)
+        #     node_output = node_output * degree
+        node_output = self.proj(node_output)
+
+        if self.proj_drop is not None:
+            node_output = self.proj_drop(node_output)
+
+        return node_output
+
+        # B*L*L*head
+
+    def extra_repr(self):
+        output_str = "rescale_degree={}, ".format(self.rescale_degree)
+        return output_str
+
+
+@compile_mode("script")
+class E2Attention14(torch.nn.Module):
+    """
+    1. Message = Alpha * Value
+    2. Two Linear to merge src and dst -> Separable FCTP -> 0e + (0e+1e+...)
+    3. 0e -> Activation -> Inner Product -> (Alpha)
+    4. (0e+1e+...) -> (Value)
+
+
+    tp_type:
+    v0: use irreps_node_input 0e
+    v1: use sum of edge features
+    v2: use sum of edge features and irreps_node_input 0e
+
+    attn_type
+    v0: initial implementation with attn_weight multiplication
+    v1: GATv2 implementation without attn bias
+
+
+    """
+
+    def __init__(
+        self,
+        irreps_node_input="256x0e+64x1e+32x2e",
+        attn_weight_input_dim: int = 32,  # e.g. rbf(|r_ij|) or relative pos in sequence
+        num_attn_heads: int = 8,
+        attn_scalar_head: int = 32,
+        irreps_head="32x0e+8x1e+4x2e",
+        rescale_degree=False,
+        nonlinear_message=False,
+        alpha_drop=0.1,
+        proj_drop=0.1,
+        tp_type="v1",
+        attn_type="v2",
+        add_rope=True,
+        **kwargs,
+    ):
+        super().__init__()
+
+        self.irreps_node_input = (
+            o3.Irreps(irreps_node_input)
+            if isinstance(irreps_node_input, str)
+            else irreps_node_input
+        )
+        self.scalar_dim = self.irreps_node_input[0][0]  # scalar_dim x 0e
+        self.num_attention_heads = num_attn_heads
+        self.attn_scalar_head = attn_scalar_head
+        self.attn_weight_input_dim = attn_weight_input_dim
+        self.irreps_head = (
+            o3.Irreps(irreps_head) if isinstance(irreps_head, str) else irreps_head
+        )
+        # irreps_node_output,  attention will not change the input shape/embeding length
+        self.irreps_node_output = self.irreps_node_input
+        # new params
+        self.tp_type = tp_type
+        self.attn_type = attn_type
+
+        self.gbf_attn = GaussianLayer(
+            self.attn_weight_input_dim
+        )  # default output_dim = 128
+        self.node_embedding = nn.Embedding(256, 32)
+        nn.init.uniform_(self.node_embedding.weight.data, -0.001, 0.001)
+
+        self.attn_weight2heads = nn.Sequential(
+            nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
+            nn.LayerNorm(attn_weight_input_dim),
+            torch.nn.SiLU(),
+            nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
+            nn.LayerNorm(attn_weight_input_dim),
+            torch.nn.SiLU(),
+            nn.Linear(attn_weight_input_dim, 2 * num_attn_heads),
+        )
+
+        self.multiheadatten_irreps = (
+            (self.irreps_head * num_attn_heads).sort().irreps.simplify()
+        )
+
+        self.q_ir2scalar = Irreps2Scalar(
+            self.irreps_node_input,
+            num_attn_heads * attn_scalar_head,
+            bias=True,
+            act="smoothleakyrelu",
+        )
+        self.k_ir2scalar = Irreps2Scalar(
+            self.irreps_node_input,
+            num_attn_heads * attn_scalar_head,
+            bias=True,
+            act="smoothleakyrelu",
+        )
+
+        self.v_irlinear = IrrepsLinear(
+            self.irreps_node_input,
+            self.multiheadatten_irreps,
+            bias=True,
+            act="smoothleakyrelu",
+        )  # B*L*irreps
+
+        self.vec2heads = Vec2AttnHeads(
+            self.irreps_head,
+            num_attn_heads,
+        )
+        self.heads2vec = AttnHeads2Vec(irreps_head=self.irreps_head)
+
+        # alpha_dot, used for scalar to num_heads dimension
+        # self.alpha_dot = torch.nn.Parameter(torch.randn(1, num_heads, mul_alpha_head))
+        self.alpha_act = SmoothLeakyReLU(0.2)  # used for attention_ij
+        self.alpha_dropout = None
+        if alpha_drop != 0.0:
+            self.alpha_dropout = torch.nn.Dropout(alpha_drop)
+
+        self.rescale_degree = rescale_degree
+        self.nonlinear_message = nonlinear_message
+
+        self.sep_tp = None
+        self.sep_tp_own = SeparableFCTP(
+            self.multiheadatten_irreps,
+            f"{self.num_attention_heads}x1e",
+            self.multiheadatten_irreps,
+            fc_neurons=None,
+            use_activation=False,
+            norm_layer=None,
+            internal_weights=True,
+        )
+
+        self.sep_tp = None
+        if self.nonlinear_message or self.rescale_degree:
+            raise ValueError(
+                "sorry, rescale_degree or non linear message passing is not supported in tp transformer"
+            )
+
+        else:
+            if self.tp_type is None or self.tp_type == "None":
+                self.sep_tp = SeparableFCTP(
+                    self.multiheadatten_irreps,
+                    "1x1e",
+                    self.multiheadatten_irreps,
+                    fc_neurons=None,
+                    use_activation=False,
+                    norm_layer=None,
+                    internal_weights=True,
+                )
+            else:
+                self.sep_tp = SeparableFCTP(
+                    self.multiheadatten_irreps,
+                    "1x1e",
+                    self.multiheadatten_irreps,
+                    fc_neurons=[self.scalar_dim, self.scalar_dim, self.scalar_dim],
+                    use_activation=False,
+                    norm_layer=None,
+                    internal_weights=False,
+                )
+
+                if self.tp_type == "v2":
+                    self.gbf = GaussianLayer(
+                        self.attn_weight_input_dim
+                    )  # default output_dim = 128
+                    self.pos_embedding_proj = nn.Linear(
+                        self.attn_weight_input_dim, self.scalar_dim
+                    )
+                    self.node_scalar_proj = nn.Linear(self.scalar_dim, self.scalar_dim)
+                else:
+                    raise ValueError(
+                        f"attn_type should be None or v0 or v1 or v2 but got {self.attn_type}"
+                    )
+
+        self.proj = IrrepsLinear(
+            (self.irreps_head * num_attn_heads).sort().irreps.simplify(),
+            self.irreps_node_input,
+            bias=True,
+            act="smoothleakyrelu",
+        )  # B*L*irrep
+        self.proj_drop = None
+        if proj_drop != 0.0:
+            self.proj_drop = EquivariantDropout()
+        self.add_rope = add_rope
+        if add_rope:
+            self.rot_emb = RotaryEmbedding(dim=self.attn_scalar_head)
+
+    def forward(
+        self,
+        node_pos,
+        node_irreps_input,
+        edge_dis,
+        attn_weight,  # e.g. rbf(|r_ij|) or relative pos in sequence
+        atomic_numbers,
+        attn_mask=None,  # non-adj is True
+        batch=None,
+        batched_data=None,
+        **kwargs,
+    ):
+        """
+        irreps_in = o3.Irreps("256x0e+64x1e+32x2e")
+        B,L = 4,20
+        node_pos = torch.randn(B,L,3)
+        node_dis = torch.sqrt(torch.sum((node_pos.view(B,L,1,3)-node_pos.view(B,1,L,3))**2,dim = -1))
+
+        attn_scalar_head = 32
+        func = GraphAttention(
+            irreps_node_input = irreps_in,
+            attn_weight_input_dim = 32, # e.g. rbf(|r_ij|) or relative pos in sequence
+            num_attn_heads = 8,
+            attn_scalar_head = attn_scalar_head,
+            irreps_head = "32x0e+8x1e+4x2e",
+            rescale_degree=False,
+            nonlinear_message=False,
+            alpha_drop=0.1,
+            proj_drop=0.1,
+        )
+        out = func(node_pos,
+            irreps_in.randn(B,L,-1),
+            node_dis,
+            torch.randn(B,L,L,attn_scalar_head))
+        print(out.shape)
+        """
+
+        # attn_weight f(|r_ij|): B*L*L*heads
+        # edge_dis: B*L*L
+        # node_input: B*L*irreps (irreps e.g. 128x0e+64x1e+32x2e)
+        # ir2scalar: B*L*irreps -> N*L*hidden (hidden e.g. head*32)
+        # attn_weight: B*L*L*rbf_dim
+        B, L, _ = node_irreps_input.shape
+        query = self.q_ir2scalar(node_irreps_input)
+        key = self.k_ir2scalar(node_irreps_input)
+        value = self.v_irlinear(node_irreps_input)  # B*L*irreps
+        # embed = self.node_embedding(atomic_numbers)
+        # if self.attn_type.startswith('v3'):
+        # attn_weight = self.gbf_attn(edge_dis, batched_data["node_type_edge"].long()) # B*L*L*-1
+        attn_weight = self.attn_weight2heads(attn_weight)
+        # torch.cat(
+        #     [
+        #         attn_weight,
+        #         embed.reshape(B, L, 1, -1)
+        #         .repeat(1, 1, L, 1),
+        #         embed.reshape(B, 1, L, -1)
+        #         .repeat(1, L, 1, 1),
+        #     ],
+        #     dim=-1,
+        # ))
+
+        if batched_data["mol_type"] == 1:  # mol_type 0 mol, 1 material, 2 protein
+            outcell_index = batched_data["outcell_index"]  # B*(L2-L1)
+            outcell_index_0 = batched_data["outcell_index_0"]
+            key = torch.cat([key, key[outcell_index_0, outcell_index]], dim=1)
+            value = torch.cat([value, value[outcell_index_0, outcell_index]], dim=1)
+            node_pos = torch.cat([node_pos, batched_data["expand_pos"].float()], dim=1)
+
+        elif self.add_rope and batched_data["mol_type"] == 2:
+            query = query.reshape(B, L, self.num_attention_heads, self.attn_scalar_head)
+            key = key.reshape(B, -1, self.num_attention_heads, self.attn_scalar_head)
+            query, key = self.rot_emb(
+                query.transpose(1, 2).reshape(
+                    B * self.num_attention_heads, L, self.attn_scalar_head
+                ),
+                key.transpose(1, 2).reshape(
+                    B * self.num_attention_heads, L, self.attn_scalar_head
+                ),
+            )
+            query = query.reshape(
+                B, self.num_attention_heads, L, self.attn_scalar_head
+            ).transpose(1, 2)
+            key = key.reshape(
+                B, self.num_attention_heads, L, self.attn_scalar_head
+            ).transpose(1, 2)
+
+        query = query.reshape(B, L, self.num_attention_heads, self.attn_scalar_head)
+        key = key.reshape(B, -1, self.num_attention_heads, self.attn_scalar_head)
+
+        # attn_weight: RBF(|r_ij|)
+        alpha = attn_weight[..., : self.num_attention_heads] * torch.einsum(
+            "bmhs,bnhs->bmnh", query, key
+        )
+        alpha = self.alpha_act(alpha)
+
+        # if attn_mask is not None:
+        #     # alpha = alpha.masked_fill(attn_mask, float('-inf'))
+        alpha = alpha.masked_fill(attn_mask, -1e6)
+        alpha = torch.nn.functional.softmax(alpha, dim=2)
+        alpha = self.alpha_dropout(alpha)
+        # alpha = alpha / (edge_dis.unsqueeze(dim=-1) + 1e-8)  # B*L*L*head
+        alpha = (
+            alpha * attn_weight[..., self.num_attention_heads :]
+        )  # add attn weight in messages
+        # alpha = alpha.masked_fill(attn_mask, 0)
+
+        edge_vec = node_pos[:, :L].unsqueeze(dim=2) - node_pos.unsqueeze(dim=1)
+        edge_vec = edge_vec / torch.sqrt(
+            torch.sum(edge_vec**2, dim=-1, keepdim=True) + 1e-8
+        )  # B*L1*L2*3
+        edge_agg_vec = torch.einsum(
+            "bmlh,bmld->bmhd", alpha, edge_vec
+        )  # -> B*L1*heads*3
+
+        value_self = self.sep_tp_own(
+            value[:, :L].reshape(B, L, -1), edge_agg_vec.reshape(B, L, -1), None
+        )
+
+        if self.tp_type is None or self.tp_type == "None":
+            node_scalars = None
+        elif self.tp_type == "v2":
+            edge_feature = self.gbf(
+                edge_dis, batched_data["node_type_edge"].long()
+            )  # B*L*L*-1
+            edge_feature = edge_feature.sum(dim=-2)  # B*L*-1
+            node_scalars = self.pos_embedding_proj(
+                edge_feature
+            ) + self.node_scalar_proj(node_irreps_input[..., : self.scalar_dim])
+            if batched_data["mol_type"] == 1:  # mol_type 0 mol, 1 material, 2 protein
+                outcell_index = batched_data["outcell_index"]  # B*(L2-L1)
+                outcell_index_0 = batched_data["outcell_index_0"]
+                node_scalars = torch.cat(
+                    [node_scalars, node_scalars[outcell_index_0, outcell_index]], dim=1
+                )
+        else:
+            raise ValueError(f"tp_type should be v0 or v1 or v2 but got {self.tp_type}")
+
+        node_pos_abs = torch.sqrt(torch.sum(node_pos**2, dim=-1, keepdim=True) + 1e-8)
+        node_pos = node_pos / node_pos_abs
+        value_1 = self.sep_tp(
+            value, node_pos, node_scalars
+        )  # B*N*irreps, B*N*3 uvw - > B*N*irreps
+        value_1 = self.vec2heads(value_1)  # B*L*heads*irreps_head
+        value_1 = -torch.einsum(
+            "bmlh,blhi->bmhi",
+            alpha * node_pos_abs.unsqueeze(dim=1) / (edge_dis.unsqueeze(dim=-1) + 1e-8),
+            value_1,
+        )
+        value_1 = self.heads2vec(value_1)
+        # alpha = alpha / (edge_dis.unsqueeze(dim=-1) + 1e-8)  # B*L*L*head
+
+        # value_0 = self.vec2heads(value) # B*L*heads*irreps_head
+        # value_0 = torch.einsum("bmlh,blhi->bmhi",alpha,value_0)
+        # value_0 = self.heads2vec(value_0)
+        # value_0 = self.sep_tp(value_0,node_pos,node_scalars) # TODO: different scalars?
+        value = self.vec2heads(value)  # B*L*heads*irreps_head
+        value = torch.einsum(
+            "bmlh,blhi->bmhi",
+            alpha
+            * node_pos_abs[:, :L].unsqueeze(dim=2)
+            / (edge_dis.unsqueeze(dim=-1) + 1e-8),
+            value,
+        )
+        value = self.heads2vec(value)
+        value_0 = self.sep_tp(
+            value[:, :L],
+            node_pos[:, :L],
+            None if node_scalars is None else node_scalars[:, :L],
+        )  # TODO: different scalars?
+
+        node_output = value_0 + value_1 + value_self
+        # if self.rescale_degree:
+        #     degree = torch_geometric.utils.degree(
+        #         edge_dst, num_nodes=node_input.shape[0], dtype=node_input.dtype
+        #     )
+        #     degree = degree.view(-1, 1)
+        #     node_output = node_output * degree
+        node_output = self.proj(node_output)
+
+        if self.proj_drop is not None:
+            node_output = self.proj_drop(node_output)
+
+        return node_output
+
+        # B*L*L*head
+
+    def extra_repr(self):
+        output_str = "rescale_degree={}, ".format(self.rescale_degree)
+        return output_str
+
+
+@compile_mode("script")
+class E2Attention15(torch.nn.Module):
+    """
+    1. Message = Alpha * Value
+    2. Two Linear to merge src and dst -> Separable FCTP -> 0e + (0e+1e+...)
+    3. 0e -> Activation -> Inner Product -> (Alpha)
+    4. (0e+1e+...) -> (Value)
+
+
+    tp_type:
+    v0: use irreps_node_input 0e
+    v1: use sum of edge features
+    v2: use sum of edge features and irreps_node_input 0e
+
+    attn_type
+    v0: initial implementation with attn_weight multiplication
+    v1: GATv2 implementation without attn bias
+
+
+    """
+
+    def __init__(
+        self,
+        irreps_node_input="256x0e+64x1e+32x2e",
+        attn_weight_input_dim: int = 32,  # e.g. rbf(|r_ij|) or relative pos in sequence
+        num_attn_heads: int = 8,
+        attn_scalar_head: int = 32,
+        irreps_head="32x0e+8x1e+4x2e",
+        rescale_degree=False,
+        nonlinear_message=False,
+        alpha_drop=0.1,
+        proj_drop=0.1,
+        tp_type="v1",
+        attn_type="v2",
+        add_rope=True,
+        **kwargs,
+    ):
+        super().__init__()
+
+        self.irreps_node_input = (
+            o3.Irreps(irreps_node_input)
+            if isinstance(irreps_node_input, str)
+            else irreps_node_input
+        )
+        self.scalar_dim = self.irreps_node_input[0][0]  # scalar_dim x 0e
+        self.num_attention_heads = num_attn_heads
+        self.attn_scalar_head = attn_scalar_head
+        self.attn_weight_input_dim = attn_weight_input_dim
+        self.irreps_head = (
+            o3.Irreps(irreps_head) if isinstance(irreps_head, str) else irreps_head
+        )
+        # irreps_node_output,  attention will not change the input shape/embeding length
+        self.irreps_node_output = self.irreps_node_input
+        # new params
+        self.tp_type = tp_type
+        self.attn_type = attn_type
+
+        self.gbf_attn = GaussianLayer(
+            self.attn_weight_input_dim
+        )  # default output_dim = 128
+        self.attn_weight2heads = nn.Sequential(
+            nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
+            nn.LayerNorm(attn_weight_input_dim),
+            torch.nn.SiLU(),
+            nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
+            nn.LayerNorm(attn_weight_input_dim),
+            torch.nn.SiLU(),
+            nn.Linear(attn_weight_input_dim, num_attn_heads),
+        )
+
+        self.multiheadatten_irreps = (
+            (self.irreps_head * num_attn_heads).sort().irreps.simplify()
+        )
+
+        self.q_ir2scalar = Irreps2Scalar(
+            self.irreps_node_input,
+            num_attn_heads * attn_scalar_head,
+            bias=True,
+            act="smoothleakyrelu",
+        )
+        self.k_ir2scalar = Irreps2Scalar(
+            self.irreps_node_input,
+            num_attn_heads * attn_scalar_head,
+            bias=True,
+            act="smoothleakyrelu",
+        )
+
+        self.seperate_fc_neurons = nn.ModuleList()
+        for idx in range(len(self.multiheadatten_irreps)):
+            self.seperate_fc_neurons.append(
+                nn.Sequential(
+                    nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
+                    nn.LayerNorm(attn_weight_input_dim),
+                    torch.nn.SiLU(),
+                    nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
+                    nn.LayerNorm(attn_weight_input_dim),
+                    torch.nn.SiLU(),
+                    nn.Linear(
+                        attn_weight_input_dim, self.multiheadatten_irreps[idx][0]
+                    ),
+                )
+            )
+
+        self.v_irlinear = IrrepsLinear(
+            self.irreps_node_input,
+            self.multiheadatten_irreps,
+            bias=True,
+            act="smoothleakyrelu",
+        )  # B*L*irreps
+
+        self.vec2heads = Vec2AttnHeads(
+            self.irreps_head,
+            num_attn_heads,
+        )
+        self.heads2vec = AttnHeads2Vec(irreps_head=self.irreps_head)
+
+        # alpha_dot, used for scalar to num_heads dimension
+        # self.alpha_dot = torch.nn.Parameter(torch.randn(1, num_heads, mul_alpha_head))
+        self.alpha_act = SmoothLeakyReLU(0.2)  # used for attention_ij
+        self.alpha_dropout = None
+        if alpha_drop != 0.0:
+            self.alpha_dropout = torch.nn.Dropout(alpha_drop)
+
+        self.rescale_degree = rescale_degree
+        self.nonlinear_message = nonlinear_message
+
+        self.sep_tp = None
+        if self.nonlinear_message or self.rescale_degree:
+            raise ValueError(
+                "sorry, rescale_degree or non linear message passing is not supported in tp transformer"
+            )
+
+        else:
+            if self.tp_type is None or self.tp_type == "None":
+                self.sep_tp = SeparableFCTP(
+                    self.multiheadatten_irreps,
+                    "1x1e",
+                    self.multiheadatten_irreps,
+                    fc_neurons=None,
+                    use_activation=False,
+                    norm_layer=None,
+                    internal_weights=True,
+                )
+            else:
+                self.sep_tp = SeparableFCTP(
+                    self.multiheadatten_irreps,
+                    "1x1e",
+                    self.multiheadatten_irreps,
+                    fc_neurons=[self.scalar_dim, self.scalar_dim, self.scalar_dim],
+                    use_activation=False,
+                    norm_layer=None,
+                    internal_weights=False,
+                )
+
+                if self.tp_type == "v2":
+                    self.gbf = GaussianLayer(
+                        self.attn_weight_input_dim
+                    )  # default output_dim = 128
+                    self.pos_embedding_proj = nn.Linear(
+                        self.attn_weight_input_dim, self.scalar_dim
+                    )
+                    self.node_scalar_proj = nn.Linear(self.scalar_dim, self.scalar_dim)
+                else:
+                    raise ValueError(
+                        f"attn_type should be None or v0 or v1 or v2 but got {self.attn_type}"
+                    )
+
+        self.proj = IrrepsLinear(
+            (self.irreps_head * num_attn_heads).sort().irreps.simplify(),
+            self.irreps_node_input,
+            bias=True,
+            act="smoothleakyrelu",
+        )  # B*L*irrep
+        self.proj_drop = None
+        if proj_drop != 0.0:
+            self.proj_drop = EquivariantDropout()
+        self.add_rope = add_rope
+        if add_rope:
+            self.rot_emb = RotaryEmbedding(dim=self.attn_scalar_head)
+
+    def seperable_attn(self, alpha, value, attn_bias, irreps, heads, bias_module_list):
+        start = 0
+        out = []
+        B, L = value.shape[:2]
+        for idx in range(len(irreps)):
+            order = irreps[idx][1].l
+            channel = irreps[idx][0]
+            cur_val = value[:, :, start : start + channel * (2 * order + 1)].reshape(
+                B, L, channel, 2 * order + 1
+            )
+            bias = bias_module_list[idx](attn_bias) * alpha.repeat(
+                1, 1, 1, channel // heads
+            )
+            out.append(torch.einsum("blmc,bmcd->blcd", bias, cur_val).reshape(B, L, -1))
+            start += channel * (2 * order + 1)
+        return torch.cat(out, dim=-1)
 
     def forward(
         self,
@@ -1098,87 +2082,52 @@ class E2Attention(torch.nn.Module):
 
         # if self.attn_type.startswith('v3'):
         # attn_weight = self.gbf_attn(edge_dis, batched_data["node_type_edge"].long()) # B*L*L*-1
-        attn_weight = self.attn_weight2heads(attn_weight)
 
-        query = query.reshape(B, L, self.num_attention_heads, self.attn_scalar_head)
-        key = key.reshape(B, L, self.num_attention_heads, self.attn_scalar_head)
-        if self.add_rope:
+        if batched_data["mol_type"] == 1:  # mol_type 0 mol, 1 material, 2 protein
+            outcell_index = batched_data["outcell_index"]  # B*(L2-L1)
+            outcell_index_0 = batched_data["outcell_index_0"]
+            key = torch.cat([key, key[outcell_index_0, outcell_index]], dim=1)
+            value = torch.cat([value, value[outcell_index_0, outcell_index]], dim=1)
+            node_pos = torch.cat(
+                [node_pos, node_pos[outcell_index_0, outcell_index]], dim=1
+            )
+
+        elif self.add_rope and batched_data["mol_type"] == 2:
+            query = query.reshape(B, L, self.num_attention_heads, self.attn_scalar_head)
+            key = key.reshape(B, -1, self.num_attention_heads, self.attn_scalar_head)
             query, key = self.rot_emb(
                 query.transpose(1, 2).reshape(
-                    B * self.num_attention_heads, -1, self.attn_scalar_head
+                    B * self.num_attention_heads, L, self.attn_scalar_head
                 ),
                 key.transpose(1, 2).reshape(
-                    B * self.num_attention_heads, -1, self.attn_scalar_head
+                    B * self.num_attention_heads, L, self.attn_scalar_head
                 ),
             )
             query = query.reshape(
-                B, self.num_attention_heads, -1, self.attn_scalar_head
+                B, self.num_attention_heads, L, self.attn_scalar_head
             ).transpose(1, 2)
             key = key.reshape(
-                B, self.num_attention_heads, -1, self.attn_scalar_head
+                B, self.num_attention_heads, L, self.attn_scalar_head
             ).transpose(1, 2)
 
-        # TODO
+        query = query.reshape(B, L, self.num_attention_heads, self.attn_scalar_head)
+        key = key.reshape(B, -1, self.num_attention_heads, self.attn_scalar_head)
+
         # attn_weight: RBF(|r_ij|)
-        if self.attn_type == "v0":
-            alpha = attn_weight * (
-                torch.sum(query, dim=3).unsqueeze(dim=2)
-                + torch.sum(key, dim=3).unsqueeze(dim=1)
-            )
-            alpha = self.alpha_act(alpha)  # B*L*L*head
-        elif self.attn_type == "v1":
-            alpha = self.alpha_act(
-                query.unsqueeze(dim=2) + key.unsqueeze(dim=1)
-            )  # B*L*L*head*irreps_head
-            alpha = torch.einsum(
-                "abcik, ik -> abci", alpha, self.alpha_dot
-            )  # B*L*L*head
-            alpha = alpha * attn_weight
-        elif self.attn_type == "v2":
-            alpha = attn_weight[..., : self.num_attention_heads] * torch.einsum(
-                "bmhs,bnhs->bmnh", query, key
-            )
-            alpha = self.alpha_act(alpha)
-        elif self.attn_type == "v2.1":
-            alpha = self.alpha_act(torch.einsum("bmhs,bnhs->bmnh", query, key))
-            alpha = alpha * attn_weight[..., : self.num_attention_heads]
-        elif self.attn_type == "v3":  # GATv2 attn + dual attention weight
-            alpha = self.alpha_act(
-                query.unsqueeze(dim=2) + key.unsqueeze(dim=1)
-            )  # B*L*L*head*irreps_head
-            alpha = torch.einsum(
-                "abcik, ik -> abci", alpha, self.alpha_dot
-            )  # B*L*L*head
-            alpha = alpha * attn_weight[..., : self.num_attention_heads]
-        else:
-            raise NotImplementedError
+        alpha = self.attn_weight2heads(attn_weight) * torch.einsum(
+            "bmhs,bnhs->bmnh", query, key
+        )
+        alpha = self.alpha_act(alpha)
 
         if attn_mask is not None:
             # alpha = alpha.masked_fill(attn_mask, float('-inf'))
             alpha = alpha.masked_fill(attn_mask, -1e6)
         alpha = torch.nn.functional.softmax(alpha, dim=2)
         alpha = self.alpha_dropout(alpha)
-        alpha = alpha / (edge_dis.unsqueeze(dim=-1) + 1e-8)  # B*L*L*head
-        alpha = (
-            alpha * attn_weight[..., self.num_attention_heads :]
-        )  # add attn weight in messages
-        alpha = alpha * (
-            (1 - torch.eye(L, device=alpha.device)).view(1, L, L, 1)
-        )  # remove self loop TODO: check neccessity
-        #
+        # alpha = alpha / (edge_dis.unsqueeze(dim=-1) + 1e-8)  # B*L*L*head
 
         if self.tp_type is None or self.tp_type == "None":
             node_scalars = None
-        elif self.tp_type == "v0":
-            node_scalars = node_irreps_input[
-                ..., : self.scalar_dim
-            ]  # V0: node scalars only
-        elif self.tp_type == "v1":
-            edge_feature = self.gbf(
-                edge_dis, batched_data["node_type_edge"].long()
-            )  # B*L*L*-1
-            edge_feature = edge_feature.sum(dim=-2)  # B*L*-1
-            node_scalars = self.pos_embedding_proj(edge_feature)
         elif self.tp_type == "v2":
             edge_feature = self.gbf(
                 edge_dis, batched_data["node_type_edge"].long()
@@ -1187,32 +2136,46 @@ class E2Attention(torch.nn.Module):
             node_scalars = self.pos_embedding_proj(
                 edge_feature
             ) + self.node_scalar_proj(node_irreps_input[..., : self.scalar_dim])
+            if batched_data["mol_type"] == 1:  # mol_type 0 mol, 1 material, 2 protein
+                outcell_index = batched_data["outcell_index"]  # B*(L2-L1)
+                outcell_index_0 = batched_data["outcell_index_0"]
+                node_scalars = torch.cat(
+                    [node_scalars, node_scalars[outcell_index_0, outcell_index]], dim=1
+                )
         else:
             raise ValueError(f"tp_type should be v0 or v1 or v2 but got {self.tp_type}")
-
+        node_pos_abs = torch.sqrt(torch.sum(node_pos**2, dim=-1, keepdim=True) + 1e-8)
+        node_pos_unit = node_pos / node_pos_abs
         value_1 = self.sep_tp(
-            value, node_pos, node_scalars
+            value, node_pos_unit, node_scalars
         )  # B*N*irreps, B*N*3 uvw - > B*N*irreps
-        value_1 = self.vec2heads(value_1)  # B*L*heads*irreps_head
-        value_1 = -torch.einsum("bmlh,blhi->bmhi", alpha, value_1)
-        value_1 = self.heads2vec(value_1)
+        value_1 = -self.seperable_attn(
+            alpha * node_pos_abs.unsqueeze(dim=1) / (edge_dis.unsqueeze(dim=-1) + 1e-8),
+            value_1,
+            attn_weight,
+            self.multiheadatten_irreps,
+            self.num_attention_heads,
+            self.seperate_fc_neurons,
+        )
 
-        # value_0 = self.vec2heads(value) # B*L*heads*irreps_head
-        # value_0 = torch.einsum("bmlh,blhi->bmhi",alpha,value_0)
-        # value_0 = self.heads2vec(value_0)
-        # value_0 = self.sep_tp(value_0,node_pos,node_scalars) # TODO: different scalars?
-        value = self.vec2heads(value)  # B*L*heads*irreps_head
-        value = torch.einsum("bmlh,blhi->bmhi", alpha, value)
-        value = self.heads2vec(value)
-        value_0 = self.sep_tp(value, node_pos, node_scalars)  # TODO: different scalars?
+        value = self.seperable_attn(
+            alpha
+            * node_pos_abs[:, :L].unsqueeze(dim=2)
+            / (edge_dis.unsqueeze(dim=-1) + 1e-8),
+            value,
+            attn_weight,
+            self.multiheadatten_irreps,
+            self.num_attention_heads,
+            self.seperate_fc_neurons,
+        )
+        value_0 = self.sep_tp(
+            value[:, :L],
+            node_pos_unit[:, :L],
+            None if node_scalars is None else node_scalars[:, :L],
+        )  # TODO: different scalars?
 
         node_output = value_0 + value_1 + value
-        # if self.rescale_degree:
-        #     degree = torch_geometric.utils.degree(
-        #         edge_dst, num_nodes=node_input.shape[0], dtype=node_input.dtype
-        #     )
-        #     degree = degree.view(-1, 1)
-        #     node_output = node_output * degree
+
         node_output = self.proj(node_output)
 
         if self.proj_drop is not None:
@@ -1223,8 +2186,326 @@ class E2Attention(torch.nn.Module):
         # B*L*L*head
 
     def extra_repr(self):
-        output_str = super(E2Attention, self).extra_repr()
-        output_str = output_str + "rescale_degree={}, ".format(self.rescale_degree)
+        output_str = "rescale_degree={}, ".format(self.rescale_degree)
+        return output_str
+
+
+@compile_mode("script")
+class E2Attention16(torch.nn.Module):
+    """
+    1. Message = Alpha * Value
+    2. Two Linear to merge src and dst -> Separable FCTP -> 0e + (0e+1e+...)
+    3. 0e -> Activation -> Inner Product -> (Alpha)
+    4. (0e+1e+...) -> (Value)
+
+
+    tp_type:
+    v0: use irreps_node_input 0e
+    v1: use sum of edge features
+    v2: use sum of edge features and irreps_node_input 0e
+
+    attn_type
+    v0: initial implementation with attn_weight multiplication
+    v1: GATv2 implementation without attn bias
+
+
+    """
+
+    def __init__(
+        self,
+        irreps_node_input="256x0e+64x1e+32x2e",
+        attn_weight_input_dim: int = 32,  # e.g. rbf(|r_ij|) or relative pos in sequence
+        num_attn_heads: int = 8,
+        attn_scalar_head: int = 32,
+        irreps_head="32x0e+8x1e+4x2e",
+        rescale_degree=False,
+        nonlinear_message=False,
+        alpha_drop=0.1,
+        proj_drop=0.1,
+        tp_type="v1",
+        attn_type="v2",
+        add_rope=True,
+        max_radius=12,
+        **kwargs,
+    ):
+        super().__init__()
+
+        self.irreps_node_input = (
+            o3.Irreps(irreps_node_input)
+            if isinstance(irreps_node_input, str)
+            else irreps_node_input
+        )
+        self.scalar_dim = self.irreps_node_input[0][0]  # scalar_dim x 0e
+        self.num_attention_heads = num_attn_heads
+        self.attn_scalar_head = attn_scalar_head
+        self.attn_weight_input_dim = attn_weight_input_dim
+        self.irreps_head = (
+            o3.Irreps(irreps_head) if isinstance(irreps_head, str) else irreps_head
+        )
+        # irreps_node_output,  attention will not change the input shape/embeding length
+        self.irreps_node_output = self.irreps_node_input
+        # new params
+        self.tp_type = tp_type
+        self.attn_type = attn_type
+        self.cutoff = CosineCutoff(max_radius)
+
+        self.gbf_attn = GaussianLayer(
+            self.attn_weight_input_dim
+        )  # default output_dim = 128
+        self.node_embedding = nn.Embedding(256, 32)
+        nn.init.uniform_(self.node_embedding.weight.data, -0.001, 0.001)
+
+        self.attn_weight2heads = nn.Sequential(
+            nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
+            nn.LayerNorm(attn_weight_input_dim),
+            torch.nn.SiLU(),
+            nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
+            nn.LayerNorm(attn_weight_input_dim),
+            torch.nn.SiLU(),
+            nn.Linear(attn_weight_input_dim, 2 * num_attn_heads),
+        )
+
+        self.multiheadatten_irreps = (
+            (self.irreps_head * num_attn_heads).sort().irreps.simplify()
+        )
+
+        self.q_ir2scalar = Irreps2Scalar(
+            self.irreps_node_input,
+            num_attn_heads * attn_scalar_head,
+            bias=True,
+            act="smoothleakyrelu",
+        )
+        self.k_ir2scalar = Irreps2Scalar(
+            self.irreps_node_input,
+            num_attn_heads * attn_scalar_head,
+            bias=True,
+            act="smoothleakyrelu",
+        )
+
+        self.v_irlinear = IrrepsLinear(
+            self.irreps_node_input,
+            self.multiheadatten_irreps,
+            bias=True,
+            act="smoothleakyrelu",
+        )  # B*L*irreps
+
+        self.vec2heads = Vec2AttnHeads(
+            self.irreps_head,
+            num_attn_heads,
+        )
+        self.heads2vec = AttnHeads2Vec(irreps_head=self.irreps_head)
+
+        # alpha_dot, used for scalar to num_heads dimension
+        # self.alpha_dot = torch.nn.Parameter(torch.randn(1, num_heads, mul_alpha_head))
+        self.alpha_act = SmoothLeakyReLU(0.2)  # used for attention_ij
+        self.alpha_dropout = None
+        if alpha_drop != 0.0:
+            self.alpha_dropout = torch.nn.Dropout(alpha_drop)
+
+        self.rescale_degree = rescale_degree
+        self.nonlinear_message = nonlinear_message
+
+        self.sep_tp = None
+        if self.nonlinear_message or self.rescale_degree:
+            raise ValueError(
+                "sorry, rescale_degree or non linear message passing is not supported in tp transformer"
+            )
+
+        else:
+            if self.tp_type is None or self.tp_type == "None":
+                self.sep_tp = SeparableFCTP(
+                    self.multiheadatten_irreps,
+                    "1x1e",
+                    self.multiheadatten_irreps,
+                    fc_neurons=None,
+                    use_activation=False,
+                    norm_layer=None,
+                    internal_weights=True,
+                )
+            else:
+                self.sep_tp = SeparableFCTP(
+                    self.multiheadatten_irreps,
+                    "1x1e",
+                    self.multiheadatten_irreps,
+                    fc_neurons=[self.scalar_dim, self.scalar_dim, self.scalar_dim],
+                    use_activation=False,
+                    norm_layer=None,
+                    internal_weights=False,
+                )
+
+                if self.tp_type == "v2":
+                    self.gbf = GaussianLayer(
+                        self.attn_weight_input_dim
+                    )  # default output_dim = 128
+                    self.pos_embedding_proj = nn.Linear(
+                        self.attn_weight_input_dim, self.scalar_dim
+                    )
+                    self.node_scalar_proj = nn.Linear(self.scalar_dim, self.scalar_dim)
+                else:
+                    raise ValueError(
+                        f"attn_type should be None or v0 or v1 or v2 but got {self.attn_type}"
+                    )
+
+        self.proj = IrrepsLinear(
+            (self.irreps_head * num_attn_heads).sort().irreps.simplify(),
+            self.irreps_node_input,
+            bias=True,
+            act="smoothleakyrelu",
+        )  # B*L*irrep
+        self.proj_drop = None
+        if proj_drop != 0.0:
+            self.proj_drop = EquivariantDropout()
+        self.add_rope = add_rope
+        if add_rope:
+            self.rot_emb = RotaryEmbedding(dim=self.attn_scalar_head)
+
+    def forward(
+        self,
+        node_pos,
+        node_irreps_input,
+        edge_dis,
+        attn_weight,  # e.g. rbf(|r_ij|) or relative pos in sequence
+        atomic_numbers,
+        attn_mask=None,  # non-adj is True
+        batch=None,
+        batched_data=None,
+        **kwargs,
+    ):
+        """
+        irreps_in = o3.Irreps("256x0e+64x1e+32x2e")
+        B,L = 4,20
+        node_pos = torch.randn(B,L,3)
+        node_dis = torch.sqrt(torch.sum((node_pos.view(B,L,1,3)-node_pos.view(B,1,L,3))**2,dim = -1))
+
+        attn_scalar_head = 32
+        func = GraphAttention(
+            irreps_node_input = irreps_in,
+            attn_weight_input_dim = 32, # e.g. rbf(|r_ij|) or relative pos in sequence
+            num_attn_heads = 8,
+            attn_scalar_head = attn_scalar_head,
+            irreps_head = "32x0e+8x1e+4x2e",
+            rescale_degree=False,
+            nonlinear_message=False,
+            alpha_drop=0.1,
+            proj_drop=0.1,
+        )
+        out = func(node_pos,
+            irreps_in.randn(B,L,-1),
+            node_dis,
+            torch.randn(B,L,L,attn_scalar_head))
+        print(out.shape)
+        """
+
+        # attn_weight f(|r_ij|): B*L*L*heads
+        # edge_dis: B*L*L
+        # node_input: B*L*irreps (irreps e.g. 128x0e+64x1e+32x2e)
+        # ir2scalar: B*L*irreps -> N*L*hidden (hidden e.g. head*32)
+        # attn_weight: B*L*L*rbf_dim
+        B, L, _ = node_irreps_input.shape
+        query = self.q_ir2scalar(node_irreps_input)
+        key = self.k_ir2scalar(node_irreps_input)
+        value = self.v_irlinear(node_irreps_input)  # B*L*irreps
+        # embed = self.node_embedding(atomic_numbers)
+        # if self.attn_type.startswith('v3'):
+        # attn_weight = self.gbf_attn(edge_dis, batched_data["node_type_edge"].long()) # B*L*L*-1
+        attn_weight = self.attn_weight2heads(attn_weight)
+        # torch.cat(
+        #     [
+        #         attn_weight,
+        #         embed.reshape(B, L, 1, -1)
+        #         .repeat(1, 1, L, 1),
+        #         embed.reshape(B, 1, L, -1)
+        #         .repeat(1, L, 1, 1),
+        #     ],
+        #     dim=-1,
+        # ))
+
+        if batched_data["mol_type"] == 1:  # mol_type 0 mol, 1 material, 2 protein
+            outcell_index = batched_data["outcell_index"]  # B*(L2-L1)
+            outcell_index_0 = batched_data["outcell_index_0"]
+            key = torch.cat([key, key[outcell_index_0, outcell_index]], dim=1)
+            value = torch.cat([value, value[outcell_index_0, outcell_index]], dim=1)
+            node_pos = torch.cat([node_pos, batched_data["expand_pos"].float()], dim=1)
+
+        elif self.add_rope and batched_data["mol_type"] == 2:
+            query = query.reshape(B, L, self.num_attention_heads, self.attn_scalar_head)
+            key = key.reshape(B, -1, self.num_attention_heads, self.attn_scalar_head)
+            query, key = self.rot_emb(
+                query.transpose(1, 2).reshape(
+                    B * self.num_attention_heads, L, self.attn_scalar_head
+                ),
+                key.transpose(1, 2).reshape(
+                    B * self.num_attention_heads, L, self.attn_scalar_head
+                ),
+            )
+            query = query.reshape(
+                B, self.num_attention_heads, L, self.attn_scalar_head
+            ).transpose(1, 2)
+            key = key.reshape(
+                B, self.num_attention_heads, L, self.attn_scalar_head
+            ).transpose(1, 2)
+
+        query = query.reshape(B, L, self.num_attention_heads, self.attn_scalar_head)
+        key = key.reshape(B, -1, self.num_attention_heads, self.attn_scalar_head)
+
+        # attn_weight: RBF(|r_ij|)
+        alpha = attn_weight[..., : self.num_attention_heads] * torch.einsum(
+            "bmhs,bnhs->bmnh", query, key
+        )
+        alpha = self.alpha_act(alpha)
+
+        # if attn_mask is not None:
+        #     # alpha = alpha.masked_fill(attn_mask, float('-inf'))
+        alpha = alpha.masked_fill(attn_mask, -1e6)
+        alpha = torch.nn.functional.softmax(alpha, dim=2)
+        alpha = self.alpha_dropout(alpha)
+        # alpha = alpha / (edge_dis.unsqueeze(dim=-1) + 1e-8)  # B*L*L*head
+
+        # alpha = (
+        #     alpha * self.cutoff(edge_dis).unsqueeze(dim=-1)
+        # )  # add attn weight in messages
+        alpha = (
+            alpha * attn_weight[..., self.num_attention_heads :]
+        )  # add attn weight in messages
+        # alpha = alpha.masked_fill(attn_mask, 0)
+
+        if self.tp_type is None or self.tp_type == "None":
+            node_scalars = None
+        elif self.tp_type == "v2":
+            edge_feature = self.gbf(
+                edge_dis, batched_data["node_type_edge"].long()
+            )  # B*L*L*-1
+            edge_feature = edge_feature.sum(dim=-2)  # B*L*-1
+            node_scalars = self.pos_embedding_proj(
+                edge_feature
+            ) + self.node_scalar_proj(node_irreps_input[..., : self.scalar_dim])
+            if batched_data["mol_type"] == 1:  # mol_type 0 mol, 1 material, 2 protein
+                outcell_index = batched_data["outcell_index"]  # B*(L2-L1)
+                outcell_index_0 = batched_data["outcell_index_0"]
+                node_scalars = torch.cat(
+                    [node_scalars, node_scalars[outcell_index_0, outcell_index]], dim=1
+                )
+        else:
+            raise ValueError(f"tp_type should be v0 or v1 or v2 but got {self.tp_type}")
+
+        node_pos_abs = torch.sqrt(torch.sum(node_pos**2, dim=-1, keepdim=True) + 1e-8)
+        node_pos = node_pos / node_pos_abs
+
+        value = self.vec2heads(value)  # B*L*heads*irreps_head
+        value = torch.einsum("bmlh,blhi->bmhi", alpha, value)
+        value = self.heads2vec(value)
+
+        node_output = self.proj(value)
+
+        if self.proj_drop is not None:
+            node_output = self.proj_drop(node_output)
+
+        return node_output
+
+        # B*L*L*head
+
+    def extra_repr(self):
+        output_str = "rescale_degree={}, ".format(self.rescale_degree)
         return output_str
 
 
@@ -1260,7 +2541,6 @@ class E2AttentionEq(torch.nn.Module):
         nonlinear_message=False,
         alpha_drop=0.1,
         proj_drop=0.1,
-        irreps_pre_attn=None,
         tp_type="v1",
         attn_type="v0",
         **kwargs,
@@ -1285,9 +2565,7 @@ class E2AttentionEq(torch.nn.Module):
         self.tp_type = tp_type
         self.attn_type = attn_type
 
-        self.gbf_attn = GaussianLayer(
-            self.attn_weight_input_dim
-        )  # default output_dim = 128
+        self.gbf_attn = GaussianLayer(self.attn_weight_input_dim)
         self.attn_weight2heads = nn.Sequential(
             nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
             nn.LayerNorm(attn_weight_input_dim),
@@ -1297,11 +2575,6 @@ class E2AttentionEq(torch.nn.Module):
             torch.nn.SiLU(),
             nn.Linear(attn_weight_input_dim, 2 * num_attn_heads),
         )
-
-        # if irreps_pre_attn is None:
-        #     self.irreps_pre_attn = self.irreps_node_input
-        # else:
-        #     self.irreps_pre_attn = o3.Irreps(irreps_pre_attn) if isinstance(irreps_pre_attn,str) else irreps_pre_attn
 
         self.multiheadatten_irreps = (
             (self.irreps_head * num_attn_heads).sort().irreps.simplify()
@@ -1463,9 +2736,9 @@ class E2AttentionEq(torch.nn.Module):
         query = self.vec2heads(query)  # B*L*heads*irreps_head
         key = self.vec2heads(key)  # B*L*heads*irreps_head
         alpha = self.alpha_fun(query, key)  # B*L*L*head
-        if self.attn_type == "eqv0":
-            alpha = attn_weight[..., : self.num_attention_heads] * alpha
-            alpha = self.alpha_act(alpha)
+
+        alpha = attn_weight[..., : self.num_attention_heads] * alpha
+        alpha = self.alpha_act(alpha)
 
         if attn_mask is not None:
             alpha = alpha.masked_fill(attn_mask, float("-1e6"))
@@ -1827,658 +3100,77 @@ class FeedForwardNetwork(torch.nn.Module):
 
 
 @compile_mode("script")
-class E2Attention9(torch.nn.Module):
+class FeedForwardVec2Scalar(torch.nn.Module):
     """
-    1. Message = Alpha * Value
-    2. Two Linear to merge src and dst -> Separable FCTP -> 0e + (0e+1e+...)
-    3. 0e -> Activation -> Inner Product -> (Alpha)
-    4. (0e+1e+...) -> (Value)
+    Use two (FCTP + Gate)
     """
 
     def __init__(
         self,
-        irreps_node_input="256x0e+64x1e+32x2e",
-        attn_weight_input_dim: int = 32,  # e.g. rbf(|r_ij|) or relative pos in sequence
-        num_attn_heads: int = 8,
-        attn_scalar_head: int = 32,
-        irreps_head="32x0e+8x1e+4x2e",
-        rescale_degree=False,
-        nonlinear_message=False,
-        alpha_drop=0.1,
+        irreps_node_input,
+        irreps_node_output,
         proj_drop=0.1,
-        irreps_pre_attn=None,
-        layer_id=0,
-        attn_type=0,
-        add_rope=True,
-        **kwargs
-        # irreps_node_attr,"1x0e" all 1
-        # irreps_edge_attr, sph 0x1e 1x1e 2x2e for r_ij
-        # irreps_node_output,  attention will not change the input shape/embeding length
-        # fc_neurons, used for f(|r_ij|) with non_linear
     ):
         super().__init__()
-        self.layer_id = layer_id
-
         self.irreps_node_input = (
             o3.Irreps(irreps_node_input)
             if isinstance(irreps_node_input, str)
             else irreps_node_input
         )
-        self.scalar_dim = self.irreps_node_input[0][0]
 
-        self.num_attention_heads = num_attn_heads
-        self.attn_scalar_head = attn_scalar_head
-        self.attn_weight_input_dim = attn_weight_input_dim
-        self.irreps_head = (
-            o3.Irreps(irreps_head) if isinstance(irreps_head, str) else irreps_head
-        )
-        # irreps_node_output,  attention will not change the input shape/embeding length
-        self.irreps_node_output = self.irreps_node_input
-
-        self.source_embedding = nn.Embedding(256, 2 * attn_weight_input_dim)
-        nn.init.uniform_(self.source_embedding.weight.data, -0.001, 0.001)
-
-        self.attn_weight2heads = nn.Sequential(
-            nn.Linear(attn_weight_input_dim * 3, attn_weight_input_dim),
-            nn.LayerNorm(attn_weight_input_dim),
-            torch.nn.SiLU(),
-            nn.Linear(attn_weight_input_dim, 2 * num_attn_heads),
+        self.irreps_node_output = (
+            o3.Irreps(irreps_node_output)
+            if isinstance(irreps_node_output, str)
+            else irreps_node_output
         )
 
-        self.attn_weight2heads2 = nn.Sequential(
-            nn.Linear(attn_weight_input_dim * 3, attn_weight_input_dim),
-            nn.LayerNorm(attn_weight_input_dim),
-            torch.nn.SiLU(),
-            nn.Linear(attn_weight_input_dim, 2 * num_attn_heads),
-        )
-        # if irreps_pre_attn is None:
-        #     self.irreps_pre_attn = self.irreps_node_input
-        # else:
-        #     self.irreps_pre_attn = o3.Irreps(irreps_pre_attn) if isinstance(irreps_pre_attn,str) else irreps_pre_attn
+        self.scalar_dim = self.irreps_node_input[0][0]  # l=0 scalar_dim
 
-        self.multiheadatten_irreps = (
-            (self.irreps_head * num_attn_heads).sort().irreps.simplify()
-        )
-
-        self.q_ir2scalar = Irreps2Scalar(
-            self.irreps_node_input,
-            num_attn_heads * attn_scalar_head,
-            bias=True,
-            act="smoothleakyrelu",
-        )
-        self.k_ir2scalar = Irreps2Scalar(
-            self.irreps_node_input,
-            num_attn_heads * attn_scalar_head,
+        self.ir2scalar = Irreps2Scalar(
+            self.irreps_node_input[1:],
+            self.scalar_dim,
             bias=True,
             act="smoothleakyrelu",
         )
 
-        self.v_irlinear = IrrepsLinear(
-            self.irreps_node_input,
-            self.multiheadatten_irreps,
-            bias=True,
-            act="smoothleakyrelu",
-        )  # B*L*irreps
-
-        self.v_irlinear_notp = IrrepsLinear(
-            self.irreps_node_input,
-            self.multiheadatten_irreps,
-            bias=True,
-            act="smoothleakyrelu",
-        )  # B*L*irreps
-
-        self.vec2heads = Vec2AttnHeads(
-            self.irreps_head,
-            num_attn_heads,
+        self.slinear_1 = IrrepsLinear(
+            self.irreps_node_input, self.irreps_node_input, bias=True, act=None
         )
-        self.heads2vec = AttnHeads2Vec(irreps_head=self.irreps_head)
 
-        # alpha_dot, used for scalar to num_heads dimension
-        # self.alpha_dot = torch.nn.Parameter(torch.randn(1, num_heads, mul_alpha_head))
-        self.alpha_act = SmoothLeakyReLU(0.2)  # used for attention_ij
-        self.alpha_dropout = nn.Identity()
-        self.alpha_dropout2 = nn.Identity()
-        if alpha_drop != 0.0:
-            self.alpha_dropout = torch.nn.Dropout(alpha_drop)
-            self.alpha_dropout2 = torch.nn.Dropout(alpha_drop)
+        self.slinear_2 = IrrepsLinear(
+            self.irreps_node_input, self.irreps_node_output, bias=True, act=None
+        )
 
-        self.rescale_degree = rescale_degree
-        self.nonlinear_message = nonlinear_message
+        self.scalar_linear = nn.Linear(self.scalar_dim, self.scalar_dim * 2)
+        nn.Sigmoid()
 
-        self.sep_tp = None
-        if self.nonlinear_message or self.rescale_degree:
-            raise ValueError(
-                "sorry, rescale_degree or non linear message passing is not supported in tp transformer"
-            )
-
-        else:
-            if isinstance(attn_type, str):
-                self.attn_type = int(attn_type.split("v")[0])
-                self.tp_type = "v" + attn_type.split("v")[1]
-            else:
-                self.attn_type = attn_type
-                self.tp_type = None
-            if self.tp_type in ["v0", None, "None"]:
-                self.sep_tp = SeparableFCTP(
-                    self.multiheadatten_irreps,
-                    "1x1e",
-                    self.multiheadatten_irreps,
-                    fc_neurons=None,
-                    use_activation=False,
-                    norm_layer=None,
-                    internal_weights=True,
-                )
-            else:
-                self.sep_tp = SeparableFCTP(
-                    self.multiheadatten_irreps,
-                    "1x1e",
-                    self.multiheadatten_irreps,
-                    fc_neurons=[self.scalar_dim, self.scalar_dim, self.scalar_dim],
-                    use_activation=False,
-                    norm_layer=None,
-                    internal_weights=False,
-                )
-
-            if self.tp_type in ["v0", None, "None"]:
-                pass
-            elif self.tp_type in ["v1"]:  # use the scalar feature
-                pass
-            elif self.tp_type == "v2":
-                # attn_weight_input_dim is the rename of number of basis.
-                self.gbf = GaussianLayer(
-                    self.attn_weight_input_dim
-                )  # default output_dim = 128
-                self.pos_embedding_proj = nn.Linear(
-                    self.attn_weight_input_dim, self.scalar_dim
-                )
-            elif self.tp_type == "v3":
-                self.gbf = GaussianLayer(
-                    self.attn_weight_input_dim
-                )  # default output_dim = 128
-                self.pos_embedding_proj = nn.Linear(
-                    self.attn_weight_input_dim, self.scalar_dim
-                )
-                self.node_scalar_proj = nn.Linear(self.scalar_dim, self.scalar_dim)
-
-        self.proj = IrrepsLinear(
-            (self.irreps_head * num_attn_heads).sort().irreps.simplify(),
-            self.irreps_node_input,
-            bias=True,
-            act="smoothleakyrelu",
-        )  # B*L*irrep
-
-        self.proj2 = IrrepsLinear(
-            (self.irreps_head * num_attn_heads).sort().irreps.simplify(),
-            self.irreps_node_input,
-            bias=True,
-            act="smoothleakyrelu",
-        )  # B*L*irrep
-        self.proj_drop = None
         if proj_drop != 0.0:
             self.proj_drop = EquivariantDropout(
-                self.irreps_node_input, drop_prob=proj_drop
+                self.irreps_node_output, drop_prob=proj_drop
             )
-        self.add_rope = add_rope
-        if add_rope:
-            self.rot_emb = RotaryEmbedding(dim=self.attn_scalar_head)
 
-    def forward(
-        self,
-        node_pos,
-        node_irreps_input,
-        edge_dis,
-        attn_weight,  # e.g. rbf(|r_ij|) or relative pos in sequence
-        atomic_numbers,
-        attn_mask=None,
-        batch=None,
-        batched_data=None,
-        **kwargs,
-    ):
+    def forward(self, node_input, **kwargs):
         """
-        irreps_in = o3.Irreps("256x0e+64x1e+32x2e")
-        B,L = 4,20
-        node_pos = torch.randn(B,L,3)
-        node_dis = torch.sqrt(torch.sum((node_pos.view(B,L,1,3)-node_pos.view(B,1,L,3))**2,dim = -1))
-
-        attn_scalar_head = 32
-        func = GraphAttention(
-            irreps_node_input = irreps_in,
-            attn_weight_input_dim = 32, # e.g. rbf(|r_ij|) or relative pos in sequence
-            num_attn_heads = 8,
-            attn_scalar_head = attn_scalar_head,
-            irreps_head = "32x0e+8x1e+4x2e",
-            rescale_degree=False,
-            nonlinear_message=False,
-            alpha_drop=0.1,
-            proj_drop=0.1,
-        )
-        out = func(node_pos,
-            irreps_in.randn(B,L,-1),
-            node_dis,
-            torch.randn(B,L,L,attn_scalar_head))
-        print(out.shape)
+        irreps_in = o3.Irreps("128x0e+32x1e")
+        func =  FeedForwardNetwork(
+                irreps_in,
+                irreps_in,
+                proj_drop=0.1,
+            )
+        out = func(irreps_in.randn(10,20,-1))
         """
-
-        # attn_weight f(|r_ij|): B*L*L*heads
-        # edge_dis: B*L*L
-        # node_input: B*L*irreps (irreps e.g. 128x0e+64x1e+32x2e)
-        # ir2scalar: B*L*irreps -> N*L*hidden (hidden e.g. head*32)
-        # attn_weight: B*L*L*rbf_dim
-        B, L, _ = node_irreps_input.shape
-        query = self.q_ir2scalar(node_irreps_input)
-        key = self.k_ir2scalar(node_irreps_input)
-        embed = self.source_embedding(atomic_numbers)
-
-        query = query.reshape(B, L, self.num_attention_heads, -1)
-        key = key.reshape(B, L, self.num_attention_heads, -1)
-        if self.add_rope:
-            query, key = self.rot_emb(
-                query.transpose(1, 2).reshape(
-                    B * self.num_attention_heads, L, self.attn_scalar_head
-                ),
-                key.transpose(1, 2).reshape(
-                    B * self.num_attention_heads, L, self.attn_scalar_head
-                ),
-            )
-            query = query.reshape(
-                B, self.num_attention_heads, L, self.attn_scalar_head
-            ).transpose(1, 2)
-            key = key.reshape(
-                B, self.num_attention_heads, L, self.attn_scalar_head
-            ).transpose(1, 2)
-
-        if self.attn_type == 10 and self.layer_id % 2 == 1:
-            attn_weight1 = torch.ones(
-                (1, 1, 1, self.num_attention_heads * 2), device=attn_weight.device
-            )
-        else:
-            attn_weight1 = torch.cat(
-                [
-                    attn_weight,
-                    embed[..., : self.attn_weight_input_dim]
-                    .reshape(B, L, 1, -1)
-                    .repeat(1, 1, L, 1),
-                    embed[..., : self.attn_weight_input_dim]
-                    .reshape(B, 1, L, -1)
-                    .repeat(1, L, 1, 1),
-                ],
-                dim=-1,
-            )
-            attn_weight1 = self.attn_weight2heads(attn_weight1)
-        # TODO
-        # attn_weight: RBF(|r_ij|)
-        alpha1 = attn_weight1[..., : self.num_attention_heads] * torch.einsum(
-            "bmhs,bnhs->bmnh",
-            query[..., : self.attn_scalar_head],
-            key[..., : self.attn_scalar_head],
+        node_output = self.slinear_1(node_input)
+        scalar = node_output[..., : self.scalar_dim]
+        vec = node_output[..., self.scalar_dim :]
+        scalar1, scalar2 = torch.split(
+            self.scalar_linear(scalar), self.scalar_dim, dim=-1
         )
+        scalar = scalar1 + self.ir2scalar(vec) * scalar2  # vec 2 scalar
+        node_output = torch.cat([scalar, vec], dim=-1)
 
-        alpha1 = self.alpha_act(alpha1)  # B*L*L*head
-        # alpha1 = alpha1.masked_fill(attn_mask, float('-inf'))
-        alpha1 = alpha1.masked_fill(attn_mask, -10000)
-
-        alpha1 = torch.nn.functional.softmax(alpha1, dim=2)
-        alpha1 = self.alpha_dropout(alpha1)
-        alpha1 = (
-            alpha1
-            * attn_weight1[..., self.num_attention_heads :]
-            / (edge_dis.unsqueeze(dim=-1) + 1e-8)
-        )  # B*L*L*head
-
-        alpha1 = alpha1 * (
-            (1 - torch.eye(L, device=alpha1.device)).view(1, L, L, 1)
-        )  # remove self loop TODO: check neccessity
-
-        if self.tp_type == "v1":
-            tp_learnable_weight = node_irreps_input[
-                ..., : self.scalar_dim
-            ]  # V0: node scalars only
-        elif self.tp_type == "v2":
-            edge_feature = self.gbf(
-                edge_dis, batched_data["node_type_edge"].long()
-            )  # B*L*L*-1
-            edge_feature = edge_feature.sum(dim=-2)  # B*L*-1
-            tp_learnable_weight = self.pos_embedding_proj(edge_feature)
-        elif self.tp_type == "v3":
-            edge_feature = self.gbf(
-                edge_dis, batched_data["node_type_edge"].long()
-            )  # B*L*L*-1
-            edge_feature = edge_feature.sum(dim=-2)  # B*L*-1
-            tp_learnable_weight = self.pos_embedding_proj(
-                edge_feature
-            ) + self.node_scalar_proj(node_irreps_input[..., : self.scalar_dim])
-        else:  # v0, None,"None"
-            tp_learnable_weight = None
-
-        value = self.v_irlinear(node_irreps_input)  # B*L*irreps
-
-        value_a = self.sep_tp(
-            value, node_pos, tp_learnable_weight
-        )  # B*N*irreps, B*N*3 uvw - > B*N*irreps
-        value_a = self.vec2heads(value_a)  # B*L*heads*irreps_head
-        value_a = -torch.einsum("bmlh,blhi->bmhi", alpha1, value_a)
-        value_a = self.heads2vec(value_a)
-
-        value_b = self.vec2heads(value)  # B*L*heads*irreps_head
-        value_b = torch.einsum("bmlh,blhi->bmhi", alpha1, value_b)
-        value_0 = self.heads2vec(value_b)
-        value_b = self.sep_tp(value_0, node_pos, tp_learnable_weight)
-
-        node_output = self.proj(value_b + value_a + value_0)
+        node_output = self.slinear_2(node_output)
 
         return node_output
-
-        # B*L*L*head
-
-    def extra_repr(self):
-        output_str = "rescale_degree={}, ".format(self.rescale_degree)
-        return output_str
-
-
-@compile_mode("script")
-class E2Attention12(torch.nn.Module):
-    """
-    1. Message = Alpha * Value
-    2. Two Linear to merge src and dst -> Separable FCTP -> 0e + (0e+1e+...)
-    3. 0e -> Activation -> Inner Product -> (Alpha)
-    4. (0e+1e+...) -> (Value)
-    """
-
-    def __init__(
-        self,
-        irreps_node_input="256x0e+64x1e+32x2e",
-        attn_weight_input_dim: int = 32,  # e.g. rbf(|r_ij|) or relative pos in sequence
-        num_attn_heads: int = 8,
-        attn_scalar_head: int = 32,
-        irreps_head="32x0e+8x1e+4x2e",
-        rescale_degree=False,
-        nonlinear_message=False,
-        alpha_drop=0.1,
-        proj_drop=0.1,
-        irreps_pre_attn=None,
-        layer_id=0,
-        attn_type=0,
-        add_rope=True,
-        **kwargs
-        # irreps_node_attr,"1x0e" all 1
-        # irreps_edge_attr, sph 0x1e 1x1e 2x2e for r_ij
-        # irreps_node_output,  attention will not change the input shape/embeding length
-        # fc_neurons, used for f(|r_ij|) with non_linear
-    ):
-        super().__init__()
-        self.layer_id = layer_id
-
-        self.irreps_node_input = (
-            o3.Irreps(irreps_node_input)
-            if isinstance(irreps_node_input, str)
-            else irreps_node_input
-        )
-        self.scalar_dim = self.irreps_node_input[0][0]
-
-        self.num_attention_heads = num_attn_heads
-        self.attn_scalar_head = attn_scalar_head
-        self.attn_weight_input_dim = attn_weight_input_dim
-        self.irreps_head = (
-            o3.Irreps(irreps_head) if isinstance(irreps_head, str) else irreps_head
-        )
-        # irreps_node_output,  attention will not change the input shape/embeding length
-        self.irreps_node_output = self.irreps_node_input
-
-        self.source_embedding = nn.Embedding(256, 2 * attn_weight_input_dim)
-        nn.init.uniform_(self.source_embedding.weight.data, -0.001, 0.001)
-
-        self.attn_weight2heads = nn.Sequential(
-            nn.Linear(attn_weight_input_dim * 3, attn_weight_input_dim),
-            nn.LayerNorm(attn_weight_input_dim),
-            torch.nn.SiLU(),
-            nn.Linear(attn_weight_input_dim, 2 * num_attn_heads),
-        )
-
-        self.attn_weight2heads2 = nn.Sequential(
-            nn.Linear(attn_weight_input_dim * 3, attn_weight_input_dim),
-            nn.LayerNorm(attn_weight_input_dim),
-            torch.nn.SiLU(),
-            nn.Linear(attn_weight_input_dim, 2 * num_attn_heads),
-        )
-        # if irreps_pre_attn is None:
-        #     self.irreps_pre_attn = self.irreps_node_input
-        # else:
-        #     self.irreps_pre_attn = o3.Irreps(irreps_pre_attn) if isinstance(irreps_pre_attn,str) else irreps_pre_attn
-
-        self.multiheadatten_irreps = (
-            (self.irreps_head * num_attn_heads).sort().irreps.simplify()
-        )
-
-        self.q_ir2scalar = Irreps2Scalar(
-            self.irreps_node_input,
-            num_attn_heads * attn_scalar_head,
-            bias=True,
-            act="smoothleakyrelu",
-        )
-        self.k_ir2scalar = Irreps2Scalar(
-            self.irreps_node_input,
-            num_attn_heads * attn_scalar_head,
-            bias=True,
-            act="smoothleakyrelu",
-        )
-
-        self.v_irlinear = IrrepsLinear(
-            self.irreps_node_input,
-            self.multiheadatten_irreps,
-            bias=True,
-            act="smoothleakyrelu",
-        )  # B*L*irreps
-
-        self.vec2heads = Vec2AttnHeads(
-            self.irreps_head,
-            num_attn_heads,
-        )
-        self.heads2vec = AttnHeads2Vec(irreps_head=self.irreps_head)
-
-        # alpha_dot, used for scalar to num_heads dimension
-        # self.alpha_dot = torch.nn.Parameter(torch.randn(1, num_heads, mul_alpha_head))
-        self.alpha_act = torch.nn.SiLU()  # used for attention_ij
-        self.alpha_dropout = nn.Identity()
-        self.alpha_dropout2 = nn.Identity()
-        if alpha_drop != 0.0:
-            self.alpha_dropout = torch.nn.Dropout(alpha_drop)
-            self.alpha_dropout2 = torch.nn.Dropout(alpha_drop)
-
-        self.rescale_degree = rescale_degree
-        self.nonlinear_message = nonlinear_message
-
-        self.sep_tp = None
-        if self.nonlinear_message or self.rescale_degree:
-            raise ValueError(
-                "sorry, rescale_degree or non linear message passing is not supported in tp transformer"
-            )
-
-        else:
-            if isinstance(attn_type, str):
-                self.attn_type = int(attn_type.split("v")[0])
-                self.tp_type = "v" + attn_type.split("v")[1]
-            else:
-                self.attn_type = attn_type
-                self.tp_type = None
-            if self.tp_type in ["v0", None, "None"]:
-                self.sep_tp = SeparableFCTP(
-                    self.multiheadatten_irreps,
-                    "1x1e",
-                    self.multiheadatten_irreps,
-                    fc_neurons=None,
-                    use_activation=False,
-                    norm_layer=None,
-                    internal_weights=True,
-                )
-            else:
-                self.sep_tp = SeparableFCTP(
-                    self.multiheadatten_irreps,
-                    "1x1e",
-                    self.multiheadatten_irreps,
-                    fc_neurons=[self.scalar_dim, self.scalar_dim, self.scalar_dim],
-                    use_activation=False,
-                    norm_layer=None,
-                    internal_weights=False,
-                )
-
-            if self.tp_type in ["v0", None, "None"]:
-                pass
-            elif self.tp_type in ["v1"]:  # use the scalar feature
-                pass
-            elif self.tp_type == "v2":
-                # attn_weight_input_dim is the rename of number of basis.
-                self.gbf = GaussianLayer(
-                    self.attn_weight_input_dim
-                )  # default output_dim = 128
-                self.pos_embedding_proj = nn.Linear(
-                    self.attn_weight_input_dim, self.scalar_dim
-                )
-            elif self.tp_type == "v3":
-                self.gbf = GaussianLayer(
-                    self.attn_weight_input_dim
-                )  # default output_dim = 128
-                self.pos_embedding_proj = nn.Linear(
-                    self.attn_weight_input_dim, self.scalar_dim
-                )
-                self.node_scalar_proj = nn.Linear(self.scalar_dim, self.scalar_dim)
-
-        self.proj = IrrepsLinear(
-            (self.irreps_head * num_attn_heads).sort().irreps.simplify(),
-            self.irreps_node_input,
-            bias=True,
-            act="smoothleakyrelu",
-        )  # B*L*irrep
-
-        self.proj_drop = None
-        if proj_drop != 0.0:
-            self.proj_drop = EquivariantDropout(
-                self.irreps_node_input, drop_prob=proj_drop
-            )
-        self.add_rope = add_rope
-        if add_rope:
-            self.rot_emb = RotaryEmbedding(dim=self.attn_scalar_head)
-
-    def forward(
-        self,
-        node_pos,
-        node_irreps_input,
-        edge_dis,
-        attn_weight,  # e.g. rbf(|r_ij|) or relative pos in sequence
-        atomic_numbers,
-        attn_mask=None,
-        batch=None,
-        batched_data=None,
-        **kwargs,
-    ):
-        """
-        irreps_in = o3.Irreps("256x0e+64x1e+32x2e")
-        B,L = 4,20
-        node_pos = torch.randn(B,L,3)
-        node_dis = torch.sqrt(torch.sum((node_pos.view(B,L,1,3)-node_pos.view(B,1,L,3))**2,dim = -1))
-
-        attn_scalar_head = 32
-        func = GraphAttention(
-            irreps_node_input = irreps_in,
-            attn_weight_input_dim = 32, # e.g. rbf(|r_ij|) or relative pos in sequence
-            num_attn_heads = 8,
-            attn_scalar_head = attn_scalar_head,
-            irreps_head = "32x0e+8x1e+4x2e",
-            rescale_degree=False,
-            nonlinear_message=False,
-            alpha_drop=0.1,
-            proj_drop=0.1,
-        )
-        out = func(node_pos,
-            irreps_in.randn(B,L,-1),
-            node_dis,
-            torch.randn(B,L,L,attn_scalar_head))
-        print(out.shape)
-        """
-
-        # attn_weight f(|r_ij|): B*L*L*heads
-        # edge_dis: B*L*L
-        # node_input: B*L*irreps (irreps e.g. 128x0e+64x1e+32x2e)
-        # ir2scalar: B*L*irreps -> N*L*hidden (hidden e.g. head*32)
-        # attn_weight: B*L*L*rbf_dim
-        B, L, _ = node_irreps_input.shape
-        query = self.q_ir2scalar(node_irreps_input)
-        key = self.k_ir2scalar(node_irreps_input)
-        embed = self.source_embedding(atomic_numbers)
-
-        query = query.reshape(B, L, self.num_attention_heads, -1)
-        key = key.reshape(B, L, self.num_attention_heads, -1)
-        if self.add_rope:
-            query, key = self.rot_emb(
-                query.transpose(1, 2).reshape(
-                    B * self.num_attention_heads, -1, self.attn_scalar_head
-                ),
-                key.transpose(1, 2).reshape(
-                    B * self.num_attention_heads, -1, self.attn_scalar_head
-                ),
-            )
-            query = query.reshape(
-                B, self.num_attention_heads, -1, self.attn_scalar_head
-            ).transpose(2, 1)
-            key = key.reshape(
-                B, self.num_attention_heads, -1, self.attn_scalar_head
-            ).transpose(2, 1)
-
-        attn_weight1 = torch.cat(
-            [
-                attn_weight,
-                embed[..., : self.attn_weight_input_dim]
-                .reshape(B, L, 1, -1)
-                .repeat(1, 1, L, 1),
-                embed[..., : self.attn_weight_input_dim]
-                .reshape(B, 1, L, -1)
-                .repeat(1, L, 1, 1),
-            ],
-            dim=-1,
-        )
-        attn_weight1 = self.attn_weight2heads(attn_weight1)
-        # TODO
-        # attn_weight: RBF(|r_ij|)
-        alpha1 = attn_weight1[..., : self.num_attention_heads] * torch.einsum(
-            "bmhs,bnhs->bmnh",
-            query[..., : self.attn_scalar_head],
-            key[..., : self.attn_scalar_head],
-        )
-
-        alpha1 = self.alpha_act(alpha1) / 32  # B*L*L*head
-        # alpha1 = alpha1.masked_fill(attn_mask, float('-inf'))
-        alpha1 = alpha1.masked_fill(attn_mask, 0)
-
-        # alpha1 = torch.nn.functional.softmax(alpha1, dim=2)
-        alpha1 = self.alpha_dropout(alpha1)
-        alpha1 = (
-            alpha1
-            * attn_weight1[..., self.num_attention_heads :]
-            / (edge_dis.unsqueeze(dim=-1) + 1e-8)
-        )  # B*L*L*head
-
-        value = self.v_irlinear(node_irreps_input)  # B*L*irreps
-
-        value_a = self.sep_tp(
-            value, node_pos, None
-        )  # B*N*irreps, B*N*3 uvw - > B*N*irreps
-        value_a = self.vec2heads(value_a)  # B*L*heads*irreps_head
-        value_a = -torch.einsum("bmlh,blhi->bmhi", alpha1, value_a)
-        value_a = self.heads2vec(value_a)
-
-        value_b = self.vec2heads(value)  # B*L*heads*irreps_head
-        value_b = torch.einsum("bmlh,blhi->bmhi", alpha1, value_b)
-        value_0 = self.heads2vec(value_b)
-        value_b = self.sep_tp(value_0, node_pos, None)
-
-        node_output = self.proj(value_b + value_a + value_0)
-
-        return node_output
-
-        # B*L*L*head
-
-    def extra_repr(self):
-        output_str = "rescale_degree={}, ".format(self.rescale_degree)
-        return output_str
 
 
 class IrrepsGate(torch.nn.Module):
@@ -2565,6 +3257,7 @@ class TransBlock(torch.nn.Module):
         attn_type=0,
         tp_type="v2",
         add_rope=True,
+        max_radius=15,
     ):
         super().__init__()
         self.irreps_node_input = (
@@ -2584,16 +3277,17 @@ class TransBlock(torch.nn.Module):
         self.norm_1 = get_norm_layer(norm_layer)(self.irreps_node_input)
 
         func = None
-
-        if attn_type in [None, "None", "v0", "v1", "v2", "v2.1", "v3"]:
+        if attn_type in [None, "None", "v2"]:
             func = E2Attention
-        elif attn_type in [9, 10] or (
-            isinstance(attn_type, str) and attn_type[0:2] in ["9v", "10"]
-        ):
-            func = E2Attention9
-        elif attn_type in [12]:
-            func = E2Attention12
-        elif attn_type.startswith("eq"):
+        elif attn_type in [14]:
+            func = E2Attention14
+        elif attn_type in [15]:
+            func = E2Attention15
+        elif attn_type in [13]:
+            func = E2Attention13
+        elif attn_type in [16]:
+            func = E2Attention16
+        elif isinstance(attn_type, str) and attn_type.startswith("eq"):
             func = E2AttentionEq
         else:
             raise ValueError(
@@ -2614,20 +3308,26 @@ class TransBlock(torch.nn.Module):
             attn_type=attn_type,
             tp_type=tp_type,
             add_rope=add_rope,
+            max_radius=max_radius,
         )
-
         if drop_path_rate > 0.0:
-            assert ValueError("Drop path is not supported in this version")
-            # self.drop_path = GraphDropPath(drop_path_rate)
+            self.drop_path = DropPath(drop_path_rate)
         else:
-            self.drop_path = None
+            self.drop_path = nn.Identity()
 
         self.norm_2 = get_norm_layer(norm_layer)(self.irreps_node_input)
         self.ffn = FeedForwardNetwork(
             irreps_node_input=self.irreps_node_input,  # self.concat_norm_output.irreps_out,
-            irreps_node_output=self.irreps_node_output,
+            irreps_node_output=self.irreps_node_input,
             proj_drop=proj_drop,
         )
+
+        self.norm_3 = get_norm_layer(norm_layer)(self.irreps_node_input)
+        self.ffn_vec2scalar = FeedForwardVec2Scalar(
+            irreps_node_input=self.irreps_node_input,  # self.concat_norm_output.irreps_out,
+            irreps_node_output=self.irreps_node_output,
+        )
+
         self.add_rope = add_rope
 
     def forward(
@@ -2690,126 +3390,22 @@ class TransBlock(torch.nn.Module):
             add_rope=self.add_rope,
         )
 
-        # if self.drop_path is not None:
-        #     node_irreps_input = self.drop_path(node_irreps_input, batch)
+        node_irreps = self.drop_path(node_irreps)
 
         node_irreps = node_irreps + node_irreps_res
 
         ## residual connection
         node_irreps_res = node_irreps
-
         node_irreps = self.norm_2(node_irreps, batch=batch)
-        # if self.ffn_shortcut is not None:
-        #     node_irreps = self.ffn(self.ffn_shortcut(node_irreps))
-        # else:
         node_irreps = self.ffn(node_irreps)
-        # if self.drop_path is not None:
-        #     node_irreps_input = self.drop_path(node_irreps_input, batch)
+        node_irreps = self.drop_path(node_irreps)
         node_irreps = node_irreps_res + node_irreps
 
+        # node_irreps_res = node_irreps
+        # node_irreps = self.norm_3(node_irreps, batch=batch)
+        # node_irreps = self.ffn_vec2scalar(node_irreps)
+        # node_irreps = node_irreps_res + node_irreps
         return node_irreps
-
-
-class EdgeDegreeEmbeddingNetwork_ScalarVector(torch.nn.Module):
-    def __init__(
-        self, irreps_node_embedding, avg_aggregate_num, cutoff=None, number_of_basis=32
-    ):
-        super().__init__()
-        self.cutoff = cutoff
-
-        self.irreps_node_embedding = (
-            o3.Irreps(irreps_node_embedding)
-            if isinstance(irreps_node_embedding, str)
-            else irreps_node_embedding
-        )
-        self.irreps_edge_attr = o3.Irreps(
-            "+".join(f"1x{l}e" for l in range(self.irreps_node_embedding.lmax + 1))
-        )
-        self.scalar_dim = self.irreps_node_embedding[0][0]  # scalar_dim x 0e
-        self.irreps_middle_embedding = o3.Irreps(
-            "+".join(f"{mul}x{ir.l}e" for mul, ir in self.irreps_node_embedding)
-        )
-        # fc_neurons = [self.scalar_dim//4, self.scalar_dim//4]
-        self._node_vec_dim = self.irreps_node_embedding.dim - self.scalar_dim
-        self.exp = IrrepsLinear(
-            o3.Irreps("1x0e"),
-            f"{self.irreps_node_embedding[0][0]}x0e",
-            bias=_USE_BIAS,
-            rescale=_RESCALE,
-        )
-        self.avg_aggregate_num = avg_aggregate_num
-
-        # tp scalars
-        self.gbf = GaussianLayer(number_of_basis)
-        self.gbf_proj = nn.Sequential(
-            nn.Linear(number_of_basis, number_of_basis),
-            nn.LayerNorm(number_of_basis),
-            torch.nn.SiLU(),
-            nn.Linear(number_of_basis, number_of_basis),
-            nn.LayerNorm(number_of_basis),
-            torch.nn.SiLU(),
-            nn.Linear(
-                number_of_basis, sum([mul for mul, ir in self.irreps_middle_embedding])
-            ),
-        )
-        self.hp = IrrepsHadamardProduct(self.irreps_middle_embedding)
-        self.pos_embedding_proj = nn.Linear(
-            self.scalar_dim, self.scalar_dim
-        )  # project sum of edge gbf
-        self.edge_proj = IrrepsLinear(
-            self.irreps_edge_attr, self.irreps_middle_embedding, bias=True, act=None
-        )  # project sum of edge_sh
-        # self.node_proj = FeedForwardNetwork(self.irreps_middle_embedding, self.irreps_node_embedding) # ffn
-        self.node_proj = IrrepsLinear(
-            self.irreps_node_embedding, self.irreps_node_embedding, bias=True, act=None
-        )  # project sum of edge_sh
-
-    def forward(
-        self,
-        node_input,
-        node_pos,
-        edge_dis,
-        edge_scalars=None,
-        batch=None,
-        atomic_numbers=None,
-        batched_data=None,
-    ):
-        B, L = node_input.shape[:2]
-        mask = (
-            torch.eye(L, dtype=torch.bool)
-            .unsqueeze(0)
-            .expand(B, -1, -1)
-            .to(node_input.device)
-        )  # mask for diagnals (self-connection)
-        adj = 1 / torch.where(
-            mask, float("inf"), edge_dis
-        )  # 1/|r_ij|, set diagnals to INF
-        if self.cutoff is not None:
-            adj = torch.where(adj < 1 / self.cutoff, 0.0, adj)  # mask out distant edges
-
-        mask = (~adj.bool()).unsqueeze(-1)
-        delta_pos = node_pos.unsqueeze(2) - node_pos.unsqueeze(1)  # B*L*3 - > B*L*L*3
-        edge_sh = o3.spherical_harmonics(
-            l=self.irreps_edge_attr,
-            x=delta_pos,
-            normalize=True,
-            normalization="component",
-        )  # (B, L, L, irreps_edge_attr.dim)
-        edge_vec = self.edge_proj(
-            edge_sh
-        )  # (B, L, L, self.irreps_middle_embedding.dim)
-
-        edge_scalars = self.gbf(
-            adj, batched_data["node_type_edge"].long()
-        )  # B*L*L*-1 TODO middle_hidden
-        edge_scalars = self.gbf_proj(edge_scalars)
-
-        edge_features = self.hp(
-            edge_vec, edge_scalars
-        )  # (B, L, L, self.irreps_middle_embedding.dim) TODO
-        node_features = edge_features.sum(2)  # B*L*-1
-        node_features = self.node_proj(node_features)  # TODO: normalization problem
-        return node_features / self.avg_aggregate_num**0.5
 
 
 class EdgeDegreeEmbeddingNetwork_Dense(torch.nn.Module):
@@ -2944,7 +3540,15 @@ class EdgeDegreeEmbeddingNetwork_higherorder(torch.nn.Module):
         self.avg_aggregate_num = avg_aggregate_num
 
     def forward(
-        self, node_input, node_pos, edge_dis, atomic_numbers, mask=None, **kwargs
+        self,
+        node_input,
+        node_pos,
+        edge_dis,
+        atomic_numbers,
+        edge_vec,
+        batched_data,
+        attn_mask,
+        **kwargs,
     ):
         """
         Parameters
@@ -2962,16 +3566,10 @@ class EdgeDegreeEmbeddingNetwork_higherorder(torch.nn.Module):
         B, L = node_input.shape[:2]
         self.embed(atomic_numbers)  # B*L*hidden
 
-        edge_vec = node_pos.unsqueeze(2) - node_pos.unsqueeze(1)  # B, L, L, 3
-        node_type_edge = torch.cat(
-            [
-                atomic_numbers.reshape(B, L, 1, 1).repeat(1, 1, L, 1),
-                atomic_numbers.reshape(B, 1, L, 1).repeat(1, L, 1, 1),
-            ],
-            dim=-1,
-        )
+        # edge_vec = node_pos.unsqueeze(2) - node_pos.unsqueeze(1)  # B, L, L, 3
+        node_type_edge = batched_data["node_type_edge"]
         edge_dis_embed = self.gbf(edge_dis, node_type_edge.long())
-
+        edge_dis_embed = torch.where(attn_mask, 0, edge_dis_embed)
         node_features = []
         for idx in range(len(self.irreps_node_embedding)):
             lx = o3.spherical_harmonics(
@@ -2981,8 +3579,6 @@ class EdgeDegreeEmbeddingNetwork_higherorder(torch.nn.Module):
                 normalization="norm",
             )  # * adj.reshape(B,L,L,1) #B*L*L*(2l+1)
             edge_fea = self.gbf_projs[idx](edge_dis_embed)
-            if mask is not None:
-                edge_fea = edge_fea * mask
             # lx_embed = torch.einsum("bmnd,bnh->bmhd",lx,node_embed) #lx:B*L*L*(2l+1)  node_embed:B*L*hidden
             lx_embed = torch.einsum(
                 "bmnd,bmnh->bmhd", lx, edge_fea
@@ -3003,6 +3599,7 @@ class E2former(torch.nn.Module):
         self,
         irreps_node_embedding="128x0e+64x1e+32x2e",
         num_layers=6,
+        pbc_max_radius=5,
         max_radius=15.0,
         basis_type="gaussian",
         number_of_basis=128,
@@ -3030,7 +3627,7 @@ class E2former(torch.nn.Module):
         super().__init__()
         self.tp_type = tp_type
         self.attn_type = attn_type
-
+        self.pbc_max_radius = pbc_max_radius  #
         self.max_radius = max_radius
         self.number_of_basis = number_of_basis
         self.alpha_drop = alpha_drop
@@ -3068,6 +3665,10 @@ class E2former(torch.nn.Module):
             self.rbf = GaussianRadialBasisLayer(
                 self.number_of_basis, cutoff=self.max_radius
             )
+        elif self.basis_type == "gaussiansmear":
+            self.rbf = GaussianSmearing(
+                self.number_of_basis, cutoff=self.max_radius, basis_width_scalar=2
+            )
         elif self.basis_type == "bessel":
             self.rbf = RadialBasis(
                 self.number_of_basis,
@@ -3084,13 +3685,6 @@ class E2former(torch.nn.Module):
             )
         elif edge_embedtype == "highorder":
             self.edge_deg_embed_dense = EdgeDegreeEmbeddingNetwork_higherorder(
-                self.irreps_node_embedding,
-                _AVG_DEGREE,
-                cutoff=self.max_radius,
-                number_of_basis=self.number_of_basis,
-            )
-        elif edge_embedtype == "scalarvector":
-            self.edge_deg_embed_dense = EdgeDegreeEmbeddingNetwork_ScalarVector(
                 self.irreps_node_embedding,
                 _AVG_DEGREE,
                 cutoff=self.max_radius,
@@ -3118,9 +3712,11 @@ class E2former(torch.nn.Module):
                 attn_type=self.attn_type,
                 layer_id=i,
                 add_rope=self.add_rope,
+                max_radius=max_radius,
             )
             self.blocks.append(blk)
 
+        self.norm_final = get_norm_layer(norm_layer)(self.irreps_node_embedding)
         self.output_proj = IrrepsLinear(
             f"{self.irreps_node_embedding[1][0]}x1e",
             f"{self.irreps_node_embedding[0][0]}x1e",
@@ -3175,9 +3771,10 @@ class E2former(torch.nn.Module):
         self,
         batched_data: Dict,
         token_embedding: torch.Tensor,
-        bias=None,
+        mixed_attn_bias=None,
         padding_mask: torch.Tensor = None,
         pbc_expand_batched: Optional[Dict] = None,
+        **kwargs,
     ) -> torch.Tensor:
         """
         Forward pass of the PSMEncoder class.
@@ -3261,16 +3858,64 @@ class E2former(torch.nn.Module):
         node_pos = batched_data["pos"].to(tensortype)
         device = node_pos.device
         B, L, _ = node_pos.shape
+        atomic_numbers = batched_data["masked_token_type"].reshape(B, L)
 
-        dist = torch.norm(
-            node_pos.unsqueeze(2) - node_pos.unsqueeze(1), dim=-1
-        )  # B*L*L Attention: ego-connection is 0 here
+        mol_type = 0  # torch.any(batched_data["is_molecule"]):
+        node_pos_right = node_pos
+        if torch.any(batched_data["is_periodic"]):
+            mol_type = 1
+            #  batched_data["outcell_index"] # B*L2
+            # batched_data["outcell_index_0"] # B*L2
+            batched_data.update(pbc_expand_batched)
+            L2 = batched_data["outcell_index"].shape[1]
+            batched_data["outcell_index_0"] = (
+                torch.arange(B).reshape(B, 1).repeat(1, L2)
+            )
+            node_pos_right = torch.cat(
+                [node_pos, batched_data["expand_pos"].float()], dim=1
+            )
+
+            atomic_numbers_i = (
+                atomic_numbers.unsqueeze(2).repeat(1, 1, L + L2).unsqueeze(-1)
+            )
+            atomic_numbers_j = torch.cat(
+                [
+                    atomic_numbers,
+                    atomic_numbers[
+                        batched_data["outcell_index_0"], batched_data["outcell_index"]
+                    ],
+                ],
+                dim=1,
+            )
+            atomic_numbers_j = (
+                atomic_numbers_j.unsqueeze(1).repeat(1, L, 1).unsqueeze(-1)
+            )
+
+            batched_data["node_type_edge"] = torch.cat(
+                [atomic_numbers_i, atomic_numbers_j], dim=-1
+            )
+
+        if torch.any(batched_data["is_protein"]):
+            mol_type = 2
+        batched_data["mol_type"] = mol_type
+
+        edge_vec = node_pos.unsqueeze(2) - node_pos_right.unsqueeze(1)
+        dist = torch.norm(edge_vec, dim=-1)  # B*L*L Attention: ego-connection is 0 here
         dist = torch.where(dist < 1e-4, 1000, dist)
         dist_embedding = self.rbf(dist.reshape(-1)).reshape(
-            B, L, L, -1
+            B, L, -1, self.number_of_basis
         )  # [B, L, L, number_of_basis]
-        attn_mask = (dist > self.max_radius).unsqueeze(-1)
-        atomic_numbers = batched_data["masked_token_type"].reshape(B, L)
+        if mol_type != 1:
+            attn_mask = dist > self.max_radius
+            attn_mask = (attn_mask + padding_mask.unsqueeze(1)).unsqueeze(-1)
+        else:
+            attn_mask = dist > self.pbc_max_radius
+            attn_mask = (
+                attn_mask
+                + torch.cat(
+                    [padding_mask, batched_data["expand_mask"]], dim=-1
+                ).unsqueeze(1)
+            ).unsqueeze(-1)
 
         if token_embedding is not None:
             atom_embedding = token_embedding.permute(1, 0, 2)  # [L, B, D] => [B, L, D]
@@ -3285,17 +3930,15 @@ class E2former(torch.nn.Module):
         )
         # if torch.any(torch.isnan(atom_embedding)):assert(False)
 
-        # dense edge_degree_embedding
-        # edge_degree_embedding_dense = self.edge_deg_embed_dense(
-        #     atom_embedding, node_pos, dist, edge_scalars=None, batch=None,atomic_numbers = atomic_numbers
-        # )
         edge_degree_embedding_dense = self.edge_deg_embed_dense(
             atom_embedding,
             node_pos,
             dist,
             edge_scalars=dist_embedding,
             batch=None,
+            attn_mask=attn_mask,
             atomic_numbers=atomic_numbers,
+            edge_vec=edge_vec,
             batched_data=batched_data,
         )
         node_irreps = atom_embedding + edge_degree_embedding_dense
@@ -3314,7 +3957,7 @@ class E2former(torch.nn.Module):
                 add_rope=self.add_rope,
             )
             # if torch.any(torch.isnan(node_irreps)):assert(False)
-
+        node_irreps = self.norm_final(node_irreps)
         node_embedding = node_irreps[
             ..., : self.irreps_node_embedding[0][0]
         ]  # the part of order 0
