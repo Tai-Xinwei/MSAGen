@@ -44,7 +44,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=30000
 
-[ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.7' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.4,0.5,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 [ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
@@ -105,12 +105,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=True
 [ -z "${val_batch_log_all_metric}" ] && val_batch_log_all_metric=False
 [ -z "${psm_validate_for_train_set}" ] && psm_validate_for_train_set=False
+[ -z "${val_batch_log_interval}" ] && val_batch_log_interval=1
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 
-[ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=True
+[ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
 
 [ -z "${psm_matbench_task_name}" ] && psm_matbench_task_name=matbench_dielectric
 [ -z "${psm_matbench_fold_id}" ] && psm_matbench_fold_id=0
@@ -122,15 +123,15 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_rotary_embedding_for_vector}" ] && no_rotary_embedding_for_vector=False
 [ -z "${node_type_edge_method}" ] && node_type_edge_method=NON_EXCHANGABLE
 [ -z "${force_head_type}" ] && force_head_type=GATED_EQUIVARIANT
-[ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=False
+[ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=True
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=128
 [ -z "${use_smooth_equviariant_norm}" ] && use_smooth_equviariant_norm=True
 [ -z "${unified_data_num_workers}" ] && unified_data_num_workers=0
-[ -z "${use_fp32_in_decoder}" ] && use_fp32_in_decoder=True
+[ -z "${use_fp32_in_decoder}" ] && use_fp32_in_decoder=False
 [ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1
-[ -z "${energy_per_atom_label_scale}" ] && energy_per_atom_label_scale=0.05
+[ -z "${energy_per_atom_label_scale}" ] && energy_per_atom_label_scale=1.0
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -261,4 +262,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           use_fp32_in_decoder=$use_fp32_in_decoder \
           material_force_loss_ratio=$material_force_loss_ratio \
           material_energy_loss_ratio=$material_energy_loss_ratio \
-          molecule_energy_loss_ratio=$molecule_energy_loss_ratio
+          molecule_energy_loss_ratio=$molecule_energy_loss_ratio \
+          val_batch_log_interval=$val_batch_log_interval

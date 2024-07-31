@@ -83,15 +83,8 @@ class PSMModel(Model):
 
         self.net = PSM(args, self.psm_config)
 
-        if self.psm_config.psm_finetune_mode or self.psm_config.psm_validation_mode:
-            if os.path.exists(args.loadcheck_path):
-                self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
-            else:
-                logger.warning(
-                    "Finetune or validation mode, but no checkpoint is loaded"
-                )
-        else:
-            logger.info("No checkpoint is loaded")
+        self.psm_finetune_head = psm_finetune_head
+        self.checkpoint_loaded = self.reload_checkpoint()
 
         self.diffnoise = DiffNoise(self.psm_config)
         self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
@@ -114,22 +107,6 @@ class PSMModel(Model):
                 self.psm_config.sampled_structure_output_path
             )
 
-        if self.psm_config.psm_finetune_mode:
-            settings = dict(
-                psm_finetune_reset_head=self.psm_config.psm_finetune_reset_head,
-                psm_finetune_head=(
-                    psm_finetune_head.__class__ if psm_finetune_head else None
-                ),
-                psm_finetune_noise_mode=self.psm_config.psm_finetune_noise_mode,
-            )
-            logger.info(f"Finetune settings: {settings}")
-            if self.psm_config.psm_finetune_reset_head:
-                self.net.reset_head_for_finetune()
-            self.psm_finetune_head = psm_finetune_head
-        else:
-            assert not psm_finetune_head
-            self.psm_finetune_head = None
-
         try:
             mode_prob = [float(item) for item in self.psm_config.mode_prob.split(",")]
             assert len(mode_prob) == 3
@@ -138,6 +115,38 @@ class PSMModel(Model):
             mode_prob = [0.0, 0.0, 1.0]
         self.mode_prob = mode_prob
         logger.info(f"protein mode prob: {mode_prob}")
+
+    def reload_checkpoint(self):
+        if self.psm_config.psm_finetune_mode or self.psm_config.psm_validation_mode:
+            if os.path.exists(self.args.loadcheck_path):
+                self.load_pretrained_weights(
+                    self.args, checkpoint_path=self.args.loadcheck_path
+                )
+                loaded = True
+            else:
+                logger.warning(
+                    "Finetune or validation mode, but no checkpoint is loaded"
+                )
+                loaded = False
+        else:
+            logger.info("No checkpoint is loaded")
+            loaded = False
+        if self.psm_config.psm_finetune_mode:
+            settings = dict(
+                psm_finetune_reset_head=self.psm_config.psm_finetune_reset_head,
+                psm_finetune_head=(
+                    self.psm_finetune_head.__class__ if self.psm_finetune_head else None
+                ),
+                psm_finetune_noise_mode=self.psm_config.psm_finetune_noise_mode,
+            )
+            logger.info(f"Finetune settings: {settings}")
+            if self.psm_config.psm_finetune_reset_head:
+                self.net.reset_head_for_finetune()
+        else:
+            assert not self.psm_finetune_head
+            self.psm_finetune_head = None
+
+        return loaded
 
     def half(self):
         to_return = super().half()
@@ -227,7 +236,7 @@ class PSMModel(Model):
         mask = masked_protein & (masked_nan | masked_inf)
         batched_data["protein_mask"] = mask
 
-    @torch.compiler.disable(recursive=False)
+    # @torch.compiler.disable(recursive=False)
     def _protein_pretrain_mode(
         self,
         clean_mask,
@@ -876,6 +885,11 @@ class PSM(nn.Module):
             self.encoder = PSMEncoder(args, psm_config)
             # Implement the decoder
             self.decoder = EquivariantDecoder(psm_config)
+        if args.backbone == "graphormer-e2":
+            # Implement the encoder
+            self.encoder = PSMEncoder(args, psm_config)
+            # Implement the decoder
+            self.decoder = E2former(**args.backbone_config)
         elif args.backbone == "equiformerv2":
             self.decoder = Equiformerv2SO2(**args.backbone_config)
         elif args.backbone == "equiformer":
@@ -1213,7 +1227,7 @@ class PSM(nn.Module):
                     )
 
         elif self.encoder is not None:
-            assert self.args.backbone == "graphormer"
+            assert self.args.backbone in ["graphormer", "graphormer-e2"]
 
             encoder_output = self.encoder(
                 token_embedding.transpose(0, 1),
@@ -1244,7 +1258,7 @@ class PSM(nn.Module):
             decoder_x_output, decoder_vec_output = self.decoder(
                 batched_data,
                 token_embedding.transpose(0, 1),
-                padding_mask,
+                padding_mask=padding_mask,
                 pbc_expand_batched=pbc_expand_batched,
             )
 

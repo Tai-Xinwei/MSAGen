@@ -255,4 +255,6 @@ def collate_fn(
                 edge_attr=edge_attr, edge_index=edge_index, num_edges=num_edges, idx=idx
             )
         )
+        if "key" in items[0]:
+            batched_data["key"] = [i["key"] for i in items]
     return batched_data

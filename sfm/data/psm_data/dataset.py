@@ -1026,6 +1026,8 @@ class AFDBLMDBDataset(FoundationModelDataset):
         self,
         args: PSMConfig,
         lmdb_path: Optional[str],
+        keys: Optional[List[str]] = None,
+        sizes: Optional[List[int]] = None,
     ):
         self.lmdb_path = lmdb_path
         self.args = args
@@ -1033,6 +1035,19 @@ class AFDBLMDBDataset(FoundationModelDataset):
         # for dataloader with num_workers > 1
         self._env, self._txn = None, None
         self._sizes, self._keys = None, None
+
+        if keys is not None:
+            self._env = lmdb.open(
+                str(self.lmdb_path),
+                subdir=True,
+                readonly=True,
+                lock=False,
+                readahead=False,
+                meminit=False,
+            )
+            self._txn = self._env.begin(write=False)
+            self._keys = keys
+            self._sizes = sizes
 
     def _init_db(self):
         self._env = lmdb.open(
@@ -1139,13 +1154,19 @@ class AFDBLMDBDataset(FoundationModelDataset):
         validation_indices = indices[num_training_samples:]
 
         # Create training and validation datasets
-        dataset_train = self.__class__(self.args, self.lmdb_path)
-        dataset_train._keys = [self._keys[idx] for idx in training_indices]
-        dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
+        dataset_train = self.__class__(
+            self.args,
+            self.lmdb_path,
+            keys=[self._keys[idx] for idx in training_indices],
+            sizes=[self._sizes[idx] for idx in training_indices],
+        )
 
-        dataset_val = self.__class__(self.args, self.lmdb_path)
-        dataset_val._keys = [self._keys[idx] for idx in validation_indices]
-        dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
+        dataset_val = self.__class__(
+            self.args,
+            self.lmdb_path,
+            keys=[self._keys[idx] for idx in validation_indices],
+            sizes=[self._sizes[idx] for idx in validation_indices],
+        )
 
         return dataset_train, dataset_val
 
@@ -1254,13 +1275,15 @@ class PDBDataset(AFDBLMDBDataset):
         args: PSMConfig,
         lmdb_path: Optional[str],
         dataset_name: Optional[str] = None,
+        keys: Optional[List[str]] = None,
+        sizes: Optional[List[int]] = None,
     ):
         # version = "20240101_snapshot.20240630_8fe6fe4b.subset_release_date_before_20200430.protein_chain.lmdb"
         version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.protein_chain.lmdb"
-
-        if lmdb_path.find(version) == -1:
+        testflag = "ProteinTest"
+        if lmdb_path.find(version) == -1 and lmdb_path.find(testflag) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
-        super().__init__(args, lmdb_path)
+        super().__init__(args, lmdb_path, keys=keys, sizes=sizes)
 
     def __getitem__(self, idx: Union[int, np.integer]) -> Data:
         key = self.keys[idx]
@@ -1284,6 +1307,7 @@ class PDBDataset(AFDBLMDBDataset):
         data["sample_type"] = 2
         data["token_type"] = x
         data["idx"] = idx
+        data["key"] = key
 
         coords = torch.tensor(coords, dtype=torch.float64)
 
@@ -1316,6 +1340,8 @@ class UR50LMDBDataset(FoundationModelDataset):
         self,
         args: PSMConfig,
         lmdb_path: Optional[str],
+        keys: Optional[List[str]] = None,
+        sizes: Optional[List[int]] = None,
     ):
         self.lmdb_path = lmdb_path
         self.args = args
@@ -1358,6 +1384,19 @@ class UR50LMDBDataset(FoundationModelDataset):
         # for dataloader with num_workers > 1
         self._env, self._txn = None, None
         self._sizes, self._keys = None, None
+
+        if keys is not None:
+            self._env = lmdb.open(
+                str(self.lmdb_path),
+                subdir=True,
+                readonly=True,
+                lock=False,
+                readahead=False,
+                meminit=False,
+            )
+            self._txn = self._env.begin(write=False)
+            self._keys = keys
+            self._sizes = sizes
 
         # self.filter_indices_by_size(
         #     indices=np.array(range(len(self.keys))), max_sizes=self.args.max_length
@@ -1465,13 +1504,19 @@ class UR50LMDBDataset(FoundationModelDataset):
         validation_indices = indices[num_training_samples:]
 
         # Create training and validation datasets
-        dataset_train = self.__class__(self.args, self.lmdb_path)
-        dataset_train._keys = [self._keys[idx] for idx in training_indices]
-        dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
+        dataset_train = self.__class__(
+            self.args,
+            self.lmdb_path,
+            keys=[self._keys[idx] for idx in training_indices],
+            sizes=[self._sizes[idx] for idx in training_indices],
+        )
 
-        dataset_val = self.__class__(self.args, self.lmdb_path)
-        dataset_val._keys = [self._keys[idx] for idx in validation_indices]
-        dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
+        dataset_val = self.__class__(
+            self.args,
+            self.lmdb_path,
+            keys=[self._keys[idx] for idx in validation_indices],
+            sizes=[self._sizes[idx] for idx in validation_indices],
+        )
 
         return dataset_train, dataset_val
 
@@ -1579,13 +1624,15 @@ class PDBComplexDataset(AFDBLMDBDataset):
         self,
         args: PSMConfig,
         lmdb_path: Optional[str],
+        keys: Optional[List[str]] = None,
+        sizes: Optional[List[int]] = None,
     ):
         version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.ligand_protein_filteredNan.lmdb"
         self.crop_radius = args.crop_radius
 
         if lmdb_path.find(version) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
-        super().__init__(args, lmdb_path)
+        super().__init__(args, lmdb_path, keys=keys, sizes=sizes)
 
     def _init_db(self):
         self._env = lmdb.open(
@@ -1853,12 +1900,18 @@ class PDBComplexDataset(AFDBLMDBDataset):
         validation_indices = indices[num_training_samples:]
 
         # Create training and validation datasets
-        dataset_train = self.__class__(self.args, self.lmdb_path)
-        dataset_train._keys = [self._keys[idx] for idx in training_indices]
+        dataset_train = self.__class__(
+            self.args,
+            self.lmdb_path,
+            keys=[self._keys[idx] for idx in training_indices],
+        )
         # dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
 
-        dataset_val = self.__class__(self.args, self.lmdb_path)
-        dataset_val._keys = [self._keys[idx] for idx in validation_indices]
+        dataset_val = self.__class__(
+            self.args,
+            self.lmdb_path,
+            keys=[self._keys[idx] for idx in validation_indices],
+        )
         # dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
 
         return dataset_train, dataset_val

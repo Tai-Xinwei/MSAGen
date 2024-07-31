@@ -13,9 +13,11 @@ from __future__ import print_function
 
 import operator
 import os
+import pickle
 import subprocess
 import sys
 import tempfile
+import zlib
 
 
 def check_output_file(command, filename):
@@ -43,8 +45,6 @@ def check_output_stdout(command):
 
 def check_output_lines(command):
     '''Exculate a command and return output to a list.'''
-
-    print(' '.join(command))
 
     # open a temporary file and write the output to this file
     lines = None
@@ -140,3 +140,11 @@ def accumulate(iterable, func=operator.add):
     for element in it:
         total = func(total, element)
         yield total
+
+
+def obj2bstr(obj):
+    return zlib.compress(pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL))
+
+
+def bstr2obj(bstr: bytes):
+    return pickle.loads(zlib.decompress(bstr))

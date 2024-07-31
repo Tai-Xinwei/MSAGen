@@ -777,5 +777,12 @@ class DiffMAE3dCriterions(nn.Module):
                 logging_output["max_tm_score"],
                 _,
             ) = _reduce_matched_result(model_output, "tm_score", "max")
+        if "lddt" in model_output:
+            (
+                logging_output["lddt"],
+                _,
+                logging_output["max_lddt"],
+                _,
+            ) = _reduce_matched_result(model_output, "lddt", "max")
 
         return loss, logging_output

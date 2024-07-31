@@ -175,6 +175,12 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)
                 self.sizes.append(train_dataset.sizes)
+            elif dataset_name == "proteintest":
+                dataset = PDBDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset, dataset
+                len_total = len(dataset)
+                self.dataset_lens[dataset_name] = len(train_dataset)
+                self.sizes.append(train_dataset.sizes)
             elif dataset_name == "complex":
                 dataset = ComplexDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
