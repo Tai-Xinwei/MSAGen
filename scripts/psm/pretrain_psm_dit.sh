@@ -97,7 +97,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
-[ -z "${fp16}" ] && fp16=False
+[ -z "${fp16}" ] && fp16=True
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
