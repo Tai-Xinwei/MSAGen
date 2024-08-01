@@ -48,13 +48,14 @@ class PubChemQCB3LYPLMDBDataset(MoleculeLMDBDataset):
         args: PSMConfig,
         lmdb_path: str,
         version: Optional[str] = None,
+        **kwargs,
     ):
         path = os.path.normpath(lmdb_path)
         if path.endswith("PubChemQC-B3LYP"):
             path = os.path.join(
                 path, version or PubChemQCB3LYPLMDBDataset.latest_version
             )
-        super().__init__(args, path)
+        super().__init__(args, path, **kwargs)
 
 
 if __name__ == "__main__":

@@ -2,13 +2,12 @@ description: mattersim-15m_validate
 
 target:
   service: aml
-  name: sfm-nc96-westus3
+  name: sfm-nc96adsa100v4-eastus2
 
 env_defaults:
   WANDB_PROJECT: psm_eval
   WANDB_GROUP: mattersim-15m_validate_energy_force
   MODEL_CONFIG: PSM300M_V0
-  GPUS: 4
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -40,17 +39,21 @@ jobs:
   - export WANDB_RUN_NAME=${MODEL_CONFIG}_${WANDB_GROUP}_$$(date -u +%Y%m%d.%H%M%S)
 
   - export dataset_micro_batch_size=4
+  - export rescale_loss_with_std=true
   - if [[ "$MODEL_CONFIG" == "PSM300M_VT" ]]; then
       export EXTRA_ARGS="+disable_data_aug=true";
       export dataset_micro_batch_size=10;
+    elif [[ "$MODEL_CONFIG" == "PSM1B_VT" ]]; then
+      export dataset_micro_batch_size=10;
+      export rescale_loss_with_std=false
     else
       export EXTRA_ARGS="";
     fi
 
-  - torchrun --nproc_per_node $GPUS sfm/tasks/psm/pretrain_psm.py
+  - torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_psm.py
     --config-name=$MODEL_CONFIG
     psm_validation_mode=true
-    rescale_loss_with_std=true
+    rescale_loss_with_std=$$rescale_loss_with_std
     force_loss_type=L1
     data_path_list=matter-sim-15M-merged
     dataset_name_list=mattersim
