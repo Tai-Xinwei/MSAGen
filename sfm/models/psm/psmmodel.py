@@ -742,6 +742,7 @@ class PSMModel(Model):
                 predicted_noise,
                 epsilon,
                 t,
+                step_size=-self.psm_config.num_timesteps_stepsize,
             )
             batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
             batched_data["pos"] = center_pos(
@@ -1018,6 +1019,7 @@ class PSM(nn.Module):
             "vanillatransformer",
             "vanillatransformer_equiv",
             "dit",
+            "e2dit",
         ]:
             self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
             self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
@@ -1244,8 +1246,13 @@ class PSM(nn.Module):
                 if self.args.fp16
                 else nullcontext()
             ):
+                encoder_output = self.layer_norm(encoder_output)
+                # decoder_x_output, decoder_vec_output = encoder_output, None
+                # encoder_output = encoder_output.transpose(0, 1)
+
+                decoder_x_output = encoder_output
                 if not self.args.seq_only:
-                    decoder_x_output, decoder_vec_output = self.decoder(
+                    _, decoder_vec_output = self.decoder(
                         batched_data,
                         encoder_output.transpose(0, 1),
                         mixed_attn_bias,

@@ -317,9 +317,21 @@ class ProcessedSciWeightedDatasetLmdb(ProcessedSciDatasetLmdb):
 
     def __init_seed(self, args):
         if args.strategy == TrainStrategy.ThreeD:
+            from deepspeed.runtime.pipe.topology import (
+                PipelineParallelGrid,
+                PipeModelDataParallelTopology,
+            )
+
             from megatron.core import mpu
 
-            self.dp_rank = mpu.get_data_parallel_rank()
+            topology = PipeModelDataParallelTopology(
+                num_pp=mpu.get_pipeline_model_parallel_world_size(),
+                num_mp=mpu.get_tensor_model_parallel_world_size(),
+                num_dp=mpu.get_data_parallel_world_size(),
+            )
+            self.dp_rank = PipelineParallelGrid(
+                topology=topology
+            ).get_data_parallel_rank()
             logger.warning(f"global_rank {args.rank}, dp_rank {self.dp_rank}")
         else:
             self.dp_rank = args.rank // args.pipeline_model_parallel_size

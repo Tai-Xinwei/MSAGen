@@ -14,7 +14,7 @@ export MKL_THREADING_LAYER='GNU'
 # # $azcopy_path/azcopy copy ... ... --recursive
 
 
-[ -z "${layers}" ] && layers=10
+[ -z "${layers}" ] && layers=12
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
@@ -230,8 +230,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           backbone_config.num_attn_heads=$num_head \
           backbone_config.number_of_basis=32 \
           backbone_config.pbc_max_radius=5 \
-          backbone_config.max_radius=5 \
-          backbone_config.attn_type=None \
+          backbone_config.max_radius=15 \
+          backbone_config.attn_type=16 \
           backbone_config.tp_type='None' \
           backbone_config.edge_embedtype='highorder' \
           backbone_config.basis_type='gaussiansmear' \

@@ -235,14 +235,14 @@ class PipeDataParallelTopology(ProcessTopology):
     """A topology specialization for hybrid data and pipeline parallelism."""
 
     def __init__(self, num_pp, num_dp):
-        super().__init__(axes=["pipe", "data"], dims=[num_pp, num_dp])
+        super().__init__(axes=["data", "pipe"], dims=[num_dp, num_pp])
 
 
 class PipeModelDataParallelTopology(ProcessTopology):
     """A topology for hybrid pipeline, model, and data parallelism."""
 
     def __init__(self, num_pp, num_mp, num_dp):
-        super().__init__(axes=["pipe", "data", "model"], dims=[num_pp, num_dp, num_mp])
+        super().__init__(axes=["data", "pipe", "model"], dims=[num_dp, num_pp, num_mp])
 
 
 class myPipelineParallelGrid:
@@ -285,7 +285,6 @@ class myPipelineParallelGrid:
                 else:
                     num_dp *= prime
             self._topo = PipeDataParallelTopology(num_dp=num_dp, num_pp=num_pp)
-            # self._topo = PipeModelDataParallelTopology(num_dp=num_dp, num_pp=num_pp, num_mp=1)
 
         self.data_parallel_size = max(self._topo.get_dim("data"), 1)
         self.pipe_parallel_size = max(self._topo.get_dim("pipe"), 1)
