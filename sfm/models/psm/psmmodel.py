@@ -884,8 +884,7 @@ class PSM(nn.Module):
             # Implement the encoder
             self.encoder = PSMEncoder(args, psm_config)
             # Implement the decoder
-            # self.decoder = EquivariantDecoder(psm_config)
-            self.decoder = E2former(**args.backbone_config)
+            self.decoder = EquivariantDecoder(psm_config)
         elif args.backbone == "graphormer-e2":
             # Implement the encoder
             self.encoder = PSMEncoder(args, psm_config)

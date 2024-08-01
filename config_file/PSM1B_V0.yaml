@@ -23,9 +23,9 @@ noise_scale: 0.2
 mask_ratio: 0.5
 d_tilde: 1.0
 pbc_cutoff: 20.0
-data_path: /psm/data/
+data_path: /blob/psm
 dataset_names: ''
-loadcheck_path: /fastdata/peiran/tox/checkpoints/psmV0test/
+loadcheck_path: /blob/sfmexpresults/shiyu/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240725-1050/checkpoint_E0_B60000.pt
 add_3d: true
 no_2d: false
 ft: false
