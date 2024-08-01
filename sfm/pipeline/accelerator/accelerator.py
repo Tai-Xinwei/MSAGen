@@ -12,7 +12,6 @@ from typing import List, Optional, Union
 import deepspeed
 import torch
 from deepspeed.runtime.dataloader import DeepSpeedDataLoader
-from deepspeed.runtime.pipe.topology import PipeModelDataParallelTopology
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import (
     DataLoader,
@@ -34,10 +33,14 @@ from sfm.pipeline.accelerator.dataclasses import (
 )
 from sfm.pipeline.accelerator.fp16_scaler import FP16Scaler
 from sfm.utils.move_to_device import move_to_device
+from sfm.utils.myPipelineParallelGrid import PipeModelDataParallelTopology
 from sfm.utils.PPEngine import initialize as initialize_pp_engine
 
 from .model import Model
 from .pipeline_module import SFMPipelineModule
+
+# from deepspeed.runtime.pipe.topology import PipeModelDataParallelTopology
+
 
 try:
     import transformer_engine.pytorch as te

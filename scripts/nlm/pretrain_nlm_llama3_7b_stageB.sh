@@ -20,7 +20,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${beta1}" ] && beta1=0.9 # same as LLAMA2
 [ -z "${beta2}" ] && beta2=0.95 # same as LLAMA2
 [ -z "${total_num_steps}" ] && total_num_steps=80000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=100
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
 # [ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,word_embeddings.weight,embed_tokens.weight"
 # [ -z "${learnable_cutoff}" ] && learnable_cutoff=128256
@@ -30,13 +30,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${train_batch_size}" ] && train_batch_size=2
 [ -z "${val_batch_size}" ] && val_batch_size=$train_batch_size
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=2
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=2
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayer"
 
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=500
-[ -z "${log_interval}" ] && log_interval=10
+[ -z "${log_interval}" ] && log_interval=1
 [ -z "${epochs}" ] && epochs=10
 
 [ -z "${dict_path}" ] && dict_path='/data/peiran/blob/sfmdataeastus2/nlm/llama/Meta-Llama-3-8B/original'
@@ -58,7 +58,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${wandb_group}" ] && wandb_group=nlm_llama3_stageA
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=nlm_llama3
-[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
 
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
@@ -99,7 +98,7 @@ MEGATRON_ARGS="--micro-batch-size $micro_batch_size --global-batch-size $global_
 
 
 # if load ckpt, default is False
-[ -z "${load_ckpt}" ] && load_ckpt=False
+[ -z "${load_ckpt}" ] && load_ckpt=True
 if [[ "${load_ckpt}" == "True" ]]; then
   load_ckpt="--load_ckpt"
 else

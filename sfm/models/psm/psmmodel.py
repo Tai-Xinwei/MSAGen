@@ -886,7 +886,7 @@ class PSM(nn.Module):
             # Implement the decoder
             # self.decoder = EquivariantDecoder(psm_config)
             self.decoder = E2former(**args.backbone_config)
-        if args.backbone == "graphormer-e2":
+        elif args.backbone == "graphormer-e2":
             # Implement the encoder
             self.encoder = PSMEncoder(args, psm_config)
             # Implement the decoder
@@ -899,7 +899,6 @@ class PSM(nn.Module):
             self.decoder = E2former(**args.backbone_config)
         elif args.backbone == "geomformer":
             self.encoder = None
-
             # Implement the decoder
             self.decoder = EquivariantDecoder(psm_config)
         elif args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
@@ -915,6 +914,7 @@ class PSM(nn.Module):
         elif args.backbone in ["dit"]:
             # Implement the encoder
             self.encoder = PSMDiTEncoder(args, psm_config)
+            self.decoder = EquivariantDecoder(psm_config)
         elif args.backbone in ["e2dit"]:
             # Implement the encoder
             self.encoder = PSMDiTEncoder(args, psm_config)
@@ -932,8 +932,8 @@ class PSM(nn.Module):
                 "vanillatransformer",
                 "vanillatransformer_equiv",
                 "vectorvanillatransformer",
-                "dit",
-                "e2dit",
+                # "dit",
+                # "e2dit",
             ]:
                 self.energy_head.update(
                     {
@@ -1215,9 +1215,19 @@ class PSM(nn.Module):
                 else nullcontext()
             ):
                 encoder_output = self.layer_norm(encoder_output)
-                decoder_x_output, decoder_vec_output = encoder_output, None
-                encoder_output = encoder_output.transpose(0, 1)
-                encoder_output = self.layer_norm(encoder_output)
+                # decoder_x_output, decoder_vec_output = encoder_output, None
+                # encoder_output = encoder_output.transpose(0, 1)
+
+                decoder_x_output = encoder_output
+
+                if not self.args.seq_only:
+                    _, decoder_vec_output = self.decoder(
+                        batched_data,
+                        encoder_output.transpose(0, 1),
+                        mixed_attn_bias,
+                        padding_mask,
+                        pbc_expand_batched,
+                    )
 
         elif self.args.backbone in ["e2dit"]:
             encoder_output = self.encoder(
