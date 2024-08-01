@@ -717,7 +717,7 @@ class LlamaLLMEmbeddingsMP(Embedding, SFMModule):
         self, input_tuple: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
     ):
         input_ids, llm_mask = input_tuple
-
+        # print(f"device={input_ids.device}, input_ids={input_ids}")
         # Get text embeddings from language model
         ## set position_ids, it's not used.
         if input_ids is not None:

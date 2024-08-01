@@ -2,12 +2,40 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from typing import Callable, Optional
+
 import numpy as np
 import torch
 import torch.nn as nn
+from torch import Tensor
+from typing_extensions import deprecated
 
 from sfm.logging import logger
 from sfm.models.psm.psm_config import DiffusionTrainingLoss, ForceLoss, PSMConfig
+
+
+class NoiseTolerentL1Loss(nn.Module):
+    def __init__(self, noise_tolerance: float = 1.0, reduction: str = "none"):
+        super().__init__()
+        self.reduction = reduction
+        self.noise_tolerance = noise_tolerance
+
+    def forward(self, input, target):
+        diff = torch.abs(input - target)
+        diff = torch.where(
+            diff < self.noise_tolerance,
+            diff,
+            2 * (torch.sqrt(diff * self.noise_tolerance) - 0.5 * self.noise_tolerance),
+        )
+
+        if self.reduction == "mean":
+            return torch.mean(diff)
+        elif self.reduction == "sum":
+            return torch.sum(diff)
+        elif self.reduction == "none":
+            return diff
+        else:
+            raise ValueError(f"Invalid reduction: {self.reduction}")
 
 
 def svd_superimpose(P, Q, mask=None):
@@ -87,16 +115,29 @@ class DiffMAE3dCriterions(nn.Module):
         self.seq_only = args.seq_only
 
         self.energy_loss = nn.L1Loss(reduction="none")
-        self.force_loss = (
-            nn.L1Loss(reduction="none")
-            if self.args.force_loss_type == ForceLoss.L1
-            else nn.MSELoss(reduction="none")
-        )
-        self.noise_loss = (
-            nn.L1Loss(reduction="none")
-            if self.args.diffusion_training_loss == DiffusionTrainingLoss.L1
-            else nn.MSELoss(reduction="none")
-        )
+
+        if self.args.force_loss_type == ForceLoss.L1:
+            self.force_loss = nn.L1Loss(reduction="none")
+        elif self.args.force_loss_type == ForceLoss.MSE:
+            self.force_loss = nn.MSELoss(reduction="none")
+        elif self.args.force_loss_type == ForceLoss.SmoothL1:
+            self.force_loss = nn.SmoothL1Loss(reduction="none")
+        elif self.args.force_loss_type == ForceLoss.NoiseTolerentL1:
+            self.force_loss = NoiseTolerentL1Loss(noise_tolerance=3.0, reduction="none")
+        else:
+            raise ValueError(f"Invalid force loss type: {self.args.force_loss_type}")
+
+        if self.args.diffusion_training_loss == DiffusionTrainingLoss.L1:
+            self.noise_loss = nn.L1Loss(reduction="none")
+        elif self.args.diffusion_training_loss == DiffusionTrainingLoss.MSE:
+            self.noise_loss = nn.MSELoss(reduction="none")
+        elif self.args.diffusion_training_loss == DiffusionTrainingLoss.SmoothL1:
+            self.noise_loss = nn.SmoothL1Loss(reduction="none")
+        else:
+            raise ValueError(
+                f"Invalid diffusion training loss type: {self.args.diffusion_training_loss}"
+            )
+
         self.aa_mlm_loss = nn.CrossEntropyLoss(reduction="mean")
 
         self.molecule_energy_mean = molecule_energy_mean
@@ -626,7 +667,7 @@ class DiffMAE3dCriterions(nn.Module):
             loss = (
                 self.molecule_energy_loss_ratio * molecule_energy_loss
                 + self.material_energy_loss_ratio * periodic_energy_loss
-                + self.material_force_loss_ratio * force_loss
+                + self.material_force_loss_ratio * periodic_force_loss
                 + noise_loss
                 + aa_mlm_loss
                 + smooth_lddt_loss

@@ -10,19 +10,19 @@ pwd
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-wget 'https://aka.ms/downloadazcopy-v10-linux' -O /tmp/azcopy.tar.gz
-tar -xf /tmp/azcopy.tar.gz -C /tmp
-# find the folder in /tmp and starts with azcopy_linux_amd64
-azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
+# wget 'https://aka.ms/downloadazcopy-v10-linux' -O /tmp/azcopy.tar.gz
+# tar -xf /tmp/azcopy.tar.gz -C /tmp
+# # find the folder in /tmp and starts with azcopy_linux_amd64
+# azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
 
 [ -z "${weight_decay}" ] && weight_decay=0.1 # same as LLAMA2
-[ -z "${max_lr}" ] && max_lr=3e-4  # LLAMA2 use 3e-4, let's use smaller lr
+[ -z "${max_lr}" ] && max_lr=6e-5  # LLAMA2 use 3e-4, let's use smaller lr
 [ -z "${beta1}" ] && beta1=0.9 # same as LLAMA2
 [ -z "${beta2}" ] && beta2=0.95 # same as LLAMA2
 [ -z "${total_num_steps}" ] && total_num_steps=80000
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=100
 [ -z "${grad_scaler_init}" ] && grad_scaler_init=1
-[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,word_embeddings.weight,token_emb.weight"
+[ -z "${unfreeze_param_list}" ] && unfreeze_param_list="lm_head.weight,word_embeddings.weight,embed_tokens.weight"
 [ -z "${learnable_cutoff}" ] && learnable_cutoff=128256
 
 # In this stage, the grad is too large to use grad accumulation
@@ -30,22 +30,22 @@ azcopy_path=$(find /tmp -maxdepth 1 -type d -name 'azcopy_linux_amd64*')
 [ -z "${train_batch_size}" ] && train_batch_size=4
 [ -z "${val_batch_size}" ] && val_batch_size=$train_batch_size
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=2
-[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
-[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=2
-[ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerMP"
+[ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=2
+[ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
+[ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayer"
 
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=1000
+[ -z "${save_batch_interval}" ] && save_batch_interval=500
 [ -z "${log_interval}" ] && log_interval=10
 [ -z "${epochs}" ] && epochs=10
 
-[ -z "${dict_path}" ] && dict_path='/data/peiran/blob/hai1data/sfm/llama/Meta-Llama-3-8B/original'
+[ -z "${dict_path}" ] && dict_path='/data/peiran/blob/sfmdataeastus2/nlm/llama/Meta-Llama-3-8B/original'
 # [ -z "${train_data_path}" ] && train_data_path='/data/peiran/v5_train/train.npy'
-[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_validation/valid.npy'
-[ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_validation/valid.npy'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/hai1data/sfm/llama/Meta-Llama-3-8B/original'
-[ -z "${save_dir}" ] && save_dir='/data/peiran/blob/hai1data/sfm/nlm/output/llama3_stageA/'
-
+[ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/sfmdataeastus2/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split'
+[ -z "${valid_data_path}" ] && valid_data_path='/data/peiran/blob/sfmdataeastus2/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split'
+[ -z "${data_ratio}" ] && data_ratio=""
+[ -z "${loadcheck_path}" ] && loadcheck_path='/data/peiran/blob/sfmdataeastus2/nlm/llama/Meta-Llama-3-8B/original'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/blob/tmp/'
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -94,9 +94,23 @@ MEGATRON_ARGS="--micro-batch-size $micro_batch_size --global-batch-size $global_
   --num-layers $layers --hidden-size $llm_hidden_size --seq-length $max_position_embeddings \
   --max-position-embeddings $max_position_embeddings --num-attention-heads $num_head \
   --seq-length $max_position_embeddings --disable-bias-linear --no-position-embedding --no-query-key-layer-scaling"
-# else
-#   MEGATRON_ARGS=""
-# fi
+
+
+# if load ckpt, default is False
+[ -z "${load_ckpt}" ] && load_ckpt=False
+if [[ "${load_ckpt}" == "True" ]]; then
+  load_ckpt="--load_ckpt"
+else
+  load_ckpt=""
+fi
+
+[ -z "${weighted_dataset}" ] && weighted_dataset=False
+if [[ "${weighted_dataset}" == "True" ]]; then
+  weighted_dataset="--weighted_dataset"
+else
+  weighted_dataset=""
+fi
+
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -119,6 +133,7 @@ echo "warmup_num_steps: ${warmup_num_steps}"
 echo "weight_decay: ${weight_decay}"
 echo "train_data_path: ${train_data_path}"
 echo "valid_data_path: ${valid_data_path}"
+echo "data_ratio: ${data_ratio}"
 echo "train_batch_size: ${train_batch_size}"
 echo "val_batch_size: ${val_batch_size}"
 echo "micro_batch_size: ${micro_batch_size}"
@@ -139,8 +154,10 @@ set -x
 torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --model_type "$model_type" \
       --dict_path "$dict_path" \
+      --data_dir "$data_dir" \
       --train_data_path "$train_data_path" \
       --valid_data_path "$valid_data_path" \
+      --train_data_ratio "$data_ratio" \
       --weight_decay "$weight_decay" \
       --save_dir "$save_dir" \
       --seed 666666 \
@@ -165,7 +182,4 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
       --learnable_cutoff "$learnable_cutoff" \
       --unfreeze_param_list "$unfreeze_param_list" \
-      ${MEGATRON_ARGS}  --load_ckpt
-
-
-sleep inf
+      ${MEGATRON_ARGS} ${load_ckpt} ${weighted_dataset}

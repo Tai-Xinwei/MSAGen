@@ -2257,10 +2257,10 @@ class E2Attention16(torch.nn.Module):
 
         self.attn_weight2heads = nn.Sequential(
             nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
-            nn.LayerNorm(attn_weight_input_dim),
-            torch.nn.SiLU(),
-            nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
-            nn.LayerNorm(attn_weight_input_dim),
+            # nn.LayerNorm(attn_weight_input_dim),
+            # torch.nn.SiLU(),
+            # nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
+            # nn.LayerNorm(attn_weight_input_dim),
             torch.nn.SiLU(),
             nn.Linear(attn_weight_input_dim, 2 * num_attn_heads),
         )
@@ -3322,11 +3322,11 @@ class TransBlock(torch.nn.Module):
             proj_drop=proj_drop,
         )
 
-        self.norm_3 = get_norm_layer(norm_layer)(self.irreps_node_input)
-        self.ffn_vec2scalar = FeedForwardVec2Scalar(
-            irreps_node_input=self.irreps_node_input,  # self.concat_norm_output.irreps_out,
-            irreps_node_output=self.irreps_node_output,
-        )
+        # self.norm_3 = get_norm_layer(norm_layer)(self.irreps_node_input)
+        # self.ffn_vec2scalar = FeedForwardVec2Scalar(
+        #     irreps_node_input=self.irreps_node_input,  # self.concat_norm_output.irreps_out,
+        #     irreps_node_output=self.irreps_node_output,
+        # )
 
         self.add_rope = add_rope
 
@@ -3516,7 +3516,6 @@ class EdgeDegreeEmbeddingNetwork_higherorder(torch.nn.Module):
         )
         if self.irreps_node_embedding[0][1].l != 0:
             raise ValueError("node embedding must have sph order 0 embedding.")
-
         self.gbf = GaussianLayer(number_of_basis)  # default output_dim = 128
         self.gbf_projs = nn.ModuleList()
 

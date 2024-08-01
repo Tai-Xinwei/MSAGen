@@ -19,6 +19,7 @@ class VecInitApproach(Enum):
 class DiffusionTrainingLoss(Enum):
     L1: str = "L1"
     MSE: str = "MSE"
+    SmoothL1: str = "SmoothL1"
 
     def __str__(self):
         return self.value
@@ -27,6 +28,8 @@ class DiffusionTrainingLoss(Enum):
 class ForceLoss(Enum):
     L1: str = "L1"
     MSE: str = "MSE"
+    SmoothL1: str = "SmoothL1"
+    NoiseTolerentL1: str = "NoiseTolerentL1"
 
     def __str__(self):
         return self.value
@@ -125,6 +128,7 @@ class PSMConfig(GraphormerConfig):
     use_smooth_equviariant_norm: bool = False
     no_rotary_embedding_for_vector: bool = False
     mlm_from_decoder_feature: bool = True
+    disable_data_aug: bool = False
     use_fp32_in_decoder: bool = False
 
     # for 2D information
@@ -140,8 +144,11 @@ class PSMConfig(GraphormerConfig):
     material_force_loss_ratio: float = 1.0
     material_energy_loss_ratio: float = 1.0
     molecule_energy_loss_ratio: float = 1.0
+    energy_per_atom_label_scale: float = 1.0
+    molecule_energy_per_atom_std_override: float = 1.0
     decoder_feat4energy: bool = True
     AutoGradForce: bool = False
+    NoisePredForce: bool = False
     seq_only: bool = False
     freeze_backbone: bool = False
     hard_dist_loss_raito: float = 20.0

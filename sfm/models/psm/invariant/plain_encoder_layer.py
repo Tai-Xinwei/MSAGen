@@ -96,6 +96,7 @@ class PSMPlainEncoderLayer(nn.Module):
         padding_mask: torch.Tensor,
         batched_data: Dict,
         pbc_expand_batched: Optional[Dict[str, torch.Tensor]] = None,
+        mixed_attn_bias: Optional[torch.Tensor] = None,
         ifbackprop: bool = False,
     ):
         """
@@ -115,6 +116,7 @@ class PSMPlainEncoderLayer(nn.Module):
                 is_protein=batched_data["is_protein"],
                 position_ids=batched_data["position_ids"],
                 pbc_expand_batched=pbc_expand_batched,
+                attn_bias=mixed_attn_bias,
                 math_kernel=math_kernel,
             )
         else:
@@ -125,6 +127,7 @@ class PSMPlainEncoderLayer(nn.Module):
                 attn_mask=None,
                 # position_ids=batched_data["position_ids"],
                 pbc_expand_batched=pbc_expand_batched,
+                attn_bias=mixed_attn_bias,
                 math_kernel=math_kernel,
             )
         x = residual + x

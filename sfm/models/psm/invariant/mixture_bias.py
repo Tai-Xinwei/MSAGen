@@ -105,8 +105,8 @@ class PSMBias(nn.Module):
         if local_attention_weight is not None:
             local_attention_weight = local_attention_weight.to(dtype=edge_feature.dtype)
             edge_feature = edge_feature * local_attention_weight.unsqueeze(-1)
+
         edge_feature = edge_feature.sum(dim=-2)
-        # print(edge_feature.dtype,self.pos_embedding_proj.weight.data.dtype)
         pos_embedding_feature = self.pos_embedding_proj(
             edge_feature.to(self.pos_embedding_proj.weight.data.dtype)
         )

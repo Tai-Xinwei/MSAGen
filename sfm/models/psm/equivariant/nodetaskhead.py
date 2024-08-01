@@ -7,8 +7,12 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from sfm.models.psm.modules.multihead_attention import (
+    MemEffAttnWithProteinRotaryEmbedding,
+)
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.modules.layer_norm import AdaNorm
+from sfm.modules.mem_eff_attn import MemEffAttn
 
 
 class NodeTaskHead(nn.Module):
@@ -39,6 +43,7 @@ class NodeTaskHead(nn.Module):
         self,
         batched_data: Dict,
         x,
+        attn_bias,
         padding_mask,
         pbc_expand_batched: Optional[Dict] = None,
     ) -> Tensor:
@@ -94,6 +99,7 @@ class NodeTaskHead(nn.Module):
             v_e = v_e.view(bsz, extend_n_node, self.num_heads, -1).transpose(1, 2)
 
         attn = q @ k.transpose(-1, -2)  # [bsz, head, n, n]
+        attn = attn + attn_bias
         min_dtype = torch.finfo(k.dtype).min
         attn = attn.masked_fill(expand_mask.unsqueeze(1).unsqueeze(2), min_dtype)
         attn = attn.masked_fill(padding_mask.unsqueeze(1).unsqueeze(-1), min_dtype)
@@ -102,6 +108,7 @@ class NodeTaskHead(nn.Module):
         attn_probs = attn_probs_float.type_as(attn)
         attn_probs = attn_probs.view(bsz, self.num_heads, n_node, extend_n_node)
 
+        # [bsz, n, n_extend, 3]
         delta_pos = delta_pos.masked_fill(padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0)
         rot_attn_probs = attn_probs.unsqueeze(-1) * delta_pos.unsqueeze(1).type_as(
             attn_probs
@@ -128,41 +135,11 @@ class NodeTaskHead(nn.Module):
         return decoder_x_output, decoder_vec_output
 
 
-class Non_equi_head(nn.Module):
-    def __init__(
-        self,
-        psm_config: PSMConfig,
-    ):
-        # )
-        super().__init__()
-        embed_dim = psm_config.encoder_embed_dim
-        self.mlp = nn.Sequential(
-            nn.Linear(embed_dim, embed_dim * 4),
-            nn.ReLU(),
-            nn.Linear(embed_dim * 4, embed_dim * 3),
-        )
-
-    def forward(
-        self,
-        batched_data: Dict,
-        x,
-        padding_mask,
-        pbc_expand_batched: Optional[Dict] = None,
-    ) -> Tensor:
-        # query = query.contiguous()
-        x = x.transpose(0, 1)
-        bsz, n_node, _ = x.size()
-
-        decoder_x_output = x
-        decoder_vec_output = self.mlp(x).view(bsz, n_node, 3, -1)
-
-        return decoder_x_output, decoder_vec_output
-
-
 class VectorOutput(nn.Module):
     def __init__(self, hidden_channels=768):
         super(VectorOutput, self).__init__()
-        self.adanorm = AdaNorm(hidden_channels)
+        # self.adanorm = AdaNorm(hidden_channels)
+        # self.output_network = nn.Linear(hidden_channels, 1, bias=False)
         self.output_network = nn.Sequential(
             nn.Linear(hidden_channels, hidden_channels, bias=False),
             nn.SiLU(),
@@ -170,7 +147,7 @@ class VectorOutput(nn.Module):
         )
 
     def forward(self, x, v):
-        v = self.adanorm(v)
+        # v = self.adanorm(v)
         v = self.output_network(v)
         return v.squeeze(-1)
 
@@ -181,9 +158,86 @@ class VectorProjOutput(nn.Module):
         self.output_network = nn.Sequential(
             nn.Linear(hidden_channels, hidden_channels, bias=False),
             nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
             nn.Linear(hidden_channels, 3, bias=False),
         )
 
     def forward(self, x, v):
         x = self.output_network(x)
+        return x
+
+
+class ForceVecOutput(nn.Module):
+    def __init__(self, hidden_channels=768):
+        super(ForceVecOutput, self).__init__()
+        self.mlp = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels, bias=False),
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 3 * hidden_channels, bias=False),
+        )
+        self.proj = nn.Sequential(
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 1, bias=False),
+        )
+
+    def forward(self, x, v):
+        x = self.mlp(x)
+        x = x.view(x.size(0), x.size(1), 3, -1)
+        x = self.proj(x).squeeze(-1)
+        return x
+
+
+class VectorGatedOutput(nn.Module):
+    def __init__(self, hidden_channels=768):
+        super(VectorGatedOutput, self).__init__()
+        self.up_proj = nn.Sequential(
+            nn.Linear(hidden_channels, 3 * hidden_channels, bias=False),
+            nn.SiLU(),
+            nn.LayerNorm(3 * hidden_channels),
+        )
+        self.gate_proj = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels, bias=False),
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+        )
+        self.vec_proj = nn.Sequential(
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 1, bias=False),
+        )
+
+    def forward(self, x, v):
+        gate = self.gate_proj(x)
+        vec = self.up_proj(x)
+        vec = vec.view(x.size(0), x.size(1), 3, -1)
+        x = self.vec_proj(vec * gate.unsqueeze(-2)).squeeze(-1)
+        return x
+
+
+class ForceGatedOutput(nn.Module):
+    def __init__(self, hidden_channels=768):
+        super(ForceGatedOutput, self).__init__()
+        self.up_proj = nn.Sequential(
+            nn.Linear(hidden_channels, 3 * hidden_channels, bias=False),
+            nn.SiLU(),
+            nn.LayerNorm(3 * hidden_channels),
+        )
+        self.gate_proj = nn.Sequential(
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 3, bias=False),
+        )
+        self.vec_proj = nn.Sequential(
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 1, bias=False),
+        )
+
+    def forward(self, x, v):
+        gate = self.gate_proj(x)
+        vec = self.up_proj(x)
+        vec = vec.view(x.size(0), x.size(1), 3, -1)
+        x = self.vec_proj(vec).squeeze(-1) * gate
         return x

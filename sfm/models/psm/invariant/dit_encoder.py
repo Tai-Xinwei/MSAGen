@@ -71,6 +71,7 @@ class DiTBlock(nn.Module):
         padding_mask,
         batched_data,
         pbc_expand_batched=None,
+        mixed_attn_bias=None,
         ifbackprop=False,
     ):
         math_kernel = ifbackprop and pbc_expand_batched is not None
@@ -90,6 +91,7 @@ class DiTBlock(nn.Module):
                 is_protein=batched_data["is_protein"],
                 position_ids=batched_data["position_ids"],
                 pbc_expand_batched=pbc_expand_batched,
+                attn_bias=mixed_attn_bias,
                 math_kernel=math_kernel,
             )[0].transpose(0, 1)
         else:
@@ -98,6 +100,7 @@ class DiTBlock(nn.Module):
                 key_padding_mask=padding_mask,
                 position_ids=batched_data["position_ids"],
                 pbc_expand_batched=pbc_expand_batched,
+                attn_bias=mixed_attn_bias,
                 math_kernel=math_kernel,
             )[0].transpose(0, 1)
         x = x + gate_mlp * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
@@ -128,6 +131,7 @@ class PSMDiTEncoder(nn.Module):
         padding_mask: torch.Tensor,
         batched_data: Dict,
         pbc_expand_batched: Optional[Dict] = None,
+        mixed_attn_bias: Optional[torch.Tensor] = None,
         ifbackprop: bool = False,
     ):
         """
@@ -141,6 +145,7 @@ class PSMDiTEncoder(nn.Module):
                 padding_mask,
                 batched_data,
                 pbc_expand_batched=pbc_expand_batched,
+                mixed_attn_bias=mixed_attn_bias,
                 ifbackprop=ifbackprop,
             )
         return x

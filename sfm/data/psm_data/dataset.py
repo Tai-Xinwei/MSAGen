@@ -88,11 +88,11 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             self._txn = self._env.begin(write=False)
             self._keys = keys
             self._sizes = sizes
-        else:
-            self.filter_indices_by_size(
-                indices=np.array(range(len(self.keys))),
-                max_sizes=self.args.max_length - 2,
-            )
+        # else:
+        #     self.filter_indices_by_size(
+        #         indices=np.array(range(len(self.keys))),
+        #         max_sizes=self.args.max_length - 2,
+        #     )
 
         self.energy_per_atom_scale = getattr(
             self.args, "energy_per_atom_label_scale", None
@@ -1851,7 +1851,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             polymer_ligand_adj[:polymer_len] = True
             polymer_ligand_adj |= (
                 polymer_ligand_adj.clone().T
-            )  # torch disallow inplace operation
+            )  # torch disallow inplace operationS
             adj |= polymer_ligand_adj
         else:
             # multimers

@@ -37,6 +37,7 @@ class PSMPlainEncoder(nn.Module):
         padding_mask: torch.Tensor,
         batched_data: Dict,
         pbc_expand_batched: Optional[Dict] = None,
+        mixed_attn_bias: Optional[torch.Tensor] = None,
         ifbackprop: bool = False,
     ):
         """
@@ -48,6 +49,7 @@ class PSMPlainEncoder(nn.Module):
                 x,
                 padding_mask,
                 batched_data,
+                mixed_attn_bias=mixed_attn_bias,
                 pbc_expand_batched=pbc_expand_batched,
                 ifbackprop=ifbackprop,
             )

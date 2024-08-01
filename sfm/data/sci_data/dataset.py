@@ -13,6 +13,7 @@ from sfm.data.prot_data.dataset import DownstreamLMDBDataset
 from sfm.data.prot_data.util import bstr2obj
 from sfm.data.sci_data import SFMDecTokenizer
 from sfm.logging import logger
+from sfm.pipeline.accelerator.dataclasses import TrainStrategy
 
 # we have to use named tuple to avoid being convreted to list by pytorch,
 # but also compatible with DeepSpeed PP
@@ -287,6 +288,7 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
 class ProcessedSciWeightedDatasetLmdb(ProcessedSciDatasetLmdb):
     def __init__(
         self,
+        args,
         data_dir: str,
         path: str,
         padding_idx: int,
@@ -310,10 +312,42 @@ class ProcessedSciWeightedDatasetLmdb(ProcessedSciDatasetLmdb):
         logger.info(f"data_size_list {self.data_size_list}")
         logger.info(f"acc_data_size_list {self.acc_data_size_list}")
 
+        self.args = args
+        self.__init_seed(args)
+
+    def __init_seed(self, args):
+        if args.strategy == TrainStrategy.ThreeD:
+            from deepspeed.runtime.pipe.topology import (
+                PipelineParallelGrid,
+                PipeModelDataParallelTopology,
+            )
+
+            from megatron.core import mpu
+
+            topology = PipeModelDataParallelTopology(
+                num_pp=mpu.get_pipeline_model_parallel_world_size(),
+                num_mp=mpu.get_tensor_model_parallel_world_size(),
+                num_dp=mpu.get_data_parallel_world_size(),
+            )
+            self.dp_rank = PipelineParallelGrid(
+                topology=topology
+            ).get_data_parallel_rank()
+            logger.warning(f"global_rank {args.rank}, dp_rank {self.dp_rank}")
+        else:
+            self.dp_rank = args.rank // args.pipeline_model_parallel_size
+
+        self.global_index = 0
+
     def __getitem__(self, index):
         # get data from the corresponding dataset with the probability of data_raio
+        np.random.seed(self.dp_rank + self.global_index)
+        self.global_index += 1
+        if self.global_index >= 2147480000:
+            self.global_index = 0
+
         list_index = np.random.choice(len(self.data_raio), p=self.data_raio)
         data_index = np.random.randint(0, self.data_size_list[list_index])
+
         data_index, offset = divmod(data_index, self.replicate)
         key = self.keys_list[list_index][data_index]
         value = self.txn_list[list_index].get(str(key).encode())

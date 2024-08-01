@@ -276,26 +276,26 @@ class SFMPipeEngine(DeepSpeedEngine):
         self.para_dict = {}
         self.id2paramname = {}
 
-        # AllReduce profile
-        self.event_timer_id = 0
-        self.start_event = torch.cuda.Event(enable_timing=True)
-        self.end_event = torch.cuda.Event(enable_timing=True)
-        self.allreduce_data = torch.zeros(64, 1024, 1024, dtype=torch.bfloat16).to(
-            self.device
-        )
-        cudaDeviceId = str(self.device).split(":")[1]
+        # # AllReduce profile
+        # self.event_timer_id = 0
+        # self.start_event = torch.cuda.Event(enable_timing=True)
+        # self.end_event = torch.cuda.Event(enable_timing=True)
+        # self.allreduce_data = torch.zeros(64, 1024, 1024, dtype=torch.bfloat16).to(
+        #     self.device
+        # )
+        # cudaDeviceId = str(self.device).split(":")[1]
 
-        args = super_kwargs.get("args", None)
-        allreduce_log_path = "/tmp/stragglers"
-        if args is not None and hasattr(args, "allreduce_log_path"):
-            allreduce_log_path = args.allreduce_log_path
+        # args = super_kwargs.get("args", None)
+        # allreduce_log_path = "/tmp/stragglers"
+        # if args is not None and hasattr(args, "allreduce_log_path"):
+        #     allreduce_log_path = args.allreduce_log_path
 
-        file_name = os.path.join(
-            allreduce_log_path,
-            f"{cudaDeviceId}_{self.grid.get_stage_id()}_{self.grid.data_parallel_id}.txt",
-        )
-        os.makedirs(allreduce_log_path, exist_ok=True)
-        self.file = open(file_name, "a")
+        # file_name = os.path.join(
+        #     allreduce_log_path,
+        #     f"{cudaDeviceId}_{self.grid.get_stage_id()}_{self.grid.data_parallel_id}.txt",
+        # )
+        # os.makedirs(allreduce_log_path, exist_ok=True)
+        # self.file = open(file_name, "a")
 
     #     ranks_per_node = 8
     #     node_world_size = self.module.world_size//ranks_per_node

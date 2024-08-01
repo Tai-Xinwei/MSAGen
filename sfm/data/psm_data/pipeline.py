@@ -4,9 +4,16 @@ import math
 from typing import Any
 
 import numpy as np
-import nvidia.dali as dali
+
+from sfm.logging import logger
+
+try:
+    import nvidia.dali as dali
+    from nvidia.dali.plugin.pytorch import DALIGenericIterator
+except:
+    logger.warning("DALI is not installed, please install it to use DALI pipeline")
+
 import torch
-from nvidia.dali.plugin.pytorch import DALIGenericIterator
 from torch.utils.data import IterableDataset
 
 from sfm.models.psm.psm_config import PSMConfig
