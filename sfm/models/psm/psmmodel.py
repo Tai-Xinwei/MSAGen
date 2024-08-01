@@ -1261,7 +1261,6 @@ class PSM(nn.Module):
                 batched_data,
                 mixed_attn_bias,
                 pbc_expand_batched,
-                time_embed=time_embed,
             )
 
             if not skip_decoder:
@@ -1271,6 +1270,7 @@ class PSM(nn.Module):
                     mixed_attn_bias[-1] if mixed_attn_bias is not None else None,
                     padding_mask,
                     pbc_expand_batched,
+                    time_embed=time_embed,
                 )
         elif self.args.backbone in ["vectorvanillatransformer"]:
             decoder_x_output, decoder_vec_output = self.decoder(
@@ -1310,8 +1310,8 @@ class PSM(nn.Module):
                 else:
                     energy_per_atom = torch.where(
                         is_periodic.unsqueeze(-1),
-                        self.energy_head["periodic"](decoder_vec_output).squeeze(-1),
-                        self.energy_head["molecule"](decoder_vec_output).squeeze(-1),
+                        self.energy_head["periodic"](decoder_x_output).squeeze(-1),
+                        self.energy_head["molecule"](decoder_x_output).squeeze(-1),
                     )
 
                 if self.args.diffusion_mode == "epsilon":
