@@ -43,8 +43,10 @@ def xyz2mol(
                     mw.AddBond(i, j, Chem.BondType.DOUBLE)
                 elif order == 3:
                     mw.AddBond(i, j, Chem.BondType.TRIPLE)
+                elif order == 4:
+                    mw.AddBond(i, j, Chem.BondType.AROMATIC)
                 else:
-                    mw.AddBond(i, j, Chem.BondType.SINGLE)
+                    raise ValueError(f"Invalid bond order: {order}")
             Chem.SanitizeMol(mw)
         else:
             rdDetermineBonds.DetermineBonds(mw, charge=charge)

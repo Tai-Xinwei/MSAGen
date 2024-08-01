@@ -2,13 +2,12 @@ description: pubchemqc-b3lyp-pm6_validate
 
 target:
   service: aml
-  name: sfm-nc96-westus3
+  name: sfm-nc96adsa100v4-eastus2
 
 env_defaults:
   WANDB_PROJECT: psm_eval
   WANDB_GROUP: pubchemqc-b3lyp-pm6_validate_energy
   MODEL_CONFIG: PSM300M_V0
-  GPUS: 4
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -39,15 +38,19 @@ jobs:
 
   - export WANDB_RUN_NAME=${MODEL_CONFIG}_${WANDB_GROUP}_$$(date -u +%Y%m%d.%H%M%S)
 
+  - export val_batch_size=256
   - if [[ "$MODEL_CONFIG" == "PSM300M_V0" ]]; then
       export EXTRA_ARGS="+energy_per_atom_label_scale=0.05 +molecule_energy_per_atom_std_override=1.0";
+    elif [[ "$MODEL_CONFIG" == "PSM1B_V0" ]]; then
+      export EXTRA_ARGS="+energy_per_atom_label_scale=1.0 +molecule_energy_per_atom_std_override=1.0";
+      export val_batch_size=128;
     elif [[ "$MODEL_CONFIG" == "PSM300M_VT" ]]; then
       export EXTRA_ARGS="+disable_data_aug=true";
     else
       export EXTRA_ARGS="";
     fi
 
-  - torchrun --nproc_per_node $GPUS sfm/tasks/psm/pretrain_psm.py
+  - torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_psm.py
     --config-name=$MODEL_CONFIG
     psm_validation_mode=true
     data_path_list=PubChemQC-B3LYP-PM6
@@ -55,10 +58,9 @@ jobs:
     dataset_split_raito=1.0
     clean_sample_ratio=1.0
     use_unified_batch_sampler=false
-    val_batch_size=256
+    val_batch_size=$$val_batch_size
     val_batch_log_interval=100
     sample_in_validation=false
-    sampled_structure_output_path=/blob/psm-outputs/$$WANDB_RUN_NAME/sampled_structures
     wandb_team=ai4s-sfm
     wandb_project=$WANDB_PROJECT
     wandb_group=$WANDB_GROUP

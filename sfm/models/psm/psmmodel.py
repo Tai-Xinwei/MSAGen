@@ -868,7 +868,7 @@ class PSM(nn.Module):
             self.encoder = PSMEncoder(args, psm_config)
             # Implement the decoder
             self.decoder = EquivariantDecoder(psm_config)
-        if args.backbone == "graphormer-e2":
+        elif args.backbone == "graphormer-e2":
             # Implement the encoder
             self.encoder = PSMEncoder(args, psm_config)
             # Implement the decoder
@@ -905,9 +905,11 @@ class PSM(nn.Module):
                 self.energy_head.update(
                     {
                         key: nn.Sequential(
-                            AdaNorm(psm_config.embedding_dim)
-                            if self.psm_config.decoder_feat4energy
-                            else nn.Identity(),
+                            (
+                                AdaNorm(psm_config.embedding_dim)
+                                if self.psm_config.decoder_feat4energy
+                                else nn.Identity()
+                            ),
                             nn.Linear(
                                 psm_config.embedding_dim,
                                 psm_config.embedding_dim,
