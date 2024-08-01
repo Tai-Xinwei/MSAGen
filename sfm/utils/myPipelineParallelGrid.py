@@ -285,7 +285,6 @@ class myPipelineParallelGrid:
                 else:
                     num_dp *= prime
             self._topo = PipeDataParallelTopology(num_dp=num_dp, num_pp=num_pp)
-            # self._topo = PipeModelDataParallelTopology(num_dp=num_dp, num_pp=num_pp, num_mp=1)
 
         self.data_parallel_size = max(self._topo.get_dim("data"), 1)
         self.pipe_parallel_size = max(self._topo.get_dim("pipe"), 1)

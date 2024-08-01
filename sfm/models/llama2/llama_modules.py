@@ -444,7 +444,7 @@ class NumMLP(nn.Module):
 
 
 class LlamaHead(nn.Module):
-    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 32001):
+    def __init__(self, config: LlamaConfig, learnable_cutoff: int = 128256):
         super().__init__()
         self.config = config
 
@@ -459,7 +459,7 @@ class LlamaHead(nn.Module):
         return self.lm_head.weight
 
     def freeze_parital_weight_hook(self, grad):
-        grad[: self.learnable_cutoff, :] = 0
+        grad[: self.learnable_cutoff, :] = 0.000
         return grad
 
     def resize_token_embeddings(self, new_num_tokens: int) -> None:

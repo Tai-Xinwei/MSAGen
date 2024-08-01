@@ -229,6 +229,7 @@ class EquivariantLayerNorm(nn.Module):
         if self.use_smooth_norm:
             # input B x N x rank_num x d
             input_norm = input.pow(2).sum(dim=-2, keepdim=True)  # B x N x 1 x C
+
             input_norm = torch.mean(input_norm, dim=-1)  # B x N x 1
             input_norm = (input_norm + self.eps).pow(-0.5)  # B x N x 1
 
@@ -1806,6 +1807,7 @@ class GeomFormer(nn.Module):
             uni_pos_feature = uni_pos_feature.masked_fill(
                 expand_mask.unsqueeze(1).unsqueeze(-1), 0.0
             )
+
             if (
                 self.psm_config.equivar_vec_init
                 == VecInitApproach.AUGMENTED_RELATIVE_POS

@@ -46,7 +46,7 @@ class GraphormerConfig:
     ddpm_beta_end: float = 0.002
     ddpm_schedule: str = "sigmoid"
     noise_mode: str = "const"
-    num_edges: int = 1536
+    num_edges: int = 25600
     num_atom_features: int = 5120
     ###########################################################################################
     ####### THESE are from graphormer_base_architecture, is confict, follow upper default vaule.

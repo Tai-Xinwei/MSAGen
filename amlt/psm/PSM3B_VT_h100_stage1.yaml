@@ -37,7 +37,7 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: psmv1_vt_v11_3b_stage1
+- name: psmv1_vt_v12_3b_stage1
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}-IB
   mpi: true
@@ -75,17 +75,19 @@ jobs:
   - export log_interval=100
   - export data_path=/psm/data/
   - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240630_PDB_Training_Data,complex.preprocessed.large'
-  - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
-  - export dataset_split_raito='0.2,0.05,0.3,0.15,0.1,0.1,0.1'
-  - export dataset_micro_batch_size='32,1,4,1,3,4,2'
-  - export mode_prob='0.4,0.4,0.2'
+  - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer'
+  - export dataset_split_raito='0.2,0.1,0.3,0.1,0.1,0.1,0.1'
+  - export dataset_micro_batch_size='24,1,4,1,1,4,4'
+  - export mode_prob='0.3,0.6,0.1'
   - export fp16=False
   - export clean_sample_ratio=0.7
-  - export energy_loss_ratio=0.1
-  - export force_loss_ratio=0.1
+  - export molecule_energy_loss_ratio=10.0
+  - export material_energy_loss_ratio=1.0
+  - export material_force_loss_ratio=2.0
   # - export num_timesteps=1000
   # - export ddpm_beta_start=1e-4
   # - export ddpm_beta_end=2e-2
+  - export decoder_feat4energy=False
   - export AutoGradForce=True
   - export use_hard_dist_loss=True
   - export use_unified_batch_sampler=True
@@ -93,8 +95,8 @@ jobs:
   - export use_dali_pipeline=False
   - export save_batch_interval=5000
   # - export only_use_rotary_embedding_for_protein=True
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v11_3b/checkpoints
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v11_3b/checkpoints
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_vt_v12_3b/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_vt_v12_3b/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120

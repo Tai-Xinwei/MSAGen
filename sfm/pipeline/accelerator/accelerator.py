@@ -34,6 +34,8 @@ from sfm.pipeline.accelerator.dataclasses import (
 )
 from sfm.pipeline.accelerator.fp16_scaler import FP16Scaler
 from sfm.utils.move_to_device import move_to_device
+
+# from sfm.utils.myPipelineParallelGrid import PipeModelDataParallelTopology
 from sfm.utils.PPEngine import initialize as initialize_pp_engine
 
 from .model import Model

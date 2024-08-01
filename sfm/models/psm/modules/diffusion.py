@@ -22,7 +22,7 @@ class DDPM(DiffusionProcess):
     def __init__(self, alpha_cummlative_product: Tensor) -> None:
         super().__init__(alpha_cummlative_product)
 
-    def sample_step(self, x_t, x_init_pos, predicted_noise, epsilon, t):
+    def sample_step(self, x_t, x_init_pos, predicted_noise, epsilon, t, step_size=1):
         hat_alpha_t = self.alpha_cummlative_product[t]
         hat_alpha_t_1 = 1.0 if t == 0 else self.alpha_cummlative_product[t - 1]
         alpha_t = hat_alpha_t / hat_alpha_t_1
@@ -47,11 +47,11 @@ class ODE(DiffusionProcess):
     def __init__(self, alpha_cummlative_product: Tensor) -> None:
         super().__init__(alpha_cummlative_product)
 
-    def sample_step(self, x_t, x_init_pos, predicted_noise, epsilon, t):
+    def sample_step(self, x_t, x_init_pos, predicted_noise, epsilon, t, step_size=1):
         hat_alpha_t = self.alpha_cummlative_product[t]
         hat_alpha_t_1 = 1.0 if t == 0 else self.alpha_cummlative_product[t - 1]
         alpha_t = hat_alpha_t / hat_alpha_t_1
-        beta_t = 1 - alpha_t
+        beta_t = (1 - alpha_t) * step_size
         score = -predicted_noise / (1.0 - self.alpha_cummlative_product[t]).sqrt()
 
         x_t_minus_1 = (

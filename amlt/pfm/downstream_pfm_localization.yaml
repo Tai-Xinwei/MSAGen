@@ -2,7 +2,6 @@ description: bfm-finetune
 
 target:
     service: aml
-    # name: gcrarca100cl1
     name: sfm-nd96amsra100v4-uksouth
     # name: sfm-nc96-westus3
 

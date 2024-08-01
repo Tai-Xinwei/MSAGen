@@ -9,14 +9,17 @@ import torch.nn as nn
 from deepspeed import comm as dist
 from deepspeed.runtime import utils as ds_utils
 from deepspeed.runtime.activation_checkpointing import checkpointing
+from deepspeed.runtime.pipe.topology import (
+    PipeDataParallelTopology,
+    PipelineParallelGrid,
+)
 from deepspeed.runtime.state_dict_factory import SDLoaderFactory
 
 # from deepspeed.utils import logger
 from sfm.logging import logger
 from sfm.utils.pretrained_layer_spec import PretrainedLayerSpec, TiedPretrainedLayerSpec
 
-# from deepspeed.runtime.pipe.topology import PipeDataParallelTopology, PipelineParallelGrid
-from .myPipelineParallelGrid import PipeDataParallelTopology, myPipelineParallelGrid
+# from .myPipelineParallelGrid import PipeDataParallelTopology, myPipelineParallelGrid
 
 
 class PipelineError(Exception):
@@ -236,7 +239,7 @@ class PipelineModule(nn.Module):
                 self._topo = topology
 
         # Construct communicators for pipeline topology
-        self._grid = myPipelineParallelGrid(
+        self._grid = PipelineParallelGrid(
             process_group=self.world_group, topology=self._topo
         )
 
