@@ -981,16 +981,16 @@ class PSM(nn.Module):
                     self.forces_head.update(
                         {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
-            elif args.backbone in ["dit"]:
-                self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
-                if self.psm_config.force_head_type == ForceHeadType.LINEAR:
-                    self.forces_head.update(
-                        {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
-                    )
-                else:
-                    self.forces_head.update(
-                        {key: ForceGatedOutput(psm_config.embedding_dim)}
-                    )
+            # elif args.backbone in ["dit"]:
+            #     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
+            #     if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+            #         self.forces_head.update(
+            #             {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+            #         )
+            #     else:
+            #         self.forces_head.update(
+            #             {key: ForceGatedOutput(psm_config.embedding_dim)}
+            #         )
             else:
                 self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
@@ -1218,11 +1218,8 @@ class PSM(nn.Module):
                 encoder_output = self.layer_norm(encoder_output)
                 # decoder_x_output, decoder_vec_output = encoder_output, None
                 # encoder_output = encoder_output.transpose(0, 1)
-
-                decoder_x_output = encoder_output
-
                 if not self.args.seq_only:
-                    _, decoder_vec_output = self.decoder(
+                    decoder_x_output, decoder_vec_output = self.decoder(
                         batched_data,
                         encoder_output.transpose(0, 1),
                         mixed_attn_bias,
@@ -1247,12 +1244,8 @@ class PSM(nn.Module):
                 else nullcontext()
             ):
                 encoder_output = self.layer_norm(encoder_output)
-                # decoder_x_output, decoder_vec_output = encoder_output, None
-                # encoder_output = encoder_output.transpose(0, 1)
-
-                decoder_x_output = encoder_output
                 if not self.args.seq_only:
-                    _, decoder_vec_output = self.decoder(
+                    decoder_x_output, decoder_vec_output = self.decoder(
                         batched_data,
                         encoder_output.transpose(0, 1),
                         mixed_attn_bias,
@@ -1306,16 +1299,20 @@ class PSM(nn.Module):
             else nullcontext()
         ):
             if not self.args.seq_only:
-                if self.args.backbone in ["dit", "e2dit"]:
-                    noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
-                else:
-                    noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
+                noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
 
-                energy_per_atom = torch.where(
-                    is_periodic.unsqueeze(-1),
-                    self.energy_head["periodic"](decoder_x_output).squeeze(-1),
-                    self.energy_head["molecule"](decoder_x_output).squeeze(-1),
-                )
+                if self.args.backbone in ["dit", "e2dit"]:
+                    energy_per_atom = torch.where(
+                        is_periodic.unsqueeze(-1),
+                        self.energy_head["periodic"](encoder_output).squeeze(-1),
+                        self.energy_head["molecule"](encoder_output).squeeze(-1),
+                    )
+                else:
+                    energy_per_atom = torch.where(
+                        is_periodic.unsqueeze(-1),
+                        self.energy_head["periodic"](decoder_vec_output).squeeze(-1),
+                        self.energy_head["molecule"](decoder_vec_output).squeeze(-1),
+                    )
 
                 if self.args.diffusion_mode == "epsilon":
                     scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)

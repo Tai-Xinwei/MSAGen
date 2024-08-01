@@ -1,7 +1,7 @@
 description: train_sfm_nlm8B
 
 env_defaults:
-  NODES: 16
+  NODES: 8
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -47,8 +47,8 @@ search:
       - pip uninstall flash-attn -y
       - pip install ase
       - python tools/nlm/compute_text_data_ratio.py {text_raito} {prot_raito} {dna_raito} {other_raito}
-      - export train_batch_size=2048
-      - export val_batch_size=2048
+      - export train_batch_size=1024
+      - export val_batch_size=1024
       - export gradient_accumulation_steps=32
       - export tensor_model_parallel_size=1
       - export pipeline_model_parallel_size=2
