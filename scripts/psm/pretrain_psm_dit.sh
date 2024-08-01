@@ -72,8 +72,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,pdbcomplexmultimer'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.05,0.3,0.15,0.1'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='200,32,48,32'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='120,18,36,18,36'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,24,12,24'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='120,18,36,18,36'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,24,12,24'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='112,12,24,12,24'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,afdb,pdbcomplexmultimer'
@@ -97,7 +97,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
-[ -z "${fp16}" ] && fp16=True
+[ -z "${fp16}" ] && fp16=False
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
