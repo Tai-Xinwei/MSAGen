@@ -30,6 +30,12 @@ def crop_chain(
     # Get the index of the atoms within the crop size
     idxes = np.where(dists < crop_size)[0]
 
+    if len(idxes) > 768:
+        idxes2 = np.argsort(dists)[:768]
+        # only pick those in indes
+        idxes = np.intersect1d(idxes, idxes2)
+        idxes = np.sort(idxes)
+
     return idxes
 
 

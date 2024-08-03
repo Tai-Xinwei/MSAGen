@@ -307,7 +307,7 @@ class PSMModel(Model):
         )
         # set special token "<.>" to clean
         token_id = batched_data["token_id"]
-        clean_mask = clean_mask.masked_fill(token_id >= 156, True)
+        clean_mask = clean_mask.masked_fill(token_id == 156, True)
 
         # set T noise if protein is seq only
         time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)

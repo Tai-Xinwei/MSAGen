@@ -1628,7 +1628,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         sizes: Optional[List[int]] = None,
     ):
         version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.ligand_protein_filteredNan.lmdb"
-        self.crop_radius = args.crop_radius
+        self.crop_radius = 40  # args.crop_radius
 
         if lmdb_path.find(version) == -1:
             lmdb_path = os.path.join(lmdb_path, version)

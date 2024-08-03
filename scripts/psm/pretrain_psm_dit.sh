@@ -70,10 +70,10 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12"
 [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,pdbcomplexmultimer'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.05,0.3,0.15,0.1'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.4,0.15,0.1'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='200,32,48,32'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='120,18,36,18,36'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,24,12,24'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,24,12,6'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='112,12,24,12,24'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,afdb,pdbcomplexmultimer'
@@ -97,11 +97,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
-[ -z "${fp16}" ] && fp16=True
+[ -z "${fp16}" ] && fp16=False
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/ckpt/psm/psmv1_vt_v8/"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints/global_step25684/mp_rank_00_model_states.pt"
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step252285"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
 
@@ -144,7 +144,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
-[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
@@ -276,6 +276,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy \
           NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
           rescale_loss_with_std=$rescale_loss_with_std \
+          loadcheck_path=$loadcheck_path \
           # ifresume=True \
 
 #           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
+sleep infinity
