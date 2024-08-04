@@ -95,8 +95,9 @@ class PSMConfig(GraphormerConfig):
     add_unit_cell_virtual_node: bool = False
     lattice_size: float = 4.0
 
-    # for protein
-    crop_radius: float = 25.0
+    # for protein and complex
+    crop_radius: float = 50.0
+    max_residue_num: int = 768  # max token number in complex and multi-chain protein
     mode_prob: str = "0.1,0.4,0.5"
 
     # for diffusion

@@ -1628,7 +1628,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
         sizes: Optional[List[int]] = None,
     ):
         version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.ligand_protein_filteredNan.lmdb"
-        self.crop_radius = 40  # args.crop_radius
+        self.crop_radius = args.crop_radius
+        self.max_residue_num = args.max_residue_num
 
         if lmdb_path.find(version) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
@@ -1670,6 +1671,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             # pick random ligand from non-polymer to choose crop center
             center_ligand_idx = random.choice(range(len(non_polymers)))
             crop_center_ligand = non_polymers[center_ligand_idx]["node_coord"]
+            keep_num = self.max_residue_num - len(crop_center_ligand)
             # pick random atom from ligand as crop center, there is nan in the ligand node_coord, avoid it
             crop_center_ligand = crop_center_ligand[
                 np.any(~np.isnan(crop_center_ligand), axis=-1)
@@ -1677,6 +1679,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             crop_center = random.choice(crop_center_ligand)
         elif len(polymer_chains_idxes) > 0:
             center_ligand_idx = -1
+            keep_num = self.max_residue_num
             # pick random polymer from non-polymer to choose crop center
             polymer_chains_idx = random.choice(range(len(polymer_chains_idxes)))
             chain_name = polymer_chains_idxes[polymer_chains_idx]
@@ -1699,6 +1702,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             self.crop_radius,
             center_ligand_idx,
             crop_center,
+            keep_num=keep_num,
         )
 
         # reconstruct the graph

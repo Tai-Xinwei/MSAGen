@@ -48,19 +48,20 @@ def keep_nearest_residue(
     """
 
     nearest_residue_idx = []
-    dists = np.concatenate(dists)
-    dist_idx = np.argsort(dists)[:keep_num]
+    dists_all = np.concatenate(dists)
+    dist_idx = np.argsort(dists_all)[:keep_num]
     total_residue_num = 0
     select_residue_num = 0
 
     for idx, chain in enumerate(cropped_chain_idxes_list):
+        chain_len = len(dists[idx])
         cropped_chain_idxes = chain["cropped_chain_idxes"]
         # get the index of cropped_chain_idxes also in dist_idx
         new_crop_chain_idxes = np.intersect1d(
             cropped_chain_idxes + total_residue_num, dist_idx
         )
-
-        if len(cropped_chain_idxes) > 0:
+        if len(new_crop_chain_idxes) > 0:
+            new_crop_chain_idxes = np.sort(new_crop_chain_idxes)
             nearest_residue_idx.append(
                 {
                     "center_ligand_idx": chain["center_ligand_idx"],
@@ -71,12 +72,12 @@ def keep_nearest_residue(
                 }
             )
 
-        total_residue_num += len(cropped_chain_idxes)
+        total_residue_num += chain_len
         select_residue_num += len(new_crop_chain_idxes)
 
     assert (
         select_residue_num == keep_num
-    ), f"select_residue_num: {select_residue_num}, keep_num: {keep_num} shouid be equal"
+    ), f"select_residue_num: {select_residue_num}, keep_num: {keep_num} shouid be equal, {len(dists_all)=}"
 
     return nearest_residue_idx
 
@@ -125,9 +126,9 @@ def spatial_crop_psm(
                     "cropped_chain_idxes": cropped_chain_idxes,
                 }
             )
+            dists.append(dist)
 
         total_residue_num += len(cropped_chain_idxes)
-        dists.append(dist)
 
     if total_residue_num < keep_num:
         return cropped_chain_idxes_list
