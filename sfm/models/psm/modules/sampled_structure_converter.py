@@ -50,8 +50,88 @@ VOCAB2AA = {
     148: "TRP",  # "W"
     149: "CYS",  # "C"
     150: "UNK",  # "X"
+    155: "UNK",  # "-"
     # other_code: "UNK",
 }
+
+Z_symbol_dict = {
+    1: "H",
+    2: "He",
+    3: "Li",
+    4: "Be",
+    5: "B",
+    6: "C",
+    7: "N",
+    8: "O",
+    9: "F",
+    10: "Ne",
+    11: "Na",
+    12: "Mg",
+    13: "Al",
+    14: "Si",
+    15: "P",
+    16: "S",
+    17: "Cl",
+    18: "Ar",
+    19: "K",
+    20: "Ca",
+    21: "Sc",
+    22: "Ti",
+    23: "V",
+    24: "Cr",
+    25: "Mn",
+    26: "Fe",
+    27: "Co",
+    28: "Ni",
+    29: "Cd",
+    30: "Zn",
+    31: "Ge",
+    32: "Ga",
+    33: "As",
+    34: "Se",
+    35: "Br",
+    36: "Kr",
+    37: "Rb",
+    38: "Sr",
+    39: "Y",
+    40: "Zr",
+    41: "Nb",
+    42: "Mo",
+    43: "Tc",
+    44: "Ru",
+    45: "Rh",
+    46: "Pd",
+    47: "Ag",
+    48: "Cd",
+    49: "In",
+    50: "Sn",
+    51: "Sb",
+    52: "Te",
+    53: "I",
+    54: "Xe",
+    55: "Cs",
+    56: "Ba",
+    57: "La",
+    72: "Hf",
+    73: "Ta",
+    74: "W",
+    75: "Re",
+    76: "Os",
+    77: "Ir",
+    78: "Pt",
+    79: "Au",
+    80: "Hg",
+    81: "Tl",
+    82: "Pb",
+    83: "Bi",
+    84: "Po",
+    85: "At",
+    86: "Rn",
+}
+
+
+from icecream import ic
+from rdkit import Chem
 
 
 class BaseConverter(ABC, metaclass=ABCMeta):
@@ -259,16 +339,26 @@ class ProteinConverter(BaseConverter):
                 pos = pos[: num_residues[i]]
                 residue_ids = token_ids[i][: num_residues[i]].cpu().numpy()
                 pdb_lines = [f"HEADER    {keys[i]}\n"]
+                batched_data["idx"][i]
+                # ic(idx, num_residues[i], pos.size())
                 for i, (x, y, z) in enumerate(pos):
-                    if np.isnan(x):
+                    if np.isnan(x) or residue_ids[i] - 1 == 1 or residue_ids[i] == 156:
+                        i = i - 1
                         continue
                     atomidx = i + 1
-                    resname = VOCAB2AA.get(residue_ids[i], "UNK")
+                    resname = VOCAB2AA.get(residue_ids[i], f"{residue_ids[i] - 1}")
                     resnumb = i + 1
-                    pdb_lines.append(
-                        f"ATOM  {atomidx:>5d}  CA  {resname}  {resnumb:>4d}    "
-                        f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
-                    )
+                    if residue_ids[i] >= 130:
+                        pdb_lines.append(
+                            f"ATOM  {atomidx:>5d}  CA  {resname}  {resnumb:>4d}    "
+                            f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
+                        )
+                    else:
+                        f"LIG{residue_ids[i]:03d}"
+                        pdb_lines.append(
+                            f"HETATM  {atomidx:>5d}  {Z_symbol_dict[residue_ids[i]-1]}  {resname}  {resnumb:>4d}    "
+                            f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           {Z_symbol_dict[residue_ids[i]-1]}  \n"
+                        )
                 pdb_lines.append("TER\n")
                 pdb_lines.append("END\n")
                 structures.append(pdb_lines)
@@ -298,17 +388,21 @@ class ProteinConverter(BaseConverter):
             ), f"Wrong name for sample {sampled_structure[0]}"
             key = sampled_structure[0].split()[1]
             sampled_path = os.path.join(
-                sampled_structure_output_path, f"{key}-{sample_index+1}.pdb"
+                sampled_structure_output_path, f"sampled_{idx}-{sample_index+1}.pdb"
             )
             with open(sampled_path, "w") as out_file:
                 out_file.writelines(sampled_structure)
             lines = []
-            with tempfile.NamedTemporaryFile() as original_path:
-                with open(original_path.name, "w") as fp:
-                    fp.writelines(original_structure)
+            # with tempfile.NamedTemporaryFile() as original_path:
+            original_path = os.path.join(
+                sampled_structure_output_path, f"original_{idx}-{sample_index+1}.pdb"
+            )
+            # ic(len(sampled_structure), len(original_structure))
+            with open(original_path, "w") as fp:
+                fp.writelines(original_structure)
                 lines.extend(
                     subprocess.run(
-                        f"TMscore {sampled_path} {original_path.name}",
+                        f"TMscore {sampled_path} {original_path}",
                         shell=True,
                         capture_output=True,
                         text=True,
@@ -316,7 +410,7 @@ class ProteinConverter(BaseConverter):
                 )
                 lines.extend(
                     subprocess.run(
-                        f"lddt -c {sampled_path} {original_path.name}",
+                        f"lddt -c {sampled_path} {original_path}",
                         shell=True,
                         capture_output=True,
                         text=True,

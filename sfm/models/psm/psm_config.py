@@ -102,6 +102,7 @@ class PSMConfig(GraphormerConfig):
 
     # for diffusion
     diffusion_sampling: str = "ddpm"
+    num_timesteps_stepsize: int = -1
     diffusion_mode: str = "epsilon"
     diffusion_noise_std: float = 1.0
     ddim_eta: float = 0.0

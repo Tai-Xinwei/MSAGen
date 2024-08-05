@@ -38,8 +38,8 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=1e-4
-[ -z "${total_num_steps}" ] && total_num_steps=2000000
-[ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
+[ -z "${total_num_steps}" ] && total_num_steps=1
+[ -z "${warmup_num_steps}" ] && warmup_num_steps=1
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
@@ -47,7 +47,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
 [ -z "${log_interval}" ] && log_interval=20
-[ -z "${epochs}" ] && epochs=1000
+[ -z "${epochs}" ] && epochs=1
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0'
 
@@ -129,7 +129,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 [ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
-[ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
+[ -z "${diffusion_sampling}" ] && diffusion_sampling="ode"
+[ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-10
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L1"
 
 [ -z "${num_timesteps}" ] && num_timesteps=5000
@@ -151,10 +152,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
 [ -z "${disable_data_aug}" ] && disable_data_aug=False
 
-[ -z "${psm_validation_mode}" ] && psm_validation_mode=False
+[ -z "${psm_validation_mode}" ] && psm_validation_mode=True
 [ -z "${sample_in_validation}" ] && sample_in_validation=True
 [ -z "${num_sampling_time}" ] && num_sampling_time=1
-[ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="sample_save_dir_complex"
+[ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="../sample_save_dir_complex"
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
 [ -z "${psm_sample_structure_in_finetune}" ] && psm_sample_structure_in_finetune=False
 [ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=False
@@ -296,6 +297,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           psm_finetune_reset_head=$psm_finetune_reset_head \
           val_batch_log_all_metric=$val_batch_log_all_metric \
           psm_validate_for_train_set=$psm_validate_for_train_set \
-
+          val_batch_log_interval=$val_batch_log_interval \
+          num_timesteps_stepsize=$num_timesteps_stepsize \
 
 sleep infinity

@@ -180,19 +180,19 @@ def collate_fn(
             [pad_spatial_pos_unsqueeze(i["spatial_pos"], max_node_num) for i in items]
         )
 
-    if sample_in_validation:
-        # add original edge information to recover the molecule
-        max_num_edges = max(i["edge_attr"].size()[0] for i in items)
-        edge_attr = torch.cat(
-            [pad_edge_info_unsqueeze(i["edge_attr"], max_num_edges) for i in items]
-        )
-        edge_index = torch.cat(
-            [pad_edge_info_unsqueeze(i["edge_index"].T, max_num_edges) for i in items]
-        )
-        num_edges = torch.tensor(
-            [int(i["edge_attr"].size()[0]) for i in items], dtype=torch.long
-        )
-        idx = torch.tensor([int(i["idx"]) for i in items], dtype=torch.long)
+    # if sample_in_validation:
+    #     # add original edge information to recover the molecule
+    #     max_num_edges = max(i["edge_attr"].size()[0] for i in items)
+    #     edge_attr = torch.cat(
+    #         [pad_edge_info_unsqueeze(i["edge_attr"], max_num_edges) for i in items]
+    #     )
+    #     edge_index = torch.cat(
+    #         [pad_edge_info_unsqueeze(i["edge_index"].T, max_num_edges) for i in items]
+    #     )
+    #     num_edges = torch.tensor(
+    #         [int(i["edge_attr"].size()[0]) for i in items], dtype=torch.long
+    #     )
+    #     idx = torch.tensor([int(i["idx"]) for i in items], dtype=torch.long)
 
     node_type_edges = []
     for item in items:
@@ -249,12 +249,12 @@ def collate_fn(
             )
         )
 
-    if sample_in_validation:
-        batched_data.update(
-            dict(
-                edge_attr=edge_attr, edge_index=edge_index, num_edges=num_edges, idx=idx
-            )
-        )
-        if "key" in items[0]:
-            batched_data["key"] = [i["key"] for i in items]
+    # if sample_in_validation:
+    #     batched_data.update(
+    #         dict(
+    #             edge_attr=edge_attr, edge_index=edge_index, num_edges=num_edges, idx=idx
+    #         )
+    #     )
+    #     if "key" in items[0]:
+    #         batched_data["key"] = [i["key"] for i in items]
     return batched_data
