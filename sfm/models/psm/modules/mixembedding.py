@@ -106,7 +106,8 @@ class PSMMix3dEmbedding(nn.Module):
         dist = delta_pos.norm(dim=-1)
 
         adj = adj.masked_fill(~molecule_mask.unsqueeze(-1), True)
-        adj = adj.masked_fill(clean_mask.unsqueeze(-1), True)
+        if clean_mask is not None:
+            adj = adj.masked_fill(clean_mask.unsqueeze(-1), True)
 
         edge_feature = self.gbf(dist, node_type_edge.long())
         graph_attn_bias = self.gbf_proj(edge_feature)
