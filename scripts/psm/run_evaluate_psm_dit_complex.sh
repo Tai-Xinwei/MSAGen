@@ -33,8 +33,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.3
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
+[ -z "${mask_ratio}" ] && mask_ratio=0.0
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.0
 
 [ -z "${d_tilde}" ] && d_tilde=1
 [ -z "${max_lr}" ] && max_lr=1e-4
@@ -42,14 +42,14 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=16
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=2000
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
-[ -z "${mode_prob}" ] && mode_prob='0.4,0.4,0.2'
+[ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0'
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
@@ -68,14 +68,14 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="12"
-# [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='8'
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,pdbcomplexmultimer'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.45,0.15,0.05'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,24,12,8'
+[ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='1'
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,pdbcomplexmultimer'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.45,0.15,0.05'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,24,12,8'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='112,12,24,12,24'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,afdb,pdbcomplexmultimer'
@@ -104,7 +104,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints/global_step56368/mp_rank_00_model_states.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints/global_step88639/mp_rank_00_model_states.pt"
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step252285"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
 
@@ -143,15 +143,24 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_edges}" ] && num_edges=25600
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=32
 
-[ -z "${psm_validation_mode}" ] && psm_validation_mode=False
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
-[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
 [ -z "${disable_data_aug}" ] && disable_data_aug=False
+
+[ -z "${psm_validation_mode}" ] && psm_validation_mode=False
+[ -z "${sample_in_validation}" ] && sample_in_validation=True
+[ -z "${num_sampling_time}" ] && num_sampling_time=1
+[ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="sample_save_dir_complex"
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
+[ -z "${psm_sample_structure_in_finetune}" ] && psm_sample_structure_in_finetune=False
+[ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=False
+[ -z "${val_batch_log_all_metric}" ] && val_batch_log_all_metric=False
+[ -z "${psm_validate_for_train_set}" ] && psm_validate_for_train_set=False
+[ -z "${val_batch_log_interval}" ] && val_batch_log_interval=1
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -280,7 +289,13 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
           rescale_loss_with_std=$rescale_loss_with_std \
           loadcheck_path=$loadcheck_path \
-          # ifresume=True \
+          sample_in_validation=$sample_in_validation \
+          sampled_structure_output_path=$sampled_structure_output_path \
+          num_sampling_time=$num_sampling_time \
+          psm_sample_structure_in_finetune=$psm_sample_structure_in_finetune \
+          psm_finetune_reset_head=$psm_finetune_reset_head \
+          val_batch_log_all_metric=$val_batch_log_all_metric \
+          psm_validate_for_train_set=$psm_validate_for_train_set \
 
-#           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
+
 sleep infinity
