@@ -483,6 +483,7 @@ class PSMModel(Model):
 
     def sample_and_calc_match_metric(self, batched_data):
         match_results = {}
+        self.net.eval()
         for sample_time_index in range(self.psm_config.num_sampling_time):
             original_pos = batched_data["pos"].clone()
             batched_data["pos"] = torch.zeros_like(
@@ -507,6 +508,7 @@ class PSMModel(Model):
             match_results[key] = (
                 match_results[key].view(self.psm_config.num_sampling_time, -1).T
             )
+        self.net.train()
         return match_results
 
     def forward(self, batched_data, **kwargs):
