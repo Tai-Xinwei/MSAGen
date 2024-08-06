@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import copy
+import random
 from typing import Dict
 
 import numpy as np
@@ -164,6 +165,7 @@ def spatial_crop_psm(
     ligand_center_list = []
     ligand_idx_list = []
     total_atom_num = 0
+    ligand_size = 0
     if center_ligand_idx == -1:
         for ligand_idx, ligand in enumerate(non_polymers):
             # Crop the polymer chain
@@ -179,11 +181,15 @@ def spatial_crop_psm(
 
             total_atom_num += len(cropped_ligand_idxes)
 
-    if total_residue_num < keep_num - total_atom_num:
+        if len(ligand_idx_list) > 0:
+            center_ligand_idx = random.choice(ligand_idx_list)[0]
+            ligand_size = len(non_polymers[center_ligand_idx]["node_coord"])
+
+    if total_residue_num < keep_num - ligand_size:
         return cropped_chain_idxes_list, ligand_idx_list
 
     cropped_chain_idxes_list = keep_nearest_residue(
-        cropped_chain_idxes_list, dists, keep_num=keep_num - total_atom_num
+        cropped_chain_idxes_list, dists, keep_num=keep_num - ligand_size
     )
 
-    return cropped_chain_idxes_list, ligand_idx_list
+    return cropped_chain_idxes_list, center_ligand_idx

@@ -1712,7 +1712,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             )
 
         # crop the complex and multimers
-        cropped_chain_idxes_list, ligand_idx_list = spatial_crop_psm(
+        cropped_chain_idxes_list, center_ligand_idx = spatial_crop_psm(
             polymer_chains,
             non_polymers,
             polymer_chains_idxes,
@@ -1725,7 +1725,6 @@ class PDBComplexDataset(AFDBLMDBDataset):
         # reconstruct the graph
         data = self._reconstruct_graph(
             cropped_chain_idxes_list,
-            ligand_idx_list,
             center_ligand_idx,
             polymer_chains,
             non_polymers,
@@ -1736,7 +1735,6 @@ class PDBComplexDataset(AFDBLMDBDataset):
     def _reconstruct_graph(
         self,
         cropped_chain_idxes_list,
-        ligand_idx_list,
         center_ligand_idx,
         polymer_chains,
         non_polymers,
@@ -1827,36 +1825,6 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
             edge_index = ligand["edge_index"]
             # edge_attr = ligand["edge_feat"]
-        elif len(ligand_idx_list) > 0:
-            # pick random one idx from ligand_idx_list
-            idx = random.choice(ligand_idx_list)
-            ligand = non_polymers[idx]
-            # rescontruct the atom type of the ligand
-            atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
-            x.extend([VOCAB["."] - 1] + atom_ids)
-
-            # rescontruct the coords of the ligand
-            pos = np.concatenate([np.zeros((1, 3)), ligand["node_coord"]], axis=0)
-            coords.append(pos)
-
-            # build position ids for ligand, but this may not used in the attention, just for length alignment
-            position_ids.extend(
-                range(start_position_ids, start_position_ids + len(atom_ids) + 1)
-            )
-
-            if polymer_len == 0:
-                node_feature = torch.from_numpy(ligand["node_feat"])
-            else:
-                node_feature = torch.cat(
-                    [
-                        node_feature,
-                        torch.zeros((1, 9), dtype=torch.int32),
-                        torch.from_numpy(ligand["node_feat"]),
-                    ],
-                    dim=0,
-                )
-                polymer_len += 1
-            edge_index = ligand["edge_index"]
         else:
             edge_index = None
 
