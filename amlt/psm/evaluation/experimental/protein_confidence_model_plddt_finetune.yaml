@@ -1,13 +1,14 @@
 description: protein confidence model plddt finetune
 
 env_defaults:
-  SKU: 4xG8
+  NODES: 4
+  GPUS: 8
   WANDB_API_KEY: "local-138548ae9c9a3b39646af8ae2c4c6d4e22c51385"
 
 
 # target:
 #   service: sing
-#   name: msrresrchvc
+#   name: baltic02
 #   workspace_name: sfm-ws
 
 target:
@@ -27,11 +28,11 @@ storage:
     mount_dir: /blob
   ckpt:
     mount_dir: /ckpt
-    # storage_account_name: sfmdataeastus2
-    # container_name: psm
+    storage_account_name: sfmdataeastus2
+    container_name: psm
     # /ckpt/exp/peiran/psmv1_vt_v10_1b/checkpoints/global_step130000/mp_rank_00_model_states.pt
-    storage_account_name: sfmarca100
-    container_name: sfm
+    # storage_account_name: sfmarca100
+    # container_name: sfm
     # /ckpt/sfmexpresults/peiran/psmv1_vt_v8/checkpoints/global_step389895/mp_rank_00_model_states.pt
 
 code:
@@ -41,60 +42,62 @@ jobs:
 - name: psm-finetune-protein-confidence-model-plddt
   identity: managed
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
-  sku: $SKU
+  sku: ${NODES}xG${GPUS}-IB
   mpi: true
   process_count_per_node: 1
   command:
   - export wandb_team=ai4s-sfm
   - export wandb_project=psm_VT_finetune
   - export wandb_group=protein_confidence_model_plddt_finetune
-  - export wandb_run_name=PSM300M_VT-plddt-mini-rollout-500-PDB-$$(date -u +%Y%m%d.%H%M%S)
+  - export wandb_run_name=PSM1B_VT-plddt-mini-rollout-250-PDB-$$(date -u +%Y%m%d.%H%M%S)
   - export wandb_key=${WANDB_API_KEY}
   - export finetune_module=plddt_confidence_head
   - export psm_finetune_noise_mode=T
   - export num_pred_attn_layer=4
-  - export layers=22
-  - export hidden_size=1024
-  - export ffn_size=4096
+  - export layers=32
+  - export hidden_size=1536
+  - export ffn_size=6144
   - export num_head=32
   - export atom_loss_coeff=1.0
   - export pos_loss_coeff=1.0
   - export sandwich_ln="true"
   - export dropout=0.0
-  - export attn_dropout=0.1
-  - export act_dropout=0.1
+  - export attn_dropout=0.0
+  - export act_dropout=0.0
   - export weight_decay=0.0
   - export droppath_prob=0.0
   - export mask_ratio=0.0
   - export mode_prob='0.0,1.0,0.0'
-  - export d_tilde=0.2
-  - export max_lr=1.0e-4
+  - export d_tilde=1.0
+  - export max_lr=5e-5
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
-  - export total_num_steps=50000
+  - export total_num_steps=10000
   - export warmup_num_steps=100
   - export train_batch_size=1024
   - export val_batch_size=1024
   - export max_tokens=16000
   - export max_length=512
-  - export gradient_accumulation_steps=4
+  - export gradient_accumulation_steps=1
   - export log_interval=1
-  - export data_path=/nfs2/psmdata/
-  - export data_path_list='20240101_PDB_Training_Data' #'AFDB50-plddt70.lmdb'
-  - export dataset_name_list='pdb' # 'afdb'
+  - export data_path=/ckpt/data/
+  - export data_path_list='20240101_PDB_Training_Data' # 'AFDB50-plddt70.lmdb' #
+  - export dataset_name_list='pdb' #'afdb'
   - export dataset_split_raito='1.0'
-  - export dataset_micro_batch_size=80
+  - export dataset_micro_batch_size=2
   - export fp16=False
   - export clean_sample_ratio=0.5
   - export use_unified_batch_sampler=True
   - export use_dali_pipeline=False
-  - export loadcheck_path=/ckpt/sfmexpresults/peiran/psmv1_vt_v8/checkpoints/global_step389895/mp_rank_00_model_states.pt
+  - export loadcheck_path=/blob/sfmexpresults/yaosen/PSM1B_VT-plddt-mini-rollout-250-PDB-20240719.180227/global_step600/mp_rank_00_model_states.pt #/ckpt/exp/peiran/psmv1_vt_v10_1b/checkpoints/global_step200000/mp_rank_00_model_states.pt #/ckpt/sfmexpresults/peiran/psmv1_vt_v8/checkpoints/global_step389895/mp_rank_00_model_states.pt
   - export save_dir=/blob/sfmexpresults/yaosen/$$wandb_run_name
   - export save_batch_interval=50
   - export num_timesteps=5000
-  - export num_timesteps_stepsize=-250
+  - export num_timesteps_stepsize=10
+  - export diffusion_sampling="ode"
   - export psm_sample_structure_in_finetune=True
   - export freeze_backbone=True
+  - export HYDRA_FULL_ERROR=1
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
