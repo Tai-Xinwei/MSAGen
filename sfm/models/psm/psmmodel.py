@@ -1127,6 +1127,13 @@ class PSM(nn.Module):
                 and batched_data["pbc"] is not None
                 and torch.any(batched_data["pbc"])
             ):
+                assert batched_data["is_stable_periodic"].all() or (
+                    not batched_data["is_stable_periodic"].any()
+                ), "Stable and unstable material structures appear in one micro-batch, which is not supported for now."
+                if not batched_data["is_stable_periodic"].all():
+                    use_local_attention = self.psm_config.pbc_use_local_attention
+                else:
+                    use_local_attention = False
                 pbc_expand_batched = self.cell_expander.expand(
                     batched_data["pos"],
                     batched_data["init_pos"],
@@ -1135,7 +1142,7 @@ class PSM(nn.Module):
                     batched_data["masked_token_type"],
                     batched_data["cell"],
                     batched_data["node_type_edge"],
-                    self.psm_config.pbc_use_local_attention,
+                    use_local_attention=use_local_attention,
                     use_grad=self.psm_config.AutoGradForce,
                 )
             else:
