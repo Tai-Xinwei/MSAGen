@@ -182,11 +182,11 @@ def spatial_crop_psm(
             total_atom_num += len(cropped_ligand_idxes)
 
         if len(ligand_idx_list) > 0:
-            center_ligand_idx = random.choice(ligand_idx_list)[0]
+            center_ligand_idx = random.choice(ligand_idx_list)
             ligand_size = len(non_polymers[center_ligand_idx]["node_coord"])
 
     if total_residue_num < keep_num - ligand_size:
-        return cropped_chain_idxes_list, ligand_idx_list
+        return cropped_chain_idxes_list, center_ligand_idx
 
     cropped_chain_idxes_list = keep_nearest_residue(
         cropped_chain_idxes_list, dists, keep_num=keep_num - ligand_size
