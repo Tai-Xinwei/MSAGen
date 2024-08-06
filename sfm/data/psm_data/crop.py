@@ -34,6 +34,36 @@ def crop_chain(
     return idxes, dists
 
 
+def crop_ligand(
+    ligand_coords: np.ndarray, crop_size: int, crop_center: np.ndarray
+) -> np.ndarray:
+    """
+    Crop a chain refer to crop_size.
+    Args:
+        ligand_coords: the coordinates of the ligand
+        crop_size: the size of the cropped chain
+        crop_center: the center of the crop
+    Returns:
+        cropped_chain: a cropped chain
+    """
+
+    ligand_center = np.nanmean(ligand_coords, axis=0)
+
+    # determine whether take the ligand with distance of the ligand_center and crop_center
+    if np.linalg.norm(ligand_center - crop_center) > crop_size:
+        return None, None, None
+
+    ligand_coords[np.isnan(ligand_coords)] = 10000
+
+    # Calculate the distance between the atoms and the crop center
+    dists = np.linalg.norm(ligand_coords - crop_center, axis=1)
+
+    # Get the index of the atoms within the crop size
+    idxes = np.where(dists < 100000)[0]
+
+    return idxes, dists, ligand_center
+
+
 def keep_nearest_residue(
     cropped_chain_idxes_list: list, dists: list, keep_num: int = 768
 ) -> np.ndarray:
@@ -130,11 +160,30 @@ def spatial_crop_psm(
 
         total_residue_num += len(cropped_chain_idxes)
 
-    if total_residue_num < keep_num:
-        return cropped_chain_idxes_list
+    ligand_dists = []
+    ligand_center_list = []
+    ligand_idx_list = []
+    total_atom_num = 0
+    if center_ligand_idx == -1:
+        for ligand_idx, ligand in enumerate(non_polymers):
+            # Crop the polymer chain
+            cropped_ligand_idxes, dist, ligand_center = crop_ligand(
+                copy.deepcopy(ligand["node_coord"]), crop_size // 2, crop_center
+            )
+            if cropped_ligand_idxes is None:
+                continue
+
+            ligand_dists.append(dist)
+            ligand_center_list.append(ligand_center)
+            ligand_idx_list.append(ligand_idx)
+
+            total_atom_num += len(cropped_ligand_idxes)
+
+    if total_residue_num < keep_num - total_atom_num:
+        return cropped_chain_idxes_list, ligand_idx_list
 
     cropped_chain_idxes_list = keep_nearest_residue(
-        cropped_chain_idxes_list, dists, keep_num=keep_num
+        cropped_chain_idxes_list, dists, keep_num=keep_num - total_atom_num
     )
 
-    return cropped_chain_idxes_list
+    return cropped_chain_idxes_list, ligand_idx_list

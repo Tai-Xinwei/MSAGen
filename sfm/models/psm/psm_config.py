@@ -99,6 +99,7 @@ class PSMConfig(GraphormerConfig):
     crop_radius: float = 50.0
     max_residue_num: int = 768  # max token number in complex and multi-chain protein
     mode_prob: str = "0.1,0.4,0.5"
+    sample_ligand_only: bool = False
 
     # for diffusion
     diffusion_sampling: str = "ddpm"

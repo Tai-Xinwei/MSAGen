@@ -348,15 +348,15 @@ class ProteinConverter(BaseConverter):
                     atomidx = i + 1
                     resname = VOCAB2AA.get(residue_ids[i], f"{residue_ids[i] - 1}")
                     resnumb = i + 1
+                    chain = ""
                     if residue_ids[i] >= 130:
                         pdb_lines.append(
-                            f"ATOM  {atomidx:>5d}  CA  {resname}  {resnumb:>4d}    "
+                            f"ATOM  {atomidx:>5d}  CA  {resname}  {chain}{resnumb:>4d}    "
                             f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
                         )
                     else:
-                        f"LIG{residue_ids[i]:03d}"
                         pdb_lines.append(
-                            f"HETATM  {atomidx:>5d}  {Z_symbol_dict[residue_ids[i]-1]}  {resname}  {resnumb:>4d}    "
+                            f"HETATM  {atomidx:>5d}  {Z_symbol_dict[residue_ids[i]-1]}  {resname}  {chain}{resnumb:>4d}    "
                             f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           {Z_symbol_dict[residue_ids[i]-1]}  \n"
                         )
                 pdb_lines.append("TER\n")

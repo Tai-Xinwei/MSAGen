@@ -486,9 +486,10 @@ class PSMModel(Model):
         self.net.eval()
         for sample_time_index in range(self.psm_config.num_sampling_time):
             original_pos = batched_data["pos"].clone()
-            batched_data["pos"] = torch.zeros_like(
-                batched_data["pos"]
-            )  # zero position to avoid any potential leakage
+            # Comment out the following lines to enable conditional sampling
+            # batched_data["pos"] = torch.zeros_like(
+            #     batched_data["pos"]
+            # )  # zero position to avoid any potential leakage
             self.sample(batched_data=batched_data)
             match_result_one_time = self.sampled_structure_converter.convert_and_match(
                 batched_data, original_pos, sample_time_index
@@ -701,20 +702,35 @@ class PSMModel(Model):
 
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
-
         orig_pos = center_pos(batched_data, padding_mask)
 
         self._create_initial_pos_for_diffusion(batched_data)
+
+        clean_mask = torch.zeros_like(token_id, dtype=torch.bool, device=device)
+        if self.psm_config.sample_ligand_only:
+            clean_mask = batched_data["is_protein"]
+
+        clean_mask = clean_mask.masked_fill(token_id == 156, True)
+        clean_mask = clean_mask.masked_fill(padding_mask, True)
+        clean_mask = clean_mask.masked_fill(
+            batched_data["protein_mask"].any(dim=-1), False
+        )
 
         batched_data["pos"] = self.diffnoise.get_sampling_start(
             batched_data["init_pos"],
             batched_data["non_atom_mask"],
             batched_data["is_periodic"],
         )
+
+        if clean_mask is not None:
+            batched_data["pos"] = torch.where(
+                clean_mask.unsqueeze(-1), orig_pos, batched_data["pos"]
+            )
+
         batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
-        batched_data["pos"] = center_pos(
-            batched_data, padding_mask=padding_mask
-        )  # centering to remove noise translation
+        # batched_data["pos"] = center_pos(
+        #     batched_data, padding_mask=padding_mask, clean_mask=clean_mask
+        # )  # centering to remove noise translation
 
         for t in range(
             self.psm_config.num_timesteps - 1,
@@ -725,13 +741,18 @@ class PSMModel(Model):
             time_step = self.time_step_sampler.get_continuous_time_step(
                 t, n_graphs, device=device, dtype=batched_data["pos"].dtype
             )
-            time_step = time_step.unsqueeze(-1)
+            time_step = time_step.unsqueeze(-1).repeat(1, batched_data["pos"].shape[1])
+            if clean_mask is not None:
+                time_step = time_step.masked_fill(clean_mask, 0.0)
+
             batched_data["sqrt_one_minus_alphas_cumprod_t"] = self.diffnoise._extract(
                 self.diffnoise.sqrt_one_minus_alphas_cumprod,
                 (time_step * self.psm_config.num_timesteps).long(),
                 batched_data["pos"].shape,
             )
-            predicted_noise = self.net(batched_data, time_step=time_step)["noise_pred"]
+            predicted_noise = self.net(
+                batched_data, time_step=time_step, clean_mask=clean_mask
+            )["noise_pred"]
             epsilon = self.diffnoise.get_noise(
                 batched_data["pos"],
                 batched_data["non_atom_mask"],
@@ -746,10 +767,16 @@ class PSMModel(Model):
                 t,
                 step_size=-self.psm_config.num_timesteps_stepsize,
             )
+
+            if clean_mask is not None:
+                batched_data["pos"] = torch.where(
+                    clean_mask.unsqueeze(-1), orig_pos, batched_data["pos"]
+                )
+
             batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
-            batched_data["pos"] = center_pos(
-                batched_data, padding_mask=padding_mask
-            )  # centering to remove noise translation
+            # batched_data["pos"] = center_pos(
+            #     batched_data, padding_mask=padding_mask, clean_mask=clean_mask
+            # )  # centering to remove noise translation
             batched_data["pos"] = batched_data["pos"].detach()
 
         pred_pos = batched_data["pos"].clone()
@@ -760,7 +787,7 @@ class PSMModel(Model):
 
 
 @torch.compiler.disable(recursive=True)
-def center_pos(batched_data, padding_mask):
+def center_pos(batched_data, padding_mask, clean_mask=None):
     # get center of system positions
     is_stable_periodic = batched_data["is_stable_periodic"]  # B x 3 -> B
     periodic_center = (
@@ -786,10 +813,24 @@ def center_pos(batched_data, padding_mask):
         batched_data["cell"][is_stable_periodic].sum(dim=1, keepdim=True) / 2.0
     )
     protein_mask = batched_data["protein_mask"]
-    non_periodic_center = torch.sum(
-        batched_data["pos"].masked_fill(padding_mask.unsqueeze(-1) | protein_mask, 0.0),
-        dim=1,
-    ) / batched_data["num_atoms"].unsqueeze(-1)
+    if clean_mask is None:
+        num_non_atoms = torch.sum(protein_mask.any(dim=-1), dim=-1)
+        non_periodic_center = torch.sum(
+            batched_data["pos"].masked_fill(
+                padding_mask.unsqueeze(-1) | protein_mask, 0.0
+            ),
+            dim=1,
+        ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
+    else:
+        num_non_atoms = torch.sum(protein_mask.any(dim=-1) | clean_mask, dim=-1)
+        non_periodic_center = torch.sum(
+            batched_data["pos"].masked_fill(
+                padding_mask.unsqueeze(-1) | protein_mask | clean_mask.unsqueeze(-1),
+                0.0,
+            ),
+            dim=1,
+        ) / (batched_data["num_atoms"] - num_non_atoms).unsqueeze(-1)
+
     center = non_periodic_center.unsqueeze(1)
     center[is_stable_periodic] = periodic_center
     batched_data["pos"] -= center

@@ -1632,6 +1632,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
         self.crop_radius = args.crop_radius
         self.max_residue_num = args.max_residue_num
 
+        self.iter_flag = True
+
         if lmdb_path.find(version) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
         super().__init__(args, lmdb_path, keys=keys, sizes=sizes)
@@ -1668,16 +1670,30 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         # random generate crop center
         if len(non_polymers) > 0:
-            polymer_chains_idx = -1
-            # pick random ligand from non-polymer to choose crop center
-            center_ligand_idx = random.choice(range(len(non_polymers)))
-            crop_center_ligand = non_polymers[center_ligand_idx]["node_coord"]
-            keep_num = self.max_residue_num - len(crop_center_ligand)
-            # pick random atom from ligand as crop center, there is nan in the ligand node_coord, avoid it
-            crop_center_ligand = crop_center_ligand[
-                np.any(~np.isnan(crop_center_ligand), axis=-1)
-            ]
-            crop_center = random.choice(crop_center_ligand)
+            if self.iter_flag:
+                polymer_chains_idx = -1
+                # pick random ligand from non-polymer to choose crop center
+                center_ligand_idx = random.choice(range(len(non_polymers)))
+                crop_center_ligand = non_polymers[center_ligand_idx]["node_coord"]
+                keep_num = self.max_residue_num - len(crop_center_ligand)
+                # pick random atom from ligand as crop center, there is nan in the ligand node_coord, avoid it
+                crop_center_ligand = crop_center_ligand[
+                    np.any(~np.isnan(crop_center_ligand), axis=-1)
+                ]
+                crop_center = random.choice(crop_center_ligand)
+            else:
+                center_ligand_idx = -1
+                keep_num = self.max_residue_num
+                # pick random polymer from non-polymer to choose crop center
+                polymer_chains_idx = random.choice(range(len(polymer_chains_idxes)))
+                chain_name = polymer_chains_idxes[polymer_chains_idx]
+                crop_center_polymer = polymer_chains[chain_name]["center_coord"]
+                # pick random atom from polymer as crop center, there is nan in the ligand node_coord, avoid it
+                crop_center_polymer = crop_center_polymer[
+                    np.any(~np.isnan(crop_center_polymer), axis=-1)
+                ]
+                crop_center = random.choice(crop_center_polymer)
+            self.iter_flag = not self.iter_flag
         elif len(polymer_chains_idxes) > 0:
             center_ligand_idx = -1
             keep_num = self.max_residue_num
@@ -1696,7 +1712,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             )
 
         # crop the complex and multimers
-        cropped_chain_idxes_list = spatial_crop_psm(
+        cropped_chain_idxes_list, ligand_idx_list = spatial_crop_psm(
             polymer_chains,
             non_polymers,
             polymer_chains_idxes,
@@ -1708,13 +1724,22 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         # reconstruct the graph
         data = self._reconstruct_graph(
-            cropped_chain_idxes_list, center_ligand_idx, polymer_chains, non_polymers
+            cropped_chain_idxes_list,
+            ligand_idx_list,
+            center_ligand_idx,
+            polymer_chains,
+            non_polymers,
         )
 
         return data
 
     def _reconstruct_graph(
-        self, cropped_chain_idxes_list, center_ligand_idx, polymer_chains, non_polymers
+        self,
+        cropped_chain_idxes_list,
+        ligand_idx_list,
+        center_ligand_idx,
+        polymer_chains,
+        non_polymers,
     ):
         """
         Reconstruct the graph from the cropped complex and multimers
@@ -1802,7 +1827,36 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
             edge_index = ligand["edge_index"]
             # edge_attr = ligand["edge_feat"]
+        elif len(ligand_idx_list) > 0:
+            # pick random one idx from ligand_idx_list
+            idx = random.choice(ligand_idx_list)
+            ligand = non_polymers[idx]
+            # rescontruct the atom type of the ligand
+            atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
+            x.extend([VOCAB["."] - 1] + atom_ids)
 
+            # rescontruct the coords of the ligand
+            pos = np.concatenate([np.zeros((1, 3)), ligand["node_coord"]], axis=0)
+            coords.append(pos)
+
+            # build position ids for ligand, but this may not used in the attention, just for length alignment
+            position_ids.extend(
+                range(start_position_ids, start_position_ids + len(atom_ids) + 1)
+            )
+
+            if polymer_len == 0:
+                node_feature = torch.from_numpy(ligand["node_feat"])
+            else:
+                node_feature = torch.cat(
+                    [
+                        node_feature,
+                        torch.zeros((1, 9), dtype=torch.int32),
+                        torch.from_numpy(ligand["node_feat"]),
+                    ],
+                    dim=0,
+                )
+                polymer_len += 1
+            edge_index = ligand["edge_index"]
         else:
             edge_index = None
 
@@ -1840,6 +1894,9 @@ class PDBComplexDataset(AFDBLMDBDataset):
         polymer_len = data["polymer_len"]
 
         data["x"] = data["token_type"]
+        assert (
+            data["node_feature"][:, 0].shape[0] == data["token_type"].shape[0]
+        ), f"{data['node_feature'][:, 0].shape[0]} != {data['token_type'].shape[0]}"
         data["node_feature"][:, 0] = data["token_type"]
         data["node_attr"] = convert_to_single_emb(data["node_feature"].long())
 
@@ -1892,7 +1949,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         result.update(dict(polymer_len=polymer_len))
         return result
 
-    def split_dataset(self, validation_ratio=0.03, sort=False):
+    def split_dataset(self, validation_ratio=0.01, sort=False):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
@@ -1903,6 +1960,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         training_indices = indices[:num_training_samples]
         validation_indices = indices[num_training_samples:]
+        # training_indices = indices
+        # validation_indices = indices
 
         # Create training and validation datasets
         dataset_train = self.__class__(

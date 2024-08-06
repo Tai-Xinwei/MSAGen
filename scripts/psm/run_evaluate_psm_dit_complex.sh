@@ -132,6 +132,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ode"
 [ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-10
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L1"
+[ -z "${sample_ligand_only}" ] && sample_ligand_only=True
+[ -z "${max_residue_num}" ] && max_residue_num=2048
+[ -z "${crop_radius}" ] && crop_radius=100
 
 [ -z "${num_timesteps}" ] && num_timesteps=5000
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
@@ -155,7 +158,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=True
 [ -z "${sample_in_validation}" ] && sample_in_validation=True
 [ -z "${num_sampling_time}" ] && num_sampling_time=1
-[ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="../sample_save_dir_complex"
+# [ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="../sample_save_dir_complex"
+[ -z "${sampled_structure_output_path}" ] && sampled_structure_output_path="../sample_save_dir_complex_posebuster"
+
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
 [ -z "${psm_sample_structure_in_finetune}" ] && psm_sample_structure_in_finetune=False
 [ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=False
@@ -299,5 +304,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           psm_validate_for_train_set=$psm_validate_for_train_set \
           val_batch_log_interval=$val_batch_log_interval \
           num_timesteps_stepsize=$num_timesteps_stepsize \
+          sample_ligand_only=$sample_ligand_only \
+          max_residue_num=$max_residue_num crop_radius=$crop_radius \
 
 sleep infinity
