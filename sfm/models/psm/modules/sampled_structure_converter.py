@@ -130,10 +130,6 @@ Z_symbol_dict = {
 }
 
 
-from icecream import ic
-from rdkit import Chem
-
-
 class BaseConverter(ABC, metaclass=ABCMeta):
     def __init__(self) -> None:
         super().__init__()
