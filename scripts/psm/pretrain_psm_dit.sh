@@ -152,6 +152,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
 [ -z "${disable_data_aug}" ] && disable_data_aug=False
+[ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=False
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -278,7 +279,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           mm_tensorcore=$mm_tensorcore compile=$compile disable_data_aug=$disable_data_aug \
           if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy \
           NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
-          rescale_loss_with_std=$rescale_loss_with_std \
+          rescale_loss_with_std=$rescale_loss_with_std align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss \
           loadcheck_path=$loadcheck_path \
           # ifresume=True \
 

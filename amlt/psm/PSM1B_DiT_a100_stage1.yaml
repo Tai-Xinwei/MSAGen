@@ -62,7 +62,7 @@ jobs:
   - export droppath_prob=0.0
   - export mask_ratio=0.3
   - export d_tilde=1.0
-  - export max_lr=2e-4
+  - export max_lr=1e-4
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
   - export total_num_steps=400000
@@ -93,6 +93,7 @@ jobs:
   - export AutoGradForce=False
   - export use_hard_dist_loss=True
   - export use_unified_batch_sampler=True
+  - export align_x0_in_diffusion_loss=False
   - export decoder_feat4energy=False
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
