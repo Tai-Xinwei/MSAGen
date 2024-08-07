@@ -1627,7 +1627,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
         keys: Optional[List[str]] = None,
         sizes: Optional[List[int]] = None,
     ):
-        version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.ligand_protein_filteredNan.lmdb"
+        # version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.ligand_protein_filteredNan.lmdb"
+        version = "20240630_snapshot.20240714_2753ddc5.subset_release_date_before_20200430.ligand_protein.excludeNAs.removeHs.lmdb"
         # version = "posebusters-428structures-20240725-406c71b2.lmdb"
         self.crop_radius = args.crop_radius
         self.max_residue_num = args.max_residue_num
@@ -1799,16 +1800,23 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
             # rescontruct the atom type of the ligand
             atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
-            x.extend([VOCAB["."] - 1] + atom_ids)
+            if len(x) > 0:
+                x.extend([VOCAB["."] - 1] + atom_ids)
+                pos = np.concatenate([np.zeros((1, 3)), ligand["node_coord"]], axis=0)
+                # build position ids for ligand, but this may not used in the attention, just for length alignment
+                position_ids.extend(
+                    range(start_position_ids, start_position_ids + len(atom_ids) + 1)
+                )
+            else:
+                x.extend(atom_ids)
+                pos = ligand["node_coord"]
+                # build position ids for ligand, but this may not used in the attention, just for length alignment
+                position_ids.extend(
+                    range(start_position_ids, start_position_ids + len(atom_ids))
+                )
 
             # rescontruct the coords of the ligand
-            pos = np.concatenate([np.zeros((1, 3)), ligand["node_coord"]], axis=0)
             coords.append(pos)
-
-            # build position ids for ligand, but this may not used in the attention, just for length alignment
-            position_ids.extend(
-                range(start_position_ids, start_position_ids + len(atom_ids) + 1)
-            )
 
             if polymer_len == 0:
                 node_feature = torch.from_numpy(ligand["node_feat"])

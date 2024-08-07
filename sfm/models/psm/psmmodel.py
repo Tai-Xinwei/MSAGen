@@ -402,13 +402,13 @@ class PSMModel(Model):
             R = uniform_random_rotation(
                 ori_pos.size(0), device=ori_pos.device, dtype=ori_pos.dtype
             )
-            T = torch.randn(
-                ori_pos.size(0), 3, device=ori_pos.device, dtype=ori_pos.dtype
-            ).unsqueeze(1)
-            ori_pos = torch.bmm(ori_pos, R) + T
+            # T = torch.randn(
+            #     ori_pos.size(0), 3, device=ori_pos.device, dtype=ori_pos.dtype
+            # ).unsqueeze(1)
+            ori_pos = torch.bmm(ori_pos, R)
             batched_data["forces"] = torch.bmm(batched_data["forces"], R)
-            batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R) + T
-            batched_data["cell"] = torch.bmm(batched_data["cell"], R) + T
+            batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
+            batched_data["cell"] = torch.bmm(batched_data["cell"], R)
 
         batched_data["ori_pos"] = ori_pos
 

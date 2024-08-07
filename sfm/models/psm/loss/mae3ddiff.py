@@ -438,7 +438,7 @@ class DiffMAE3dCriterions(nn.Module):
                         )
                         unreduced_noise_loss = self.noise_loss(
                             aligned_noise_pred.to(noise_label.dtype),
-                            pos_label * sqrt_alphas_cumprod_t,
+                            (pos_label - T) * sqrt_alphas_cumprod_t,
                         )
                         unreduced_noise_loss = (
                             unreduced_noise_loss / sqrt_one_minus_alphas_cumprod_t
