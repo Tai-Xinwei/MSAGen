@@ -41,6 +41,7 @@ from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
 from .modules.autograd import GradientHead
+from .modules.confidence_model import lddt
 from .modules.dataaug import uniform_random_rotation
 from .modules.diffusion import DIFFUSION_PROCESS_REGISTER
 from .modules.sampled_structure_converter import SampledStructureConverter
@@ -97,6 +98,8 @@ class PSMModel(Model):
 
         if self.args.backbone in ["vanillatransformer", "dit", "e2dit"]:
             self.disable_data_aug = getattr(self.args, "disable_data_aug", False)
+            if self.psm_config.psm_finetune_mode:
+                self.disable_data_aug = True
             if self.disable_data_aug:
                 logger.warning(
                     f"=== N O T E === Data augmentation is disabled for {self.args.backbone}"
@@ -608,6 +611,9 @@ class PSMModel(Model):
             "sqrt_one_minus_alphas_cumprod_t"
         ] = sqrt_one_minus_alphas_cumprod_t
 
+        if self.psm_config.psm_sample_structure_in_finetune:
+            self.net.eval()
+
         context = torch.no_grad() if self.psm_config.freeze_backbone else nullcontext()
         with context:
             result_dict = self.net(
@@ -637,9 +643,11 @@ class PSMModel(Model):
         if self.psm_finetune_head:
             result_dict = self.psm_finetune_head(result_dict)
             if self.psm_config.psm_sample_structure_in_finetune:
+                self.eval()
                 sampled_output = self.sample(batched_data)
                 for k, v in sampled_output.items():
                     result_dict[k + "_sample"] = v
+                self.train()
 
         return result_dict
 
@@ -691,6 +699,8 @@ class PSMModel(Model):
         """
         Sample method for diffussion model
         """
+        if "ori_pos" in batched_data:
+            batched_data["pos"] = batched_data["ori_pos"]
 
         self._create_system_tags(batched_data)
         self._create_protein_mask(batched_data)
@@ -716,11 +726,14 @@ class PSMModel(Model):
             batched_data, padding_mask=padding_mask
         )  # centering to remove noise translation
 
-        for t in range(
-            self.psm_config.num_timesteps - 1,
-            -1,
-            self.psm_config.num_timesteps_stepsize,
-        ):  # TODO: need to modify the step size
+        decoder_x_output = None
+        for t in tqdm(
+            range(
+                self.psm_config.num_timesteps - 1,
+                -1,
+                -self.psm_config.num_timesteps_stepsize,
+            )
+        ):
             # forward
             time_step = self.time_step_sampler.get_continuous_time_step(
                 t, n_graphs, device=device, dtype=batched_data["pos"].dtype
@@ -731,7 +744,9 @@ class PSMModel(Model):
                 (time_step * self.psm_config.num_timesteps).long(),
                 batched_data["pos"].shape,
             )
-            predicted_noise = self.net(batched_data, time_step=time_step)["noise_pred"]
+            net_result = self.net(batched_data, time_step=time_step)
+            predicted_noise = net_result["noise_pred"]
+            decoder_x_output = net_result["decoder_x_output"]
             epsilon = self.diffnoise.get_noise(
                 batched_data["pos"],
                 batched_data["non_atom_mask"],
@@ -753,10 +768,30 @@ class PSMModel(Model):
             batched_data["pos"] = batched_data["pos"].detach()
 
         pred_pos = batched_data["pos"].clone()
+        if self.psm_finetune_head.__class__.__name__ == "PerResidueLDDTCaPredictor":
+            logger.info("Running PerResidueLDDTCaPredictor")
+            plddt = self.psm_finetune_head(
+                {
+                    "decoder_x_output": decoder_x_output,
+                    "is_protein": batched_data["is_protein"],
+                }
+            )
+            plddt_residue = plddt["plddt"]
+            mean_plddt = plddt["mean_plddt"]
+            plddt_per_prot = (plddt_residue * batched_data["is_protein"]).sum(
+                dim=-1
+            ) / (1e-10 + batched_data["is_protein"].sum(dim=-1))
+            batched_data["plddt_residue"] = plddt_residue
+            batched_data["mean_plddt"] = mean_plddt
+            batched_data["plddt_per_prot"] = plddt_per_prot
 
         loss = torch.sum((pred_pos - orig_pos) ** 2, dim=-1, keepdim=True)
 
-        return {"loss": loss, "pred_pos": pred_pos, "orig_pos": orig_pos}
+        return {
+            "loss": loss,
+            "pred_pos": pred_pos,
+            "orig_pos": orig_pos,
+        }
 
 
 @torch.compiler.disable(recursive=True)
@@ -1127,6 +1162,13 @@ class PSM(nn.Module):
                 and batched_data["pbc"] is not None
                 and torch.any(batched_data["pbc"])
             ):
+                assert batched_data["is_stable_periodic"].all() or (
+                    not batched_data["is_stable_periodic"].any()
+                ), "Stable and unstable material structures appear in one micro-batch, which is not supported for now."
+                if not batched_data["is_stable_periodic"].all():
+                    use_local_attention = self.psm_config.pbc_use_local_attention
+                else:
+                    use_local_attention = False
                 pbc_expand_batched = self.cell_expander.expand(
                     batched_data["pos"],
                     batched_data["init_pos"],
@@ -1135,7 +1177,7 @@ class PSM(nn.Module):
                     batched_data["masked_token_type"],
                     batched_data["cell"],
                     batched_data["node_type_edge"],
-                    self.psm_config.pbc_use_local_attention,
+                    use_local_attention=use_local_attention,
                     use_grad=self.psm_config.AutoGradForce,
                 )
             else:

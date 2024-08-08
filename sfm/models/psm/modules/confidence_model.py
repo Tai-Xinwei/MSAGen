@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from collections import Counter
 from typing import List, Optional
 
 import torch
@@ -234,20 +235,32 @@ def lddt_loss(
     score = lddt(
         ca_atom_pred_pos, ca_atom_positions, ca_atom_mask, cutoff=cutoff, eps=eps
     )
-
     # TODO: Remove after initial pipeline testing
     score = torch.nan_to_num(score, nan=torch.nanmean(score))
     score[score < 0] = 0
 
+    lddt_per_prot = (score * ca_atom_mask).sum(dim=-1) / (
+        eps + ca_atom_mask.sum(dim=-1)
+    )
     score = score.detach()
     bin_index = torch.floor(score * no_bins).long()
     bin_index = torch.clamp(bin_index, max=(no_bins - 1))
     lddt_ca_one_hot = torch.nn.functional.one_hot(bin_index, num_classes=no_bins)
     errors = softmax_cross_entropy(logits, lddt_ca_one_hot)
-    # accuracy
-    acc = torch.sum(
-        (torch.argmax(logits, dim=-1) == bin_index).type(logits.dtype) * ca_atom_mask
-    ) / (eps + torch.sum(ca_atom_mask))
+    with torch.no_grad():
+        mean_lddt = (
+            torch.sum(bin_index.float() * ca_atom_mask)
+            / (eps + torch.sum(ca_atom_mask))
+            * 2
+            + 2
+        )
+        acc = torch.sum(
+            (torch.argmax(logits, dim=-1) == bin_index).type(logits.dtype)
+            * ca_atom_mask
+        ) / (eps + torch.sum(ca_atom_mask))
+        # debug
+        lddt_stat = (score * 100)[ca_atom_mask]
+
     ca_atom_mask = ca_atom_mask.squeeze(-1)
     loss = torch.sum(errors * ca_atom_mask, dim=-1) / (
         eps + torch.sum(ca_atom_mask, dim=-1)
@@ -256,7 +269,27 @@ def lddt_loss(
     loss = loss * ((resolution >= min_resolution) & (resolution <= max_resolution))
     # Average over the batch dimension
     loss = torch.mean(loss)
-    return loss, acc
+    return (
+        loss,
+        mean_lddt,
+        acc,
+        {
+            "lddt ∈ [0, 20)": (lddt_stat < 20).sum().item() / lddt_stat.numel() * 100,
+            "lddt ∈ [20, 40)": ((lddt_stat >= 20) & (lddt_stat < 40)).sum().item()
+            / lddt_stat.numel()
+            * 100,
+            "lddt ∈ [40, 60)": ((lddt_stat >= 40) & (lddt_stat < 60)).sum().item()
+            / lddt_stat.numel()
+            * 100,
+            "lddt ∈ [60, 80)": ((lddt_stat >= 60) & (lddt_stat < 80)).sum().item()
+            / lddt_stat.numel()
+            * 100,
+            "lddt ∈ [80, 100]": (lddt_stat >= 80).sum().item()
+            / lddt_stat.numel()
+            * 100,
+            "lddt_per_prot": lddt_per_prot.cpu().numpy(),
+        },
+    )
 
 
 def compute_tm(

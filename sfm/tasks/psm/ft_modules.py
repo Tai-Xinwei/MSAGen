@@ -173,7 +173,7 @@ class PerResidueLDDTCaPredictor(nn.Module):
             device=pos_pred.device,
             dtype=pos_pred.dtype,
         )
-        lddt_loss_output, lddt_acc = lddt_loss(
+        lddt_loss_output, lddt_label, lddt_acc, lddt_stats = lddt_loss(
             model_output["plddt_logits"],
             pos_pred,
             pos_orig,
@@ -183,4 +183,6 @@ class PerResidueLDDTCaPredictor(nn.Module):
         loss += lddt_loss_output
         logging_output["lddt_loss"] = lddt_loss_output
         logging_output["lddt_acc"] = lddt_acc
+        logging_output["lddt_label"] = lddt_label
+        logging_output = {**logging_output, **lddt_stats}
         return loss, logging_output
