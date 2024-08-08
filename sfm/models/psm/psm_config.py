@@ -101,6 +101,10 @@ class PSMConfig(GraphormerConfig):
     mode_prob: str = "0.1,0.4,0.5"
     sample_ligand_only: bool = False
 
+    # for molecule
+    molecule_ref_energy_source: Optional[str] = None
+    molecule_outlier_energy_atoms: str = "DEPRECATED_PM6_ATOM_ENERGY_OUTLIER_LIST"
+
     # for diffusion
     diffusion_sampling: str = "ddpm"
     num_timesteps_stepsize: int = -1

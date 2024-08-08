@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import zlib
 from functools import lru_cache
 
 import numpy as np
@@ -19,6 +20,7 @@ import torch
 from ase.io import read as ase_read
 from numpy import dot
 from numpy.linalg import norm
+from rdkit import Chem
 from sympy.utilities.iterables import multiset_permutations
 from torch.utils.data import Subset
 from torch_geometric.data import Data
@@ -32,7 +34,7 @@ from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.crop import spatial_crop_psm
 from sfm.data.psm_data.utils import (
     PM6_ATOM_ENERGY_OUTLIER_LIST,
-    PM6_ATOM_REFERENCE,
+    PM6_ATOM_REFERENCE_LIST,
     VOCAB,
     convert_to_single_emb,
     get_conv_variable_lin,
@@ -41,6 +43,8 @@ from sfm.data.psm_data.utils import (
 )
 from sfm.logging import logger
 from sfm.models.psm.psm_config import PSMConfig
+
+_PT = Chem.GetPeriodicTable()
 
 
 class MoleculeLMDBDataset(FoundationModelDataset):
@@ -66,14 +70,21 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         self._env, self._txn = None, None
         self._sizes, self._keys = None, None
 
-        PM6_ATOM_REFERENCE_list = PM6_ATOM_REFERENCE
-        for key in PM6_ATOM_ENERGY_OUTLIER_LIST:
-            PM6_ATOM_REFERENCE_list[key] = 1e7
+        atomic_ref_energy = self.atomic_ref_energies()
+        ref_energy = np.ones(130) * 1e7
+        ref_energy[np.arange(len(atomic_ref_energy)) + 1] = atomic_ref_energy
+        ref_energy[np.abs(ref_energy) < 1e-6] = 1e7
 
-        PM6_ATOM_REFERENCE_list = list(PM6_ATOM_REFERENCE_list.values())
-        self.PM6_ATOM_REFERENCE_tensor = torch.tensor(
-            PM6_ATOM_REFERENCE_list, dtype=torch.float64
+        outliers = self.outlier_energy_atoms()
+        if len(outliers) > 0:
+            ref_energy[outliers] = 1e7
+        atoms_kept = np.argwhere(ref_energy < 1e7).reshape(-1)
+        logger.info(
+            "Keep reference energy for {} atoms: [{}]",
+            len(atoms_kept),
+            ",".join(_PT.GetElementSymbol(int(a)) for a in atoms_kept if 0 < a < 119),
         )
+        self.atomic_ref_energy_tensor = torch.tensor(ref_energy, dtype=torch.float64)
 
         if keys is not None:
             assert sizes is not None, "sizes must be provided with keys"
@@ -103,6 +114,37 @@ class MoleculeLMDBDataset(FoundationModelDataset):
                 "=== N O T E === Scaling energy_per_atom label by {}",
                 self.energy_per_atom_scale,
             )
+
+    @lru_cache(maxsize=1)
+    def atomic_ref_energies(self):
+        if not self.args.molecule_ref_energy_source:
+            logger.warning("=== N O T E === Using DEPRECATED PM6_ATOM_REFERENCE_LIST")
+            return np.array(PM6_ATOM_REFERENCE_LIST)
+
+        with open(
+            os.path.join(
+                self.args.data_path,
+                self.args.molecule_ref_energy_source,
+                "metadata.pickle.gz",
+            ),
+            "rb",
+        ) as f:
+            metadata = pkl.loads(zlib.decompress(f.read()))
+        return metadata["atomic_energies"]
+
+    @lru_cache(maxsize=1)
+    def outlier_energy_atoms(self):
+        outliers = self.args.molecule_outlier_energy_atoms
+        if not self.args.molecule_outlier_energy_atoms:
+            return []
+
+        if outliers == "DEPRECATED_PM6_ATOM_ENERGY_OUTLIER_LIST":
+            logger.warning(
+                "=== N O T E === Using DEPRECATED PM6_ATOM_ENERGY_OUTLIER_LIST"
+            )
+            return PM6_ATOM_ENERGY_OUTLIER_LIST
+        else:
+            return [int(a) for a in outliers.split(",")]
 
     def _ensure_init_db(self):
         if self._env is not None:
@@ -216,13 +258,12 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
         data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
         data["stress"] = torch.zeros((3, 3), dtype=torch.float64)
-        data["forces"] = torch.zeros((x.size()[0], 3), dtype=torch.float64)
 
         if "energy" in data or "total_energy" in data:
             total_energy = data["energy"] if "energy" in data else data["total_energy"]
 
             reference_energy = (
-                torch.gather(self.PM6_ATOM_REFERENCE_tensor, 0, data["token_type"] - 1)
+                torch.gather(self.atomic_ref_energy_tensor, 0, data["token_type"] - 1)
                 .sum()
                 .unsqueeze(0)
             )
@@ -237,8 +278,14 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             data["energy"] = torch.tensor([0.0], dtype=torch.float64)
             data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
 
+        has_forces = data.get("forces") is not None
+        if has_forces:
+            data["forces"] = torch.tensor(data["forces"], dtype=torch.float64)
+        else:
+            data["forces"] = torch.zeros((x.size()[0], 3), dtype=torch.float64)
+
         data["has_energy"] = torch.tensor([1], dtype=torch.bool)
-        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([has_forces], dtype=torch.bool)
         data = self.generate_2dgraphfeat(data)
 
         data["is_stable_periodic"] = False
@@ -342,6 +389,58 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         self._txn = self._env.begin(write=False)
 
 
+class PubChemQCB3lypPM6Dataset(MoleculeLMDBDataset):
+    latest_version = "wb97xd3/1.0.0"
+
+    def __init__(self, args, path, version=None, keys=None, sizes=None):
+        path = os.path.normpath(path)
+        if path.endswith("PubChemQC-B3LYP-PM6"):
+            path = os.path.join(path, version or self.latest_version, "lmdb", "train")
+        if not path.endswith("/lmdb/train"):
+            # b3lyp/1.0.0 -> b3lyp/1.0.0/lmdb/train
+            path = os.path.join(path, "lmdb", "train")
+        assert os.path.exists(path)
+
+        self.dataset_dir = os.path.abspath(os.path.join(path, os.pardir, os.pardir))
+        super().__init__(args, path, keys=keys, sizes=sizes)
+
+    def _ensure_init_db(self):
+        if self._env is not None:
+            return
+        self._env = lmdb.open(
+            str(self.lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        self._txn = self._env.begin(write=False)
+        with open(
+            os.path.join(self.dataset_dir, "train", "metadata.pickle.gz"), "rb"
+        ) as f:
+            metadata = pkl.loads(zlib.decompress(f.read()))
+        self._keys = [str(key) for key in metadata["index"]]
+        self._sizes = metadata["size"]
+
+    def raw(self, idx: Union[int, np.integer]) -> Data:
+        x = super().raw(idx)
+        x["node_feat"] = np.array(x["node_feat"]).reshape(-1, 9)
+        x["coords"] = np.array(x["coords"]).reshape(-1, 3)
+        assert x["num_nodes"] == len(x["node_feat"]) == len(x["coords"])
+
+        forces = x.get("forces")
+        if forces is not None:
+            x["forces"] = np.array(forces).reshape(-1, 3)
+            assert x["num_nodes"] == len(x["forces"])
+
+        x["edge_index"] = np.array(x["edge_index"]).reshape(2, -1)
+        x["edge_feat"] = np.array(x["edge_feat"]).reshape(-1, 3)
+        assert x["edge_index"].shape[1] == x["edge_feat"].shape[0]
+
+        return x
+
+
 class PM6FullLMDBDataset(MoleculeLMDBDataset):
     latest_version = "20240527.1"
     energy_mean: float = -42774.16038176129
@@ -362,18 +461,13 @@ class PM6FullLMDBDataset(MoleculeLMDBDataset):
             path = os.path.join(
                 path, version or PM6FullLMDBDataset.latest_version, "full"
             )
+        logger.warning("=== N O T E === Using DEPRECATED PM6FullLMDBDataset")
         super().__init__(args, path, keys=keys, sizes=sizes)
 
 
 class PlainPM6FullLMDBDataset(PM6FullLMDBDataset):
-    def __init__(
-        self,
-        args: PSMConfig,
-        lmdb_path: Optional[str],
-        keys: Optional[List[str]] = None,
-        sizes: Optional[List[int]] = None,
-    ):
-        super().__init__(args, lmdb_path, keys=keys, sizes=sizes)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def generate_2dgraphfeat(self, data):
         N = data["num_atoms"]

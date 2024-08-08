@@ -6,9 +6,9 @@ ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
-[ -z "${layers}" ] && layers=22
-[ -z "${hidden_size}" ] && hidden_size=1024
-[ -z "${ffn_size}" ] && ffn_size=4096
+[ -z "${layers}" ] && layers=32
+[ -z "${hidden_size}" ] && hidden_size=1536
+[ -z "${ffn_size}" ] && ffn_size=6144
 [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -17,16 +17,16 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${max_tokens}" ] && max_tokens=2000
 # [ -z "${max_tokens}" ] && max_tokens=36000
 
-[ -z "${dropout}" ] && dropout=0.1
-[ -z "${act_dropout}" ] && act_dropout=0.1
-[ -z "${attn_dropout}" ] && attn_dropout=0.1
+[ -z "${dropout}" ] && dropout=0.0
+[ -z "${act_dropout}" ] && act_dropout=0.0
+[ -z "${attn_dropout}" ] && attn_dropout=0.0
 [ -z "${weight_decay}" ] && weight_decay=0.0
 [ -z "${sandwich_ln}" ] && sandwich_ln=true
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_mode}" ] && noise_mode=diff
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.0
-[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.1
+[ -z "${clean_sample_ratio}" ] && clean_sample_ratio=1.0
 [ -z "${psm_finetune_noise_mode}" ] && psm_finetune_noise_mode=T
 [ -z "${finetune_module}" ] && finetune_module=plddt_confidence_head
 [ -z "${psm_sample_structure_in_finetune}" ] && psm_sample_structure_in_finetune=True
@@ -46,19 +46,22 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0'
 
-[ -z "${data_path}" ] && data_path=/sfmarca100/sfm/psm #~/
-[ -z "${data_path_list}" ] && data_path_list='20240101_PDB_Training_Data' #'AFDB30-plddt90.lmdb'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pdb' #'afdb'
+[ -z "${data_path}" ] && data_path=~/
+[ -z "${data_path_list}" ] && data_path_list='20240101_PDB_Training_Data' # 'AFDB30-plddt90.lmdb' #
+# [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
+# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pdb' # 'afdb' #
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="2"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
 [ -z "${energy_loss_ratio}" ] && energy_loss_ratio=1.0
 [ -z "${force_loss_ratio}" ] && force_loss_ratio=1.0
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/sfmarca100/sfm/sfmexpresults/peiran/psmv1_vt_v8/checkpoints/global_step389895/mp_rank_00_model_states.pt"
-[ -z "${save_dir}" ] && save_dir='./checkpoint'
+[ -z "${loadcheck_path}" ] && loadcheck_path="/sfmdataeastus2/psm/exp/peiran/psmv1_vt_v10_1b/checkpoints/global_step200000/mp_rank_00_model_states.pt"
+# [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmdataeastus2/psm/exp/peiran/psmv1_vt_v10_1b/checkpoints/global_step200000/mp_rank_00_model_states.pt"
+[ -z "${save_dir}" ] && save_dir='home/peiranjin/output'
 
 [ -z "${wandb_project}" ] && wandb_project=psm_VT_finetune
 [ -z "${wandb_group}" ] && wandb_group=protein_confidence_model_plddt_finetune
@@ -82,9 +85,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
 
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
-[ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
+[ -z "${diffusion_sampling}" ] && diffusion_sampling="ode"
 [ -z "${num_timesteps}" ] && num_timesteps=5000
-[ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-100
+[ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=25
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
 [ -z "${ddpm_beta_end}" ] && ddpm_beta_end=2e-3
 [ -z "${ddpm_schedule}" ] && ddpm_schedule=sigmoid
@@ -96,6 +99,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 
 [ -z "${freeze_backbone}" ] && freeze_backbone=True
+[ -z "${force_head_type}" ] && force_head_type=GATED_EQUIVARIANT
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -219,4 +223,4 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           energy_loss_ratio=$energy_loss_ratio force_loss_ratio=$force_loss_ratio \
           preprocess_2d_bond_features_with_cuda=True \
           loadcheck_path=$loadcheck_path \
-          freeze_backbone=$freeze_backbone
+          freeze_backbone=$freeze_backbone force_head_type=$force_head_type
