@@ -18,6 +18,7 @@ from sfm.data.psm_data.dataset import (
     PDBDataset,
     PlainPM6FullLMDBDataset,
     PM6FullLMDBDataset,
+    PubChemQCB3lypPM6Dataset,
     SmallMolDataset,
     UR50LMDBDataset,
 )
@@ -92,11 +93,17 @@ class UnifiedPSMDataset(FoundationModelDataset):
         self.periodic_force_std = 1.0
 
         for data_path, dataset_name in zip(file_list, dataset_name_list):
-            if dataset_name == "pm6":
-                if args.backbone.find("vanilla") != -1:
-                    dataset = PlainPM6FullLMDBDataset(args, data_path, **kwargs)
+            if dataset_name in ["pm6", "pm6-b3lyp", "pm6-wb97xd3"]:
+                if dataset_name == "pm6-wb97xd3":
+                    dataset = PubChemQCB3lypPM6Dataset(args, data_path, **kwargs)
+                elif dataset_name == "pm6-b3lyp":
+                    data_path = os.path.join(data_path, "b3lyp/1.0.0")
+                    dataset = PubChemQCB3lypPM6Dataset(args, data_path, **kwargs)
                 else:
-                    dataset = PM6FullLMDBDataset(args, data_path, **kwargs)
+                    if args.backbone.find("vanilla") != -1:
+                        dataset = PlainPM6FullLMDBDataset(args, data_path, **kwargs)
+                    else:
+                        dataset = PM6FullLMDBDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)

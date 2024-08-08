@@ -59,3 +59,6 @@ docs = [
 homepage = "https://dev.azure.com/AI4ScienceSFM/SFM_framework"
 repository = "https://AI4ScienceSFM@dev.azure.com/AI4ScienceSFM/SFM_framework/_git/SFM_framework"
 documentation = "https://super-adventure-59315m6.pages.github.io/"
+
+[project.scripts]
+sfm-data = "sfm.experimental.datasets.cli:main"
