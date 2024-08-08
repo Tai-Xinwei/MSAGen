@@ -402,6 +402,7 @@ class PSMModel(Model):
         if (
             self.args.backbone in ["vanillatransformer", "dit", "e2dit"]
             and not self.disable_data_aug
+            and not batched_data["is_periodic"]  # do not rotate pbc material
         ):
             R = uniform_random_rotation(
                 ori_pos.size(0), device=ori_pos.device, dtype=ori_pos.dtype
@@ -411,8 +412,8 @@ class PSMModel(Model):
             # ).unsqueeze(1)
             ori_pos = torch.bmm(ori_pos, R)
             batched_data["forces"] = torch.bmm(batched_data["forces"], R)
-            batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
-            batched_data["cell"] = torch.bmm(batched_data["cell"], R)
+            # batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
+            # batched_data["cell"] = torch.bmm(batched_data["cell"], R)
 
         batched_data["ori_pos"] = ori_pos
 

@@ -79,7 +79,8 @@ jobs:
   # - export dataset_split_raito='0.3,0.05,0.3,0.15,0.1,0.1,0.1'
   # - export dataset_micro_batch_size='112,8,24,8,12,24,12'
   - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data' #,ur50_23_bpe_pack512.lmdb'
-  - export dataset_name_list='mattersim,mattersim,pm6,afdb,pdb,pdbcomplexmultimer' #,ur50'
+  # - export dataset_name_list='mattersim,mattersim,pm6,afdb,pdb,pdbcomplexmultimer' #,ur50'
+  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdb,pdbcomplexmultimer' #,ur50'
   - export dataset_split_raito='0.05,0.15,0.3,0.45,0.01,0.04' #,0.1'
   - export dataset_micro_batch_size='8,8,32,8,8,2' #,12'
   - export fp16=False
@@ -87,9 +88,8 @@ jobs:
   - export molecule_energy_loss_ratio=1.0
   - export material_energy_loss_ratio=1.0
   - export material_force_loss_ratio=1.0
-  # - export num_timesteps=1000
-  # - export ddpm_beta_start=1e-4
-  # - export ddpm_beta_end=2e-2
+  - export molecule_ref_energy_source=PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train
+  - export molecule_outlier_energy_atoms="."
   - export AutoGradForce=False
   - export use_hard_dist_loss=True
   - export use_unified_batch_sampler=True

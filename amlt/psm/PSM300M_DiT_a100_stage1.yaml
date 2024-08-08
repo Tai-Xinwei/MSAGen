@@ -88,7 +88,7 @@ jobs:
   - export data_path_list='PubChemQC-B3LYP-PM6' #,ur50_23_bpe_pack512.lmdb'
   - export dataset_name_list='pm6-wb97xd3' #,ur50'
   - export dataset_split_raito='1.0' #,0.1'
-  - export dataset_micro_batch_size='72'
+  - export dataset_micro_batch_size='64'
   - export fp16=False
   # - export dataset_micro_batch_size='12,12,100,24,24,24'
   # - export fp16=True
@@ -103,7 +103,7 @@ jobs:
   - export use_unified_batch_sampler=True
   - export decoder_feat4energy=True
   - export only_use_rotary_embedding_for_protein=True
-  - export if_total_energy=False
+  - export if_total_energy=True
   - export save_batch_interval=5000
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints
   - export psm_finetune_mode=False
