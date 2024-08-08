@@ -7,7 +7,7 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 8
+  NODES: 2
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -81,10 +81,14 @@ jobs:
   # - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
   # - export dataset_split_raito='0.3,0.05,0.3,0.15,0.1,0.1,0.1'
   # - export dataset_micro_batch_size='112,8,24,8,12,24,12'
-  - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data' #,ur50_23_bpe_pack512.lmdb'
-  - export dataset_name_list='mattersim,mattersim,pm6,afdb,pdb,pdbcomplexmultimer' #,ur50'
-  - export dataset_split_raito='0.1,0.1,0.3,0.35,0.1,0.05' #,0.1'
-  - export dataset_micro_batch_size='8,8,72,16,16,8'
+  # - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data' #,ur50_23_bpe_pack512.lmdb'
+  # - export dataset_name_list='mattersim,mattersim,pm6,afdb,pdb,pdbcomplexmultimer' #,ur50'
+  # - export dataset_split_raito='0.1,0.1,0.3,0.35,0.1,0.05' #,0.1'
+  # - export dataset_micro_batch_size='8,8,72,16,16,8'
+  - export data_path_list='PubChemQC-B3LYP-PM6' #,ur50_23_bpe_pack512.lmdb'
+  - export dataset_name_list='pm6' #,ur50'
+  - export dataset_split_raito='1.0' #,0.1'
+  - export dataset_micro_batch_size='72'
   - export fp16=False
   # - export dataset_micro_batch_size='12,12,100,24,24,24'
   # - export fp16=True
