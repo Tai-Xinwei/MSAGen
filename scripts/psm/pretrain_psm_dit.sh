@@ -96,6 +96,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
 [ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1.0
 [ -z "${energy_per_atom_label_scale}" ] && energy_per_atom_label_scale=1.0
+[ -z "${molecule_ref_energy_source}" ] && molecule_ref_energy_source="PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train"
+[ -z "${molecule_outlier_energy_atoms}" ] && molecule_outlier_energy_atoms="."
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 
@@ -280,6 +282,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy \
           NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
           rescale_loss_with_std=$rescale_loss_with_std align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss \
+          molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           loadcheck_path=$loadcheck_path \
           # ifresume=True \
 

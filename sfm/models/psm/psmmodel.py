@@ -333,7 +333,8 @@ class PSMModel(Model):
         is_periodic = batched_data["pbc"].any(dim=-1)
         is_molecule = (~is_periodic) & (token_id <= 129).all(dim=-1)
         is_protein = (~is_periodic.unsqueeze(-1)) & (token_id > 129) & (token_id < 156)
-        is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
+        # is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
+        is_heavy_atom = is_molecule & (token_id > 130).any(dim=-1)
         is_seq_only = sample_type == 5
         is_complex = sample_type == 6
         is_energy_outlier = is_molecule & (

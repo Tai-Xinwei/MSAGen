@@ -86,7 +86,7 @@ jobs:
   # - export dataset_split_raito='0.1,0.1,0.3,0.35,0.1,0.05' #,0.1'
   # - export dataset_micro_batch_size='8,8,72,16,16,8'
   - export data_path_list='PubChemQC-B3LYP-PM6' #,ur50_23_bpe_pack512.lmdb'
-  - export dataset_name_list='pm6' #,ur50'
+  - export dataset_name_list='pm6-wb97xd3' #,ur50'
   - export dataset_split_raito='1.0' #,0.1'
   - export dataset_micro_batch_size='72'
   - export fp16=False
@@ -96,9 +96,8 @@ jobs:
   - export molecule_energy_loss_ratio=1.0
   - export material_energy_loss_ratio=1.0
   - export material_force_loss_ratio=1.0
-  # - export num_timesteps=1000
-  # - export ddpm_beta_start=1e-4
-  # - export ddpm_beta_end=2e-2
+  - export molecule_ref_energy_source=PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train
+  - export molecule_outlier_energy_atoms="."
   - export AutoGradForce=False
   - export use_hard_dist_loss=True
   - export use_unified_batch_sampler=True

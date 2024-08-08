@@ -36,6 +36,7 @@ from sfm.data.psm_data.utils import (
     PM6_ATOM_ENERGY_OUTLIER_LIST,
     PM6_ATOM_REFERENCE_LIST,
     VOCAB,
+    WB97XD3_ATOM_ENERGY_OUTLIER_LIST,
     convert_to_single_emb,
     get_conv_variable_lin,
     get_data_defult_config,
@@ -135,7 +136,7 @@ class MoleculeLMDBDataset(FoundationModelDataset):
     @lru_cache(maxsize=1)
     def outlier_energy_atoms(self):
         outliers = self.args.molecule_outlier_energy_atoms
-        if not self.args.molecule_outlier_energy_atoms:
+        if self.args.molecule_outlier_energy_atoms == ".":
             return []
 
         if outliers == "DEPRECATED_PM6_ATOM_ENERGY_OUTLIER_LIST":
@@ -144,6 +145,7 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             )
             return PM6_ATOM_ENERGY_OUTLIER_LIST
         else:
+            # return WB97XD3_ATOM_ENERGY_OUTLIER_LIST
             return [int(a) for a in outliers.split(",")]
 
     def _ensure_init_db(self):
