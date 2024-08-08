@@ -402,7 +402,7 @@ class PSMModel(Model):
         if (
             self.args.backbone in ["vanillatransformer", "dit", "e2dit"]
             and not self.disable_data_aug
-            and not batched_data["is_periodic"]  # do not rotate pbc material
+            and not batched_data["is_periodic"].any()  # do not rotate pbc material
         ):
             R = uniform_random_rotation(
                 ori_pos.size(0), device=ori_pos.device, dtype=ori_pos.dtype
