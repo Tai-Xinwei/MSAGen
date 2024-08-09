@@ -70,33 +70,10 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         self._env, self._txn = None, None
         self._sizes, self._keys = None, None
 
-        atomic_ref_energy = self.atomic_ref_energies()
-        ref_energy = np.ones(130) * 1e7
-        ref_energy[np.arange(len(atomic_ref_energy)) + 1] = atomic_ref_energy
-        ref_energy[np.abs(ref_energy) < 1e-6] = 1e7
-
-        outliers = self.outlier_energy_atoms()
-        if len(outliers) > 0:
-            ref_energy[outliers] = 1e7
-        atoms_kept = np.argwhere(ref_energy < 1e7).reshape(-1)
-        logger.info(
-            "Keep reference energy for {} atoms: [{}]",
-            len(atoms_kept),
-            ",".join(_PT.GetElementSymbol(int(a)) for a in atoms_kept if 0 < a < 119),
-        )
-        self.atomic_ref_energy_tensor = torch.tensor(ref_energy, dtype=torch.float64)
-
+        logger.info(f"Initializing LMDB and loading metadata from {lmdb_path}")
+        self._ensure_init_db()
         if keys is not None:
             assert sizes is not None, "sizes must be provided with keys"
-            self._env = lmdb.open(
-                str(self.lmdb_path),
-                subdir=True,
-                readonly=True,
-                lock=False,
-                readahead=False,
-                meminit=False,
-            )
-            self._txn = self._env.begin(write=False)
             self._keys = keys
             self._sizes = sizes
         # else:
@@ -105,46 +82,15 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         #         max_sizes=self.args.max_length - 2,
         #     )
 
-        self.energy_per_atom_scale = getattr(
-            self.args, "energy_per_atom_label_scale", None
+        self.atomic_ref_energy_tensor = self.get_atomic_ref_energy_tensor(
+            args.molecule_ref_energy_source,
+            args.data_path,
+            args.molecule_outlier_energy_atoms,
         )
-        if self.energy_per_atom_scale is not None:
-            # Should not be used in general unless you know what you are doing
-            logger.warning(
-                "=== N O T E === Scaling energy_per_atom label by {}",
-                self.energy_per_atom_scale,
-            )
 
-    @lru_cache(maxsize=1)
-    def atomic_ref_energies(self):
-        if not self.args.molecule_ref_energy_source:
-            logger.warning("=== N O T E === Using DEPRECATED PM6_ATOM_REFERENCE_LIST")
-            return np.array(PM6_ATOM_REFERENCE_LIST)
-
-        with open(
-            os.path.join(
-                self.args.data_path,
-                self.args.molecule_ref_energy_source,
-                "metadata.pickle.gz",
-            ),
-            "rb",
-        ) as f:
-            metadata = pkl.loads(zlib.decompress(f.read()))
-        return metadata["atomic_energies"]
-
-    @lru_cache(maxsize=1)
-    def outlier_energy_atoms(self):
-        outliers = self.args.molecule_outlier_energy_atoms
-        if not self.args.molecule_outlier_energy_atoms:
-            return []
-
-        if outliers == "DEPRECATED_PM6_ATOM_ENERGY_OUTLIER_LIST":
-            logger.warning(
-                "=== N O T E === Using DEPRECATED PM6_ATOM_ENERGY_OUTLIER_LIST"
-            )
-            return PM6_ATOM_ENERGY_OUTLIER_LIST
-        else:
-            return [int(a) for a in outliers.split(",")]
+        self.energy_per_atom_scale = self.get_energy_per_atom_scale(
+            getattr(args, "energy_per_atom_label_scale", None)
+        )
 
     def _ensure_init_db(self):
         if self._env is not None:
@@ -167,6 +113,76 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             self._env.close()
             self._env = None
             self._txn = None
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def load_metadata(cls, metadata_pickle_path: str) -> Any:
+        """
+        Load metadata from a compressed pickle file.
+        """
+        logger.info("Loading metadata from {}", metadata_pickle_path)
+        with open(metadata_pickle_path, "rb") as f:
+            return pkl.loads(zlib.decompress(f.read()))
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_atomic_ref_energy_tensor(
+        cls,
+        ref_energy_source: Optional[str] = None,
+        data_path: Optional[str] = None,
+        outlier_energy_atoms: Optional[str] = None,
+    ):
+        """
+        Get atomic reference energy tensor. The model-level value will be cached.
+        """
+        if not ref_energy_source:
+            logger.warning("=== N O T E === Using DEPRECATED PM6_ATOM_REFERENCE_LIST")
+            atomic_ref_energy = np.array(PM6_ATOM_REFERENCE_LIST)
+        else:
+            metadata = cls.load_metadata(
+                os.path.join(data_path, ref_energy_source, "metadata.pickle.gz")
+            )
+            atomic_ref_energy = metadata["atomic_energies"]
+
+        ref_energy = np.ones(130) * 1e7
+        ref_energy[np.arange(len(atomic_ref_energy))] = atomic_ref_energy
+        ref_energy[np.abs(ref_energy) < 1e-6] = 1e7
+
+        outliers = []
+        if outlier_energy_atoms:
+            if outlier_energy_atoms == "DEPRECATED_PM6_ATOM_ENERGY_OUTLIER_LIST":
+                logger.warning(
+                    "=== N O T E === Using DEPRECATED PM6_ATOM_ENERGY_OUTLIER_LIST"
+                )
+                outliers = PM6_ATOM_ENERGY_OUTLIER_LIST
+            else:
+                outliers = [int(a) for a in outlier_energy_atoms.split(",")]
+
+        if len(outliers) > 0:
+            ref_energy[outliers] = 1e7
+        atoms_kept = np.argwhere(ref_energy < 1e7).reshape(-1)
+        logger.info(
+            "Keep reference energy for {} atoms: [{}]",
+            len(atoms_kept),
+            ",".join(_PT.GetElementSymbol(int(a)) for a in atoms_kept if 0 < a < 119),
+        )
+        return torch.tensor(ref_energy, dtype=torch.float64)
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_energy_per_atom_scale(
+        cls, energy_per_atom_label_scale: Optional[float] = None
+    ):
+        """
+        Get energy per atom scale if specified. Cache the value to avoid repeating the warnning message.
+        """
+        if energy_per_atom_label_scale is not None:
+            # Should not be used in general unless you know what you are doing
+            logger.warning(
+                "=== N O T E === Scaling energy_per_atom label by {}",
+                energy_per_atom_label_scale,
+            )
+        return energy_per_atom_label_scale
 
     @property
     def env(self):
@@ -303,6 +319,8 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             edge_attr
         )
         adj[edge_index[0, :], edge_index[1, :]] = True
+        # set diagonal to True
+        adj[torch.arange(N), torch.arange(N)] = True
         indgree = adj.long().sum(dim=1).view(-1)
         adj[edge_index[1, :], edge_index[0, :]] = True
 
@@ -401,27 +419,32 @@ class PubChemQCB3lypPM6Dataset(MoleculeLMDBDataset):
             path = os.path.join(path, "lmdb", "train")
         assert os.path.exists(path)
 
-        self.dataset_dir = os.path.abspath(os.path.join(path, os.pardir, os.pardir))
         super().__init__(args, path, keys=keys, sizes=sizes)
 
-    def _ensure_init_db(self):
-        if self._env is not None:
-            return
-        self._env = lmdb.open(
-            str(self.lmdb_path),
+    @classmethod
+    @lru_cache(maxsize=1)
+    def _open_db(cls, lmdb_path):
+        env = lmdb.open(
+            str(lmdb_path),
             subdir=True,
             readonly=True,
             lock=False,
             readahead=False,
             meminit=False,
         )
-        self._txn = self._env.begin(write=False)
-        with open(
-            os.path.join(self.dataset_dir, "train", "metadata.pickle.gz"), "rb"
-        ) as f:
-            metadata = pkl.loads(zlib.decompress(f.read()))
-        self._keys = [str(key) for key in metadata["index"]]
-        self._sizes = metadata["size"]
+        txn = env.begin(write=False)
+        dataset_dir = os.path.abspath(os.path.join(lmdb_path, os.pardir, os.pardir))
+        metadata = cls.load_metadata(
+            os.path.join(dataset_dir, "train", "metadata.pickle.gz")
+        )
+        keys = [str(key) for key in metadata["index"]]
+        sizes = metadata["size"]
+        return env, txn, keys, sizes
+
+    def _ensure_init_db(self):
+        if self._env is not None:
+            return
+        self._env, self._txn, self._keys, self._sizes = self._open_db(self.lmdb_path)
 
     def raw(self, idx: Union[int, np.integer]) -> Data:
         x = super().raw(idx)
