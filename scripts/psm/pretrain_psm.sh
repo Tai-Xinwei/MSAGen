@@ -44,7 +44,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=30000
 
-[ -z "${mode_prob}" ] && mode_prob='0.4,0.5,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.2,0.6,0.2' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.4,0.4,0.2' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 [ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
@@ -123,7 +124,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_rotary_embedding_for_vector}" ] && no_rotary_embedding_for_vector=False
 [ -z "${node_type_edge_method}" ] && node_type_edge_method=NON_EXCHANGABLE
 [ -z "${force_head_type}" ] && force_head_type=GATED_EQUIVARIANT
-[ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=True
+[ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=False
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=128
 [ -z "${use_smooth_equviariant_norm}" ] && use_smooth_equviariant_norm=True
 [ -z "${unified_data_num_workers}" ] && unified_data_num_workers=0
@@ -249,7 +250,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           psm_finetune_valid_noise_mode=$psm_finetune_valid_noise_mode \
           diffusion_training_loss=$diffusion_training_loss \
           force_loss_type=$force_loss_type \
-          +energy_per_atom_label_scale=$energy_per_atom_label_scale +molecule_energy_per_atom_std_override=1.0 \
+          energy_per_atom_label_scale=$energy_per_atom_label_scale molecule_energy_per_atom_std_override=1.0 \
           align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss \
           num_edges=$num_edges \
           no_rotary_embedding_for_vector=$no_rotary_embedding_for_vector \
@@ -263,4 +264,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           material_force_loss_ratio=$material_force_loss_ratio \
           material_energy_loss_ratio=$material_energy_loss_ratio \
           molecule_energy_loss_ratio=$molecule_energy_loss_ratio \
-          val_batch_log_interval=$val_batch_log_interval
+          val_batch_log_interval=$val_batch_log_interval \
+          complex_mode_prob=\"$complex_mode_prob\"
