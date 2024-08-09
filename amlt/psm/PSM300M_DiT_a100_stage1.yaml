@@ -103,7 +103,7 @@ jobs:
   - export use_unified_batch_sampler=True
   - export decoder_feat4energy=True
   - export only_use_rotary_embedding_for_protein=True
-  - export if_total_energy=True
+  - export if_total_energy=False
   - export save_batch_interval=5000
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints
   - export psm_finetune_mode=False
