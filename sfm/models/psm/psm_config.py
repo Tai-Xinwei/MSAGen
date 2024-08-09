@@ -98,6 +98,7 @@ class PSMConfig(GraphormerConfig):
     # for protein
     crop_radius: float = 25.0
     mode_prob: str = "0.1,0.4,0.5"
+    complex_mode_prob: str = "0.1,0.4,0.5"
 
     # for molecule
     molecule_ref_energy_source: Optional[str] = None
