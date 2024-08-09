@@ -340,11 +340,16 @@ class PSMModel(Model):
         is_energy_outlier = is_molecule & (
             torch.abs(batched_data["energy_per_atom"]) > 23
         )
+        is_force_outlier = is_molecule & (
+            batched_data["forces"].norm(dim=-1).mean(dim=-1) > 2.5
+        )
 
         batched_data["is_periodic"] = is_periodic
         batched_data["is_molecule"] = is_molecule
         batched_data["is_protein"] = is_protein
-        batched_data["is_heavy_atom"] = is_energy_outlier | is_heavy_atom
+        batched_data["is_heavy_atom"] = (
+            is_energy_outlier | is_heavy_atom | is_force_outlier
+        )
         batched_data["is_seq_only"] = is_seq_only
         batched_data["is_complex"] = is_complex
 
