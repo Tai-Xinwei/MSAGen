@@ -2016,6 +2016,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 data["edge_index"][0, :] + polymer_len,
                 data["edge_index"][1, :] + polymer_len,
             ] = True
+            adj[torch.arange(N), torch.arange(N)] = True
             # allow interaction between protein and ligand, and protein and protein
             polymer_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
             polymer_ligand_adj[:polymer_len] = True
