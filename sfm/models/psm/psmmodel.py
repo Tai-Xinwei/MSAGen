@@ -119,6 +119,17 @@ class PSMModel(Model):
         self.mode_prob = mode_prob
         logger.info(f"protein mode prob: {mode_prob}")
 
+        try:
+            complex_mode_prob = [
+                float(item) for item in self.psm_config.complex_mode_prob.split(",")
+            ]
+            assert len(complex_mode_prob) == 3
+            assert sum(complex_mode_prob) == 1.0
+        except:
+            complex_mode_prob = [0.0, 0.0, 1.0]
+        self.complex_mode_prob = complex_mode_prob
+        logger.info(f"complex mode prob: {complex_mode_prob}")
+
     def reload_checkpoint(self):
         if self.psm_config.psm_finetune_mode or self.psm_config.psm_validation_mode:
             if os.path.exists(self.args.loadcheck_path):
@@ -263,7 +274,12 @@ class PSMModel(Model):
 
         """
         n_graph, nnodes = aa_mask.size()[:2]
-        mask_choice = np.random.choice(np.arange(3), n_graph, p=self.mode_prob)
+        if batched_data["is_complex"].any():
+            mask_choice = np.random.choice(
+                np.arange(3), n_graph, p=self.complex_mode_prob
+            )
+        else:
+            mask_choice = np.random.choice(np.arange(3), n_graph, p=self.mode_prob)
         mask_choice = torch.tensor([i for i in mask_choice]).to(clean_mask.device)
         clean_mask = clean_mask.unsqueeze(-1).repeat(1, nnodes)
         mask_choice = mask_choice.unsqueeze(-1).repeat(1, nnodes)
@@ -546,7 +562,7 @@ class PSMModel(Model):
             n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
         )
         clean_mask = clean_mask & ~(
-            batched_data["is_protein"].any(dim=-1)
+            batched_data["is_protein"].any(dim=-1) | batched_data["is_complex"]
         )  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
 
         # Do not predict energy of molecule with heavy atom avoid loss instability.

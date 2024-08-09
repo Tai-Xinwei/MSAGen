@@ -34,7 +34,7 @@ code:
   local_dir: ../../
 
 jobs:
-- name: psm-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-test-diffnoise10-fastpreprocess-20240725-1050
+- name: psm-molecule-protein-periodic-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-test-diffnoise10-fastpreprocess-20240806-1300
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS_PER_NODE}-IB
   mpi: true
@@ -60,7 +60,7 @@ jobs:
 
   - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data,matter-gen-force-filtered'
   - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer,mattersim'
-  - export dataset_split_raito='0.2,0.025,0.35,0.2,0.1,0.05,0.05,0.025'
+  - export dataset_split_raito='0.15,0.05,0.35,0.2,0.1,0.05,0.05,0.05'
   - export dataset_micro_batch_size="12,4,3,4,3,3,3,4"
 
   - export save_batch_interval=2500
@@ -71,7 +71,7 @@ jobs:
 
   - export wandb_project=psm_dev_shiyu_20240719
   - export wandb_group=psm_dev_shiyu_20240719
-  - export WANDB_RUN_NAME=psm-mol-pro-periodic-diff-relpos-noise1-relativepos-diffnoise10-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-fastpreprocess-20240725-1050
+  - export WANDB_RUN_NAME=psm-mol-pro-periodic-diff-relpos-noise1-relativepos-diffnoise10-${NODES}xG${GPUS_PER_NODE}-fp32-ddp-unified-sampler-fastpreprocess-20240806-1300
 
   - export total_num_steps=4000000
   - export warmup_num_steps=24000
@@ -82,7 +82,8 @@ jobs:
   - export strategy=DDP
   - export fp16=False
   - export clean_sample_ratio=0.5
-  - export mode_prob='0.4,0.5,0.1'
+  - export mode_prob='0.2,0.6,0.2'
+  - export complex_mode_prob='0.4,0.4,0.2'
 
   - export diff_init_lattice_size=10.0
   - export diffusion_sampling="ddpm"
