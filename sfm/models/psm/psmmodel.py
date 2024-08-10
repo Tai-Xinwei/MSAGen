@@ -790,7 +790,10 @@ class PSMModel(Model):
             )
 
             net_result = self.net(
-                batched_data, time_step=time_step, clean_mask=clean_mask
+                batched_data,
+                time_step=time_step,
+                clean_mask=clean_mask,
+                padding_mask=padding_mask,
             )
 
             predicted_noise = net_result["noise_pred"]
