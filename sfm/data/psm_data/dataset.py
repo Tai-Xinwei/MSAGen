@@ -1401,6 +1401,55 @@ class AFDBLMDBDataset(FoundationModelDataset):
         self._txn = self._env.begin(write=False)
 
 
+class ESMDataset(AFDBLMDBDataset):
+    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
+        key = self.keys[idx]
+        value = self.txn.get(key.encode())
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        data = bstr2obj(value)
+
+        # random cut off the sequence data["aa"] to self.max_length
+        if len(data["aa"]) > self.args.max_length:
+            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
+            coords = data["pos"][random_start : random_start + self.args.max_length, :]
+        else:
+            # CA atom positions, assume all values are valid.
+            coords = data["pos"]
+
+        # minus 1 due to add padding index=0 in collator
+        x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
+
+        data["sample_type"] = 2
+        data["token_type"] = x
+        data["idx"] = idx
+
+        coords = torch.tensor(coords, dtype=torch.float64)
+        data["coords"] = coords
+        data["num_atoms"] = x.size()[0]
+
+        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
+        data["forces"] = torch.zeros(
+            (x.size()[0], 3), dtype=torch.float64, device=x.device
+        )
+        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=x.device
+        )
+
+        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+
+        data = self.generate_2dgraphfeat(data)
+
+        data["is_stable_periodic"] = False
+
+        return data
+
+
 class PDBDataset(AFDBLMDBDataset):
     def __init__(
         self,
@@ -1759,7 +1808,6 @@ class PDBComplexDataset(AFDBLMDBDataset):
         keys: Optional[List[str]] = None,
         sizes: Optional[List[int]] = None,
     ):
-        # version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.ligand_protein_filteredNan.lmdb"
         version = "20240630_snapshot.20240714_2753ddc5.subset_release_date_before_20200430.ligand_protein.excludeNAs.removeHs.lmdb"
         # version = "posebusters-428structures-20240725-406c71b2.lmdb"
         self.crop_radius = args.crop_radius

@@ -120,6 +120,7 @@ def spatial_crop_psm(
     crop_size: int,
     center_ligand_idx: int,
     crop_center: np.ndarray,
+    ligand_crop_size: int = 20,
     keep_num: int = 768,
 ) -> Dict:
     """
@@ -170,7 +171,7 @@ def spatial_crop_psm(
         for ligand_idx, ligand in enumerate(non_polymers):
             # Crop the polymer chain
             cropped_ligand_idxes, dist, ligand_center = crop_ligand(
-                copy.deepcopy(ligand["node_coord"]), crop_size // 2, crop_center
+                copy.deepcopy(ligand["node_coord"]), ligand_crop_size, crop_center
             )
             if cropped_ligand_idxes is None:
                 continue
