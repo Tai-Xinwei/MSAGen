@@ -770,12 +770,10 @@ class PSMModel(Model):
         )  # centering to remove noise translation
 
         decoder_x_output = None
-        for t in tqdm(
-            range(
-                self.psm_config.num_timesteps - 1,
-                -1,
-                -self.psm_config.num_timesteps_stepsize,
-            )
+        for t in range(
+            self.psm_config.num_timesteps - 1,
+            -1,
+            self.psm_config.num_timesteps_stepsize,
         ):
             # forward
             time_step = self.time_step_sampler.get_continuous_time_step(
@@ -796,7 +794,8 @@ class PSMModel(Model):
             )
 
             predicted_noise = net_result["noise_pred"]
-            decoder_x_output = net_result["decoder_x_output"]
+            if self.psm_config.psm_finetune_mode:
+                decoder_x_output = net_result["decoder_x_output"]
             epsilon = self.diffnoise.get_noise(
                 batched_data["pos"],
                 batched_data["non_atom_mask"],
@@ -824,7 +823,10 @@ class PSMModel(Model):
             batched_data["pos"] = batched_data["pos"].detach()
 
         pred_pos = batched_data["pos"].clone()
-        if self.psm_finetune_head.__class__.__name__ == "PerResidueLDDTCaPredictor":
+        if (
+            self.psm_config.psm_finetune_mode
+            and self.psm_finetune_head.__class__.__name__ == "PerResidueLDDTCaPredictor"
+        ):
             logger.info("Running PerResidueLDDTCaPredictor")
             plddt = self.psm_finetune_head(
                 {
