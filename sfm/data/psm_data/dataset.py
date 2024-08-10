@@ -305,6 +305,7 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             edge_attr
         )
         adj[edge_index[0, :], edge_index[1, :]] = True
+        # adj[torch.arange(N), torch.arange(N)] = True
         indgree = adj.long().sum(dim=1).view(-1)
         adj[edge_index[1, :], edge_index[0, :]] = True
 
@@ -518,6 +519,7 @@ class PlainPM6FullLMDBDataset(PM6FullLMDBDataset):
             edge_attr
         )
         adj[edge_index[0, :], edge_index[1, :]] = True
+        # adj[torch.arange(N), torch.arange(N)] = True
         indgree = adj.long().sum(dim=1).view(-1)
 
         data["edge_index"] = edge_index
@@ -2075,6 +2077,10 @@ class PDBComplexDataset(AFDBLMDBDataset):
         else:
             # multimers
             data["sample_type"] = 7
+            edge_index = torch.zeros([2, 0], dtype=torch.long)
+            edge_attr = torch.zeros([0, 3], dtype=torch.long)
+            data["edge_index"] = edge_index
+            data["edge_attr"] = edge_attr
             adj = torch.ones([N, N], dtype=torch.bool)
 
         data["adj"] = adj
