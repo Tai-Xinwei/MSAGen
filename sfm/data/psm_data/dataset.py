@@ -320,10 +320,9 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             edge_attr
         )
         adj[edge_index[0, :], edge_index[1, :]] = True
+        indgree = adj.long().sum(dim=1).view(-1)
         # set diagonal to True
         adj[torch.arange(N), torch.arange(N)] = True
-        indgree = adj.long().sum(dim=1).view(-1)
-        adj[edge_index[1, :], edge_index[0, :]] = True
 
         data["edge_index"] = edge_index
         data["edge_attr"] = edge_attr
@@ -475,9 +474,9 @@ class PubChemQCB3lypPM6Dataset(MoleculeLMDBDataset):
             edge_attr
         )
         adj[edge_index[0, :], edge_index[1, :]] = True
+        indgree = adj.long().sum(dim=1).view(-1)
         # set diagonal to True
         adj[torch.arange(N), torch.arange(N)] = True
-        indgree = adj.long().sum(dim=1).view(-1)
         adj[edge_index[1, :], edge_index[0, :]] = True
 
         data["edge_index"] = edge_index

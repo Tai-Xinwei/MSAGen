@@ -808,7 +808,7 @@ class PSMModel(Model):
                 predicted_noise,
                 epsilon,
                 t,
-                stepsize=self.psm_config.num_timesteps_stepsize,
+                stepsize=-self.psm_config.num_timesteps_stepsize,
             )
 
             if clean_mask is not None:

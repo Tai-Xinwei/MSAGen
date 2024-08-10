@@ -55,7 +55,7 @@ jobs:
   - export atom_loss_coeff=1.0
   - export pos_loss_coeff=1.0
   - export sandwich_ln="true"
-  - export dropout=0.0
+  - export dropout=0.1
   - export attn_dropout=0.1
   - export act_dropout=0.1
   - export weight_decay=0.0
