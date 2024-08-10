@@ -305,7 +305,7 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             edge_attr
         )
         adj[edge_index[0, :], edge_index[1, :]] = True
-        # adj[torch.arange(N), torch.arange(N)] = True
+        adj[torch.arange(N), torch.arange(N)] = True
         indgree = adj.long().sum(dim=1).view(-1)
         adj[edge_index[1, :], edge_index[0, :]] = True
 
