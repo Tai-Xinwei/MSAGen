@@ -753,11 +753,11 @@ class PSMModel(Model):
         #     batched_data["protein_mask"].any(dim=-1), False
         # )
 
-        # batched_data["pos"] = self.diffnoise.get_sampling_start(
-        #     batched_data["init_pos"],
-        #     batched_data["non_atom_mask"],
-        #     batched_data["is_periodic"],
-        # )
+        batched_data["pos"] = self.diffnoise.get_sampling_start(
+            batched_data["init_pos"],
+            batched_data["non_atom_mask"],
+            batched_data["is_periodic"],
+        )
 
         # if clean_mask is not None:
         #     batched_data["pos"] = torch.where(
