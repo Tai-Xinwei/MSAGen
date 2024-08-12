@@ -505,9 +505,11 @@ class PSMModel(Model):
         self.net.eval()
         for sample_time_index in range(self.psm_config.num_sampling_time):
             original_pos = batched_data["pos"].clone()
+            original_cell = batched_data["cell"].clone()
             batched_data["pos"] = torch.zeros_like(
                 batched_data["pos"]
             )  # zero position to avoid any potential leakage
+            batched_data["cell"] = torch.zeros_like(batched_data["cell"])
             self.sample(batched_data=batched_data)
             match_result_one_time = self.sampled_structure_converter.convert_and_match(
                 batched_data, original_pos, sample_time_index
@@ -520,6 +522,7 @@ class PSMModel(Model):
             batched_data[
                 "pos"
             ] = original_pos  # recover original position, in case that we want to calculate diffusion loss and sampling RMSD at the same time in validation, and for subsequent sampling
+            batched_data["cell"] = original_cell
         for key in match_results:
             match_results[key] = torch.tensor(
                 match_results[key], device=batched_data["pos"].device
@@ -735,7 +738,7 @@ class PSMModel(Model):
         batched_data["pos"] = self.diffnoise.get_sampling_start(
             batched_data["init_pos"],
             batched_data["non_atom_mask"],
-            batched_data["is_periodic"],
+            batched_data["is_stable_periodic"],
         )
         batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
         batched_data["pos"] = center_pos(
@@ -765,7 +768,7 @@ class PSMModel(Model):
             epsilon = self.diffnoise.get_noise(
                 batched_data["pos"],
                 batched_data["non_atom_mask"],
-                batched_data["is_periodic"],
+                batched_data["is_stable_periodic"],
             )
 
             batched_data["pos"] = self.diffusion_process.sample_step(
@@ -835,9 +838,6 @@ def center_pos(batched_data, padding_mask):
             dim=1,
         )
     ) / 2.0
-    periodic_center = (
-        batched_data["cell"][is_stable_periodic].sum(dim=1, keepdim=True) / 2.0
-    )
     protein_mask = batched_data["protein_mask"]
     non_periodic_center = torch.sum(
         batched_data["pos"].masked_fill(padding_mask.unsqueeze(-1) | protein_mask, 0.0),
