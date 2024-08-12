@@ -1342,6 +1342,15 @@ class PSM(nn.Module):
                 padding_mask,
                 pbc_expand_batched,
             )
+        elif self.args.backbone in ["geomformer"]:
+            decoder_x_output, decoder_vec_output = self.decoder(
+                batched_data,
+                token_embedding.transpose(0, 1),
+                None,
+                padding_mask,
+                pbc_expand_batched=pbc_expand_batched,
+                time_embed=time_embed,
+            )
         else:
             decoder_x_output, decoder_vec_output = self.decoder(
                 batched_data,

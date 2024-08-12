@@ -1,0 +1,108 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+# train a chemical generalist
+
+description: mattersim-test-psm
+
+target:
+  service: aml
+  name: townsend1
+
+environment:
+  image: ai4s-sfm:20240531.170731
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+  blob:
+    storage_account_name: matkin # Storage account
+    container_name: xixian # Container name
+    mount_dir: /blob
+
+code:
+  local_dir: ../../
+
+jobs:
+- name: mattersim-test-psm
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  sku: 2xG8
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - export data_path=/blob/data/data
+  - mkdir -p /blob/mattersim-checkpoints/xixian/psm/mattersim-1B-test-psm
+  - export save_dir=/blob/mattersim-checkpoints/xixian/psm/mattersim-1B-test-psm
+  - export pbc_cutoff=20.0
+  - export pbc_expanded_num_cell_per_direction=5
+  - export pbc_expanded_token_cutoff=256
+  - export pbc_multigraph_cutoff=5.0
+  - export pbc_use_local_attention=True
+
+  - export layers=24
+  - export hidden_size=1024
+  - export ffn_size=4096
+  - export decoder_ffn_dim=4096
+  - export num_head=32
+  - export max_length=512
+  - export num_pred_attn_layer=12
+
+  - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data'
+  - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer'
+  - export dataset_split_raito='0.2,0.05,0.3,0.15,0.1,0.1,0.1'
+  - export dataset_micro_batch_size="12,4,3,4,3,3,3"
+
+  - export save_batch_interval=2500
+  - export train_batch_size=1024
+  - export val_batch_size=1024
+  - export gradient_accumulation_steps=16
+  - export val_batch_interval=0
+
+  # - export wandb_project=psm_dev_shiyu_20240719
+  # - export wandb_group=psm_dev_shiyu_20240719
+  - export WANDB_RUN_NAME=psm-mattersim-1B-test-psm
+
+  - export total_num_steps=4000000
+  - export warmup_num_steps=24000
+  - export max_lr=2e-4
+
+  - export diffusion_noise_std=10.0
+  # - export equivar_vec_init=RELATIVE_POS_VEC_BIAS
+  - export strategy=DDP
+  - export fp16=False
+  - export clean_sample_ratio=0.5
+  - export mode_prob='0.4,0.5,0.1'
+
+  - export diff_init_lattice_size=10.0
+  - export diffusion_sampling="ddpm"
+  - export num_timesteps=5000
+  - export ddpm_beta_start=1e-7
+  - export ddpm_beta_end=2e-3
+  - export ddpm_schedule=sigmoid
+
+  - export equivar_use_linear_bias=True
+  - export equivar_use_attention_bias=False
+
+  - export use_unified_batch_sampler=True
+  - export rescale_loss_with_std=True
+  - export only_use_rotary_embedding_for_protein=True
+  - export use_memory_efficient_attention=False
+  - export unified_data_num_workers=4
+  - export use_fp32_in_decoder=False
+  - export material_force_loss_ratio=1.0
+  - export material_energy_loss_ratio=1.0
+  - export molecule_energy_loss_ratio=1.0
+  - export energy_per_atom_label_scale=1.0
+  - export mlm_from_decoder_feature=True
+
+  - export use_smooth_softmax=True
+
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - pip install nvidia-dali-cuda120
+  - bash ./scripts/psm/pretrain_psm_geom.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g
+  preemptible: false

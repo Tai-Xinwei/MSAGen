@@ -395,6 +395,13 @@ class MemEffInvariantAttention(nn.Module):
                     attn_weights = (
                         attn_weights + self.smooth_factor
                     ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+
+                    if key_padding_mask is not None:
+                        # don't attend to padding symbols
+                        attn_weights = attn_weights.masked_fill(
+                            key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
+                            float("-inf"),
+                        )
                 else:
                     attn_weights = attn_weights.masked_fill(
                         (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
@@ -454,9 +461,6 @@ class MemEffEquivariantAttention(nn.Module):
         self.hidden_channels = hidden_channels
         self.head_dim = head_dim
         self.num_heads = hidden_channels // head_dim
-        assert (
-            use_smooth_softmax is False
-        ), "Smooth softmax is not supported in the memory efficient attention"
         self.out_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.dropout = dropout
         self.attn_ln = EquivariantLayerNorm(
@@ -608,6 +612,13 @@ class MemEffEquivariantAttention(nn.Module):
                     attn_weights = (
                         attn_weights + self.smooth_factor
                     ) * local_attention_weight.unsqueeze(1) - self.smooth_factor
+
+                    if key_padding_mask is not None:
+                        # don't attend to padding symbols
+                        attn_weights = attn_weights.masked_fill(
+                            key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
+                            float("-inf"),
+                        )
                 else:
                     attn_weights = attn_weights.masked_fill(
                         (local_attention_weight <= 1e-5).unsqueeze(1), float("-inf")
@@ -642,9 +653,9 @@ class MemEffEquivariantAttention(nn.Module):
 
         attn = (
             attn.transpose(1, 2)
-            .reshape(bsz, tgt_len, self.num_heads, 3, self.head_dim)
+            .reshape(bsz, tgt_len, self.num_heads, pos_feature_num, self.head_dim)
             .transpose(2, 3)
-            .reshape(bsz, tgt_len, 3, self.hidden_channels)
+            .reshape(bsz, tgt_len, pos_feature_num, self.hidden_channels)
         )
 
         attn = self.attn_ln(attn)
