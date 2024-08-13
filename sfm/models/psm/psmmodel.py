@@ -878,9 +878,7 @@ def center_pos(batched_data, padding_mask, clean_mask=None):
             dim=1,
         )
     ) / 2.0
-    periodic_center = (
-        batched_data["cell"][is_stable_periodic].sum(dim=1, keepdim=True) / 2.0
-    )
+
     protein_mask = batched_data["protein_mask"]
     if clean_mask is None:
         num_non_atoms = torch.sum(protein_mask.any(dim=-1), dim=-1)
