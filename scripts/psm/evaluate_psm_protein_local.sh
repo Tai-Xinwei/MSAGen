@@ -11,8 +11,8 @@
 MODEL_CONFIG=PSM1B_DIT
 # CKPT_PATH=/casp/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step75000/mp_rank_00_model_states.pt
 # SMPL_PATH=/casp/sfm/sfmexpresults/jianwei/psmv1_dit_v13_1b/checkpoints/global_step75000/prediction
-CKPT_PATH=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step75000/mp_rank_00_model_states.pt
-SMPL_PATH=/home/peiranjin/output/global_step75000/prediction
+CKPT_PATH=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step80000/mp_rank_00_model_states.pt
+SMPL_PATH=/home/peiranjin/output/global_step80000/prediction
 
 DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_psm.py \
   --config-name=$MODEL_CONFIG \
@@ -22,7 +22,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   max_length=2048 \
   mask_ratio=0.0 \
   data_path=/fastdata/peiran/psm \
-  data_path_list=ProteinTest/proteintest-cameo-easy.lmdb \
+  data_path_list=ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb \
   dataset_name_list=proteintest \
   dataset_split_raito=1.0 \
   dataset_micro_batch_size=1 \
@@ -32,6 +32,8 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   gradient_accumulation_steps=1 \
   diffusion_sampling=ode \
   num_timesteps_stepsize=-10 \
-  num_sampling_time=1 \
+  num_sampling_time=5 \
   loadcheck_path=$CKPT_PATH \
   sampled_structure_output_path=$SMPL_PATH \
+
+# ./tools/protein_evaluation/EvaluateProteinTest.py /fastdata/peiran/psm/ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb/ /home/peiranjin/output/global_step75000/prediction 1

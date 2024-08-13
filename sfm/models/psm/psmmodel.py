@@ -743,15 +743,15 @@ class PSMModel(Model):
         self._create_initial_pos_for_diffusion(batched_data)
 
         clean_mask = None
-        # clean_mask = torch.zeros_like(token_id, dtype=torch.bool, device=device)
-        # if self.psm_config.sample_ligand_only:
-        #     clean_mask = batched_data["is_protein"]
+        clean_mask = torch.zeros_like(token_id, dtype=torch.bool, device=device)
+        if self.psm_config.sample_ligand_only:
+            clean_mask = batched_data["is_protein"]
 
-        # clean_mask = clean_mask.masked_fill(token_id == 156, True)
-        # clean_mask = clean_mask.masked_fill(padding_mask, True)
-        # clean_mask = clean_mask.masked_fill(
-        #     batched_data["protein_mask"].any(dim=-1), False
-        # )
+        clean_mask = clean_mask.masked_fill(token_id == 156, True)
+        clean_mask = clean_mask.masked_fill(padding_mask, True)
+        clean_mask = clean_mask.masked_fill(
+            batched_data["protein_mask"].any(dim=-1), False
+        )
 
         batched_data["pos"] = self.diffnoise.get_sampling_start(
             batched_data["init_pos"],
@@ -759,15 +759,28 @@ class PSMModel(Model):
             batched_data["is_periodic"],
         )
 
-        # if clean_mask is not None:
-        #     batched_data["pos"] = torch.where(
-        #         clean_mask.unsqueeze(-1), orig_pos, batched_data["pos"]
-        #     )
+        if clean_mask is not None:
+            batched_data["pos"] = torch.where(
+                clean_mask.unsqueeze(-1), orig_pos, batched_data["pos"]
+            )
 
         batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
-        batched_data["pos"] = center_pos(
-            batched_data, padding_mask=padding_mask, clean_mask=clean_mask
-        )  # centering to remove noise translation
+
+        if self.args.backbone in [
+            "vanillatransformer",
+            "vanillatransformer_equiv",
+            "dit",
+            "e2dit",
+            "vectorvanillatransformer",
+        ]:
+            if_recenter = False
+        else:
+            if_recenter = True
+
+        if if_recenter:
+            batched_data["pos"] = center_pos(
+                batched_data, padding_mask=padding_mask, clean_mask=clean_mask
+            )  # centering to remove noise translation
 
         decoder_x_output = None
         for t in range(
@@ -820,9 +833,11 @@ class PSMModel(Model):
                 )
 
             batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
-            batched_data["pos"] = center_pos(
-                batched_data, padding_mask=padding_mask, clean_mask=clean_mask
-            )  # centering to remove noise translation
+            if if_recenter:
+                batched_data["pos"] = center_pos(
+                    batched_data, padding_mask=padding_mask, clean_mask=clean_mask
+                )  # centering to remove noise translation
+
             batched_data["pos"] = batched_data["pos"].detach()
 
         pred_pos = batched_data["pos"].clone()

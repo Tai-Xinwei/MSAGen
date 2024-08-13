@@ -335,26 +335,16 @@ class ProteinConverter(BaseConverter):
                 pos = pos[: num_residues[i]]
                 residue_ids = token_ids[i][: num_residues[i]].cpu().numpy()
                 pdb_lines = [f"HEADER    {keys[i]}\n"]
-                batched_data["idx"][i]
-                # ic(idx, num_residues[i], pos.size())
                 for i, (x, y, z) in enumerate(pos):
-                    if np.isnan(x) or residue_ids[i] - 1 == 1 or residue_ids[i] == 156:
-                        i = i - 1
+                    if np.isnan(x):
                         continue
                     atomidx = i + 1
-                    resname = VOCAB2AA.get(residue_ids[i], f"{residue_ids[i] - 1}")
+                    resname = VOCAB2AA.get(residue_ids[i], "UNK")
                     resnumb = i + 1
-                    chain = ""
-                    if residue_ids[i] >= 130:
-                        pdb_lines.append(
-                            f"ATOM  {atomidx:>5d}  CA  {resname}  {chain}{resnumb:>4d}    "
-                            f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
-                        )
-                    else:
-                        pdb_lines.append(
-                            f"HETATM  {atomidx:>5d}  {Z_symbol_dict[residue_ids[i]-1]}  {resname}  {chain}{resnumb:>4d}    "
-                            f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           {Z_symbol_dict[residue_ids[i]-1]}  \n"
-                        )
+                    pdb_lines.append(
+                        f"ATOM  {atomidx:>5d}  CA  {resname}  {resnumb:>4d}    "
+                        f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
+                    )
                 pdb_lines.append("TER\n")
                 pdb_lines.append("END\n")
                 structures.append(pdb_lines)
@@ -384,21 +374,17 @@ class ProteinConverter(BaseConverter):
             ), f"Wrong name for sample {sampled_structure[0]}"
             key = sampled_structure[0].split()[1]
             sampled_path = os.path.join(
-                sampled_structure_output_path, f"sampled_{idx}-{sample_index+1}.pdb"
+                sampled_structure_output_path, f"{key}-{sample_index+1}.pdb"
             )
             with open(sampled_path, "w") as out_file:
                 out_file.writelines(sampled_structure)
             lines = []
-            # with tempfile.NamedTemporaryFile() as original_path:
-            original_path = os.path.join(
-                sampled_structure_output_path, f"original_{idx}-{sample_index+1}.pdb"
-            )
-            # ic(len(sampled_structure), len(original_structure))
-            with open(original_path, "w") as fp:
-                fp.writelines(original_structure)
+            with tempfile.NamedTemporaryFile() as original_path:
+                with open(original_path.name, "w") as fp:
+                    fp.writelines(original_structure)
                 lines.extend(
                     subprocess.run(
-                        f"TMscore {sampled_path} {original_path}",
+                        f"TMscore {sampled_path} {original_path.name}",
                         shell=True,
                         capture_output=True,
                         text=True,
@@ -406,7 +392,7 @@ class ProteinConverter(BaseConverter):
                 )
                 lines.extend(
                     subprocess.run(
-                        f"lddt -c {sampled_path} {original_path}",
+                        f"lddt -c {sampled_path} {original_path.name}",
                         shell=True,
                         capture_output=True,
                         text=True,
@@ -472,3 +458,156 @@ class SampledStructureConverter:
                         sample_index,
                     )
         return all_results
+
+
+# @CONVERTER_REGISTER.register("protein")
+# class ProteinConverter(BaseConverter):
+#     def convert(self, batched_data: Dict[str, Tensor], poses: Tensor):
+#         num_residues = batched_data["num_atoms"].cpu().numpy()
+#         batch_size = num_residues.shape[0]
+#         structures: List[Optional[List[str]]] = []
+#         token_ids = batched_data["token_id"]
+#         keys = batched_data.get("key", ["TEMP"] * batch_size)
+#         for i in range(batch_size):
+#             try:
+#                 pos = poses[i].cpu()
+#                 pos = pos[: num_residues[i]]
+#                 residue_ids = token_ids[i][: num_residues[i]].cpu().numpy()
+#                 pdb_lines = [f"HEADER    {keys[i]}\n"]
+#                 batched_data["idx"][i]
+#                 # ic(idx, num_residues[i], pos.size())
+#                 for i, (x, y, z) in enumerate(pos):
+#                     if np.isnan(x) or residue_ids[i] - 1 == 1 or residue_ids[i] == 156:
+#                         i = i - 1
+#                         continue
+#                     atomidx = i + 1
+#                     resname = VOCAB2AA.get(residue_ids[i], f"{residue_ids[i] - 1}")
+#                     resnumb = i + 1
+#                     chain = ""
+#                     if residue_ids[i] >= 130:
+#                         pdb_lines.append(
+#                             f"ATOM  {atomidx:>5d}  CA  {resname}  {chain}{resnumb:>4d}    "
+#                             f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
+#                         )
+#                     else:
+#                         pdb_lines.append(
+#                             f"HETATM  {atomidx:>5d}  {Z_symbol_dict[residue_ids[i]-1]}  {resname}  {chain}{resnumb:>4d}    "
+#                             f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           {Z_symbol_dict[residue_ids[i]-1]}  \n"
+#                         )
+#                 pdb_lines.append("TER\n")
+#                 pdb_lines.append("END\n")
+#                 structures.append(pdb_lines)
+#             except Exception as e:
+#                 logger.warning(f"Failed to sample for protein {keys[i]}, {e}")
+#                 structures.append(None)
+#         return structures
+
+#     def match(
+#         self,
+#         sampled_structure: Optional[List[str]],
+#         original_structure: Optional[List[str]],
+#         idx: int,
+#         sampled_structure_output_path: Optional[str] = None,
+#         sample_index: Optional[int] = -1,
+#     ) -> float:
+#         rmsd, tm_score, lddt = np.nan, np.nan, np.nan
+#         try:
+#             assert (
+#                 sampled_structure and sampled_structure[0][:6] == "HEADER"
+#             ), f"Wrong sample structure {sampled_structure[0]}"
+#             assert (
+#                 original_structure and original_structure[0][:6] == "HEADER"
+#             ), f"Wrong original structure {original_structure[0]}"
+#             assert (
+#                 sampled_structure[0] == original_structure[0]
+#             ), f"Wrong name for sample {sampled_structure[0]}"
+#             key = sampled_structure[0].split()[1]
+#             sampled_path = os.path.join(
+#                 sampled_structure_output_path, f"sampled_{idx}-{sample_index+1}.pdb"
+#             )
+#             with open(sampled_path, "w") as out_file:
+#                 out_file.writelines(sampled_structure)
+#             lines = []
+#             # with tempfile.NamedTemporaryFile() as original_path:
+#             original_path = os.path.join(
+#                 sampled_structure_output_path, f"original_{idx}-{sample_index+1}.pdb"
+#             )
+#             # ic(len(sampled_structure), len(original_structure))
+#             with open(original_path, "w") as fp:
+#                 fp.writelines(original_structure)
+#                 lines.extend(
+#                     subprocess.run(
+#                         f"TMscore {sampled_path} {original_path}",
+#                         shell=True,
+#                         capture_output=True,
+#                         text=True,
+#                     ).stdout.split("\n")
+#                 )
+#                 lines.extend(
+#                     subprocess.run(
+#                         f"lddt -c {sampled_path} {original_path}",
+#                         shell=True,
+#                         capture_output=True,
+#                         text=True,
+#                     ).stdout.split("\n")
+#                 )
+#             for line in lines:
+#                 cols = line.split()
+#                 if line.startswith("RMSD") and len(cols) > 5:
+#                     rmsd = float(cols[5])
+#                 elif line.startswith("TM-score") and len(cols) > 2:
+#                     tm_score = float(cols[2])
+#                 elif line.startswith("Global LDDT") and len(cols) > 3:
+#                     lddt = float(cols[3])
+#             logger.success(
+#                 f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
+#                 f"RMSD={rmsd:6.3f}, TM-score={tm_score:6.4f}, LDDT={lddt:6.4f}."
+#             )
+#         except Exception as e:
+#             logger.warning(f"Failed to evaluate sample {idx}, {e}.")
+#         return {"rmsd": rmsd, "tm_score": tm_score, "lddt": lddt}
+
+
+# class SampledStructureConverter:
+#     def __init__(self, sampled_structure_output_path: Optional[str]) -> None:
+#         self.sampled_structure_output_path = sampled_structure_output_path
+#         if self.sampled_structure_output_path is not None:
+#             os.makedirs(self.sampled_structure_output_path, exist_ok=True)
+#         exitcode, output = subprocess.getstatusoutput("which TMscore")
+#         if exitcode != 0:
+#             raise ValueError(f"Program 'TMscore' not installed, {output}.")
+
+#     def convert_and_match(
+#         self,
+#         batched_data: Dict[str, Tensor],
+#         original_pos: Tensor,
+#         sample_index: int,
+#     ) -> Tensor:
+#         batch_size = batched_data["is_molecule"].size()[0]
+#         all_results = [None for _ in range(batch_size)]
+#         for system_tag in ["molecule", "periodic", "protein"]:
+#             is_mask = batched_data[f"is_{system_tag}"]
+#             if system_tag == "protein":
+#                 is_mask = is_mask.any(dim=-1)
+#             indexes_in_batch = is_mask.nonzero().squeeze(-1)
+#             if torch.any(is_mask):
+#                 indexes = batched_data["idx"][is_mask]
+#                 sampled_structures = CONVERTER_REGISTER[system_tag]().convert(
+#                     batched_data, batched_data["pos"]
+#                 )
+#                 original_structures = CONVERTER_REGISTER[system_tag]().convert(
+#                     batched_data, original_pos
+#                 )
+#                 for sampled_structure, original_structure, index, index_in_batch in zip(
+#                     sampled_structures, original_structures, indexes, indexes_in_batch
+#                 ):
+#                     all_results[index_in_batch] = CONVERTER_REGISTER[
+#                         system_tag
+#                     ]().match(
+#                         sampled_structure,
+#                         original_structure,
+#                         int(index),
+#                         self.sampled_structure_output_path,
+#                         sample_index,
+#                     )
+#         return all_results
