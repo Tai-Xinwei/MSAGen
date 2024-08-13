@@ -14,6 +14,7 @@ from absl import logging
 from Bio.PDB import MMCIF2Dict
 from joblib import delayed, Parallel
 from rdkit import Chem
+from rdkit.Chem import AllChem
 from tqdm import tqdm
 
 from commons import bstr2obj, obj2bstr
@@ -39,7 +40,8 @@ IONCCD = {'118', '119', '1AL', '1CU', '2FK', '2HP', '2OF', '3CO', '3MT', '3NI', 
 EXCLUS |= {'HOH', 'DOD', 'WAT', 'CD'}
 EXCLUS |= {'0VI', '8P8', 'A9J', 'ASX', 'BF5', 'D3O', 'D8U', 'DUM', 'GLX', 'H9C', 'ND4', 'NWN', 'SPW', 'S5Q', 'TSD', 'USN', 'VOB'} # Maybe wrong mmCIF files
 EXCLUS |= {'08T', '0I7', '0MI', '0OD', '10R', '10S', '1KW', '1MK', '1WT', '25X', '25Y', '26E', '2FK', '34B', '39B', '39E', '3JI', '3UQ', '3ZZ', '4A6', '4EX', '4IR', '4LA', '5L1', '6BP', '6ER', '7Q8', '7RZ', '8M0', '8WV', '9JA', '9JJ', '9JM', '9TH', '9UK', 'A1ALJ', 'A1H7J', 'A1H8D', 'A1ICR', 'AOH', 'B1M', 'B8B', 'BBQ', 'BVR', 'CB5', 'CFN', 'COB', 'CWO', 'D0X', 'D6N', 'DAE', 'DAQ', 'DGQ', 'DKE', 'DVT', 'DW1', 'DW2', 'E52', 'EAQ', 'EJ2', 'ELJ', 'FDC', 'FEM', 'FLL', 'FNE', 'FO4', 'GCR', 'GIX', 'GXW', 'GXZ', 'HB1', 'HFW', 'HUJ', 'I8K', 'ICE', 'ICG', 'ICH', 'ICS', 'ICZ', 'IK6', 'IV9', 'IWL', 'IWO', 'J7T', 'J8B', 'JGH', 'JI8', 'JSU', 'K6G', 'K9G', 'KCO', 'KEG', 'KHN', 'KK5', 'KKE', 'KKH', 'KYS', 'KYT', 'LD3', 'M6O', 'M7E', 'ME3', 'MNQ', 'MO7', 'MYW', 'N1B', 'NA2', 'NA5', 'NA6', 'NAO', 'NAW', 'NE5', 'NFC', 'NFV', 'NMQ', 'NMR', 'NT3', 'O1N', 'O93', 'OEC', 'OER', 'OEX', 'OEY', 'ON6', 'ONP', 'OS1', 'OSW', 'OT1', 'OWK', 'OXV', 'OY5', 'OY8', 'OZN', 'P5F', 'P5T', 'P6D', 'P6Q', 'P7H', 'P7Z', 'P82', 'P8B', 'PHF', 'PNQ', 'PQJ', 'Q2Z', 'Q38', 'Q3E', 'Q3H', 'Q3K', 'Q3N', 'Q3Q', 'Q3T', 'Q3W', 'Q4B', 'Q65', 'Q7V', 'QIY', 'QT4', 'R1N', 'R5N', 'R5Q', 'RAX', 'RBN', 'RCS', 'REI', 'REJ', 'REP', 'REQ', 'RIR', 'RTC', 'RU7', 'RUC', 'RUD', 'RUH', 'RUI', 'S18', 'S31', 'S5T', 'S9F', 'SIW', 'SWR', 'T0P', 'TEW', 'U8G', 'UDF', 'UGO', 'UO3', 'UTX', 'UZC', 'V22', 'V9G', 'VA3', 'VAV', 'VFY', 'VI6', 'VL9', 'VOF', 'VPC', 'VSU', 'VTU', 'VTZ', 'WCO', 'WGB', 'WJS', 'WK5', 'WNI', 'WO2', 'WO3', 'WRK', 'WUX', 'WZW', 'X33', 'X3P', 'X5M', 'X5W', 'XC3', 'XCO', 'XCU', 'XZ6', 'Y59', 'Y77', 'YIA', 'YJ6', 'YJK', 'YQ1', 'YQ4', 'ZIV', 'ZJ5', 'ZKG', 'ZPT', 'ZRW', 'ZV2'} # RDKit fail reading
-EXCLUS |= {'07D', '0H2', '0KA', '1CL', '1Y8', '2NO', '2PT', '3T3', '402', '4KV', '4WV', '4WW', '4WX', '6ML', '6WF', '72B', '74C', '8CY', '8JU', '8ZR', '9CO', '9S8', '9SQ', '9UX', 'ARS', 'B51', 'BCB', 'BF8', 'BGQ', 'BJ8', 'BRO', 'CFM', 'CH2', 'CLF', 'CLO', 'CLP', 'CU6', 'CUV', 'CYA', 'CYO', 'CZZ', 'DML', 'DW5', 'EL9', 'ER2', 'ETH', 'EXC', 'F3S', 'F4S', 'FDD', 'FLO', 'FS2', 'FS3', 'FS4', 'FS5', 'FSF', 'FSX', 'FU8', 'FV2', 'GAK', 'GFX', 'GK8', 'GTE', 'GXB', 'H', 'H1T', 'H79', 'HEO', 'HME', 'HNN', 'ICA', 'IDO', 'IF6', 'IHW', 'ITM', 'IWZ', 'IX3', 'J7Q', 'J85', 'J8E', 'J9H', 'JCT', 'JQJ', 'JSC', 'JSD', 'JSE', 'JY1', 'KBW', 'L8W', 'LFH', 'LPJ', 'MAP', 'MEO', 'MHM', 'MHX', 'MNH', 'MNR', 'MTN', 'NFS', 'NGN', 'NH', 'NMO', 'NO', 'NYN', 'O', 'OET', 'OL3', 'OL4', 'OL5', 'OLS', 'OX', 'OXO', 'P4J', 'PMR', 'PT7', 'Q61', 'QTR', 'R1B', 'R1F', 'R7A', 'R9H', 'RCY', 'RFQ', 'RPS', 'RQM', 'RRE', 'RXR', 'S', 'S32', 'S3F', 'SE', 'SF3', 'SF4', 'SFO', 'SFS', 'SI0', 'SI7', 'SVP', 'T9T', 'TBY', 'TDJ', 'TE', 'TL', 'TML', 'U0J', 'UFF', 'UJI', 'UJY', 'V1A', 'VHR', 'VQ8', 'VV2', 'VV7', 'WCC', 'XCC', 'XX2', 'YF8', 'YPT', 'ZJZ', 'ZKP'} # SMILES differnet (lone-pair electron)
+EXCLUS |= {'07D', '0H2', '0KA', '1CL', '1Y8', '2NO', '2PT', '3T3', '402', '4KV', '4WV', '4WW', '4WX', '6ML', '6WF', '72B', '74C', '8CY', '8JU', '8ZR', '9CO', '9S8', '9SQ', '9UX', 'ARS', 'B51', 'BCB', 'BF8', 'BGQ', 'BJ8', 'BRO', 'CFM', 'CH2', 'CLF', 'CLO', 'CLP', 'CU6', 'CUV', 'CYA', 'CYO', 'CZZ', 'DML', 'DW5', 'EL9', 'ER2', 'ETH', 'EXC', 'F3S', 'F4S', 'FDD', 'FLO', 'FS2', 'FS3', 'FS4', 'FS5', 'FSF', 'FSX', 'FU8', 'FV2', 'GAK', 'GFX', 'GK8', 'GTE', 'GXB', 'H', 'H1T', 'H79', 'HEO', 'HME', 'HNN', 'ICA', 'IDO', 'IF6', 'IHW', 'ITM', 'IWZ', 'IX3', 'J7Q', 'J85', 'J8E', 'J9H', 'JCT', 'JQJ', 'JSC', 'JSD', 'JSE', 'JY1', 'KBW', 'L8W', 'LFH', 'LPJ', 'MAP', 'MEO', 'MHM', 'MHX', 'MNH', 'MNR', 'MTN', 'NFS', 'NGN', 'NH', 'NMO', 'NO', 'NYN', 'O', 'OET', 'OL3', 'OL4', 'OL5', 'OLS', 'OX', 'OXO', 'P4J', 'PMR', 'PT7', 'Q61', 'QTR', 'R1B', 'R1F', 'R7A', 'R9H', 'RCY', 'RFQ', 'RPS', 'RQM', 'RRE', 'RXR', 'S', 'S32', 'S3F', 'SE', 'SF3', 'SF4', 'SFO', 'SFS', 'SI0', 'SI7', 'SVP', 'T9T', 'TBY', 'TDJ', 'TE', 'TL', 'TML', 'U0J', 'UFF', 'UJI', 'UJY', 'V1A', 'VHR', 'VQ8', 'VV2', 'VV7', 'WCC', 'XCC', 'XX2', 'YF8', 'YPT', 'ZJZ', 'ZKP'} # SMILES different (lone-pair electron)
+EXCLUS |= {'CHL', 'CL0', 'CL1', 'CL2', 'CL7', 'HE5', 'HEG', 'HES'} # RDKit fail to generate conformer
 NUM2SYM = {_: Chem.GetPeriodicTable().GetElementSymbol(_+1) for _ in range(118)}
 SYM2NUM = {Chem.GetPeriodicTable().GetElementSymbol(_+1): _ for _ in range(118)}
 
@@ -260,17 +262,25 @@ def chemcomp2graph(chem_comp_string: str) -> Mapping[str, Any]:
     try:
         # convert atom symbols and bond orders to mol by using RDKit
         rdkitmol = create_rdkitmol(symbols, pdbx_formal_charge, orders, charges)
-        # convert mol to graph by using sfm.data.mol_data.utils.molecule.mol2graph
+        # RDKit generate conformers for molecules using ETKDGv3 method
+        params = AllChem.ETKDGv3()
+        params.randomSeed = 12345
+        stat = AllChem.EmbedMolecule(rdkitmol, params)
+        if stat == 0:
+            cartn = np.array(rdkitmol.GetConformer().GetPositions())
+        rdkitmol.RemoveAllConformers()
         graph = {
             'name': chem_comp_id,
             'pdbx_formal_charge': pdbx_formal_charge,
             'atomids': np.array(atomids),
             'symbols': np.array(symbols),
+            'charges': np.array(charges),
+            'coords': np.array(cartn, dtype=np.float32),
             'orders': np.array(orders),
             'rdkitmol': rdkitmol,
             }
+        # use sfm.data.mol_data.utils.molecule.mol2graph to generate mol graph
         # graph update key node_feat, edge_index, edge_feat, num_nodes
-        rdkitmol.RemoveAllConformers()
         graph.update(mol2graph(rdkitmol))
         return graph
     except Exception as e:
@@ -419,6 +429,11 @@ def show_one_mmcif(data: Mapping[str, Union[str, dict, list]]) -> None:
         print("".join(arr))
         arr = [f'{NUM2SYM[_]:<2}' for _ in graph['node_feat'][:, 0]]
         print("".join(arr))
+        arr = [f'{_:<2}' for _ in graph['charges']]
+        print("".join(arr))
+        for i, axis in enumerate('xyz'):
+            arr = [f'{_:.3f}' for _ in graph['coords'][:10, i]]
+            print(f"coords[:10].{axis}    : [{', '.join(arr)}]")
         for i, axis in enumerate('xyz'):
             arr = [f'{_:.3f}' for _ in graph['node_coord'][:10, i]]
             print(f"node_coord[:10].{axis}: [{', '.join(arr)}]")
@@ -587,48 +602,46 @@ def check_chem_comp(chem_comp_path: str, sdf_dir: str) -> None:
     logging.info(f"{len(chem_comp_strings)} chem_comp in {chem_comp_path}.")
 
     def _check_one(name: str) -> int:
-        sdf_path = sdf_dir / f"{name}_ideal.sdf"
-        assert sdf_path.exists(), f"SDF file does not exist for {name}."
-
-        if name in (EXCLUS | GLYCAN):
-            logging.info(f"Skip {name} in EXCLUS or GLYCAN.")
-            return -1
-
-        with open(sdf_path, 'r') as fp:
-            lines = fp.readlines()
-        idx = lines.index('> <OPENEYE_ISO_SMILES>\n')
-        smiles = lines[idx+1].strip()
-        assert smiles, f"No SMILES in sdf file {name}."
-
-        mol1 = Chem.MolFromSmiles(smiles)
-        assert mol1, f"failed to create molecule {name} from SMILES."
-        mol1 = Chem.RemoveHs(mol1)
-        can1 = Chem.MolToSmiles(mol1, isomericSmiles=False)
-        can1 = Chem.MolToSmiles(Chem.MolFromSmiles(can1), isomericSmiles=False)
-        # iso1 = Chem.MolToSmiles(mol1, isomericSmiles=True)
-
-        mol2 = chemcomp2graph(chem_comp_strings[name])['rdkitmol']
-        assert mol2, f"failed to create RDKit molecule {name}."
-        mol2 = Chem.RemoveHs(mol2)
-        can2 = Chem.MolToSmiles(mol2, isomericSmiles=False)
-        can2 = Chem.MolToSmiles(Chem.MolFromSmiles(can2), isomericSmiles=False)
-        # iso2 = Chem.MolToSmiles(mol2, isomericSmiles=True)
-
-        return 1 if can1 == can2 else 0
-
-    logging.info(f"Checking {len(chem_comp_strings)} chem_comp one by one ...")
-    for name in chem_comp_strings:
         try:
-            status = _check_one(name)
-            if status == 1:
-                flag = 'SUCCESS'
-            if status == 0:
-                flag = 'FAIL'
-            elif status == -1:
-                flag = 'SKIP'
-            print(flag, name)
+            assert name not in (EXCLUS | GLYCAN), f"{name} in exclusion list."
+
+            sdf_path = sdf_dir / f"{name}_ideal.sdf"
+            assert sdf_path.exists(), f"SDF file does not exist for {name}."
+            with open(sdf_path, 'r') as fp:
+                lines = fp.readlines()
+            idx = lines.index('> <OPENEYE_ISO_SMILES>\n')
+            smiles = lines[idx+1].strip()
+            assert smiles, f"No SMILES in sdf file {name}."
+
+            mol1 = Chem.MolFromSmiles(smiles)
+            assert mol1, f"failed to create molecule {name} from SMILES."
+            mol1 = Chem.RemoveHs(mol1)
+            can1 = Chem.MolToSmiles(mol1, isomericSmiles=False)
+            mol1 = Chem.MolFromSmiles(can1)
+            can1 = Chem.MolToSmiles(mol1, isomericSmiles=False)
+            # iso1 = Chem.MolToSmiles(mol1, isomericSmiles=True)
+            # print(can1)
+
+            mol2 = chemcomp2graph(chem_comp_strings[name])['rdkitmol']
+            assert mol2, f"failed to create RDKit molecule {name}."
+            mol2 = Chem.RemoveHs(mol2)
+            can2 = Chem.MolToSmiles(mol2, isomericSmiles=False)
+            mol2 = Chem.MolFromSmiles(can2)
+            can2 = Chem.MolToSmiles(mol2, isomericSmiles=False)
+            # iso2 = Chem.MolToSmiles(mol2, isomericSmiles=True)
+            # print(can2)
+
+            return 1 if can1 == can2 else 0
         except Exception as e:
             logging.error(f"Check {name} failed, {e}")
+            return -1
+
+    logging.info(f"Checking {len(chem_comp_strings)} chem_comp one by one ...")
+    names = sorted(chem_comp_strings.keys())
+    results = [(_check_one(_), _) for _ in tqdm(names)]
+    STATUS = {1: 'SUCCESS', 0: 'FAILED', -1: 'ERROR'}
+    for r in results:
+        print(STATUS[r[0]], r[1])
 
 
 if __name__ == "__main__":
