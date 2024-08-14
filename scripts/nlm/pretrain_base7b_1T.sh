@@ -227,7 +227,6 @@ export WANDB_API_KEY=$wandb_key
 
 set -x
 torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
-      --model_type "$model_type" \
       --dict_path "$dict_path" \
       --vocab_size 38078 \
       --data_dir "$data_dir" \
@@ -260,3 +259,5 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
       --unfreeze_param_list $unfreeze_param_list --learnable_cutoff $learnable_cutoff \
       ${MEGATRON_ARGS} ${load_ckpt} ${weighted_dataset}
+
+      # --model_type "$model_type" \

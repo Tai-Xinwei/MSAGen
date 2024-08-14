@@ -53,11 +53,12 @@ jobs:
   - export warmup_num_steps=1000
   - export max_lr=6e-5
   - export learnable_cutoff=32000
+  - export load_ckpt=True
   - export unfreeze_param_list="lm_head.weight,word_embeddings.weight"
   - export train_data_path=/nlm/SFMData/pretrain/20240724/train_split_lmdb/
   - export valid_data_path=/nlm/SFMData/pretrain/20240724/valid_split_lmdb/
-  - export dict_path=/nlm/mistral/Mixtral-7B-v0.1/
-  - export loadcheck_path=/nlm/mistral/Mixtral-7B-v0.1/original/
+  - export dict_path=/nlm/mistral/Mistral-7B-v0.1/
+  - export loadcheck_path=/nlm/mistral/Mistral-7B-v0.1/original/
   - export save_dir=/nlm/peiran/output/pretrain_base_7T_G32/
   - bash scripts/nlm/pretrain_base7b_1T.sh
   submit_args:
