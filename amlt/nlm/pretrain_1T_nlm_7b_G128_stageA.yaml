@@ -44,9 +44,9 @@ jobs:
   - pip install git+https://github.com/NVIDIA/TransformerEngine.git@v1.6
   - pip uninstall flash-attn -y
   - pip install ase
-  - export train_batch_size=4096
-  - export val_batch_size=4096
-  - export gradient_accumulation_steps=256
+  - export train_batch_size=1024
+  - export val_batch_size=1024
+  - export gradient_accumulation_steps=64
   - export tensor_model_parallel_size=1
   - export pipeline_model_parallel_size=2
   - export total_num_steps=10000
