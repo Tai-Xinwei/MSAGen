@@ -254,6 +254,13 @@ def parse_structure(*,
             _type = 'n'
         seq.append(_code)
         res.append(_type)
+      if '*' in res:
+        if res.count('p') >= res.count('n'):
+          seq = ['X' if _ == '?' else _ for _ in seq]
+          res = ['p' if _ == '*' else _ for _ in res]
+        else:
+          seq = ['N' if _ == '?' else _ for _ in seq]
+          res = ['n' if _ == '*' else _ for _ in res]
       author_chain_to_sequence[author_chain] = ''.join(seq)
       author_chain_to_restypes[author_chain] = ''.join(res)
 

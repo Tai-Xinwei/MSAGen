@@ -1,0 +1,47 @@
+description: train_sfm_nlm_moe
+
+env_defaults:
+  NODES: 8
+  GPUS: 8
+
+target:
+  service: sing
+  name: baltic02
+  workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+  sfmdataeastus2:
+    storage_account_name: sfmdataeastus2
+    container_name: nlm
+    mount_dir: /mnt/sfmdataeastus2
+
+code:
+  local_dir: .
+
+jobs:
+- name: train_sfm_nlm_moe_v2_stageA
+  sku: ${NODES}xG${GPUS}-IB
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  - 'Project_Name: Science_Foundation_Model'
+  - 'Experiment: SFM_NLM_MOE_Model_Training'
+  mpi: true
+  process_count_per_node: 1
+  identity: managed
+  command:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install ase
+  - pip install -e . --no-deps
+  - bash scripts/nlm/pretrain_sfm_nlm_moe_v2_stageA.sh
+  submit_args:
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
+      WANDB_API_KEY: local-8b231a9559eded7cef00bd550f7330ad2f3ce696
+      WANDB_PROJECT: NLM_MOE_V2
+      WANDB_TEAM: ai4s-sfm
+      WANDB_BASE_URL: https://microsoft-research.wandb.io

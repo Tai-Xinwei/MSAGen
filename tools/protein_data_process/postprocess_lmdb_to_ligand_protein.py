@@ -9,17 +9,46 @@ import numpy as np
 from absl import logging
 from joblib import delayed
 from joblib import Parallel
+from rdkit import Chem
 from tqdm import tqdm
 
 from commons import bstr2obj
 from commons import obj2bstr
 
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+from sfm.data.mol_data.utils.molecule import mol2graph
+
 
 logging.set_verbosity(logging.INFO)
 
 
+def remove_hydrogens_from_graph(graph):
+    data = {
+        'chain_id': graph['chain_id'],
+        'residue_number': graph['residue_number'],
+        'name': graph['name'],
+        'pdbx_formal_charge': graph['pdbx_formal_charge'],
+    }
+    mask = graph['symbols'] != 'H'
+    idx_old2new = {idx:i for i, idx in enumerate(np.where(mask)[0])}
+    new_orders = [(idx_old2new[i], idx_old2new[j], _)
+                  for i, j, _ in graph['orders'] if mask[i] and mask[j]]
+    rdkitmol = Chem.RemoveHs(graph['rdkitmol'])
+    data.update({
+        'atomids': graph['atomids'][mask],
+        'symbols': graph['symbols'][mask],
+        'node_coord': graph['node_coord'][mask],
+        'orders': np.array(new_orders),
+        'rdkitmol': rdkitmol,
+    })
+    rdkitmol.RemoveAllConformers()
+    data.update(mol2graph(rdkitmol))
+    return data
+
+
 def process_one_pdb(pdbid: str,
                     inplmdb: str,
+                    remove_hydrogens: bool = True,
                     ) -> dict:
     try:
         with lmdb.open(inplmdb, readonly=True).begin(write=False) as inptxn:
@@ -39,15 +68,19 @@ def process_one_pdb(pdbid: str,
                 continue
             polymer_chains[chain_id] = polymer
         assert polymer_chains, f"No valid polymer chain in {pdbid}"
+        data['polymer_chains'] = polymer_chains
 
         assert 'nonpoly_graphs' in data, f"'nonpoly_graphs' not in {pdbid} data"
         nonpoly_graphs = []
         for graph in data['nonpoly_graphs']:
+            if remove_hydrogens:
+                graph = remove_hydrogens_from_graph(graph)
             if np.all(np.isnan(graph['node_coord'])):
                 logging.warning(f"All atom is 'nan' in nonpoly graph {pdbid}")
                 continue
             nonpoly_graphs.append(graph)
         data['nonpoly_graphs'] = nonpoly_graphs
+
         return data
     except Exception as e:
         logging.error(f"Failed to processing {pdbid}, {e}")
@@ -61,6 +94,8 @@ def main():
     datestr = sys.argv[3] if len(sys.argv) == 4 else '2020-04-30'
 
     assert not Path(outlmdb).exists(), f"{outlmdb} exists, please remove first."
+
+    remove_hydrogens = True
 
     try:
         date_cutoff = datetime.strptime(datestr, '%Y-%m-%d')
@@ -79,6 +114,7 @@ def main():
             f'Postprocessed time: {datetime.now()}\n'
             f'Original lmdb: {inplmdb}\n'
             f'Postprocessed lmdb: {outlmdb}\n'
+            f'Remove hydrogens: {remove_hydrogens}\n'
             f'PDB release date cutoff: {date_cutoff}\n'
             ),
         }
@@ -109,7 +145,7 @@ def main():
     logging.info(f"Filtered keys: {len(filtered_keys)}")
 
     results = Parallel(n_jobs=-1)(
-        delayed(process_one_pdb)(p, inplmdb)
+        delayed(process_one_pdb)(p, inplmdb, remove_hydrogens)
         for p in tqdm(filtered_keys, desc='Processing PDBs...')
         )
     results = [_ for _ in results if _]

@@ -515,10 +515,11 @@ class PSMModel(Model):
         self.net.eval()
         for sample_time_index in range(self.psm_config.num_sampling_time):
             original_pos = batched_data["pos"].clone()
-            # Comment out the following lines to enable conditional sampling
+            original_cell = batched_data["cell"].clone()
             # batched_data["pos"] = torch.zeros_like(
             #     batched_data["pos"]
             # )  # zero position to avoid any potential leakage
+            batched_data["cell"] = torch.zeros_like(batched_data["cell"])
             self.sample(batched_data=batched_data)
             match_result_one_time = self.sampled_structure_converter.convert_and_match(
                 batched_data, original_pos, sample_time_index
@@ -531,6 +532,7 @@ class PSMModel(Model):
             batched_data[
                 "pos"
             ] = original_pos  # recover original position, in case that we want to calculate diffusion loss and sampling RMSD at the same time in validation, and for subsequent sampling
+            batched_data["cell"] = original_cell
         for key in match_results:
             match_results[key] = torch.tensor(
                 match_results[key], device=batched_data["pos"].device
@@ -756,7 +758,7 @@ class PSMModel(Model):
         batched_data["pos"] = self.diffnoise.get_sampling_start(
             batched_data["init_pos"],
             batched_data["non_atom_mask"],
-            batched_data["is_periodic"],
+            batched_data["is_stable_periodic"],
         )
 
         if clean_mask is not None:
@@ -815,7 +817,7 @@ class PSMModel(Model):
             epsilon = self.diffnoise.get_noise(
                 batched_data["pos"],
                 batched_data["non_atom_mask"],
-                batched_data["is_periodic"],
+                batched_data["is_stable_periodic"],
             )
 
             batched_data["pos"] = self.diffusion_process.sample_step(
@@ -893,7 +895,6 @@ def center_pos(batched_data, padding_mask, clean_mask=None):
             dim=1,
         )
     ) / 2.0
-
     protein_mask = batched_data["protein_mask"]
     if clean_mask is None:
         num_non_atoms = torch.sum(protein_mask.any(dim=-1), dim=-1)
@@ -1411,6 +1412,15 @@ class PSM(nn.Module):
                 mixed_attn_bias,
                 padding_mask,
                 pbc_expand_batched,
+            )
+        elif self.args.backbone in ["geomformer"]:
+            decoder_x_output, decoder_vec_output = self.decoder(
+                batched_data,
+                token_embedding.transpose(0, 1),
+                None,
+                padding_mask,
+                pbc_expand_batched=pbc_expand_batched,
+                time_embed=time_embed,
             )
         else:
             decoder_x_output, decoder_vec_output = self.decoder(
