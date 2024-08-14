@@ -3,6 +3,7 @@ import bisect
 import os
 import pickle as pkl
 from collections import namedtuple
+from typing import Optional
 
 import lmdb
 import numpy as np
@@ -131,10 +132,10 @@ class ProcessedSciDataset(torch.utils.data.Dataset):
 class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
     def __init__(
         self,
-        path: str,
+        path: str | list,
         padding_idx: int,
         max_len: int,
-        data_dir: str = None,
+        data_dir: Optional[str] = None,
         eos_idx: int = -1,
         shuffle_subseq: bool = False,
     ):
@@ -152,7 +153,7 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
             if path.find(",") != -1:
                 logger.info(f"Multiple files in {path}")
                 for pth in path.split(","):
-                    if data_dir is not None:
+                    if data_dir:
                         if os.path.isfile(os.path.join(data_dir, pth, "data.mdb")):
                             file_list.append(os.path.join(data_dir, pth))
                         else:
@@ -163,7 +164,7 @@ class ProcessedSciDatasetLmdb(torch.utils.data.Dataset):
                         file_list.append(pth)
             elif path.endswith(".lmdb") or path.endswith(".lmdb/"):
                 logger.info(f"Single file {path}")
-                if data_dir is not None:
+                if data_dir:
                     file_list.append(os.path.join(data_dir, path))
                 else:
                     file_list.append(path)

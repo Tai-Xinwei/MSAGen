@@ -32,7 +32,6 @@ def main(args) -> None:
         args.valid_data_path is not None and len(args.valid_data_path) > 0
     ), f"valid_dataset is {args.valid_data_path} it should not be None or empty"
 
-    # if not args.vocab_size:
     tokenizer = NlmLlama3Tokenizer.from_pretrained(args.dict_path)
     args.vocab_size = len(tokenizer)  # now we have new tokens
     args.pad_token_id = tokenizer.pad_token_id
@@ -43,21 +42,30 @@ def main(args) -> None:
 
     if args.weighted_dataset:
         train_dataset = ProcessedSciWeightedDatasetLmdb(
-            args.data_dir,
+            args.train_data_dir,
             args.train_data_path,
             args.pad_token_id,
             args.max_position_embeddings,
             data_raito=args.train_data_ratio,
         )
         valid_dataset = ProcessedSciDatasetLmdb(
-            args.valid_data_path, args.pad_token_id, args.max_position_embeddings
+            args.valid_data_dir,
+            args.valid_data_path,
+            args.pad_token_id,
+            args.max_position_embeddings,
         )
     else:
         train_dataset = ProcessedSciDatasetLmdb(
-            args.train_data_path, args.pad_token_id, args.max_position_embeddings
+            args.train_data_path,
+            args.pad_token_id,
+            args.max_position_embeddings,
+            args.train_data_dir,
         )
         valid_dataset = ProcessedSciDatasetLmdb(
-            args.valid_data_path, args.pad_token_id, args.max_position_embeddings
+            args.valid_data_path,
+            args.pad_token_id,
+            args.max_position_embeddings,
+            args.valid_data_dir,
         )
 
     logger.info("datasets loaded")
