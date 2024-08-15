@@ -309,14 +309,6 @@ class DiffMAE3dCriterions(nn.Module):
         time_coefficient = ((1 - time_step) * torch.exp(-time_step / 0.4)).unsqueeze(-1)
         hard_dist_loss = (delta * time_coefficient)[dist_mask].mean()
 
-        # time_mask = time_step < 0.1
-        # pair_time_mask = time_mask.unsqueeze(1) & time_mask.unsqueeze(2)
-        # hard_dist_mask = dist_mask & pair_time_mask
-        # if hard_dist_mask.any():
-        #     hard_dist_loss = delta[hard_dist_mask].mean()
-        # else:
-        #     hard_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
-
         return 1 - lddt, hard_dist_loss
 
     def _rescale_autograd_force(

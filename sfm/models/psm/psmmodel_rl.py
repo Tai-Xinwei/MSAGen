@@ -71,7 +71,7 @@ class PSMModel_RL(PSMModel):
             param.requires_grad = False
         self.net_old.eval()
         self.loss_fn = loss_fn(args)
-        self.reward_fn = reward_model(args)
+        self.reward_fn = reward_model(args, reward_model=self.psm_config.reward_model)
         self.alternate_counter = 0
 
         self.diffusion_process2 = DIFFUSION_PROCESS_REGISTER[
@@ -282,7 +282,7 @@ class PSMModel_RL(PSMModel):
         result_dict["padding_mask"] = padding_mask
         if self.psm_config.reward_model == "plddt":
             reward_batch = batched_data["plddt_reward"]
-        elif self.psm_config.reward_model == "rmsd":
+        elif self.psm_config.reward_model in ["rmsd", "lddt"]:
             reward_batch = self.reward_fn(result_dict, batched_data)
         else:
             raise ValueError(
