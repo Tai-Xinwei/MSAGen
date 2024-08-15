@@ -186,6 +186,10 @@ class PSMConfig(GraphormerConfig):
     psm_finetune_valid_noise_mode: str = "diffusion"
     only_use_rotary_embedding_for_protein: bool = False
     psm_validate_for_train_set: bool = False
+    # only for dpm solver
+    algorithm_type: str = "dpmsolver++"
+    solver_order: int = 2
+    solver_type: str = "midpoint"
 
     # for matbench finetuning
     psm_matbench_task_name: str = ""

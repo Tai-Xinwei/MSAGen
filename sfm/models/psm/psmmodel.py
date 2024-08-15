@@ -90,7 +90,7 @@ class PSMModel(Model):
         self.diffnoise = DiffNoise(self.psm_config)
         self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
             self.psm_config.diffusion_sampling
-        ](self.diffnoise.alphas_cumprod)
+        ](self.diffnoise.alphas_cumprod, self.psm_config)
 
         self.time_step_sampler = TimeStepSampler(self.psm_config.num_timesteps)
 
@@ -433,8 +433,8 @@ class PSMModel(Model):
             # ).unsqueeze(1)
             ori_pos = torch.bmm(ori_pos, R)
             batched_data["forces"] = torch.bmm(batched_data["forces"], R)
-            batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
-            batched_data["cell"] = torch.bmm(batched_data["cell"], R)
+            # batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
+            # batched_data["cell"] = torch.bmm(batched_data["cell"], R)
 
         batched_data["ori_pos"] = ori_pos
 
@@ -744,7 +744,6 @@ class PSMModel(Model):
 
         self._create_initial_pos_for_diffusion(batched_data)
 
-        clean_mask = None
         clean_mask = torch.zeros_like(token_id, dtype=torch.bool, device=device)
         if self.psm_config.sample_ligand_only:
             clean_mask = batched_data["is_protein"]
