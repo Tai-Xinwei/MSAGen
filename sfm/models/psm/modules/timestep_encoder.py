@@ -76,7 +76,7 @@ class TimeStepEncoder(nn.Module):
                 discretized_time_steps[
                     clean_mask
                 ] = self.n_timesteps  # use last time step embedding for clean samples
-            t_emb = self.time_proj(discretized_time_steps)
+            t_emb = self.time_proj(discretized_time_steps).view(ngraph, nnodes, -1)
         elif self.timestep_emb_type == DiffusionTimeStepEncoderType.POSITIONAL:
             if clean_mask is not None:
                 timesteps = timesteps.masked_fill(

@@ -180,7 +180,11 @@ def collate_fn(
             [pad_spatial_pos_unsqueeze(i["spatial_pos"], max_node_num) for i in items]
         )
 
-    if sample_in_validation:
+    if (
+        sample_in_validation
+        and "edge_attr" in items[0]
+        and items[0]["edge_attr"] is not None
+    ):
         # add original edge information to recover the molecule
         max_num_edges = max(i["edge_attr"].size()[0] for i in items)
         edge_attr = torch.cat(
@@ -249,7 +253,11 @@ def collate_fn(
             )
         )
 
-    if sample_in_validation:
+    if (
+        sample_in_validation
+        and "edge_attr" in items[0]
+        and items[0]["edge_attr"] is not None
+    ):
         batched_data.update(
             dict(
                 edge_attr=edge_attr, edge_index=edge_index, num_edges=num_edges, idx=idx
