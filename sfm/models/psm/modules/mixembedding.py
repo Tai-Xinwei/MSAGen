@@ -90,7 +90,7 @@ class PSMMix3dEmbedding(nn.Module):
                 [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
             )
 
-            expand_pos = self.center_pos(expand_pos, expand_mask)
+            # expand_pos = self.center_pos(expand_pos, expand_mask)
             delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
             B, L, expand_L = delta_pos.size()[:3]
             adj = torch.ones(B, L, expand_L, device=adj.device, dtype=torch.bool)

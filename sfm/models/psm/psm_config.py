@@ -95,10 +95,12 @@ class PSMConfig(GraphormerConfig):
     add_unit_cell_virtual_node: bool = False
     lattice_size: float = 4.0
 
-    # for protein
-    crop_radius: float = 25.0
+    # for protein and complex
+    crop_radius: float = 50.0
+    max_residue_num: int = 768  # max token number in complex and multi-chain protein
     mode_prob: str = "0.1,0.4,0.5"
     complex_mode_prob: str = "0.1,0.4,0.5"
+    sample_ligand_only: bool = False
 
     # for molecule
     molecule_ref_energy_source: Optional[str] = None
@@ -106,6 +108,7 @@ class PSMConfig(GraphormerConfig):
 
     # for diffusion
     diffusion_sampling: str = "ddpm"
+    num_timesteps_stepsize: int = -1
     diffusion_mode: str = "epsilon"
     diffusion_noise_std: float = 1.0
     ddim_eta: float = 0.0

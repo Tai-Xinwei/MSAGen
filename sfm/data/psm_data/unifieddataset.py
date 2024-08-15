@@ -13,6 +13,7 @@ from sfm.data.dataset import FoundationModelDataset
 from sfm.data.psm_data.collator import collate_fn
 from sfm.data.psm_data.dataset import (
     AFDBLMDBDataset,
+    ESMDataset,
     MatterSimDataset,
     PDBComplexDataset,
     PDBDataset,
@@ -116,6 +117,12 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 self.molecule_force_std = dataset.force_std
             elif dataset_name == "afdb":
                 dataset = AFDBLMDBDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset()
+                len_total = len(dataset)
+                self.dataset_lens[dataset_name] = len(train_dataset)
+                self.sizes.append(train_dataset.sizes)
+            elif dataset_name == "esm":
+                dataset = ESMDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)

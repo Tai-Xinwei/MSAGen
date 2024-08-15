@@ -50,6 +50,7 @@ VOCAB2AA = {
     148: "TRP",  # "W"
     149: "CYS",  # "C"
     150: "UNK",  # "X"
+    155: "UNK",  # "-"
     # other_code: "UNK",
 }
 

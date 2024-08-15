@@ -184,6 +184,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
+        wandb.finish()  # support to finish wandb logging
         logger.info("KeyboardInterrupt!")
     finally:
         wandb.finish()  # support to finish wandb logging
