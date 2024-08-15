@@ -426,7 +426,7 @@ class DiffMAE3dCriterions(nn.Module):
                         )
                         num_pddt_loss = 0
 
-                    if self.args.align_x0_in_diffusion_loss:
+                    if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
                         # noise pred loss
                         aligned_noise_pred = (
                             sqrt_alphas_cumprod_t * pos_label

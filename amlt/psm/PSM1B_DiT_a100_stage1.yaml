@@ -81,10 +81,10 @@ jobs:
   - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data,ESM_ATLAS_reduce.lmdb' #,ur50_23_bpe_pack512.lmdb'
   - export dataset_name_list='mattersim,mattersim,pm6,afdb,pdb,pdbcomplexmultimer,esm' #,ur50'
   # - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdb,pdbcomplexmultimer' #,ur50'
-  - export dataset_split_raito='0.05,0.15,0.3,0.3,0.01,0.09,0.1'
+  - export dataset_split_raito='0.05,0.15,0.3,0.3,0.02,0.08,0.1'
   - export dataset_micro_batch_size='8,8,32,8,8,2,8'
   - export fp16=False
-  - export clean_sample_ratio=0.6
+  - export clean_sample_ratio=0.7
   - export molecule_energy_loss_ratio=1.0
   - export material_energy_loss_ratio=1.0
   - export material_force_loss_ratio=1.0
@@ -93,7 +93,7 @@ jobs:
   - export AutoGradForce=False
   - export use_hard_dist_loss=True
   - export use_unified_batch_sampler=True
-  - export align_x0_in_diffusion_loss=False
+  - export align_x0_in_diffusion_loss=True
   - export decoder_feat4energy=False
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False

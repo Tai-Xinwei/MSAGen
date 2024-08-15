@@ -122,7 +122,15 @@ class PSMModel_RL(PSMModel):
         return result_dict["mean_plddt"]
 
     def logprob(
-        self, pos, next_pos, pred_noise, pred_noise_old, t, protein_mask, step=1
+        self,
+        pos,
+        next_pos,
+        pred_noise,
+        pred_noise_old,
+        t,
+        protein_mask,
+        padding_mask,
+        step=1,
     ):
         # p(x_{t-1} | x_t) ~ N[1 / sqrt(alpha_t) * (x_t - beta_t / sqrt(1 - hat{alpha_t}) * pred_noise), beta_title]
         hat_alpha_t = self.diffusion_process.alpha_cummlative_product[t]
@@ -170,20 +178,21 @@ class PSMModel_RL(PSMModel):
         old_log_prob = log_constant + log_exp_old
         kl = (pred_noise - pred_noise_old) ** 2
 
-        protein_mask = protein_mask.any(dim=-1).unsqueeze(-1)
-        selected_count = (~protein_mask).sum(dim=-1).sum(dim=-1)
+        # protein_mask = protein_mask.any(dim=-1).unsqueeze(-1)
+        loss_mask = (protein_mask.any(dim=-1) | padding_mask).unsqueeze(-1)
+        selected_count = (~loss_mask).sum(dim=-1).sum(dim=-1)
 
-        log_prob = log_prob.masked_fill(protein_mask, 0.0)
+        log_prob = log_prob.masked_fill(loss_mask, 0.0)
         log_prob = log_prob.sum(dim=-1).sum(dim=-1)
         log_prob = log_prob / selected_count.float()
         log_prob[selected_count == 0] = 0.0
 
-        old_log_prob = old_log_prob.masked_fill(protein_mask, 0.0)
+        old_log_prob = old_log_prob.masked_fill(loss_mask, 0.0)
         old_log_prob = old_log_prob.sum(dim=-1).sum(dim=-1)
         old_log_prob = old_log_prob / selected_count.float()
         old_log_prob[selected_count == 0] = 0.0
 
-        kl = kl.masked_fill(protein_mask, 0.0)
+        kl = kl.masked_fill(loss_mask, 0.0)
         kl = kl.sum(dim=-1).sum(dim=-1)
         kl = kl / selected_count.float()
         kl[selected_count == 0] = 0.0
@@ -265,6 +274,7 @@ class PSMModel_RL(PSMModel):
             pred_noise_old,
             t,
             result_dict["protein_mask"],
+            padding_mask,
             step=step,
         )
 
