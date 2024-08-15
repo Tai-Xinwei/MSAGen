@@ -3,14 +3,18 @@ from abc import ABC, ABCMeta, abstractmethod
 
 from torch import Tensor
 
+from sfm.models.psm.psm_config import PSMConfig
 from sfm.utils.register import Register
 
 DIFFUSION_PROCESS_REGISTER = Register("diffusion_process_register")
 
 
 class DiffusionProcess(ABC, metaclass=ABCMeta):
-    def __init__(self, alpha_cummlative_product: Tensor) -> None:
+    def __init__(
+        self, alpha_cummlative_product: Tensor, psm_config: PSMConfig = None
+    ) -> None:
         self.alpha_cummlative_product = alpha_cummlative_product
+        self.psm_config = psm_config
 
     @abstractmethod
     def sample_step(self, x_t, x_init_pos, predicted_noise, epsilon, t):
@@ -19,8 +23,10 @@ class DiffusionProcess(ABC, metaclass=ABCMeta):
 
 @DIFFUSION_PROCESS_REGISTER.register("ddpm")
 class DDPM(DiffusionProcess):
-    def __init__(self, alpha_cummlative_product: Tensor) -> None:
-        super().__init__(alpha_cummlative_product)
+    def __init__(
+        self, alpha_cummlative_product: Tensor, psm_config: PSMConfig = None
+    ) -> None:
+        super().__init__(alpha_cummlative_product, psm_config)
 
     def sample_step(self, x_t, x_init_pos, predicted_noise, epsilon, t, stepsize=1):
         hat_alpha_t = self.alpha_cummlative_product[t]
@@ -44,8 +50,10 @@ class DDPM(DiffusionProcess):
 
 @DIFFUSION_PROCESS_REGISTER.register("ode")
 class ODE(DiffusionProcess):
-    def __init__(self, alpha_cummlative_product: Tensor) -> None:
-        super().__init__(alpha_cummlative_product)
+    def __init__(
+        self, alpha_cummlative_product: Tensor, psm_config: PSMConfig = None
+    ) -> None:
+        super().__init__(alpha_cummlative_product, psm_config)
 
     def sample_step(self, x_t, x_init_pos, predicted_noise, epsilon, t, stepsize=1):
         hat_alpha_t = self.alpha_cummlative_product[t]

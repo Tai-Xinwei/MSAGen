@@ -120,6 +120,13 @@ class PSMConfig(GraphormerConfig):
     )
     align_x0_in_diffusion_loss: bool = True
 
+    # for RL
+    psm_finetuneRL_mode: bool = True
+    diffusion_sampling_rl: str = "ddpm"
+    num_timesteps_stepsize_rl: int = 1
+    reward_model: str = "rmsd"
+    psm_value_step: int = 1
+
     # for force
     force_loss_type: ForceLoss = ForceLoss.L1
     force_head_type: ForceHeadType = ForceHeadType.GATED_EQUIVARIANT

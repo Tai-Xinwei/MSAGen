@@ -786,3 +786,38 @@ class DiffMAE3dCriterions(nn.Module):
             ) = _reduce_matched_result(model_output, "lddt", "max")
 
         return loss, logging_output
+
+
+class PolicyGradientLoss(nn.Module):
+    def __init__(self, args):
+        super(PolicyGradientLoss, self).__init__()
+        self.args = args
+
+    def forward(self, model_output, batched_data):
+        advantage = model_output["reward"] - model_output["value_per_atom"].detach()
+        log_prob = model_output["log_prob"]
+        model_output["old_log_prob"]
+        kl = model_output["kl"]
+
+        value_loss = model_output["value_loss"]
+        alternate_counter = model_output["alternate_counter"]
+
+        # ratio = torch.exp(log_prob - old_log_prob)
+        # ratio = torch.clamp(
+        #     ratio, 1.0 - self.args.ratio_clip, 1.0 + self.args.ratio_clip
+        # )
+        ratio = log_prob
+
+        policy_loss = torch.mean(
+            -self.args.reward_weight * advantage * ratio + self.args.kl_weight * kl
+        )
+
+        logging_output = {
+            "policygradient_loss": policy_loss,
+            "value_loss": value_loss,
+            "kl": torch.mean(kl),
+        }
+
+        loss = value_loss if alternate_counter > 0 else policy_loss
+
+        return loss, logging_output

@@ -11,8 +11,8 @@
 MODEL_CONFIG=PSM1B_DIT
 # CKPT_PATH=/casp/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step75000/mp_rank_00_model_states.pt
 # SMPL_PATH=/casp/sfm/sfmexpresults/jianwei/psmv1_dit_v13_1b/checkpoints/global_step75000/prediction
-CKPT_PATH=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step90000/mp_rank_00_model_states.pt
-SMPL_PATH=/home/peiranjin/output/global_step90000/prediction
+CKPT_PATH=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step100000/mp_rank_00_model_states.pt
+SMPL_PATH=/home/peiranjin/output/global_step100000/prediction
 
 DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_psm.py \
   --config-name=$MODEL_CONFIG \
