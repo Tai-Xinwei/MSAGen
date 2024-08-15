@@ -126,6 +126,7 @@ class PSMConfig(GraphormerConfig):
     num_timesteps_stepsize_rl: int = 1
     reward_model: str = "lddt"
     psm_value_step: int = 1
+    perturbation_each_traj: int = 2
 
     # for force
     force_loss_type: ForceLoss = ForceLoss.L1

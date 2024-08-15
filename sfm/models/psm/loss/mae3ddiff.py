@@ -270,8 +270,8 @@ class DiffMAE3dCriterions(nn.Module):
         pos_label = model_output["ori_pos"]
 
         R, T = svd_superimpose(
-            pos_pred.float(),
             pos_label.float(),
+            pos_pred.float(),
             model_output["padding_mask"] | model_output["protein_mask"].any(dim=-1),
         )
 
@@ -279,7 +279,7 @@ class DiffMAE3dCriterions(nn.Module):
 
     def dist_loss(self, model_output, R, T, pos_pred):
         # calculate aligned pred pos
-        pos_pred = torch.einsum("bij,bkj->bki", R.float(), pos_pred.float()) + T.float()
+        # pos_pred = torch.einsum("bij,bkj->bki", R.float(), pos_pred.float()) + T.float()
 
         # smooth lddt loss
         pos_label = model_output["ori_pos"]
@@ -425,12 +425,19 @@ class DiffMAE3dCriterions(nn.Module):
                             + sqrt_one_minus_alphas_cumprod_t
                             * (noise_label - noise_pred)
                         )
-                        aligned_noise_pred = torch.einsum(
-                            "bij,bkj->bki", R, aligned_noise_pred.float()
+                        # aligned_noise_pred = torch.einsum(
+                        #     "bij,bkj->bki", R, aligned_noise_pred.float()
+                        # )
+                        # unreduced_noise_loss = self.noise_loss(
+                        #     aligned_noise_pred.to(noise_label.dtype),
+                        #     (pos_label) * sqrt_alphas_cumprod_t,
+                        # )
+                        aligned_pos_label = torch.einsum(
+                            "bij,bkj->bki", R, pos_label.float()
                         )
                         unreduced_noise_loss = self.noise_loss(
                             aligned_noise_pred.to(noise_label.dtype),
-                            (pos_label - T) * sqrt_alphas_cumprod_t,
+                            (aligned_pos_label) * sqrt_alphas_cumprod_t,
                         )
                         unreduced_noise_loss = (
                             unreduced_noise_loss / sqrt_one_minus_alphas_cumprod_t

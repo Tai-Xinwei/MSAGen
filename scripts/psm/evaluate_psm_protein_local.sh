@@ -32,7 +32,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   gradient_accumulation_steps=1 \
   diffusion_sampling=ode \
   num_timesteps_stepsize=-10 \
-  num_sampling_time=5 \
+  num_sampling_time=1 \
   loadcheck_path=$CKPT_PATH \
   sampled_structure_output_path=$SMPL_PATH \
 
