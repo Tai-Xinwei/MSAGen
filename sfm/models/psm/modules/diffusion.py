@@ -73,8 +73,10 @@ class ODE(DiffusionProcess):
 
 @DIFFUSION_PROCESS_REGISTER.register("sde")
 class SDE(DiffusionProcess):
-    def __init__(self, alpha_cummlative_product: Tensor, psm_config) -> None:
-        super().__init__(alpha_cummlative_product)
+    def __init__(
+        self, alpha_cummlative_product: Tensor, psm_config: PSMConfig = None
+    ) -> None:
+        super().__init__(alpha_cummlative_product, psm_config)
 
     def sample_step(self, x_t, x_init_pos, predicted_noise, epsilon, t, stepsize=1):
         hat_alpha_t = self.alpha_cummlative_product[t]
@@ -95,9 +97,10 @@ class SDE(DiffusionProcess):
 
 @DIFFUSION_PROCESS_REGISTER.register("dpm")
 class DPM(DiffusionProcess):
-    def __init__(self, alpha_cummlative_product: Tensor, psm_config) -> None:
-        super().__init__(alpha_cummlative_product)
-        self.psm_config = psm_config
+    def __init__(
+        self, alpha_cummlative_product: Tensor, psm_config: PSMConfig = None
+    ) -> None:
+        super().__init__(alpha_cummlative_product, psm_config)
         # register a list of the predicted noise for higher order solvers
         self.model_outputs = [None] * self.psm_config.solver_order
         self.lower_order_nums = 0
