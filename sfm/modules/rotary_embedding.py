@@ -238,7 +238,12 @@ class SFMRotaryEmbedding(torch.nn.Module):
                     .repeat(v.shape[0], 1)
                 )
             else:
-                position_ids = position_ids.repeat(nhead, 1)
+                max_seq_len = position_ids.size()[-1]
+                position_ids = (
+                    position_ids.unsqueeze(1)
+                    .repeat(1, nhead, 1)
+                    .reshape(-1, max_seq_len)
+                )
 
             # x: [bs, num_attention_heads, seq_len, head_size]
             inv_freq_expanded = (

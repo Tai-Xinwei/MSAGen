@@ -90,7 +90,7 @@ class PSMModel(Model):
         self.diffnoise = DiffNoise(self.psm_config)
         self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
             self.psm_config.diffusion_sampling
-        ](self.diffnoise.alphas_cumprod)
+        ](self.diffnoise.alphas_cumprod, self.psm_config)
 
         self.time_step_sampler = TimeStepSampler(self.psm_config.num_timesteps)
 
