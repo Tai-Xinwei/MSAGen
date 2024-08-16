@@ -127,6 +127,9 @@ class PSMConfig(GraphormerConfig):
     reward_model: str = "lddt"
     psm_value_step: int = 1
     perturbation_each_traj: int = 2
+    reward_weight: float = 1e-2
+    kl_weight: float = 1e-5
+    ratio_clip: float = 1e-4
 
     # for force
     force_loss_type: ForceLoss = ForceLoss.L1
