@@ -11,8 +11,12 @@
 MODEL_CONFIG=PSM1B_DIT
 # CKPT_PATH=/casp/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step75000/mp_rank_00_model_states.pt
 # SMPL_PATH=/casp/sfm/sfmexpresults/jianwei/psmv1_dit_v13_1b/checkpoints/global_step75000/prediction
-CKPT_PATH=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step105000/mp_rank_00_model_states.pt
-SMPL_PATH=/home/peiranjin/output/global_step105000/prediction
+
+num_sampling_time=5
+global_step=global_step115000
+CKPT_PATH=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/$global_step/mp_rank_00_model_states.pt
+SMPL_PATH=/home/peiranjin/output/$global_step/prediction
+
 
 DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_psm.py \
   --config-name=$MODEL_CONFIG \
@@ -32,8 +36,8 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   gradient_accumulation_steps=1 \
   diffusion_sampling=dpm \
   num_timesteps_stepsize=-250 \
-  num_sampling_time=5 \
+  num_sampling_time=$num_sampling_time \
   loadcheck_path=$CKPT_PATH \
   sampled_structure_output_path=$SMPL_PATH \
 
-# ./tools/protein_evaluation/EvaluateProteinTest.py /fastdata/peiran/psm/ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb/ /home/peiranjin/output/global_step75000/prediction 1
+./tools/protein_evaluation/EvaluateProteinTest.py /fastdata/peiran/psm/ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb/ $SMPL_PATH $num_sampling_time

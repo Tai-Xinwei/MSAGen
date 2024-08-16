@@ -21,11 +21,10 @@ class RLreward(DiffMAE3dCriterions):
             -1
         )
 
-        R, T = self._alignment_x0(model_output, batched_data, pos_pred)
-
-        pos_pred = torch.einsum("bij,bkj->bki", R, pos_pred.float()) + T
-
         if self.reward_model == "rmsd":
+            R, T = self._alignment_x0(model_output, pos_pred)
+            pos_label = torch.einsum("bij,bkj->bki", R, pos_label.float())  # + T
+
             unreduced_noise_loss = torch.sqrt(((pos_pred - pos_label) ** 2))
         elif self.reward_model == "lddt":
             # use smoothed lddt as reward

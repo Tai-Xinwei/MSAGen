@@ -72,7 +72,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='20240101_PDB_Training_Data'
 [ -z "${dataset_name_list}" ] && dataset_name_list='pdb'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='8'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,pdbcomplexmultimer'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.45,0.15,0.05'
@@ -107,7 +107,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step100000/mp_rank_00_model_states.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step110000/mp_rank_00_model_states.pt"
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step252285"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
 
@@ -132,7 +132,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 [ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
-[ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
+[ -z "${diffusion_sampling}" ] && diffusion_sampling="dpm"
+[ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-250
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L1"
 
 [ -z "${num_timesteps}" ] && num_timesteps=5000
@@ -284,7 +285,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_rl.py \
           if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy \
           NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
           rescale_loss_with_std=$rescale_loss_with_std align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss \
-          loadcheck_path=$loadcheck_path \
+          loadcheck_path=$loadcheck_path num_timesteps_stepsize=$num_timesteps_stepsize \
           # ifresume=True \
 
           # molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \

@@ -371,7 +371,7 @@ class PSMModel_RL(PSMModel):
             predicted_noise,
             epsilon,
             t,
-            step=step,
+            stepsize=step,
         )
         batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
         batched_data["pos"] = center_pos(

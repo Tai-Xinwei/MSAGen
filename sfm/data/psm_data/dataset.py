@@ -205,7 +205,7 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         self._ensure_init_db()
         return self._keys
 
-    def split_dataset(self, validation_ratio=0.03, sort=False):
+    def split_dataset(self, validation_ratio=0.001, sort=False):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
@@ -1295,7 +1295,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
         return data
 
-    def split_dataset(self, validation_ratio=0.03, sort=False):
+    def split_dataset(self, validation_ratio=0.001, sort=False):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
@@ -1694,7 +1694,7 @@ class UR50LMDBDataset(FoundationModelDataset):
 
         return data
 
-    def split_dataset(self, validation_ratio=0.03, sort=False):
+    def split_dataset(self, validation_ratio=0.01, sort=False):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
@@ -2132,7 +2132,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         result.update(dict(polymer_len=polymer_len))
         return result
 
-    def split_dataset(self, validation_ratio=0.01, sort=False):
+    def split_dataset(self, validation_ratio=0.03, sort=False):
         num_samples = len(self.keys)
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
@@ -2141,9 +2141,9 @@ class PDBComplexDataset(AFDBLMDBDataset):
         num_validation_samples = int(num_samples * validation_ratio)
         num_training_samples = num_samples - num_validation_samples
 
-        training_indices = indices[:num_training_samples]
+        # training_indices = indices[:num_training_samples]
         validation_indices = indices[num_training_samples:]
-        # training_indices = indices
+        training_indices = indices
         # validation_indices = indices
 
         # Create training and validation datasets

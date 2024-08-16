@@ -543,17 +543,13 @@ class PSMModel(Model):
         self.net.train()
         return match_results
 
-    def forward(self, batched_data, **kwargs):
+    def _pre_forward_operation(self, batched_data):
         """
-        Forward pass of the model.
+        Pre-forward operation for the model.
 
         Args:
             batched_data: Input data for the forward pass.
-            **kwargs: Additional keyword arguments.
         """
-
-        if self.psm_config.sample_in_validation and not self.training:
-            match_results = self.sample_and_calc_match_metric(batched_data)
 
         self._create_system_tags(batched_data)
         self._create_protein_mask(batched_data)
@@ -639,6 +635,29 @@ class PSMModel(Model):
         batched_data[
             "sqrt_one_minus_alphas_cumprod_t"
         ] = sqrt_one_minus_alphas_cumprod_t
+        batched_data["sqrt_alphas_cumprod_t"] = sqrt_alphas_cumprod_t
+
+        return clean_mask, aa_mask, time_step, noise, padding_mask
+
+    def forward(self, batched_data, **kwargs):
+        """
+        Forward pass of the model.
+
+        Args:
+            batched_data: Input data for the forward pass.
+            **kwargs: Additional keyword arguments.
+        """
+
+        if self.psm_config.sample_in_validation and not self.training:
+            match_results = self.sample_and_calc_match_metric(batched_data)
+
+        (
+            clean_mask,
+            aa_mask,
+            time_step,
+            noise,
+            padding_mask,
+        ) = self._pre_forward_operation(batched_data)
 
         if self.psm_config.psm_sample_structure_in_finetune:
             self.net.eval()
@@ -658,7 +677,7 @@ class PSMModel(Model):
         result_dict["aa_mask"] = aa_mask
         result_dict["diff_loss_mask"] = batched_data["diff_loss_mask"]
         result_dict["ori_pos"] = batched_data["ori_pos"]
-        result_dict["sqrt_alphas_cumprod_t"] = sqrt_alphas_cumprod_t
+        result_dict["sqrt_alphas_cumprod_t"] = batched_data["sqrt_alphas_cumprod_t"]
         result_dict["sqrt_one_minus_alphas_cumprod_t"] = batched_data[
             "sqrt_one_minus_alphas_cumprod_t"
         ]
