@@ -15,7 +15,12 @@ class DiffusionProcess(ABC, metaclass=ABCMeta):
         self, alpha_cummlative_product: Tensor, psm_config: PSMConfig = None
     ) -> None:
         self.alpha_cummlative_product = alpha_cummlative_product
-        self.alpha_cummlative_product_t_1 = [1.0] + alpha_cummlative_product[:-1]
+        self.alpha_cummlative_product_t_1 = torch.cat(
+            [
+                torch.tensor([1.0]).to(alpha_cummlative_product.device),
+                alpha_cummlative_product[:-1],
+            ]
+        )
         self.psm_config = psm_config
 
     @abstractmethod
