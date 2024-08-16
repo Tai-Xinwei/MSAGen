@@ -15,6 +15,7 @@ class DiffusionProcess(ABC, metaclass=ABCMeta):
         self, alpha_cummlative_product: Tensor, psm_config: PSMConfig = None
     ) -> None:
         self.alpha_cummlative_product = alpha_cummlative_product
+        self.alpha_cummlative_product_t_1 = [1.0] + alpha_cummlative_product[:-1]
         self.psm_config = psm_config
 
     @abstractmethod
@@ -68,7 +69,7 @@ class DDPM(DiffusionProcess):
         hat_alpha_t_1 = torch.where(
             t == 0,
             torch.tensor(1.0).to(t.device),
-            self._extract(self.alpha_cummlative_product, t - 1, x_t.shape),
+            self._extract(self.alpha_cummlative_product_t_1, t, x_t.shape),
         )
 
         alpha_t = hat_alpha_t / hat_alpha_t_1

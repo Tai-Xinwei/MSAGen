@@ -133,16 +133,21 @@ class PSMModel_RL(PSMModel):
     ):
         # p(x_{t-1} | x_t) ~ N[1 / sqrt(alpha_t) * (x_t - beta_t / sqrt(1 - hat{alpha_t}) * pred_noise), beta_title]
         alpha_cummlative_product = self.diffusion_process.alpha_cummlative_product
+        alpha_cummlative_product_t_1 = (
+            self.diffusion_process.alpha_cummlative_product_t_1
+        )
 
         hat_alpha_t = self.diffusion_process._extract(
             alpha_cummlative_product, t, pos.shape
         )
-
-        hat_alpha_t_1 = torch.where(
-            t == 0,
-            torch.tensor(1.0).to(t.device),
-            self.diffusion_process._extract(alpha_cummlative_product, t - 1, pos.shape),
+        hat_alpha_t_1 = self.diffusion_process._extract(
+            alpha_cummlative_product_t_1, t, pos.shape
         )
+        # hat_alpha_t_1 = torch.where(
+        #     t == 0,
+        #     torch.tensor(1.0).to(t.device),
+        #     self.diffusion_process._extract(alpha_cummlative_product, t - 1, pos.shape),
+        # )
 
         alpha_t = hat_alpha_t / hat_alpha_t_1
         beta_t = 1 - alpha_t
