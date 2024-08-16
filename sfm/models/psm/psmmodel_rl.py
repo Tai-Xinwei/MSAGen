@@ -137,23 +137,16 @@ class PSMModel_RL(PSMModel):
         hat_alpha_t = self.diffusion_process._extract(
             alpha_cummlative_product, t, pos.shape
         )
-        hat_alpha_t_1 = self.diffusion_process._extract(
-            alpha_cummlative_product, t - 1, pos.shape
-        )
+
         hat_alpha_t_1 = torch.where(
-            t == 0, torch.tensor(1.0).to(t.device), hat_alpha_t_1
+            t == 0,
+            torch.tensor(1.0).to(t.device),
+            self.diffusion_process._extract(alpha_cummlative_product, t - 1, pos.shape),
         )
 
-        # hat_alpha_t_1 = (
-        #     1.0 if t == 0 else self.diffusion_process.alpha_cummlative_product[t - 1]
-        # )
         alpha_t = hat_alpha_t / hat_alpha_t_1
         beta_t = 1 - alpha_t
-        # beta_tilde_t = (
-        #     0.1  # TODO
-        #     if t == 0
-        #     else ((1.0 - hat_alpha_t_1) / (1.0 - hat_alpha_t) * beta_t).sqrt()
-        # )
+
         beta_tilde_t = torch.where(
             t == 0,
             torch.tensor(0.0).to(t.device),

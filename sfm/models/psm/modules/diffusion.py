@@ -65,9 +65,10 @@ class DDPM(DiffusionProcess):
         self, x_t, x_init_pos, predicted_noise, epsilon, t, stepsize=1
     ):
         hat_alpha_t = self._extract(self.alpha_cummlative_product, t, x_t.shape)
-        hat_alpha_t_1 = self._extract(self.alpha_cummlative_product, t - 1, x_t.shape)
         hat_alpha_t_1 = torch.where(
-            t == 0, torch.tensor(1.0).to(t.device), hat_alpha_t_1
+            t == 0,
+            torch.tensor(1.0).to(t.device),
+            self._extract(self.alpha_cummlative_product, t - 1, x_t.shape),
         )
 
         alpha_t = hat_alpha_t / hat_alpha_t_1
