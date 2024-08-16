@@ -5,7 +5,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import copy
-import math
 import os
 from contextlib import nullcontext
 
@@ -133,49 +132,64 @@ class PSMModel_RL(PSMModel):
         step=1,
     ):
         # p(x_{t-1} | x_t) ~ N[1 / sqrt(alpha_t) * (x_t - beta_t / sqrt(1 - hat{alpha_t}) * pred_noise), beta_title]
-        hat_alpha_t = self.diffusion_process.alpha_cummlative_product[t]
-        hat_alpha_t_1 = (
-            1.0 if t == 0 else self.diffusion_process.alpha_cummlative_product[t - 1]
+        alpha_cummlative_product = self.diffusion_process.alpha_cummlative_product
+
+        hat_alpha_t = self.diffusion_process._extract(
+            alpha_cummlative_product, t, pos.shape
         )
+        hat_alpha_t_1 = self.diffusion_process._extract(
+            alpha_cummlative_product, t - 1, pos.shape
+        )
+        hat_alpha_t_1 = torch.where(
+            t == 0, torch.tensor(1.0).to(t.device), hat_alpha_t_1
+        )
+
+        # hat_alpha_t_1 = (
+        #     1.0 if t == 0 else self.diffusion_process.alpha_cummlative_product[t - 1]
+        # )
         alpha_t = hat_alpha_t / hat_alpha_t_1
         beta_t = 1 - alpha_t
-        beta_tilde_t = (
-            0.1  # TODO
-            if t == 0
-            else ((1.0 - hat_alpha_t_1) / (1.0 - hat_alpha_t) * beta_t).sqrt()
+        # beta_tilde_t = (
+        #     0.1  # TODO
+        #     if t == 0
+        #     else ((1.0 - hat_alpha_t_1) / (1.0 - hat_alpha_t) * beta_t).sqrt()
+        # )
+        beta_tilde_t = torch.where(
+            t == 0,
+            torch.tensor(0.0).to(t.device),
+            ((1.0 - hat_alpha_t_1) / (1.0 - hat_alpha_t) * beta_t).sqrt(),
         )
 
         if self.psm_config.diffusion_sampling_rl == "ddpm":
+            temp = beta_t / torch.sqrt(1 - hat_alpha_t)
             mean = (
                 1
-                / math.sqrt(alpha_t)
-                * (pos - beta_t / math.sqrt(1 - hat_alpha_t) * pred_noise)
+                / torch.sqrt(alpha_t).unsqueeze(-1).unsqueeze(-1)
+                * (pos - temp.unsqueeze(-1).unsqueeze(-1) * pred_noise)
             )
             mean_old = (
                 1
-                / math.sqrt(alpha_t)
-                * (pos - beta_t / math.sqrt(1 - hat_alpha_t) * pred_noise_old)
+                / torch.sqrt(alpha_t).unsqueeze(-1).unsqueeze(-1)
+                * (pos - temp.unsqueeze(-1).unsqueeze(-1) * pred_noise_old)
             )
-            var = beta_tilde_t**2
+            beta_tilde_t**2
         elif self.psm_config.diffusion_sampling_rl == "sde":
             beta_t = beta_t * step
             score = -pred_noise / (1.0 - hat_alpha_t).sqrt()
             score_old = -pred_noise_old / (1.0 - hat_alpha_t).sqrt()
             mean = (2 - (1.0 - beta_t).sqrt()) * pos + beta_t * (score)
             mean_old = (2 - (1.0 - beta_t).sqrt()) * pos + beta_t * (score_old)
-            var = beta_t
         else:
             raise ValueError(
                 f"diffusion_sampling_rl: {self.psm_config.diffusion_sampling_rl} not supported"
             )
 
-        log_constant = -math.log(math.sqrt(2 * math.pi) * beta_tilde_t)
-        log_exp = -((next_pos - mean) ** 2) / (2 * var)
-        log_exp_old = -((next_pos - mean_old) ** 2) / (2 * var)
+        log_exp = -((next_pos - mean) ** 2)  # / (2 * var)
+        log_exp_old = -((next_pos - mean_old) ** 2)  # / (2 * var)
 
         # TODO: remove log_constant
-        log_prob = log_constant + log_exp
-        old_log_prob = log_constant + log_exp_old
+        log_prob = log_exp
+        old_log_prob = log_exp_old
         kl = (pred_noise - pred_noise_old) ** 2
 
         # protein_mask = protein_mask.any(dim=-1).unsqueeze(-1)
@@ -249,24 +263,38 @@ class PSMModel_RL(PSMModel):
             padding_mask,
         ) = self._pre_forward_operation(batched_data)
 
+        # time_step[:, :] = time_step[0, 0]
+
         # 3. denoise from xt to xt-1
-        t = int(time_step[0, 0].cpu() * self.psm_config.num_timesteps)
-        if t > self.psm_config.num_timesteps_stepsize_rl:
-            step = self.psm_config.num_timesteps_stepsize_rl
-        else:
-            step = 1
-        token_id = batched_data["token_id"]
+        # t = int(time_step[0, 0].cpu() * self.psm_config.num_timesteps)
+        # if t > self.psm_config.num_timesteps_stepsize_rl:
+        #     step = self.psm_config.num_timesteps_stepsize_rl
+        # else:
+        #     step = 1
+
+        # batched_data["sqrt_one_minus_alphas_cumprod_t"] = self.diffnoise._extract(
+        #     self.diffnoise.sqrt_one_minus_alphas_cumprod,
+        #     (time_step * self.psm_config.num_timesteps).long(),
+        #     batched_data["pos"].shape,
+        # )
+
+        t = (time_step[:, 0] * self.psm_config.num_timesteps).long()
+        step = 1
+
+        pred_noise_old = self.net_old(
+            batched_data, time_step=time_step, padding_mask=padding_mask
+        )["noise_pred"]
 
         next_pos, pred_noise, _, decoder_x_output, result_dict = self.sample_each_t(
             t,
+            time_step,
             batched_data,
             n_graphs=batched_data["pos"].shape[0],
-            padding_mask=token_id.eq(0),
+            padding_mask=padding_mask,
             step=step,
         )
 
         # 4. compute log prob of (xt, xt-1)
-        pred_noise_old = self.net_old(batched_data, time_step=time_step)["noise_pred"]
         log_prob, old_log_prob, kl = self.logprob(
             batched_data["pos"],
             next_pos,
@@ -339,24 +367,14 @@ class PSMModel_RL(PSMModel):
         """
         return (None, None)
 
-    def sample_each_t(self, t, batched_data, n_graphs, padding_mask, step=1):
+    def sample_each_t(self, t, time_step, batched_data, n_graphs, padding_mask, step=1):
         """
         Sample method for diffussion model
         """
-        # forward
-        time_step = self.time_step_sampler.get_continuous_time_step(
-            t,
-            n_graphs,
-            device=batched_data["pos"].device,
-            dtype=batched_data["pos"].dtype,
+
+        model_output = self.net(
+            batched_data, time_step=time_step, padding_mask=padding_mask
         )
-        time_step = time_step.unsqueeze(-1).repeat(1, batched_data["pos"].shape[1])
-        batched_data["sqrt_one_minus_alphas_cumprod_t"] = self.diffnoise._extract(
-            self.diffnoise.sqrt_one_minus_alphas_cumprod,
-            (time_step * self.psm_config.num_timesteps).long(),
-            batched_data["pos"].shape,
-        )
-        model_output = self.net(batched_data, time_step=time_step)
         predicted_noise = model_output["noise_pred"]
         decoder_x_output = model_output["decoder_x_output"]
         epsilon = self.diffnoise.get_noise(
@@ -365,7 +383,7 @@ class PSMModel_RL(PSMModel):
             batched_data["is_periodic"],
         )
 
-        batched_data["pos"] = self.diffusion_process2.sample_step(
+        batched_data["pos"] = self.diffusion_process2.sample_step_multi_t(
             batched_data["pos"],
             batched_data["init_pos"],
             predicted_noise,
@@ -374,9 +392,9 @@ class PSMModel_RL(PSMModel):
             stepsize=step,
         )
         batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
-        batched_data["pos"] = center_pos(
-            batched_data, padding_mask
-        )  # centering to remove noise translation
+        # batched_data["pos"] = center_pos(
+        #     batched_data, padding_mask
+        # )  # centering to remove noise translation
         batched_data["pos"] = batched_data["pos"].detach()
 
         return (

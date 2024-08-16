@@ -21,6 +21,19 @@ class DiffusionProcess(ABC, metaclass=ABCMeta):
     def sample_step(self, x_t, x_init_pos, predicted_noise, epsilon, t):
         return
 
+    def _extract(self, a, t, x_shape):
+        if len(t.shape) == 1:
+            batch_size = t.shape[0]
+            out = a.gather(-1, t.cpu().long())
+            return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device)
+        elif len(t.shape) == 2:
+            batch_size, L = t.shape
+            # a is in shape of [num_timesteps], t is in shape of [batch_size, L],
+            out = torch.gather(a.unsqueeze(0).expand(batch_size, -1), 1, t.cpu().long())
+            return out.reshape(batch_size, L, *((1,) * (len(x_shape) - 2))).to(t.device)
+        else:
+            raise Exception(f"t shape: {t.shape} not supported")
+
 
 @DIFFUSION_PROCESS_REGISTER.register("ddpm")
 class DDPM(DiffusionProcess):
@@ -46,6 +59,37 @@ class DDPM(DiffusionProcess):
             - (1 - alpha_t) / (1 - hat_alpha_t).sqrt() * predicted_noise
         ) / alpha_t.sqrt() + beta_tilde_t * epsilon
         x_t_minus_1 += x_init_pos
+        return x_t_minus_1
+
+    def sample_step_multi_t(
+        self, x_t, x_init_pos, predicted_noise, epsilon, t, stepsize=1
+    ):
+        hat_alpha_t = self._extract(self.alpha_cummlative_product, t, x_t.shape)
+        hat_alpha_t_1 = self._extract(self.alpha_cummlative_product, t - 1, x_t.shape)
+        hat_alpha_t_1 = torch.where(
+            t == 0, torch.tensor(1.0).to(t.device), hat_alpha_t_1
+        )
+
+        alpha_t = hat_alpha_t / hat_alpha_t_1
+        beta_t = (1 - alpha_t) * stepsize
+
+        beta_tilde_t = torch.where(
+            t == 0,
+            torch.tensor(0.0).to(t.device),
+            ((1.0 - hat_alpha_t_1) / (1.0 - hat_alpha_t) * beta_t).sqrt(),
+        )
+
+        temp = (1 - alpha_t) / (1 - hat_alpha_t).sqrt()
+
+        x_t_minus_1 = (
+            x_t - x_init_pos - temp.unsqueeze(-1).unsqueeze(-1) * predicted_noise
+        ) / alpha_t.sqrt().unsqueeze(-1).unsqueeze(-1) + beta_tilde_t.unsqueeze(
+            -1
+        ).unsqueeze(
+            -1
+        ) * epsilon
+        x_t_minus_1 += x_init_pos
+
         return x_t_minus_1
 
 

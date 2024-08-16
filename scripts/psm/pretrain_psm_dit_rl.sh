@@ -33,7 +33,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.3
+[ -z "${mask_ratio}" ] && mask_ratio=0.0
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
 
 [ -z "${d_tilde}" ] && d_tilde=1
@@ -45,12 +45,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=2000
-[ -z "${log_interval}" ] && log_interval=20
+[ -z "${save_batch_interval}" ] && save_batch_interval=200
+[ -z "${log_interval}" ] && log_interval=10
 [ -z "${epochs}" ] && epochs=1000
-[ -z "${val_batch_interval}" ] && val_batch_interval=10000
-[ -z "${mode_prob}" ] && mode_prob='0.2,0.6,0.2'
-[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.4,0.4,0.2' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${val_batch_interval}" ] && val_batch_interval=2000
+[ -z "${mode_prob}" ] && mode_prob='0,1,0'
+[ -z "${complex_mode_prob}" ] && complex_mode_prob='0,1,0' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
@@ -111,10 +111,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id="global_step252285"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
 
-[ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
-[ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
-[ -z "${wandb_project}" ] && wandb_project=psm_dev
-[ -z "${wandb_key}" ] && wandb_key=local-094f941ede8eda7a00c307f50595f054be5382f7
+[ -z "${wandb_group}" ] && wandb_group=dpm_rl
+[ -z "${wandb_team}" ] && wandb_team=large-scale-pde
+[ -z "${wandb_project}" ] && wandb_project=psm_rl
 
 [ -z "${launcher}" ] && launcher='openmpi'
 [ -z "${hostfile}" ] && hostfile='/job/hostfile'
@@ -133,7 +132,9 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="dpm"
-[ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-250
+[ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-200
+# [ -z "${diffusion_sampling_rl}" ] && diffusion_sampling_rl="ddpm"
+# [ -z "${num_timesteps_stepsize_rl}" ] && num_timesteps_stepsize_rl=1
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L1"
 
 [ -z "${num_timesteps}" ] && num_timesteps=5000
