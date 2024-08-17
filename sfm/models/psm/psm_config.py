@@ -162,6 +162,7 @@ class PSMConfig(GraphormerConfig):
     rescale_loss_with_std: bool = False
     material_force_loss_ratio: float = 1.0
     material_energy_loss_ratio: float = 1.0
+    molecule_force_loss_ratio: float = 1.0
     molecule_energy_loss_ratio: float = 1.0
     energy_per_atom_label_scale: float = 1.0
     molecule_energy_per_atom_std_override: float = 1.0

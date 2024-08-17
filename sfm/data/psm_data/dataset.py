@@ -384,15 +384,8 @@ class MoleculeLMDBDataset(FoundationModelDataset):
         return self.sizes[index]
 
     def __getstate__(self):
-        state = self.__dict__.copy()
-        if state["_env"] is not None:
-            state["_env"].close()
-            del state["_env"]
-            state["_env"] = None
-        if state["_txn"] is not None:
-            del state["_txn"]
-            state["_txn"] = None
-        return state
+        self._close_db()
+        return self.__dict__.copy()
 
     def __setstate__(self, state):
         self.__dict__.update(state)
@@ -422,7 +415,6 @@ class PubChemQCB3lypPM6Dataset(MoleculeLMDBDataset):
         super().__init__(args, path, keys=keys, sizes=sizes)
 
     @classmethod
-    @lru_cache(maxsize=1)
     def _open_db(cls, lmdb_path):
         env = lmdb.open(
             str(lmdb_path),
@@ -462,42 +454,6 @@ class PubChemQCB3lypPM6Dataset(MoleculeLMDBDataset):
         assert x["edge_index"].shape[1] == x["edge_feat"].shape[0]
 
         return x
-
-    def generate_2dgraphfeat(self, data):
-        N = data["num_atoms"]
-        adj = torch.zeros([N, N], dtype=torch.bool)
-
-        edge_index = torch.tensor(data["edge_index"], dtype=torch.long)
-        edge_attr = torch.tensor(data["edge_feat"], dtype=torch.long)
-        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
-        attn_edge_type[edge_index[0, :], edge_index[1, :]] = convert_to_single_emb(
-            edge_attr
-        )
-        adj[edge_index[0, :], edge_index[1, :]] = True
-        indgree = adj.long().sum(dim=1).view(-1)
-        # set diagonal to True
-        adj[torch.arange(N), torch.arange(N)] = True
-        adj[edge_index[1, :], edge_index[0, :]] = True
-
-        data["edge_index"] = edge_index
-        data["edge_attr"] = edge_attr
-        data["node_attr"] = data["node_feat"]
-
-        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
-        data["in_degree"] = indgree
-
-        if self.args.preprocess_2d_bond_features_with_cuda:
-            data["adj"] = adj
-            data["attn_edge_type"] = attn_edge_type
-        else:
-            shortest_path_result, path = algos.floyd_warshall(adj.numpy())
-            max_dist = np.amax(shortest_path_result)
-            edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
-            spatial_pos = torch.from_numpy((shortest_path_result)).long()
-            data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
-            data["spatial_pos"] = spatial_pos
-
-        return data
 
 
 class PM6FullLMDBDataset(MoleculeLMDBDataset):
