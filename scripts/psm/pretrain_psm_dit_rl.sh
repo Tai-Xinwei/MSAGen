@@ -157,7 +157,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
 [ -z "${disable_data_aug}" ] && disable_data_aug=False
-[ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=False
+[ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=True
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
