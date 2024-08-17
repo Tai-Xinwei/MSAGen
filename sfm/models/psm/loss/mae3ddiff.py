@@ -155,6 +155,7 @@ class DiffMAE3dCriterions(nn.Module):
 
         self.material_force_loss_ratio = args.material_force_loss_ratio
         self.material_energy_loss_ratio = args.material_energy_loss_ratio
+        self.molecule_force_loss_ratio = args.molecule_force_loss_ratio
         self.molecule_energy_loss_ratio = args.molecule_energy_loss_ratio
 
         self.hard_dist_loss_raito = args.hard_dist_loss_raito
@@ -666,6 +667,7 @@ class DiffMAE3dCriterions(nn.Module):
         if not self.seq_only:
             loss = (
                 self.molecule_energy_loss_ratio * molecule_energy_loss
+                + self.molecule_force_loss_ratio * molecule_force_loss
                 + self.material_energy_loss_ratio * periodic_energy_loss
                 + self.material_force_loss_ratio * periodic_force_loss
                 + noise_loss
