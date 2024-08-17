@@ -349,8 +349,8 @@ class PSMModel(Model):
         is_periodic = batched_data["pbc"].any(dim=-1)
         is_molecule = (~is_periodic) & (token_id <= 129).all(dim=-1)
         is_protein = (~is_periodic.unsqueeze(-1)) & (token_id > 129) & (token_id < 156)
-        is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
-        # is_heavy_atom = is_molecule & (token_id > 130).any(dim=-1)
+        # is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
+        is_heavy_atom = is_molecule & (token_id > 130).any(dim=-1)
         is_seq_only = sample_type == 5
         is_complex = sample_type == 6
         is_energy_outlier = is_molecule & (
@@ -1461,17 +1461,17 @@ class PSM(nn.Module):
             if not self.args.seq_only:
                 noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
 
-                if self.args.backbone in ["dit", "e2dit"]:
-                    energy_per_atom = torch.where(
-                        is_periodic.unsqueeze(-1),
-                        self.energy_head["periodic"](encoder_output).squeeze(-1),
-                        self.energy_head["molecule"](encoder_output).squeeze(-1),
-                    )
-                else:
+                if self.args.decoder_feat4energy:
                     energy_per_atom = torch.where(
                         is_periodic.unsqueeze(-1),
                         self.energy_head["periodic"](decoder_x_output).squeeze(-1),
                         self.energy_head["molecule"](decoder_x_output).squeeze(-1),
+                    )
+                else:
+                    energy_per_atom = torch.where(
+                        is_periodic.unsqueeze(-1),
+                        self.energy_head["periodic"](encoder_output).squeeze(-1),
+                        self.energy_head["molecule"](encoder_output).squeeze(-1),
                     )
 
                 if self.args.diffusion_mode == "epsilon":

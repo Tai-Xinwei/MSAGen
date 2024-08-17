@@ -52,11 +52,19 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mode_prob}" ] && mode_prob='0.2,0.6,0.2'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='0.4,0.4,0.2' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-[ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
+
+[ -z "${data_path}" ] && data_path='/data/peiran/'
+
 [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="80"
+
+# [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
 # [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='afdb'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
@@ -98,7 +106,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1.0
 [ -z "${energy_per_atom_label_scale}" ] && energy_per_atom_label_scale=1.0
 [ -z "${molecule_ref_energy_source}" ] && molecule_ref_energy_source="PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train"
-[ -z "${molecule_outlier_energy_atoms}" ] && molecule_outlier_energy_atoms="."
+[ -z "${molecule_outlier_energy_atoms}" ] && molecule_outlier_energy_atoms=""
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
 
@@ -150,12 +158,13 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
-[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
 [ -z "${disable_data_aug}" ] && disable_data_aug=False
-[ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=False
+[ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
+[ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=True
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -263,7 +272,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           equivar_vec_init=$equivar_vec_init pbc_use_local_attention=$pbc_use_local_attention \
           pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
-          diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
+          diffusion_noise_std=$diffusion_noise_std fp16=$fp16 use_memory_efficient_attention=$use_memory_efficient_attention \
           psm_validation_mode=$psm_validation_mode num_edges=$num_edges num_3d_bias_kernel=$num_3d_bias_kernel \
           diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
           num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
@@ -285,9 +294,9 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
           rescale_loss_with_std=$rescale_loss_with_std align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss \
           loadcheck_path=$loadcheck_path \
-          ifresume=True \
+          molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
 
-          # molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
+          # ifresume=True \
           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
 
 sleep infinity
