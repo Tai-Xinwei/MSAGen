@@ -148,21 +148,18 @@ class SDE(DiffusionProcess):
     def sample_step_multi_t(
         self, x_t, x_init_pos, predicted_noise, epsilon, t, stepsize=1
     ):
-        hat_alpha_t = self._extract(self.alpha_cummlative_product, t, x_t.shape)
+        hat_alpha_t = self._extract(self.alpha_cummlative_product, t, x_t.shape).cuda()
         hat_alpha_t_1 = torch.where(
             t == 0,
             torch.tensor(1.0).to(t.device),
             self._extract(self.alpha_cummlative_product_t_1, t, x_t.shape),
-        )
+        ).cuda()
 
         alpha_t = hat_alpha_t / hat_alpha_t_1
         beta_t = (1 - alpha_t) * stepsize
 
         score = (
-            -predicted_noise
-            / (
-                1.0 - self.alpha_cummlative_product[t].unsqueeze(-1).unsqueeze(-1)
-            ).sqrt()
+            -predicted_noise / (1.0 - hat_alpha_t.unsqueeze(-1).unsqueeze(-1)).sqrt()
         )
 
         x_t_minus_1 = (
