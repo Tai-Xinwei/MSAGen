@@ -814,7 +814,7 @@ class PolicyGradientLoss(nn.Module):
         )
 
         logging_output = {
-            "policygradient_loss": policy_loss,
+            "policy_loss": -torch.mean(advantage * log_prob),
             "value_loss": value_loss,
             "kl": torch.mean(kl),
         }

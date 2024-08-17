@@ -136,13 +136,13 @@ class PSMModel_RL(PSMModel):
         alpha_cummlative_product_t_1 = (
             self.diffusion_process.alpha_cummlative_product_t_1
         )
-
         hat_alpha_t = self.diffusion_process._extract(
             alpha_cummlative_product, t, pos.shape
         )
         hat_alpha_t_1 = self.diffusion_process._extract(
             alpha_cummlative_product_t_1, t, pos.shape
         )
+
         # hat_alpha_t_1 = torch.where(
         #     t == 0,
         #     torch.tensor(1.0).to(t.device),
@@ -160,16 +160,8 @@ class PSMModel_RL(PSMModel):
 
         if self.psm_config.diffusion_sampling_rl == "ddpm":
             temp = beta_t / torch.sqrt(1 - hat_alpha_t)
-            mean = (
-                1
-                / torch.sqrt(alpha_t).unsqueeze(-1).unsqueeze(-1)
-                * (pos - temp.unsqueeze(-1).unsqueeze(-1) * pred_noise)
-            )
-            mean_old = (
-                1
-                / torch.sqrt(alpha_t).unsqueeze(-1).unsqueeze(-1)
-                * (pos - temp.unsqueeze(-1).unsqueeze(-1) * pred_noise_old)
-            )
+            mean = 1 / torch.sqrt(alpha_t) * (pos - temp * pred_noise)
+            mean_old = 1 / torch.sqrt(alpha_t) * (pos - temp * pred_noise_old)
             var = beta_tilde_t**2
         elif self.psm_config.diffusion_sampling_rl == "sde":
             beta_t = beta_t * step
@@ -192,7 +184,9 @@ class PSMModel_RL(PSMModel):
         kl = (pred_noise - pred_noise_old) ** 2
 
         # protein_mask = protein_mask.any(dim=-1).unsqueeze(-1)
-        loss_mask = (protein_mask.any(dim=-1) | padding_mask).unsqueeze(-1)
+        loss_mask = ((protein_mask.any(dim=-1) | padding_mask).unsqueeze(-1)) | (
+            var == 0
+        )
         selected_count = (~loss_mask).sum(dim=-1).sum(dim=-1)
 
         log_prob = log_prob.masked_fill(loss_mask, 0.0)
@@ -390,6 +384,7 @@ class PSMModel_RL(PSMModel):
             t,
             stepsize=step,
         )
+
         batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
         # batched_data["pos"] = center_pos(
         #     batched_data, padding_mask

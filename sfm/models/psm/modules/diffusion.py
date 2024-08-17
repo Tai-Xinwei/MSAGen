@@ -71,11 +71,7 @@ class DDPM(DiffusionProcess):
         self, x_t, x_init_pos, predicted_noise, epsilon, t, stepsize=1
     ):
         hat_alpha_t = self._extract(self.alpha_cummlative_product, t, x_t.shape)
-        hat_alpha_t_1 = torch.where(
-            t == 0,
-            torch.tensor(1.0).to(t.device),
-            self._extract(self.alpha_cummlative_product_t_1, t, x_t.shape),
-        )
+        hat_alpha_t_1 = self._extract(self.alpha_cummlative_product_t_1, t, x_t.shape)
 
         alpha_t = hat_alpha_t / hat_alpha_t_1
         beta_t = (1 - alpha_t) * stepsize
@@ -89,12 +85,8 @@ class DDPM(DiffusionProcess):
         temp = (1 - alpha_t) / (1 - hat_alpha_t).sqrt()
 
         x_t_minus_1 = (
-            x_t - x_init_pos - temp.unsqueeze(-1).unsqueeze(-1) * predicted_noise
-        ) / alpha_t.sqrt().unsqueeze(-1).unsqueeze(-1) + beta_tilde_t.unsqueeze(
-            -1
-        ).unsqueeze(
-            -1
-        ) * epsilon
+            x_t - x_init_pos - temp * predicted_noise
+        ) / alpha_t.sqrt() + beta_tilde_t * epsilon
         x_t_minus_1 += x_init_pos
 
         return x_t_minus_1
@@ -148,25 +140,19 @@ class SDE(DiffusionProcess):
     def sample_step_multi_t(
         self, x_t, x_init_pos, predicted_noise, epsilon, t, stepsize=1
     ):
-        hat_alpha_t = self._extract(self.alpha_cummlative_product, t, x_t.shape).cuda()
-        hat_alpha_t_1 = torch.where(
-            t == 0,
-            torch.tensor(1.0).to(t.device),
-            self._extract(self.alpha_cummlative_product_t_1, t, x_t.shape),
-        ).cuda()
+        hat_alpha_t = self._extract(self.alpha_cummlative_product, t, x_t.shape)
+        hat_alpha_t_1 = self._extract(self.alpha_cummlative_product_t_1, t, x_t.shape)
 
         alpha_t = hat_alpha_t / hat_alpha_t_1
         beta_t = (1 - alpha_t) * stepsize
 
-        score = (
-            -predicted_noise / (1.0 - hat_alpha_t.unsqueeze(-1).unsqueeze(-1)).sqrt()
-        )
+        score = -predicted_noise / (1.0 - hat_alpha_t).sqrt()
 
         x_t_minus_1 = (
-            (2 - (1.0 - beta_t.unsqueeze(-1).unsqueeze(-1)).sqrt()) * (x_t - x_init_pos)
-            + beta_t.unsqueeze(-1).unsqueeze(-1) * (score)
+            (2 - (1.0 - beta_t).sqrt()) * (x_t - x_init_pos)
+            + beta_t * (score)
             + x_init_pos
-            + beta_t.sqrt().unsqueeze(-1).unsqueeze(-1) * epsilon
+            + beta_t.sqrt() * epsilon
         )
 
         return x_t_minus_1
