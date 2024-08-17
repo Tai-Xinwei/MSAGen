@@ -170,20 +170,21 @@ class PSMModel_RL(PSMModel):
                 / torch.sqrt(alpha_t).unsqueeze(-1).unsqueeze(-1)
                 * (pos - temp.unsqueeze(-1).unsqueeze(-1) * pred_noise_old)
             )
-            beta_tilde_t**2
+            var = beta_tilde_t**2
         elif self.psm_config.diffusion_sampling_rl == "sde":
             beta_t = beta_t * step
             score = -pred_noise / (1.0 - hat_alpha_t).sqrt()
             score_old = -pred_noise_old / (1.0 - hat_alpha_t).sqrt()
             mean = (2 - (1.0 - beta_t).sqrt()) * pos + beta_t * (score)
             mean_old = (2 - (1.0 - beta_t).sqrt()) * pos + beta_t * (score_old)
+            var = beta_t
         else:
             raise ValueError(
                 f"diffusion_sampling_rl: {self.psm_config.diffusion_sampling_rl} not supported"
             )
 
-        log_exp = -((next_pos - mean) ** 2)  # / (2 * var)
-        log_exp_old = -((next_pos - mean_old) ** 2)  # / (2 * var)
+        log_exp = -((next_pos - mean) ** 2) / (2 * var)
+        log_exp_old = -((next_pos - mean_old) ** 2) / (2 * var)
 
         # TODO: remove log_constant
         log_prob = log_exp
