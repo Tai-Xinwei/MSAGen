@@ -123,7 +123,7 @@ class PSMConfig(GraphormerConfig):
     # for RL
     psm_finetuneRL_mode: bool = True
     diffusion_sampling_rl: str = "ddpm"
-    num_timesteps_stepsize_rl: int = 1
+    num_timesteps_stepsize_rl: int = -1
     reward_model: str = "lddt"
     psm_value_step: int = 1
     perturbation_each_traj: int = 2

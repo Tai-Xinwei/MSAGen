@@ -45,7 +45,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=200
+[ -z "${save_batch_interval}" ] && save_batch_interval=50
 [ -z "${log_interval}" ] && log_interval=10
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=2000
@@ -133,8 +133,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="dpm"
 [ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-200
-# [ -z "${diffusion_sampling_rl}" ] && diffusion_sampling_rl="ddpm"
-# [ -z "${num_timesteps_stepsize_rl}" ] && num_timesteps_stepsize_rl=1
+[ -z "${diffusion_sampling_rl}" ] && diffusion_sampling_rl="sde"
+[ -z "${num_timesteps_stepsize_rl}" ] && num_timesteps_stepsize_rl=10
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L1"
 
 [ -z "${num_timesteps}" ] && num_timesteps=5000
@@ -287,6 +287,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_rl.py \
           NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
           rescale_loss_with_std=$rescale_loss_with_std align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss \
           loadcheck_path=$loadcheck_path num_timesteps_stepsize=$num_timesteps_stepsize \
+          diffusion_sampling_rl=$diffusion_sampling_rl num_timesteps_stepsize_rl=$num_timesteps_stepsize_rl \
           # ifresume=True \
 
           # molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \

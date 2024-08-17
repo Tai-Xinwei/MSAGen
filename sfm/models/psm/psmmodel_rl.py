@@ -278,7 +278,7 @@ class PSMModel_RL(PSMModel):
         # )
 
         t = (time_step[:, 0] * self.psm_config.num_timesteps).long()
-        step = 1
+        step = 10
 
         pred_noise_old = self.net_old(
             batched_data, time_step=time_step, padding_mask=padding_mask
