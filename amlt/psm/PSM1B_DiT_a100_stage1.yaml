@@ -79,17 +79,15 @@ jobs:
   # - export dataset_split_raito='0.3,0.05,0.3,0.15,0.1,0.1,0.1'
   # - export dataset_micro_batch_size='112,8,24,8,12,24,12'
   - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data,ESM_ATLAS_reduce.lmdb' #,ur50_23_bpe_pack512.lmdb'
-  - export dataset_name_list='mattersim,mattersim,pm6,afdb,pdb,pdbcomplexmultimer,esm' #,ur50'
-  # - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdb,pdbcomplexmultimer' #,ur50'
+  # - export dataset_name_list='mattersim,mattersim,pm6,afdb,pdb,pdbcomplexmultimer,esm' #,ur50'
+  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdb,pdbcomplexmultimer,esm' #,ur50'
   - export dataset_split_raito='0.05,0.15,0.3,0.3,0.02,0.08,0.1'
   - export dataset_micro_batch_size='8,8,32,8,8,2,8'
   - export fp16=False
-  - export clean_sample_ratio=0.7
+  - export clean_sample_ratio=0.8
   - export molecule_energy_loss_ratio=1.0
   - export material_energy_loss_ratio=1.0
   - export material_force_loss_ratio=1.0
-  - export molecule_ref_energy_source=PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train
-  - export molecule_outlier_energy_atoms="."
   - export AutoGradForce=False
   - export use_hard_dist_loss=True
   - export use_unified_batch_sampler=True
@@ -98,9 +96,9 @@ jobs:
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
   - export save_batch_interval=2500
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints
-  - export psm_finetune_mode=False
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step145000/mp_rank_00_model_states.pt
+  - export psm_finetune_mode=True
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints_2
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120

@@ -257,7 +257,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/pretrain_nlm3d.py \
       --pp_partition_layer_name "$pp_partition_layer_name" \
       --pretrained_ckpt_path "$loadcheck_path" \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
-      --unfreeze_param_list $unfreeze_param_list --learnable_cutoff $learnable_cutoff \
       ${MEGATRON_ARGS} ${load_ckpt} ${weighted_dataset}
+
+      # --unfreeze_param_list $unfreeze_param_list --learnable_cutoff $learnable_cutoff \
 
       # --model_type "$model_type" \
