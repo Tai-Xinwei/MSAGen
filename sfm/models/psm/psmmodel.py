@@ -1117,6 +1117,7 @@ class PSM(nn.Module):
                 "vectorvanillatransformer",
             ]:
                 self.noise_head = VectorOutput(psm_config.embedding_dim)
+                self.noise_head_periodic = VectorOutput(psm_config.embedding_dim)
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
                     self.forces_head.update(
                         {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
@@ -1137,6 +1138,9 @@ class PSM(nn.Module):
             #         )
             else:
                 self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
+                self.noise_head_periodic = EquivariantVectorOutput(
+                    psm_config.embedding_dim
+                )
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
                     self.forces_head.update(
                         {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
@@ -1460,6 +1464,9 @@ class PSM(nn.Module):
         ):
             if not self.args.seq_only:
                 noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
+                noise_pred_periodic = self.noise_head_periodic(
+                    decoder_x_output, decoder_vec_output
+                )
 
                 if self.args.decoder_feat4energy:
                     energy_per_atom = torch.where(
@@ -1483,6 +1490,10 @@ class PSM(nn.Module):
                     noise_pred = (
                         scale * (batched_data["pos"] - batched_data["init_pos"])
                         + (1 - scale) * noise_pred
+                    )
+                    noise_pred_periodic = (
+                        scale * (batched_data["pos"] - batched_data["init_pos"])
+                        + (1 - scale) * noise_pred_periodic
                     )
                 elif self.args.diffusion_mode == "x0":
                     scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
@@ -1545,6 +1556,7 @@ class PSM(nn.Module):
                 total_energy = torch.zeros_like(batched_data["num_atoms"])
                 forces = torch.zeros_like(batched_data["pos"])
                 noise_pred = torch.zeros_like(batched_data["pos"])
+                noise_pred_periodic = torch.zeros_like(batched_data["pos"])
 
             if (
                 self.encoder is not None
@@ -1561,6 +1573,7 @@ class PSM(nn.Module):
             "aa_logits": aa_logits,
             "time_step": time_step,
             "noise_pred": noise_pred,
+            "noise_pred_periodic": noise_pred_periodic,
             "non_atom_mask": non_atom_mask,
             "protein_mask": batched_data["protein_mask"],
             "is_molecule": is_molecule,
@@ -1595,6 +1608,7 @@ class PSM(nn.Module):
         _reset_one_head(self.energy_head, "energy_head")
         _reset_one_head(self.forces_head, "forces_head")
         _reset_one_head(self.noise_head, "noise_head")
+        _reset_one_head(self.noise_head_periodic, "noise_head_periodic")
 
     def init_state_dict_weight(self, weight, bias):
         """

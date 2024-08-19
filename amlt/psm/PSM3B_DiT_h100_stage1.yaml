@@ -43,13 +43,13 @@ jobs:
   process_count_per_node: 1
   command:
   - export WANDB_TEAM=ai4s-sfm
-  - export wandb_group=psm_DiT
+  - export wandb_group=psm_DiT_3B
   - export wandb_project=psm_VT
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - mkdir ./output
   - export path=run.sh
   - export num_pred_attn_layer=2
-  - export layers=38
+  - export layers=32
   - export hidden_size=2048
   - export ffn_size=8192
   - export num_head=32
@@ -66,8 +66,8 @@ jobs:
   - export max_lr=1e-4
   - export strategy=Zero1
   - export pipeline_model_parallel_size=0
-  - export total_num_steps=500000
-  - export warmup_num_steps=5000
+  - export total_num_steps=300000
+  - export warmup_num_steps=10000
   - export train_batch_size=1536
   - export val_batch_size=768
   - export max_tokens=16000
@@ -79,10 +79,10 @@ jobs:
   # - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
   # - export dataset_split_raito='0.3,0.05,0.3,0.15,0.1,0.1,0.1'
   # - export dataset_micro_batch_size='112,8,24,8,12,24,12'
-  - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data,ESM_ATLAS_reduce.lmdb' #,ur50_23_bpe_pack512.lmdb'
-  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdb,pdbcomplexmultimer,esm' #,ur50'
-  - export dataset_split_raito='0.02,0.18,0.3,0.3,0.02,0.08,0.1'
-  - export dataset_micro_batch_size='2,2,16,4,4,1,4'
+  - export data_path_list='matter-gen-force-filtered,matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data,ESM_ATLAS_reduce.lmdb' #,ur50_23_bpe_pack512.lmdb'
+  - export dataset_name_list='mattersim,mattersim,mattersim,pm6-wb97xd3,afdb,pdb,pdbcomplexmultimer,esm' #,ur50'
+  - export dataset_split_raito='0.03,0.02,0.15,0.3,0.3,0.02,0.08,0.1'
+  - export dataset_micro_batch_size='2,2,2,16,4,4,1,4'
   - export fp16=False
   - export clean_sample_ratio=0.7
   - export molecule_energy_loss_ratio=1.0
