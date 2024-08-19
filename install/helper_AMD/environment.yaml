@@ -1,0 +1,47 @@
+name: sfm
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11.9
+  - pip
+  - biopython=1.83
+  - dm-tree
+  - loguru
+  - mendeleev
+  - networkx
+  - ogb
+  - peft
+  - pybind11
+  - python-lmdb
+  - rdkit=2024.03.1
+  - sentencepiece
+  - setuptools-scm
+  - tensorboard
+  - wandb
+  - transformers=4.40.1
+  - wandb
+  - defaults::cython
+  - bioconda::tmalign
+  - bioconda::lddt
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/rocm6.0
+      - torch==2.3.1+rocm6.0
+      - torchvision==0.18.1+rocm6.0
+      - torchaudio==2.3.1+rocm6.0
+      # - --find-links https://data.pyg.org/whl/torch-2.3.0+cpu.html
+      # - torch_geometric
+      # - pyg_lib
+      # - torch_scatter
+      # - torch_sparse
+      # - torch_cluster
+      # - torch_spline_conv
+      # others
+      - deepspeed==0.14.4
+      - sacremoses==0.1.1
+      - torch-tb-profiler==0.4.3
+      - hydra-core
+      - e3nn
+      - fairchem-core
+      - ase
+      - nvidia-dali-cuda120
