@@ -1790,6 +1790,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         # version = "posebusters-428structures-20240725-406c71b2.lmdb"
         self.crop_radius = args.crop_radius
         self.max_residue_num = args.max_residue_num
+        self.ligand_crop_size = args.ligand_crop_size
 
         self.iter_flag = True
 
@@ -1878,6 +1879,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             self.crop_radius,
             center_ligand_idx,
             crop_center,
+            ligand_crop_size=self.ligand_crop_size,
             keep_num=keep_num,
         )
 

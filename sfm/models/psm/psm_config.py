@@ -97,6 +97,7 @@ class PSMConfig(GraphormerConfig):
 
     # for protein and complex
     crop_radius: float = 50.0
+    ligand_crop_size: float = 20.0
     max_residue_num: int = 768  # max token number in complex and multi-chain protein
     mode_prob: str = "0.1,0.4,0.5"
     complex_mode_prob: str = "0.1,0.4,0.5"

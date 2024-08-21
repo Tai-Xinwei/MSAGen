@@ -396,9 +396,7 @@ class DiffMAE3dCriterions(nn.Module):
             if self.diffusion_mode == "epsilon":
                 if not is_seq_only.any():
                     pos_pred = self.calculate_pos_pred(model_output)
-                    if (
-                        self.args.align_x0_in_diffusion_loss
-                    ):  # and not is_periodic.any():
+                    if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
                         R, T = self._alignment_x0(model_output, pos_pred)
                     else:
                         R, T = torch.eye(
@@ -424,7 +422,8 @@ class DiffMAE3dCriterions(nn.Module):
 
                     if (
                         self.args.align_x0_in_diffusion_loss
-                    ):  # and not is_periodic.any():
+                        # and not is_periodic.any()
+                    ):
                         # noise pred loss
                         aligned_noise_pred = (
                             sqrt_alphas_cumprod_t * pos_label

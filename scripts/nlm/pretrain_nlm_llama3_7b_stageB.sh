@@ -105,7 +105,7 @@ else
   load_ckpt=""
 fi
 
-[ -z "${weighted_dataset}" ] && weighted_dataset=True
+[ -z "${weighted_dataset}" ] && weighted_dataset=False
 if [[ "${weighted_dataset}" == "True" ]]; then
   weighted_dataset="--weighted_dataset"
 else
