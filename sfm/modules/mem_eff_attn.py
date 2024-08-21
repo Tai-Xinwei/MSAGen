@@ -9,7 +9,7 @@ from typing import Dict, Optional, Tuple
 
 import torch
 from torch import Tensor, nn
-from torch.nn.attention import SDPBackend, sdpa_kernel
+# from torch.nn.attention import SDPBackend, sdpa_kernel
 
 from sfm.logging import logger
 from sfm.modules.quant_noise import quant_noise

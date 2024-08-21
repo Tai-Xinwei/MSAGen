@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch.nn.attention import SDPBackend, sdpa_kernel
+# from torch.nn.attention import SDPBackend, sdpa_kernel
 
 from sfm.models.psm.modules.multihead_attention import (
     MemEffAttnWithProteinRotaryEmbedding,
