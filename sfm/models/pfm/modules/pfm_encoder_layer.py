@@ -160,6 +160,7 @@ class PFMEncoderLayer(nn.Module):
                 d_tilde=d_tilde,
                 add_rope=add_rope,
                 layer_norm=False,
+                self_attention=True,
             )
         else:
             return MemEffAttn(
