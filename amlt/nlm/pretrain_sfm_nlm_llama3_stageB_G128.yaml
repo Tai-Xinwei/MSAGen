@@ -54,10 +54,13 @@ search:
       - export pipeline_model_parallel_size=2
       - export load_ckpt=True
       # - export weighted_dataset=True
-      - export data_dir=/nlm/peiran/llama3_processed_data/lmdb/v5_train_split/
-      - export train_data_path=`cat /tmp/train_data_path.txt`
-      - export data_ratio=`cat /tmp/data_ratio.txt`
-      - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split_dna_six/
+      # - export data_dir=/nlm/peiran/llama3_processed_data/lmdb/v5_train_split/
+      # - export train_data_path=`cat /tmp/train_data_path.txt`
+      # - export data_ratio=`cat /tmp/data_ratio.txt`
+      # - export valid_data_path=/nlm/peiran/llama3_processed_data/lmdb/v5_valid_split_dna_six/
+      # - export train_data_path=/tmp/train.npy
+      - export train_data_path=/nlm/peiran/llama3_processed_data/v5_train/train.npy
+      - export valid_data_path=/nlm/peiran/llama3_processed_data/v5_train/valid.npy
       - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
       # - export loadcheck_path=/nlm/peiran/output/llama3_stageA_G256/global_step19000
       # - export loadcheck_path=/nlm/zekun/output/base8b/stageB/global_step11000

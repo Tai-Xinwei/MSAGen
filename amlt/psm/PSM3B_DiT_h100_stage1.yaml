@@ -86,7 +86,7 @@ jobs:
   - export dataset_split_raito='0.03,0.02,0.15,0.3,0.3,0.02,0.08,0.1'
   - export dataset_micro_batch_size='2,2,2,8,2,2,2,2'
   - export fp16=False
-  - export clean_sample_ratio=0.7
+  - export clean_sample_ratio=0.6
   - export molecule_energy_loss_ratio=1.0
   - export material_energy_loss_ratio=1.0
   - export material_force_loss_ratio=1.0

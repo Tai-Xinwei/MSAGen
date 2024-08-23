@@ -267,18 +267,20 @@ class DiffMAE3dCriterions(nn.Module):
         return pos_pred
 
     @torch.no_grad()
-    def _alignment_x0(self, model_output, pos_pred):
+    def _alignment_x0(self, model_output, pos_pred, atomic_numbers):
         pos_label = model_output["ori_pos"]
 
         R, T = svd_superimpose(
             pos_pred.float(),
             pos_label.float(),
-            model_output["padding_mask"] | model_output["protein_mask"].any(dim=-1),
+            model_output["padding_mask"]
+            | model_output["protein_mask"].any(dim=-1)
+            | atomic_numbers.eq(156),
         )
 
         return R, T
 
-    def dist_loss(self, model_output, R, T, pos_pred):
+    def dist_loss(self, model_output, R, T, pos_pred, atomic_numbers):
         # calculate aligned pred pos
         # pos_pred = torch.einsum("bij,bkj->bki", R.float(), pos_pred.float()) + T.float()
 
@@ -288,7 +290,12 @@ class DiffMAE3dCriterions(nn.Module):
 
         # make is_protein mask contain ligand in complex data
         is_protein = model_output["is_protein"].any(dim=-1).unsqueeze(-1).repeat(1, L)
-        is_protein = is_protein & (~model_output["padding_mask"])
+        filter_mask = (
+            model_output["padding_mask"]
+            | model_output["protein_mask"].any(dim=-1)
+            | atomic_numbers.eq(156)
+        )
+        is_protein = is_protein & (~filter_mask)
 
         delta_pos_label = (pos_label.unsqueeze(1) - pos_label.unsqueeze(2)).norm(dim=-1)
         delta_pos_pred = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1)
@@ -396,8 +403,12 @@ class DiffMAE3dCriterions(nn.Module):
             if self.diffusion_mode == "epsilon":
                 if not is_seq_only.any():
                     pos_pred = self.calculate_pos_pred(model_output)
-                    if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
-                        R, T = self._alignment_x0(model_output, pos_pred)
+                    if (
+                        self.args.align_x0_in_diffusion_loss
+                    ):  # and not is_periodic.any():
+                        R, T = self._alignment_x0(
+                            model_output, pos_pred, atomic_numbers
+                        )
                     else:
                         R, T = torch.eye(
                             3, device=pos_pred.device, dtype=pos_pred.dtype
@@ -408,7 +419,7 @@ class DiffMAE3dCriterions(nn.Module):
                     if is_protein.any():
                         # align pred pos and calculate smooth lddt loss for protein
                         smooth_lddt_loss, hard_dist_loss = self.dist_loss(
-                            model_output, R, T, pos_pred
+                            model_output, R, T, pos_pred, atomic_numbers
                         )
                         num_pddt_loss = 1
                     else:

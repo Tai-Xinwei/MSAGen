@@ -50,6 +50,11 @@ class RLreward(DiffMAE3dCriterions):
         unreduced_noise_loss = unreduced_noise_loss.sum(dim=-1).sum(dim=-1)
         selected_count = (~loss_mask).sum(dim=-1).sum(dim=-1)
         unreduced_noise_loss = unreduced_noise_loss / selected_count.float()
+        unreduced_noise_loss = (
+            1.0 - unreduced_noise_loss
+            if self.reward_model == "lddt"
+            else unreduced_noise_loss
+        )
         unreduced_noise_loss[selected_count == 0] = 0.0
 
         return torch.exp(-unreduced_noise_loss)

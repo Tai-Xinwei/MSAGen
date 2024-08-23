@@ -14,10 +14,15 @@ export MKL_THREADING_LAYER='GNU'
 # # $azcopy_path/azcopy copy ... ... --recursive
 
 
-[ -z "${layers}" ] && layers=20
-[ -z "${hidden_size}" ] && hidden_size=1536
-[ -z "${ffn_size}" ] && ffn_size=6144
+
+[ -z "${layers}" ] && layers=12
+[ -z "${hidden_size}" ] && hidden_size=1024
+[ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
+# [ -z "${layers}" ] && layers=20
+# [ -z "${hidden_size}" ] && hidden_size=1536
+# [ -z "${ffn_size}" ] && ffn_size=6144
+# [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
@@ -42,10 +47,10 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=4
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=2000
+[ -z "${save_batch_interval}" ] && save_batch_interval=500
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
@@ -55,17 +60,23 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${data_path}" ] && data_path='/data/peiran/'
 
-# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="80"
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="80"
 
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.5,0.15'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,8,8'
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.5,0.15'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,8,8'
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
+
+# [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data,20240101_PDB_Training_Data,AFDB50-plddt70.lmdb'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer,pdb,afdb'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.05,0.75'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='2,8,8'
+
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
@@ -120,7 +131,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step120000/mp_rank_00_model_states.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step100000/mp_rank_00_model_states.pt"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
@@ -302,8 +313,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           loadcheck_path=$loadcheck_path \
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size \
-
-          # ifresume=True \
+          ifresume=True \
           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
 
 sleep infinity
