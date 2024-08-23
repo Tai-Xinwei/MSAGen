@@ -1,25 +1,34 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import sys
+import collections
+import dataclasses
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Sequence
-from typing import Tuple
+from typing import Any, Sequence, Tuple
 
 import lmdb
 import numpy as np
 from absl import logging
 from Bio.Align import PairwiseAligner
 from Bio.Align import substitution_matrices
+from Bio.Data.PDBData import protein_letters_3to1_extended as aa3to1
 from tqdm import tqdm
 
 from commons import bstr2obj
 from commons import obj2bstr
 from metadata import metadata4target
-from pdb_parsing import parse_structure
 
 
 logging.set_verbosity(logging.INFO)
+
+
+@dataclasses.dataclass(frozen=True)
+class Residue:
+  name: str
+  seqres: str
+  is_missing: bool
+  resid: str
+  atoms: list
 
 
 def parse_fastafile(fastafile: str) -> Sequence[Tuple[str, str]]:
@@ -41,7 +50,46 @@ def parse_fastafile(fastafile: str) -> Sequence[Tuple[str, str]]:
     return seqs
 
 
-def make_alignmets_by_biopython(seq: str, pdbseq: str) -> None:
+def pdb2residues(pdbfile: str) -> Tuple[str, str, str, list]:
+    protein = collections.defaultdict(dict)
+    with open(pdbfile, 'r') as fp:
+        for line in fp:
+            if line.startswith('ENDMDL'):
+                break
+            if len(line) < 55:
+                continue
+#         1         2         3         4         5         6         7         8
+#12345678901234567890123456789012345678901234567890123456789012345678901234567890
+#ATOM     32  N  AARG A  -3      11.281  86.699  94.383  0.50 35.88           N
+#ATOM     33  N  BARG A  -3      11.296  86.721  94.521  0.50 35.60           N
+            record, altloc, resname = line[:6], line[16], line[17:20]
+            if altloc not in (' ', 'A'):
+                continue
+            if record == 'ATOM  ' or (record == 'HETATM' and resname == 'MSE'):
+                chainid, resnumb = line[21], int(line[22:26].strip())
+                current = protein[chainid].get(resnumb, (resname, []))
+                current[1].append(line)
+                protein[chainid][resnumb] = current
+    # fix missing residues
+    for chainid, chaindata in protein.items():
+        _min, _max = min(chaindata.keys()), max(chaindata.keys())
+        for i in range(_min, _max + 1):
+            if i not in chaindata:
+                chaindata[i] = ('XAA', [])
+    # convert to list
+    residues = []
+    for chainid, chaindata in protein.items():
+        for resnumb in sorted(chaindata.keys()):
+            resname, lines = chaindata[resnumb]
+            residues.append(Residue(name=resname,
+                                    seqres=aa3to1.get(resname, 'X'),
+                                    is_missing=resname == 'XAA',
+                                    resid=f'{chainid}{resnumb:>4d}',
+                                    atoms=lines))
+    return residues
+
+
+def make_alignmets_by_biopython(seq: str, pdbseq: str) -> Any:
     alignments = PairwiseAligner(scoring='blastp').align(seq, pdbseq)
     if len(alignments) > 1:
         # parameters copy from hh-suite/scripts/renumberpdb.pl
@@ -52,7 +100,7 @@ def make_alignmets_by_biopython(seq: str, pdbseq: str) -> None:
         aligner.target_open_gap_score = -20
         aligner.extend_gap_score = -0.1
         aligner.end_gap_score = -0.09
-        aligner.substitution_matrix = substitution_matrices.load("BLOSUM62")
+        aligner.substitution_matrix = substitution_matrices.load('BLOSUM62')
         alignments = aligner.align(seq, pdbseq)
     return alignments
 
@@ -89,23 +137,16 @@ def parse_and_write_to_lmdb(inpfas: str, pdbdir: str, outlmdb: str) -> None:
         # read in pdb file and parsing
         pdbfile = Path(pdbdir) / f'{target}.pdb'
         assert pdbfile.exists(), f"Native pdb dose not exist {pdbfile}."
-        with open(pdbfile, 'r') as fin:
-            pdb_string = fin.read()
-        parsed_result = parse_structure(file_id=target, pdb_string=pdb_string)
-        assert parsed_result.pdb_object, f"The errors are {parsed_result.errors}"
-        chain_ids = list(parsed_result.pdb_object.chain_to_seqres.keys())
-        assert len(chain_ids) == 1, f"Only allow one chain in {pdbfile}."
-        chain_id = chain_ids[0]
-        pdbseq = parsed_result.pdb_object.chain_to_seqres[chain_id]
-        pdbstr = parsed_result.pdb_object.seqres_to_structure[chain_id]
-        assert len(pdbseq) == len(pdbstr), f"Wrong parsing result for {pdbfile}"
-        # align fasta sequence and pdb sequence and create mapping
+        pdb_residues = pdb2residues(str(pdbfile))
+        pdbseq = ''.join(_.seqres for _ in pdb_residues)
         alignments = make_alignmets_by_biopython(seq, pdbseq)
-        if len(alignments) > 1:
-            logging.warning(f"{target} multiple alignments between seq and pdb.")
-        ali = alignments[0]
-        if target == 'T1119':
+        if len(alignments) == 1:
+            ali = alignments[0]
+        elif 'T1119' == target:
             ali = alignments[2]
+        else:
+            raise ValueError(f"{target} multiple alignments between seq and pdb.")
+        # print(ali)
         seq_to_pdbseq_index_mapping = {}
         for i in range(ali.length):
             target_index = ali.indices[0][i]
@@ -117,18 +158,21 @@ def parse_and_write_to_lmdb(inpfas: str, pdbdir: str, outlmdb: str) -> None:
                 continue
             seq_to_pdbseq_index_mapping[target_index] = query_index
         # Append coordinates to the sequence
-        aa, pos = [], []
+        aa, pos = ['']*len(seq), [[np.nan, np.nan, np.nan]]*len(seq)
         for i, c in enumerate(seq):
-            aa.append(c)
-            _p = [float('nan'), float('nan'), float('nan')]
+            aa[i] = c
             residx = seq_to_pdbseq_index_mapping[i]
-            if residx != -1:
-                for atom in pdbstr[residx][1]: # (residue, atoms)
-                    if atom.name == 'CA':
-                        _p = [atom.x, atom.y, atom.z]
-                        break
-            pos.append(_p)
+            if residx == -1:
+                continue
+            for atomline in pdb_residues[residx].atoms:
+                if atomline[12:16] == ' CA ':
+                    x = float(atomline[30:38])
+                    y = float(atomline[38:46])
+                    z = float(atomline[46:54])
+                    pos[i] = [x, y, z]
+                    break
         data = {'aa': np.array(aa), 'pos': np.array(pos), 'size': len(aa),}
+        # read in pdblines
         with open(pdbfile, 'r') as fp:
             atomlines = fp.readlines()
         assert atomlines, f"ERROR: empty pdb file {pdbfile}."
@@ -167,18 +211,14 @@ def show_lmdb(outlmdb: str):
             pdb = metadata['pdbs'][idx]
             domain = metadata['domains'][idx]
 
-            print(f">{name} "
-                  f"size={size} "
-                  f"type={type} "
-                  f"lines={len(pdb)} "
-                  f"domain={domain}")
-            print(''.join(data['aa']))
-            for i, axis in enumerate('xyz'):
-                arr = [f'{_:.3f}' for _ in data['pos'][:10, i]]
-                print(f"data['pos'][:10].{axis}: [{', '.join(arr)}]")
-            print(pdb[0], end='')
-            print(pdb[1], end='')
-            print(pdb[2], end='')
+            # print(f">{name} size={size} type={type} domain={domain}")
+            # print(''.join(data['aa']))
+            # for i, axis in enumerate('xyz'):
+            #     arr = [f'{_:.3f}' for _ in data['pos'][:10, i]]
+            #     print(f"data['pos'][:10].{axis}: [{', '.join(arr)}]")
+            # print(pdb[0], end='')
+            # print(pdb[1], end='')
+            # print(pdb[2], end='')
     except ValueError as e:
         logging.error(f"ERROR: Failed to read {outlmdb}, {e}")
     env.close()
@@ -204,7 +244,9 @@ if __name__ == "__main__":
     pdbdir = Path(args.pdbdir).resolve()
     outdir = Path(args.outdir).resolve()
     assert outdir.exists(), f"Output directory {outdir} does not exist."
+
     outlmdb = outdir / "cameo-subset-casp14-and-casp15-combined.lmdb"
+    print(f"Processing {inpfas} and {pdbdir}, save data into {outlmdb}.")
     parse_and_write_to_lmdb(str(inpfas), str(pdbdir), str(outlmdb))
     show_lmdb(str(outlmdb))
 
@@ -215,17 +257,18 @@ if __name__ == "__main__":
         "CASP15 Full": ["MultiDom"],
     }
     for category, groups in CATEGORY.items():
-        print(f"Collecting data for {category}")
         _type, g = category.split()
+        tmplmdb = Path(outdir) / f"proteintest-{_type.lower()}-{g.lower()}.lmdb"
+        print(f"Collecting data for {category} and saved data into {tmplmdb}.")
+
         tmpdata = []
         tmpmeta = {'keys':[], 'sizes':[], 'types':[], 'pdbs':[],'domains':[]}
-
         try:
             env = lmdb.open(str(outlmdb), readonly=True)
             txn = env.begin(write=False)
             metadata = bstr2obj(txn.get('__metadata__'.encode()))
-            for k, v in metadata.items():
-                print(f"Original {k}: {len(v)}")
+            # for k, v in metadata.items():
+            #     print(f"Original {k}: {len(v)}")
             for name in metadata['keys']:
                 idx = metadata['keys'].index(name)
                 type = metadata['types'][idx]
@@ -240,13 +283,12 @@ if __name__ == "__main__":
                     tmpmeta['types'].append(type)
                     tmpmeta['pdbs'].append(metadata['pdbs'][idx])
                     tmpmeta['domains'].append(domain)
-            for k, v in tmpmeta.items():
-                print(f"Filtered {k}: {len(v)}")
+            # for k, v in tmpmeta.items():
+            #     print(f"Filtered {k}: {len(v)}")
             env.close()
         except Exception as e:
             logging.error(f"Failed to read information from {outlmdb}, {e}.")
 
-        tmplmdb = Path(outdir) / f"proteintest-{_type.lower()}-{g.lower()}.lmdb"
         with lmdb.open(str(tmplmdb), map_size=1024**4).begin(write=True) as txn:
             for name, data in zip(tmpmeta['keys'], tmpdata):
                 txn.put(name.encode(), data)

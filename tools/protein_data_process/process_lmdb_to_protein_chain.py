@@ -51,9 +51,12 @@ def process_one_pdb(pdbid: str,
         assert 'polymer_chains' in data, f"'polymer_chains' not in {pdbid} data"
         chains = {}
         for chain_id, polymer in data['polymer_chains'].items():
-            if sum(polymer['restype'] == 'p') < sum(polymer['restype'] == 'n'):
+            num_prot_res = sum(polymer['restype'] == 'p')
+            if num_prot_res == 0:
                 # Only process protein chain
                 continue
+            elif num_prot_res != len(polymer['restype']):
+                raise ValueError(f"Chain {pdbid}_{chain_id} has wrong restype.")
             chains[f'{pdbid}_{chain_id}'] = {
                 'aa': polymer['seqres'],
                 'pos': polymer['center_coord'],

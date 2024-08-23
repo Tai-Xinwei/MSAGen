@@ -37,6 +37,8 @@ def remove_hydrogens_from_graph(graph):
     data.update({
         'atomids': graph['atomids'][mask],
         'symbols': graph['symbols'][mask],
+        'charges': graph['charges'][mask],
+        'coords': graph['coords'][mask],
         'node_coord': graph['node_coord'][mask],
         'orders': np.array(new_orders),
         'rdkitmol': rdkitmol,
@@ -61,13 +63,17 @@ def process_one_pdb(pdbid: str,
         assert 'polymer_chains' in data, f"'polymer_chains' not in {pdbid} data"
         polymer_chains = {}
         for chain_id, polymer in data['polymer_chains'].items():
-            if sum(polymer['restype'] == 'p') < sum(polymer['restype'] == 'n'):
-                raise ValueError(f"Have DNA or RNA in {pdbid}_{chain_id}")
+            num_prot_res = sum(polymer['restype'] == 'p')
+            if num_prot_res == 0:
+                # Only process protein chain
+                continue
+            elif num_prot_res != len(polymer['restype']):
+                raise ValueError(f"Chain {pdbid}_{chain_id} has wrong restype.")
             if np.all(np.isnan(polymer['center_coord'])):
                 logging.warning(f"All CA is 'nan' for {pdbid}_{chain_id}")
                 continue
             polymer_chains[chain_id] = polymer
-        assert polymer_chains, f"No valid polymer chain in {pdbid}"
+        assert polymer_chains, f"No valid protein chain in {pdbid}"
         data['polymer_chains'] = polymer_chains
 
         assert 'nonpoly_graphs' in data, f"'nonpoly_graphs' not in {pdbid} data"
@@ -95,7 +101,7 @@ def main():
 
     assert not Path(outlmdb).exists(), f"{outlmdb} exists, please remove first."
 
-    remove_hydrogens = True
+    remove_hydrogens = False
 
     try:
         date_cutoff = datetime.strptime(datestr, '%Y-%m-%d')
