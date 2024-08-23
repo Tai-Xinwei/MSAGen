@@ -433,8 +433,8 @@ class PSMModel(Model):
             # ).unsqueeze(1)
             ori_pos = torch.bmm(ori_pos, R)
             batched_data["forces"] = torch.bmm(batched_data["forces"], R)
-            batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
-            batched_data["cell"] = torch.bmm(batched_data["cell"], R)
+            # batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
+            # batched_data["cell"] = torch.bmm(batched_data["cell"], R)
 
         batched_data["ori_pos"] = ori_pos
 

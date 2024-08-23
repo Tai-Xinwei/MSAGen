@@ -404,7 +404,7 @@ class DiffMAE3dCriterions(nn.Module):
                 if not is_seq_only.any():
                     pos_pred = self.calculate_pos_pred(model_output)
                     if (
-                        self.args.align_x0_in_diffusion_loss
+                        self.args.align_x0_in_diffusion_loss and not is_periodic.any()
                     ):  # and not is_periodic.any():
                         R, T = self._alignment_x0(
                             model_output, pos_pred, atomic_numbers
