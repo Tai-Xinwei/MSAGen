@@ -404,7 +404,7 @@ class DiffMAE3dCriterions(nn.Module):
                 if not is_seq_only.any():
                     pos_pred = self.calculate_pos_pred(model_output)
                     if (
-                        self.args.align_x0_in_diffusion_loss and not is_periodic.any()
+                        self.args.align_x0_in_diffusion_loss  # and not is_periodic.any()
                     ):  # and not is_periodic.any():
                         R, T = self._alignment_x0(
                             model_output, pos_pred, atomic_numbers
@@ -694,10 +694,7 @@ class DiffMAE3dCriterions(nn.Module):
                 + self.molecule_force_loss_ratio * molecule_force_loss
                 + self.material_energy_loss_ratio * periodic_energy_loss
                 + self.material_force_loss_ratio * periodic_force_loss
-                + molecule_noise_loss
-                + protein_noise_loss
-                + complex_noise_loss
-                + periodic_noise_loss
+                + noise_loss
                 + aa_mlm_loss
                 + smooth_lddt_loss
             )

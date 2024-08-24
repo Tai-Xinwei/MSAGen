@@ -7,7 +7,7 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 2
+  NODES: 1
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -18,7 +18,8 @@ env_defaults:
 
 target:
   service: aml
-  name: townsend1
+  # name: townsend1
+  name: sfm-nd96amsra100v4-uksouth
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -105,9 +106,9 @@ jobs:
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
   - export save_batch_interval=5000
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v13_300m_molecule/checkpoints
   - export psm_finetune_mode=False
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v13_300m_molecule/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120

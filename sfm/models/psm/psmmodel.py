@@ -327,6 +327,7 @@ class PSMModel(Model):
         # set special token "<.>" to clean
         token_id = batched_data["token_id"]
         clean_mask = clean_mask.masked_fill(token_id == 156, True)
+        time_step = time_step.masked_fill(token_id == 156, 0.0)
 
         # set T noise if protein is seq only
         time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
@@ -913,7 +914,9 @@ def center_pos(batched_data, padding_mask, clean_mask=None):
             dim=1,
         )
     ) / 2.0
-    protein_mask = batched_data["protein_mask"]
+    protein_mask = batched_data["protein_mask"] | batched_data["token_id"].eq(
+        156
+    ).unsqueeze(-1)
     if clean_mask is None:
         num_non_atoms = torch.sum(protein_mask.any(dim=-1), dim=-1)
         non_periodic_center = torch.sum(
@@ -941,6 +944,9 @@ def center_pos(batched_data, padding_mask, clean_mask=None):
     )
     # TODO: filter nan/inf to zero in coords from pdb data, needs better solution
     batched_data["pos"] = batched_data["pos"].masked_fill(protein_mask, 0.0)
+    batched_data["pos"] = batched_data["pos"].masked_fill(
+        batched_data["token_id"].eq(156).unsqueeze(-1), 0.0
+    )
     return batched_data["pos"]
 
 
