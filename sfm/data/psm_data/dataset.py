@@ -1437,8 +1437,8 @@ class PDBDataset(AFDBLMDBDataset):
         keys: Optional[List[str]] = None,
         sizes: Optional[List[int]] = None,
     ):
-        version = "20240101_snapshot.20240630_8fe6fe4b.subset_release_date_before_20200430.protein_chain.lmdb"
-        # version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.protein_chain.lmdb"
+        # version = "20240101_snapshot.20240630_8fe6fe4b.subset_release_date_before_20200430.protein_chain.lmdb"
+        version = "20240630_snapshot.20240711_dd3e1b69.subset_release_date_before_20200430.protein_chain.lmdb"
         testflag = "ProteinTest"
         if lmdb_path.find(version) == -1 and lmdb_path.find(testflag) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
@@ -2054,8 +2054,8 @@ class PDBComplexDataset(AFDBLMDBDataset):
             )  # torch disallow inplace operationS
             adj |= polymer_ligand_adj
         else:
-            # multimers
-            data["sample_type"] = 7
+            # multimers, sample type was 7 here, but we use 6 to avoid the allreduce error
+            data["sample_type"] = 6
             edge_index = torch.zeros([2, 0], dtype=torch.long)
             edge_attr = torch.zeros([0, 3], dtype=torch.long)
             data["edge_index"] = edge_index
@@ -2080,6 +2080,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         data["energy"] = torch.tensor([0.0], dtype=torch.float64)
         data["in_degree"] = adj.long().sum(dim=1).view(-1)
         data["is_stable_periodic"] = False
+
         return data
 
     def __len__(self) -> int:

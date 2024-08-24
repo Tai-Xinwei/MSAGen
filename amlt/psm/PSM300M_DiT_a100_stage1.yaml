@@ -11,15 +11,16 @@ env_defaults:
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
-# target:
-#   service: sing
-#   name: baltic02
-#   workspace_name: msrresrchws
-
 target:
-  service: aml
-  # name: townsend1
-  name: sfm-nd96amsra100v4-uksouth
+  service: sing
+  name: msrresrchvc
+#   name: baltic02
+  workspace_name: msrresrchws
+
+# target:
+  # service: aml
+  # # name: townsend1
+  # name: sfm-nd96amsra100v4-uksouth
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -31,10 +32,10 @@ storage:
     storage_account_name: sfmarca100 # Storage account
     container_name: sfm # Container name
     mount_dir: /sfm
-  # eastus2:
-  #   storage_account_name: sfmdataeastus2 # Storage account
-  #   container_name: psm # Container name
-  #   mount_dir: /psm
+  eastus2:
+    storage_account_name: sfmdataeastus2 # Storage account
+    container_name: psm # Container name
+    mount_dir: /psm
 
 code:
   local_dir: ../SFM_framework
@@ -77,7 +78,8 @@ jobs:
   - export max_length=512
   - export gradient_accumulation_steps=4
   - export log_interval=100
-  - export data_path=/nfs2/psmdata/
+  # - export data_path=/nfs2/psmdata/
+  - export data_path=/psm/data/
   # - export data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240101_PDB_Training_Data,complex.preprocessed.large'
   # - export dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,complex'
   # - export dataset_split_raito='0.3,0.05,0.3,0.15,0.1,0.1,0.1'
