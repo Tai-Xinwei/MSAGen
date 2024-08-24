@@ -1787,13 +1787,14 @@ class PDBComplexDataset(AFDBLMDBDataset):
         sizes: Optional[List[int]] = None,
     ):
         version = "20240630_snapshot.20240714_2753ddc5.subset_release_date_before_20200430.ligand_protein.excludeNAs.removeHs.lmdb"
-        # version = "posebusters-428structures-20240725-406c71b2.lmdb"
+        testflag = "PoseBusters"
         self.crop_radius = args.crop_radius
         self.max_residue_num = args.max_residue_num
+        self.ligand_crop_size = args.ligand_crop_size
 
         self.iter_flag = True
 
-        if lmdb_path.find(version) == -1:
+        if lmdb_path.find(version) == -1 and lmdb_path.find(testflag) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
         super().__init__(args, lmdb_path, keys=keys, sizes=sizes)
 
@@ -1878,6 +1879,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
             self.crop_radius,
             center_ligand_idx,
             crop_center,
+            ligand_crop_size=self.ligand_crop_size,
             keep_num=keep_num,
         )
 
@@ -2022,6 +2024,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         data = self._crop_and_reconstruct_graph(ori_data)
 
         data["idx"] = index
+        data["key"] = key
         N = data["token_type"].shape[0]
         data["num_atoms"] = N
 
@@ -2035,6 +2038,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         data["node_attr"] = convert_to_single_emb(data["node_feature"].long())
 
         if data["edge_index"] is not None:
+            data["edge_index"] = torch.tensor(data["edge_index"])
             # complex
             data["sample_type"] = 6
             adj = torch.zeros([N, N], dtype=torch.bool)
