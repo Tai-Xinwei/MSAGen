@@ -1132,16 +1132,26 @@ class PSM(nn.Module):
                     self.forces_head.update(
                         {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
-            # elif args.backbone in ["dit"]:
-            #     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
-            #     if self.psm_config.force_head_type == ForceHeadType.LINEAR:
-            #         self.forces_head.update(
-            #             {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
-            #         )
-            #     else:
-            #         self.forces_head.update(
-            #             {key: ForceGatedOutput(psm_config.embedding_dim)}
-            #         )
+            elif args.backbone in ["dit"]:
+                if self.psm_config.encoderfeat4noise:
+                    self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
+                    self.noise_head_periodic = VectorGatedOutput(
+                        psm_config.embedding_dim
+                    )
+                else:
+                    self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
+                    self.noise_head_periodic = EquivariantVectorOutput(
+                        psm_config.embedding_dim
+                    )
+
+                if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                    self.forces_head.update(
+                        {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                    )
+                else:
+                    self.forces_head.update(
+                        {key: EquivariantVectorOutput(psm_config.embedding_dim)}
+                    )
             else:
                 self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
                 self.noise_head_periodic = EquivariantVectorOutput(
@@ -1469,10 +1479,16 @@ class PSM(nn.Module):
             else nullcontext()
         ):
             if not self.args.seq_only:
-                noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
-                noise_pred_periodic = self.noise_head_periodic(
-                    decoder_x_output, decoder_vec_output
-                )
+                if self.args.encoderfeat4noise:
+                    noise_pred = self.noise_head(encoder_output, decoder_vec_output)
+                    noise_pred_periodic = self.noise_head_periodic(
+                        encoder_output, decoder_vec_output
+                    )
+                else:
+                    noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
+                    noise_pred_periodic = self.noise_head_periodic(
+                        decoder_x_output, decoder_vec_output
+                    )
 
                 if self.args.decoder_feat4energy:
                     energy_per_atom = torch.where(

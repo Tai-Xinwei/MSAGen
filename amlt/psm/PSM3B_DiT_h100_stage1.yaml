@@ -53,9 +53,6 @@ jobs:
   - export hidden_size=2048
   - export ffn_size=8192
   - export num_head=32
-  - export atom_loss_coeff=1.0
-  - export pos_loss_coeff=1.0
-  - export sandwich_ln="true"
   - export dropout=0.1
   - export attn_dropout=0.1
   - export act_dropout=0.1
@@ -71,20 +68,20 @@ jobs:
   - export train_batch_size=3072
   - export val_batch_size=768
   - export max_tokens=16000
-  - export max_length=512
+  - export max_length=384
   - export max_residue_num=512
   - export ligand_crop_size=16.0
   - export gradient_accumulation_steps=16
-  - export log_interval=100
+  - export log_interval=50
   - export data_path=/psm/data/
-  # - export data_path_list='matter-gen-force-filtered,matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data,ESM_ATLAS_reduce.lmdb' #,ur50_23_bpe_pack512.lmdb'
-  # - export dataset_name_list='mattersim,mattersim,mattersim,pm6-wb97xd3,esm,pdb,pdbcomplexmultimer,esm' #,ur50'
-  # - export dataset_split_raito='0.03,0.02,0.15,0.3,0.3,0.02,0.08,0.1'
-  # - export dataset_micro_batch_size='2,2,2,16,2,2,2,2'
-  - export data_path_list='PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data,ESM_ATLAS_reduce.lmdb' #,ur50_23_bpe_pack512.lmdb'
-  - export dataset_name_list='pm6-wb97xd3,esm,pdb,pdbcomplexmultimer,esm' #,ur50'
-  - export dataset_split_raito='0.3,0.4,0.02,0.08,0.2'
-  - export dataset_micro_batch_size='12,2,2,2,2'
+  - export data_path_list='matter-gen-force-filtered,matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data,ESM_ATLAS_reduce.lmdb' #,ur50_23_bpe_pack512.lmdb'
+  - export dataset_name_list='mattersim,mattersim,mattersim,pm6-wb97xd3,esm,pdb,pdbcomplexmultimer,esm' #,ur50'
+  - export dataset_split_raito='0.03,0.02,0.15,0.3,0.3,0.02,0.08,0.1'
+  - export dataset_micro_batch_size='2,2,2,16,3,3,2,3'
+  # - export data_path_list='PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data,ESM_ATLAS_reduce.lmdb' #,ur50_23_bpe_pack512.lmdb'
+  # - export dataset_name_list='pm6-wb97xd3,esm,pdb,pdbcomplexmultimer,esm' #,ur50'
+  # - export dataset_split_raito='0.4,0.3,0.02,0.08,0.2'
+  # - export dataset_micro_batch_size='16,2,2,1,2'
   - export fp16=False
   - export clean_sample_ratio=0.6
   - export molecule_energy_loss_ratio=1.0
@@ -95,11 +92,12 @@ jobs:
   - export use_unified_batch_sampler=True
   - export align_x0_in_diffusion_loss=True
   - export decoder_feat4energy=False
+  - export encoderfeat4noise=True
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
   - export save_batch_interval=2500
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step145000/mp_rank_00_model_states.pt
-  - export psm_finetune_mode=False
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v13_3b/checkpoints/global_step25000/mp_rank_00_model_states.pt
+  - export psm_finetune_mode=True
   - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v13_3b/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace

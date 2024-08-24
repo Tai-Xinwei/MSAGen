@@ -11,16 +11,15 @@ env_defaults:
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
-target:
-  service: sing
-  name: msrresrchvc
-#   name: baltic02
-  workspace_name: msrresrchws
-
 # target:
-  # service: aml
-  # # name: townsend1
-  # name: sfm-nd96amsra100v4-uksouth
+#   service: sing
+#   name: baltic02
+#   workspace_name: msrresrchws
+
+target:
+  service: aml
+  # name: townsend1
+  name: sfm-nd96amsra100v4-uksouth
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -100,7 +99,7 @@ jobs:
   - export material_energy_loss_ratio=1.0
   - export material_force_loss_ratio=1.0
   - export molecule_ref_energy_source=PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train
-  - export molecule_outlier_energy_atoms="."
+  - export molecule_outlier_energy_atoms=""
   - export AutoGradForce=False
   - export use_hard_dist_loss=True
   - export use_unified_batch_sampler=True

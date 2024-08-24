@@ -15,18 +15,18 @@ export MKL_THREADING_LAYER='GNU'
 
 
 
-[ -z "${layers}" ] && layers=36
-[ -z "${hidden_size}" ] && hidden_size=2048
-[ -z "${ffn_size}" ] && ffn_size=8192
-[ -z "${num_head}" ] && num_head=32
-# [ -z "${layers}" ] && layers=20
-# [ -z "${hidden_size}" ] && hidden_size=1536
-# [ -z "${ffn_size}" ] && ffn_size=6144
+# [ -z "${layers}" ] && layers=36
+# [ -z "${hidden_size}" ] && hidden_size=2048
+# [ -z "${ffn_size}" ] && ffn_size=8192
 # [ -z "${num_head}" ] && num_head=32
+[ -z "${layers}" ] && layers=12
+[ -z "${hidden_size}" ] && hidden_size=1024
+[ -z "${ffn_size}" ] && ffn_size=4096
+[ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${max_length}" ] && max_length=512
+[ -z "${max_length}" ] && max_length=384
 [ -z "${max_tokens}" ] && max_tokens=2000
 # [ -z "${max_tokens}" ] && max_tokens=36000
 
@@ -38,7 +38,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${droppath_prob}" ] && droppath_prob=0.0
 [ -z "${noise_mode}" ] && noise_mode=diff
 
-[ -z "${mask_ratio}" ] && mask_ratio=0.3
+[ -z "${mask_ratio}" ] && mask_ratio=0.15
 [ -z "${clean_sample_ratio}" ] && clean_sample_ratio=0.5
 
 [ -z "${d_tilde}" ] && d_tilde=1
@@ -50,7 +50,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=2000
+[ -z "${save_batch_interval}" ] && save_batch_interval=4000
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
@@ -58,12 +58,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='0.4,0.4,0.2' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 
-[ -z "${data_path}" ] && data_path='/data/peiran/'
+[ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
 
-# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="80"
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="80"
 
 # [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
@@ -76,13 +76,17 @@ export MKL_THREADING_LAYER='GNU'
 # # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,8,8'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,2,2,2,1'
 
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim,pdbcomplexmultimer'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.4,0.15,0.1'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,8,8'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,2,2,2,1'
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim,pdbcomplexmultimer'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.4,0.15,0.1'
+# # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,8,8'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,2,2,2,1'
 
-# [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,afdb,pdbcomplexmultimer'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.4,0.1'
+# # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,8,8'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,4,1'
 
 # [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data,20240101_PDB_Training_Data,AFDB50-plddt70.lmdb'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer,pdb,afdb'
@@ -189,10 +193,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
-[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
+[ -z "${encoderfeat4noise}" ] && encoderfeat4noise=True
 [ -z "${disable_data_aug}" ] && disable_data_aug=False
 [ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
 [ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=True
@@ -324,7 +329,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy \
           NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
           rescale_loss_with_std=$rescale_loss_with_std align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss \
-          loadcheck_path=$loadcheck_path \
+          loadcheck_path=$loadcheck_path encoderfeat4noise=$encoderfeat4noise \
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size \
           # ifresume=True \

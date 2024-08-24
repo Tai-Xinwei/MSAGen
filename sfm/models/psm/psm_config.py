@@ -168,6 +168,7 @@ class PSMConfig(GraphormerConfig):
     energy_per_atom_label_scale: float = 1.0
     molecule_energy_per_atom_std_override: float = 1.0
     decoder_feat4energy: bool = True
+    encoderfeat4noise: bool = False
     AutoGradForce: bool = False
     NoisePredForce: bool = False
     seq_only: bool = False
