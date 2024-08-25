@@ -295,6 +295,7 @@ class DiffMAE3dCriterions(nn.Module):
             model_output["padding_mask"]
             | model_output["protein_mask"].any(dim=-1)
             | atomic_numbers.eq(156)
+            | atomic_numbers.eq(2)
         )
         is_protein = is_protein & (~filter_mask)
 
