@@ -273,9 +273,10 @@ class DiffMAE3dCriterions(nn.Module):
         R, T = svd_superimpose(
             pos_label.float(),
             pos_pred.float(),
-            model_output["padding_mask"] | model_output["protein_mask"].any(dim=-1)
-            # | (~model_output["is_protein"])
-            | atomic_numbers.eq(156),
+            model_output["padding_mask"]
+            | model_output["protein_mask"].any(dim=-1)
+            | atomic_numbers.eq(156)
+            | atomic_numbers.eq(2),
         )
 
         return R, T
@@ -503,7 +504,7 @@ class DiffMAE3dCriterions(nn.Module):
                 num_molecule_noise_sample,
             ) = self._reduce_force_or_noise_loss(
                 unreduced_noise_loss,
-                (~clean_mask) & is_molecule.unsqueeze(-1),
+                (~clean_mask) & is_molecule.unsqueeze(-1) & (~is_complex.unsqueeze(-1)),
                 diff_loss_mask & ~protein_mask.any(dim=-1),
                 is_molecule,
                 is_periodic,
@@ -699,6 +700,12 @@ class DiffMAE3dCriterions(nn.Module):
                 + aa_mlm_loss
                 + smooth_lddt_loss
             )
+            if torch.any(torch.isnan(loss)) or torch.any(torch.isinf(loss)):
+                logger.error(
+                    f"NaN or inf detected in loss: {loss}, molecule_energy_loss: {molecule_energy_loss}, molecule_force_loss: {molecule_force_loss}, periodic_energy_loss: {periodic_energy_loss}, periodic_force_loss: {periodic_force_loss}, molecule_noise_loss: {molecule_noise_loss}, periodic_noise_loss: {periodic_noise_loss}, protein_noise_loss: {protein_noise_loss}, complex_noise_loss: {complex_noise_loss}, noise_loss: {noise_loss}, aa_mlm_loss: {aa_mlm_loss}, smooth_lddt_loss: {smooth_lddt_loss}"
+                )
+                torch.tensor(0.0, device=atomic_numbers.device, requires_grad=True)
+
             if self.args.use_hard_dist_loss:
                 loss += self.hard_dist_loss_raito * hard_dist_loss
         else:

@@ -229,8 +229,9 @@ class PSMModel(Model):
 
         masked_pos = batched_data["protein_masked_pos"]
 
+        # for both protein and complex, mask out protein aa and ligands nan/inf coords
         masked_protein = (
-            ((token_id > 129) & (token_id < 158))
+            ((token_id > 1) & (token_id < 158))
             .any(dim=-1, keepdim=True)
             .unsqueeze(-1)
             .expand_as(masked_pos)

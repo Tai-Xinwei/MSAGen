@@ -65,15 +65,15 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="80"
 
-# [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
+[ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="6"
 
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim,pdbcomplexmultimer'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.4,0.15,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,12,12,6'
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim,pdbcomplexmultimer'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.4,0.15,0.1'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,12,12,6'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,4,4,4,1'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
