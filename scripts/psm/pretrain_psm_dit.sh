@@ -15,14 +15,14 @@ export MKL_THREADING_LAYER='GNU'
 
 
 
-# [ -z "${layers}" ] && layers=36
-# [ -z "${hidden_size}" ] && hidden_size=2048
-# [ -z "${ffn_size}" ] && ffn_size=8192
-# [ -z "${num_head}" ] && num_head=32
-[ -z "${layers}" ] && layers=12
-[ -z "${hidden_size}" ] && hidden_size=1024
-[ -z "${ffn_size}" ] && ffn_size=4096
+[ -z "${layers}" ] && layers=36
+[ -z "${hidden_size}" ] && hidden_size=2048
+[ -z "${ffn_size}" ] && ffn_size=8192
 [ -z "${num_head}" ] && num_head=32
+# [ -z "${layers}" ] && layers=12
+# [ -z "${hidden_size}" ] && hidden_size=1024
+# [ -z "${ffn_size}" ] && ffn_size=4096
+# [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
@@ -51,7 +51,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=4000
-[ -z "${log_interval}" ] && log_interval=100
+[ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.2,0.6,0.2'
@@ -65,16 +65,16 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="80"
 
-[ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="6"
+# [ -z "${data_path_list}" ] && data_path_list='20240630_PDB_Training_Data'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pdbcomplexmultimer'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="6"
 
-# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim,pdbcomplexmultimer'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.4,0.15,0.1'
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim,pdbcomplexmultimer'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.4,0.15,0.1'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,12,12,6'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,4,4,4,1'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,4,4,4,1'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim,pdbcomplexmultimer'
@@ -149,7 +149,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_3b/checkpoints/global_step2500/mp_rank_00_model_states.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_3b/checkpoints/global_step5000/mp_rank_00_model_states.pt"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
@@ -193,7 +193,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
-[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
