@@ -1482,7 +1482,7 @@ class PSM(nn.Module):
                 if self.args.encoderfeat4noise:
                     noise_pred = self.noise_head(encoder_output, decoder_vec_output)
                     noise_pred_periodic = self.noise_head_periodic(
-                        encoder_output, decoder_vec_output
+                        decoder_x_output, decoder_vec_output
                     )
                 else:
                     noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)

@@ -271,10 +271,10 @@ class DiffMAE3dCriterions(nn.Module):
         pos_label = model_output["ori_pos"]
 
         R, T = svd_superimpose(
-            pos_pred.float(),
             pos_label.float(),
-            model_output["padding_mask"]
-            | model_output["protein_mask"].any(dim=-1)
+            pos_pred.float(),
+            model_output["padding_mask"] | model_output["protein_mask"].any(dim=-1)
+            # | (~model_output["is_protein"])
             | atomic_numbers.eq(156),
         )
 
@@ -371,7 +371,7 @@ class DiffMAE3dCriterions(nn.Module):
         energy_per_atom_pred = model_output["energy_per_atom"]
         total_energy_pred = model_output["total_energy"]
         noise_pred = model_output["noise_pred"]
-        # noise_pred_periodic = model_output["noise_pred_periodic"]
+        noise_pred_periodic = model_output["noise_pred_periodic"]
         non_atom_mask = model_output["non_atom_mask"]
         clean_mask = model_output["clean_mask"]
         aa_mask = model_output["aa_mask"]
@@ -404,7 +404,7 @@ class DiffMAE3dCriterions(nn.Module):
                 if not is_seq_only.any():
                     pos_pred = self.calculate_pos_pred(model_output)
                     if (
-                        self.args.align_x0_in_diffusion_loss  # and not is_periodic.any()
+                        self.args.align_x0_in_diffusion_loss and not is_periodic.any()
                     ):  # and not is_periodic.any():
                         R, T = self._alignment_x0(
                             model_output, pos_pred, atomic_numbers
@@ -431,10 +431,7 @@ class DiffMAE3dCriterions(nn.Module):
                         )
                         num_pddt_loss = 0
 
-                    if (
-                        self.args.align_x0_in_diffusion_loss
-                        # and not is_periodic.any()
-                    ):
+                    if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
                         # noise pred loss
                         aligned_noise_pred = (
                             sqrt_alphas_cumprod_t * pos_label
@@ -442,21 +439,21 @@ class DiffMAE3dCriterions(nn.Module):
                             * (noise_label - noise_pred)
                         )
 
-                        aligned_noise_pred = torch.einsum(
-                            "bij,bkj->bki", R.float(), aligned_noise_pred.float()
-                        )
-                        unreduced_noise_loss = self.noise_loss(
-                            aligned_noise_pred.to(noise_label.dtype),
-                            (pos_label) * sqrt_alphas_cumprod_t,
-                        )
-
-                        # aligned_pos_label = torch.einsum(
-                        #     "bij,bkj->bki", R, pos_label.float()
+                        # aligned_noise_pred = torch.einsum(
+                        #     "bij,bkj->bki", R.float(), aligned_noise_pred.float()
                         # )
                         # unreduced_noise_loss = self.noise_loss(
                         #     aligned_noise_pred.to(noise_label.dtype),
-                        #     (aligned_pos_label) * sqrt_alphas_cumprod_t,
+                        #     (pos_label) * sqrt_alphas_cumprod_t,
                         # )
+
+                        aligned_pos_label = torch.einsum(
+                            "bij,bkj->bki", R, pos_label.float()
+                        )
+                        unreduced_noise_loss = self.noise_loss(
+                            aligned_noise_pred.to(noise_label.dtype),
+                            (aligned_pos_label) * sqrt_alphas_cumprod_t,
+                        )
                         unreduced_noise_loss = (
                             unreduced_noise_loss / sqrt_one_minus_alphas_cumprod_t
                         )
@@ -465,17 +462,17 @@ class DiffMAE3dCriterions(nn.Module):
                             noise_pred.to(noise_label.dtype), noise_label
                         )
 
-                    # unreduced_periodic_noise_loss = self.noise_loss(
-                    #     noise_pred_periodic.to(noise_label.dtype), noise_label
-                    # )
+                    unreduced_periodic_noise_loss = self.noise_loss(
+                        noise_pred_periodic.to(noise_label.dtype), noise_label
+                    )
 
                 else:
                     unreduced_noise_loss = self.noise_loss(
                         noise_pred.to(noise_label.dtype), noise_label
                     )
-                    # unreduced_periodic_noise_loss = self.noise_loss(
-                    #     noise_pred_periodic.to(noise_label.dtype), noise_label
-                    # )
+                    unreduced_periodic_noise_loss = self.noise_loss(
+                        noise_pred_periodic.to(noise_label.dtype), noise_label
+                    )
                     smooth_lddt_loss = torch.tensor(
                         0.0, device=noise_label.device, requires_grad=True
                     )
@@ -517,7 +514,7 @@ class DiffMAE3dCriterions(nn.Module):
                 periodic_noise_loss,
                 num_periodic_noise_sample,
             ) = self._reduce_force_or_noise_loss(
-                unreduced_noise_loss,  # unreduced_noise_loss,
+                unreduced_periodic_noise_loss,  # unreduced_noise_loss,
                 (~clean_mask) & is_periodic.unsqueeze(-1),
                 diff_loss_mask & ~protein_mask.any(dim=-1),
                 is_molecule,
@@ -694,7 +691,11 @@ class DiffMAE3dCriterions(nn.Module):
                 + self.molecule_force_loss_ratio * molecule_force_loss
                 + self.material_energy_loss_ratio * periodic_energy_loss
                 + self.material_force_loss_ratio * periodic_force_loss
-                + noise_loss
+                + molecule_noise_loss
+                + periodic_noise_loss
+                + protein_noise_loss
+                + complex_noise_loss
+                # + noise_loss
                 + aa_mlm_loss
                 + smooth_lddt_loss
             )

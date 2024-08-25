@@ -864,7 +864,7 @@ class Trainer(object):
                 if torch.cuda.is_available()
                 else None
             ),
-            "iteration": self.state.batch,
+            "iteration": self.state.global_step,
             "epoch": self.state.epoch,
         }
 
