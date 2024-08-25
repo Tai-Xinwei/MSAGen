@@ -1124,7 +1124,7 @@ class PSM(nn.Module):
                 "vectorvanillatransformer",
             ]:
                 self.noise_head = VectorOutput(psm_config.embedding_dim)
-                self.noise_head_periodic = VectorOutput(psm_config.embedding_dim)
+                self.periodic_noise_head = VectorOutput(psm_config.embedding_dim)
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
                     self.forces_head.update(
                         {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
@@ -1136,12 +1136,12 @@ class PSM(nn.Module):
             elif args.backbone in ["dit"]:
                 if self.psm_config.encoderfeat4noise:
                     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
-                    self.noise_head_periodic = VectorGatedOutput(
+                    self.periodic_noise_head = EquivariantVectorOutput(
                         psm_config.embedding_dim
                     )
                 else:
                     self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
-                    self.noise_head_periodic = EquivariantVectorOutput(
+                    self.periodic_noise_head = EquivariantVectorOutput(
                         psm_config.embedding_dim
                     )
 
@@ -1155,7 +1155,7 @@ class PSM(nn.Module):
                     )
             else:
                 self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
-                self.noise_head_periodic = EquivariantVectorOutput(
+                self.periodic_noise_head = EquivariantVectorOutput(
                     psm_config.embedding_dim
                 )
                 if self.psm_config.force_head_type == ForceHeadType.LINEAR:
@@ -1482,12 +1482,12 @@ class PSM(nn.Module):
             if not self.args.seq_only:
                 if self.args.encoderfeat4noise:
                     noise_pred = self.noise_head(encoder_output, decoder_vec_output)
-                    noise_pred_periodic = self.noise_head_periodic(
+                    noise_pred_periodic = self.periodic_noise_head(
                         decoder_x_output, decoder_vec_output
                     )
                 else:
                     noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
-                    noise_pred_periodic = self.noise_head_periodic(
+                    noise_pred_periodic = self.periodic_noise_head(
                         decoder_x_output, decoder_vec_output
                     )
 
@@ -1631,7 +1631,7 @@ class PSM(nn.Module):
         _reset_one_head(self.energy_head, "energy_head")
         _reset_one_head(self.forces_head, "forces_head")
         _reset_one_head(self.noise_head, "noise_head")
-        _reset_one_head(self.noise_head_periodic, "noise_head_periodic")
+        _reset_one_head(self.periodic_noise_head, "periodic_noise_head")
 
     def init_state_dict_weight(self, weight, bias):
         """
