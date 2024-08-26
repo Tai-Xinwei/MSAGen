@@ -304,7 +304,9 @@ class DiffMAE3dCriterions(nn.Module):
         is_protein = is_protein & (~filter_mask)
 
         is_complex = model_output["is_complex"]
-        is_ligand = is_complex & (~model_output["is_protein"]) & (~filter_mask)
+        is_ligand = (
+            is_complex.unsqueeze(-1) & (~model_output["is_protein"]) & (~filter_mask)
+        )
 
         delta_pos_label = (pos_label.unsqueeze(1) - pos_label.unsqueeze(2)).norm(dim=-1)
         delta_pos_pred = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1)
