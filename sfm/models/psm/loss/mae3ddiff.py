@@ -310,15 +310,7 @@ class DiffMAE3dCriterions(nn.Module):
         delta_pos_pred = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1)
         pair_protein_mask = is_protein.unsqueeze(1) & is_protein.unsqueeze(2)
 
-        clean_mask = model_output["clean_mask"]
-        pair_clean_mask = clean_mask.unsqueeze(1) & clean_mask.unsqueeze(2)
-
-        dist_mask = (
-            (delta_pos_label < 15)
-            & (delta_pos_label > 0.1)
-            & pair_protein_mask
-            & (~pair_clean_mask)
-        )
+        dist_mask = (delta_pos_label < 15) & (delta_pos_label > 0.1) & pair_protein_mask
         delta = torch.abs(delta_pos_label - delta_pos_pred)
         delta1 = delta[dist_mask]
         error = 0.25 * (
@@ -338,7 +330,6 @@ class DiffMAE3dCriterions(nn.Module):
         protein_ligand_mask = (is_protein.unsqueeze(1) & is_ligand.unsqueeze(2)) | (
             is_ligand.unsqueeze(1) & is_protein.unsqueeze(2)
         )
-        protein_ligand_mask = protein_ligand_mask & (~pair_clean_mask)
         inter_dist_mask = (
             (delta_pos_label < 15) & (delta_pos_label > 0.1) & protein_ligand_mask
         )
