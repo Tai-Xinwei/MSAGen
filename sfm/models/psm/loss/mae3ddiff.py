@@ -292,7 +292,9 @@ class DiffMAE3dCriterions(nn.Module):
         B, L = pos_label.shape[:2]
 
         # make is_protein mask contain ligand in complex data
-        is_protein = model_output["is_protein"].any(dim=-1).unsqueeze(-1).repeat(1, L)
+        is_protein = model_output[
+            "is_protein"
+        ]  # .any(dim=-1).unsqueeze(-1).repeat(1, L)
         filter_mask = (
             model_output["padding_mask"]
             | model_output["protein_mask"].any(dim=-1)
@@ -301,14 +303,16 @@ class DiffMAE3dCriterions(nn.Module):
         )
         is_protein = is_protein & (~filter_mask)
 
-        clean_mask = model_output["clean_mask"]
         is_complex = model_output["is_complex"]
         is_ligand = is_complex & (~model_output["is_protein"]) & (~filter_mask)
 
         delta_pos_label = (pos_label.unsqueeze(1) - pos_label.unsqueeze(2)).norm(dim=-1)
         delta_pos_pred = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1)
         pair_protein_mask = is_protein.unsqueeze(1) & is_protein.unsqueeze(2)
+
+        clean_mask = model_output["clean_mask"]
         pair_clean_mask = clean_mask.unsqueeze(1) & clean_mask.unsqueeze(2)
+
         dist_mask = (
             (delta_pos_label < 15)
             & (delta_pos_label > 0.1)
