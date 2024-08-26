@@ -330,17 +330,18 @@ class DiffMAE3dCriterions(nn.Module):
         protein_ligand_mask = (is_protein.unsqueeze(1) & is_ligand.unsqueeze(2)) | (
             is_ligand.unsqueeze(1) & is_protein.unsqueeze(2)
         )
-        if protein_ligand_mask.any():
-            inter_dist_mask = (
-                (delta_pos_label < 15) & (delta_pos_label > 0.1) & protein_ligand_mask
-            )
+        inter_dist_mask = (
+            (delta_pos_label < 15) & (delta_pos_label > 0.1) & protein_ligand_mask
+        )
+
+        if inter_dist_mask.any():
             inter_dist_loss = (delta * time_coefficient)[inter_dist_mask].mean()
-            num_pddt_loss = 1
+            num_inter_dist_loss = 1
         else:
             inter_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
-            num_pddt_loss = 0
+            num_inter_dist_loss = 0
 
-        return 1 - lddt, hard_dist_loss, inter_dist_loss, num_pddt_loss
+        return 1 - lddt, hard_dist_loss, inter_dist_loss, num_inter_dist_loss
 
     def _rescale_autograd_force(
         self,
@@ -445,8 +446,9 @@ class DiffMAE3dCriterions(nn.Module):
                             smooth_lddt_loss,
                             hard_dist_loss,
                             inter_dist_loss,
-                            num_pddt_loss,
+                            num_inter_dist_loss,
                         ) = self.dist_loss(model_output, R, T, pos_pred, atomic_numbers)
+                        num_pddt_loss = 1
                     else:
                         smooth_lddt_loss = torch.tensor(
                             0.0, device=noise_label.device, requires_grad=True
@@ -458,6 +460,7 @@ class DiffMAE3dCriterions(nn.Module):
                             0.0, device=noise_label.device, requires_grad=True
                         )
                         num_pddt_loss = 0
+                        num_inter_dist_loss = 0
 
                     if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
                         # noise pred loss
@@ -783,7 +786,10 @@ class DiffMAE3dCriterions(nn.Module):
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
             "smooth_lddt_loss": (float(smooth_lddt_loss.detach()), int(num_pddt_loss)),
             "hard_dist_loss": (float(hard_dist_loss.detach()), int(num_pddt_loss)),
-            "inter_dist_loss": (float(inter_dist_loss.detach()), int(num_pddt_loss)),
+            "inter_dist_loss": (
+                float(inter_dist_loss.detach()),
+                int(num_inter_dist_loss),
+            ),
         }
 
         def _reduce_matched_result(model_output, metric_name, min_or_max: str):

@@ -2040,7 +2040,6 @@ class PDBComplexDataset(AFDBLMDBDataset):
         data["node_attr"] = convert_to_single_emb(data["node_feature"].long())
 
         if data["edge_index"] is not None:
-            data["edge_index"] = torch.tensor(data["edge_index"])
             # complex
             data["sample_type"] = 6
             adj = torch.zeros([N, N], dtype=torch.bool)
