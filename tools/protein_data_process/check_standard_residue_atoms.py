@@ -5,7 +5,7 @@ from pathlib import Path
 
 from Bio.PDB import MMCIF2Dict
 
-from mmcif_parsing import mmcif_loop_to_list
+from parse_mmcif import mmcif_loop_to_list
 
 
 STDRESIDUES = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK', 'A', 'C', 'G', 'U', 'N', 'DA', 'DC', 'DG', 'DT', 'DN']

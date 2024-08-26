@@ -12,15 +12,39 @@ from typing import Union
 
 import lmdb
 import pandas as pd
+import parse
 from tqdm import tqdm
+from utils import bstr2obj
 
 from lddt4SinglePair import lddt4SinglePair
 from LGA4SinglePair import LGA4SinglePair
 from TMscore4SinglePair import TMscore4SinglePair
-from utils import bstr2obj
 
 
 logger = logging.getLogger(__name__)
+
+
+def flip(inppdb: str, outpdb: str):
+    pattern_str = ("ATOM  {atomidx:>5d}  CA  {resname} {chain}{resnumb:>4d}    "
+                   "{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n")
+    with open(inppdb, "r") as in_file, open(outpdb, "w") as out_file:
+        for line in in_file:
+            if line.startswith("ATOM"):
+                results = parse.parse(pattern_str, line)
+                results = {
+                    'atomidx': results['atomidx'],
+                    'resname': results['resname'],
+                    'chain': results['chain'],
+                    'resnumb': results['resnumb'],
+                    'x': results['x'],
+                    'y': results['y'],
+                    'z': results['z']
+                    }
+                results['y'] = -results['y']
+                new_line = pattern_str.format_map(results)
+                out_file.write(new_line)
+            else:
+                out_file.write(line)
 
 
 def calculate_score(predlines: list, natilines: list, residx: set) -> dict:
@@ -48,7 +72,6 @@ def calculate_score(predlines: list, natilines: list, residx: set) -> dict:
         score = TMscore4SinglePair(predpdb.name, natipdb.name)
         score["LDDT"] = lddt4SinglePair(predpdb.name, natipdb.name)["LDDT"]
         return score
-
 
 
 def evaluate_predicted_structure(
@@ -88,6 +111,18 @@ def evaluate_predicted_structure(
                     assert predlines, f" wrong predicted file {pdb_file}"
                     natilines = metadata["pdbs"][taridx]
                     score.update(calculate_score(predlines, natilines, residx))
+
+                    with tempfile.NamedTemporaryFile() as flippdb:
+                        flip(pdb_file, flippdb.name)
+                        with open(flippdb.name, "r") as fp:
+                            fliplines = fp.readlines()
+                        sco = calculate_score(fliplines, natilines, residx)
+                        score.update({
+                            'TMscore_flip': sco['TMscore'],
+                            'RMSD_flip': sco['RMSD'],
+                            'GDT_TS_flip': sco['GDT_TS'],
+                            'LDDT_flip': sco['LDDT'],
+                        })
                 except Exception as e:
                     logger.error(f"Failed to evaluate {domstr}, {e}.")
                     continue
@@ -122,6 +157,9 @@ def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
                 score = gdf[gdf["ModelIndex"] == num][col].iloc[0]
                 record[f"Model{num}_{col}"] = score
                 maxscore = max(maxscore, score)
+                score = gdf[gdf["ModelIndex"] == num][f"{col}_flip"].iloc[0]
+                record[f"Model{num}_{col}_flip"] = score
+                maxscore = max(maxscore, score)
             record[f"ModelMax_{col}"] = maxscore
         records.append(record)
     newdf = pd.DataFrame(records)
@@ -135,9 +173,9 @@ def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
                 "CatAndGroup": key,
                 "Number": len(subdf),
                 "Top1TMscore": subdf["Model1_TMscore"].mean() * 100,
-                "Top5TMscore": subdf["ModelMax_TMscore"].mean() * 100,
+                "MaxOrigFlipTMscore": subdf["ModelMax_TMscore"].mean() * 100,
                 "Top1LDDT": subdf["Model1_LDDT"].mean() * 100,
-                "Top5LDDT": subdf["ModelMax_LDDT"].mean() * 100,
+                "MaxOrigFlipLDDT": subdf["ModelMax_LDDT"].mean() * 100,
             }
         )
     meandf = pd.DataFrame(scores).set_index("CatAndGroup")
