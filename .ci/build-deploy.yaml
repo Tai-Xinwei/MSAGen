@@ -1,0 +1,38 @@
+# build and deploy latest AI4Science container every quarterly
+
+schedules:
+- cron: "0 6 * 1,4,7,11 *"
+  displayName: 'Quarterly at 6 am'
+  branches:
+    include:
+    - main
+  always: true
+
+trigger: none
+pr: none
+
+variables:
+  docker-registry: 'msrmoldyncr'
+  docker-repository: 'ai4s-sfm'
+  docker-file: 'Dockerfile'
+  tag: ${TAG:-$(date -u +%Y%m%d.%H%M%S)}
+
+steps:
+- checkout: self
+  lfs: true
+
+- task: ContainerBuild@0
+  displayName: 'Build and deploy AI4Science main image'
+  inputs:
+    dockerRegistryServiceConnection: $(docker-registry)
+    repository: $(docker-repository)
+    Dockerfile: docker/$(docker-file)
+    tags: $(date -u +%Y%m%d.%H%M%S)
+
+- task: ContainerBuild@0
+  displayName: 'Build and deploy AI4Science for AMD image'
+  inputs:
+    dockerRegistryServiceConnection: $(docker-registry)
+    repository: $(docker-repository)/amd
+    Dockerfile: docker/helper_AMD/$(docker-file)
+    tags: $(date -u +%Y%m%d.%H%M%S)

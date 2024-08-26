@@ -2,7 +2,7 @@ description: proteintest_sample
 
 target:
   service: aml
-  name: sfm-nd96amsra100v4-uksouth
+  name: sfm-nc96adsa100v4-japaneast
 
 env_defaults:
   WANDB_PROJECT: psm_eval
@@ -10,10 +10,13 @@ env_defaults:
   # MODEL_CONFIG: PSM1B_V0
   # CKPT_PATH: /sfm/sfmexpresults/shiyu/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240725-1050/checkpoint_E0_B37500.pt
   # SMPL_PATH: /sfm/sfmexpresults/jianwei/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240725-1050/checkpoint_E0_B37500-prediction
-  MODEL_CONFIG: PSM300M_DIT
-  CKPT_PATH: /sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints/global_step80000/mp_rank_00_model_states.pt
-  SMPL_PATH: /sfm/sfmexpresults/jianwei/psmv1_dit_v13_300m/checkpoints/global_step80000/prediction
-  GPUS: 8
+  # MODEL_CONFIG: PSM300M_DIT
+  # CKPT_PATH: /sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints/global_step80000/mp_rank_00_model_states.pt
+  # SMPL_PATH: /sfm/sfmexpresults/jianwei/psmv1_dit_v13_300m/checkpoints/global_step80000/prediction
+  MODEL_CONFIG: PSM1B_DIT
+  CKPT_PATH: /sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step110000/mp_rank_00_model_states.pt
+  SMPL_PATH: /sfm/sfmexpresults/jianwei/psmv1_dit_v13_1b/checkpoints/global_step110000/prediction-nocenter
+  GPUS: 4
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -56,8 +59,9 @@ jobs:
     data_path_list=ProteinTest/proteintest-cameo-easy.lmdb
     dataset_name_list=proteintest
     dataset_split_raito=1.0
-    use_unified_batch_sampler=false
-    val_batch_size=16
+    dataset_micro_batch_size=1
+    use_unified_batch_sampler=true
+    val_batch_size=$GPUS
     val_batch_log_interval=1
     gradient_accumulation_steps=1
     diffusion_sampling=ode
@@ -101,8 +105,9 @@ jobs:
     data_path_list=ProteinTest/proteintest-cameo-medi.lmdb
     dataset_name_list=proteintest
     dataset_split_raito=1.0
-    use_unified_batch_sampler=false
-    val_batch_size=16
+    dataset_micro_batch_size=1
+    use_unified_batch_sampler=true
+    val_batch_size=$GPUS
     val_batch_log_interval=1
     gradient_accumulation_steps=1
     diffusion_sampling=ode
@@ -146,8 +151,9 @@ jobs:
     data_path_list=ProteinTest/proteintest-casp14-full.lmdb
     dataset_name_list=proteintest
     dataset_split_raito=1.0
-    use_unified_batch_sampler=false
-    val_batch_size=16
+    dataset_micro_batch_size=1
+    use_unified_batch_sampler=true
+    val_batch_size=$GPUS
     val_batch_log_interval=1
     gradient_accumulation_steps=1
     diffusion_sampling=ode
@@ -191,8 +197,9 @@ jobs:
     data_path_list=ProteinTest/proteintest-casp15-full.lmdb
     dataset_name_list=proteintest
     dataset_split_raito=1.0
-    use_unified_batch_sampler=false
-    val_batch_size=16
+    dataset_micro_batch_size=1
+    use_unified_batch_sampler=true
+    val_batch_size=$GPUS
     val_batch_log_interval=1
     gradient_accumulation_steps=1
     diffusion_sampling=ode

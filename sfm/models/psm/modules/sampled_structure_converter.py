@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import collections
 import os
 import subprocess
 import tempfile
@@ -9,8 +10,10 @@ import numpy as np
 import rdkit
 import torch
 from ase import Atoms
+from Bio.SVDSuperimposer import SVDSuperimposer
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.core import Structure
+from rdkit import Chem
 from rdkit.Chem import Mol
 from rdkit.Chem.rdMolAlign import AlignMol
 from rdkit.Chem.rdmolfiles import MolToMolFile
@@ -50,9 +53,9 @@ VOCAB2AA = {
     148: "TRP",  # "W"
     149: "CYS",  # "C"
     150: "UNK",  # "X"
-    155: "UNK",  # "-"
     # other_code: "UNK",
 }
+NUM2SYM = {_: Chem.GetPeriodicTable().GetElementSymbol(_ + 1) for _ in range(118)}
 
 
 class BaseConverter(ABC, metaclass=ABCMeta):
@@ -340,6 +343,163 @@ class ProteinConverter(BaseConverter):
         return {"rmsd": rmsd, "tm_score": tm_score, "lddt": lddt}
 
 
+@CONVERTER_REGISTER.register("complex")
+class ComplexConverter(BaseConverter):
+    def convert(self, batched_data: Dict[str, Tensor], poses: Tensor):
+        num_atoms = batched_data["num_atoms"].cpu().numpy()
+        batch_size = num_atoms.shape[0]
+        structures: List[Optional[List[str]]] = []
+        keys = batched_data.get("key", ["TEMP"] * batch_size)
+        for i in range(batch_size):
+            try:
+                pos = poses[i][: num_atoms[i]].cpu().numpy()
+                tok = batched_data["token_id"][i][: num_atoms[i]].cpu().numpy()
+                msk = batched_data["is_protein"][i][: num_atoms[i]].cpu().numpy()
+                pdb_lines = [f"HEADER    {keys[i]}\n"]
+                atomidx = 0
+                chainid = "A"
+                resnumb = 0
+                ligatom = collections.defaultdict(int)
+                for idx, (x, y, z) in enumerate(pos):
+                    if tok[idx] == 156:
+                        pdb_lines.append("TER\n")
+                        chainid = chr(ord(chainid) + 1)
+                        resnumb = 0
+                        continue
+                    if msk[idx]:
+                        record = "ATOM  "
+                        symbol = "C"
+                        atomname = " CA "
+                        resnumb += 1
+                        resname = VOCAB2AA.get(tok[idx], "UNK")
+                    else:
+                        record = "HETATM"
+                        symbol = NUM2SYM.get(tok[idx] - 2, "X")
+                        ligatom[symbol] += 1
+                        atomname = f"{symbol.upper():>2s}{ligatom[symbol]:<2d}"
+                        resnumb = resnumb
+                        resname = "LIG"
+                    if np.isnan(x):
+                        continue
+                    atomidx += 1
+                    pdb_lines.append(
+                        f"{record:<6s}{atomidx:>5d} {atomname:4s} {resname:3s} "
+                        f"{chainid}{resnumb:>4d}    {x:>8.3f}{y:>8.3f}{z:>8.3f}"
+                        f"  1.00  0.00          {symbol}  \n"
+                    )
+                pdb_lines.append("END\n")
+                structures.append(pdb_lines)
+            except Exception as e:
+                logger.warning(f"Failed to sample for protein {keys[i]}, {e}")
+                structures.append(None)
+        return structures
+
+    def match(
+        self,
+        sampled_structure: Optional[List[str]],
+        original_structure: Optional[List[str]],
+        idx: int,
+        sampled_structure_output_path: Optional[str] = None,
+        sample_index: Optional[int] = -1,
+    ) -> float:
+        def _get_xyz(atomlines: list):
+            protpos, ligpos = [], []
+            for line in atomlines:
+                if line[:6] not in ("ATOM  ", "HETATM"):
+                    continue
+                xyz = float(line[30:38]), float(line[38:46]), float(line[46:54])
+                key = line[12:16] + line[21:26]
+                if line[:6] == "ATOM  ":
+                    protpos.append((key, xyz))
+                else:
+                    ligpos.append((key, xyz))
+            return protpos, ligpos
+
+        def _calc_rmsd(x1, x2, ref1=None, ref2=None):
+            if ref1 is None or ref2 is None:
+                ref1, ref2 = x1, x2
+            sup = SVDSuperimposer()
+            sup.set(ref1, ref2)
+            sup.run()
+            rot, tran = sup.get_rotran()
+            x2_t = np.dot(x2, rot) + tran
+            rmsd = np.sqrt(((((x1 - x2_t) ** 2)) * 3).mean())
+            return rmsd
+
+        pocket_rmsd, tm_score = np.nan, np.nan
+        try:
+            assert (
+                sampled_structure and sampled_structure[0][:6] == "HEADER"
+            ), f"Wrong sample structure {sampled_structure[0]}"
+            assert (
+                original_structure and original_structure[0][:6] == "HEADER"
+            ), f"Wrong original structure {original_structure[0]}"
+            assert (
+                sampled_structure[0] == original_structure[0]
+            ), f"Wrong name for sample {sampled_structure[0]}"
+            key = sampled_structure[0].split()[1]
+            sampled_path = os.path.join(
+                sampled_structure_output_path, f"{key}-{sample_index+1}.pdb"
+            )
+            with open(sampled_path, "w") as out_file:
+                out_file.writelines(sampled_structure)
+
+            # extract positions for common protein residues and ligand atoms
+            sampled_protein, sampled_ligand = _get_xyz(sampled_structure)
+            original_protein, original_ligand = _get_xyz(original_structure)
+            commprt = set([_[0] for _ in sampled_protein]) & set(
+                [_[0] for _ in original_protein]
+            )
+            commlig = set([_[0] for _ in sampled_ligand]) & set(
+                [_[0] for _ in original_ligand]
+            )
+            smplprt = np.array([_[1] for _ in sampled_protein if _[0] in commprt])
+            smpllig = np.array([_[1] for _ in sampled_ligand if _[0] in commlig])
+            origprt = np.array([_[1] for _ in original_protein if _[0] in commprt])
+            origlig = np.array([_[1] for _ in original_ligand if _[0] in commlig])
+
+            # calculate Kabsch RMSD between sampled ligand and original ligand
+            kabsch_rmsd = _calc_rmsd(smpllig, origlig)
+            # calculate pocket aligned RMSD
+            dist = np.linalg.norm(smplprt[:, None, :] - smpllig[None, :, :], axis=-1)
+            mask = np.min(dist, axis=-1) < 10  # 10 Angstrom
+            smpl_pocket, orig_pocket = smplprt[mask], origprt[mask]
+            assert len(smpl_pocket) >= 1, f"Cannot find pocket atoms for {key}."
+            pocket_rmsd = _calc_rmsd(smpllig, origlig, smpl_pocket, orig_pocket)
+            # calculate TM-score on protein
+            with (
+                tempfile.NamedTemporaryFile() as predpdb,
+                tempfile.NamedTemporaryFile() as natipdb,
+            ):
+                with open(predpdb.name, "w") as fp:
+                    fp.writelines([_ for _ in sampled_structure if _[:6] != "HETATM"])
+                with open(natipdb.name, "w") as fp:
+                    fp.writelines([_ for _ in original_structure if _[:6] != "HETATM"])
+                lines = []
+                lines.extend(
+                    subprocess.run(
+                        f"TMscore {predpdb.name} {natipdb.name}",
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                    ).stdout.split("\n")
+                )
+                for line in lines:
+                    cols = line.split()
+                    if line.startswith("TM-score") and len(cols) > 2:
+                        tm_score = float(cols[2])
+
+            logger.success(
+                f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
+                f"TM-score={tm_score:6.4f}, "
+                f"Kabsch-RMSD={kabsch_rmsd:6.3f}, "
+                f"Pocket-aligned-RMSD={pocket_rmsd:6.3f}."
+            )
+        except Exception as e:
+            logger.warning(f"Failed to evaluate sample {idx}, {e}.")
+        return {"rmsd": pocket_rmsd, "tm_score": tm_score}
+
+
 class SampledStructureConverter:
     def __init__(self, sampled_structure_output_path: Optional[str]) -> None:
         self.sampled_structure_output_path = sampled_structure_output_path
@@ -348,6 +508,9 @@ class SampledStructureConverter:
         exitcode, output = subprocess.getstatusoutput("which TMscore")
         if exitcode != 0:
             raise ValueError(f"Program 'TMscore' not installed, {output}.")
+        exitcode, output = subprocess.getstatusoutput("which lddt")
+        if exitcode != 0:
+            raise ValueError(f"Program 'lddt' not installed, {output}.")
 
     def convert_and_match(
         self,
@@ -357,10 +520,12 @@ class SampledStructureConverter:
     ) -> Tensor:
         batch_size = batched_data["is_molecule"].size()[0]
         all_results = [None for _ in range(batch_size)]
-        for system_tag in ["molecule", "periodic", "protein"]:
+        for system_tag in ["molecule", "periodic", "protein", "complex"]:
             is_mask = batched_data[f"is_{system_tag}"]
             if system_tag == "protein":
-                is_mask = is_mask.any(dim=-1)
+                is_mask = batched_data["is_protein"].any(dim=1) & (
+                    ~batched_data["is_complex"]
+                )
             indexes_in_batch = is_mask.nonzero().squeeze(-1)
             if torch.any(is_mask):
                 indexes = batched_data["idx"][is_mask]
