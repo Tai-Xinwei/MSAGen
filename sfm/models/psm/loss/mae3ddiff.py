@@ -292,16 +292,14 @@ class DiffMAE3dCriterions(nn.Module):
         B, L = pos_label.shape[:2]
 
         # make is_protein mask contain ligand in complex data
-        is_protein = model_output[
-            "is_protein"
-        ]  # .any(dim=-1).unsqueeze(-1).repeat(1, L)
+        # is_protein = model_output["is_protein"].any(dim=-1).unsqueeze(-1).repeat(1, L)
         filter_mask = (
             model_output["padding_mask"]
             | model_output["protein_mask"].any(dim=-1)
             | atomic_numbers.eq(156)
             | atomic_numbers.eq(2)
         )
-        is_protein = is_protein & (~filter_mask)
+        is_protein = model_output["is_protein"] & (~filter_mask)
 
         is_complex = model_output["is_complex"]
         is_ligand = (
@@ -332,12 +330,17 @@ class DiffMAE3dCriterions(nn.Module):
         protein_ligand_mask = (is_protein.unsqueeze(1) & is_ligand.unsqueeze(2)) | (
             is_ligand.unsqueeze(1) & is_protein.unsqueeze(2)
         )
-        inter_dist_mask = (
-            (delta_pos_label < 15) & (delta_pos_label > 0.1) & protein_ligand_mask
-        )
-        inter_dist_loss = (delta * time_coefficient)[inter_dist_mask].mean()
+        if protein_ligand_mask.any():
+            inter_dist_mask = (
+                (delta_pos_label < 15) & (delta_pos_label > 0.1) & protein_ligand_mask
+            )
+            inter_dist_loss = (delta * time_coefficient)[inter_dist_mask].mean()
+            num_pddt_loss = 1
+        else:
+            inter_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
+            num_pddt_loss = 0
 
-        return 1 - lddt, hard_dist_loss, inter_dist_loss
+        return 1 - lddt, hard_dist_loss, inter_dist_loss, num_pddt_loss
 
     def _rescale_autograd_force(
         self,
@@ -442,8 +445,8 @@ class DiffMAE3dCriterions(nn.Module):
                             smooth_lddt_loss,
                             hard_dist_loss,
                             inter_dist_loss,
+                            num_pddt_loss,
                         ) = self.dist_loss(model_output, R, T, pos_pred, atomic_numbers)
-                        num_pddt_loss = 1
                     else:
                         smooth_lddt_loss = torch.tensor(
                             0.0, device=noise_label.device, requires_grad=True
@@ -724,14 +727,15 @@ class DiffMAE3dCriterions(nn.Module):
                 + aa_mlm_loss
                 + smooth_lddt_loss
             )
+
+            if self.args.use_hard_dist_loss:
+                loss += self.hard_dist_loss_raito * (hard_dist_loss + inter_dist_loss)
+
             if torch.any(torch.isnan(loss)) or torch.any(torch.isinf(loss)):
                 logger.error(
                     f"NaN or inf detected in loss: {loss}, molecule_energy_loss: {molecule_energy_loss}, molecule_force_loss: {molecule_force_loss}, periodic_energy_loss: {periodic_energy_loss}, periodic_force_loss: {periodic_force_loss}, molecule_noise_loss: {molecule_noise_loss}, periodic_noise_loss: {periodic_noise_loss}, protein_noise_loss: {protein_noise_loss}, complex_noise_loss: {complex_noise_loss}, noise_loss: {noise_loss}, aa_mlm_loss: {aa_mlm_loss}, smooth_lddt_loss: {smooth_lddt_loss}"
                 )
                 torch.tensor(0.0, device=atomic_numbers.device, requires_grad=True)
-
-            if self.args.use_hard_dist_loss:
-                loss += self.hard_dist_loss_raito * (hard_dist_loss + inter_dist_loss)
         else:
             loss = aa_mlm_loss
 
