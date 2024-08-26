@@ -276,8 +276,10 @@ class DiffMAE3dCriterions(nn.Module):
             model_output["padding_mask"]
             | model_output["protein_mask"].any(dim=-1)
             | atomic_numbers.eq(156)
+            | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
             | atomic_numbers.eq(2),
         )
+        # | ((~model_output["is_protein"]) & model_output["is_complex"].unsqueeze(-1))
 
         return R, T
 
@@ -299,10 +301,20 @@ class DiffMAE3dCriterions(nn.Module):
         )
         is_protein = is_protein & (~filter_mask)
 
+        clean_mask = model_output["clean_mask"]
+        is_complex = model_output["is_complex"]
+        is_ligand = is_complex & (~model_output["is_protein"]) & (~filter_mask)
+
         delta_pos_label = (pos_label.unsqueeze(1) - pos_label.unsqueeze(2)).norm(dim=-1)
         delta_pos_pred = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1)
         pair_protein_mask = is_protein.unsqueeze(1) & is_protein.unsqueeze(2)
-        dist_mask = (delta_pos_label < 15) & (delta_pos_label > 0.1) & pair_protein_mask
+        pair_clean_mask = clean_mask.unsqueeze(1) & clean_mask.unsqueeze(2)
+        dist_mask = (
+            (delta_pos_label < 15)
+            & (delta_pos_label > 0.1)
+            & pair_protein_mask
+            & (~pair_clean_mask)
+        )
         delta = torch.abs(delta_pos_label - delta_pos_pred)
         delta1 = delta[dist_mask]
         error = 0.25 * (
@@ -319,7 +331,16 @@ class DiffMAE3dCriterions(nn.Module):
         time_coefficient = ((1 - time_step) * torch.exp(-time_step / 0.4)).unsqueeze(-1)
         hard_dist_loss = (delta * time_coefficient)[dist_mask].mean()
 
-        return 1 - lddt, hard_dist_loss
+        protein_ligand_mask = (is_protein.unsqueeze(1) & is_ligand.unsqueeze(2)) | (
+            is_ligand.unsqueeze(1) & is_protein.unsqueeze(2)
+        )
+        protein_ligand_mask = protein_ligand_mask & (~pair_clean_mask)
+        inter_dist_mask = (
+            (delta_pos_label < 15) & (delta_pos_label > 0.1) & protein_ligand_mask
+        )
+        inter_dist_loss = (delta * time_coefficient)[inter_dist_mask].mean()
+
+        return 1 - lddt, hard_dist_loss, inter_dist_loss
 
     def _rescale_autograd_force(
         self,
@@ -420,15 +441,20 @@ class DiffMAE3dCriterions(nn.Module):
 
                     if is_protein.any():
                         # align pred pos and calculate smooth lddt loss for protein
-                        smooth_lddt_loss, hard_dist_loss = self.dist_loss(
-                            model_output, R, T, pos_pred, atomic_numbers
-                        )
+                        (
+                            smooth_lddt_loss,
+                            hard_dist_loss,
+                            inter_dist_loss,
+                        ) = self.dist_loss(model_output, R, T, pos_pred, atomic_numbers)
                         num_pddt_loss = 1
                     else:
                         smooth_lddt_loss = torch.tensor(
                             0.0, device=noise_label.device, requires_grad=True
                         )
                         hard_dist_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        inter_dist_loss = torch.tensor(
                             0.0, device=noise_label.device, requires_grad=True
                         )
                         num_pddt_loss = 0
@@ -708,7 +734,7 @@ class DiffMAE3dCriterions(nn.Module):
                 torch.tensor(0.0, device=atomic_numbers.device, requires_grad=True)
 
             if self.args.use_hard_dist_loss:
-                loss += self.hard_dist_loss_raito * hard_dist_loss
+                loss += self.hard_dist_loss_raito * (hard_dist_loss + inter_dist_loss)
         else:
             loss = aa_mlm_loss
 
@@ -756,6 +782,7 @@ class DiffMAE3dCriterions(nn.Module):
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
             "smooth_lddt_loss": (float(smooth_lddt_loss.detach()), int(num_pddt_loss)),
             "hard_dist_loss": (float(hard_dist_loss.detach()), int(num_pddt_loss)),
+            "inter_dist_loss": (float(inter_dist_loss.detach()), int(num_pddt_loss)),
         }
 
         def _reduce_matched_result(model_output, metric_name, min_or_max: str):

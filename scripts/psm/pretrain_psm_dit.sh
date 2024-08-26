@@ -55,7 +55,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.2,0.6,0.2'
-[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.4,0.4,0.2' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.6,0.4,0.0' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
@@ -71,9 +71,9 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="6"
 
 [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim' #,pdbcomplexmultimer'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.4,0.05,0.4,0.15' #,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,12,12' #,6'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim,pdbcomplexmultimer'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.4,0.15,0.1'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,12,12,6'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,4,4,4,1'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
@@ -150,7 +150,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${compile}" ] && compile=False
 
 [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_3b/checkpoints/global_step5000/mp_rank_00_model_states.pt"
-[ -z "${save_dir}" ] && save_dir='/data/peiran/output/'
+[ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit300m'
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
