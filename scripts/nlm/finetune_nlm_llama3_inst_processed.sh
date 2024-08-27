@@ -21,9 +21,9 @@ export MKL_THREADING_LAYER='GNU'
 
 # In this stage, the grad is too large to use grad accumulation
 [ -z "${strategy}" ] && strategy=ThreeD
-[ -z "${train_batch_size}" ] && train_batch_size=1
+[ -z "${train_batch_size}" ] && train_batch_size=32
 [ -z "${val_batch_size}" ] && val_batch_size=$train_batch_size
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=1
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=16
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=1
 [ -z "${tensor_model_parallel_size}" ] && tensor_model_parallel_size=1
 [ -z "${pp_partition_layer_name}" ] && pp_partition_layer_name="LlamaDecoderLayerMP"
@@ -37,12 +37,12 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${dict_path}" ] && dict_path='/home/v-zekunguo/nlm/llama/Meta-Llama-3-8B/original'
 # [ -z "${train_data_path}" ] && train_data_path='/data/peiran/blob/hai1data/sfm/nlm/llama3_processed_data/v5_train/train.npy'
-[ -z "${train_data_path}" ] && train_data_path='/home/v-zekunguo/nlm/zekun/data/scidata/chembl/lmdb/t2d.test.csv.lmdb'
-[ -z "${valid_data_path}" ] && valid_data_path='/home/v-zekunguo/nlm/zekun/data/scidata/chembl/lmdb/t2d.test.csv.lmdb'
-[ -z "${loadcheck_path}" ] && loadcheck_path='/home/v-zekunguo/nlm/peiran/output/finetune_base_150B_G64/global_step28464/'
-[ -z "${save_dir}" ] && save_dir='/home/v-zekunguo//nlm/zekun/output/1b/chembl_t2d_G256_bs256_lr2e5'
+[ -z "${train_data_path}" ] && train_data_path='/home/v-zekunguo/nlm/zekun/data/scidata/instruct/valid.overall.instructval.filt.lmdb'
+[ -z "${valid_data_path}" ] && valid_data_path='/home/v-zekunguo/nlm/zekun/data/scidata/instruct/valid.overall.instructval.filt.lmdb'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/home/v-zekunguo/nlm/peiran/output/llama3_stageB_G256/global_step4000/'
+[ -z "${save_dir}" ] && save_dir='/home/v-zekunguo/nlm/zekun/output/8b/llama3_stageB_G256'
 [ -z "${finetune_from_checkpoint_dir}" ] && finetune_from_checkpoint_dir=None #'/home/t-kaiyuangao/sfm-container/nlm/output/llama3_stageB_tp2'
-# [ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id='global_step16999'
+[ -z "${finetune_from_checkpoint_id}" ] && finetune_from_checkpoint_id='global_step16999'
 
 
 [ -z "${launcher}" ] && launcher='openmpi'
@@ -51,7 +51,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
-[ -z "${wandb_group}" ] && wandb_group=other
+[ -z "${wandb_group}" ] && wandb_group=instruct
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=nlm_llama3_zekun
 [ -z "${wandb_key}" ] && wandb_key=local-84c43c09161e2c012c3317ccb9becc6148001b8e
@@ -133,7 +133,7 @@ wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 export WANDB_API_KEY=$wandb_key
 
 set -x
-torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/finetune_nlm3d_inst_processed_1b.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/finetune_nlm3d_inst_processed_df.py \
       --model_type "$model_type" \
       --dict_path "$dict_path" \
       --train_data_path "$train_data_path" \
@@ -165,5 +165,6 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/finetune_nlm3d_inst_processed_1b.py \
       --load_ckpt --pretrained_ckpt_path $loadcheck_path \
       --wandb --wandb_group $wandb_group --wandb_team $wandb_team --wandb_project $wandb_project \
       ${MEGATRON_ARGS}
+sleep inf
 sleep inf
 sleep inf

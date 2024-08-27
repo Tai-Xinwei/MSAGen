@@ -2,6 +2,7 @@
 import bisect
 import os
 import pickle as pkl
+import random
 from collections import namedtuple
 from typing import Optional
 
@@ -432,6 +433,52 @@ class RawTextSciDataset(torch.utils.data.Dataset):
         return (input, labels)
 
 
+class LMDBInstDataset(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        path: str,
+        padding_idx: int,
+        max_len: int = 8192,
+    ):
+        super().__init__()
+        env = lmdb.open(
+            str(path), subdir=True, readonly=True, lock=False, readahead=False
+        )
+        self.txn = env.begin(write=False)
+        metadata = bstr2obj(self.txn.get("metadata".encode()))
+        self.size, self.keys = metadata["size"], metadata["keys"]
+
+        logger.info(f"Loaded {path} with {self.size} lines")
+        self.max_len = max_len
+        self.padding_idx = padding_idx
+
+    def __getitem__(self, index):
+        value = self.txn.get(str(self.keys[index]).encode())
+        tokens, labels = pkl.loads(value)
+
+        tokens = tokens[-self.max_len :]
+        labels = labels[-self.max_len :]
+        return torch.tensor(tokens), torch.tensor(labels)
+
+    def __len__(self):
+        return self.size
+
+    def collate(self, samples):
+        input_ids_list, labels_list = zip(*samples)
+
+        input_ids = torch.nn.utils.rnn.pad_sequence(
+            input_ids_list, batch_first=True, padding_value=self.padding_idx
+        )
+        labels = torch.nn.utils.rnn.pad_sequence(
+            labels_list, batch_first=True, padding_value=-100
+        )
+
+        padding_mask = input_ids.ne(self.padding_idx)
+
+        input = tuple([input_ids, padding_mask])
+        return (input, labels)
+
+
 class RawTextSciDatasetwithAltTokenizer(torch.utils.data.Dataset):
     def __init__(
         self,
@@ -441,6 +488,7 @@ class RawTextSciDatasetwithAltTokenizer(torch.utils.data.Dataset):
         conditional_generation: bool = False,
         use_template: bool = False,
         max_len: int = 1024,
+        only_prompt: bool = False,
     ):
         super().__init__()
         self.tokenizer = tokenizer
@@ -454,6 +502,7 @@ class RawTextSciDatasetwithAltTokenizer(torch.utils.data.Dataset):
         self.conditional_generation = conditional_generation
         self.use_template = use_template
         self.max_len = max_len
+        self.only_prompt = only_prompt
 
     def __getitem__(self, index):
         text = self.data[index]
@@ -465,14 +514,18 @@ class RawTextSciDatasetwithAltTokenizer(torch.utils.data.Dataset):
 
             prompt_tokens = self.tokenize(prompt)[1:-1]
             target_tokens = self.tokenize(target)[1:-1]
-            tokens = (
-                [self.tokenizer.bos_token_id]
-                + prompt_tokens
-                + target_tokens
-                + [self.tokenizer.eos_token_id]
-            )
-            labels = tokens[:]
-            labels[: len(prompt_tokens) + 1] = [-100] * (len(prompt_tokens) + 1)
+            if self.only_prompt:
+                tokens = [self.tokenizer.bos_token_id] + prompt_tokens
+                labels = tokens[:]
+            else:
+                tokens = (
+                    [self.tokenizer.bos_token_id]
+                    + prompt_tokens
+                    + target_tokens
+                    + [self.tokenizer.eos_token_id]
+                )
+                labels = tokens[:]
+                labels[: len(prompt_tokens) + 1] = [-100] * (len(prompt_tokens) + 1)
         else:
             tokens = (
                 [self.tokenizer.bos_token_id]
@@ -598,35 +651,73 @@ class ProteinLmdbDataset(torch.utils.data.Dataset):
         return (input, labels)
 
 
-class LMDBInstDataset(torch.utils.data.Dataset):
+class LMDBInstDFDataset(torch.utils.data.Dataset):
+    # Data of different frequencies,If sample_count=-1, no sampling is performed.
     def __init__(
         self,
-        path: str,
+        path_lf: str,
+        path_hf: str,
         padding_idx: int,
         max_len: int = 8192,
+        sample_count: int = -1,
     ):
         super().__init__()
-        env = lmdb.open(
-            str(path), subdir=True, readonly=True, lock=False, readahead=False
+        assert isinstance(
+            sample_count, int
+        ), f"Expected an integer but got {type(sample_count).__name__}"
+        env_lf = lmdb.open(
+            str(path_lf), subdir=True, readonly=True, lock=False, readahead=False
         )
-        self.txn = env.begin(write=False)
-        metadata = bstr2obj(self.txn.get("metadata".encode()))
-        self.size, self.keys = metadata["size"], metadata["keys"]
-
-        logger.info(f"Loaded {path} with {self.size} lines")
+        self.txn_lf = env_lf.begin(write=False)
+        metadata = bstr2obj(self.txn_lf.get("metadata".encode()))
+        self.size_lf, self.lf_keys = metadata["size"], metadata["keys"]
+        logger.info(f"Loaded {path_lf} with {self.size_lf} lines")
+        env_hf = lmdb.open(
+            str(path_hf), subdir=True, readonly=True, lock=False, readahead=False
+        )
+        self.txn_hf = env_hf.begin(write=False)
+        metadata = bstr2obj(self.txn_hf.get("metadata".encode()))
+        self.size_hf, self.hf_keys = metadata["size"], metadata["keys"]
+        self.hf_dict_keys = [self.hf_keys]
+        logger.info(
+            f"Loaded {path_hf} with {len(self.hf_dict_keys)} types, sample_count {sample_count}"
+        )
         self.max_len = max_len
         self.padding_idx = padding_idx
+        if sample_count < 0:
+            logger.info(f"{path_hf} does not perform sampling")
+        else:
+            self.sample_count = sample_count
+            self.hf_ratio = (self.sample_count * len(self.hf_dict_keys)) / (
+                self.sample_count * len(self.hf_dict_keys) + self.size_lf
+            )
+            self.hf_count = len(self.hf_dict_keys)
+            logger.info(
+                f"{self.sample_count}===={len(self.hf_dict_keys)}===={self.size_lf}"
+            )
+            logger.info(f"Loaded hf_ratio: {self.hf_ratio}")
 
     def __getitem__(self, index):
-        value = self.txn.get(str(self.keys[index]).encode())
+        if index < self.size_lf:
+            key = self.lf_keys[index]
+            value = self.txn_lf.get(str(key).encode())
+        else:
+            if self.sample_count < 0:
+                key = self.hf_keys[index - self.size_lf]
+            else:
+                hf_index = (index - self.size_lf) // self.sample_count
+                key = random.choice(self.hf_dict_keys[hf_index])
+            value = self.txn_hf.get(str(key).encode())
         tokens, labels = pkl.loads(value)
-
         tokens = tokens[-self.max_len :]
         labels = labels[-self.max_len :]
         return torch.tensor(tokens), torch.tensor(labels)
 
     def __len__(self):
-        return self.size
+        if self.sample_count < 0:
+            return self.size_lf + self.size_hf
+        else:
+            return self.size_lf + self.sample_count * len(self.hf_dict_keys)
 
     def collate(self, samples):
         input_ids_list, labels_list = zip(*samples)

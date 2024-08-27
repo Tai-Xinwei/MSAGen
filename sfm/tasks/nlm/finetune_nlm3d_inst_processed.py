@@ -11,7 +11,7 @@ from megatron.arguments import parse_megatron_args
 from megatron.core.transformer.transformer_config import TransformerConfig
 from megatron.initialize import initialize_megatron
 from sfm.data.sci_data.AltLlama3Tokenizer import _tokenize, init_tokenizer, tokenize
-from sfm.data.sci_data.dataset import LMDBInstDataset
+from sfm.data.sci_data.dataset import LMDBInstDataset, LMDBInstDFDataset
 from sfm.data.sci_data.NlmTokenizer import NlmLlama3Tokenizer
 from sfm.logging import logger
 from sfm.models.nlm.moe_config import MoeModelConfig
@@ -31,6 +31,10 @@ def main(args) -> None:
         args.valid_data_path is not None and len(args.valid_data_path) > 0
     ), f"valid_dataset is {args.valid_data_path} it should not be None or empty"
 
+    # if not args.vocab_size:
+    # init_tokenizer(args.dict_path)
+    # from sfm.data.sci_data.AltLlama3Tokenizer import tokenizer
+
     tokenizer = NlmLlama3Tokenizer.from_pretrained(args.dict_path)
     args.vocab_size = len(tokenizer)  # now we have new tokens
     args.pad_token_id = tokenizer.pad_token_id
@@ -46,9 +50,18 @@ def main(args) -> None:
     #     args.train_data_path, args.pad_token_id, args.max_position_embeddings
     # )
     # args.train_hf_data_path='/nlm/zekun/data/scidata/chembl/lmdb/tt2d.train.hf100it.csv.lmdb'
-    train_dataset = LMDBInstDataset(
-        args.train_data_path, args.pad_token_id, args.max_position_embeddings
-    )
+    if args.train_hf_data_path != "":
+        train_dataset = LMDBInstDFDataset(
+            args.train_data_path,
+            args.train_hf_data_path,
+            args.pad_token_id,
+            args.max_position_embeddings,
+            args.hf_sample_count,
+        )
+    else:
+        train_dataset = LMDBInstDataset(
+            args.train_data_path, args.pad_token_id, args.max_position_embeddings
+        )
     valid_dataset = LMDBInstDataset(
         args.valid_data_path, args.pad_token_id, args.max_position_embeddings
     )
