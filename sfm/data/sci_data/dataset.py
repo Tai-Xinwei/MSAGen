@@ -384,29 +384,34 @@ class RawTextSciDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         text = self.data[index]
-        if self.conditional_generation:
-            prompt, target = text.split("\t")
+        groups = text.split("\t")
+
+        tokens = []
+        labels = []
+
+        for i in range(0, len(groups), 2):
+            prompt = groups[i]
+            target = groups[i + 1]
 
             if self.use_template:
                 prompt = f"Instruction: {prompt}\n\n\nResponse:"
 
             prompt_tokens = self.tokenizer.encode(prompt, add_special_tokens=False)
             target_tokens = self.tokenizer.encode(target, add_special_tokens=False)
-            tokens = (
-                [self.tokenizer.bos_token_id]
+            group_tokens = (
+                ([self.tokenizer.bos_token_id] if i == 0 else [])
                 + prompt_tokens
                 + target_tokens
                 + [self.tokenizer.eos_token_id]
             )
-            labels = tokens[:]
-            labels[: len(prompt_tokens) + 1] = [-100] * (len(prompt_tokens) + 1)
-        else:
-            tokens = (
-                [self.tokenizer.bos_token_id]
-                + self.tokenizer.encode(text, add_special_tokens=False)
-                + [self.tokenizer.eos_token_id]
+
+            group_labels = group_tokens[:]
+            group_labels[: len(prompt_tokens) + (1 if i == 0 else 0)] = [-100] * (
+                len(prompt_tokens) + (1 if i == 0 else 0)
             )
-            labels = tokens[:]
+
+            tokens.extend(group_tokens)
+            labels.extend(group_labels)
 
         # keep the last max_len tokens, or there maybe no labels to pred
         tokens = tokens[-self.max_len :]

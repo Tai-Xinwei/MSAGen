@@ -1,0 +1,229 @@
+description: nlm_moe_finetune
+
+target:
+  service: aml
+  name: sfm-nd96amsra100v4-uksouth
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+  sfmdataeastus2:
+    storage_account_name: sfmdataeastus2
+    container_name: nlm
+    mount_dir: /mnt/sfmdataeastus2
+  msralaphilly2:
+    storage_account_name: msralaphilly2
+    container_name: ml-la
+    mount_dir: /mnt/msralaphilly2
+
+
+code:
+    local_dir: .
+
+jobs:
+# - name: "in_context_learning_train_9k_seed_50"
+#   tags:
+#   - 'ProjectID: PRJ-0209-A40'
+#   - 'Project_Name: Science_Foundation_Model'
+#   - 'Experiment: SFM_NLM_MOE_Model_Training'
+#   sku: 4xG8-IB
+#   mpi: true
+#   process_count_per_node: 1
+#   submit_args:
+#     env:
+#       SHARED_MEMORY_PERCENT: 1.0
+#       # CUDA_LAUNCH_BLOCKING: 1
+#       WANDB_API_KEY: local-6907a976b4753418c456e61b9a1fcb4fe56a7816
+#       WANDB_PROJECT: NLM_MOE
+#       WANDB_TEAM: ai4s-sfm
+#       WANDB_BASE_URL: https://microsoft-research.wandb.io
+#       NCCL_DEBUG: INFO
+#       train_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=9_train.instruct.bace.osmi.pred.tsv
+#       valid_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=9_valid.instruct.bace.osmi.pred.tsv
+#       seed: 50
+#       total_num_epochs: 8
+#       train_batch_size: 128
+#       val_batch_size: 128
+#       gradient_accumulation_steps: 4
+#   command:
+#     - eval "$$(conda shell.bash hook)" && conda activate sfm
+#     - pip install -e . --no-deps
+#     - pip install ase
+#     - bash scripts/nlm/in_context_learning.sh
+# - name: "in_context_learning_train_7k_seed_50"
+#   tags:
+#   - 'ProjectID: PRJ-0209-A40'
+#   - 'Project_Name: Science_Foundation_Model'
+#   - 'Experiment: SFM_NLM_MOE_Model_Training'
+#   sku: 4xG8-IB
+#   mpi: true
+#   process_count_per_node: 1
+#   submit_args:
+#     env:
+#       SHARED_MEMORY_PERCENT: 1.0
+#       # CUDA_LAUNCH_BLOCKING: 1
+#       WANDB_API_KEY: local-6907a976b4753418c456e61b9a1fcb4fe56a7816
+#       WANDB_PROJECT: NLM_MOE
+#       WANDB_TEAM: ai4s-sfm
+#       WANDB_BASE_URL: https://microsoft-research.wandb.io
+#       NCCL_DEBUG: INFO
+#       train_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=7_train.instruct.bace.osmi.pred.tsv
+#       valid_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=7_valid.instruct.bace.osmi.pred.tsv
+#       seed: 50
+#       total_num_epochs: 8
+#       train_batch_size: 128
+#       val_batch_size: 128
+#       gradient_accumulation_steps: 4
+#   command:
+#     - eval "$$(conda shell.bash hook)" && conda activate sfm
+#     - pip install -e . --no-deps
+#     - pip install ase
+#     - bash scripts/nlm/in_context_learning.sh
+# - name: "in_context_learning_train_5k_seed_50"
+#   tags:
+#   - 'ProjectID: PRJ-0209-A40'
+#   - 'Project_Name: Science_Foundation_Model'
+#   - 'Experiment: SFM_NLM_MOE_Model_Training'
+#   sku: 4xG8-IB
+#   mpi: true
+#   process_count_per_node: 1
+#   submit_args:
+#     env:
+#       SHARED_MEMORY_PERCENT: 1.0
+#       # CUDA_LAUNCH_BLOCKING: 1
+#       WANDB_API_KEY: local-6907a976b4753418c456e61b9a1fcb4fe56a7816
+#       WANDB_PROJECT: NLM_MOE
+#       WANDB_TEAM: ai4s-sfm
+#       WANDB_BASE_URL: https://microsoft-research.wandb.io
+#       NCCL_DEBUG: INFO
+#       train_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=5_train.instruct.bace.osmi.pred.tsv
+#       valid_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=5_valid.instruct.bace.osmi.pred.tsv
+#       seed: 50
+#       total_num_epochs: 8
+#       train_batch_size: 128
+#       val_batch_size: 128
+#       gradient_accumulation_steps: 4
+#   command:
+#     - eval "$$(conda shell.bash hook)" && conda activate sfm
+#     - pip install -e . --no-deps
+#     - pip install ase
+#     - bash scripts/nlm/in_context_learning.sh
+# - name: "in_context_learning_train_3k_seed_50"
+#   tags:
+#   - 'ProjectID: PRJ-0209-A40'
+#   - 'Project_Name: Science_Foundation_Model'
+#   - 'Experiment: SFM_NLM_MOE_Model_Training'
+#   sku: 4xG8-IB
+#   mpi: true
+#   process_count_per_node: 1
+#   submit_args:
+#     env:
+#       SHARED_MEMORY_PERCENT: 1.0
+#       # CUDA_LAUNCH_BLOCKING: 1
+#       WANDB_API_KEY: local-6907a976b4753418c456e61b9a1fcb4fe56a7816
+#       WANDB_PROJECT: NLM_MOE
+#       WANDB_TEAM: ai4s-sfm
+#       WANDB_BASE_URL: https://microsoft-research.wandb.io
+#       NCCL_DEBUG: INFO
+#       train_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=3_train.instruct.bace.osmi.pred.tsv
+#       valid_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=3_valid.instruct.bace.osmi.pred.tsv
+#       seed: 50
+#       total_num_epochs: 8
+#       train_batch_size: 128
+#       val_batch_size: 128
+#       gradient_accumulation_steps: 4
+#   command:
+#     - eval "$$(conda shell.bash hook)" && conda activate sfm
+#     - pip install -e . --no-deps
+#     - pip install ase
+#     - bash scripts/nlm/in_context_learning.sh
+# - name: "in_context_learning_train_5k_seed_40"
+#   tags:
+#   - 'ProjectID: PRJ-0209-A40'
+#   - 'Project_Name: Science_Foundation_Model'
+#   - 'Experiment: SFM_NLM_MOE_Model_Training'
+#   sku: 4xG8-IB
+#   mpi: true
+#   process_count_per_node: 1
+#   submit_args:
+#     env:
+#       SHARED_MEMORY_PERCENT: 1.0
+#       # CUDA_LAUNCH_BLOCKING: 1
+#       WANDB_API_KEY: local-6907a976b4753418c456e61b9a1fcb4fe56a7816
+#       WANDB_PROJECT: NLM_MOE
+#       WANDB_TEAM: ai4s-sfm
+#       WANDB_BASE_URL: https://microsoft-research.wandb.io
+#       NCCL_DEBUG: INFO
+#       train_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=5_train.instruct.bace.osmi.pred.tsv
+#       valid_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=5_valid.instruct.bace.osmi.pred.tsv
+#       seed: 40
+#       total_num_epochs: 8
+#       train_batch_size: 128
+#       val_batch_size: 128
+#       gradient_accumulation_steps: 4
+#   command:
+#     - eval "$$(conda shell.bash hook)" && conda activate sfm
+#     - pip install -e . --no-deps
+#     - pip install ase
+#     - bash scripts/nlm/in_context_learning.sh
+# - name: "in_context_learning_train_5k_seed_60"
+#   tags:
+#   - 'ProjectID: PRJ-0209-A40'
+#   - 'Project_Name: Science_Foundation_Model'
+#   - 'Experiment: SFM_NLM_MOE_Model_Training'
+#   sku: 4xG8-IB
+#   mpi: true
+#   process_count_per_node: 1
+#   submit_args:
+#     env:
+#       SHARED_MEMORY_PERCENT: 1.0
+#       # CUDA_LAUNCH_BLOCKING: 1
+#       WANDB_API_KEY: local-6907a976b4753418c456e61b9a1fcb4fe56a7816
+#       WANDB_PROJECT: NLM_MOE
+#       WANDB_TEAM: ai4s-sfm
+#       WANDB_BASE_URL: https://microsoft-research.wandb.io
+#       NCCL_DEBUG: INFO
+#       train_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=5_train.instruct.bace.osmi.pred.tsv
+#       valid_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=5_valid.instruct.bace.osmi.pred.tsv
+#       seed: 60
+#       total_num_epochs: 8
+#       train_batch_size: 128
+#       val_batch_size: 128
+#       gradient_accumulation_steps: 4
+#   command:
+#     - eval "$$(conda shell.bash hook)" && conda activate sfm
+#     - pip install -e . --no-deps
+#     - pip install ase
+#     - bash scripts/nlm/in_context_learning.sh
+- name: "in_context_learning_train_0k_seed_50"
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  - 'Project_Name: Science_Foundation_Model'
+  - 'Experiment: SFM_NLM_MOE_Model_Training'
+  sku: 4xG8-IB
+  mpi: true
+  process_count_per_node: 1
+  submit_args:
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
+      # CUDA_LAUNCH_BLOCKING: 1
+      WANDB_API_KEY: local-6907a976b4753418c456e61b9a1fcb4fe56a7816
+      WANDB_PROJECT: NLM_MOE
+      WANDB_TEAM: ai4s-sfm
+      WANDB_BASE_URL: https://microsoft-research.wandb.io
+      NCCL_DEBUG: INFO
+      train_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=0_train.instruct.bace.osmi.pred.tsv
+      valid_data_path: /mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/new_version/ranked_k=0_val.instruct.bace.osmi.pred.tsv
+      seed: 50
+      total_num_epochs: 8
+      train_batch_size: 128
+      val_batch_size: 128
+      gradient_accumulation_steps: 4
+  command:
+    - eval "$$(conda shell.bash hook)" && conda activate sfm
+    - pip install -e . --no-deps
+    - pip install ase
+    - bash scripts/nlm/in_context_learning.sh
