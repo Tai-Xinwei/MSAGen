@@ -669,6 +669,35 @@ class MixtralGenerator(NLMGenerator):
         print("Done")
         bar.close()
 
+    def verify_converted_ckpt(self, local_path, num_files=35):
+        """
+        Verifies if files named 'model_XX.safetensors' (where XX is a two-digit number from 00 to 25)
+        exist in the given directory.
+
+        Args:
+            - local_path (str): The path to the directory to check.
+            - num_files (int): The number of files to check for. Default is 26 for model_00 to model_25.
+
+        Returns:
+            - missing_files (list): A list of missing files, if any.
+            - all_exist (bool): True if all files exist, False otherwise.
+        """
+        missing_files = []
+
+        # Loop over the expected file names
+        for i in range(num_files):
+            file_name = f"model_{i:02}.safetensors"  # Generates file names from model_00.safetensors to model_25.safetensors
+            file_path = os.path.join(local_path, file_name)
+
+            if not os.path.exists(file_path):
+                missing_files.append(file_name)
+
+        # Check if all files exist
+        all_exist = len(missing_files) == 0
+
+        # Return the result
+        return missing_files, all_exist
+
     def prepare(self):
 
         from sfm.data.sci_data.NlmTokenizer import NlmTokenizer
@@ -691,6 +720,7 @@ class MixtralGenerator(NLMGenerator):
 
         return tokenizer, model
 
+
 class MixtralDistGenerator(MixtralGenerator):
     def __init__(self, base_model_home, model_ckpt_home, aux_home):
         self.model_parallel_size = int(os.environ.get("MODEL_PARALLEL_SIZE", 1))
@@ -703,6 +733,7 @@ class MixtralDistGenerator(MixtralGenerator):
         assert self.world_size % self.model_parallel_size == 0
         self.model_rank = self.rank // self.model_parallel_size
         super().__init__(base_model_home, model_ckpt_home, aux_home)
+        torch.distributed.barrier()
 
     def create_device_map(self):
         model_rank = self.local_rank // self.model_parallel_size
@@ -730,7 +761,14 @@ class MixtralDistGenerator(MixtralGenerator):
 
         tokenizer = NlmTokenizer.from_pretrained(self.base_model_home)
         print("vocab size", len(tokenizer))
+
         if self.local_rank == 0:
+            missing_files, all_exist = self.verify_converted_ckpt(self.aux_home)
+            if not all_exist:
+                print(f"Verified converted ckpt, missing files: {missing_files}")
+            else:
+                print(f"Verified converted ckpt, all files exist")
+        if self.local_rank == 0 and not all_exist:
             self.download_and_convert_ckpt(self.base_model_home, self.model_ckpt_home, self.aux_home)
 
         if self.world_size > 1:
@@ -831,6 +869,51 @@ class MixtralDistGenerator(MixtralGenerator):
                     writer.write(entity_text + "\n")
                     printed = True
 
+    def measure_infer_speed(self, max_new_tokens=1024):
+        if self.local_rank % self.model_parallel_size != 0:
+            return
+        input_str = "Write an long essay for me."
+        input_str = \
+            "The SMILES of IUPAC name N-(3,4-dichlorophenyl)-N-[2-(methylamino)ethyl]-4-(trifluoromethyl)benzamide is"
+        input_str = \
+            "What's the SMILES terminology for this 9-N,21-N-diphenyl-9-N,21-N-bis(9-phenylcarbazol-3-yl)-12,18-dioxa-1-boraheptacyclo[15.11.1.02,11.03,8.013,29.019,28.022,27]nonacosa-2(11),3,5,7,9,13(29),14,16,19(28),20,22,24,26-tridecaene-9,21-diamine;9-N,21-N-diphenyl-9-N,21-N-bis(9-phenylcarbazol-4-yl)-12,18-dioxa-1-boraheptacyclo[15.11.1.02,11.03,8.013,29.019,28.022,27]nonacosa-2(11),3,5,7,9,13(29),14,16,19(28),20,22,24,26-tridecaene-9,21-diamine;21-N-naphthalen-1-yl-9-N,21-N-diphenyl-9-N-(2-phenylphenyl)-12,18-dioxa-1-boraheptacyclo[15.11.1.02,11.03,8.013,29.019,28.022,27]nonacosa-2(11),3,5,7,9,13(29),14,16,19(28),20,22,24,26-tridecaene-9,21-diamine;21-N-naphthalen-1-yl-9-N-naphthalen-2-yl-9-N,21-N-diphenyl-12,18-dioxa-1-boraheptacyclo[15.11.1.02,11.03,8.013,29.019,28.022,27]nonacosa-2(11),3,5,7,9,13(29),14,16,19(28),20,22,24,26-tridecaene-9,21-diamine code?"
+        prompt = f"Instruction: {input_str.strip()}\n\n\nResponse:"
+        tokenized_out = self.tokenizer(
+            prompt, return_tensors="pt"
+        )
+        input_ids = tokenized_out.input_ids.cuda()
+        attention_mask = tokenized_out.attention_mask.cuda()
+
+        # Measure inference time
+        # Ensure synchronization if using GPU
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        start_time = time.time()
+
+        outputs = self.model.generate(
+            input_ids,
+            attention_mask=attention_mask,
+            max_new_tokens=max_new_tokens,
+            do_sample=True,
+            pad_token_id=self.tokenizer.pad_token_id,
+            eos_token_id=self.tokenizer.eos_token_id,
+            num_return_sequences=1,
+        )
+
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        end_time = time.time()
+        inference_time = end_time - start_time
+
+        print(f"[Rank {self.local_rank}] input_ids[0]: {input_ids[0]}")
+        print(f"[Rank {self.local_rank}] outputs[0]: {outputs[0]}")
+        print(f"[Rank {self.local_rank}] Input token number: {len(input_ids[0])}")
+        print(f"[Rank {self.local_rank}] Output token number: {len(outputs[0])-len(input_ids[0])}")
+        print(f"[Rank {self.local_rank}] Token per Second: {float(len(outputs[0])-len(input_ids[0]))/inference_time}")
+        output_text = self.tokenizer.decode(outputs[0])
+        print(output_text)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -870,10 +953,11 @@ def main():
         g.inference(args.input_file, args.output_dir)
     elif args.command == "generate":
         g.generate(args.n_seq, args.entity, args.output_dir, args.max_new_tokens)
+    elif args.command == "measure_infer_speed":
+        g.measure_infer_speed()
     else:
         raise Exception(f'Unkonwn command: "{args.command}"')
 
 
 if __name__ == "__main__":
-
     main()
