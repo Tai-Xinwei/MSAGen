@@ -271,7 +271,8 @@ class PSMModel(Model):
         For Complex pretrain mode, we have 3 modes:
         0: clean protein seq to protein structure and molecule structure, time_protein == time_ligand
         1: clean protein seq to protein structure and molecule structure, time_protein < time_ligand
-        2: 50% masked protein seq and 50% noised structure to protein structure and seq, molecule all clean
+        2: clean protein seq and structure to ligand structure
+        (abondoned) 2: 50% masked protein seq and 50% noised structure to protein structure and seq, molecule all clean
 
         """
         n_graph, nnodes = aa_mask.size()[:2]
@@ -313,10 +314,20 @@ class PSMModel(Model):
         )
 
         # mode 2:
+        # clean_mask = torch.where(
+        #     (mask_choice == 2) & is_protein & is_complex.unsqueeze(-1),
+        #     ~aa_mask,
+        #     clean_mask,
+        # )
         clean_mask = torch.where(
             (mask_choice == 2) & is_protein & is_complex.unsqueeze(-1),
-            ~aa_mask,
+            True,
             clean_mask,
+        )
+        time_step = torch.where(
+            (mask_choice == 2) & is_protein & is_complex.unsqueeze(-1),
+            0.0,
+            time_step,
         )
 
         # set padding mask to clean
@@ -1398,8 +1409,10 @@ class PSM(nn.Module):
                         batched_data,
                         encoder_output.transpose(0, 1),
                         mixed_attn_bias,
+                        # None,
                         padding_mask,
                         pbc_expand_batched,
+                        time_embed=time_embed,
                     )
 
         elif self.args.backbone in ["e2dit"]:

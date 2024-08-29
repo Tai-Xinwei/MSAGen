@@ -331,11 +331,14 @@ class DiffMAE3dCriterions(nn.Module):
             is_ligand.unsqueeze(1) & is_protein.unsqueeze(2)
         )
         inter_dist_mask = (
-            (delta_pos_label < 15) & (delta_pos_label > 0.1) & protein_ligand_mask
+            (delta_pos_label < 8) & (delta_pos_label > 0.1) & protein_ligand_mask
         )
 
         if inter_dist_mask.any():
-            inter_dist_loss = (delta * time_coefficient)[inter_dist_mask].mean()
+            time_coefficien_inter = (
+                (1 - time_step**2) * torch.exp(-time_step)
+            ).unsqueeze(-1)
+            inter_dist_loss = (delta * time_coefficien_inter)[inter_dist_mask].mean()
             num_inter_dist_loss = 1
         else:
             inter_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
@@ -574,7 +577,7 @@ class DiffMAE3dCriterions(nn.Module):
             ) = self._reduce_force_or_noise_loss(
                 unreduced_noise_loss,
                 (~clean_mask) & is_complex.unsqueeze(-1) & (~is_seq_only.unsqueeze(-1)),
-                diff_loss_mask & ~protein_mask.any(dim=-1),
+                diff_loss_mask & ~protein_mask.any(dim=-1) & atomic_numbers.ne(2),
                 is_molecule,
                 is_periodic,
                 1.0,
@@ -732,7 +735,15 @@ class DiffMAE3dCriterions(nn.Module):
             )
 
             if self.args.use_hard_dist_loss:
-                loss += self.hard_dist_loss_raito * (hard_dist_loss + inter_dist_loss)
+                inter_dist_loss_ratio = (
+                    1.0 / (20 * hard_dist_loss.item() ** 1.2)
+                    if num_pddt_loss > 0
+                    else 0
+                )
+                # inter_dist_loss_ratio = 0.01
+                loss += self.hard_dist_loss_raito * (
+                    hard_dist_loss + inter_dist_loss_ratio * inter_dist_loss
+                )
 
             if torch.any(torch.isnan(loss)) or torch.any(torch.isinf(loss)):
                 logger.error(

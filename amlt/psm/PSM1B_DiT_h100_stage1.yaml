@@ -74,7 +74,8 @@ jobs:
   - export max_length=512
   - export gradient_accumulation_steps=8
   - export log_interval=100
-  - export data_path=/psm/data/
+  # - export data_path=/psm/data_2/
+  - export data_path=/tmp/data_2/
   - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
   - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,esm,pdb,esm,pdbcomplexmultimer'
   - export dataset_split_raito='0.03,0.15,0.3,0.3,0.1,0.02,0.1'
@@ -89,7 +90,7 @@ jobs:
   - export use_unified_batch_sampler=True
   - export align_x0_in_diffusion_loss=True
   - export decoder_feat4energy=False
-  - export encoderfeat4noise=True
+  - export encoderfeat4noise=False
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
   - export save_batch_interval=2500
@@ -99,8 +100,10 @@ jobs:
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
+  - bash ./scripts/psm/azcopydata.sh
   - bash ./scripts/psm/pretrain_psm_dit.sh
   submit_args:
     container_args:
       shm_size: 4096g
+      SHARED_MEMORY_PERCENT: 1.0
   preemptible: false
