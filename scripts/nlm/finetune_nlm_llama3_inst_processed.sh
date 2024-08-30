@@ -133,7 +133,7 @@ wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 export WANDB_API_KEY=$wandb_key
 
 set -x
-torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/finetune_nlm3d_inst_processed_df.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/nlm/finetune_nlm3d_inst_processed.py \
       --model_type "$model_type" \
       --dict_path "$dict_path" \
       --train_data_path "$train_data_path" \

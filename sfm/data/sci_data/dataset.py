@@ -689,6 +689,7 @@ class LMDBInstDFDataset(torch.utils.data.Dataset):
         )
         self.max_len = max_len
         self.padding_idx = padding_idx
+        self.sample_count = sample_count
         if sample_count < 0:
             logger.info(f"{path_hf} does not perform sampling")
         else:
