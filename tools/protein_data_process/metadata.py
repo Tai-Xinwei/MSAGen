@@ -63,3 +63,7 @@ assert casp15_domain_csv.exists(), f"Could not find {casp15_domain_csv}"
 casp15_metadata = parse_casp_metadata(casp15_domain_csv)
 
 metadata4target = {**cameo_metadata, **casp14_metadata, **casp15_metadata}
+
+cameo2023_csv = HERE / 'cameo_chain_deninations_from_20230107_to_20231230.csv'
+assert cameo2023_csv.exists(), f"Could not find {cameo2023_csv}"
+cameo2023_metadata = parse_cameo_metadata(cameo2023_csv)

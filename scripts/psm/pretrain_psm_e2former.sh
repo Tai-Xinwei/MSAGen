@@ -4,7 +4,7 @@
 ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
-[ -z "${layers}" ] && layers=18
+[ -z "${layers}" ] && layers=1
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
@@ -32,36 +32,75 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
-[ -z "${strategy}" ] && strategy=DDP
+[ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=200000000
+[ -z "${save_batch_interval}" ] && save_batch_interval=20000
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
-[ -z "${mode_prob}" ] && mode_prob='0.4,0.4,0.2' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.2,0.6,0.2'
+[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.4,0.4,0.2' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 # [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-[ -z "${data_path}" ] && data_path="/"
-# [ -z "${data_path_list}" ] && data_path_list="data/used_data/MD22/AT_AT_CG_CG/radius3_broadcast/"
-# [ -z "${dataset_name_list}" ] && dataset_name_list="AT_AT_CG_CG"
+
+
+# [ -z "${data_path}" ] && data_path="/home/weixinran/data/sfm"
+# export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,pm6_10M_refined4.lmdb,48organisms-fullatom.lmdb,20240630_PDB_Training_Data'
+# export dataset_name_list='mattersim,mattersim,pm6,afdb,pdbcomplexmultimer'
+# export dataset_split_raito='0.05,0.15,0.3,0.45,0.05'
+# export dataset_micro_batch_size='8,8,32,8,2'
+
+[ -z "${data_path}" ] && data_path="/home/weixinran/data/sfm"
+[ -z "${data_path_list}" ] && data_path_list="pm6_10M_refined4.lmdb"
+[ -z "${dataset_name_list}" ] && dataset_name_list="pm6" #"afdb"
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
+
+# [ -z "${data_path}" ] && data_path="/home/weixinran/data/sfm"
+# [ -z "${data_path_list}" ] && data_path_list="AFDB50-plddt70.lmdb"
+# [ -z "${dataset_name_list}" ] && dataset_name_list="afdb" #"afdb"
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
 
-[ -z "${data_path_list}" ] && data_path_list="/data/blob/sfm/psm/AFDB50-plddt70.lmdb"
-[ -z "${dataset_name_list}" ] && dataset_name_list="afdb"
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
+
+# [ -z "${data_path}" ] && data_path="/home/weixinran/data/sfm"
+# [ -z "${data_path_list}" ] && data_path_list="matter-sim-15M-merged"
+# [ -z "${dataset_name_list}" ] && dataset_name_list="mattersim" #"afdb"
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
+
+# [ -z "${data_path}" ] && data_path="/home/weixinran/data/sfm"
+# [ -z "${data_path_list}" ] && data_path_list="matter-sim-15M-force-filtered-merged"
+# [ -z "${dataset_name_list}" ] && dataset_name_list="mattersim" #"afdb"
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="32"
+
+
+
+# [ -z "${data_path}" ] && data_path="/home/weixinran/data/sfm"
+# [ -z "${data_path_list}" ] && data_path_list="48organisms-fullatom.lmdb"
+# [ -z "${dataset_name_list}" ] && dataset_name_list="afdb" #"afdb"
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8"
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
+[ -z "${NoisePredForce}" ] && NoisePredForce=False
 [ -z "${node_type_edge_method}" ] && node_type_edge_method=EXCHANGABLE
-[ -z "${force_head_type}" ] && force_head_type=LINEAR
+[ -z "${force_head_type}" ] && force_head_type=MLP
+[ -z "${force_loss_type}" ] && force_loss_type=L1
+
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1.0
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
 [ -z "${material_force_loss_ratio}" ] && material_force_loss_ratio=1.0
+[ -z "${energy_per_atom_label_scale}" ] && energy_per_atom_label_scale=1.0
+[ -z "${molecule_ref_energy_source}" ] && molecule_ref_energy_source="PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train"
+[ -z "${molecule_outlier_energy_atoms}" ] && molecule_outlier_energy_atoms=""
+
+[ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
+
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
-[ -z "${bf16}" ] && bf16=False
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
@@ -73,7 +112,7 @@ export MKL_THREADING_LAYER='GNU'
 
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 
-[ -z "${wandb_group}" ] && wandb_group=Lin_psm_dev_afdb
+[ -z "${wandb_group}" ] && wandb_group=Lin_psm_dev_3mod
 [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 [ -z "${wandb_project}" ] && wandb_project=psm_dev
 [ -z "${wandb_key}" ] && wandb_key=local-065f023e262b3ae11107532ba5463cd2d800d739
@@ -88,14 +127,15 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
-[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS"
-[ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
+[ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
+[ -z "${pbc_cutoff}" ] && pbc_cutoff=7.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=256
-[ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=5.0
+[ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=10.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 [ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
+
 
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
@@ -108,14 +148,20 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=False
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
+[ -z "${use_smooth_equviariant_norm}" ] && use_smooth_equviariant_norm=True
+[ -z "${num_edges}" ] && num_edges=25600
+[ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=32
+
 [ -z "${psm_validation_mode}" ] && psm_validation_mode=False
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
-[ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
+[ -z "${use_2d_bond_features}" ] && use_2d_bond_features=True
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
 [ -z "${if_total_energy}" ] && if_total_energy=False
-[ -z "${decoder_feat4energy}" ] && decoder_feat4energy=True
+[ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
+[ -z "${disable_data_aug}" ] && disable_data_aug=False
+[ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=False
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -152,6 +198,7 @@ echo "atom_loss_coeff: ${atom_loss_coeff}"
 echo "pos_loss_coeff: ${pos_loss_coeff}"
 echo "data_path: ${data_path}"
 echo "output_path: ${output_path}"
+echo "dataset_name: ${dataset_name}"
 echo "mask_ratio: ${mask_ratio}"
 echo "mode_prob: ${mode_prob}"
 echo "noise_mode: ${noise_mode}"
@@ -160,11 +207,11 @@ echo "noise_mode: ${noise_mode}"
 # export NCCL_IB_PCI_RELAXED_ORDERING=1
 # export NCCL_IB_DISABLE=1
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
-# export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
+export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export OMPI_COMM_WORLD_SIZE=1
 # export n_gpu=1
 # export NCCL_SOCKET_IFNAME=eth0
-# export OMP_NUM_THREADS=1
+export OMP_NUM_THREADS=4
 wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 export WANDB_API_KEY=$wandb_key
 
@@ -183,7 +230,6 @@ else
                       --master_addr $MASTER_ADDR"
   fi
 fi
-rm -rf /tmp/torchinductor_*/*
 
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
@@ -197,31 +243,32 @@ export wandb=True
         #   backbone_config.irreps_head="16x0e+16x1e" \
         #   backbone_config.num_attn_heads=32 \
 #
- #
+ #3mod-e2dit102-1024
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
-          wandb=$wandb wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
-          wandb_run_name=$wandb_run_name \
+          wandb=$wandb wandb_group=test wandb_team=$wandb_team wandb_project=$wandb_project \
+          wandb_run_name="dit" \
           clean_sample_ratio=$clean_sample_ratio \
           node_type_edge_method=EXCHANGABLE \
+          backbone=dit \
           backbone_config=e2former \
-          backbone=e2former \
-          backbone_config.num_layers=6 \
-          backbone_config.irreps_node_embedding="1024x0e+1024x1e+64x2e" \
-          backbone_config.irreps_head="32x0e+32x1e+2x2e" \
+          backbone_config.num_layers=4 \
+          backbone_config.irreps_node_embedding="1024x0e+1024x1e" \
+          backbone_config.irreps_head="32x0e+32x1e" \
           backbone_config.num_attn_heads=32 \
           backbone_config.number_of_basis=32 \
-          backbone_config.pbc_max_radius=5 \
-          backbone_config.max_radius=5 \
+          backbone_config.pbc_max_radius=10 \
+          backbone_config.max_radius=30 \
           backbone_config.attn_type=None \
-          backbone_config.tp_type='v2' \
+          backbone_config.tp_type=None \
           backbone_config.edge_embedtype='highorder' \
           backbone_config.basis_type='gaussiansmear' \
+          backbone_config.attn_biastype='share' \
           backbone_config.add_rope=True \
           encoder_embed_dim=1024 \
           encoder_attention_heads=$num_head \
-          encoder_layers=$layers \
-          num_pred_attn_layer=$num_pred_attn_layer \
+          encoder_layers=12 \
+          num_pred_attn_layer=4 \
           encoder_ffn_embed_dim=$ffn_size \
           droppath_prob=$droppath_prob \
           attn_dropout=$attn_dropout \
@@ -242,6 +289,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           max_lr=$max_lr \
           diffusion_mode=\"$diffusion_mode\" \
           mode_prob=\"$mode_prob\" noise_mode=$noise_mode\
+          complex_mode_prob=\"$complex_mode_prob\" \
           total_num_steps=$total_num_steps \
           warmup_num_steps=$warmup_num_steps \
           train_batch_size=$train_batch_size val_batch_size=$val_batch_size max_length=$max_length \
@@ -252,22 +300,26 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           pbc_cutoff=$pbc_cutoff pbc_expanded_num_cell_per_direction=$pbc_expanded_num_cell_per_direction \
           pbc_expanded_token_cutoff=$pbc_expanded_token_cutoff pbc_multigraph_cutoff=$pbc_multigraph_cutoff \
           diffusion_noise_std=$diffusion_noise_std fp16=$fp16 \
-          psm_validation_mode=$psm_validation_mode \
+          psm_validation_mode=$psm_validation_mode num_edges=$num_edges num_3d_bias_kernel=$num_3d_bias_kernel \
           diff_init_lattice_size=$diff_init_lattice_size diffusion_sampling=$diffusion_sampling \
           num_timesteps=$num_timesteps ddpm_beta_start=$ddpm_beta_start \
           ddpm_beta_end=$ddpm_beta_end ddpm_schedule=$ddpm_schedule \
           dataset_micro_batch_size=\"$dataset_micro_batch_size\" equivar_use_linear_bias=$equivar_use_linear_bias \
           equivar_use_attention_bias=$equivar_use_attention_bias use_unified_batch_sampler=$use_unified_batch_sampler \
           use_2d_atom_features=$use_2d_atom_features use_2d_bond_features=$use_2d_bond_features \
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
           use_dali_pipeline=$use_dali_pipeline molecule_energy_loss_ratio=$molecule_energy_loss_ratio \
           material_energy_loss_ratio=$material_energy_loss_ratio material_force_loss_ratio=$material_force_loss_ratio \
-          preprocess_2d_bond_features_with_cuda=True \
-          AutoGradForce=$AutoGradForce force_head_type=$force_head_type \
+          energy_per_atom_label_scale=$energy_per_atom_label_scale molecule_energy_per_atom_std_override=1.0 \
+          preprocess_2d_bond_features_with_cuda=True use_smooth_equviariant_norm=$use_smooth_equviariant_norm \
+          AutoGradForce=$AutoGradForce force_head_type=$force_head_type psm_finetune_mode=$psm_finetune_mode \
           only_use_rotary_embedding_for_protein=$only_use_rotary_embedding_for_protein \
           diffusion_training_loss=$diffusion_training_loss use_hard_dist_loss=$use_hard_dist_loss \
-          mm_tensorcore=$mm_tensorcore compile=$compile \
-          node_type_edge_method=$node_type_edge_method \
-          if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy
+          mm_tensorcore=$mm_tensorcore compile=$compile disable_data_aug=$disable_data_aug \
+          if_total_energy=$if_total_energy decoder_feat4energy=$decoder_feat4energy \
+          NoisePredForce=$NoisePredForce force_loss_type=$force_loss_type \
+          rescale_loss_with_std=$rescale_loss_with_std align_x0_in_diffusion_loss=$align_x0_in_diffusion_loss \
+          molecule_ref_energy_source=$molecule_ref_energy_source
 
 
 # torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \

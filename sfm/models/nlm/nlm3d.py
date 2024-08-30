@@ -197,7 +197,7 @@ class NLM3dModel(SFMPipelineModelMixin):
             pretraining_tp=llama_config.pretraining_tp,
             tie_word_embeddings=llama_config.tie_word_embeddings,
             rope_scaling=llama_config.rope_scaling,
-            rope_theta=llama_config.rope_theta,
+            rope_theta=args.rope_theta,
             seq_length=args.seq_length,
             rotary_percent=args.rotary_percent,
         )

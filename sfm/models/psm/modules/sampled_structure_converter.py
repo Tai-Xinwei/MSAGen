@@ -443,6 +443,9 @@ class ComplexConverter(BaseConverter):
             )
             with open(sampled_path, "w") as out_file:
                 out_file.writelines(sampled_structure)
+            original_path = os.path.join(sampled_structure_output_path, f"{key}.pdb")
+            with open(original_path, "w") as out_file:
+                out_file.writelines(original_structure)
 
             # extract positions for common protein residues and ligand atoms
             sampled_protein, sampled_ligand = _get_xyz(sampled_structure)
@@ -465,7 +468,8 @@ class ComplexConverter(BaseConverter):
             mask = np.min(dist, axis=-1) < 10  # 10 Angstrom
             smpl_pocket, orig_pocket = smplprt[mask], origprt[mask]
             assert len(smpl_pocket) >= 1, f"Cannot find pocket atoms for {key}."
-            pocket_rmsd = _calc_rmsd(smpllig, origlig, smpl_pocket, orig_pocket)
+            pocket_aligned_rmsd = _calc_rmsd(smpllig, origlig, smpl_pocket, orig_pocket)
+            pocket_ref_rmsd = _calc_rmsd(smpl_pocket, orig_pocket)
             # calculate TM-score on protein
             with (
                 tempfile.NamedTemporaryFile() as predpdb,
@@ -493,7 +497,9 @@ class ComplexConverter(BaseConverter):
                 f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
                 f"TM-score={tm_score:6.4f}, "
                 f"Kabsch-RMSD={kabsch_rmsd:6.3f}, "
-                f"Pocket-aligned-RMSD={pocket_rmsd:6.3f}."
+                f"Pocket-aligned-RMSD={pocket_aligned_rmsd:6.3f}, "
+                f"Pocket-RMSD={pocket_ref_rmsd:6.3f}, "
+                f"TM-score={tm_score:6.4f}."
             )
         except Exception as e:
             logger.warning(f"Failed to evaluate sample {idx}, {e}.")

@@ -9,8 +9,12 @@ import torch
 import torch.nn as nn
 from fairchem.core.common.registry import registry
 from fairchem.core.common.utils import conditional_grad
-from fairchem.core.models.base import BaseModel
-from fairchem.core.models.scn.sampling import CalcSpherePoints
+
+try:
+    from fairchem.core.models.base import BaseModel
+except:
+    from fairchem.core.models.base import HydraModel as BaseModel
+# from fairchem.core.models.scn.sampling import CalcSpherePoints
 from fairchem.core.models.scn.smearing import (
     GaussianSmearing,
     LinearSigmoidSmearing,

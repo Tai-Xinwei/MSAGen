@@ -1356,6 +1356,7 @@ class PSM(nn.Module):
                         mixed_attn_bias,
                         padding_mask,
                         pbc_expand_batched,
+                        time_embed=time_embed,
                     )
 
         elif self.args.backbone in ["e2dit"]:
@@ -1382,10 +1383,27 @@ class PSM(nn.Module):
                         mixed_attn_bias,
                         padding_mask,
                         pbc_expand_batched,
+                        time_embed=time_embed,
                     )
-        elif self.encoder is not None:
-            assert self.args.backbone in ["graphormer", "graphormer-e2"]
+        elif self.args.backbone in ["graphormer-e2"]:
+            encoder_output = self.encoder(
+                token_embedding.transpose(0, 1),
+                padding_mask,
+                batched_data,
+                mixed_attn_bias,
+                pbc_expand_batched,
+            )
 
+            if not skip_decoder:
+                decoder_x_output, decoder_vec_output = self.decoder(
+                    batched_data,
+                    encoder_output,
+                    mixed_attn_bias,
+                    padding_mask,
+                    pbc_expand_batched,
+                    time_embed=time_embed,
+                )
+        elif self.args.backbone in ["graphormer"]:
             encoder_output = self.encoder(
                 token_embedding.transpose(0, 1),
                 padding_mask,
@@ -1401,7 +1419,7 @@ class PSM(nn.Module):
                     mixed_attn_bias[-1] if mixed_attn_bias is not None else None,
                     padding_mask,
                     pbc_expand_batched,
-                    time_embed=time_embed,
+                    time_embed=None,  # time_embed,
                 )
         elif self.args.backbone in ["vectorvanillatransformer"]:
             decoder_x_output, decoder_vec_output = self.decoder(
@@ -1424,6 +1442,7 @@ class PSM(nn.Module):
             decoder_x_output, decoder_vec_output = self.decoder(
                 batched_data,
                 token_embedding.transpose(0, 1),
+                mixed_attn_bias,
                 padding_mask=padding_mask,
                 pbc_expand_batched=pbc_expand_batched,
             )

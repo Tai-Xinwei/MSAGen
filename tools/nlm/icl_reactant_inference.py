@@ -2,7 +2,7 @@
 from datetime import timedelta
 import torch
 import os
-
+import numpy as np
 import json
 import re
 import shutil
@@ -27,6 +27,8 @@ sys.path.append(os.path.join(Path(__file__).parent.parent.parent, "."))
 
 from sfm.data.sci_data.NlmTokenizer import NlmLlama3Tokenizer
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+
+from sfm.logging import logger
 
 
 def setup_for_distributed(is_master):
@@ -80,23 +82,25 @@ def init_distributed_mode(local_rank=0):
     setup_for_distributed(local_rank == 0)
     return local_rank
 
-
 class TextFileDataset(Dataset):
-    def __init__(self, file_path):
+    def __init__(self, file_path, tokenizer, use_template=False, max_len=8192):
         self.file_path = file_path
+        self.tokenizer = tokenizer
+        self.use_template = use_template
+        self.max_len = max_len
         self.data = self.load_text_file()
 
     def load_text_file(self):
         with open(self.file_path, "r", encoding="utf-8") as file:
-            lines = file.readlines()
-        lines = [line.strip() for line in lines]
+            lines = [line.strip() for line in file]
 
         print(f"Input file size: {len(lines)}")
 
         world_size = int(os.environ["WORLD_SIZE"])
         residual = len(lines) % world_size
         if residual != 0:
-            lines.extend(["This is a padding sentence."] * (world_size - residual))
+            padding_line = "\t".join(["This is a padding sentence."] * 3)
+            lines.extend([padding_line] * (world_size - residual))
 
         print(f"Padded file size: {len(lines)}")
 
@@ -106,7 +110,76 @@ class TextFileDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        return self.data[index]
+        text = self.data[index]
+        groups = text.split("\t")
+        print("groups is: ", groups)
+
+        tokens = []
+        labels = []
+
+        print("groups's length is: ", len(groups))
+
+        if len(groups) > 2:
+            for i in range(0, len(groups), 2):
+                prompt = groups[i]
+                target = groups[i + 1]
+
+                prompt = f"Instruction: {prompt}\n\n\nResponse:"
+
+                prompt_tokens = self.tokenizer.encode(prompt, add_special_tokens=False)
+                target_tokens = self.tokenizer.encode(target, add_special_tokens=False)
+
+                prompt_tokens = [token for token in prompt_tokens if token != self.tokenizer.bos_token_id]
+                target_tokens = [token for token in target_tokens if token != self.tokenizer.bos_token_id]
+
+                group_tokens = (
+                    ([self.tokenizer.bos_token_id] if i == 0 else [])
+                    + prompt_tokens
+                    + (target_tokens if i < len(groups) - 2 else [])
+                    + ([self.tokenizer.eos_token_id] if i < len(groups) - 2 else [])
+                )
+
+                group_labels = group_tokens[:]
+                group_labels[: len(prompt_tokens) + (1 if i == 0 else 0)] = [-100] * (
+                    len(prompt_tokens) + (1 if i == 0 else 0)
+                )
+
+                # print("tokens is: ", tokens)
+                # print("labels is: ", labels)
+
+        elif len(groups) == 2:
+            prompt = f"Instruction: {groups[0]}\n\n\nResponse:"
+
+            print("prompt is: ", prompt)
+
+            tokens = group_tokens = self.tokenizer.encode(prompt, add_special_tokens=False)
+
+            group_labels = group_tokens[:]
+            group_labels[: len(tokens) + 1] = [-100] * (
+                len(tokens) + 1
+            )
+
+            # print("tokens is: ", tokens)
+            # print("labels is: ", labels)
+
+        # keep the last max_len tokens, or there maybe no labels to pred
+        tokens = tokens[-self.max_len :]
+        labels = labels[-self.max_len :]
+
+        return torch.tensor(tokens), torch.tensor(labels)
+
+    def collate(self, samples):
+        input_ids_list, labels_list = zip(*samples)
+
+        # input_ids = torch.nn.utils.rnn.pad_sequence(
+        #     input_ids_list, batch_first=True, padding_value=self.tokenizer.pad_token_id
+        # )
+
+        # padding_mask = input_ids.ne(self.tokenizer.pad_token_id)
+
+        # input = tuple([input_ids, padding_mask])
+        return input_ids_list
+
 
 
 class NLMGenerator(ABC):
@@ -123,28 +196,44 @@ class NLMGenerator(ABC):
         pass
 
     def chat(self, input_str, response_only=True, do_sample=False, **kwargs):
-        prompt = f"Instruction: {input_str.strip()}\n\n\nResponse:"
-        tokenized_out = input_ids = self.tokenizer(
-            prompt, return_tensors="pt"
-        )
-        input_ids = tokenized_out.input_ids.cuda()
-        attention_mask = tokenized_out.attention_mask.cuda()
-        if "max_new_tokens" in kwargs:
-            max_new_tokens = kwargs.pop("max_new_tokens")
-        else:
-            max_new_tokens = 100
+
+        # prompt = f"Instruction: {input_str.strip()}\n\n\nResponse:"
+        # tokenized_out = input_str = self.tokenizer(
+        #     prompt, return_tensors="pt"
+        # )
+        # input_str = tokenized_out.input_ids.cuda()
+        # attention_mask = tokenized_out.attention_mask.cuda()
 
         if isinstance(self.model, torch.nn.parallel.DistributedDataParallel):
             model = self.model.module
         else:
             model = self.model
 
+        print("Starting generation...")
+
+        ## Check input_str
+        input_tensor = input_str
+
+        input_numpy = input_tensor.cpu().numpy()
+
+        input_ids = input_numpy[0]
+
+        input_ids_list = input_ids.tolist()
+
+        decoded_string = self.tokenizer.decode(input_ids_list)
+
+        print("Decoded input string is: ", decoded_string)
+
+        ## End check
+        input_str = input_str.cuda()
+        print("input_str is: ", input_str)
+
         if do_sample:
             outputs = model.generate(
-                input_ids,
-                attention_mask=attention_mask,
-                max_new_tokens=max_new_tokens,
-                num_return_sequences=4,
+                input_str,
+                # attention_mask=attention_mask,
+                max_new_tokens=100,
+                num_return_sequences=4,  # Changed to 1
                 do_sample=True,
                 temperature=0.75,
                 top_p=0.95,
@@ -152,33 +241,43 @@ class NLMGenerator(ABC):
                 eos_token_id=self.tokenizer.eos_token_id,
                 **kwargs,
             )
+            print("Sampled outputs is: ", outputs)
         else:
             outputs = model.generate(
-                input_ids,
-                attention_mask=attention_mask,
+                input_str,
+                # attention_mask=attention_mask,
                 num_beams=4,
-                max_new_tokens=max_new_tokens,
-                num_return_sequences=4,
+                max_new_tokens=100,
+                num_return_sequences=4,  # Changed to 1
                 do_sample=False,
                 pad_token_id=self.tokenizer.pad_token_id,
                 eos_token_id=self.tokenizer.eos_token_id,
                 **kwargs,
             )
+            print("outputs is: ", outputs)
 
         out_list = []
+
         for out in outputs:
             s = self.tokenizer.decode(out)
             if response_only:
                 segs = s.split("Response:")
                 s = segs[1].strip()
             segs = s.split(self.tokenizer.eos_token)
+            print("segs is: ", segs)
+            print("segs's length is: ", len(segs))
+            # if len(segs) > 2:
+            #     resp = segs[-2].strip()
+            # else:
+            #     resp = segs[0].strip()
             resp = segs[0].strip()
-            if "<protein>" in resp:
-                resp = resp.replace(" <a>", "")
-            if '<mol>' in resp or '<prodcut>' in resp or '<reactant>' in resp:
-                resp = resp.replace(' <m>', '')
+            resp = resp.replace(" <a>", "")
+            resp = resp.replace(' <m>', '')
+            resp = resp.replace('<m>', '')
             out_list.append(resp)
         return out_list
+
+
 
     def inference(self, input_file, output_dir):
 
@@ -189,7 +288,11 @@ class NLMGenerator(ABC):
 
         self.model = torch.nn.parallel.DistributedDataParallel(self.model)
 
-        text_dataset = TextFileDataset(input_file)
+        text_dataset = TextFileDataset(input_file, self.tokenizer, use_template=False, max_len=8192)
+        print("text_dataset is: ", text_dataset)
+        print("text_dataset's length is: ", len(text_dataset))
+        samples = [text_dataset[i] for i in range(len(text_dataset))]
+        text_dataset = text_dataset.collate(samples)
 
         if world_size > 1:
             self.sampler_train = torch.utils.data.DistributedSampler(text_dataset)
@@ -211,14 +314,40 @@ class NLMGenerator(ABC):
             for idx, test_sample in tqdm(
                 enumerate(data_loader), total=len(data_loader)
             ):
-                q = test_sample[0].split("\t")[0].strip()
+                # q = test_sample[0].split('\t')[0].strip()
+                print("test_sample shape is: ", test_sample.shape)
+                print("test_sample is: ", test_sample)
 
-                r0 = self.chat(q, do_sample=False)
-                r1 = self.chat(q, do_sample=True)
+                ##check test_sample
 
-                buffer.append((test_sample[0], r0, r1))
+                token_ids = test_sample.squeeze().tolist()
 
-        # torch.distributed.barrier()
+                print(token_ids)
+
+                decoded_sequence = self.tokenizer.decode(token_ids)
+
+                print("Decoded sequence is: ", decoded_sequence)
+                decoded_sequence = decoded_sequence.replace("<|begin_of_text|>", "")
+                decoded_sequence = decoded_sequence.replace("<m>", "")
+                ##end check
+
+                r0 = self.chat(test_sample, do_sample=False)
+                r1 = self.chat(test_sample, do_sample=True)
+
+                r0_array = np.array(r0)
+                print("r0's shape is: ", r0_array.shape)
+                print("original r0 is: ", r0)
+
+                # r0 = r0[0] if isinstance(r0, list) else r0
+                # r1 = r1[0] if isinstance(r1, list) else r1
+
+                print("r0 is: ", r0)
+                print("r1 is: ", r1)
+
+                # test_sample_str = test_sample[0] if isinstance(test_sample, (list, tuple)) else test_sample
+                #解码输入
+                # test_sample_str = self.tokenizer.decode(test_sample_str[0])
+                buffer.append((decoded_sequence, f"Strategy 1 Response: {r0}", f"Strategy 2 Response: {r1}"))
 
         print(
             f"Local rank #[{local_rank}]: execution {(time.time() - start_time):.2f} seconds",
@@ -272,11 +401,11 @@ class NLMGenerator(ABC):
                     entity_text = output_text[begin_idx:end_idx]
                     entity_text = entity_text.replace("<a>", "").strip()
                     entity_text = entity_text.replace(" ","")
+                    entity_text = entity_text.replace("<m>", "").strip()
                     if not printed:
                         print(f"ret text: {entity_text}")
                     writer.write(entity_text + "\n")
                     printed = True
-
 
 class MockGenerator(NLMGenerator):
 
@@ -513,7 +642,6 @@ class Base8BGenerator(Llama3Generator):
 
         return config, tokenizer
 
-
 class MixtralGenerator(NLMGenerator):
 
     def __init__(self, base_model_home, model_ckpt_home, aux_home):
@@ -646,7 +774,7 @@ class MixtralGenerator(NLMGenerator):
 
         # Other config files
         config = json.load(open(os.path.join(mixtral_blob_path, "config.json")))
-        config["vocab_size"] = 33982
+        config["vocab_size"] = 38078
         with open(os.path.join(local_path, "config.json"), "w") as f:
             json.dump(config, f, indent=2)
 
@@ -668,35 +796,6 @@ class MixtralGenerator(NLMGenerator):
                 print(os.path.relpath(os.path.join(root, file), local_path))
         print("Done")
         bar.close()
-
-    def verify_converted_ckpt(self, local_path, num_files=35):
-        """
-        Verifies if files named 'model_XX.safetensors' (where XX is a two-digit number from 00 to 25)
-        exist in the given directory.
-
-        Args:
-            - local_path (str): The path to the directory to check.
-            - num_files (int): The number of files to check for. Default is 26 for model_00 to model_25.
-
-        Returns:
-            - missing_files (list): A list of missing files, if any.
-            - all_exist (bool): True if all files exist, False otherwise.
-        """
-        missing_files = []
-
-        # Loop over the expected file names
-        for i in range(num_files):
-            file_name = f"model_{i:02}.safetensors"  # Generates file names from model_00.safetensors to model_25.safetensors
-            file_path = os.path.join(local_path, file_name)
-
-            if not os.path.exists(file_path):
-                missing_files.append(file_name)
-
-        # Check if all files exist
-        all_exist = len(missing_files) == 0
-
-        # Return the result
-        return missing_files, all_exist
 
     def prepare(self):
 
@@ -720,7 +819,6 @@ class MixtralGenerator(NLMGenerator):
 
         return tokenizer, model
 
-
 class MixtralDistGenerator(MixtralGenerator):
     def __init__(self, base_model_home, model_ckpt_home, aux_home):
         self.model_parallel_size = int(os.environ.get("MODEL_PARALLEL_SIZE", 1))
@@ -733,7 +831,6 @@ class MixtralDistGenerator(MixtralGenerator):
         assert self.world_size % self.model_parallel_size == 0
         self.model_rank = self.rank // self.model_parallel_size
         super().__init__(base_model_home, model_ckpt_home, aux_home)
-        torch.distributed.barrier()
 
     def create_device_map(self):
         model_rank = self.local_rank // self.model_parallel_size
@@ -761,14 +858,7 @@ class MixtralDistGenerator(MixtralGenerator):
 
         tokenizer = NlmTokenizer.from_pretrained(self.base_model_home)
         print("vocab size", len(tokenizer))
-
         if self.local_rank == 0:
-            missing_files, all_exist = self.verify_converted_ckpt(self.aux_home)
-            if not all_exist:
-                print(f"Verified converted ckpt, missing files: {missing_files}")
-            else:
-                print(f"Verified converted ckpt, all files exist")
-        if self.local_rank == 0 and not all_exist:
             self.download_and_convert_ckpt(self.base_model_home, self.model_ckpt_home, self.aux_home)
 
         if self.world_size > 1:
@@ -792,127 +882,6 @@ class MixtralDistGenerator(MixtralGenerator):
         model.eval()
 
         return tokenizer, model
-
-    def inference(self, input_file, output_dir):
-        if self.local_rank % self.model_parallel_size != 0:
-            return
-
-        text_dataset = TextFileDataset(input_file)
-
-        self.sampler_train = torch.utils.data.DistributedSampler(
-            text_dataset,
-            num_replicas=self.world_size // self.model_parallel_size,
-            rank=self.rank // self.model_parallel_size,
-            shuffle=False,
-        )
-
-        batch_sampler = torch.utils.data.BatchSampler(self.sampler_train, batch_size=1, drop_last=False)
-        data_loader = torch.utils.data.DataLoader(text_dataset, batch_sampler=batch_sampler, pin_memory=False, num_workers=1)
-
-        buffer = []
-
-        start_time = time.time()
-
-        with torch.no_grad():
-            for idx, test_sample in tqdm(enumerate(data_loader), total=len(data_loader)):
-                q = test_sample[0].split('\t')[0].strip()
-
-                r0 = self.chat(q, do_sample=False)
-                r1 = self.chat(q, do_sample=True)
-
-                buffer.append((test_sample[0], r0, r1))
-
-
-
-        print(f"Local rank #[{self.model_rank}]: execution {(time.time() - start_time):.2f} seconds", force=True)
-
-        os.makedirs(output_dir, exist_ok=True)
-
-        with open(os.path.join(output_dir, f'part{self.model_rank}.pkl') , 'wb') as fw:
-            print(f'Local rank #[{self.model_rank}] writing file: {len(buffer)}', force=True)
-            pkl.dump(buffer, fw)
-            print(f'Local rank #[{self.model_rank}] finished writing.', force=True)
-
-    def generate(self, n_seq, entity, output_dir, max_new_tokens):
-        if self.local_rank % self.model_parallel_size != 0:
-            return
-
-        output_path = os.path.join(output_dir, f'{self.model_rank}.generate.txt')
-
-        input_ids = self.tokenizer(f"<{entity}>", return_tensors="pt").input_ids.cuda()
-
-        printed = False
-
-        with torch.no_grad():
-            with open(output_path, 'wt') as writer:
-                for _ in tqdm(range(n_seq), mininterval=10):
-                    outputs = self.model.module.generate(
-                        input_ids,
-                        max_new_tokens=max_new_tokens,
-                        do_sample=True,
-                        pad_token_id=self.tokenizer.pad_token_id,
-                        num_return_sequences=1,
-                    )
-                    output_text = self.tokenizer.decode(outputs[0])
-                    if not printed:
-                        print(f"raw text: {output_text}")
-                    begin_idx = output_text.find(f"<{entity}>") + len(f"<{entity}>")
-                    end_idx = output_text.find(f"</{entity}>")
-
-                    if end_idx == -1:
-                        end_idx = len(output_text)
-
-                    entity_text = output_text[begin_idx : end_idx]
-                    entity_text = entity_text.replace(' <a>', '').strip()
-                    if not printed:
-                        print(f"ret text: {entity_text}")
-                    writer.write(entity_text + "\n")
-                    printed = True
-
-    def measure_infer_speed(self, max_new_tokens=1024):
-        if self.local_rank % self.model_parallel_size != 0:
-            return
-        input_str = "Write an long essay for me."
-        input_str = \
-            "The SMILES of IUPAC name N-(3,4-dichlorophenyl)-N-[2-(methylamino)ethyl]-4-(trifluoromethyl)benzamide is"
-        input_str = \
-            "What's the SMILES terminology for this 9-N,21-N-diphenyl-9-N,21-N-bis(9-phenylcarbazol-3-yl)-12,18-dioxa-1-boraheptacyclo[15.11.1.02,11.03,8.013,29.019,28.022,27]nonacosa-2(11),3,5,7,9,13(29),14,16,19(28),20,22,24,26-tridecaene-9,21-diamine;9-N,21-N-diphenyl-9-N,21-N-bis(9-phenylcarbazol-4-yl)-12,18-dioxa-1-boraheptacyclo[15.11.1.02,11.03,8.013,29.019,28.022,27]nonacosa-2(11),3,5,7,9,13(29),14,16,19(28),20,22,24,26-tridecaene-9,21-diamine;21-N-naphthalen-1-yl-9-N,21-N-diphenyl-9-N-(2-phenylphenyl)-12,18-dioxa-1-boraheptacyclo[15.11.1.02,11.03,8.013,29.019,28.022,27]nonacosa-2(11),3,5,7,9,13(29),14,16,19(28),20,22,24,26-tridecaene-9,21-diamine;21-N-naphthalen-1-yl-9-N-naphthalen-2-yl-9-N,21-N-diphenyl-12,18-dioxa-1-boraheptacyclo[15.11.1.02,11.03,8.013,29.019,28.022,27]nonacosa-2(11),3,5,7,9,13(29),14,16,19(28),20,22,24,26-tridecaene-9,21-diamine code?"
-        prompt = f"Instruction: {input_str.strip()}\n\n\nResponse:"
-        tokenized_out = self.tokenizer(
-            prompt, return_tensors="pt"
-        )
-        input_ids = tokenized_out.input_ids.cuda()
-        attention_mask = tokenized_out.attention_mask.cuda()
-
-        # Measure inference time
-        # Ensure synchronization if using GPU
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
-        start_time = time.time()
-
-        outputs = self.model.generate(
-            input_ids,
-            attention_mask=attention_mask,
-            max_new_tokens=max_new_tokens,
-            do_sample=True,
-            pad_token_id=self.tokenizer.pad_token_id,
-            eos_token_id=self.tokenizer.eos_token_id,
-            num_return_sequences=1,
-        )
-
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
-        end_time = time.time()
-        inference_time = end_time - start_time
-
-        print(f"[Rank {self.local_rank}] input_ids[0]: {input_ids[0]}")
-        print(f"[Rank {self.local_rank}] outputs[0]: {outputs[0]}")
-        print(f"[Rank {self.local_rank}] Input token number: {len(input_ids[0])}")
-        print(f"[Rank {self.local_rank}] Output token number: {len(outputs[0])-len(input_ids[0])}")
-        print(f"[Rank {self.local_rank}] Token per Second: {float(len(outputs[0])-len(input_ids[0]))/inference_time}")
-        output_text = self.tokenizer.decode(outputs[0])
-        print(output_text)
-
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -953,11 +922,10 @@ def main():
         g.inference(args.input_file, args.output_dir)
     elif args.command == "generate":
         g.generate(args.n_seq, args.entity, args.output_dir, args.max_new_tokens)
-    elif args.command == "measure_infer_speed":
-        g.measure_infer_speed()
     else:
         raise Exception(f'Unkonwn command: "{args.command}"')
 
 
 if __name__ == "__main__":
+
     main()
