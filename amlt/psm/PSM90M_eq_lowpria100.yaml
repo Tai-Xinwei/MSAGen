@@ -9,12 +9,12 @@ description: PSMV0
 env_defaults:
   NODES: 1
   GPUS_PER_NODE: 4
-  WANDB_API_KEY: ""
+  WANDB_API_KEY: "local-065f023e262b3ae11107532ba5463cd2d800d739"
 
 target:
   service: aml
-  name: sfm-madft-nc96adsa100v4-eastus2
-
+  # name: sfm-madft-nc96adsa100v4-eastus2
+  name: sfm-madft-nc96adsa100v4-uksouth
 environment:
   image: ai4s-sfm:20240531.170731
   registry: msrmoldyn.azurecr.io
@@ -22,25 +22,25 @@ environment:
 
 storage:
     storageA:
-      storage_account_name: sfmdataeastus2 # Storage account
+      storage_account_name: sfmdatauksouth # Storage account
+      # storage_account_name: sfmdataeastus2
       container_name: psm # Container name
       mount_dir: /blob
-
 
 code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: e2former-3types-DDP-lp-test-spiky
+- name: e2dit-3types-1n4a-2d-bond
   identity: managed
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: 80G4-A100
   priority: high
   command:
-  - export wandb_run_name=e2former-3types-DDP-lp-test-spiky
-  - mkdir -p /blob/psm-checkpoints/e2former-3types-DDP-lp-test-spiky
-  - export save_dir=/blob/psm-checkpoints/e2former-3types-DDP-lp-test-spiky
-  - export loadcheck_path=/blob/psm-checkpoints/e2former-3types-DDP-lp-test-spiky
+  - export wandb_run_name=e2dit-3types-1n4a-2d-bond
+  - mkdir -p /blob/psm-checkpoints/e2dit-3types-1n4a-2d-bond
+  - export save_dir=/blob/psm-checkpoints/e2dit-3types-1n4a-2d-bond
+  - export loadcheck_path=/blob/psm-checkpoints/e2dit-3types-1n4a-2d-bond
   - export HYDRA_FULL_ERROR=1
   - export load_ckpt=False
   - export MASTER_PORT=62352
@@ -49,9 +49,9 @@ jobs:
   - export pbc_expanded_token_cutoff=256
   - export pbc_multigraph_cutoff=5.0
 
-  - export molecule_energy_loss_ratio=1.0
-  - export material_energy_loss_ratio=0.5
-  - export material_force_loss_ratio=4.5
+  # - export molecule_energy_loss_ratio=1.0
+  # - export material_energy_loss_ratio=0.5
+  # - export material_force_loss_ratio=1.8
 
   - export gradient_accumulation_steps=4
   - export total_num_steps=200000000
@@ -60,7 +60,7 @@ jobs:
   - export clean_sample_ratio=0.5
 
   - export equivar_vec_init=ZERO_CENTERED_POS
-  - export strategy=Zero1
+  - export strategy=DDP
   - export fp16=False
 
   - export diff_init_lattice_size=10.0
@@ -81,10 +81,13 @@ jobs:
   - export data_path=/blob/data/
   # - export data_path=/nfs6/psmdata/
 
-  - export data_path_list="PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged"
-  - export dataset_name_list="pm6,mattersim,afdb,mattersim"
-  - export dataset_split_raito="0.4,0.1,0.4,0.1"
-  - export dataset_micro_batch_size="16,8,4,8"
+  - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240630_PDB_Training_Data'
+  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdbcomplexmultimer'
+  - export dataset_split_raito='0.05,0.15,0.3,0.45,0.05'
+  - export dataset_micro_batch_size='8,8,32,8,2'
+  # - export dataset_micro_batch_size='1,1,6,1,1'
+  - export molecule_ref_energy_source="PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train"
+  - export molecule_outlier_energy_atoms=""
   - ls /blob
   # - export dataset_name_list='afdb'
   # - export dataset_split_raito='1.0'
@@ -94,6 +97,7 @@ jobs:
   - export ifresume=True
   - export loadcheck_path=$$AMLT_OUTPUT_DIR
   - export save_dir=$$AMLT_OUTPUT_DIR
+  - export wandb_group=Lin_psm_dev_3mod
 
   - export wandb_group='Lin_psm_dev_afdb'
   - df -hl
