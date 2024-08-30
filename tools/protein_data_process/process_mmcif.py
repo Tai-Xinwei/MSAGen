@@ -280,6 +280,32 @@ def process_nonpoly_residue(residue: ResidueAtPosition,
     return graph
 
 
+def remove_hydrogens_from_graph(graph):
+    data = {
+        'chain_id': graph['chain_id'],
+        'residue_number': graph['residue_number'],
+        'name': graph['name'],
+        'pdbx_formal_charge': graph['pdbx_formal_charge'],
+    }
+    mask = graph['symbols'] != 'H'
+    idx_old2new = {idx:i for i, idx in enumerate(np.where(mask)[0])}
+    new_orders = [(idx_old2new[i], idx_old2new[j], _)
+                  for i, j, _ in graph['orders'] if mask[i] and mask[j]]
+    rdkitmol = Chem.RemoveHs(graph['rdkitmol'])
+    data.update({
+        'atomids': graph['atomids'][mask],
+        'symbols': graph['symbols'][mask],
+        'charges': graph['charges'][mask],
+        'coords': graph['coords'][mask],
+        'node_coord': graph['node_coord'][mask],
+        'orders': np.array(new_orders),
+        'rdkitmol': rdkitmol,
+    })
+    rdkitmol.RemoveAllConformers()
+    data.update(mol2graph(rdkitmol))
+    return data
+
+
 def chain_type_to_one_letter(chain_type: str) -> str:
     code = '?'
     if chain_type == 'polypeptide(L)':
@@ -295,38 +321,36 @@ def chain_type_to_one_letter(chain_type: str) -> str:
 
 def process_one_structure(chem_comp_path: str,
                           mmcif_path: str,
-                          assembly_path: str,
+                          assembly_path: str = None,
                           ) -> Mapping[str, Union[str, dict, list]]:
     """Parse a mmCIF file and convert data to list of dict."""
     try:
-        chem_comp_path = Path(chem_comp_path).resolve()
-        chem_comp_full_string = parse_mmcif_string(str(chem_comp_path))
+        chem_comp_path = str(Path(chem_comp_path).resolve())
+        chem_comp_full_string = parse_mmcif_string(chem_comp_path)
         assert chem_comp_full_string.startswith('data_'), (
             f"Failed to read chem_comp from {chem_comp_path}.")
-
         chem_comp_strings = split_chem_comp_full_string(chem_comp_full_string)
         assert chem_comp_strings, f"Failed to split {chem_comp_path}."
 
-        mmcif_path = Path(mmcif_path).resolve()
-        pdbid = mmcif_path.name.split('.')[0]
+        mmcif_path = str(Path(mmcif_path).resolve())
+        pdbid = Path(mmcif_path).name.split('.')[0]
         assert len(pdbid) == 4, f"Invalid 4 characters PDBID {pdbid}."
-
-        assembly_path = Path(assembly_path).resolve()
-        newid = assembly_path.name.split('.')[0].split('-')[0]
-        assert pdbid == newid, f"Invalid ID in {mmcif_path} and {assembly_path}."
-
-        mmcif_string = parse_mmcif_string(str(mmcif_path))
+        mmcif_string = parse_mmcif_string(mmcif_path)
         assert mmcif_string, f"Failed to read mmcif string for {pdbid}."
 
         header = parse_mmcif._get_header(
             MMCIF2Dict.MMCIF2Dict(io.StringIO(mmcif_string)))
         assert header, f"Failed to parse header for {pdbid}."
 
-        assembly_string = parse_mmcif_string(str(assembly_path))
-        assert assembly_string, f"Failed to read assembly string for {pdbid}."
+        if assembly_path is not None:
+            assembly_path = str(Path(assembly_path).resolve())
+            newid = Path(assembly_path).name.split('.')[0].split('-')[0]
+            assert pdbid == newid, f"Invalid ID in {assembly_path} for {pdbid}."
+            mmcif_string = parse_mmcif_string(str(assembly_path))
+            assert mmcif_string, f"Failed to read assembly string for {pdbid}."
 
         # Parse mmcif file by modified AlphaFold mmcif_parsing.py
-        result = parse_mmcif.parse(file_id=pdbid, mmcif_string=assembly_string)
+        result = parse_mmcif.parse(file_id=pdbid, mmcif_string=mmcif_string)
         assert result.mmcif_object, f"The errors are {result.errors}"
         # print(result.mmcif_object.file_id, result.mmcif_object.header)
 
@@ -489,21 +513,18 @@ def show_lmdb(lmdbdir: Path):
               help="Input path of one mmCIF file rsync from RCSB.")
 @click.option("--assembly-path",
               type=click.Path(exists=True),
-              required=True,
+              default=None,
               help="Input path of one assembly mmCIF file rsync from RCSB.")
-def process_one(mmcif_path: str, assembly_path: str, chem_comp_path: str) -> None:
+def process_one(chem_comp_path: str, mmcif_path: str, assembly_path: str):
     """Process one mmCIF file and print the result."""
-    chem_comp_path = Path(chem_comp_path).resolve()
-    mmcif_path = Path(mmcif_path).resolve()
-    assembly_path = Path(assembly_path).resolve()
+    chem_comp_path = str(Path(chem_comp_path).resolve())
+    mmcif_path = str(Path(mmcif_path).resolve())
+    if assembly_path is not None:
+        assembly_path = str(Path(assembly_path).resolve())
     print(chem_comp_path)
     print(mmcif_path)
     print(assembly_path)
-    data = process_one_structure(
-        str(chem_comp_path),
-        str(mmcif_path),
-        str(assembly_path),
-    )
+    data = process_one_structure(chem_comp_path, mmcif_path, assembly_path)
     data and show_one_structure(data)
 
 
@@ -540,13 +561,14 @@ def process(chem_comp_path: str,
             data_comment: str,
             ) -> None:
     """Process mmCIF files from directory and save to lmdb."""
-    mmcif_dir = Path(mmcif_dir).resolve()
+    mmcif_dir = str(Path(mmcif_dir).resolve())
     mmcif_paths = {_.name.split('.')[0]:_
                    for _ in Path(mmcif_dir).rglob("*.cif.gz")}
     assert mmcif_paths and all(4==len(_) for _ in mmcif_paths), (
         f"PDBID should be 4 characters long in {mmcif_dir}.")
     logging.info(f"{len(mmcif_paths)} structures in {mmcif_dir}.")
 
+    assembly_dir = str(Path(assembly_dir).resolve())
     assembly_paths = {_.name.split('.')[0].split('-')[0]:_
                       for _ in Path(assembly_dir).rglob("*-assembly1.cif.gz")}
     assert assembly_paths and all(4==len(_) for _ in assembly_paths), (
@@ -556,14 +578,14 @@ def process(chem_comp_path: str,
     pdbids = list(set(mmcif_paths.keys()) & set(assembly_paths.keys()))
     logging.info(f"{len(pdbids)} pdbids in structures and assemblies.")
 
-    chem_comp_path = Path(chem_comp_path).resolve()
+    chem_comp_path = str(Path(chem_comp_path).resolve())
     logging.info(f"Chemical components information is in {chem_comp_path}")
 
-    output_lmdb = Path(output_lmdb).resolve()
-    assert not output_lmdb.exists(), f"ERROR: {output_lmdb} exists. Stop."
+    output_lmdb = str(Path(output_lmdb).resolve())
+    assert not Path(output_lmdb).exists(), f"ERROR: {output_lmdb} exists. Stop."
     logging.info(f"Will save processed data to {output_lmdb}")
 
-    env = lmdb.open(str(output_lmdb), map_size=1024**4) # 1TB max size
+    env = lmdb.open(output_lmdb, map_size=1024**4) # 1TB max size
 
     metadata = {
         'keys': [],
@@ -587,9 +609,9 @@ def process(chem_comp_path: str,
     for pdbid_chunk in chunks(pdbids, 10000):
         result_chunk = Parallel(n_jobs=num_workers)(
             delayed(process_one_structure)(
-                str(chem_comp_path),
-                str(mmcif_paths[_]),
-                str(assembly_paths[_]),
+                chem_comp_path,
+                mmcif_paths[_],
+                assembly_paths[_],
             )
             for _ in pdbid_chunk
         )
