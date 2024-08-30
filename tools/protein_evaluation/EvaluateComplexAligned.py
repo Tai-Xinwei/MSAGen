@@ -134,6 +134,7 @@ def process_run_record(sampled_folder: str, posebusters_folder: str, run_id: int
         try:
             sampled_filename = os.path.join(sampled_folder, f'{idx[:4]}-{run_id}.pdb')
             original_filename = os.path.join(sampled_folder, f'{idx[:4]}.pdb')
+            posebuster_pdb_filename = os.path.join(posebusters_folder, idx, f'{idx}_protein.pdb')
             ligand_sdf_filename = os.path.join(posebusters_folder, idx, f'{idx}_ligand.sdf')
             ligands_sdf_filename = os.path.join(posebusters_folder, idx, f'{idx}_ligands.sdf')
             result_filename = os.path.join(sampled_folder, f'{idx[:4]}-{run_id}.sdf')
@@ -141,7 +142,7 @@ def process_run_record(sampled_folder: str, posebusters_folder: str, run_id: int
             ref_rmsd = process_record(sampled_filename, original_filename, ligand_sdf_filename, result_filename, pocket_boundary)
 
             extra_info['ref_rmsd'].append(ref_rmsd)
-            csv_lines.append(f'{idx},{original_filename},{ligands_sdf_filename},{result_filename}\n')
+            csv_lines.append(f'{idx},{posebuster_pdb_filename},{ligands_sdf_filename},{result_filename}\n')
         except Exception as e:
             logger.warning(f'Error processing {idx} run {run_id}: {e}')
     return csv_lines, extra_info
@@ -158,9 +159,10 @@ def main(sampled_folder, posebusters_folder, run_count, result_path, pocket_boun
                 extra_info_global[k].extend(v)
             busters_input.writelines(csvlines)
             busters_input.flush()
-            logging.info(f'Processed all {run_count} runs')
 
-        # bust -t buster_input2.csv --full-report --outfmt csv > buster_result_dpm_top5_130000.csv
+        logging.info(f'Processed all {run_count} runs')
+
+        # bust -t input.csv --full-report --outfmt csv > target.csv
         logger.info(f'Running bust -t {busters_input.name} --full-report --outfmt csv > {result_path}')
         with open(result_path, 'w') as f:
             subprocess.run(['bust', '-t', busters_input.name, '--full-report', '--outfmt', 'csv'], stdout=f)
