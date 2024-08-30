@@ -330,14 +330,10 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
         dist = delta_pos.norm(dim=-1)
 
         adj = adj.masked_fill(~molecule_mask.unsqueeze(-1), True)
-        if clean_mask is not None:
-            adj = adj.masked_fill(clean_mask.unsqueeze(-1), True)
 
         edge_feature = self.gbf(dist, node_type_edge.long())
-        # edge_feature = self.pair_token_edge_emb(node_type_edge.long()).squeeze(-2)
 
         edge_bond_feature = self.mol_graph_2d_bond_feat(adj.long())
-        # edge_bond_feature = edge_bond_feature.masked_fill(~adj.unsqueeze(-1), 0.0)
         edge_bond_feature = edge_bond_feature.masked_fill(
             ~expand_molecule_mask.unsqueeze(1).unsqueeze(-1), 0.0
         )
@@ -346,6 +342,7 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
         )
 
         if clean_mask is not None:
+            adj = adj.masked_fill(clean_mask.unsqueeze(-1), True)
             edge_bond_feature = edge_bond_feature.masked_fill(
                 expand_clean_mask.unsqueeze(1).unsqueeze(-1), 0.0
             )
@@ -469,7 +466,7 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
         if time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)
 
-        # pos_embedding += time_embed
+        pos_embedding += time_embed
 
         if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
             atom_feature_embedding = self.atom_feature_embed(
@@ -490,5 +487,5 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             padding_mask,
             time_embed,
             pos_attn_bias,
-            condition_embedding + time_embed,
+            condition_embedding,
         )

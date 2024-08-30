@@ -7,20 +7,20 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 2
+  NODES: 1
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
-target:
-  service: singularity
-  name: msrresrchvc
-  workspace_name: sfm-ws
-
-
 # target:
-#   service: aml
-#   # name: townsend1
-#   name: sfm-nd96amsra100v4-uksouth
+#   service: singularity
+#   name: msrresrchvc
+#   workspace_name: sfm-ws
+
+
+target:
+  service: aml
+  name: townsend1
+  # name: sfm-nd96amsra100v4-uksouth
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -78,14 +78,14 @@ jobs:
   - export max_length=512
   - export gradient_accumulation_steps=8
   - export log_interval=100
-  # - export data_path=/nfs2/psmdata/
-  - export data_path=/psm/data/
-  - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
-  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,esm,pdb,esm,pdbcomplexmultimer'
+  - export data_path=/nfs6/psmdata/
+  # - export data_path=/psm/data/
+  - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
+  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdb,esm' #,pdbcomplexmultimer'
   # - export data_path_list='PubChemQC-B3LYP-PM6' #,ur50_23_bpe_pack512.lmdb'
   # - export dataset_name_list='pm6-wb97xd3' #,ur50'
-  - export dataset_split_raito='0.03,0.15,0.3,0.3,0.1,0.02,0.1'
-  - export dataset_micro_batch_size='12,12,80,24,24,24,12'
+  - export dataset_split_raito='0.03,0.15,0.3,0.3,0.2,0.02' #,0.1'
+  - export dataset_micro_batch_size='12,12,80,24,24,24' #,12'
   - export fp16=False
   # - export dataset_micro_batch_size='12,12,100,24,24,24'
   - export clean_sample_ratio=0.5

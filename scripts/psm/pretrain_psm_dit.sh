@@ -47,7 +47,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.2,0.6,0.2'
-[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.5,0.4,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.6,0.4,0.0' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
@@ -62,10 +62,15 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim,pdbcomplexmultimer'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.4,0.15,0.1'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,12,12,6'
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,mattersim'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.25,0.25'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,12'
+
+# [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB50-plddt70.lmdb,matter-sim-15M-merged,20240630_PDB_Training_Data'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim,pdbcomplexmultimer'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.3,0.05,0.4,0.15,0.1'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='80,12,12,12,6'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,afdb,pdbcomplexmultimer'
@@ -179,7 +184,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${ddpm_schedule}" ] && ddpm_schedule=sigmoid
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=False
-[ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
+[ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=True
 [ -z "${use_smooth_equviariant_norm}" ] && use_smooth_equviariant_norm=True
 [ -z "${num_edges}" ] && num_edges=25600
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=32
@@ -198,6 +203,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${disable_data_aug}" ] && disable_data_aug=False
 [ -z "${use_memory_efficient_attention}" ] && use_memory_efficient_attention=False
 [ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=True
+[ -z "${unified_data_num_workers}" ] && unified_data_num_workers=1
+
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -329,6 +336,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           loadcheck_path=$loadcheck_path encoderfeat4noise=$encoderfeat4noise \
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size \
+          unified_data_num_workers=$unified_data_num_workers \
           # ifresume=True \
           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
 

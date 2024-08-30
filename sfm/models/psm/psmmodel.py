@@ -1150,7 +1150,7 @@ class PSM(nn.Module):
             elif args.backbone in ["dit"]:
                 if self.psm_config.encoderfeat4noise:
                     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
-                    self.periodic_noise_head = EquivariantVectorOutput(
+                    self.periodic_noise_head = VectorGatedOutput(
                         psm_config.embedding_dim
                     )
                 else:
@@ -1499,7 +1499,7 @@ class PSM(nn.Module):
                 if self.args.encoderfeat4noise:
                     noise_pred = self.noise_head(encoder_output, decoder_vec_output)
                     noise_pred_periodic = self.periodic_noise_head(
-                        decoder_x_output, decoder_vec_output
+                        encoder_output, decoder_vec_output
                     )
                 else:
                     noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
