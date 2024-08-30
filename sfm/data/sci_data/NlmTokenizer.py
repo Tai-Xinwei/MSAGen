@@ -386,6 +386,8 @@ class NlmLlama3Tokenizer(PreTrainedTokenizerFast):
         token_ids = self.convert_tokens_to_ids(self._tokenize(text))
         add_special_tokens = kwargs.get("add_special_tokens", False)
         prepend_bos = kwargs.get("prepend_bos", True)
+        if "add_special_tokens" in kwargs and not add_special_tokens:
+            prepend_bos = False
         append_eos = kwargs.get("append_eos", False)
         if add_special_tokens:
             token_ids = self._add_special_tokens(token_ids)
@@ -399,6 +401,8 @@ class NlmLlama3Tokenizer(PreTrainedTokenizerFast):
         add_special_tokens = kwargs.get("add_special_tokens", False)
         token_ids = self.convert_tokens_to_ids(self._tokenize(text))
         prepend_bos = kwargs.get("prepend_bos", True)
+        if "add_special_tokens" in kwargs and not add_special_tokens:
+            prepend_bos = False
         append_eos = kwargs.get("append_eos", False)
         return_tensors = kwargs.get("return_tensors", None)
 

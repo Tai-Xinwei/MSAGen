@@ -190,6 +190,9 @@ docs
 # TMscore
 TMscore
 TMscoreLinux.*
+Mixtral/
+training_data/
+azcopy
 sample_save_dir/
 sample_save_dir_mol/
 protein_sampled_latest/
@@ -198,3 +201,6 @@ sample_save_dir*
 *.diff
 *.patch
 log/
+
+bace/
+divided_data/

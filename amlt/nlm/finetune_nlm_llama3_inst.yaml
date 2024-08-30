@@ -1,86 +1,71 @@
-description: finetune_sfm_nlmllama3_inst
+description: finetune_sfm_nlmllama3_inst_SFMMolInstruct.20240807_v2_dialogue_1vs1_bs2048_8b
 
 env_defaults:
-  NODES: 1
+  NODES: 4
   GPUS: 8
-  # WANDB_API_KEY:  "d34f864932245bbdf3a9396a1ebde883ad2068f3"
-  WANDB_API_KEY: "7a4eda8c60b1015329d5dc64869f33d57dde64db"
+  WANDB_API_KEY: "local-84c43c09161e2c012c3317ccb9becc6148001b8e"
 
 
 target:
-  service: aml
-  name: sfm-nd96amsra100v4-uksouth
-  # workspace_name: msrresrchws
+  service: sing
+  name: baltic02
+  workspace_name: sfm-ws
 
-# target:
-#     service: aml
-#     name: townsend1
-
-# target:
-    # service: aml
-    # name: townsend1
 
 environment:
   image: ai4s-sfm:20240429.081857
-  registry: msroctocr.azurecr.io
-  username: msroctocr
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
 
 storage:
-  mlla:
-    storage_account_name: msralaphilly2
-    container_name: ml-la
-    mount_dir: /blob
-  sfmdata:
-    storage_account_name: sfmdataeastus2
-    container_name: nlm
-    mount_dir: /sfmdata
+  hai1:
+    storage_account_name: sfmdataeastus2 # Storage account
+    container_name: nlm # Container name
+    mount_dir: /nlm
 
 code:
-  local_dir: ../sfm_llama3_inst
+  local_dir: ../SFM_framework
 
-search:
-  job_template:
-    name: sfm_nlm_llama3_inst_tuning
-    sku: ${NODES}xG${GPUS}
-    tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1_Alignment]
-    mpi: true
-    process_count_per_node: 1
-    command:
-    - export WANDB_API_KEY=${WANDB_API_KEY}
-    - export WANDB_PROJECT=nlm_llama3_inst
-    - export WANDB_TEAM=ai4s-sfm
-    - export WANDB_RUN_NAME=inst_tuning_5k_{max_lr}_0605
-    - export wandb_group=nlm_llama3_inst
-    - export NCCL_DEBUG=INFO
-    - eval "$$(conda shell.bash hook)" && conda activate sfm
-    - pip install -e . --no-deps
-    - python setup_cython.py build_ext --inplace
-    - pip install git+https://github.com/NVIDIA/TransformerEngine.git
-    - pip uninstall flash-attn -y
-    - pip install flash-attn==2.5.8 --no-build-isolation
-    - export train_batch_size=128
-    - export val_batch_size=128
-    - export gradient_accumulation_steps=32
-    - export tensor_model_parallel_size=2
-    - export pipeline_model_parallel_size=1
-    - export max_lr={max_lr}
-    - export train_data_path=/blob/v-gaokaiyuan/nlm/inst/data/inst_5k/overall_inst_5k_train.txt
-    - export valid_data_path=/blob/v-gaokaiyuan/nlm/inst/data/inst_5k/overall_inst_5k_valid.txt
-    - export dict_path=/sfmdata/llama/Meta-Llama-3-8B/original
-    - export loadcheck_path=/sfmdata/llama/Meta-Llama-3-8B/original
-    - export finetune_from_checkpoint_dir=/sfmdata/peiran/output/llama3_stageB_G256
-    - export finetune_from_checkpoint_id=global_step42860
-    - export save_dir=/blob/v-gaokaiyuan/nlm/inst/results/inst_tuning_5k_{max_lr}_0605
-    - cp /blob/v-gaokaiyuan/code ./
-    - chmod -R 777 code
-    - ./code tunnel --name=sfm --accept-server-license-terms
-    # - bash scripts/nlm/finetune_nlm_llama3_7b_inst.sh
-    submit_args:
-      env:
-        SHARED_MEMORY_PERCENT: 1.0
-        CUDA_LAUNCH_BLOCKING: 1
-  max_trials: 100
-  type: grid
-  params:
-  - name: max_lr
-    values: [1e-4]
+jobs:
+- name: finetune_sfm_nlmllama3_inst_SFMMolInstruct.20240807_v2_dialogue_1vs1_bs2048_8b_continue_1w
+  sku: ${NODES}xG${GPUS}-IB
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFMV1]
+  mpi: true
+  identity: managed
+  process_count_per_node: 1
+  command:
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - export WANDB_PROJECT=nlm_llama3_zekun
+  - export WANDB_TEAM=ai4s-sfm
+  - export WANDB_RUN_NAME=finetune_sfm_nlmllama3_inst_SFMMolInstruct.20240807_8b_continue_1w
+  - export wandb_group=instruct
+  - export NCCL_DEBUG=INFO
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - pip install -e . --no-deps
+  - python setup_cython.py build_ext --inplace
+  - pip install git+https://github.com/NVIDIA/TransformerEngine.git@release_v1.6
+  # - pip uninstall flash-attn -y
+  - pip install flash-attn==2.5.8 --no-build-isolation
+  - pip install ase
+  - export train_batch_size=2048
+  - export val_batch_size=2048
+  - export gradient_accumulation_steps=64
+  - export tensor_model_parallel_size=1
+  - export pipeline_model_parallel_size=1
+  - export max_lr=2e-5
+  - export total_num_steps=20000
+  - export warmup_num_steps=300
+  - export train_hf_data_path=/nlm/peiran/dialogue_data/lmdb_new/merge/train.merged.filt.out.tsv.filt.llama.lmdb
+  - export hf_sample_count=-1
+  # - export train_data_path=/nlm/zekun/data/scidata/instruct/SFMMolInstruct.20240718/train.lmdb
+  # - export valid_data_path=/nlm/zekun/data/scidata/instruct/SFMMolInstruct.20240718/test.lmdb
+  - export train_data_path=/nlm/zekun/data/scidata/instruct/SFMMolInstruct.20240807/train_dna_one.less.4k.v2.lmdb
+  - export valid_data_path=/nlm/zekun/data/scidata/instruct/SFMMolInstruct.20240807/valid_dna_one.lmdb
+  - export dict_path=/nlm/llama/Meta-Llama-3-8B/original
+  - export loadcheck_path=/nlm/peiran/output/llama3_stageB_G128_ratio/global_step10000/
+  - export save_dir=/nlm/zekun/output/base8b/SFMMolInstruct.20240807_v2_dialogue_1vs1_bs2048_continue_1w
+  - bash scripts/nlm/finetune_nlm_llama3_inst_processed.sh
+  submit_args:
+    env:
+      SHARED_MEMORY_PERCENT: 1.0
+      CUDA_LAUNCH_BLOCKING: 1

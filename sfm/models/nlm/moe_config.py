@@ -54,7 +54,8 @@ class MoeModelConfig(MixtralConfig, DistributedTrainConfig):
     valid_data_dir: str = ""
     pretrained_ckpt_path: str = ""
     load_ckpt: bool = False
-
+    train_hf_data_path: str = ""
+    hf_sample_count: int = -1
     ft: bool = False
     infer: bool = False
     weighted_dataset: bool = False
@@ -84,6 +85,17 @@ def sfm_nlm_1b_base_config(config: MoeModelConfig):
     config.hidden_size = 2048
     config.intermediate_size = 5504
     config.num_hidden_layers = 16
+    config.num_attention_heads = 32
+    config.num_key_value_heads = 8
+    config.max_position_embeddings = 8192
+    config.tokens_per_sample = 8192
+    return config
+
+
+def sfm_nlm_8b_base_config(config: MoeModelConfig):
+    config.hidden_size = 4096
+    config.intermediate_size = 14336
+    config.num_hidden_layers = 32
     config.num_attention_heads = 32
     config.num_key_value_heads = 8
     config.max_position_embeddings = 8192

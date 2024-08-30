@@ -11,7 +11,7 @@ from megatron.arguments import parse_megatron_args
 from megatron.core.transformer.transformer_config import TransformerConfig
 from megatron.initialize import initialize_megatron
 from sfm.data.sci_data.AltLlama3Tokenizer import _tokenize, init_tokenizer, tokenize
-from sfm.data.sci_data.dataset import LMDBInstDataset
+from sfm.data.sci_data.dataset import LMDBInstDataset, LMDBInstDFDataset
 from sfm.data.sci_data.NlmTokenizer import NlmLlama3Tokenizer
 from sfm.logging import logger
 from sfm.models.nlm.moe_config import MoeModelConfig, sfm_nlm_1b_base_config
@@ -41,9 +41,21 @@ def main(args) -> None:
         initialize_megatron(args, tokenizer=tokenizer)
         logger.info("Initializing megatron for 3D training.")
     model = NLMBaseModel(args, len(tokenizer))
-    train_dataset = LMDBInstDataset(
-        args.train_data_path, args.pad_token_id, args.max_position_embeddings
-    )
+    if args.train_hf_data_path != "":
+        train_dataset = LMDBInstDFDataset(
+            args.train_data_path,
+            args.train_hf_data_path,
+            args.pad_token_id,
+            args.max_position_embeddings,
+            args.hf_sample_count,
+        )
+    else:
+        train_dataset = LMDBInstDataset(
+            args.train_data_path, args.pad_token_id, args.max_position_embeddings
+        )
+    # train_dataset = LMDBInstDataset(
+    #     args.train_data_path, args.pad_token_id, args.max_position_embeddings
+    # )
     valid_dataset = LMDBInstDataset(
         args.valid_data_path, args.pad_token_id, args.max_position_embeddings
     )

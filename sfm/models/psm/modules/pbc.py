@@ -53,6 +53,33 @@ class CellExpander:
 
         self.pbc_expanded_num_cell_per_direction = pbc_expanded_num_cell_per_direction
 
+        self.conflict_cell_offsets = []
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                for k in range(-1, 2):
+                    if i != 0 or j != 0 or k != 0:
+                        self.conflict_cell_offsets.append([i, j, k])
+        self.conflict_cell_offsets = torch.tensor(self.conflict_cell_offsets)  # 26 x 3
+
+        conflict_to_consider = self.cells.unsqueeze(
+            1
+        ) - self.conflict_cell_offsets.unsqueeze(
+            0
+        )  # num_expand_cell x 26 x 3
+        conflict_to_consider_mask = (
+            ((conflict_to_consider * self.cells.unsqueeze(1)) >= 0)
+            & (torch.abs(conflict_to_consider) <= self.cells.unsqueeze(1).abs())
+        ).all(
+            dim=-1
+        )  # num_expand_cell x 26
+        conflict_to_consider_mask &= (
+            (conflict_to_consider <= pbc_expanded_num_cell_per_direction)
+            & (conflict_to_consider >= -pbc_expanded_num_cell_per_direction)
+        ).all(
+            dim=-1
+        )  # num_expand_cell x 26
+        self.conflict_to_consider_mask = conflict_to_consider_mask
+
     def polynomial(self, dist: torch.Tensor, cutoff: float) -> torch.Tensor:
         """
         Polynomial cutoff function,ref: https://arxiv.org/abs/2204.13639
@@ -106,7 +133,81 @@ class CellExpander:
         self.cell_mask_for_pbc = self.cell_mask_for_pbc.to(device=cell.device)
         mask = (self.cells.abs() <= max_offsets).all(dim=-1)
         selected_cell = self.cells[mask, :]
-        return selected_cell, self.cell_mask_for_pbc[mask, :]
+        return selected_cell, self.cell_mask_for_pbc[mask, :], mask
+
+    def _get_conflict_mask(self, cell, pos, atoms):
+        batch_size, max_num_atoms = pos.size()[:2]
+        self.conflict_cell_offsets = self.conflict_cell_offsets.to(device=pos.device)
+        self.conflict_to_consider_mask = self.conflict_to_consider_mask.to(
+            device=pos.device
+        )
+        offset = torch.bmm(
+            self.conflict_cell_offsets.unsqueeze(0)
+            .repeat(batch_size, 1, 1)
+            .to(dtype=cell.dtype),
+            cell,
+        )  # batch_size x 26 x 3
+        expand_pos = (pos.unsqueeze(1) + offset.unsqueeze(2)).reshape(
+            batch_size, -1, 3
+        )  # batch_size x max_num_atoms x 3, batch_size x 26 x 3 -> batch_size x (26 x max_num_atoms) x 3
+        expand_dist = (pos.unsqueeze(2) - expand_pos.unsqueeze(1)).norm(
+            p=2, dim=-1
+        )  # batch_size x max_num_atoms x (26 x max_num_atoms)
+
+        expand_atoms = atoms.repeat(
+            1, self.conflict_cell_offsets.size()[0]
+        )  # batch_size x (26 x max_num_atoms)
+        atoms_identical_mask = atoms.unsqueeze(-1) == expand_atoms.unsqueeze(
+            1
+        )  # batch_size x max_num_atoms x (26 x max_num_atoms)
+
+        conflict_mask = (
+            ((expand_dist < 1e-5) & atoms_identical_mask)
+            .any(dim=1)
+            .reshape(batch_size, -1, max_num_atoms)
+        )  # batch_size x 26 x max_num_atoms
+        all_conflict_mask = (
+            torch.bmm(
+                self.conflict_to_consider_mask.unsqueeze(0)
+                .to(dtype=cell.dtype)
+                .repeat(batch_size, 1, 1),
+                conflict_mask.to(dtype=cell.dtype),
+            )
+            .long()
+            .bool()
+        )  # batch_size x num_expand_cell x 26, batch_size x 26 x max_num_atoms -> batch_size x num_expand_cell x max_num_atoms
+        return all_conflict_mask
+
+    def check_conflict(self, pos, atoms, pbc_expand_batched):
+        # ensure that there's no conflict in the expanded atoms
+        # a conflict means that two atoms (or special tokens) share both the same position and token type
+        expand_pos = pbc_expand_batched["expand_pos"]
+        all_pos = torch.cat([pos, expand_pos], dim=1)
+        num_expanded_atoms = all_pos.size()[1]
+        all_dist = (all_pos.unsqueeze(1) - all_pos.unsqueeze(2)).norm(p=2, dim=-1)
+        outcell_index = pbc_expand_batched[
+            "outcell_index"
+        ]  # batch_size x expanded_max_num_atoms
+        all_atoms = torch.cat(
+            [atoms, torch.gather(atoms, dim=-1, index=outcell_index)], dim=-1
+        )
+        atom_identical_mask = all_atoms.unsqueeze(1) == all_atoms.unsqueeze(-1)
+        full_mask = torch.cat([atoms.eq(0), pbc_expand_batched["expand_mask"]], dim=-1)
+        atom_identical_mask = atom_identical_mask.masked_fill(
+            full_mask.unsqueeze(-1), False
+        )
+        atom_identical_mask = atom_identical_mask.masked_fill(
+            full_mask.unsqueeze(1), False
+        )
+        conflict_mask = (all_dist < 1e-5) & atom_identical_mask
+        conflict_mask[
+            :,
+            torch.arange(num_expanded_atoms, device=all_pos.device),
+            torch.arange(num_expanded_atoms, device=all_pos.device),
+        ] = False
+        assert ~(
+            conflict_mask.any()
+        ), f"{all_dist[conflict_mask]} {all_atoms[conflict_mask.any(dim=-2)]}"
 
     def expand(
         self,
@@ -124,33 +225,52 @@ class CellExpander:
             pos = pos.float()
             cell = cell.float()
             batch_size, max_num_atoms = pos.size()[:2]
-            cell_tensor, cell_mask = self._get_cell_tensors(cell, use_local_attention)
+            cell_tensor, cell_mask, selected_cell_mask = self._get_cell_tensors(
+                cell, use_local_attention
+            )
+
+            if not use_local_attention:
+                all_conflict_mask = self._get_conflict_mask(cell, pos, atoms)
+                all_conflict_mask = all_conflict_mask[:, selected_cell_mask, :].reshape(
+                    batch_size, -1
+                )
             cell_tensor = (
                 cell_tensor.unsqueeze(0).repeat(batch_size, 1, 1).to(dtype=cell.dtype)
             )
             num_expanded_cell = cell_tensor.size()[1]
-            offset = torch.bmm(cell_tensor, cell)  # B x 8 x 3
-            expand_pos = pos.unsqueeze(1) + offset.unsqueeze(2)  # B x 8 x T x 3
-            expand_pos = expand_pos.view(batch_size, -1, 3)  # B x (8 x T) x 3
+            offset = torch.bmm(cell_tensor, cell)  # B x num_expand_cell x 3
+            expand_pos = pos.unsqueeze(1) + offset.unsqueeze(
+                2
+            )  # B x num_expand_cell x T x 3
+            expand_pos = expand_pos.view(
+                batch_size, -1, 3
+            )  # B x (num_expand_cell x T) x 3
+
+            # eliminate duplicate atoms of expanded atoms, comparing with the original unit cell
             expand_dist = torch.norm(
                 pos.unsqueeze(2) - expand_pos.unsqueeze(1), p=2, dim=-1
-            )  # B x T x (8 x T)
+            )  # B x T x (num_expand_cell x T)
+            expand_atoms = atoms.repeat(1, num_expanded_cell)
+            expand_atom_identical = atoms.unsqueeze(-1) == expand_atoms.unsqueeze(1)
             expand_mask = (expand_dist < self.cutoff) & (
-                expand_dist
-                > 1e-5  # CL: this cannot mask out colocated nodes in `expand_pos`
-            )  # B x T x (8 x T)
+                (expand_dist > 1e-5) | ~expand_atom_identical
+            )  # B x T x (num_expand_cell x T)
             expand_mask = torch.masked_fill(
                 expand_mask, atoms.eq(0).unsqueeze(-1), False
             )
-            expand_mask = (torch.sum(expand_mask, dim=1) > 0) & (
+            expand_mask = torch.sum(expand_mask, dim=1) > 0
+            if not use_local_attention:
+                expand_mask = expand_mask & (~all_conflict_mask)
+            expand_mask = expand_mask & (
                 ~(atoms.eq(0).repeat(1, num_expanded_cell))
-            )  # B x (8 x T)
+            )  # B x (num_expand_cell x T)
+
             cell_mask = (
                 torch.all(pbc.unsqueeze(1) >= cell_mask.unsqueeze(0), dim=-1)
                 .unsqueeze(-1)
                 .repeat(1, 1, max_num_atoms)
                 .reshape(expand_mask.size())
-            )  # B x (8 x T)
+            )  # B x (num_expand_cell x T)
             expand_mask &= cell_mask
             expand_len = torch.sum(expand_mask, dim=-1)
 
@@ -175,7 +295,7 @@ class CellExpander:
 
                 need_threshold_distances = min_expand_dist[
                     need_threshold
-                ]  # B x (8 x T)
+                ]  # B x (num_expand_cell x T)
                 threshold_num_expanded_token = threshold_num_expanded_token[
                     need_threshold
                 ]
@@ -277,4 +397,7 @@ class CellExpander:
             )
 
             pbc_expand_batched["init_expand_pos"] = init_expand_pos
+
+            # self.check_conflict(pos, atoms, pbc_expand_batched)
+
             return pbc_expand_batched

@@ -14,38 +14,10 @@ from tqdm import tqdm
 
 from commons import bstr2obj
 from commons import obj2bstr
-
-sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
-from sfm.data.mol_data.utils.molecule import mol2graph
+from process_mmcif import remove_hydrogens_from_graph
 
 
 logging.set_verbosity(logging.INFO)
-
-
-def remove_hydrogens_from_graph(graph):
-    data = {
-        'chain_id': graph['chain_id'],
-        'residue_number': graph['residue_number'],
-        'name': graph['name'],
-        'pdbx_formal_charge': graph['pdbx_formal_charge'],
-    }
-    mask = graph['symbols'] != 'H'
-    idx_old2new = {idx:i for i, idx in enumerate(np.where(mask)[0])}
-    new_orders = [(idx_old2new[i], idx_old2new[j], _)
-                  for i, j, _ in graph['orders'] if mask[i] and mask[j]]
-    rdkitmol = Chem.RemoveHs(graph['rdkitmol'])
-    data.update({
-        'atomids': graph['atomids'][mask],
-        'symbols': graph['symbols'][mask],
-        'charges': graph['charges'][mask],
-        'coords': graph['coords'][mask],
-        'node_coord': graph['node_coord'][mask],
-        'orders': np.array(new_orders),
-        'rdkitmol': rdkitmol,
-    })
-    rdkitmol.RemoveAllConformers()
-    data.update(mol2graph(rdkitmol))
-    return data
 
 
 def process_one_pdb(pdbid: str,

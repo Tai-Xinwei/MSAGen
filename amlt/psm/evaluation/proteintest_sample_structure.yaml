@@ -14,8 +14,8 @@ env_defaults:
   # CKPT_PATH: /sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints/global_step80000/mp_rank_00_model_states.pt
   # SMPL_PATH: /sfm/sfmexpresults/jianwei/psmv1_dit_v13_300m/checkpoints/global_step80000/prediction
   MODEL_CONFIG: PSM1B_DIT
-  CKPT_PATH: /sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step110000/mp_rank_00_model_states.pt
-  SMPL_PATH: /sfm/sfmexpresults/jianwei/psmv1_dit_v13_1b/checkpoints/global_step110000/prediction-nocenter
+  CKPT_PATH: /sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step145000/mp_rank_00_model_states.pt
+  SMPL_PATH: /sfm/sfmexpresults/jianwei/psmv1_dit_v13_1b/checkpoints/global_step145000/proteintest-nocenter
   GPUS: 4
 
 environment:

@@ -10,7 +10,12 @@ import torch.nn.functional as F
 from e3nn import o3
 from e3nn.nn import Activation, FullyConnectedNet, Gate
 from e3nn.o3 import FullyConnectedTensorProduct, Linear, TensorProduct
-from fairchem.core.models.base import BaseModel
+
+try:
+    from fairchem.core.models.base import BaseModel
+except:
+    from fairchem.core.models.base import HydraModel as BaseModel
+
 from torch import logical_not, nn
 from torch_cluster import radius_graph
 from torch_geometric.data import Data

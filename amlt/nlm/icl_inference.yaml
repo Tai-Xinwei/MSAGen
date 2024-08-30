@@ -1,0 +1,52 @@
+description: nlm inference
+
+target:
+    service: aml
+    name: sfm-nd96amsra100v4-uksouth
+
+environment:
+  image: ai4s-sfm:20240429.081857
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+  msralaphilly2:
+    storage_account_name: msralaphilly2
+    container_name: ml-la
+    mount_dir: /mnt/msralaphilly2
+  blob:
+    storage_account_name: sfmdataeastus2
+    container_name: nlm
+    mount_dir: /blob
+
+code:
+    local_dir: .
+
+jobs:
+- name: "in_context_learning_rea_test_1b_16k"
+  identity: managed
+  tags:
+  - 'ProjectID: PRJ-0209-A40'
+  sku: 1x G8
+  mpi: true
+  process_count_per_node: 1
+  command:
+  # ----- [mixtral_8x7b] ------
+  # - export model_name="mixtral_8x7b"
+  # - export base_model_root="/blob/Mixtral-8x7B-v0.1/"
+  # ----- [llama3_1b] ------
+  - export model_name="llama3_1b"
+  - export base_model_root="/blob/llama/Meta-Llama-3-8B/original/"
+  - export model_ckpt_home="/blob/zekun/output/1b/SFMMolInstruct.20240807/global_step109000/"
+  - export aux_home="/tmp/nlm_rank"
+  - export output_dir="/mnt/msralaphilly2/v-yinzhezhou/icl_test_output/reactant/model_1b/16k"
+
+  - export input_file="/mnt/msralaphilly2/v-yinzhezhou/in_context_learning_data/rea_data/test.16k.uspto50k.retro.osmi.tsv"
+
+  - eval "$$(conda shell.bash hook)" && conda create -n sfm python=3.9 && conda activate sfm
+  - bash ./install/install.sh && bash ./install/install_megatron.sh
+  - pip install -i https://pypi.org/simple/ bitsandbytes
+  - bash ./tools/nlm/icl_inference.sh
+  submit_args:
+      container_args:
+          shm_size: 1024g
