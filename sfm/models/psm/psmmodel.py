@@ -123,10 +123,10 @@ class PSMModel(Model):
             complex_mode_prob = [
                 float(item) for item in self.psm_config.complex_mode_prob.split(",")
             ]
-            assert len(complex_mode_prob) == 3
+            assert len(complex_mode_prob) == 4
             assert sum(complex_mode_prob) == 1.0
         except:
-            complex_mode_prob = [0.0, 0.0, 1.0]
+            complex_mode_prob = [0.0, 0.0, 1.0, 0.0]
         self.complex_mode_prob = complex_mode_prob
         logger.info(f"complex mode prob: {complex_mode_prob}")
 
@@ -271,14 +271,14 @@ class PSMModel(Model):
         For Complex pretrain mode, we have 3 modes:
         0: clean protein seq to protein structure and molecule structure, time_protein == time_ligand
         1: clean protein seq to protein structure and molecule structure, time_protein < time_ligand
-        2: clean protein seq and structure to ligand structure
-        (abondoned) 2: 50% masked protein seq and 50% noised structure to protein structure and seq, molecule all clean
+        2: 50% masked protein seq and 50% noised structure to protein structure and seq, molecule all clean
+        3: clean protein seq and structure to ligand structure
 
         """
         n_graph, nnodes = aa_mask.size()[:2]
         if batched_data["is_complex"].any():
             mask_choice = np.random.choice(
-                np.arange(3), n_graph, p=self.complex_mode_prob
+                np.arange(4), n_graph, p=self.complex_mode_prob
             )
         else:
             mask_choice = np.random.choice(np.arange(3), n_graph, p=self.mode_prob)
@@ -314,21 +314,24 @@ class PSMModel(Model):
         )
 
         # mode 2:
-        # clean_mask = torch.where(
-        #     (mask_choice == 2) & is_protein & is_complex.unsqueeze(-1),
-        #     ~aa_mask,
-        #     clean_mask,
-        # )
         clean_mask = torch.where(
             (mask_choice == 2) & is_protein & is_complex.unsqueeze(-1),
-            True,
+            ~aa_mask,
             clean_mask,
         )
-        time_step = torch.where(
-            (mask_choice == 2) & is_protein & is_complex.unsqueeze(-1),
-            0.0,
-            time_step,
-        )
+
+        if batched_data["is_complex"].any():
+            # mode 3:
+            clean_mask = torch.where(
+                (mask_choice == 3) & is_protein & is_complex.unsqueeze(-1),
+                True,
+                clean_mask,
+            )
+            time_step = torch.where(
+                (mask_choice == 3) & is_protein & is_complex.unsqueeze(-1),
+                0.0,
+                time_step,
+            )
 
         # set padding mask to clean
         clean_mask = clean_mask.masked_fill(padding_mask, True)
@@ -353,6 +356,8 @@ class PSMModel(Model):
         clean_mask = clean_mask.masked_fill(
             batched_data["protein_mask"].any(dim=-1), False
         )
+
+        time_step = time_step.masked_fill(clean_mask, 0.0)
 
         return clean_mask, aa_mask, time_step
 
@@ -1147,7 +1152,7 @@ class PSM(nn.Module):
                     self.forces_head.update(
                         {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
-            elif args.backbone in ["dit"]:
+            elif args.backbone in ["dit", "e2dit"]:
                 if self.psm_config.encoderfeat4noise:
                     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
                     self.periodic_noise_head = VectorGatedOutput(
@@ -1436,7 +1441,8 @@ class PSM(nn.Module):
                     decoder_x_output, decoder_vec_output = self.decoder(
                         batched_data,
                         encoder_output.transpose(0, 1),
-                        mixed_attn_bias,
+                        # mixed_attn_bias,
+                        None,
                         padding_mask,
                         pbc_expand_batched,
                         time_embed=time_embed,
