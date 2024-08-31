@@ -165,7 +165,7 @@ class DiffMAE3dCriterions(nn.Module):
             self.molecule_energy_loss_ratio = 0.1
 
             logger.info(
-                f"overriding force and energy loss ratio in autograd mode:\n {self.material_force_loss_ratio=}, {self.molecule_force_loss_ratio=}, {self.material_energy_loss_ratio=}, {self.molecule_energy_loss_ratio=}"
+                f"overriding force and energy loss ratio in autograd mode:\n {self.material_force_loss_ratio=},\n {self.molecule_force_loss_ratio=},\n {self.material_energy_loss_ratio=},\n {self.molecule_energy_loss_ratio=}"
             )
 
         self.hard_dist_loss_raito = args.hard_dist_loss_raito
