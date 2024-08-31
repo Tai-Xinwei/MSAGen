@@ -4148,7 +4148,7 @@ class E2former(torch.nn.Module):
                 cutoff=self.max_radius,
                 number_of_basis=self.number_of_basis,
             )
-        if edge_embedtype == "highorder_bias":
+        elif edge_embedtype == "highorder_bias":
             self.edge_deg_embed_dense = EdgeDegreeEmbeddingNetwork_higherorder_bias(
                 self.irreps_node_embedding,
                 _AVG_DEGREE,

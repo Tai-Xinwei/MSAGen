@@ -7,7 +7,7 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 1
+  NODES: 4
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -72,8 +72,8 @@ jobs:
   - export pipeline_model_parallel_size=0
   - export total_num_steps=500000
   - export warmup_num_steps=20000
-  - export train_batch_size=2048
-  - export val_batch_size=1024
+  - export train_batch_size=1536
+  - export val_batch_size=768
   - export max_tokens=16000
   - export max_length=512
   - export gradient_accumulation_steps=8
@@ -81,23 +81,22 @@ jobs:
   - export data_path=/nfs6/psmdata/
   # - export data_path=/psm/data/
   - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
-  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdb,esm' #,pdbcomplexmultimer'
-  # - export data_path_list='PubChemQC-B3LYP-PM6' #,ur50_23_bpe_pack512.lmdb'
-  # - export dataset_name_list='pm6-wb97xd3' #,ur50'
-  - export dataset_split_raito='0.03,0.15,0.3,0.3,0.2,0.02' #,0.1'
-  - export dataset_micro_batch_size='12,12,80,24,24,24' #,12'
+  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdb,esm,pdbcomplexmultimer'
+  - export dataset_split_raito='0.03,0.15,0.3,0.3,0.1,0.02,0.1'
+  # - export dataset_micro_batch_size='12,12,80,12,12,12,6'
+  - export dataset_micro_batch_size='8,8,32,12,12,12,6'
   - export fp16=False
-  # - export dataset_micro_batch_size='12,12,100,24,24,24'
   - export clean_sample_ratio=0.5
   - export molecule_energy_loss_ratio=1.0
   - export material_energy_loss_ratio=1.0
   - export material_force_loss_ratio=1.0
   - export molecule_ref_energy_source=PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train
   - export molecule_outlier_energy_atoms=""
-  - export AutoGradForce=False
+  - export AutoGradForce=True
   - export use_hard_dist_loss=True
   - export use_unified_batch_sampler=True
-  - export decoder_feat4energy=True
+  - export decoder_feat4energy=False
+  - export encoderfeat4noise=True
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
   - export save_batch_interval=5000

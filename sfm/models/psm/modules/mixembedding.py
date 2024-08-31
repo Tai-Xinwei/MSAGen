@@ -278,13 +278,7 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
 
         inf_nan_mask = batched_data["protein_mask"].any(dim=-1)
 
-        # inf_pos_mask = pos.eq(float("inf")).any(dim=-1)
-        # pos = pos.masked_fill(inf_pos_mask.unsqueeze(-1), 0.0)
-
         if pbc_expand_batched is not None:
-            # assert (
-            #     self.use_unified_batch_sampler
-            # ), "Only support unified batch sampler for now"
             expand_pos = expand_pos.to(self.pos_emb.weight.dtype)
             expand_pos = torch.cat([pos, expand_pos], dim=1)
             expand_mask = torch.cat(
@@ -371,6 +365,8 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             dist = dist.masked_fill(local_attention_weight <= 1e-5, min_dtype)
 
         pos_emb = self.pos_emb(expand_pos).masked_fill(expand_mask.unsqueeze(-1), 0.0)
+
+        # dist = dist.masked_fill(~adj, min_dtype)
 
         dist = torch.nn.functional.softmax(dist.float() * self.scaling, dim=-1)
         if local_attention_weight is not None:

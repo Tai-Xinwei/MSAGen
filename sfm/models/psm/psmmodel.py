@@ -1084,7 +1084,8 @@ class PSM(nn.Module):
         elif args.backbone in ["dit"]:
             # Implement the encoder
             self.encoder = PSMDiTEncoder(args, psm_config)
-            self.decoder = EquivariantDecoder(psm_config)
+            # self.decoder = EquivariantDecoder(psm_config)
+            self.decoder = None
         elif args.backbone in ["e2dit"]:
             # Implement the encoder
             self.encoder = PSMDiTEncoder(args, psm_config)
@@ -1407,18 +1408,17 @@ class PSM(nn.Module):
                 else nullcontext()
             ):
                 encoder_output = self.layer_norm(encoder_output)
-                # decoder_x_output, decoder_vec_output = encoder_output, None
-                # encoder_output = encoder_output.transpose(0, 1)
-                if not self.args.seq_only:
-                    decoder_x_output, decoder_vec_output = self.decoder(
-                        batched_data,
-                        encoder_output.transpose(0, 1),
-                        mixed_attn_bias,
-                        # None,
-                        padding_mask,
-                        pbc_expand_batched,
-                        time_embed=time_embed,
-                    )
+                decoder_x_output, decoder_vec_output = encoder_output, None
+                # if not self.args.seq_only:
+                #     decoder_x_output, decoder_vec_output = self.decoder(
+                #         batched_data,
+                #         encoder_output.transpose(0, 1),
+                #         mixed_attn_bias,
+                #         # None,
+                #         padding_mask,
+                #         pbc_expand_batched,
+                #         time_embed=time_embed,
+                #     )
 
         elif self.args.backbone in ["e2dit"]:
             encoder_output = self.encoder(
@@ -1572,8 +1572,8 @@ class PSM(nn.Module):
 
                 if (
                     self.args.AutoGradForce
-                    and pbc_expand_batched is not None
-                    and (~batched_data["is_stable_periodic"]).any()
+                    # and pbc_expand_batched is not None
+                    and ~(batched_data["is_protein"].any())
                 ):
                     forces = self.autograd_force_head(
                         energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
@@ -1598,6 +1598,8 @@ class PSM(nn.Module):
                                 -1
                             ),
                         )
+                    elif self.psm_config.AutoGradForce:
+                        forces = torch.zeros_like(batched_data["pos"])
                     else:
                         forces = torch.where(
                             is_periodic.unsqueeze(-1).unsqueeze(-1),
