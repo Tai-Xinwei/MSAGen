@@ -159,7 +159,7 @@ class DiffMAE3dCriterions(nn.Module):
         self.molecule_energy_loss_ratio = args.molecule_energy_loss_ratio
 
         if args.AutoGradForce:
-            self.material_force_loss_ratio = 0.9
+            self.material_force_loss_ratio = 1.9
             self.molecule_force_loss_ratio = 4.9
             self.material_energy_loss_ratio = 0.1
             self.molecule_energy_loss_ratio = 0.1
