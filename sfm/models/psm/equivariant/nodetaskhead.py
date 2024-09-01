@@ -216,6 +216,33 @@ class VectorGatedOutput(nn.Module):
         return x
 
 
+class ScalarGatedOutput(nn.Module):
+    def __init__(self, hidden_channels=768):
+        super(ScalarGatedOutput, self).__init__()
+        self.up_proj = nn.Sequential(
+            nn.Linear(hidden_channels, 3 * hidden_channels, bias=False),
+            nn.SiLU(),
+            nn.LayerNorm(3 * hidden_channels),
+        )
+        self.gate_proj = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels, bias=False),
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+        )
+        self.vec_proj = nn.Sequential(
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 1, bias=True),
+        )
+
+    def forward(self, x):
+        gate = self.gate_proj(x)
+        vec = self.up_proj(x)
+        x = vec.view(x.size(0), x.size(1), 3, -1).mean(dim=-2)
+        x = self.vec_proj(x * gate)
+        return x
+
+
 class ForceGatedOutput(nn.Module):
     def __init__(self, hidden_channels=768):
         super(ForceGatedOutput, self).__init__()

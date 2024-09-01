@@ -47,7 +47,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.2,0.6,0.2'
-[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.4,0.4,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.4,0.4,0.2,0.0' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
@@ -346,7 +346,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size \
           unified_data_num_workers=$unified_data_num_workers \
-          # ifresume=True \
+          ifresume=True \
           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
 
 sleep infinity

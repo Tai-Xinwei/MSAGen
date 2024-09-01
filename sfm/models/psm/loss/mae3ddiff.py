@@ -493,8 +493,9 @@ class DiffMAE3dCriterions(nn.Module):
                         #     (pos_label) * sqrt_alphas_cumprod_t,
                         # )
 
-                        aligned_pos_label = torch.einsum(
-                            "bij,bkj->bki", R, pos_label.float()
+                        aligned_pos_label = (
+                            torch.einsum("bij,bkj->bki", R, pos_label.float())
+                            + T.float()
                         )
                         unreduced_noise_loss = self.noise_loss(
                             aligned_noise_pred.to(noise_label.dtype),

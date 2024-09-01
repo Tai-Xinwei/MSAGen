@@ -35,7 +35,7 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: psmv1_dit_v13_3b
+- name: psmv1_dit_v15_3b
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS}-IB
   mpi: true
@@ -70,24 +70,22 @@ jobs:
   - export max_tokens=16000
   - export max_length=384
   - export max_residue_num=512
-  - export ligand_crop_size=16.0
+  - export ligand_crop_size=15.0
   - export gradient_accumulation_steps=16
   - export log_interval=100
-  - export data_path=/psm/data/
+  # - export data_path=/psm/data/
+  - export data_path=/tmp/data_2/
   - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
   - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,esm,pdb,esm,pdbcomplexmultimer'
   - export dataset_split_raito='0.03,0.15,0.3,0.3,0.1,0.02,0.1'
-  - export dataset_micro_batch_size='3,3,16,3,3,3,2
-  # - export data_path_list='PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,20240630_PDB_Training_Data,ESM_ATLAS_reduce.lmdb' #,ur50_23_bpe_pack512.lmdb'
-  # - export dataset_name_list='pm6-wb97xd3,esm,pdb,pdbcomplexmultimer,esm' #,ur50'
-  # - export dataset_split_raito='0.4,0.3,0.02,0.08,0.2'
-  # - export dataset_micro_batch_size='16,2,2,1,2'
+  # - export dataset_micro_batch_size='3,3,16,3,3,3,2
+  - export dataset_micro_batch_size='1,1,8,3,3,3,2
   - export fp16=False
   - export clean_sample_ratio=0.5
   - export molecule_energy_loss_ratio=1.0
   - export material_energy_loss_ratio=1.0
   - export material_force_loss_ratio=1.0
-  - export AutoGradForce=False
+  - export AutoGradForce=True
   - export use_hard_dist_loss=True
   - export use_unified_batch_sampler=True
   - export align_x0_in_diffusion_loss=True
@@ -96,13 +94,15 @@ jobs:
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
   - export save_batch_interval=2500
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v13_3b/checkpoints/global_step5000/mp_rank_00_model_states.pt
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v15_3b/checkpoints/global_step5000/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v13_3b/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v15_3b/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
+  - bash ./scripts/psm/azcopydata.sh
   - bash ./scripts/psm/pretrain_psm_dit.sh
+  submit_args:
   submit_args:
     container_args:
       shm_size: 4096g

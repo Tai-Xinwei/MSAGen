@@ -23,6 +23,7 @@ from sfm.models.psm.equivariant.nodetaskhead import (
     ForceGatedOutput,
     ForceVecOutput,
     NodeTaskHead,
+    ScalarGatedOutput,
     VectorGatedOutput,
     VectorOutput,
     VectorProjOutput,
@@ -446,10 +447,10 @@ class PSMModel(Model):
             R = uniform_random_rotation(
                 ori_pos.size(0), device=ori_pos.device, dtype=ori_pos.dtype
             )
-            # T = torch.randn(
-            #     ori_pos.size(0), 3, device=ori_pos.device, dtype=ori_pos.dtype
-            # ).unsqueeze(1)
-            ori_pos = torch.bmm(ori_pos, R)
+            T = torch.randn(
+                ori_pos.size(0), 3, device=ori_pos.device, dtype=ori_pos.dtype
+            ).unsqueeze(1)
+            ori_pos = torch.bmm(ori_pos, R) + T
             batched_data["forces"] = torch.bmm(batched_data["forces"], R)
             # batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
             # batched_data["cell"] = torch.bmm(batched_data["cell"], R)
@@ -1043,7 +1044,7 @@ class PSM(nn.Module):
             self.embedding = PSMMix3dEmbedding(
                 psm_config, use_unified_batch_sampler=args.use_unified_batch_sampler
             )
-        elif args.backbone in ["dit", "e2dit"]:
+        elif args.backbone in ["dit", "e2dit", "ditgeom"]:
             self.embedding = PSMMix3dDitEmbedding(psm_config)
         elif args.backbone in ["vanillatransformer_equiv"]:
             self.embedding = PSMMix3DEquivEmbedding(psm_config)
@@ -1086,6 +1087,10 @@ class PSM(nn.Module):
             self.encoder = PSMDiTEncoder(args, psm_config)
             # self.decoder = EquivariantDecoder(psm_config)
             self.decoder = None
+        elif args.backbone in ["ditgeom"]:
+            # Implement the encoder
+            self.encoder = PSMDiTEncoder(args, psm_config)
+            self.decoder = EquivariantDecoder(psm_config)
         elif args.backbone in ["e2dit"]:
             # Implement the encoder
             self.encoder = PSMDiTEncoder(args, psm_config)
@@ -1105,6 +1110,7 @@ class PSM(nn.Module):
                 "vectorvanillatransformer",
                 # "dit",
                 # "e2dit",
+                # "ditgeom",
             ]:
                 self.energy_head.update(
                     {
@@ -1123,6 +1129,25 @@ class PSM(nn.Module):
                         )
                     }
                 )
+            elif args.backbone in ["dit", "e2dit", "ditgeom"]:
+                if args.decoder_feat4energy:
+                    self.energy_head.update(
+                        {
+                            key: nn.Sequential(
+                                nn.Linear(
+                                    psm_config.embedding_dim,
+                                    psm_config.embedding_dim,
+                                    bias=True,
+                                ),
+                                nn.SiLU(),
+                                nn.Linear(psm_config.embedding_dim, 1, bias=True),
+                            )
+                        }
+                    )
+                else:
+                    self.energy_head.update(
+                        {key: ScalarGatedOutput(psm_config.embedding_dim)}
+                    )
             else:
                 self.energy_head.update(
                     {
@@ -1153,7 +1178,7 @@ class PSM(nn.Module):
                     self.forces_head.update(
                         {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
-            elif args.backbone in ["dit", "e2dit"]:
+            elif args.backbone in ["dit", "e2dit", "ditgeom"]:
                 if self.psm_config.encoderfeat4noise:
                     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
                     self.periodic_noise_head = VectorGatedOutput(
@@ -1205,6 +1230,7 @@ class PSM(nn.Module):
             "vanillatransformer_equiv",
             "dit",
             "e2dit",
+            "ditgeom",
         ]:
             self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
             self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
@@ -1419,7 +1445,33 @@ class PSM(nn.Module):
                 #         pbc_expand_batched,
                 #         time_embed=time_embed,
                 #     )
+        elif self.args.backbone in ["ditgeom"]:
+            encoder_output = self.encoder(
+                token_embedding,
+                pos_embedding,
+                padding_mask,
+                batched_data,
+                pbc_expand_batched,
+                mixed_attn_bias=mixed_attn_bias,
+                ifbackprop=self.args.AutoGradForce,
+            )
 
+            with (
+                torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+                if self.args.fp16
+                else nullcontext()
+            ):
+                encoder_output = self.layer_norm(encoder_output)
+                if not self.args.seq_only:
+                    decoder_x_output, decoder_vec_output = self.decoder(
+                        batched_data,
+                        encoder_output.transpose(0, 1),
+                        mixed_attn_bias,
+                        # None,
+                        padding_mask,
+                        pbc_expand_batched,
+                        time_embed=time_embed,
+                    )
         elif self.args.backbone in ["e2dit"]:
             encoder_output = self.encoder(
                 token_embedding,
