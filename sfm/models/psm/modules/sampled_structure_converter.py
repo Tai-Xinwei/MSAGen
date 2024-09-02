@@ -263,15 +263,23 @@ class ProteinConverter(BaseConverter):
                 pos = pos[: num_residues[i]]
                 residue_ids = token_ids[i][: num_residues[i]].cpu().numpy()
                 pdb_lines = [f"HEADER    {keys[i]}\n"]
+                atomidx = 0
+                chainid = "A"
+                resnumb = 0
                 for i, (x, y, z) in enumerate(pos):
-                    if np.isnan(x):
-                        continue
-                    atomidx = i + 1
+                    record = "ATOM  "
+                    symbol = "C"
+                    atomname = " CA "
+                    resnumb += 1
                     resname = VOCAB2AA.get(residue_ids[i], "UNK")
-                    resnumb = i + 1
+                    if np.isnan(x):
+                        # Process missing residues in ground truth protein
+                        continue
+                    atomidx += 1
                     pdb_lines.append(
-                        f"ATOM  {atomidx:>5d}  CA  {resname}  {resnumb:>4d}    "
-                        f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           C  \n"
+                        f"{record:<6s}{atomidx:>5d} {atomname:4s} {resname:3s} "
+                        f"{chainid}{resnumb:>4d}    {x:>8.3f}{y:>8.3f}{z:>8.3f}"
+                        f"  1.00  0.00          {symbol}  \n"
                     )
                 pdb_lines.append("TER\n")
                 pdb_lines.append("END\n")
@@ -306,26 +314,28 @@ class ProteinConverter(BaseConverter):
             )
             with open(sampled_path, "w") as out_file:
                 out_file.writelines(sampled_structure)
+            original_path = os.path.join(
+                sampled_structure_output_path, f"{key}-native.pdb"
+            )
+            with open(original_path, "w") as out_file:
+                out_file.writelines(original_structure)
             lines = []
-            with tempfile.NamedTemporaryFile() as original_path:
-                with open(original_path.name, "w") as fp:
-                    fp.writelines(original_structure)
-                lines.extend(
-                    subprocess.run(
-                        f"TMscore {sampled_path} {original_path.name}",
-                        shell=True,
-                        capture_output=True,
-                        text=True,
-                    ).stdout.split("\n")
-                )
-                lines.extend(
-                    subprocess.run(
-                        f"lddt -c {sampled_path} {original_path.name}",
-                        shell=True,
-                        capture_output=True,
-                        text=True,
-                    ).stdout.split("\n")
-                )
+            lines.extend(
+                subprocess.run(
+                    f"TMscore {sampled_path} {original_path}",
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                ).stdout.split("\n")
+            )
+            lines.extend(
+                subprocess.run(
+                    f"lddt -c {sampled_path} {original_path}",
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                ).stdout.split("\n")
+            )
             for line in lines:
                 cols = line.split()
                 if line.startswith("RMSD") and len(cols) > 5:
@@ -380,6 +390,7 @@ class ComplexConverter(BaseConverter):
                         resnumb = resnumb
                         resname = "LIG"
                     if np.isnan(x):
+                        # Process missing residues in ground truth protein
                         continue
                     atomidx += 1
                     pdb_lines.append(
@@ -426,7 +437,7 @@ class ComplexConverter(BaseConverter):
             rmsd = np.sqrt(((((x1 - x2_t) ** 2)) * 3).mean())
             return rmsd
 
-        pocket_rmsd, tm_score = np.nan, np.nan
+        pocket_aligned_rmsd, tm_score = np.nan, np.nan
         try:
             assert (
                 sampled_structure and sampled_structure[0][:6] == "HEADER"
@@ -443,7 +454,9 @@ class ComplexConverter(BaseConverter):
             )
             with open(sampled_path, "w") as out_file:
                 out_file.writelines(sampled_structure)
-            original_path = os.path.join(sampled_structure_output_path, f"{key}.pdb")
+            original_path = os.path.join(
+                sampled_structure_output_path, f"{key}-native.pdb"
+            )
             with open(original_path, "w") as out_file:
                 out_file.writelines(original_structure)
 
@@ -497,13 +510,12 @@ class ComplexConverter(BaseConverter):
                 f"Sample={idx:3d}-{key:7s}, Model={sample_index+1}, "
                 f"TM-score={tm_score:6.4f}, "
                 f"Kabsch-RMSD={kabsch_rmsd:6.3f}, "
-                f"Pocket-aligned-RMSD={pocket_aligned_rmsd:6.3f}, "
                 f"Pocket-RMSD={pocket_ref_rmsd:6.3f}, "
-                f"TM-score={tm_score:6.4f}."
+                f"Pocket-aligned-RMSD={pocket_aligned_rmsd:6.3f}."
             )
         except Exception as e:
             logger.warning(f"Failed to evaluate sample {idx}, {e}.")
-        return {"rmsd": pocket_rmsd, "tm_score": tm_score}
+        return {"rmsd": pocket_aligned_rmsd, "tm_score": tm_score}
 
 
 class SampledStructureConverter:

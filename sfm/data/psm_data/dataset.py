@@ -1787,7 +1787,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         sizes: Optional[List[int]] = None,
     ):
         version = "20240630_snapshot.20240714_2753ddc5.subset_release_date_before_20200430.ligand_protein.excludeNAs.removeHs.lmdb"
-        testflag = "PoseBusters"
+        testflag = "ComplexTest"
         self.crop_radius = args.crop_radius
         self.max_residue_num = args.max_residue_num
         self.ligand_crop_size = args.ligand_crop_size
@@ -2038,7 +2038,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         data["node_attr"] = convert_to_single_emb(data["node_feature"].long())
 
         if data["edge_index"] is not None:
-            data["edge_index"] = torch.tensor(data["edge_index"])
+            data["edge_index"] = torch.tensor(data["edge_index"], dtype=torch.int32)
             # complex
             data["sample_type"] = 6
             adj = torch.zeros([N, N], dtype=torch.bool)

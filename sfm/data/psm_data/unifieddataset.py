@@ -206,7 +206,7 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)
-            elif dataset_name == "posebusters":
+            elif dataset_name == "complextest":
                 dataset = PDBComplexDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset, dataset
                 len_total = len(dataset)
