@@ -79,7 +79,7 @@ jobs:
   - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,esm,pdb,esm,pdbcomplexmultimer'
   - export dataset_split_raito='0.05,0.13,0.3,0.3,0.1,0.02,0.1'
   # - export dataset_micro_batch_size='3,3,16,3,3,3,2
-  - export dataset_micro_batch_size='1,1,8,3,3,3,2
+  - export dataset_micro_batch_size='1,1,8,3,3,3,2'
   - export fp16=False
   - export clean_sample_ratio=0.5
   - export molecule_energy_loss_ratio=1.0
@@ -103,7 +103,8 @@ jobs:
   - bash ./scripts/psm/azcopydata.sh
   - bash ./scripts/psm/pretrain_psm_dit.sh
   submit_args:
-  submit_args:
+    env:
+      _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
     container_args:
-      shm_size: 4096g
+      shm_size: 1024G
   preemptible: false
