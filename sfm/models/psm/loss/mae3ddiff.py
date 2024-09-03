@@ -509,7 +509,7 @@ class DiffMAE3dCriterions(nn.Module):
                             noise_pred.to(noise_label.dtype), noise_label
                         )
 
-                    unreduced_periodic_noise_loss = self.noise_loss(
+                    self.noise_loss(
                         noise_pred_periodic.to(noise_label.dtype), noise_label
                     )
 
@@ -517,7 +517,7 @@ class DiffMAE3dCriterions(nn.Module):
                     unreduced_noise_loss = self.noise_loss(
                         noise_pred.to(noise_label.dtype), noise_label
                     )
-                    unreduced_periodic_noise_loss = self.noise_loss(
+                    self.noise_loss(
                         noise_pred_periodic.to(noise_label.dtype), noise_label
                     )
                     smooth_lddt_loss = torch.tensor(
@@ -561,7 +561,7 @@ class DiffMAE3dCriterions(nn.Module):
                 periodic_noise_loss,
                 num_periodic_noise_sample,
             ) = self._reduce_force_or_noise_loss(
-                unreduced_periodic_noise_loss,  # unreduced_noise_loss,
+                unreduced_noise_loss,  # unreduced_noise_loss,
                 (~clean_mask) & is_periodic.unsqueeze(-1),
                 diff_loss_mask & ~protein_mask.any(dim=-1),
                 is_molecule,

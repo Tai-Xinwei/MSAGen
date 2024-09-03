@@ -39,7 +39,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=10000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=16
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=4000
@@ -48,7 +48,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.2,0.6,0.2'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='0.4,0.4,0.2,0.0' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
 
@@ -139,6 +138,8 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='128,12,32,12,16,32,32'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
+[ -z "${group_optimizer}" ] && group_optimizer=True
+[ -z "${group_lr_ratio}" ] && group_lr_ratio=10.0
 [ -z "${AutoGradForce}" ] && AutoGradForce=True
 [ -z "${NoisePredForce}" ] && NoisePredForce=False
 [ -z "${force_head_type}" ] && force_head_type=MLP
@@ -176,7 +177,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
-[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=384
+[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=10.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 
@@ -345,7 +346,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           loadcheck_path=$loadcheck_path encoderfeat4noise=$encoderfeat4noise \
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size \
-          unified_data_num_workers=$unified_data_num_workers \
+          unified_data_num_workers=$unified_data_num_workers group_optimizer=$group_optimizer group_lr_ratio=$group_lr_ratio \
           # ifresume=True \
           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
 

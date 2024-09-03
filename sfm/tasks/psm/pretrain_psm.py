@@ -23,7 +23,12 @@ from sfm.data.psm_data.unifieddataset import (
 from sfm.logging import logger
 from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions
 from sfm.models.psm.psm_config import PSMConfig
-from sfm.models.psm.psm_optimizer import DECAY_COSINE_RATE, WarmupDecayLR
+from sfm.models.psm.psm_optimizer import (
+    DECAY_COSINE_RATE,
+    WarmupDecayLR,
+    groupWarmupDecayLR,
+    myAdam,
+)
 
 try:
     from apex.optimizers import FusedAdam as AdamW
@@ -136,8 +141,17 @@ def main(args: DictConfig) -> None:
         loss_fn = DiffMAE3dCriterions
 
     model = PSMModel(args, loss_fn, psm_finetune_head=finetune_module)
+
     # define optimizer here
-    if args.fp16:
+    if args.group_optimizer:
+        optimizer = myAdam(
+            model.parameters(),
+            lr=args.max_lr,
+            betas=(0.9, 0.999),
+            eps=1e-8,
+            weight_decay=args.weight_decay,
+        )
+    elif args.fp16:
         optimizer = AdamFP16(
             model.parameters(),
             distributed_strategy=args.strategy,
@@ -154,14 +168,24 @@ def main(args: DictConfig) -> None:
             eps=1e-8,
             weight_decay=args.weight_decay,
         )
-    lr_scheduler = WarmupDecayLR(
-        optimizer,
-        total_num_steps=args.total_num_steps,
-        warmup_max_lr=args.max_lr,
-        warmup_num_steps=args.warmup_num_steps,
-        decay_type=DECAY_COSINE_RATE,
-        d_tilde=args.d_tilde,
-    )
+
+    if args.group_optimizer:
+        lr_scheduler = groupWarmupDecayLR(
+            optimizer,
+            total_num_steps=args.total_num_steps,
+            warmup_max_lr=args.max_lr,
+            warmup_num_steps=args.warmup_num_steps,
+            decay_type=DECAY_COSINE_RATE,
+            d_tilde=args.group_lr_ratio,
+        )
+    else:
+        lr_scheduler = WarmupDecayLR(
+            optimizer,
+            total_num_steps=args.total_num_steps,
+            warmup_max_lr=args.max_lr,
+            warmup_num_steps=args.warmup_num_steps,
+            decay_type=DECAY_COSINE_RATE,
+        )
 
     if args.psm_validate_for_train_set and args.psm_validation_mode:
         valid_data = train_data

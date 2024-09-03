@@ -1145,8 +1145,22 @@ class PSM(nn.Module):
                         }
                     )
                 else:
+                    # self.energy_head.update(
+                    #     {key: ScalarGatedOutput(psm_config.embedding_dim)}
+                    # )
                     self.energy_head.update(
-                        {key: ScalarGatedOutput(psm_config.embedding_dim)}
+                        {
+                            key: nn.Sequential(
+                                nn.Linear(
+                                    psm_config.embedding_dim,
+                                    psm_config.embedding_dim,
+                                    bias=True,
+                                ),
+                                nn.SiLU(),
+                                nn.LayerNorm(psm_config.embedding_dim),
+                                nn.Linear(psm_config.embedding_dim, 1, bias=True),
+                            )
+                        }
                     )
             else:
                 self.energy_head.update(
