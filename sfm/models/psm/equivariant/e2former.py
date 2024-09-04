@@ -3917,6 +3917,7 @@ class EdgeDegreeEmbeddingNetwork_higherorder(torch.nn.Module):
                 normalize=True,
                 normalization="norm",
             )  # * adj.reshape(B,L,L,1) #B*L*L*(2l+1)
+            edge_fea = edge_dis_embed
             edge_fea = self.gbf_projs[idx](edge_dis_embed)
             # lx_embed = torch.einsum("bmnd,bnh->bmhd",lx,node_embed) #lx:B*L*L*(2l+1)  node_embed:B*L*hidden
             lx_embed = torch.einsum(

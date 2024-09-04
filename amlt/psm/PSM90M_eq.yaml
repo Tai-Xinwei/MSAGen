@@ -3,11 +3,17 @@
 # 2. copy script mae_3d.sh in FoundationModelProp/ to your Azure storage blob container
 # 3. Specify the Azure storage account and container to use
 # 4. Submit the job with this yaml file
-description: equi
+
+description: PSMV0
+
 env_defaults:
   NODES: 1
   GPUS_PER_NODE: 4
-  WANDB_API_KEY: "local-065f023e262b3ae11107532ba5463cd2d800d739"
+  WANDB_API_KEY: ""
+
+# target:
+#     service: sing
+#     name: baltic02
 
 target:
   service: aml

@@ -49,5 +49,4 @@ dependencies:
       - e3nn
       - fairchem-core
       - ase
-      - matbench
       - nvidia-dali-cuda120

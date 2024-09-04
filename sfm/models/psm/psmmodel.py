@@ -148,6 +148,7 @@ class PSMModel(Model):
                     self.args, checkpoint_path=self.args.loadcheck_path
                 )
                 loaded = True
+                logger.info(f"checkpoint: {self.args.loadcheck_path} is loaded")
             else:
                 logger.warning(
                     "Finetune or validation mode, but no checkpoint is loaded"

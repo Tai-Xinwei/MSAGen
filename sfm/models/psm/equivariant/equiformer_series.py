@@ -391,6 +391,7 @@ class Equiformerv2SO2(BaseModel):
         self,
         batched_data: Dict,
         token_embedding: torch.Tensor,
+        mixed_attn_bias,
         padding_mask: torch.Tensor,
         pbc_expand_batched: Optional[Dict] = None,
     ) -> torch.Tensor:

@@ -623,7 +623,7 @@ class Trainer(object):
                     data_iterator, self.start_iteration
                 )
                 try:
-                    for grouped_batch_data in data_iterator:
+                    for grouped_batch_data in tqdm(data_iterator):
                         with torch.profiler.record_function("accelerator.train_step"):
                             model_output = self.accelerator.train_step(
                                 grouped_batch_data

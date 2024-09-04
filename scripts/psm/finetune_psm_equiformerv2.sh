@@ -8,19 +8,23 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${backbone_config}" ] && backbone_config='equiformerv2'
 [ -z "${backbone}" ] && backbone='equiformerv2'
-[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=true
+# [ -z "${backbone_config}" ] && backbone_config='e2former'
+# [ -z "${backbone}" ] && backbone='e2former'
+
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
 
 [ -z "${layers}" ] && layers=8
 [ -z "${hidden_size}" ] && hidden_size=256
 [ -z "${ffn_size}" ] && ffn_size=4096
-[ -z "${num_head}" ] && num_head=8
-[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
+[ -z "${num_head}" ] && num_head=32
+[ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=4
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
-[ -z "${loss_unit}" ] && loss_unit="ev"
+[ -z "${loss_unit}" ] && loss_unit="kcal/mol"
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
 [ -z "${max_length}" ] && max_length=512
-# [ -z "${max_tokens}" ] && max_tokens=24000
 [ -z "${max_tokens}" ] && max_tokens=36000
+[ -z "${max_radius}" ] && max_radius=5
+[ -z "${force_head_type}" ] && force_head_type=GATED_EQUIVARIANT
 
 [ -z "${dropout}" ] && dropout=0.1
 [ -z "${act_dropout}" ] && act_dropout=0.1
@@ -31,6 +35,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
 [ -z "${psm_finetune_valid_noise_mode}" ] && psm_finetune_valid_noise_mode=zero
+[ -z "${psm_finetune_noise_mode}" ] && psm_finetune_noise_mode=zero
+[ -z "${node_type_edge_method}" ] && node_type_edge_method=EXCHANGABLE
+
+[ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=true
+[ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=true
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
@@ -39,38 +48,47 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=512
 [ -z "${val_batch_size}" ] && val_batch_size=512
-[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
+[ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=true
+[ -z "${AutoGradForce}" ] && AutoGradForce=False
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size=2
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
-[ -z "${strategy}" ] && strategy=Zero1
+[ -z "${strategy}" ] && strategy=DDP
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
-[ -z "${save_batch_interval}" ] && save_batch_interval=10000000
+[ -z "${save_batch_interval}" ] && save_batch_interval=10000
 [ -z "${log_interval}" ] && log_interval=20
-[ -z "${epochs}" ] && epochs=1000
+[ -z "${epochs}" ] && epochs=5000
 [ -z "${num_timesteps}" ] && num_timesteps=5000
 
 [ -z "${mode_prob}" ] && mode_prob='0.1,0.2,0.6,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
-# [ -z "${mode_prob}" ] && mode_prob='0.0,0.0,0.0,1.0' # prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
-# [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
+## pretrain and finetune mode
+[ -z "${psm_finetune_reset_head}" ] && psm_finetune_reset_head=True
 
-[ -z "${data_path}" ] && data_path="/data/"
+[ -z "${data_path}" ] && data_path="/home/hul/wangchu/data/"
 # [ -z "${data_path_list}" ] && data_path_list="SPICE-2.0.1/SPICE_PubChem_Set_1_Single_Points_Dataset_v1.3"
 # [ -z "${dataset_name_list}" ] && dataset_name_list="SPICE-2.0.1/SPICE_PubChem_Set_1_Single_Points_Dataset_v1.3"
-[ -z "${data_path_list}" ] && data_path_list="pm6_10M_refined4.lmdb/pm6_10M_refined4.lmdb"
+# [ -z "${data_path_list}" ] && data_path_list="GEMS/general_protein_fragments"
+[ -z "${data_path_list}" ] && data_path_list="deshaw-filter/"
+# [ -z "${data_path_list}" ] && data_path_list="deshaw/data.000.lmdb"
+
 [ -z "${shuffle}" ] && shuffle=True
-[ -z "${dataset_name_list}" ] && dataset_name_list="pm6"
+[ -z "${dataset_name_list}" ] && dataset_name_list='deshaw'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
-[ -z "${save_dir}" ] && save_dir='/data/SPICE'
+[ -z "${save_dir}" ] && save_dir=''
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=Zhihao-MD17-950
-[ -z "${wandb_team}" ] && wandb_team=""
-[ -z "${wandb_project}" ] && wandb_project=Personal_Test2
-[ -z "${wandb_key}" ] && wandb_key="027c1cc85f4e19ca1c378cfc81418c9ea526bb6d"
+
+
+[ -z "${wandb}" ] && wandb=false
+[ -z "${wandb_group}" ] && wandb_group=""
+[ -z "${wandb_team}" ] && wandb_team=faralley
+[ -z "${wandb_project}" ] && wandb_project=psm_debug_workshop
+[ -z "${wandb_run_name}" ] && wandb_run_name=SPICE
+[ -z "${wandb_key}" ] && wandb_key=1059e2793fc0c6ba4d85481bb10d9d1930e34ef1
 # [ -z "${wandb_group}" ] && wandb_group=psm_dev
 # [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 # [ -z "${wandb_project}" ] && wandb_project=psm_dev
@@ -135,17 +153,13 @@ echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 # export NCCL_IB_DISABLE=1
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
-export NCCL_TIMEOUT=3600
-export TORCH_DISTRIBUTED_DEBUG=DETAIL
-export NCCL_P2P_LEVEL=PXB
-export NCCL_IB_DISABLE=1
 # export NCCL_SOCKET_IFNAME=eth0
 # export OMP_NUM_THREADS=1
 
 # wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 
-wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-# wandb login --relogin --host=https://api.wandb.ai $wandb_key
+# wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+wandb login --relogin --host=https://api.wandb.ai $wandb_key
 
 export WANDB_API_KEY=$wandb_key
 
@@ -168,32 +182,36 @@ fi
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_small_mol.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm.py \
           --config-name=config_psm.yaml \
           backbone_config=$backbone_config \
+          loadcheck_path=$loadcheck_path \
           backbone=$backbone \
           psm_finetune_mode=$psm_finetune_mode \
           loss_unit=$loss_unit \
           encoder_embed_dim=$hidden_size \
           backbone_config.embedding_dim=$hidden_size \
-          backbone_config.order=2 \
           backbone_config.num_gnn_layers=$layers \
-          backbone_config.max_radius=5 \
+          encoder_layers=$layers \
+          backbone_config.max_radius=$max_radius \
           droppath_prob=$droppath_prob \
           clean_sample_ratio=1.0 \
+          node_type_edge_method=$node_type_edge_method \
           attn_dropout=$attn_dropout \
           act_dropout=$act_dropout \
           dropout=$dropout \
           weight_decay=$weight_decay \
           sandwich_ln=True \
           add_3d=True \
+          psm_finetune_noise_mode=$psm_finetune_noise_mode \
           data_path=$data_path \
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           shuffle=$shuffle \
           save_dir=$save_dir \
           seed=12345 \
-          ifresume=False \
+          ifresume=True \
+          AutoGradForce=$AutoGradForce \
           mask_ratio=$mask_ratio \
           noise_scale=$noise_scale \
           num_pred_attn_layer=$num_pred_attn_layer \
@@ -213,3 +231,4 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_small_mol.py \
           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
           save_batch_interval=$save_batch_interval log_interval=$log_interval \
           wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project wandb_run_name=$wandb_run_name \
+          vsc_debug=True

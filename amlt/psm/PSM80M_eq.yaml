@@ -1,0 +1,111 @@
+ # Steps to run:
+# 1. copy data folder https://itpeus4data.blob.core.windows.net/shuz/data/pcq-pos-custom/ to your Azure storage blob container
+# 2. copy script mae_3d.sh in FoundationModelProp/ to your Azure storage blob container
+# 3. Specify the Azure storage account and container to use
+# 4. Submit the job with this yaml file
+
+description: PSMV0
+
+env_defaults:
+  NODES: 1
+  GPUS_PER_NODE: 4
+  WANDB_API_KEY: ""
+
+# target:
+#     service: sing
+#     name: baltic02
+
+target:
+  service: aml
+  name: es-madft-nc96-eastus2
+#     # name: gcrarca100cl1
+    # name: sfm-nd96amsra100v4-uksouth
+#     # name: sfm-nc96-westus3
+
+environment:
+  # image: yaosen/sfm-py39-torch2.2.2-cuda12.1:20240417_a
+  image: ai4s-sfm:20240531.170731
+  registry: msroctocr.azurecr.io
+  username: msroctocr
+
+# storage:
+#   blob:
+#     storage_account_name: hai1data # Storage account
+#     container_name: sfm # Container name
+#     mount_dir: /blob
+
+storage:
+    storageA:
+      storage_account_name: ai4science0eastus
+      container_name: madft-nn
+      mount_dir: /blob
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: eqv2-oc20+SPICE(200k+300k)-2M-chu
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  sku: 80G4-A100
+  priority: high
+    # sla_tier: premium
+  command:
+  - export data_path=/blob/dataset/
+  - mkdir -p /blob/psm-checkpoints
+  # - mkdir -p /blob/psm-checkpoints/EQV2-mattersim0.5+SPICE0.5-500k-06-21
+  # - export save_dir=/blob/psm-checkpoints/EQV2-mattersim0.5+SPICE0.5-500k-06-21
+  - export pbc_cutoff=20.0
+  - export pbc_expanded_num_cell_per_direction=5
+  - export pbc_expanded_token_cutoff=256
+  - export pbc_multigraph_cutoff=5.0
+  - export pbc_use_local_attention=False
+
+  - export num_pred_attn_layer=4
+
+
+  - export save_batch_interval=2500
+  - export train_batch_size=1024
+  - export val_batch_size=1024
+  - export gradient_accumulation_steps=4
+  - export val_batch_interval=0
+
+
+  - export total_num_steps=2000000
+  - export warmup_num_steps=12000
+  - export max_lr=1.5e-4
+
+  - export diffusion_noise_std=1.0
+  - export equivar_vec_init=ZERO_CENTERED_POS
+  - export strategy=DDP
+  - export fp16=False
+  - export clean_sample_ratio=1.0
+
+  - export diff_init_lattice_size=10.0
+  - export diffusion_sampling="ddpm"
+  - export num_timesteps=5000
+  - export ddpm_beta_start=1e-7
+  - export ddpm_beta_end=2e-3
+  - export ddpm_schedule=sigmoid
+
+  - export equivar_use_linear_bias=True
+  - export equivar_use_attention_bias=True
+
+  - export data_path_list="oc20/s2ef/unref/2M,SPICE-2.0.1/SPICE_PubChem_500k"
+  - export dataset_name_list="oc20,SPICE"
+  - export dataset_len_ratio_list="0.1,0.6"
+  - export dataset_split_raito="0.5,0.5"
+  - export use_unified_batch_sampler=True
+  - export rescale_loss_with_std=True
+
+  - export wandb_group=""
+  - export wandb_team=faralley
+  - export wandb_project=psm_workshop
+  - export wandb_key=1059e2793fc0c6ba4d85481bb10d9d1930e34ef1
+  # - export WANDB_RUN_NAME=equiv2-psm-mol-pro-periodic-diff-relpos-noise1-zerocentereps-diffnoise1-1xG4-fp32-ddp-unified-sampler-fastpreprocess-20240523-0943
+
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - export layers=6;export hidden_size=512;export dataset_micro_batch_size="10,10";bash scripts/psm/pretrain_psm_equiformerv2.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g

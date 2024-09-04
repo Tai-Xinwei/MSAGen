@@ -23,6 +23,7 @@ from numpy.linalg import norm
 from rdkit import Chem
 from sympy.utilities.iterables import multiset_permutations
 from torch.utils.data import Subset
+from torch_cluster import radius_graph
 from torch_geometric.data import Data
 from tqdm import tqdm
 
@@ -746,7 +747,10 @@ class SmallMolDataset(FoundationModelDataset):
     def generate_2dgraphfeat(self, data):
         N = data["num_atoms"]
         adj = torch.zeros([N, N], dtype=torch.bool)
-
+        if "edge_index" not in data or data["edge_index"] is None:
+            data["edge_attr"] = None
+            edge_index = radius_graph(data["coords"], 10)
+            data["edge_index"] = edge_index
         edge_index = torch.tensor(data["edge_index"].clone().detach(), dtype=torch.long)
         edge_attr = torch.ones((data["edge_index"].shape[1], 1), dtype=torch.long)
         attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
@@ -762,6 +766,38 @@ class SmallMolDataset(FoundationModelDataset):
         data["in_degree"] = indgree
 
         if self.args.preprocess_2d_bond_features_with_cuda:
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+            max_dist = np.amax(shortest_path_result)
+            edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
+            data["spatial_pos"] = spatial_pos
+
+        return data
+
+    @classmethod
+    def generate_graph_feature(cls, data, preprocess_2d_bond_features_with_cuda):
+        N = data["num_atoms"]
+        adj = torch.zeros([N, N], dtype=torch.bool)
+
+        edge_index = torch.tensor(data["edge_index"].clone().detach(), dtype=torch.long)
+        edge_attr = torch.ones((data["edge_index"].shape[1], 1), dtype=torch.long)
+        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+        attn_edge_type[edge_index[0, :], edge_index[1, :]] = edge_attr + 1
+        adj[edge_index[0, :], edge_index[1, :]] = True
+        indgree = adj.long().sum(dim=1).view(-1)
+
+        data["edge_index"] = edge_index
+        data["edge_attr"] = edge_attr
+        data["node_attr"] = data["token_type"].reshape(-1, 1)
+
+        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        data["in_degree"] = indgree
+
+        if preprocess_2d_bond_features_with_cuda:
             data["adj"] = adj
             data["attn_edge_type"] = attn_edge_type
         else:
@@ -795,21 +831,41 @@ class SmallMolDataset(FoundationModelDataset):
             self.env.close()
             self.env = None
 
-    def split_dataset(self, validation_ratio=0.03, sort=False):
+    def split_dataset(self, training_ratio=0.03, validation_ratio=0.2, sort=False):
         num_samples = self.num_samples
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
         random.Random(12345).shuffle(indices)
+        assert (
+            training_ratio + validation_ratio <= 1.0
+        ), f"Invalid training_ratio '{training_ratio}' and validation_ratio '{validation_ratio}'"
 
         num_validation_samples = int(num_samples * validation_ratio)
-        num_training_samples = num_samples - num_validation_samples
+        num_training_samples = int(num_samples * training_ratio)
 
         training_indices = indices[:num_training_samples]
-        validation_indices = indices[num_training_samples:]
+        validation_indices = indices[-num_validation_samples:]
 
         dataset_train = Subset(self, training_indices)
         dataset_val = Subset(self, validation_indices)
         return dataset_train, dataset_val
+
+    # def split_dataset(self, training_ratio=0.03, validation_ratio=0.2, sort=False):
+    #     num_samples = self.num_samples
+    #     # Shuffle the indices and split them into training and validation sets
+    #     indices = list(range(num_samples))
+    #     random.Random(12345).shuffle(indices)
+    #     assert training_ratio + validation_ratio <= 1.0, f"Invalid training_ratio '{training_ratio}' and validation_ratio '{validation_ratio}'"
+
+    #     num_validation_samples = int(num_samples * validation_ratio)
+    #     num_training_samples = int(num_samples * training_ratio)
+
+    #     training_indices = indices[:num_training_samples]
+    #     validation_indices = indices[:]
+
+    #     dataset_train = Subset(self, training_indices)
+    #     dataset_val = Subset(self, validation_indices)
+    #     return dataset_train, dataset_val
 
     def split_train_valid_test(self, ratio_list: list, sort=False, shuffle=True):
         num_samples = self.num_samples
