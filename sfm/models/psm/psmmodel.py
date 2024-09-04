@@ -14,9 +14,9 @@ from tqdm import tqdm
 
 from sfm.data.psm_data.utils import VOCAB
 from sfm.logging import logger
-from sfm.models.psm.equivariant.e2former import E2former
-from sfm.models.psm.equivariant.equiformer.graph_attention_transformer import Equiformer
-from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
+# from sfm.models.psm.equivariant.e2former import E2former
+# from sfm.models.psm.equivariant.equiformer.graph_attention_transformer import Equiformer
+# from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.equivariant.nodetaskhead import (
@@ -262,7 +262,7 @@ class PSMModel(Model):
         mask = masked_protein & (masked_nan | masked_inf)
         batched_data["protein_mask"] = mask
 
-    # @torch.compiler.disable(recursive=False)
+    # # @torch.compiler.disable(recursive=False)
     def _protein_pretrain_mode(
         self,
         clean_mask,
@@ -879,7 +879,7 @@ class PSMModel(Model):
         }
 
 
-@torch.compiler.disable(recursive=True)
+# @torch.compiler.disable(recursive=True)
 def center_pos(batched_data, padding_mask, clean_mask=None):
     # get center of system positions
     is_stable_periodic = batched_data["is_stable_periodic"]  # B x 3 -> B

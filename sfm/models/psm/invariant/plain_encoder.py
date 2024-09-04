@@ -30,7 +30,7 @@ class PSMPlainEncoder(nn.Module):
         # dummy param for lora, do not remove
         self.dummy = nn.Linear(1, 1, bias=False)
 
-    @torch.compiler.disable(recursive=False)
+    # @torch.compiler.disable(recursive=False)
     def forward(
         self,
         x: torch.Tensor,

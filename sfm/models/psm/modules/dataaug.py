@@ -3,7 +3,7 @@ import torch
 from scipy.spatial.transform import Rotation as R
 
 
-@torch.compiler.disable(recursive=False)
+# @torch.compiler.disable(recursive=False)
 def uniform_random_rotation(
     batch_size: int, device="cpu", dtype=torch.float32
 ) -> torch.Tensor:
