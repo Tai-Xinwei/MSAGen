@@ -60,6 +60,10 @@ class PSMModel(Model):
         loss_fn=None,
         not_init=False,
         psm_finetune_head: nn.Module = None,
+        molecule_energy_per_atom_std=1.0,
+        periodic_energy_per_atom_std=1.0,
+        molecule_force_std=1.0,
+        periodic_force_std=1.0,
     ):
         """
         Initialize the PSMModel class.
@@ -82,7 +86,14 @@ class PSMModel(Model):
         if args.rank == 0:
             logger.info(self.args)
 
-        self.net = PSM(args, self.psm_config)
+        self.net = PSM(
+            args,
+            self.psm_config,
+            molecule_energy_per_atom_std=molecule_energy_per_atom_std,
+            periodic_energy_per_atom_std=periodic_energy_per_atom_std,
+            molecule_force_std=molecule_force_std,
+            periodic_force_std=periodic_force_std,
+        )
 
         self.psm_finetune_head = psm_finetune_head
         self.checkpoint_loaded = self.reload_checkpoint()
@@ -977,7 +988,15 @@ class PSM(nn.Module):
     Class for training Physics science module
     """
 
-    def __init__(self, args, psm_config: PSMConfig):
+    def __init__(
+        self,
+        args,
+        psm_config: PSMConfig,
+        molecule_energy_per_atom_std=1.0,
+        periodic_energy_per_atom_std=1.0,
+        molecule_force_std=1.0,
+        periodic_force_std=1.0,
+    ):
         super().__init__()
         self.max_positions = args.max_positions
         self.args = args
@@ -1149,7 +1168,12 @@ class PSM(nn.Module):
             self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
 
         if self.args.AutoGradForce:
-            self.autograd_force_head = GradientHead()
+            self.autograd_force_head = GradientHead(
+                molecule_energy_per_atom_std=molecule_energy_per_atom_std,
+                periodic_energy_per_atom_std=periodic_energy_per_atom_std,
+                molecule_force_std=molecule_force_std,
+                periodic_force_std=periodic_force_std,
+            )
 
         self.num_vocab = max([VOCAB[key] for key in VOCAB]) + 1
 
@@ -1419,7 +1443,7 @@ class PSM(nn.Module):
                     mixed_attn_bias[-1] if mixed_attn_bias is not None else None,
                     padding_mask,
                     pbc_expand_batched,
-                    time_embed=None,  # time_embed,
+                    time_embed=time_embed,
                 )
         elif self.args.backbone in ["vectorvanillatransformer"]:
             decoder_x_output, decoder_vec_output = self.decoder(
@@ -1497,15 +1521,29 @@ class PSM(nn.Module):
 
                 if (
                     self.args.AutoGradForce
-                    and pbc_expand_batched is not None
-                    and (~batched_data["is_stable_periodic"]).any()
-                ):
-                    forces = self.autograd_force_head(
-                        energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
-                            dim=-1, keepdim=True
-                        ),
-                        pos,
+                    and (clean_mask.all(dim=-1)).any()
+                    and batched_data["has_forces"].any()
+                    and (
+                        batched_data["is_molecule"].any()
+                        or batched_data["is_periodic"].any()
                     )
+                ):
+                    autograd_forces = self.autograd_force_head(
+                        energy_per_atom,
+                        non_atom_mask,
+                        pos,
+                        batched_data["is_periodic"],
+                        batched_data["is_molecule"],
+                    )
+                else:
+                    autograd_forces = None
+                if (
+                    (not self.psm_config.supervise_force_from_head_when_autograd)
+                    and self.args.AutoGradForce
+                    and autograd_forces is not None
+                ):
+                    forces = autograd_forces
+                    autograd_forces = None
                 elif self.args.NoisePredForce:
                     forces = (
                         -noise_pred
@@ -1544,6 +1582,7 @@ class PSM(nn.Module):
                 total_energy = torch.zeros_like(batched_data["num_atoms"])
                 forces = torch.zeros_like(batched_data["pos"])
                 noise_pred = torch.zeros_like(batched_data["pos"])
+                autograd_forces = None
 
             if (
                 self.encoder is not None
@@ -1570,6 +1609,9 @@ class PSM(nn.Module):
             "num_atoms": batched_data["num_atoms"],
             "pos": batched_data["pos"],
         }
+
+        if autograd_forces is not None:
+            result_dict.update({"autograd_forces": autograd_forces})
 
         if self.psm_config.psm_finetune_mode:
             result_dict.update(

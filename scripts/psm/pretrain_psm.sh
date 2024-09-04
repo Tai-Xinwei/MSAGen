@@ -50,14 +50,14 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${data_path}" ] && data_path='/mntd/shiyu/dataset/psm/'
 # [ -z "${data_path}" ] && data_path='/data/peiran/blob/hai1data/sfm/psm'
-[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack1536.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data,matter-gen-force-filtered'
-[ -z "${dataset_name_list}" ] && dataset_name_list='pm6,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer,mattersim'
+[ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,matter-sim-15M-force-filtered-merged,AFDB70-plddt70.lmdb,matter-sim-15M-merged,ur50_23_bpe_pack512.lmdb,20240630_PDB_Training_Data,20240630_PDB_Training_Data,matter-gen-force-filtered'
+[ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,mattersim,afdb,mattersim,ur50,pdb,pdbcomplexmultimer,mattersim'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.2,0.025,0.35,0.2,0.1,0.05,0.05,0.025'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,2,4,2,2,2,4"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
 [ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
-[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20240723-1529'
+[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20240903-1437'
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
@@ -78,8 +78,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
 [ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
-[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=256
-[ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=5.0
+[ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
+[ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=7.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 
@@ -124,7 +124,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_rotary_embedding_for_vector}" ] && no_rotary_embedding_for_vector=False
 [ -z "${node_type_edge_method}" ] && node_type_edge_method=NON_EXCHANGABLE
 [ -z "${force_head_type}" ] && force_head_type=GATED_EQUIVARIANT
-[ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=False
+[ -z "${mlm_from_decoder_feature}" ] && mlm_from_decoder_feature=True
 [ -z "${num_3d_bias_kernel}" ] && num_3d_bias_kernel=128
 [ -z "${use_smooth_equviariant_norm}" ] && use_smooth_equviariant_norm=True
 [ -z "${unified_data_num_workers}" ] && unified_data_num_workers=0
@@ -133,6 +133,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1
 [ -z "${energy_per_atom_label_scale}" ] && energy_per_atom_label_scale=1.0
+
+[ -z "${AutoGradForce}" ] && AutoGradForce=False
+[ -z "${supervise_force_from_head_when_autograd}" ] && supervise_force_from_head_when_autograd=False
+
+[ -z "${molecule_ref_energy_source}" ] && molecule_ref_energy_source='PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train'
+[ -z "${molecule_outlier_energy_atoms}" ] && molecule_outlier_energy_atoms=''
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -265,4 +271,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           material_energy_loss_ratio=$material_energy_loss_ratio \
           molecule_energy_loss_ratio=$molecule_energy_loss_ratio \
           val_batch_log_interval=$val_batch_log_interval \
-          complex_mode_prob=\"$complex_mode_prob\"
+          complex_mode_prob=\"$complex_mode_prob\" \
+          AutoGradForce=$AutoGradForce \
+          molecule_ref_energy_source=$molecule_ref_energy_source \
+          molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms \
+          supervise_force_from_head_when_autograd=$supervise_force_from_head_when_autograd
