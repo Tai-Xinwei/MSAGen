@@ -246,11 +246,11 @@ export wandb=True
  #3mod-e2dit102-1024
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
-          wandb=$wandb wandb_group=test wandb_team=$wandb_team wandb_project=$wandb_project \
-          wandb_run_name="dit" \
+          wandb=$wandb wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          wandb_run_name=$wandb_run_name \
           clean_sample_ratio=$clean_sample_ratio \
           node_type_edge_method=EXCHANGABLE \
-          backbone=dit \
+          backbone=e2dit \
           backbone_config=e2former \
           backbone_config.num_layers=4 \
           backbone_config.irreps_node_embedding="1024x0e+1024x1e" \
@@ -265,6 +265,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           backbone_config.basis_type='gaussiansmear' \
           backbone_config.attn_biastype='share' \
           backbone_config.add_rope=True \
+          backbone_config.time_embed=False \
           encoder_embed_dim=1024 \
           encoder_attention_heads=$num_head \
           encoder_layers=12 \
