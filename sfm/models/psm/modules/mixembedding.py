@@ -462,7 +462,7 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
         if time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)
 
-        pos_embedding += time_embed
+        # pos_embedding += time_embed
 
         if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
             atom_feature_embedding = self.atom_feature_embed(
@@ -483,5 +483,5 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             padding_mask,
             time_embed,
             pos_attn_bias,
-            condition_embedding,
+            condition_embedding + time_embed,
         )

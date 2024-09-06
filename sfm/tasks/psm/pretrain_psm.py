@@ -145,7 +145,7 @@ def main(args: DictConfig) -> None:
     # define optimizer here
     if args.group_optimizer:
         optimizer = myAdam(
-            model.parameters(),
+            model,
             lr=args.max_lr,
             betas=(0.9, 0.999),
             eps=1e-8,

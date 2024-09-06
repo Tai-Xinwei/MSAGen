@@ -20,6 +20,7 @@ from sfm.models.psm.equivariant.equiformer_series import Equiformerv2SO2
 from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.equivariant.nodetaskhead import (
+    ConditionVectorGatedOutput,
     ForceGatedOutput,
     ForceVecOutput,
     NodeTaskHead,
@@ -1145,22 +1146,8 @@ class PSM(nn.Module):
                         }
                     )
                 else:
-                    # self.energy_head.update(
-                    #     {key: ScalarGatedOutput(psm_config.embedding_dim)}
-                    # )
                     self.energy_head.update(
-                        {
-                            key: nn.Sequential(
-                                nn.Linear(
-                                    psm_config.embedding_dim,
-                                    psm_config.embedding_dim,
-                                    bias=True,
-                                ),
-                                nn.SiLU(),
-                                nn.LayerNorm(psm_config.embedding_dim),
-                                nn.Linear(psm_config.embedding_dim, 1, bias=True),
-                            )
-                        }
+                        {key: ScalarGatedOutput(psm_config.embedding_dim)}
                     )
             else:
                 self.energy_head.update(
@@ -1210,7 +1197,8 @@ class PSM(nn.Module):
                     )
                 else:
                     self.forces_head.update(
-                        {key: EquivariantVectorOutput(psm_config.embedding_dim)}
+                        # {key: EquivariantVectorOutput(psm_config.embedding_dim)}
+                        {key: VectorGatedOutput(psm_config.embedding_dim)}
                     )
             else:
                 self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
@@ -1249,8 +1237,8 @@ class PSM(nn.Module):
             self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
             self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
 
-        if self.args.AutoGradForce:
-            self.autograd_force_head = GradientHead()
+        # if self.args.AutoGradForce:
+        self.autograd_force_head = GradientHead()
 
         self.num_vocab = max([VOCAB[key] for key in VOCAB]) + 1
 
@@ -1610,31 +1598,31 @@ class PSM(nn.Module):
                         self.energy_head["molecule"](encoder_output).squeeze(-1),
                     )
 
-                if self.args.diffusion_mode == "epsilon":
-                    scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
-                    logit_bias = torch.logit(
-                        batched_data["sqrt_one_minus_alphas_cumprod_t"]
-                    )
-                    scale = torch.sigmoid(scale_shift + logit_bias)
-                    noise_pred = (
-                        scale * (batched_data["pos"] - batched_data["init_pos"])
-                        + (1 - scale) * noise_pred
-                    )
-                    noise_pred_periodic = (
-                        scale * (batched_data["pos"] - batched_data["init_pos"])
-                        + (1 - scale) * noise_pred_periodic
-                    )
-                elif self.args.diffusion_mode == "x0":
-                    scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
-                    logit_bias = torch.logit(
-                        batched_data["sqrt_one_minus_alphas_cumprod_t"]
-                    )
-                    scale = torch.sigmoid(scale_shift + logit_bias)
-                    noise_pred = scale * noise_pred + (1 - scale) * batched_data["pos"]
-                else:
-                    raise ValueError(
-                        f"diffusion mode: {self.args.diffusion_mode} is not supported"
-                    )
+                # if self.args.diffusion_mode == "epsilon":
+                #     scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
+                #     logit_bias = torch.logit(
+                #         batched_data["sqrt_one_minus_alphas_cumprod_t"]
+                #     )
+                #     scale = torch.sigmoid(scale_shift + logit_bias)
+                #     noise_pred = (
+                #         scale * (batched_data["pos"] - batched_data["init_pos"])
+                #         + (1 - scale) * noise_pred
+                #     )
+                #     noise_pred_periodic = (
+                #         scale * (batched_data["pos"] - batched_data["init_pos"])
+                #         + (1 - scale) * noise_pred_periodic
+                #     )
+                # elif self.args.diffusion_mode == "x0":
+                #     scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
+                #     logit_bias = torch.logit(
+                #         batched_data["sqrt_one_minus_alphas_cumprod_t"]
+                #     )
+                #     scale = torch.sigmoid(scale_shift + logit_bias)
+                #     noise_pred = scale * noise_pred + (1 - scale) * batched_data["pos"]
+                # else:
+                #     raise ValueError(
+                #         f"diffusion mode: {self.args.diffusion_mode} is not supported"
+                #     )
 
                 if (
                     self.args.AutoGradForce

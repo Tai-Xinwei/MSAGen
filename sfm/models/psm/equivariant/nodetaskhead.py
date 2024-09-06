@@ -203,6 +203,7 @@ class VectorGatedOutput(nn.Module):
             nn.LayerNorm(hidden_channels),
         )
         self.vec_proj = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels, bias=False),
             nn.SiLU(),
             nn.LayerNorm(hidden_channels),
             nn.Linear(hidden_channels, 1, bias=False),
@@ -213,6 +214,30 @@ class VectorGatedOutput(nn.Module):
         vec = self.up_proj(x)
         vec = vec.view(x.size(0), x.size(1), 3, -1)
         x = self.vec_proj(vec * gate.unsqueeze(-2)).squeeze(-1)
+        return x
+
+
+class ConditionVectorGatedOutput(nn.Module):
+    def __init__(self, hidden_channels=768):
+        super(ConditionVectorGatedOutput, self).__init__()
+        self.up_proj = nn.Linear(hidden_channels, 3 * hidden_channels, bias=False)
+        self.gate_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
+        self.shift_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
+
+        self.vec_proj = nn.Sequential(
+            nn.SiLU(),
+            nn.LayerNorm(hidden_channels),
+            nn.Linear(hidden_channels, 1, bias=False),
+        )
+
+    def forward(self, x, c):
+        gate = self.gate_proj(c)
+        shift = self.shift_proj(c)
+        vec = self.up_proj(x)
+        vec = vec.view(x.size(0), x.size(1), 3, -1)
+        x = self.vec_proj(vec * (1 + gate.unsqueeze(-2)) + shift.unsqueeze(-2)).squeeze(
+            -1
+        )
         return x
 
 
@@ -230,6 +255,7 @@ class ScalarGatedOutput(nn.Module):
             nn.LayerNorm(hidden_channels),
         )
         self.vec_proj = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels, bias=True),
             nn.SiLU(),
             nn.LayerNorm(hidden_channels),
             nn.Linear(hidden_channels, 1, bias=True),

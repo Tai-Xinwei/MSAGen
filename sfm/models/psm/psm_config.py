@@ -173,7 +173,7 @@ class PSMConfig(GraphormerConfig):
     NoisePredForce: bool = False
     seq_only: bool = False
     freeze_backbone: bool = False
-    hard_dist_loss_raito: float = 20.0
+    hard_dist_loss_raito: float = 1.0
     use_hard_dist_loss: bool = False
     if_total_energy: bool = False
     group_optimizer: bool = False

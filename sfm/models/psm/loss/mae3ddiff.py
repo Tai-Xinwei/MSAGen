@@ -159,10 +159,15 @@ class DiffMAE3dCriterions(nn.Module):
         self.molecule_energy_loss_ratio = args.molecule_energy_loss_ratio
 
         if args.AutoGradForce:
-            self.material_force_loss_ratio = 5.0
-            self.molecule_force_loss_ratio = 10.0
-            self.material_energy_loss_ratio = 0.5
-            self.molecule_energy_loss_ratio = 1.0
+            # self.material_force_loss_ratio = 5.0
+            # self.molecule_force_loss_ratio = 10.0
+            # self.material_energy_loss_ratio = 0.5
+            # self.molecule_energy_loss_ratio = 1.0
+
+            self.material_force_loss_ratio = 1.0
+            self.molecule_force_loss_ratio = 1.0
+            self.material_energy_loss_ratio = 0.2
+            self.molecule_energy_loss_ratio = 0.2
 
             logger.info("overriding force and energy loss ratio in autograd mode:")
             logger.info(f"{self.material_force_loss_ratio=}")
@@ -321,8 +326,26 @@ class DiffMAE3dCriterions(nn.Module):
         delta_pos_label = (pos_label.unsqueeze(1) - pos_label.unsqueeze(2)).norm(dim=-1)
         delta_pos_pred = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1)
         pair_protein_mask = is_protein.unsqueeze(1) & is_protein.unsqueeze(2)
+        pair_ligand_mask = is_ligand.unsqueeze(1) & is_ligand.unsqueeze(2)
 
-        dist_mask = (delta_pos_label < 15) & (delta_pos_label > 0.1) & pair_protein_mask
+        dist_mask_protein_near = (
+            (delta_pos_label < 5) & (delta_pos_label > 0.1) & pair_protein_mask
+        )
+        dist_mask_protein_mid = (
+            (delta_pos_label >= 5) & (delta_pos_label < 10) & pair_protein_mask
+        )
+        dist_mask_protein_far = (
+            (delta_pos_label >= 10) & (delta_pos_label < 15) & pair_protein_mask
+        )
+        dist_mask_ligand = (
+            (delta_pos_label < 5) & (delta_pos_label > 0.1) & pair_ligand_mask
+        )
+
+        dist_mask_protein = (
+            dist_mask_protein_near | dist_mask_protein_mid | dist_mask_protein_far
+        )
+        dist_mask = dist_mask_protein | dist_mask_ligand
+
         delta = torch.abs(delta_pos_label - delta_pos_pred)
         delta1 = delta[dist_mask]
         error = 0.25 * (
@@ -337,20 +360,38 @@ class DiffMAE3dCriterions(nn.Module):
         time_step = model_output["time_step"]
 
         time_coefficient = ((1 - time_step) * torch.exp(-time_step / 0.4)).unsqueeze(-1)
-        hard_dist_loss = (delta * time_coefficient)[dist_mask].mean()
+
+        hard_dist_loss = (delta * time_coefficient)[dist_mask_protein_near].mean() * 2
+        if dist_mask_protein_mid.any():
+            hard_dist_loss += (delta * time_coefficient)[dist_mask_protein_mid].mean()
+        if dist_mask_protein_far.any():
+            hard_dist_loss += (delta * time_coefficient)[
+                dist_mask_protein_far
+            ].mean() * 0.25
 
         protein_ligand_mask = (is_protein.unsqueeze(1) & is_ligand.unsqueeze(2)) | (
             is_ligand.unsqueeze(1) & is_protein.unsqueeze(2)
         )
-        inter_dist_mask = (
-            (delta_pos_label < 8) & (delta_pos_label > 0.1) & protein_ligand_mask
+        inter_dist_mask_near = (
+            (delta_pos_label <= 4) & (delta_pos_label > 0.1) & protein_ligand_mask
+        )
+        inter_dist_mask_far = (
+            (delta_pos_label < 8) & (delta_pos_label > 4) & protein_ligand_mask
         )
 
-        if inter_dist_mask.any():
+        if inter_dist_mask_near.any():
             time_coefficien_inter = (
                 (1 - time_step**2) * torch.exp(-time_step)
             ).unsqueeze(-1)
-            inter_dist_loss = (delta * time_coefficien_inter)[inter_dist_mask].mean()
+            inter_dist_loss = (delta * time_coefficien_inter)[
+                inter_dist_mask_near
+            ].mean()
+
+            if inter_dist_mask_far.any():
+                inter_dist_loss += (delta * time_coefficien_inter)[
+                    inter_dist_mask_far
+                ].mean() * 0.5
+
             num_inter_dist_loss = 1
         else:
             inter_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
@@ -509,7 +550,7 @@ class DiffMAE3dCriterions(nn.Module):
                             noise_pred.to(noise_label.dtype), noise_label
                         )
 
-                    self.noise_loss(
+                    unreduced_periodic_noise_loss = self.noise_loss(
                         noise_pred_periodic.to(noise_label.dtype), noise_label
                     )
 
@@ -517,7 +558,7 @@ class DiffMAE3dCriterions(nn.Module):
                     unreduced_noise_loss = self.noise_loss(
                         noise_pred.to(noise_label.dtype), noise_label
                     )
-                    self.noise_loss(
+                    unreduced_periodic_noise_loss = self.noise_loss(
                         noise_pred_periodic.to(noise_label.dtype), noise_label
                     )
                     smooth_lddt_loss = torch.tensor(
@@ -561,7 +602,7 @@ class DiffMAE3dCriterions(nn.Module):
                 periodic_noise_loss,
                 num_periodic_noise_sample,
             ) = self._reduce_force_or_noise_loss(
-                unreduced_noise_loss,  # unreduced_noise_loss,
+                unreduced_periodic_noise_loss,  # unreduced_periodic_noise_loss,
                 (~clean_mask) & is_periodic.unsqueeze(-1),
                 diff_loss_mask & ~protein_mask.any(dim=-1),
                 is_molecule,
@@ -735,14 +776,13 @@ class DiffMAE3dCriterions(nn.Module):
         if not self.seq_only:
             loss = (
                 self.molecule_energy_loss_ratio * molecule_energy_loss
-                + self.molecule_force_loss_ratio * molecule_force_loss
+                # + self.molecule_force_loss_ratio * molecule_force_loss
                 + self.material_energy_loss_ratio * periodic_energy_loss
-                + self.material_force_loss_ratio * periodic_force_loss
+                # + self.material_force_loss_ratio * periodic_force_loss
                 + molecule_noise_loss
                 + periodic_noise_loss
                 + protein_noise_loss
                 + complex_noise_loss
-                # + noise_loss
                 + aa_mlm_loss
                 + smooth_lddt_loss
             )
