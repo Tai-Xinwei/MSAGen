@@ -452,7 +452,7 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             init_pos_mask = (
                 (init_pos != 0.0).any(dim=-1, keepdim=False).any(dim=-1, keepdim=False)
             )
-            pos_embedding[init_pos_mask, :] = init_pos_embedding[init_pos_mask, :]
+            pos_embedding[init_pos_mask, :] += init_pos_embedding[init_pos_mask, :]
 
             init_pos_attn_bias = init_pos_attn_bias.masked_fill(
                 ~init_pos_mask.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), 0.0

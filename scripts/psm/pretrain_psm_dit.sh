@@ -46,7 +46,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
-[ -z "${mode_prob}" ] && mode_prob='0.2,0.6,0.2'
+[ -z "${mode_prob}" ] && mode_prob='0.2,0.7,0.1'
 [ -z "${complex_mode_prob}" ] && complex_mode_prob='0.4,0.4,0.2,0.0' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
@@ -145,7 +145,7 @@ export MKL_THREADING_LAYER='GNU'
 
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 [ -z "${group_optimizer}" ] && group_optimizer=True
-[ -z "${group_lr_ratio}" ] && group_lr_ratio=5.0
+[ -z "${group_lr_ratio}" ] && group_lr_ratio=2.0
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
 [ -z "${NoisePredForce}" ] && NoisePredForce=False
 [ -z "${force_head_type}" ] && force_head_type=MLP

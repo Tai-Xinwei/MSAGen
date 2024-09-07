@@ -806,16 +806,16 @@ class PSMModel(Model):
 
         batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
 
-        if self.args.backbone in [
-            "vanillatransformer",
-            "vanillatransformer_equiv",
-            "dit",
-            "e2dit",
-            "vectorvanillatransformer",
-        ]:
-            if_recenter = False
-        else:
-            if_recenter = True
+        # if self.args.backbone in [
+        #     "vanillatransformer",
+        #     "vanillatransformer_equiv",
+        #     "dit",
+        #     "e2dit",
+        #     "vectorvanillatransformer",
+        # ]:
+        #     if_recenter = False
+        # else:
+        if_recenter = True
 
         if if_recenter:
             batched_data["pos"] = center_pos(

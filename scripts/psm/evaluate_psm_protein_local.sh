@@ -13,10 +13,10 @@ MODEL_CONFIG=PSM1B_DIT
 # SMPL_PATH=/casp/sfm/sfmexpresults/jianwei/psmv1_dit_v13_1b/checkpoints/global_step75000/prediction
 
 num_sampling_time=5
-# global_step=global_step5000
-# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints_2
-global_step=global_step4000
-ckpt_folder_path=/data/peiran/output
+global_step=global_step37500
+ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v16_1b_stage1/checkpoints
+# global_step=global_step4000
+# ckpt_folder_path=/data/peiran/output
 
 CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
 SMPL_PATH=/home/peiranjin/output/$global_step/prediction
@@ -29,7 +29,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   mode_prob=\"0.0,1.0,0.0\" \
   max_length=2048 \
   mask_ratio=0.0 \
-  data_path=/casp/sfm/psm \
+  data_path=/fastdata/peiran/psm \
   data_path_list=ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb \
   dataset_name_list=proteintest \
   dataset_split_raito=1.0 \

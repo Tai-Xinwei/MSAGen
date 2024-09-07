@@ -125,6 +125,7 @@ molecule_energy_loss_ratio: 1.0
 energy_per_atom_label_scale: 1.0
 molecule_energy_per_atom_std_override: 1.0
 decoder_feat4energy: false
+encoderfeat4noise: true
 AutoGradForce: false
 NoisePredForce: false
 seq_only: false
