@@ -18,6 +18,7 @@ class VecInitApproach(Enum):
 
 class DiffusionTrainingLoss(Enum):
     L1: str = "L1"
+    L2: str = "L2"
     MSE: str = "MSE"
     SmoothL1: str = "SmoothL1"
 

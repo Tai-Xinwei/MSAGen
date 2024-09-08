@@ -133,6 +133,8 @@ class DiffMAE3dCriterions(nn.Module):
             self.noise_loss = nn.MSELoss(reduction="none")
         elif self.args.diffusion_training_loss == DiffusionTrainingLoss.SmoothL1:
             self.noise_loss = nn.SmoothL1Loss(reduction="none", beta=2.0)
+        elif self.args.diffusion_training_loss == DiffusionTrainingLoss.L2:
+            self.noise_loss = nn.MSELoss(reduction="none")
         else:
             raise ValueError(
                 f"Invalid diffusion training loss type: {self.args.diffusion_training_loss}"
@@ -637,6 +639,12 @@ class DiffMAE3dCriterions(nn.Module):
                 1.0,
                 1.0,
             )
+
+            if self.args.diffusion_training_loss == DiffusionTrainingLoss.L2:
+                molecule_noise_loss = torch.sqrt(molecule_noise_loss)
+                periodic_noise_loss = torch.sqrt(periodic_noise_loss)
+                protein_noise_loss = torch.sqrt(protein_noise_loss)
+                complex_noise_loss = torch.sqrt(complex_noise_loss)
 
             # energy loss
             if self.if_total_energy:
