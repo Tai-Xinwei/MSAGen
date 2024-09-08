@@ -118,6 +118,8 @@ class DiffMAE3dCriterions(nn.Module):
 
         if self.args.force_loss_type == ForceLoss.L1:
             self.force_loss = nn.L1Loss(reduction="none")
+        elif self.args.force_loss_type == ForceLoss.L2:
+            self.force_loss = nn.L1Loss(reduction="none")
         elif self.args.force_loss_type == ForceLoss.MSE:
             self.force_loss = nn.MSELoss(reduction="none")
         elif self.args.force_loss_type == ForceLoss.SmoothL1:
@@ -716,6 +718,11 @@ class DiffMAE3dCriterions(nn.Module):
                 self.molecule_force_std,
                 self.periodic_force_std,
             )
+
+            if self.args.force_loss_type == ForceLoss.L2:
+                molecule_force_loss = torch.sqrt(molecule_force_loss)
+                periodic_force_loss = torch.sqrt(periodic_force_loss)
+
         else:
             energy_loss = torch.tensor(
                 0.0, device=energy_per_atom_label.device, requires_grad=True

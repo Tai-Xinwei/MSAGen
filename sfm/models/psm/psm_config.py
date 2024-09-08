@@ -28,6 +28,7 @@ class DiffusionTrainingLoss(Enum):
 
 class ForceLoss(Enum):
     L1: str = "L1"
+    L2: str = "L2"
     MSE: str = "MSE"
     SmoothL1: str = "SmoothL1"
     NoiseTolerentL1: str = "NoiseTolerentL1"

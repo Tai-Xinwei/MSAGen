@@ -8,13 +8,15 @@
 # MODEL_CONFIG=PSM300M_DIT
 # CKPT_PATH=/casp/sfm/sfmexpresults/peiran/psmv1_dit_v13_300m/checkpoints/global_step80000/mp_rank_00_model_states.pt
 # SMPL_PATH=/casp/sfm/sfmexpresults/jianwei/psmv1_dit_v13_300m/checkpoints/global_step80000/prediction
-MODEL_CONFIG=PSM1B_DIT
 # CKPT_PATH=/casp/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step75000/mp_rank_00_model_states.pt
 # SMPL_PATH=/casp/sfm/sfmexpresults/jianwei/psmv1_dit_v13_1b/checkpoints/global_step75000/prediction
 
+MODEL_CONFIG=PSM3B_DIT
 num_sampling_time=5
-global_step=global_step47500
-ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v16_1b_stage1/checkpoints
+# global_step=global_step47500
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v16_1b_stage1/checkpoints
+global_step=global_step12500
+ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b/checkpoints
 # global_step=global_step4000
 # ckpt_folder_path=/data/peiran/output
 

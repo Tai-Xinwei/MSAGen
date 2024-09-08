@@ -149,7 +149,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
 [ -z "${NoisePredForce}" ] && NoisePredForce=False
 [ -z "${force_head_type}" ] && force_head_type=MLP
-[ -z "${force_loss_type}" ] && force_loss_type=L1
+[ -z "${force_loss_type}" ] && force_loss_type=L2
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1.0
 [ -z "${molecule_force_loss_ratio}" ] && molecule_force_loss_ratio=1.0
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
@@ -191,7 +191,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
-[ -z "${diffusion_training_loss}" ] && diffusion_training_loss="SmoothL1"
+[ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L2"
 
 [ -z "${num_timesteps}" ] && num_timesteps=5000
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
