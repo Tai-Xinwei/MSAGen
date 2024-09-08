@@ -13,7 +13,7 @@ MODEL_CONFIG=PSM1B_DIT
 # SMPL_PATH=/casp/sfm/sfmexpresults/jianwei/psmv1_dit_v13_1b/checkpoints/global_step75000/prediction
 
 num_sampling_time=5
-global_step=global_step37500
+global_step=global_step47500
 ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v16_1b_stage1/checkpoints
 # global_step=global_step4000
 # ckpt_folder_path=/data/peiran/output

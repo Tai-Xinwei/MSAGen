@@ -132,7 +132,7 @@ class DiffMAE3dCriterions(nn.Module):
         elif self.args.diffusion_training_loss == DiffusionTrainingLoss.MSE:
             self.noise_loss = nn.MSELoss(reduction="none")
         elif self.args.diffusion_training_loss == DiffusionTrainingLoss.SmoothL1:
-            self.noise_loss = nn.SmoothL1Loss(reduction="none")
+            self.noise_loss = nn.SmoothL1Loss(reduction="none", beta=2.0)
         else:
             raise ValueError(
                 f"Invalid diffusion training loss type: {self.args.diffusion_training_loss}"
@@ -305,7 +305,7 @@ class DiffMAE3dCriterions(nn.Module):
         # pos_pred = torch.einsum("bij,bkj->bki", R.float(), pos_pred.float()) + T.float()
 
         # smooth lddt loss
-        pos_label = model_output["ori_pos"]
+        pos_label = model_output["ori_pos"].float()
         B, L = pos_label.shape[:2]
 
         # make is_protein mask contain ligand in complex data
@@ -535,7 +535,7 @@ class DiffMAE3dCriterions(nn.Module):
                         # )
 
                         aligned_pos_label = (
-                            torch.einsum("bij,bkj->bki", R, pos_label.float())
+                            torch.einsum("bij,bkj->bki", R.float(), pos_label.float())
                             + T.float()
                         )
                         unreduced_noise_loss = self.noise_loss(
@@ -781,11 +781,19 @@ class DiffMAE3dCriterions(nn.Module):
                 # + self.material_force_loss_ratio * periodic_force_loss
                 + molecule_noise_loss
                 + periodic_noise_loss
-                + protein_noise_loss
-                + complex_noise_loss
+                + 2.0 * protein_noise_loss
+                + 2.0 * complex_noise_loss
                 + aa_mlm_loss
-                + smooth_lddt_loss
             )
+
+            if torch.any(torch.isnan(smooth_lddt_loss)) or torch.any(
+                torch.isinf(smooth_lddt_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in smooth_lddt_loss: {smooth_lddt_loss}"
+                )
+            else:
+                loss += smooth_lddt_loss
 
             if self.args.use_hard_dist_loss:
                 inter_dist_loss_ratio = (
@@ -793,16 +801,36 @@ class DiffMAE3dCriterions(nn.Module):
                     if num_pddt_loss > 0
                     else 0
                 )
-                # inter_dist_loss_ratio = 0.01
-                loss += self.hard_dist_loss_raito * (
-                    hard_dist_loss + inter_dist_loss_ratio * inter_dist_loss
-                )
+
+                if torch.any(torch.isnan(hard_dist_loss)) or torch.any(
+                    torch.isinf(hard_dist_loss)
+                ):
+                    logger.error(
+                        f"NaN or inf detected in hard_dist_loss: {hard_dist_loss}"
+                    )
+                else:
+                    loss += self.hard_dist_loss_raito * hard_dist_loss
+
+                if torch.any(torch.isnan(inter_dist_loss)) or torch.any(
+                    torch.isinf(inter_dist_loss)
+                ):
+                    logger.error(
+                        f"NaN or inf detected in inter_dist_loss: {inter_dist_loss}"
+                    )
+                else:
+                    loss += (
+                        self.hard_dist_loss_raito
+                        * inter_dist_loss_ratio
+                        * inter_dist_loss
+                    )
 
             if torch.any(torch.isnan(loss)) or torch.any(torch.isinf(loss)):
                 logger.error(
-                    f"NaN or inf detected in loss: {loss}, molecule_energy_loss: {molecule_energy_loss}, molecule_force_loss: {molecule_force_loss}, periodic_energy_loss: {periodic_energy_loss}, periodic_force_loss: {periodic_force_loss}, molecule_noise_loss: {molecule_noise_loss}, periodic_noise_loss: {periodic_noise_loss}, protein_noise_loss: {protein_noise_loss}, complex_noise_loss: {complex_noise_loss}, noise_loss: {noise_loss}, aa_mlm_loss: {aa_mlm_loss}, smooth_lddt_loss: {smooth_lddt_loss}"
+                    f"NaN or inf detected in loss: {loss}, molecule_energy_loss: {molecule_energy_loss}, molecule_force_loss: {molecule_force_loss}, periodic_energy_loss: {periodic_energy_loss}, periodic_force_loss: {periodic_force_loss}, molecule_noise_loss: {molecule_noise_loss}, periodic_noise_loss: {periodic_noise_loss}, protein_noise_loss: {protein_noise_loss}, complex_noise_loss: {complex_noise_loss}, noise_loss: {noise_loss}, aa_mlm_loss: {aa_mlm_loss}"
                 )
-                torch.tensor(0.0, device=atomic_numbers.device, requires_grad=True)
+                loss = torch.tensor(
+                    0.0, device=atomic_numbers.device, requires_grad=True
+                )
         else:
             loss = aa_mlm_loss
 
@@ -810,7 +838,7 @@ class DiffMAE3dCriterions(nn.Module):
         # for loss does not exist in every example of the batch, use a tuple, where the first element is the averaged loss value
         # and the second element is the number of samples (or token numbers) in the batch with that loss considered
         logging_output = {
-            "total_loss": loss,
+            "total_loss": loss.to(torch.float32),
             "energy_loss": (float(energy_loss.detach()), int(num_energy_sample)),
             "molecule_energy_loss": (
                 float(molecule_energy_loss.detach()),

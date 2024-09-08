@@ -54,6 +54,7 @@ class PSMMix3dEmbedding(nn.Module):
         self.pos_embedding_proj = nn.Linear(
             psm_config.num_3d_bias_kernel, psm_config.embedding_dim
         )
+        self.psm_config = psm_config
 
     @torch.compiler.disable(recursive=False)
     def center_pos(self, expand_pos, expand_mask):
@@ -274,12 +275,14 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
         batched_data: torch.Tensor,
         pbc_expand_batched: Optional[Dict[str, Tensor]] = None,
     ):
-        pos = pos.to(self.pos_emb.weight.dtype)
+        pos = pos.to(self.pos_emb.weight.dtype)  # / self.psm_config.diffusion_noise_std
 
-        inf_nan_mask = batched_data["protein_mask"].any(dim=-1)
+        # inf_nan_mask = batched_data["protein_mask"].any(dim=-1)
 
         if pbc_expand_batched is not None:
-            expand_pos = expand_pos.to(self.pos_emb.weight.dtype)
+            expand_pos = expand_pos.to(
+                self.pos_emb.weight.dtype
+            )  # / self.psm_config.diffusion_noise_std
             expand_pos = torch.cat([pos, expand_pos], dim=1)
             expand_mask = torch.cat(
                 [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
@@ -311,9 +314,7 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             )
         else:
             delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
-            padding_mask = (
-                padding_mask | inf_nan_mask | batched_data["token_id"].eq(156)
-            )
+            padding_mask = padding_mask | batched_data["token_id"].eq(156)
             expand_mask = padding_mask
             expand_molecule_mask = molecule_mask
             expand_clean_mask = clean_mask

@@ -435,7 +435,7 @@ class PSMModel(Model):
         set diffusion noise here
         """
 
-        ori_pos = center_pos(batched_data, padding_mask)
+        ori_pos = center_pos(batched_data, padding_mask).float()
         ori_pos = ori_pos.masked_fill(padding_mask.unsqueeze(-1), 0.0)
 
         self._create_initial_pos_for_diffusion(batched_data)
@@ -452,7 +452,7 @@ class PSMModel(Model):
                 ori_pos.size(0), 3, device=ori_pos.device, dtype=ori_pos.dtype
             ).unsqueeze(1)
             ori_pos = torch.bmm(ori_pos, R) + T
-            batched_data["forces"] = torch.bmm(batched_data["forces"], R)
+            batched_data["forces"] = torch.bmm(batched_data["forces"].float(), R)
             # batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
             # batched_data["cell"] = torch.bmm(batched_data["cell"], R)
 
