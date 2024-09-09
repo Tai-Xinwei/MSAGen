@@ -61,10 +61,20 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="4"
 
-# [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered-merged'
+# [ -z "${data_path_list}" ] && data_path_list='matter-sim-15M-merged'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='8'
+
+[ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered'
+[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16'
+
+# [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered,matter-sim-15M-merged'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim,mattersim'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.5'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='8,8'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,afdb,pdbcomplexmultimer'
@@ -78,11 +88,11 @@ export MKL_THREADING_LAYER='GNU'
 # # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,8,8,2'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64,16,24,16,12'
 
-[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240630_PDB_Training_Data,20240101_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdbcomplexmultimer,pdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.45,0.05'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,16,6'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='8,8,2'
+# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240630_PDB_Training_Data,20240101_PDB_Training_Data'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdbcomplexmultimer,pdb'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.45,0.05'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,16,6'
+# # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='8,8,2'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,afdb,pdbcomplexmultimer'
@@ -149,7 +159,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${AutoGradForce}" ] && AutoGradForce=False
 [ -z "${NoisePredForce}" ] && NoisePredForce=False
 [ -z "${force_head_type}" ] && force_head_type=MLP
-[ -z "${force_loss_type}" ] && force_loss_type=L2
+[ -z "${force_loss_type}" ] && force_loss_type=L1
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1.0
 [ -z "${molecule_force_loss_ratio}" ] && molecule_force_loss_ratio=1.0
 [ -z "${material_energy_loss_ratio}" ] && material_energy_loss_ratio=1.0
@@ -310,7 +320,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
-          seed=6669 \
+          seed=6666 \
           mask_ratio=$mask_ratio \
           d_tilde=$d_tilde \
           strategy=$strategy \
@@ -353,7 +363,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size \
           unified_data_num_workers=$unified_data_num_workers group_optimizer=$group_optimizer group_lr_ratio=$group_lr_ratio \
-          # ifresume=True \
+          ifresume=True \
           # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
 
 sleep infinity

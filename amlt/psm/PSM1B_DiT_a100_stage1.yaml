@@ -98,7 +98,7 @@ jobs:
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
   - export save_batch_interval=2500
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v15_1b/checkpoints/global_step15000/mp_rank_00_model_states.pt
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v16_1b_stage1/checkpoints/global_step30000/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
   # - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v15_1b_stage2/checkpoints
   - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v16_1b_stage1/checkpoints

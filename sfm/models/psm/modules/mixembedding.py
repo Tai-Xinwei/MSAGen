@@ -261,7 +261,8 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
         self.mol_graph_2d_bond_feat = nn.Embedding(
             2, psm_config.num_3d_bias_kernel // 2
         )
-        # self.pair_token_edge_emb = nn.Embedding(psm_config.num_edges, psm_config.num_3d_bias_kernel//2, padding_idx=0)
+
+        # self.init_pos_emb = nn.Linear(3, psm_config.embedding_dim, bias=False)
 
     @torch.compiler.disable(recursive=False)
     def _pos_emb(
@@ -437,7 +438,8 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
         )
 
         if "init_pos" in batched_data and (batched_data["init_pos"] != 0.0).any():
-            init_pos = batched_data["init_pos"]
+            init_pos = batched_data["init_pos"].to(self.pos_emb.weight.dtype)
+            # init_pos_embedding = self.init_pos_emb(init_pos)
             init_pos_embedding, init_pos_attn_bias = self._pos_emb(
                 init_pos,
                 pbc_expand_batched["init_expand_pos"]
@@ -462,8 +464,6 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
 
         if time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)
-
-        # pos_embedding += time_embed
 
         if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
             atom_feature_embedding = self.atom_feature_embed(
