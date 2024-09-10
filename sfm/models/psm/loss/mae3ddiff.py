@@ -119,7 +119,7 @@ class DiffMAE3dCriterions(nn.Module):
         if self.args.force_loss_type == ForceLoss.L1:
             self.force_loss = nn.L1Loss(reduction="none")
         elif self.args.force_loss_type == ForceLoss.L2:
-            self.force_loss = nn.L1Loss(reduction="none")
+            self.force_loss = nn.MSELoss(reduction="none")
         elif self.args.force_loss_type == ForceLoss.MSE:
             self.force_loss = nn.MSELoss(reduction="none")
         elif self.args.force_loss_type == ForceLoss.SmoothL1:

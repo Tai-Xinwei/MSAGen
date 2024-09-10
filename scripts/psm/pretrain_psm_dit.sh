@@ -7,13 +7,12 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 
-# [ -z "${layers}" ] && layers=36
-# [ -z "${hidden_size}" ] && hidden_size=2048
-# [ -z "${ffn_size}" ] && ffn_size=8192
-# [ -z "${num_head}" ] && num_head=32
-[ -z "${layers}" ] && layers=12
-[ -z "${hidden_size}" ] && hidden_size=1024
-[ -z "${ffn_size}" ] && ffn_size=4096
+[ -z "${layers}" ] && layers=36
+[ -z "${hidden_size}" ] && hidden_size=2048
+[ -z "${ffn_size}" ] && ffn_size=8192
+# [ -z "${layers}" ] && layers=12
+# [ -z "${hidden_size}" ] && hidden_size=1024
+# [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -66,10 +65,10 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='8'
 
-[ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered'
-[ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16'
+# [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim'
+# [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16'
 
 # [ -z "${data_path_list}" ] && data_path_list='matter-gen-force-filtered,matter-sim-15M-merged'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='mattersim,mattersim'
@@ -88,11 +87,11 @@ export MKL_THREADING_LAYER='GNU'
 # # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,8,8,2'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64,16,24,16,12'
 
-# [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240630_PDB_Training_Data,20240101_PDB_Training_Data'
-# [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdbcomplexmultimer,pdb'
-# [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.45,0.05'
+[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240630_PDB_Training_Data,20240101_PDB_Training_Data'
+[ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdbcomplexmultimer,pdb'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.45,0.05'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,16,6'
-# # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='8,8,2'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='2,2,1'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,afdb,pdbcomplexmultimer'
@@ -175,8 +174,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-# [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v13_3b/checkpoints/global_step5000/mp_rank_00_model_states.pt"
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/output/dit300m/global_step16000/mp_rank_00_model_states.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b/checkpoints/global_step32500/mp_rank_00_model_states.pt"
+# [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/output/dit300m/global_step16000/mp_rank_00_model_states.pt"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit300m'
 
 [ -z "${wandb_group}" ] && wandb_group=psm_dev_vt
@@ -220,7 +219,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_2d_atom_features}" ] && use_2d_atom_features=True
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
-[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=False
+[ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
 [ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
@@ -363,7 +362,6 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size \
           unified_data_num_workers=$unified_data_num_workers group_optimizer=$group_optimizer group_lr_ratio=$group_lr_ratio \
-          ifresume=True \
-          # finetune_from_checkpoint_dir=$loadcheck_path finetune_from_checkpoint_id=$finetune_from_checkpoint_id \
+          # ifresume=True \
 
 sleep infinity

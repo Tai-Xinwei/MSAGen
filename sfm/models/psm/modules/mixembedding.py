@@ -262,7 +262,7 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             2, psm_config.num_3d_bias_kernel // 2
         )
 
-        # self.init_pos_emb = nn.Linear(3, psm_config.embedding_dim, bias=False)
+        self.init_pos_emb = nn.Linear(3, psm_config.embedding_dim, bias=False)
 
     @torch.compiler.disable(recursive=False)
     def _pos_emb(
@@ -439,28 +439,29 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
 
         if "init_pos" in batched_data and (batched_data["init_pos"] != 0.0).any():
             init_pos = batched_data["init_pos"].to(self.pos_emb.weight.dtype)
-            # init_pos_embedding = self.init_pos_emb(init_pos)
-            init_pos_embedding, init_pos_attn_bias = self._pos_emb(
-                init_pos,
-                pbc_expand_batched["init_expand_pos"]
-                if pbc_expand_batched is not None
-                else None,
-                batched_data["adj"],
-                clean_mask,
-                molecule_mask,
-                padding_mask,
-                batched_data,
-                pbc_expand_batched=pbc_expand_batched,
-            )
+            init_pos_embedding = self.init_pos_emb(init_pos)
+            # init_pos_embedding, init_pos_attn_bias = self._pos_emb(
+            #     init_pos,
+            #     pbc_expand_batched["init_expand_pos"]
+            #     if pbc_expand_batched is not None
+            #     else None,
+            #     batched_data["adj"],
+            #     clean_mask,
+            #     molecule_mask,
+            #     padding_mask,
+            #     batched_data,
+            #     pbc_expand_batched=pbc_expand_batched,
+            # )
+
             init_pos_mask = (
                 (init_pos != 0.0).any(dim=-1, keepdim=False).any(dim=-1, keepdim=False)
             )
             pos_embedding[init_pos_mask, :] += init_pos_embedding[init_pos_mask, :]
 
-            init_pos_attn_bias = init_pos_attn_bias.masked_fill(
-                ~init_pos_mask.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), 0.0
-            )
-            pos_attn_bias += init_pos_attn_bias
+            # init_pos_attn_bias = init_pos_attn_bias.masked_fill(
+            #     ~init_pos_mask.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), 0.0
+            # )
+            # pos_attn_bias += init_pos_attn_bias
 
         if time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)
