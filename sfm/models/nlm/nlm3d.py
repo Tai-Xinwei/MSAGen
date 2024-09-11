@@ -201,7 +201,7 @@ class NLM3dModel(SFMPipelineModelMixin):
             seq_length=args.seq_length,
             rotary_percent=args.rotary_percent,
         )
-
+        print(f"true rope_theta:{args.rope_theta}")
         return config
 
     def forward(self, input_tuple: Tuple[torch.Tensor, torch.Tensor]):
