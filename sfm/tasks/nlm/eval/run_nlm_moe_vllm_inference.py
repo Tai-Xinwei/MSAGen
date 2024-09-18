@@ -4,13 +4,13 @@ import os
 import pickle as pkl
 from glob import glob
 
-from moe_inference_module import SFMMoEGenerator
+from mixtral_8x7b_vllm_infer_mod import SFMMoEVLLMGenerator
 from tqdm import tqdm
 
 
-class NLMMoEInferencer:
-    def __init__(self, input_dir, output_dir, mixtral_path, nlm_path, local_path):
-        self.generator = SFMMoEGenerator(mixtral_path, nlm_path, local_path)
+class NLMMoEVLLMInferencer:
+    def __init__(self, input_dir, output_dir, mixtral_path, nlm_local_path):
+        self.generator = SFMMoEVLLMGenerator(mixtral_path, nlm_local_path)
         self.input_dir = input_dir
         self.output_dir = output_dir
         if not os.path.exists(output_dir):
@@ -47,12 +47,22 @@ class NLMMoEInferencer:
             with open(fn, "r", encoding="utf8") as fr:
                 all_lines = [e.strip() for e in fr]
 
-            buffer = []
+            qa_gt_pairs = []
+            questions = []
             for idx, test_sample in tqdm(enumerate(all_lines), total=len(all_lines)):
-                q = test_sample.split("\t")[0].strip()
-                r0 = self.generator.chat(q, do_sample=False)
-                r1 = self.generator.chat(q, do_sample=True)
-                buffer.append((test_sample, r0, r1))
+                question = test_sample.split("\t")[0].strip()
+                qa_gt_pairs.append(test_sample)
+                questions.append(question)
+                # r0 = self.generator.chat(q, do_sample=False)
+                # r1 = self.generator.chat(q, do_sample=True)
+                # buffer.append((test_sample, r0, r1))
+
+            beam_search_responses = self.generator.chat_batch(
+                questions, do_sample=False
+            )
+            sampled_responses = self.generator.chat_batch(questions, do_sample=True)
+
+            buffer = list(zip(qa_gt_pairs, beam_search_responses, sampled_responses))
 
             with open(fn_out, "wb") as fw:
                 pkl.dump(buffer, fw)
@@ -68,7 +78,7 @@ class NLMMoEInferencer:
         for fn in score_pred_file_paths:
             print("Checking file: {}".format(fn))
             basename = os.path.basename(fn)
-            fn_out = basename + ".score.pkl"
+            fn_out = basename.replace(".txt", "").replace(".tsv", "") + ".score.pkl"
             fn_out = os.path.join(self.output_dir, fn_out)
 
             if os.path.exists(fn_out):
@@ -80,21 +90,20 @@ class NLMMoEInferencer:
             with open(fn, "r", encoding="utf8") as fr:
                 all_lines = [e.strip() for e in fr]
 
-            buffer = []
+            questions = []
             for idx, test_sample in tqdm(enumerate(all_lines), total=len(all_lines)):
-                q = test_sample.split("\t")[0].strip()
-                prob = self.generator.extract_first_token_prob(q)
-                buffer.append(prob)
+                question = test_sample.split("\t")[0].strip()
+                questions.append(question)
+            probs = self.generator.extract_batch_first_token_prob(questions)
 
             with open(fn_out, "wb") as fw:
-                pkl.dump(buffer, fw)
+                pkl.dump(probs, fw)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Generate responses for inference")
     parser.add_argument("--mixtral_path", type=str, required=True, help="")
-    parser.add_argument("--nlm_path", type=str, required=True, help="")
-    parser.add_argument("--local_path", type=str, required=True, help="")
+    parser.add_argument("--nlm_local_path", type=str, required=True, help="")
     parser.add_argument(
         "--input_dir", type=str, required=True, help="Input directory path"
     )
@@ -107,12 +116,11 @@ def parse_args():
 
 def main():
     args = parse_args()
-    inferencer = NLMMoEInferencer(
+    inferencer = NLMMoEVLLMInferencer(
         args.input_dir,
         args.output_dir,
         args.mixtral_path,
-        args.nlm_path,
-        args.local_path,
+        args.nlm_local_path,
     )
     inferencer.generate_scores()
     inferencer.generate_responses()

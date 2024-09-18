@@ -6,6 +6,7 @@ import pickle as pkl
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from nltk.tokenize import word_tokenize
 from nltk.translate.bleu_score import corpus_bleu
 from nltk.translate.meteor_score import meteor_score
@@ -14,7 +15,6 @@ from rdkit.Chem import AllChem
 from rouge_score import rouge_scorer
 from scipy.stats import pearsonr
 from sklearn.metrics import roc_auc_score, roc_curve
-from transformers import BertTokenizerFast
 
 RDLogger.DisableLog("rdApp.*")
 
@@ -84,6 +84,12 @@ def parse_args():
     parser.add_argument(
         "--bace_score_pkl", type=str, help="pickle file name of BACE prediction scores"
     )
+    parser.add_argument(
+        "--retro_pkl",
+        type=str,
+        required=True,
+        help="Comma-separated list of retro pkl files",
+    )
 
     args = parser.parse_args()
     return args
@@ -108,6 +114,7 @@ class NLMMoleculeEvaluator:
         bace_pkl,
         bace_score_pkl,
         bace_tsv,
+        retro_pkl,
     ):
         self.results_dir = results_dir
         self.input_dir = input_dir
@@ -130,10 +137,44 @@ class NLMMoleculeEvaluator:
         self.bace_pkl = bace_pkl
         self.bace_score_pkl = bace_score_pkl
         self.bace_tsv = bace_tsv
+        self.retro_pkl = retro_pkl
         self.results = {}
 
     def store_result(self, key, value):
         self.results[key] = value
+
+    def write_core_results_to_xlsx(self, xlsx_file_path):
+        core_metrics = [
+            "BBBP Accuracy",
+            "BBBP AUROC",
+            "BACE Accuracy",
+            "BACE AUROC",
+            "I2S_I Accuracy",
+            "S2I_S Accuracy",
+            "MolInstruct Beam Accuracy",
+            "MolInstruct Random Accuracy",
+            "Desc2Mol Accuracy",
+            "Desc2Mol Mean Tanimoto Similarity",
+            "Mol2Desc Beam BLEU-2",
+            "Mol2Desc Beam BLEU-4",
+            "Mol2Desc Sample BLEU-2",
+            "Mol2Desc Sample BLEU-4",
+            "Mol2Desc Beam ROUGE-1",
+            "Mol2Desc Beam ROUGE-2",
+            "Mol2Desc Beam ROUGE-L",
+        ]
+        self.core_results = {
+            k: [
+                self.results[k],
+            ]
+            for k in core_metrics
+        }
+        # Write the core results to an excel file
+        # Convert the data into a DataFrame
+        df = pd.DataFrame(self.core_results)
+        df = df.applymap(lambda x: f"{x*100:.2f}%")
+        # Write the DataFrame to an Excel file
+        df.to_excel(xlsx_file_path, index=False)
 
     def write_results_to_csv(self, csv_file_path):
         with open(csv_file_path, mode="w", newline="") as csv_file:
@@ -304,16 +345,6 @@ class NLMMoleculeEvaluator:
             pearson_r_p_value = 0
         else:
             pearson_r_value, pearson_r_p_value = pearsonr(Y, Yhat)
-
-        # self.store_result("hERG PearsonR", pearsonr(Y, Yhat))
-        # self.store_result("hERG Total Number of Instances", len(predict_list))
-        # self.store_result("hERG Total Number of Vaild Predictions", len(Y))
-        # print("### Performing evaluation on hERG dataset ###")
-        # print("pearsonr(Y, Yhat):", pearsonr(Y, Yhat))
-        # print("len(predict_list):", len(predict_list))
-        # print("len(Y):", len(Y))
-        # print("len(hERG_records):", len(hERG_records))
-        # print("")
 
         self.store_result("hERG PearsonR", (pearson_r_value, pearson_r_p_value))
         self.store_result("hERG Total Number of Instances", len(predict_list))
@@ -489,7 +520,7 @@ class NLMMoleculeEvaluator:
         print("Mean Tanimoto Similarity:", mean_similarity)
         print("")
 
-    def eval_molinstruct(self):
+    def eval_molinstruct(self, debug=False):
         molinstruct_response = os.path.join(self.results_dir, self.molinstruct_pkl)
         if not os.path.exists(molinstruct_response):
             print("molinstruct response file does not exist \n")
@@ -525,6 +556,9 @@ class NLMMoleculeEvaluator:
             ans = clean_generated_smiles(r[0].split("\t")[1].strip())
             beam_results = clean_generated_smiles(r[1][0])
             random_results = clean_generated_smiles(r[2][0])
+            if debug:
+                beam_results = clean_generated_smiles(r[1][-1])
+                random_results = clean_generated_smiles(r[2][-1])
             flag_random, flag_beam = False, False
             if random_results is not None:
                 flag_random = random_results == ans
@@ -685,6 +719,7 @@ class NLMMoleculeEvaluator:
             sum([1 if y1 == y2 else 0 for y1, y2 in zip(y_label, y_pred)])
             / len(y_label),
         )
+
         self.store_result("BACE AUROC", roc_auc)
 
         roc_png_path = os.path.join(self.output_dir, "bace_roc.png")
@@ -710,6 +745,113 @@ class NLMMoleculeEvaluator:
         # Save the figure as a PNG file
         plt.savefig(roc_png_path)
 
+    def eval_retro(self):
+        def remove_atom_mapping_and_canonicalize(smiles):
+            try:
+                # 1. Remove atom mapping.
+                mol = Chem.MolFromSmiles(smiles)
+                for atom in mol.GetAtoms():
+                    if atom.HasProp("molAtomMapNumber"):
+                        atom.ClearProp("molAtomMapNumber")
+                # 2. Canonicalize.
+                smiles_wo_atom_mapping = Chem.MolToSmiles(mol)
+                mol = Chem.MolFromSmiles(smiles_wo_atom_mapping)
+                return Chem.MolToSmiles(mol)
+            except:
+                return ""
+
+        for file_name in self.retro_pkl.split(","):
+            file_path = os.path.join(self.results_dir, file_name)
+            print("######################")
+            print(f"Test file paht: {file_path}")
+            if not os.path.exists(file_path):
+                print(f"{file_path} file does not exist \n")
+                continue
+            results = pkl.load(open(file_path, "rb"))
+            top_1_acc_num = 0
+            top_3_acc_num = 0
+            illegel_predicted_smiles_num = 0
+
+            for i, result in enumerate(results):
+                assert len(result) == 3
+                instructon_and_gt = result[0]
+                predictions = result[1]
+                # print("result:", result)
+                assert (
+                    len(predictions) == 4
+                ), f"{predictions}"  # assume that beam size is 4
+
+                gt_smiles = instructon_and_gt.split("<reactants>")[1].split(
+                    "</reactants>"
+                )[0]
+                product_smiles = instructon_and_gt.split("<product>")[1].split(
+                    "</product>"
+                )[0]
+                canonical_gt_smiles = remove_atom_mapping_and_canonicalize(gt_smiles)
+                remove_atom_mapping_and_canonicalize(product_smiles)
+                predicted_smiles_list = []
+                for prediction in predictions:
+                    if "<m>" in prediction:
+                        curr_smiles = (
+                            prediction.replace("<m>", "")
+                            .replace("<reactants>", "")
+                            .replace("</reactants>", "")
+                            .replace(" ", "")
+                        )
+                    else:
+                        curr_smiles = prediction.replace("<reactants>", "").replace(
+                            "</reactants>", ""
+                        )
+                    curr_smiles = curr_smiles.replace(" ", "")
+                    # print("curr_smiles:", curr_smiles)
+                    canonical_curr_smiles = remove_atom_mapping_and_canonicalize(
+                        curr_smiles
+                    )
+                    # print("canonical_curr_smiles:", canonical_curr_smiles)
+                    if canonical_curr_smiles == "":
+                        illegel_predicted_smiles_num += 1
+                    else:
+                        # predicted_smiles_list.add(canonical_curr_smiles)
+                        predicted_smiles_list.append(canonical_curr_smiles)
+
+                # predicted_smiles_list = list(predicted_smiles_list)  # since set is not subscriptable
+                # print("canonical_product_smiles:", canonical_product_smiles)
+                # print("canonical_gt_smiles:", canonical_gt_smiles)
+
+                if (
+                    len(predicted_smiles_list) > 0
+                    and canonical_gt_smiles == predicted_smiles_list[0]
+                ):
+                    top_1_acc_num += 1
+
+                if (
+                    len(predicted_smiles_list) > 0
+                    and canonical_gt_smiles in predicted_smiles_list[:3]
+                ):
+                    top_3_acc_num += 1
+
+            print("### Performing evaluation on Retro-Synthesis dataset ###")
+            print("Retro-Synthesis Number of Samples:", len(results))
+            print(
+                f"Retro-Synthesis Top-1 accuracy: {round(top_1_acc_num / len(results),3)}"
+            )
+            print(
+                f"Retro-Synthesis Top-3 accuracy: {round(top_3_acc_num / len(results),3)}"
+            )
+            print(
+                f"Retro-Synthesis Illegel predicted smiles num: {illegel_predicted_smiles_num}"
+            )
+            self.store_result(
+                "Retro-Synthesis Top-1 Accuracy", top_1_acc_num / len(results)
+            )
+            self.store_result(
+                "Retro-Synthesis Top-3 Accuracy", top_3_acc_num / len(results)
+            )
+            self.store_result(
+                "Retro-Synthesis Illegel Predicted Smiles Num",
+                illegel_predicted_smiles_num,
+            )
+
 
 def main():
     args = parse_args()
@@ -730,6 +872,7 @@ def main():
         bace_tsv=args.bace_tsv,
         bace_pkl=args.bace_pkl,
         bace_score_pkl=args.bace_score_pkl,
+        retro_pkl=args.retro_pkl,
     )
 
     evaluator.eval_bbbp()
@@ -737,12 +880,15 @@ def main():
     evaluator.eval_i2s_i()
     evaluator.eval_s2i_s()
     evaluator.eval_desc2mol()
-    evaluator.eval_molinstruct()
+    evaluator.eval_molinstruct(debug=False)
     evaluator.eval_mol2desc()
     evaluator.eval_bace()
+    evaluator.eval_retro()
 
     csv_output_path = os.path.join(evaluator.output_dir, "evaluation_results.csv")
     evaluator.write_results_to_csv(csv_output_path)
+    xlsx_output_path = os.path.join(evaluator.output_dir, "evaluation_results.xlsx")
+    evaluator.write_core_results_to_xlsx(xlsx_output_path)
 
 
 if __name__ == "__main__":
