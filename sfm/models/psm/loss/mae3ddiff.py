@@ -587,7 +587,11 @@ class DiffMAE3dCriterions(nn.Module):
                     hard_dist_loss = torch.tensor(
                         0.0, device=noise_label.device, requires_grad=True
                     )
+                    inter_dist_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
                     num_pddt_loss = 0
+                    num_inter_dist_loss = 0
 
             elif self.diffusion_mode == "x0":
                 # x0 pred loss, noise pred is x0 pred here
