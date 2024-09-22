@@ -168,10 +168,10 @@ class DiffMAE3dCriterions(nn.Module):
             # self.material_energy_loss_ratio = 0.5
             # self.molecule_energy_loss_ratio = 1.0
 
-            self.material_force_loss_ratio = 1.0
-            self.molecule_force_loss_ratio = 1.0
-            self.material_energy_loss_ratio = 0.2
-            self.molecule_energy_loss_ratio = 0.2
+            self.material_force_loss_ratio = 2.0
+            self.molecule_force_loss_ratio = 2.0
+            self.material_energy_loss_ratio = 1.0
+            self.molecule_energy_loss_ratio = 1.0
 
             logger.info("overriding force and energy loss ratio in autograd mode:")
             logger.info(f"{self.material_force_loss_ratio=}")
@@ -330,7 +330,7 @@ class DiffMAE3dCriterions(nn.Module):
         delta_pos_label = (pos_label.unsqueeze(1) - pos_label.unsqueeze(2)).norm(dim=-1)
         delta_pos_pred = (pos_pred.unsqueeze(1) - pos_pred.unsqueeze(2)).norm(dim=-1)
         pair_protein_mask = is_protein.unsqueeze(1) & is_protein.unsqueeze(2)
-        pair_ligand_mask = is_ligand.unsqueeze(1) & is_ligand.unsqueeze(2)
+        # pair_ligand_mask = is_ligand.unsqueeze(1) & is_ligand.unsqueeze(2)
 
         dist_mask_protein_near = (
             (delta_pos_label < 5) & (delta_pos_label > 0.1) & pair_protein_mask
@@ -341,14 +341,14 @@ class DiffMAE3dCriterions(nn.Module):
         dist_mask_protein_far = (
             (delta_pos_label >= 10) & (delta_pos_label < 15) & pair_protein_mask
         )
-        dist_mask_ligand = (
-            (delta_pos_label < 5) & (delta_pos_label > 0.1) & pair_ligand_mask
-        )
+        # dist_mask_ligand = (
+        #     (delta_pos_label < 5) & (delta_pos_label > 0.1) & pair_ligand_mask
+        # )
 
         dist_mask_protein = (
             dist_mask_protein_near | dist_mask_protein_mid | dist_mask_protein_far
         )
-        dist_mask = dist_mask_protein | dist_mask_ligand
+        dist_mask = dist_mask_protein  # | dist_mask_ligand
 
         delta = torch.abs(delta_pos_label - delta_pos_pred)
         delta1 = delta[dist_mask]
@@ -363,9 +363,15 @@ class DiffMAE3dCriterions(nn.Module):
         # # hard distance loss
         time_step = model_output["time_step"]
 
-        time_coefficient = ((1 - time_step) * torch.exp(-time_step / 0.4)).unsqueeze(-1)
+        time_coefficient = ((1 - time_step) * torch.exp(-time_step / 0.1)).unsqueeze(-1)
 
-        hard_dist_loss = (delta * time_coefficient)[dist_mask_protein_near].mean() * 2
+        if dist_mask_protein_near.any():
+            hard_dist_loss = (delta * time_coefficient)[
+                dist_mask_protein_near
+            ].mean() * 2
+        else:
+            hard_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
+
         if dist_mask_protein_mid.any():
             hard_dist_loss += (delta * time_coefficient)[dist_mask_protein_mid].mean()
         if dist_mask_protein_far.any():
@@ -384,8 +390,11 @@ class DiffMAE3dCriterions(nn.Module):
         )
 
         if inter_dist_mask_near.any():
+            # time_coefficien_inter = (
+            #     (1 - time_step**2) * torch.exp(-time_step)
+            # ).unsqueeze(-1)
             time_coefficien_inter = (
-                (1 - time_step**2) * torch.exp(-time_step)
+                (1 - time_step) * torch.exp(-time_step / 0.1)
             ).unsqueeze(-1)
             inter_dist_loss = (delta * time_coefficien_inter)[
                 inter_dist_mask_near
@@ -764,6 +773,7 @@ class DiffMAE3dCriterions(nn.Module):
             num_molecule_noise_sample = 0
             num_periodic_noise_sample = 0
             num_protein_noise_sample = 0
+            num_complex_noise_sample = 0
 
         # mlm loss
         if aa_mask.any():
@@ -789,11 +799,72 @@ class DiffMAE3dCriterions(nn.Module):
             num_aa_mask_token = 0.0
 
         if not self.seq_only:
+            if torch.any(torch.isnan(periodic_energy_loss)) or torch.any(
+                torch.isinf(periodic_energy_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in periodic_energy_loss: {periodic_energy_loss}"
+                )
+                periodic_energy_loss = torch.tensor(
+                    0.0, device=periodic_energy_loss.device, requires_grad=True
+                )
+                num_periodic_energy_sample = 0
+            if torch.any(torch.isnan(periodic_force_loss)) or torch.any(
+                torch.isinf(periodic_force_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in periodic_force_loss: {periodic_force_loss}"
+                )
+                periodic_force_loss = torch.tensor(
+                    0.0, device=periodic_force_loss.device, requires_grad=True
+                )
+                num_periodic_force_sample = 0
+            if torch.any(torch.isnan(molecule_energy_loss)) or torch.any(
+                torch.isinf(molecule_energy_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in molecule_energy_loss: {molecule_energy_loss}"
+                )
+                molecule_energy_loss = torch.tensor(
+                    0.0, device=molecule_energy_loss.device, requires_grad=True
+                )
+                num_molecule_energy_sample = 0
+            if torch.any(torch.isnan(molecule_force_loss)) or torch.any(
+                torch.isinf(molecule_force_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in molecule_force_loss: {molecule_force_loss}"
+                )
+                molecule_force_loss = torch.tensor(
+                    0.0, device=molecule_force_loss.device, requires_grad=True
+                )
+                num_molecule_force_sample = 0
+            if torch.any(torch.isnan(protein_noise_loss)) or torch.any(
+                torch.isinf(protein_noise_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in protein_noise_loss: {protein_noise_loss}"
+                )
+                protein_noise_loss = torch.tensor(
+                    0.0, device=protein_noise_loss.device, requires_grad=True
+                )
+                num_protein_noise_sample = 0
+            if torch.any(torch.isnan(complex_noise_loss)) or torch.any(
+                torch.isinf(complex_noise_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in complex_noise_loss: {complex_noise_loss}"
+                )
+                complex_noise_loss = torch.tensor(
+                    0.0, device=complex_noise_loss.device, requires_grad=True
+                )
+                num_complex_noise_sample = 0
+
             loss = (
                 self.molecule_energy_loss_ratio * molecule_energy_loss
-                # + self.molecule_force_loss_ratio * molecule_force_loss
+                + self.molecule_force_loss_ratio * molecule_force_loss
                 + self.material_energy_loss_ratio * periodic_energy_loss
-                # + self.material_force_loss_ratio * periodic_force_loss
+                + self.material_force_loss_ratio * periodic_force_loss
                 + molecule_noise_loss
                 + periodic_noise_loss
                 + 2.0 * protein_noise_loss
@@ -807,15 +878,14 @@ class DiffMAE3dCriterions(nn.Module):
                 logger.error(
                     f"NaN or inf detected in smooth_lddt_loss: {smooth_lddt_loss}"
                 )
+                smooth_lddt_loss = torch.tensor(
+                    0.0, device=smooth_lddt_loss.device, requires_grad=True
+                )
             else:
                 loss += smooth_lddt_loss
 
             if self.args.use_hard_dist_loss:
-                inter_dist_loss_ratio = (
-                    1.0 / (20 * hard_dist_loss.item() ** 1.2)
-                    if num_pddt_loss > 0
-                    else 0
-                )
+                (1.0 / (20 * hard_dist_loss.item() ** 1.2) if num_pddt_loss > 0 else 0)
 
                 if torch.any(torch.isnan(hard_dist_loss)) or torch.any(
                     torch.isinf(hard_dist_loss)
@@ -835,7 +905,7 @@ class DiffMAE3dCriterions(nn.Module):
                 else:
                     loss += (
                         self.hard_dist_loss_raito
-                        * inter_dist_loss_ratio
+                        # * inter_dist_loss_ratio
                         * inter_dist_loss
                     )
 

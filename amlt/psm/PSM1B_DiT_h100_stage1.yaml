@@ -87,7 +87,7 @@ jobs:
   - export material_energy_loss_ratio=1.0
   - export material_force_loss_ratio=1.0
   - export AutoGradForce=True
-  - export use_hard_dist_loss=True
+  - export use_hard_dist_loss=False
   - export use_unified_batch_sampler=True
   - export align_x0_in_diffusion_loss=True
   - export decoder_feat4energy=False
