@@ -105,7 +105,7 @@ jobs:
   - export if_total_energy=False
   - export save_batch_interval=2500
   # - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b/checkpoints/global_step40000/mp_rank_00_model_states.pt
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b_stage2/checkpoints/global_step37500/mp_rank_00_model_states.pt
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b_stage2_2/checkpoints/global_step5000/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
   - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b_stage2_2/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm

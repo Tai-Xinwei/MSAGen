@@ -372,7 +372,10 @@ class PSMModel(Model):
         is_protein = (~is_periodic.unsqueeze(-1)) & (token_id > 129) & (token_id < 156)
         # is_heavy_atom = is_molecule & (token_id > 37).any(dim=-1)
         is_heavy_atom = is_molecule & (token_id > 130).any(dim=-1)
+
         is_seq_only = sample_type == 5
+        is_seq_only = is_seq_only | batched_data["protein_mask"].all(dim=(-1, -2))
+
         is_energy_outlier = is_molecule & (
             torch.abs(batched_data["energy_per_atom"]) > 23
         )
@@ -571,8 +574,8 @@ class PSMModel(Model):
             batched_data: Input data for the forward pass.
         """
 
-        self._create_system_tags(batched_data)
         self._create_protein_mask(batched_data)
+        self._create_system_tags(batched_data)
         pos = batched_data["pos"]
 
         n_graphs = pos.size(0)

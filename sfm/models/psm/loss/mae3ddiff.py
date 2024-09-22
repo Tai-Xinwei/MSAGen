@@ -370,12 +370,19 @@ class DiffMAE3dCriterions(nn.Module):
                 dist_mask_protein_near
             ].mean() * 2
         else:
-            hard_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
+            hard_dist_loss = None
 
-        if dist_mask_protein_mid.any():
+        if dist_mask_protein_mid.any() and hard_dist_loss is not None:
             hard_dist_loss += (delta * time_coefficient)[dist_mask_protein_mid].mean()
-        if dist_mask_protein_far.any():
+        elif hard_dist_loss is None:
+            hard_dist_loss = (delta * time_coefficient)[dist_mask_protein_mid].mean()
+
+        if dist_mask_protein_far.any() and hard_dist_loss is not None:
             hard_dist_loss += (delta * time_coefficient)[
+                dist_mask_protein_far
+            ].mean() * 0.25
+        elif hard_dist_loss is None:
+            hard_dist_loss = (delta * time_coefficient)[
                 dist_mask_protein_far
             ].mean() * 0.25
 
@@ -798,60 +805,8 @@ class DiffMAE3dCriterions(nn.Module):
             aa_acc = 0.0
             num_aa_mask_token = 0.0
 
-        if not self.seq_only:
-            loss = molecule_noise_loss + periodic_noise_loss + aa_mlm_loss
-
-            if torch.any(torch.isnan(periodic_energy_loss)) or torch.any(
-                torch.isinf(periodic_energy_loss)
-            ):
-                logger.error(
-                    f"NaN or inf detected in periodic_energy_loss: {periodic_energy_loss}"
-                )
-                periodic_energy_loss = torch.tensor(
-                    0.0, device=periodic_energy_loss.device, requires_grad=True
-                )
-                num_periodic_energy_sample = 0
-            else:
-                loss += periodic_energy_loss
-
-            if torch.any(torch.isnan(periodic_force_loss)) or torch.any(
-                torch.isinf(periodic_force_loss)
-            ):
-                logger.error(
-                    f"NaN or inf detected in periodic_force_loss: {periodic_force_loss}"
-                )
-                periodic_force_loss = torch.tensor(
-                    0.0, device=periodic_force_loss.device, requires_grad=True
-                )
-                num_periodic_force_sample = 0
-            else:
-                loss += periodic_force_loss
-
-            if torch.any(torch.isnan(molecule_energy_loss)) or torch.any(
-                torch.isinf(molecule_energy_loss)
-            ):
-                logger.error(
-                    f"NaN or inf detected in molecule_energy_loss: {molecule_energy_loss}"
-                )
-                molecule_energy_loss = torch.tensor(
-                    0.0, device=molecule_energy_loss.device, requires_grad=True
-                )
-                num_molecule_energy_sample = 0
-            else:
-                loss += molecule_energy_loss
-
-            if torch.any(torch.isnan(molecule_force_loss)) or torch.any(
-                torch.isinf(molecule_force_loss)
-            ):
-                logger.error(
-                    f"NaN or inf detected in molecule_force_loss: {molecule_force_loss}"
-                )
-                molecule_force_loss = torch.tensor(
-                    0.0, device=molecule_force_loss.device, requires_grad=True
-                )
-                num_molecule_force_sample = 0
-            else:
-                loss += molecule_force_loss
+        if not is_seq_only.all():
+            loss = torch.tensor(0.0, device=atomic_numbers.device, requires_grad=True)
 
             if torch.any(torch.isnan(protein_noise_loss)) or torch.any(
                 torch.isinf(protein_noise_loss)
@@ -864,7 +819,7 @@ class DiffMAE3dCriterions(nn.Module):
                 )
                 num_protein_noise_sample = 0
             else:
-                loss += 2.0 * protein_noise_loss
+                loss = loss + 2.0 * protein_noise_loss
 
             if torch.any(torch.isnan(complex_noise_loss)) or torch.any(
                 torch.isinf(complex_noise_loss)
@@ -877,7 +832,96 @@ class DiffMAE3dCriterions(nn.Module):
                 )
                 num_complex_noise_sample = 0
             else:
-                loss += 2.0 * complex_noise_loss
+                loss = loss + 2.0 * complex_noise_loss
+
+            if torch.any(torch.isnan(periodic_noise_loss)) or torch.any(
+                torch.isinf(periodic_noise_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in periodic_noise_loss: {periodic_noise_loss}"
+                )
+                periodic_noise_loss = torch.tensor(
+                    0.0, device=periodic_noise_loss.device, requires_grad=True
+                )
+                num_periodic_noise_sample = 0
+            else:
+                loss = loss + periodic_noise_loss
+
+            if torch.any(torch.isnan(molecule_noise_loss)) or torch.any(
+                torch.isinf(molecule_noise_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in molecule_noise_loss: {molecule_noise_loss}"
+                )
+                molecule_noise_loss = torch.tensor(
+                    0.0, device=molecule_noise_loss.device, requires_grad=True
+                )
+                num_molecule_noise_sample = 0
+            else:
+                loss = loss + molecule_noise_loss
+
+            if torch.any(torch.isnan(aa_mlm_loss)) or torch.any(
+                torch.isinf(aa_mlm_loss)
+            ):
+                logger.error(f"NaN or inf detected in aa_mlm_loss: {aa_mlm_loss}")
+                aa_mlm_loss = torch.tensor(
+                    0.0, device=aa_mlm_loss.device, requires_grad=True
+                )
+                num_aa_mask_token = 0
+            else:
+                loss = loss + aa_mlm_loss
+
+            if torch.any(torch.isnan(periodic_energy_loss)) or torch.any(
+                torch.isinf(periodic_energy_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in periodic_energy_loss: {periodic_energy_loss}"
+                )
+                periodic_energy_loss = torch.tensor(
+                    0.0, device=periodic_energy_loss.device, requires_grad=True
+                )
+                num_periodic_energy_sample = 0
+            else:
+                loss = loss + periodic_energy_loss
+
+            if torch.any(torch.isnan(periodic_force_loss)) or torch.any(
+                torch.isinf(periodic_force_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in periodic_force_loss: {periodic_force_loss}"
+                )
+                periodic_force_loss = torch.tensor(
+                    0.0, device=periodic_force_loss.device, requires_grad=True
+                )
+                num_periodic_force_sample = 0
+            else:
+                loss = loss + periodic_force_loss
+
+            if torch.any(torch.isnan(molecule_energy_loss)) or torch.any(
+                torch.isinf(molecule_energy_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in molecule_energy_loss: {molecule_energy_loss}"
+                )
+                molecule_energy_loss = torch.tensor(
+                    0.0, device=molecule_energy_loss.device, requires_grad=True
+                )
+                num_molecule_energy_sample = 0
+            else:
+                loss = loss + molecule_energy_loss
+
+            if torch.any(torch.isnan(molecule_force_loss)) or torch.any(
+                torch.isinf(molecule_force_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in molecule_force_loss: {molecule_force_loss}"
+                )
+                molecule_force_loss = torch.tensor(
+                    0.0, device=molecule_force_loss.device, requires_grad=True
+                )
+                num_molecule_force_sample = 0
+            else:
+                loss = loss + molecule_force_loss
 
             if torch.any(torch.isnan(smooth_lddt_loss)) or torch.any(
                 torch.isinf(smooth_lddt_loss)
@@ -889,7 +933,7 @@ class DiffMAE3dCriterions(nn.Module):
                     0.0, device=smooth_lddt_loss.device, requires_grad=True
                 )
             else:
-                loss += smooth_lddt_loss
+                loss = loss + smooth_lddt_loss
 
             if self.args.use_hard_dist_loss:
                 (1.0 / (20 * hard_dist_loss.item() ** 1.2) if num_pddt_loss > 0 else 0)
@@ -900,8 +944,11 @@ class DiffMAE3dCriterions(nn.Module):
                     logger.error(
                         f"NaN or inf detected in hard_dist_loss: {hard_dist_loss}"
                     )
+                    hard_dist_loss = torch.tensor(
+                        0.0, device=hard_dist_loss.device, requires_grad=True
+                    )
                 else:
-                    loss += self.hard_dist_loss_raito * hard_dist_loss
+                    loss = loss + self.hard_dist_loss_raito * hard_dist_loss
 
                 if torch.any(torch.isnan(inter_dist_loss)) or torch.any(
                     torch.isinf(inter_dist_loss)
@@ -909,12 +956,11 @@ class DiffMAE3dCriterions(nn.Module):
                     logger.error(
                         f"NaN or inf detected in inter_dist_loss: {inter_dist_loss}"
                     )
-                else:
-                    loss += (
-                        self.hard_dist_loss_raito
-                        # * inter_dist_loss_ratio
-                        * inter_dist_loss
+                    inter_dist_loss = torch.tensor(
+                        0.0, device=inter_dist_loss.device, requires_grad=True
                     )
+                else:
+                    loss = loss + (self.hard_dist_loss_raito * inter_dist_loss)
 
             if torch.any(torch.isnan(loss)) or torch.any(torch.isinf(loss)):
                 logger.error(

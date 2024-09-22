@@ -17,7 +17,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
 [ -z "${pos_loss_coeff}" ] && pos_loss_coeff=1.0
-[ -z "${max_length}" ] && max_length=512
+[ -z "${max_length}" ] && max_length=768
 [ -z "${max_tokens}" ] && max_tokens=2000
 # [ -z "${max_tokens}" ] && max_tokens=36000
 
@@ -91,7 +91,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdbcomplexmultimer,pdb'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.45,0.05'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='16,16,6'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='2,2,1'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='1,1,1'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,afdb,pdbcomplexmultimer'
@@ -168,13 +168,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${molecule_outlier_energy_atoms}" ] && molecule_outlier_energy_atoms=""
 
 [ -z "${rescale_loss_with_std}" ] && rescale_loss_with_std=True
-
 [ -z "${use_dali_pipeline}" ] && use_dali_pipeline=False
 [ -z "${fp16}" ] && fp16=False
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b/checkpoints/global_step32500/mp_rank_00_model_states.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b_stage2_2/checkpoints/global_step5000/mp_rank_00_model_states.pt"
 # [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/output/dit300m/global_step16000/mp_rank_00_model_states.pt"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit300m'
 
@@ -362,6 +361,6 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms molecule_ref_energy_source=$molecule_ref_energy_source \
           max_residue_num=$max_residue_num ligand_crop_size=$ligand_crop_size \
           unified_data_num_workers=$unified_data_num_workers group_optimizer=$group_optimizer group_lr_ratio=$group_lr_ratio \
-          ifresume=True \
+          # ifresume=True \
 
 sleep infinity
