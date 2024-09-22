@@ -799,6 +799,8 @@ class DiffMAE3dCriterions(nn.Module):
             num_aa_mask_token = 0.0
 
         if not self.seq_only:
+            loss = molecule_noise_loss + periodic_noise_loss + aa_mlm_loss
+
             if torch.any(torch.isnan(periodic_energy_loss)) or torch.any(
                 torch.isinf(periodic_energy_loss)
             ):
@@ -809,6 +811,9 @@ class DiffMAE3dCriterions(nn.Module):
                     0.0, device=periodic_energy_loss.device, requires_grad=True
                 )
                 num_periodic_energy_sample = 0
+            else:
+                loss += periodic_energy_loss
+
             if torch.any(torch.isnan(periodic_force_loss)) or torch.any(
                 torch.isinf(periodic_force_loss)
             ):
@@ -819,6 +824,9 @@ class DiffMAE3dCriterions(nn.Module):
                     0.0, device=periodic_force_loss.device, requires_grad=True
                 )
                 num_periodic_force_sample = 0
+            else:
+                loss += periodic_force_loss
+
             if torch.any(torch.isnan(molecule_energy_loss)) or torch.any(
                 torch.isinf(molecule_energy_loss)
             ):
@@ -829,6 +837,9 @@ class DiffMAE3dCriterions(nn.Module):
                     0.0, device=molecule_energy_loss.device, requires_grad=True
                 )
                 num_molecule_energy_sample = 0
+            else:
+                loss += molecule_energy_loss
+
             if torch.any(torch.isnan(molecule_force_loss)) or torch.any(
                 torch.isinf(molecule_force_loss)
             ):
@@ -839,6 +850,9 @@ class DiffMAE3dCriterions(nn.Module):
                     0.0, device=molecule_force_loss.device, requires_grad=True
                 )
                 num_molecule_force_sample = 0
+            else:
+                loss += molecule_force_loss
+
             if torch.any(torch.isnan(protein_noise_loss)) or torch.any(
                 torch.isinf(protein_noise_loss)
             ):
@@ -849,6 +863,9 @@ class DiffMAE3dCriterions(nn.Module):
                     0.0, device=protein_noise_loss.device, requires_grad=True
                 )
                 num_protein_noise_sample = 0
+            else:
+                loss += 2.0 * protein_noise_loss
+
             if torch.any(torch.isnan(complex_noise_loss)) or torch.any(
                 torch.isinf(complex_noise_loss)
             ):
@@ -859,18 +876,8 @@ class DiffMAE3dCriterions(nn.Module):
                     0.0, device=complex_noise_loss.device, requires_grad=True
                 )
                 num_complex_noise_sample = 0
-
-            loss = (
-                self.molecule_energy_loss_ratio * molecule_energy_loss
-                + self.molecule_force_loss_ratio * molecule_force_loss
-                + self.material_energy_loss_ratio * periodic_energy_loss
-                + self.material_force_loss_ratio * periodic_force_loss
-                + molecule_noise_loss
-                + periodic_noise_loss
-                + 2.0 * protein_noise_loss
-                + 2.0 * complex_noise_loss
-                + aa_mlm_loss
-            )
+            else:
+                loss += 2.0 * complex_noise_loss
 
             if torch.any(torch.isnan(smooth_lddt_loss)) or torch.any(
                 torch.isinf(smooth_lddt_loss)
