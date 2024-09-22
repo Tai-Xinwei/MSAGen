@@ -262,7 +262,7 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             2, psm_config.num_3d_bias_kernel // 2
         )
 
-        # self.init_pos_emb = nn.Linear(3, psm_config.embedding_dim, bias=False)
+        self.init_pos_emb = nn.Linear(3, psm_config.embedding_dim, bias=False)
 
     @torch.compiler.disable(recursive=False)
     def _pos_emb(

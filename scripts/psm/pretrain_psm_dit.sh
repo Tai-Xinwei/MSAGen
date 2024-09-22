@@ -189,7 +189,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
 [ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
-[ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
+[ -z "${pbc_cutoff}" ] && pbc_cutoff=40.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=10.0
@@ -219,7 +219,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${use_2d_bond_features}" ] && use_2d_bond_features=False
 [ -z "${only_use_rotary_embedding_for_protein}" ] && only_use_rotary_embedding_for_protein=True
 [ -z "${psm_finetune_mode}" ] && psm_finetune_mode=True
-[ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=True
+[ -z "${use_hard_dist_loss}" ] && use_hard_dist_loss=False
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=False
 [ -z "${encoderfeat4noise}" ] && encoderfeat4noise=True

@@ -182,6 +182,8 @@ class DiffMAE3dCriterions(nn.Module):
         self.hard_dist_loss_raito = args.hard_dist_loss_raito
         self.if_total_energy = args.if_total_energy
 
+        self.epsilon = 1e-5
+
     def _reduce_energy_loss(
         self, energy_loss, loss_mask, is_molecule, is_periodic, use_per_atom_energy=True
     ):
@@ -663,10 +665,10 @@ class DiffMAE3dCriterions(nn.Module):
             )
 
             if self.args.diffusion_training_loss == DiffusionTrainingLoss.L2:
-                molecule_noise_loss = torch.sqrt(molecule_noise_loss)
-                periodic_noise_loss = torch.sqrt(periodic_noise_loss)
-                protein_noise_loss = torch.sqrt(protein_noise_loss)
-                complex_noise_loss = torch.sqrt(complex_noise_loss)
+                molecule_noise_loss = torch.sqrt(molecule_noise_loss + self.epsilon)
+                periodic_noise_loss = torch.sqrt(periodic_noise_loss + self.epsilon)
+                protein_noise_loss = torch.sqrt(protein_noise_loss + self.epsilon)
+                complex_noise_loss = torch.sqrt(complex_noise_loss + self.epsilon)
 
             # energy loss
             if self.if_total_energy:
@@ -740,8 +742,8 @@ class DiffMAE3dCriterions(nn.Module):
             )
 
             if self.args.force_loss_type == ForceLoss.L2:
-                molecule_force_loss = torch.sqrt(molecule_force_loss)
-                periodic_force_loss = torch.sqrt(periodic_force_loss)
+                molecule_force_loss = torch.sqrt(molecule_force_loss + self.epsilon)
+                periodic_force_loss = torch.sqrt(periodic_force_loss + self.epsilon)
 
         else:
             energy_loss = torch.tensor(
@@ -973,8 +975,10 @@ class DiffMAE3dCriterions(nn.Module):
                 loss = torch.tensor(
                     0.0, device=atomic_numbers.device, requires_grad=True
                 )
-        else:
+        elif not torch.any(torch.isnan(aa_mlm_loss)):
             loss = aa_mlm_loss
+        else:
+            raise ValueError("aa_mlm_loss is NaN")
 
         # for loss exist in every sample of the batch, no extra number of samples are recorded (will use batch size in loss reduction)
         # for loss does not exist in every example of the batch, use a tuple, where the first element is the averaged loss value

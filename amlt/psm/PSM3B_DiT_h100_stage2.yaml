@@ -83,12 +83,12 @@ jobs:
   # - export data_path_list='matter-gen-force-filtered,PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
   # - export dataset_name_list='mattersim,pm6-wb97xd3,esm,pdb,esm,pdbcomplexmultimer'
   # - export dataset_split_raito='0.2,0.2,0.3,0.02,0.18,0.1'
-  - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
+  - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
   # - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
-  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,esm,pdb,esm,pdbcomplexmultimer'
-  - export dataset_split_raito='0.01,0.18,0.2,0.3,0.02,0.1,0.2'
+  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,esm,esm,pdbcomplexmultimer'
+  - export dataset_split_raito='0.02,0.18,0.2,0.3,0.1,0.2'
   # - export dataset_micro_batch_size='3,3,16,2,2,2,2'
-  - export dataset_micro_batch_size='1,1,8,1,1,1,1'
+  - export dataset_micro_batch_size='1,1,8,1,1,1'
   - export fp16=False
   - export clean_sample_ratio=0.7
   - export molecule_energy_loss_ratio=1.0
