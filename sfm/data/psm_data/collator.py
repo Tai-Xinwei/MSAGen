@@ -126,6 +126,8 @@ def collate_fn(
             item["position_ids"] = torch.arange(
                 0, item["token_type"].shape[0], dtype=torch.long
             )
+        if "confidence" not in item:
+            item["confidence"] = -1.0 * torch.ones([item["token_type"].shape[0]])
 
     idx = torch.tensor([i["idx"] for i in items], dtype=torch.long)
     sample_type = torch.tensor([i["sample_type"] for i in items], dtype=torch.long)
@@ -142,7 +144,9 @@ def collate_fn(
     position_ids = torch.cat(
         [pad_1d_unsqueeze(i["position_ids"], max_node_num) for i in items]
     )
-
+    confidence = torch.cat(
+        [pad_1d_unsqueeze(i["confidence"], max_node_num) for i in items]
+    )
     attn_bias = torch.cat(
         [pad_attn_bias_unsqueeze(i["attn_bias"], max_node_num + 1) for i in items]
     )
@@ -236,6 +240,7 @@ def collate_fn(
         num_atoms=num_atoms,
         is_stable_periodic=is_stable_periodic,
         position_ids=position_ids,
+        confidence=confidence,
     )
 
     if preprocess_2d_bond_features_with_cuda:

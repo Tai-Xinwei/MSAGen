@@ -1216,9 +1216,13 @@ class AFDBLMDBDataset(FoundationModelDataset):
             coords = data["pos"][
                 random_start : random_start + self.args.max_length, 1, :
             ]
+            confidence = data["confidence"][
+                random_start : random_start + self.args.max_length
+            ]
         else:
             # CA atom positions, assume all values are valid.
             coords = data["pos"][:, 1, :]
+            confidence = data["confidence"]
 
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
@@ -1229,6 +1233,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
         coords = torch.tensor(coords, dtype=torch.float64)
         data["coords"] = coords
+        data["confidence"] = torch.tensor(confidence, dtype=torch.float64)
         data["num_atoms"] = x.size()[0]
 
         data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
@@ -1392,9 +1397,13 @@ class ESMDataset(AFDBLMDBDataset):
             random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
             data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
             coords = data["pos"][random_start : random_start + self.args.max_length, :]
+            confidence = data["confidence"][
+                random_start : random_start + self.args.max_length
+            ]
         else:
             # CA atom positions, assume all values are valid.
             coords = data["pos"]
+            confidence = data["confidence"]
 
         # minus 1 due to add padding index=0 in collator
         x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
@@ -1405,6 +1414,7 @@ class ESMDataset(AFDBLMDBDataset):
 
         coords = torch.tensor(coords, dtype=torch.float64)
         data["coords"] = coords
+        data["confidence"] = torch.tensor(confidence, dtype=torch.float64)
         data["num_atoms"] = x.size()[0]
 
         data["cell"] = torch.zeros((3, 3), dtype=torch.float64)

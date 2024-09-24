@@ -375,15 +375,19 @@ class DiffMAE3dCriterions(nn.Module):
             hard_dist_loss = None
 
         if dist_mask_protein_mid.any() and hard_dist_loss is not None:
-            hard_dist_loss += (delta * time_coefficient)[dist_mask_protein_mid].mean()
-        elif hard_dist_loss is None:
+            hard_dist_loss = (
+                hard_dist_loss
+                + (delta * time_coefficient)[dist_mask_protein_mid].mean()
+            )
+        elif dist_mask_protein_mid.any() and hard_dist_loss is None:
             hard_dist_loss = (delta * time_coefficient)[dist_mask_protein_mid].mean()
 
         if dist_mask_protein_far.any() and hard_dist_loss is not None:
-            hard_dist_loss += (delta * time_coefficient)[
-                dist_mask_protein_far
-            ].mean() * 0.25
-        elif hard_dist_loss is None:
+            hard_dist_loss = (
+                hard_dist_loss
+                + (delta * time_coefficient)[dist_mask_protein_far].mean() * 0.25
+            )
+        elif dist_mask_protein_far.any() and hard_dist_loss is None:
             hard_dist_loss = (delta * time_coefficient)[
                 dist_mask_protein_far
             ].mean() * 0.25
@@ -527,6 +531,10 @@ class DiffMAE3dCriterions(nn.Module):
                             num_inter_dist_loss,
                         ) = self.dist_loss(model_output, R, T, pos_pred, atomic_numbers)
                         num_pddt_loss = 1
+                        if hard_dist_loss is None:
+                            hard_dist_loss = torch.tensor(
+                                0.0, device=smooth_lddt_loss.device, requires_grad=True
+                            )
                     else:
                         smooth_lddt_loss = torch.tensor(
                             0.0, device=noise_label.device, requires_grad=True

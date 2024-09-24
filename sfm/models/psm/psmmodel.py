@@ -251,6 +251,14 @@ class PSMModel(Model):
 
         # protein mask is used to mask out protein inf or nan during training
         mask = masked_protein & (masked_nan | masked_inf)
+
+        # fileter low plddt residues
+        if "confidence" in batched_data:
+            confidence_mask = (batched_data["confidence"] < 0.7) & (
+                batched_data["confidence"] > 0.0
+            )
+            mask = mask | confidence_mask.unsqueeze(-1)
+
         batched_data["protein_mask"] = mask
 
     # @torch.compiler.disable(recursive=False)
@@ -773,8 +781,8 @@ class PSMModel(Model):
         if "ori_pos" in batched_data:
             batched_data["pos"] = batched_data["ori_pos"]
 
-        self._create_system_tags(batched_data)
         self._create_protein_mask(batched_data)
+        self._create_system_tags(batched_data)
 
         device = batched_data["pos"].device
 
