@@ -31,6 +31,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${noise_scale}" ] && noise_scale=0.2
 [ -z "${noise_mode}" ] && noise_mode=diff
 [ -z "${psm_finetune_valid_noise_mode}" ] && psm_finetune_valid_noise_mode=zero
+[ -z "${psm_finetune_noise_mode}" ] && psm_finetune_noise_mode=zero
+[ -z "${node_type_edge_method}" ] && node_type_edge_method=EXCHANGABLE
+
+[ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=true
+[ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=true
 
 [ -z "${mask_ratio}" ] && mask_ratio=0.5
 [ -z "${d_tilde}" ] && d_tilde=1
@@ -53,12 +58,12 @@ export MKL_THREADING_LAYER='GNU'
 
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
 
-[ -z "${data_path}" ] && data_path="/data/"
+[ -z "${data_path}" ] && data_path="/home/hul/wangchu/data/"
 # [ -z "${data_path_list}" ] && data_path_list="SPICE-2.0.1/SPICE_PubChem_Set_1_Single_Points_Dataset_v1.3"
 # [ -z "${dataset_name_list}" ] && dataset_name_list="SPICE-2.0.1/SPICE_PubChem_Set_1_Single_Points_Dataset_v1.3"
-[ -z "${data_path_list}" ] && data_path_list="pm6_10M_refined4.lmdb/pm6_10M_refined4.lmdb"
+[ -z "${data_path_list}" ] && data_path_list="deshaw-filter/"
 [ -z "${shuffle}" ] && shuffle=True
-[ -z "${dataset_name_list}" ] && dataset_name_list="pm6"
+[ -z "${dataset_name_list}" ] && dataset_name_list="deshaw"
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
 [ -z "${save_dir}" ] && save_dir='/data/SPICE'
@@ -67,10 +72,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
 
-[ -z "${wandb_group}" ] && wandb_group=Zhihao-MD17-950
-[ -z "${wandb_team}" ] && wandb_team=""
-[ -z "${wandb_project}" ] && wandb_project=Personal_Test2
-[ -z "${wandb_key}" ] && wandb_key="027c1cc85f4e19ca1c378cfc81418c9ea526bb6d"
+[ -z "${wandb}" ] && wandb=false
+[ -z "${wandb_group}" ] && wandb_group=""
+[ -z "${wandb_team}" ] && wandb_team=faralley
+[ -z "${wandb_project}" ] && wandb_project=psm_debug_workshop
+[ -z "${wandb_run_name}" ] && wandb_run_name=SPICE
+[ -z "${wandb_key}" ] && wandb_key=1059e2793fc0c6ba4d85481bb10d9d1930e34ef1
 # [ -z "${wandb_group}" ] && wandb_group=psm_dev
 # [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 # [ -z "${wandb_project}" ] && wandb_project=psm_dev
@@ -164,7 +171,7 @@ fi
 echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
 
-torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_small_mol_debug.py \
+torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm.py \
           --config-name=config_psm.yaml \
           backbone_config=$backbone_config \
           backbone=$backbone \

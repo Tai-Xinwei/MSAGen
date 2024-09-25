@@ -158,6 +158,7 @@ class PSMConfig(GraphormerConfig):
     molecule_energy_per_atom_std_override: float = 1.0
     decoder_feat4energy: bool = True
     AutoGradForce: bool = False
+    supervise_force_from_head_when_autograd: bool = False
     NoisePredForce: bool = False
     seq_only: bool = False
     freeze_backbone: bool = False

@@ -245,10 +245,43 @@ class SFMMoEGenerator:
         return confidence
 
 
-if __name__ == "__main__":
-    mixtral_path = "/home/yeqibai/mount/nlm/Mixtral-8x7B-v0.1"
+def unit_test():
+    mixtral_path = "mistralai/Mixtral-8x7B-Instruct-v0.1"
     nlm_path = (
-        "/home/yeqibai/mount/nlm/shufxi/nlm/8x7b/inst/20240611215447/global_step33216"
+        "/home/yeqi/mount/nlm/shufxi/nlm/8x7b/inst/20240903153854/global_step2585"
     )
-    local_path = "/scratch/tmp"
+    # local_path = "/data/yeqi/cache/nlm_mixtral_8x7b_inst_2585"
+    local_path = "/data/yeqi/cache/nlm_moe"
     generator = SFMMoEGenerator(mixtral_path, nlm_path, local_path)
+    # No
+    prompt1 = (
+        "Can <mol>N1(C)CC(N)=[NH+][C@](C)(c2cccc(NC(=O)c3ccc(Cl)cn3)c2)C1=O</mol>"
+        + " restrain beta-secretase 1?"
+    )
+    # Yes
+    prompt2 = "Can the molecule <mol>c1(-c2ccc3nc(N)ccc3c2)ccsc1</mol> impede beta-secretase 1?"
+
+    prompt3 = "What can you tell me about <mol>CCCCCCCC/C=C\\CCCCCCCCC(=O)O</mol>?"
+
+    prompt4 = "Describe <mol>O=P(O)(O)O[C@H]1[C@H](OP(=O)(O)O)[C@@H](OP(=O)(O)O)[C@@H](O)[C@@H](O)[C@@H]1OP(=O)(O)O</mol>."
+
+    prompts = [prompt1, prompt2, prompt3, prompt4]
+
+    print("###" * 10)
+    print("Showing the prompts")
+    for prompt in prompts:
+        print(prompt)
+    print("###" * 10)
+    print("Testing out the chat function of SFMMoEGenerator")
+    for prompt in prompts:
+        output_list = generator.chat(prompt, do_sample=True)
+        print(output_list)
+    print("###" * 10)
+    print("Testing out the extract_first_token_prob function of SFMMoEGenerator")
+    for prompt in prompts:
+        confidence = generator.extract_first_token_prob(prompt)
+        print(confidence)
+
+
+if __name__ == "__main__":
+    unit_test()

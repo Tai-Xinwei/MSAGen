@@ -427,6 +427,7 @@ def get_data_defult_config(data_name):
     # train ratio , val ratio,test ratio can be int or float.
     has_energy, has_forces, is_pbc = 1, 1, 0
     unit = 0.0433634  # from kcal/mol - > eV
+    # unit = 1
     train_ratio, val_ratio, test_ratio = None, None, None
     if data_name.lower() == "qh9":
         train_ratio, val_ratio, test_ratio = 0.8, 0.1, 0.1
@@ -555,6 +556,104 @@ def get_data_defult_config(data_name):
         )
         system_ref = 0.0
         has_energy, has_forces, is_pbc = 1, 1, 1
+    elif data_name.lower() == "mattersim":
+        # unit = 1 / 0.0433634  # use kcal/mol as unit
+        atom_reference = np.zeros([20])
+        system_ref = 0.0
+        has_energy, has_forces, is_pbc = 1, 1, 1
+    elif data_name.lower() == "spice":
+        # unit = 1
+        atom_reference = np.array(
+            [
+                0.0000e00,
+                -3.7092e02,
+                0.0000e00,
+                -4.6022e03,
+                0.0000e00,
+                -1.5665e04,
+                -2.3935e04,
+                -3.4383e04,
+                -4.7234e04,
+                -6.2692e04,
+                0.0000e00,
+                -1.0179e05,
+                -1.2511e05,
+                0.0000e00,
+                -1.8178e05,
+                -2.1428e05,
+                -2.4990e05,
+                -2.8884e05,
+                0.0000e00,
+                -3.7648e05,
+                -4.2486e05,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                -1.6153e06,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                0.0000e00,
+                -1.8675e05,
+            ]
+        )
+        system_ref = 0.0
+    elif data_name.lower() == "deshaw":
+        # unit = 1
+        atom_reference = np.array(
+            [
+                0.0000,
+                -20633.2793,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                -12967.1572,
+                -3833.0178,
+                -3670.1753,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+                0.0000,
+            ]
+        )
+        system_ref = 0.0
+    elif data_name.lower() == "gems":
+        # unit = 1
+        atom_reference = np.zeros([20])
+        system_ref = 0.0
     else:
         atom_reference = np.zeros([20])
         system_ref = SYSTEM_REF[data_name]

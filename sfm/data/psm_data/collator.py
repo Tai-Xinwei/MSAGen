@@ -137,7 +137,6 @@ def collate_fn(
     has_energy = torch.cat([i["has_energy"] for i in items], dim=0)
     has_forces = torch.cat([i["has_forces"] for i in items], dim=0)
     energy_per_atom = torch.cat(energy_per_atom)
-
     x = torch.cat([pad_2d_unsqueeze(i["node_attr"], max_node_num) for i in items])
     position_ids = torch.cat(
         [pad_1d_unsqueeze(i["position_ids"], max_node_num) for i in items]

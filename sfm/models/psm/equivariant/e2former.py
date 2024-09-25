@@ -3037,10 +3037,11 @@ class E2Attention_Wobis(torch.nn.Module):
 
         attn_mask = attn_mask.squeeze(-1).unsqueeze(
             1
-        )  # 调整 attn_mask 的形状为 [batch_size, 1, seq_len, seq_len]
+        )  # [batch_size, 1, seq_len, seq_len]
         attn_mask = attn_mask.expand(
             -1, query.size(1), -1, -1
-        )  # 扩展 attn_mask 为 [batch_size, num_heads, seq_len, seq_len]
+        )  # [batch_size, num_heads, seq_len, seq_len]
+        attn_mask = attn_weight.permute(0, 3, 1, 2).masked_fill(attn_mask, -1e6)
 
         if self.tp_type is None or self.tp_type == "None":
             node_scalars = None
@@ -3830,6 +3831,7 @@ class EdgeDegreeEmbeddingNetwork_higherorder(torch.nn.Module):
         avg_aggregate_num=10,
         number_of_basis=32,
         cutoff=None,
+        time_embed=False,
         **kwargs,
     ):
         super().__init__()
@@ -3847,11 +3849,12 @@ class EdgeDegreeEmbeddingNetwork_higherorder(torch.nn.Module):
         self.scalar_dim = self.irreps_node_embedding[0][0]
         self.embed = nn.Embedding(256, self.scalar_dim)
         self.embed.weight.data.normal_(0, 1 / self.scalar_dim**0.5)
-        self.time_embed_proj = nn.Sequential(
-            nn.Linear(self.scalar_dim, self.scalar_dim, bias=True),
-            nn.SiLU(),
-            nn.Linear(self.scalar_dim, number_of_basis, bias=True),
-        )
+        if time_embed:
+            self.time_embed_proj = nn.Sequential(
+                nn.Linear(self.scalar_dim, self.scalar_dim, bias=True),
+                nn.SiLU(),
+                nn.Linear(self.scalar_dim, number_of_basis, bias=True),
+            )
 
         self.weight_list = nn.ParameterList()
         for idx in range(len(self.irreps_node_embedding)):
@@ -3917,6 +3920,7 @@ class EdgeDegreeEmbeddingNetwork_higherorder(torch.nn.Module):
                 normalize=True,
                 normalization="norm",
             )  # * adj.reshape(B,L,L,1) #B*L*L*(2l+1)
+            edge_fea = edge_dis_embed
             edge_fea = self.gbf_projs[idx](edge_dis_embed)
             # lx_embed = torch.einsum("bmnd,bnh->bmhd",lx,node_embed) #lx:B*L*L*(2l+1)  node_embed:B*L*hidden
             lx_embed = torch.einsum(
@@ -3940,6 +3944,7 @@ class EdgeDegreeEmbeddingNetwork_higherorder_bias(torch.nn.Module):
         avg_aggregate_num=10,
         number_of_basis=32,
         cutoff=None,
+        time_embed=False,
         **kwargs,
     ):
         super().__init__()
@@ -3957,11 +3962,12 @@ class EdgeDegreeEmbeddingNetwork_higherorder_bias(torch.nn.Module):
         self.scalar_dim = self.irreps_node_embedding[0][0]
         self.embed = nn.Embedding(256, self.scalar_dim)
         self.embed.weight.data.normal_(0, 1 / self.scalar_dim**0.5)
-        self.time_embed_proj = nn.Sequential(
-            nn.Linear(self.scalar_dim, self.scalar_dim, bias=True),
-            nn.SiLU(),
-            nn.Linear(self.scalar_dim, number_of_basis, bias=True),
-        )
+        if time_embed:
+            self.time_embed_proj = nn.Sequential(
+                nn.Linear(self.scalar_dim, self.scalar_dim, bias=True),
+                nn.SiLU(),
+                nn.Linear(self.scalar_dim, number_of_basis, bias=True),
+            )
 
         self.weight_list = nn.ParameterList()
         self.bias_list = nn.ParameterList()
@@ -4075,6 +4081,7 @@ class E2former(torch.nn.Module):
         attn_biastype="share",  # add
         ffn_type="default",
         add_rope=True,
+        time_embed=False,
         # mean=None,
         # std=None,
         # scale=None,
@@ -4093,6 +4100,7 @@ class E2former(torch.nn.Module):
         self.drop_path_rate = drop_path_rate
         self.norm_layer = norm_layer
         self.add_rope = add_rope
+        self.time_embed = time_embed
         # self.task_mean = mean
         # self.task_std = std
         # self.scale = scale
@@ -4147,13 +4155,15 @@ class E2former(torch.nn.Module):
                 _AVG_DEGREE,
                 cutoff=self.max_radius,
                 number_of_basis=self.number_of_basis,
+                time_embed=self.time_embed,
             )
-        if edge_embedtype == "highorder_bias":
+        elif edge_embedtype == "highorder_bias":
             self.edge_deg_embed_dense = EdgeDegreeEmbeddingNetwork_higherorder_bias(
                 self.irreps_node_embedding,
                 _AVG_DEGREE,
                 cutoff=self.max_radius,
                 number_of_basis=self.number_of_basis,
+                time_embed=self.time_embed,
             )
         else:
             raise ValueError("please check edge embedtype")
@@ -4326,8 +4336,10 @@ class E2former(torch.nn.Module):
         device = node_pos.device
         B, L, _ = node_pos.shape
         atomic_numbers = batched_data["masked_token_type"].reshape(B, L)
-        if time_embed is not None:
+        if (time_embed is not None) and self.time_embed:
             time_embed = time_embed.to(dtype=tensortype)
+        else:
+            time_embed = None
         mol_type = 0  # torch.any(batched_data["is_molecule"]):
         node_pos_right = node_pos
         if torch.any(batched_data["is_periodic"]):

@@ -20,3 +20,4 @@ edge_embedtype: "highorder"
 attn_biastype: "share"
 ffn_type: 'default'
 add_rope: False
+time_embed: False

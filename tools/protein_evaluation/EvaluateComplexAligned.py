@@ -133,7 +133,7 @@ def process_run_record(sampled_folder: str, posebusters_folder: str, run_id: int
     for idx in POSEBUSTER_IDS:
         try:
             sampled_filename = os.path.join(sampled_folder, f'{idx[:4]}-{run_id}.pdb')
-            original_filename = os.path.join(sampled_folder, f'{idx[:4]}.pdb')
+            original_filename = os.path.join(sampled_folder, f'{idx[:4]}-native.pdb')
             posebuster_pdb_filename = os.path.join(posebusters_folder, idx, f'{idx}_protein.pdb')
             ligand_sdf_filename = os.path.join(posebusters_folder, idx, f'{idx}_ligand.sdf')
             ligands_sdf_filename = os.path.join(posebusters_folder, idx, f'{idx}_ligands.sdf')

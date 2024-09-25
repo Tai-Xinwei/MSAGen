@@ -1,0 +1,116 @@
+# Steps to run:
+# 1. copy data folder https://itpeus4data.blob.core.windows.net/shuz/data/pcq-pos-custom/ to your Azure storage blob container
+# 2. copy script mae_3d.sh in FoundationModelProp/ to your Azure storage blob container
+# 3. Specify the Azure storage account and container to use
+# 4. Submit the job with this yaml file
+
+description: PSMV0
+
+env_defaults:
+  NODES: 1
+  GPUS_PER_NODE: 4
+  WANDB_API_KEY: ""
+
+target:
+  service: aml
+  name: sfm-madft-nc96adsa100v4-uksouth
+# sfm-madft-nc96adsa100v4-eastus2
+environment:
+  image: ai4s-sfm:20240531.170731
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+
+storage:
+    storageA:
+      storage_account_name: sfmdatauksouth
+      container_name: madft-nn
+      mount_dir: /blob
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: eqv2-pretrain-chu
+  identity: managed
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+  sku: 80G4-A100
+  priority: high
+
+  command:
+  - export data_path=/blob/dataset/
+  - mkdir -p /blob/psm-checkpoints
+  - mkdir -p /blob/psm-checkpoints/EQV2-pretrain/GEMS/0812/1
+  - export save_dir=/blob/psm-checkpoints/EQV2-pretrain/GEMS/0812/1
+  # - export loadcheck_path=/blob/psm-checkpoints/EQV2-pretrain/GEMS/0802/checkpoint_E15.pt
+  - export pbc_cutoff=20.0
+  - export pbc_expanded_num_cell_per_direction=5
+  - export pbc_expanded_token_cutoff=256
+  - export pbc_multigraph_cutoff=5.0
+  - export pbc_use_local_attention=False
+  - export num_pred_attn_layer=4
+  - export save_batch_interval=2500
+  - export train_batch_size=1024
+  - export val_batch_size=1024
+  - export gradient_accumulation_steps=4
+  - export val_batch_interval=0
+  - export total_num_steps=2000000
+  - export warmup_num_steps=12000
+  - export max_lr=1.5e-4
+  - export diffusion_noise_std=1.0
+  - export equivar_vec_init=ZERO_CENTERED_POS
+  - export strategy=DDP
+  - export fp16=False
+  - export clean_sample_ratio=1.0
+  - export diff_init_lattice_size=10.0
+  - export diffusion_sampling="ddpm"
+  - export num_timesteps=5000
+  - export ddpm_beta_start=1e-7
+  - export ddpm_beta_end=2e-3
+  - export ddpm_schedule=sigmoid
+  - export equivar_use_linear_bias=True
+  - export equivar_use_attention_bias=True
+  - export ifresume=True
+  # - export data_path_list="dataset/MD22/AT_AT_CG_CG/radius3_broadcast"
+  # - export dataset_name_list="AT_AT_CG_CG"
+  # - export dataset_len_ratio_list="1.0"
+  # - export dataset_split_raito="1.0"
+  # - export data_path_list="mattersim-500k,SPICE-2.0.1/SPICE_PubChem_500k"
+  # - export dataset_name_list="mattersim,SPICE"
+  # - export dataset_len_ratio_list="1.0,1.0"
+  # - export dataset_split_raito="0.5,0.5"
+  # - export data_path_list="mattersim-500k,SPICE-2.0.1/SPICE_PubChem_500k,GEMS/general_protein_fragments"
+  # - export dataset_name_list="mattersim,SPICE,GEMS"
+  # - export dataset_len_ratio_list="1.0,1.0,0.2"
+  # - export dataset_split_raito="0.33,0.33,0.34"
+  # - export data_path_list="SPICE-2.0.1/SPICE_PubChem_500k"
+  # - export dataset_name_list="SPICE"
+  # - export dataset_len_ratio_list="1.0"
+  # - export dataset_split_raito="1.0"
+  # - export data_path_list="SPICE-2.0.1/SPICE_PubChem_Single_Points_Dataset"
+  # - export dataset_name_list="SPICE"
+  # - export dataset_len_ratio_list="1.0"
+  # - export dataset_split_raito="1.0"
+  # - export data_path_list="oc20/s2ef/unref/2M"
+  # - export dataset_name_list="oc20"
+  # - export dataset_len_ratio_list="1.0"
+  # - export dataset_split_raito="1.0"
+  # - export data_path_list="deshaw/db_data/1FME-0-protein-dft-m06-2x"
+  # - export dataset_name_list="deshaw"
+  # - export dataset_len_ratio_list="1.0"
+  # - export dataset_split_raito="1.0"
+  - export data_path_list="GEMS/general_protein_fragments"
+  - export dataset_name_list="GEMS"
+  - export dataset_len_ratio_list="1.0"
+  - export dataset_split_raito="1.0"
+  - export use_unified_batch_sampler=True
+  - export rescale_loss_with_std=True
+  - export wandb_group=""
+  - export wandb_team=faralley
+  - export wandb_project=psm_pretrain
+  - export wandb_key=1059e2793fc0c6ba4d85481bb10d9d1930e34ef1
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+  - export dataset_micro_batch_size="10";bash scripts/psm/finetune_psm_equiformerv2.sh
+  submit_args:
+    container_args:
+      shm_size: 1024g

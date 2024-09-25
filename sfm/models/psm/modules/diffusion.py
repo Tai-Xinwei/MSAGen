@@ -4,14 +4,24 @@ from abc import ABC, ABCMeta, abstractmethod
 import torch
 from torch import Tensor
 
+from sfm.models.psm.psm_config import PSMConfig
 from sfm.utils.register import Register
 
 DIFFUSION_PROCESS_REGISTER = Register("diffusion_process_register")
 
 
 class DiffusionProcess(ABC, metaclass=ABCMeta):
-    def __init__(self, alpha_cummlative_product: Tensor) -> None:
+    def __init__(
+        self, alpha_cummlative_product: Tensor, psm_config: PSMConfig = None
+    ) -> None:
         self.alpha_cummlative_product = alpha_cummlative_product
+        self.alpha_cummlative_product_t_1 = torch.cat(
+            [
+                torch.tensor([1.0]).to(alpha_cummlative_product.device),
+                alpha_cummlative_product[:-1],
+            ]
+        )
+        self.psm_config = psm_config
 
     @abstractmethod
     def sample_step(self, x_t, x_init_pos, predicted_noise, epsilon, t):
@@ -20,8 +30,10 @@ class DiffusionProcess(ABC, metaclass=ABCMeta):
 
 @DIFFUSION_PROCESS_REGISTER.register("ddpm")
 class DDPM(DiffusionProcess):
-    def __init__(self, alpha_cummlative_product: Tensor, psm_config) -> None:
-        super().__init__(alpha_cummlative_product)
+    def __init__(
+        self, alpha_cummlative_product: Tensor, psm_config: PSMConfig = None
+    ) -> None:
+        super().__init__(alpha_cummlative_product, psm_config)
 
     def sample_step(self, x_t, x_init_pos, predicted_noise, epsilon, t, stepsize=1):
         hat_alpha_t = self.alpha_cummlative_product[t]
@@ -45,8 +57,10 @@ class DDPM(DiffusionProcess):
 
 @DIFFUSION_PROCESS_REGISTER.register("ode")
 class ODE(DiffusionProcess):
-    def __init__(self, alpha_cummlative_product: Tensor, psm_config) -> None:
-        super().__init__(alpha_cummlative_product)
+    def __init__(
+        self, alpha_cummlative_product: Tensor, psm_config: PSMConfig = None
+    ) -> None:
+        super().__init__(alpha_cummlative_product, psm_config)
 
     def sample_step(self, x_t, x_init_pos, predicted_noise, epsilon, t, stepsize=1):
         hat_alpha_t = self.alpha_cummlative_product[t]
@@ -65,8 +79,10 @@ class ODE(DiffusionProcess):
 
 @DIFFUSION_PROCESS_REGISTER.register("sde")
 class SDE(DiffusionProcess):
-    def __init__(self, alpha_cummlative_product: Tensor, psm_config) -> None:
-        super().__init__(alpha_cummlative_product)
+    def __init__(
+        self, alpha_cummlative_product: Tensor, psm_config: PSMConfig = None
+    ) -> None:
+        super().__init__(alpha_cummlative_product, psm_config)
 
     def sample_step(self, x_t, x_init_pos, predicted_noise, epsilon, t, stepsize=1):
         hat_alpha_t = self.alpha_cummlative_product[t]
@@ -85,11 +101,95 @@ class SDE(DiffusionProcess):
         return x_t_minus_1
 
 
+@DIFFUSION_PROCESS_REGISTER.register("ddim")
+class DDIM(DiffusionProcess):
+    def __init__(self, alpha_cummlative_product: Tensor, psm_config) -> None:
+        super().__init__(alpha_cummlative_product, psm_config)
+        self.final_alpha_cumprod = torch.tensor(1.0, device="cuda")
+
+    def _get_variance(self, timestep, prev_timestep):
+        alpha_prod_t = self.alpha_cummlative_product[timestep]
+        alpha_prod_t_prev = (
+            self.alpha_cummlative_product[prev_timestep]
+            if prev_timestep >= 0
+            else self.final_alpha_cumprod
+        )
+        beta_prod_t = 1 - alpha_prod_t
+        beta_prod_t_prev = 1 - alpha_prod_t_prev
+
+        variance = (beta_prod_t_prev / beta_prod_t) * (
+            1 - alpha_prod_t / alpha_prod_t_prev
+        )
+
+        return variance
+
+    def sample_step(
+        self,
+        x_t,
+        x_init_pos,
+        predicted_noise,
+        epsilon,
+        t,
+        stepsize=1,
+        eta=0,
+        use_clipped_pred_epsilon=False,
+    ):
+        # See formulas (12) and (16) of DDIM paper https://arxiv.org/pdf/2010.02502.pdf
+        # 1. get previous step value (=t-1)
+        prev_timestep = t + self.psm_config.num_timesteps_stepsize
+
+        # 2. compute alphas, betas
+        alpha_prod_t = self.alpha_cummlative_product[t]
+        alpha_prod_t_prev = (
+            self.alpha_cummlative_product[prev_timestep]
+            if prev_timestep >= 0
+            else self.final_alpha_cumprod
+        )
+
+        beta_prod_t = 1 - alpha_prod_t
+
+        # 3. compute predicted original sample from predicted noise also called
+        # "predicted x_0" of formula (12)
+        pred_original_sample = (
+            x_t - beta_prod_t ** (0.5) * predicted_noise
+        ) / alpha_prod_t ** (0.5)
+        pred_epsilon = predicted_noise
+
+        # 4. compute variance: "sigma_t(η)" -> see formula (16)
+        # σ_t = sqrt((1 − α_t−1)/(1 − α_t)) * sqrt(1 − α_t/α_t−1)
+        variance = self._get_variance(t, prev_timestep)
+        std_dev_t = eta * variance ** (0.5)
+
+        if use_clipped_pred_epsilon:
+            # the pred_epsilon is always re-derived from the clipped x_0 in Glide
+            pred_epsilon = (
+                x_t - alpha_prod_t ** (0.5) * pred_original_sample
+            ) / beta_prod_t ** (0.5)
+
+        # 5. compute "direction pointing to x_t" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
+        pred_sample_direction = (1 - alpha_prod_t_prev - std_dev_t**2) ** (
+            0.5
+        ) * pred_epsilon
+
+        # 6. compute x_t without "random noise" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
+        prev_sample = (
+            alpha_prod_t_prev ** (0.5) * pred_original_sample + pred_sample_direction
+        )
+
+        if eta > 0:
+            variance = std_dev_t * epsilon
+
+            prev_sample = prev_sample + variance
+
+        return prev_sample
+
+
 @DIFFUSION_PROCESS_REGISTER.register("dpm")
 class DPM(DiffusionProcess):
-    def __init__(self, alpha_cummlative_product: Tensor, psm_config) -> None:
-        super().__init__(alpha_cummlative_product)
-        self.psm_config = psm_config
+    def __init__(
+        self, alpha_cummlative_product: Tensor, psm_config: PSMConfig = None
+    ) -> None:
+        super().__init__(alpha_cummlative_product, psm_config)
         # register a list of the predicted noise for higher order solvers
         self.model_outputs = [None] * self.psm_config.solver_order
         self.lower_order_nums = 0

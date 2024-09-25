@@ -20,9 +20,24 @@ class GradientHead(torch.nn.Module):
 
     def forward(
         self,
-        energy,
+        energy_per_atom,
+        non_atom_mask,
         pos,
+        is_periodic,
+        is_molecule,
     ):
+        energy_per_atom = energy_per_atom.masked_fill(non_atom_mask, 0.0)
+        energy_per_atom = torch.where(
+            is_periodic.unsqueeze(-1),
+            energy_per_atom * self.periodic_energy_per_atom_std,
+            energy_per_atom,
+        )
+        energy_per_atom = torch.where(
+            is_molecule.unsqueeze(-1),
+            energy_per_atom * self.molecule_energy_per_atom_std,
+            energy_per_atom,
+        )
+        energy = energy_per_atom.sum(dim=-1, keepdim=True)
         grad_outputs = [torch.ones_like(energy)]
 
         grad = torch.autograd.grad(
@@ -36,5 +51,16 @@ class GradientHead(torch.nn.Module):
 
         if force_grad is not None:
             forces = torch.neg(force_grad)
+
+        forces = torch.where(
+            is_periodic.unsqueeze(-1).unsqueeze(-1),
+            forces / self.periodic_force_std,
+            forces,
+        )
+        forces = torch.where(
+            is_molecule.unsqueeze(-1).unsqueeze(-1),
+            forces / self.molecule_force_std,
+            forces,
+        )
 
         return forces

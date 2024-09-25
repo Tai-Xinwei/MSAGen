@@ -154,6 +154,7 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 self.periodic_force_mean = 0.0
                 self.periodic_force_std = 1.0
             elif dataset_name in [
+                "SPICE",
                 "pubchem5w",
                 "Ac_Ala3_NHMe",
                 "AT_AT",
@@ -163,11 +164,18 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 "buckyball_catcher",  # buckyball_catcher/radius3_broadcast_kmeans
                 "double_walled_nanotube",  # double_walled_nanotube/radius3_broadcast_kmeans
                 "oc20",
+                "deshaw",
+                "GEMS",
             ]:
                 dataset = SmallMolDataset(
                     args, data_path, data_name=dataset_name, **kwargs
                 )
-                train_dataset, valid_dataset = dataset.split_dataset()
+                # train_dataset, valid_dataset = dataset.split_dataset_cutoff(
+                #     dataset_len_ratio=dataset_len_ratio
+                # )
+                train_dataset, valid_dataset = dataset.split_dataset(
+                    validation_ratio=0.8
+                )
                 len_total = len(dataset)
             elif dataset_name == "pcqm4mv2":
                 train_dataset = PCQM4Mv2LMDBDataset(
@@ -206,7 +214,7 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)
-            elif dataset_name == "posebusters":
+            elif dataset_name == "complextest":
                 dataset = PDBComplexDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset, dataset
                 len_total = len(dataset)
@@ -226,7 +234,7 @@ class UnifiedPSMDataset(FoundationModelDataset):
             self.train_len += len(train_dataset)
             self.valid_len += len(valid_dataset)
             logger.info(
-                f"Loaded dataset {dataset_name} with total {len_total/1000/1000:0.2f}M samples, {len(train_dataset)/1000/1000:0.2f}M for training, {len(valid_dataset)/1000/1000:0.2f}M for validation"
+                f"Loaded dataset {dataset_name} with total {len_total/1000/1000:0.2f} samples, {len(train_dataset)/1000/1000:0.2f} for training, {len(valid_dataset)/1000/1000:0.2f} for validation"
             )
 
         self.num_datasets = len(self.train_dataset_list)
@@ -263,7 +271,7 @@ class BatchedDataDataset(FoundationModelDataset):
             )
             self.dataset_split_raito[-1] = 1.0 - sum(self.dataset_split_raito[:-1])
 
-        logger.info(f"Total data Length is {len_data/1000/1000:0.2f}M")
+        logger.info(f"Total data Length is {len_data:0.2f}")
 
         self.multi_hop_max_dist = multi_hop_max_dist
         self.spatial_pos_max = spatial_pos_max
