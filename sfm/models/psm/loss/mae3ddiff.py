@@ -621,7 +621,7 @@ class DiffMAE3dCriterions(nn.Module):
             elif self.diffusion_mode == "edm":
                 weight_pos_edm = model_output["weight_edm"]
                 if not is_seq_only.any():
-                    if self.args.align_x0_in_diffusion_loss:
+                    if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
                         R, T = self._alignment_x0(
                             model_output, noise_pred, atomic_numbers
                         )
@@ -661,20 +661,17 @@ class DiffMAE3dCriterions(nn.Module):
                         num_pddt_loss = 0
                         num_inter_dist_loss = 0
 
-                    if self.args.align_x0_in_diffusion_loss:
+                    if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
                         pos_label = torch.einsum(
                             "bij,bkj->bki", R.to(pos_label.dtype), pos_label
                         )  # + T.to(pos_label.dtype)
 
                     if weight_pos_edm is not None:
-                        if (
-                            self.args.diffusion_training_loss
-                            == DiffusionTrainingLoss.L1
-                            or self.args.diffusion_training_loss
-                            == DiffusionTrainingLoss.SmoothL1
-                            or self.args.diffusion_training_loss
-                            == DiffusionTrainingLoss.L2
-                        ):
+                        if self.args.diffusion_training_loss in [
+                            DiffusionTrainingLoss.L1,
+                            DiffusionTrainingLoss.SmoothL1,
+                            DiffusionTrainingLoss.L2,
+                        ]:
                             unreduced_noise_loss = (
                                 weight_pos_edm.sqrt()
                                 * self.noise_loss(

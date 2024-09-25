@@ -199,7 +199,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${diffusion_mode}" ] && diffusion_mode=edm #epsilon, edm
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
-[ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L2"
+[ -z "${diffusion_training_loss}" ] && diffusion_training_loss="MSE"
 
 
 [ -z "${num_timesteps}" ] && num_timesteps=5000

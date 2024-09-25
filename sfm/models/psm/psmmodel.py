@@ -1731,7 +1731,7 @@ class PSM(nn.Module):
                         self.energy_head["periodic"](encoder_output).squeeze(-1),
                         self.energy_head["molecule"](encoder_output).squeeze(-1),
                     )
-                print(f"{noise_pred=}")
+
                 if self.args.diffusion_mode == "edm":
                     noise_pred = (
                         batched_data["c_skip"] * pos_noised_no_c_in
