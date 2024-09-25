@@ -122,6 +122,23 @@ class PSMConfig(GraphormerConfig):
         DiffusionTimeStepEncoderType.POSITIONAL
     )
     align_x0_in_diffusion_loss: bool = True
+    # EDM
+    edm_P_mean: float = -1.2
+    edm_P_std: float = 1.5
+    edm_sigma_data: float = 16.0
+    edm_sample_num_steps: int = 200
+    edm_sample_sigma_min: float = 0.004
+    edm_sample_sigma_max: float = 160.0
+    edm_sample_rho: float = 7.0
+    edm_sample_S_churn: float = 0.0
+    edm_sample_S_min: float = 0.0
+    edm_sample_S_max: float = 3.0e30
+    edm_sample_S_noise: float = 1.0
+    # for AF3
+    af3_sample_gamma_0: float = 0.8
+    af3_sample_gamma_min: float = 1.0
+    af3_sample_step_scale: float = 1.5
+    noise_embedding: str = "positional"
 
     # for RL
     psm_finetuneRL_mode: bool = True

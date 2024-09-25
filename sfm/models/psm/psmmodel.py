@@ -47,7 +47,12 @@ from .modules.confidence_model import lddt
 from .modules.dataaug import uniform_random_rotation
 from .modules.diffusion import DIFFUSION_PROCESS_REGISTER
 from .modules.sampled_structure_converter import SampledStructureConverter
-from .modules.timestep_encoder import DiffNoise, TimeStepSampler
+from .modules.timestep_encoder import (
+    DiffNoise,
+    DiffNoise_EDM,
+    NoiseStepSampler_EDM,
+    TimeStepSampler,
+)
 
 
 class PSMModel(Model):
@@ -89,12 +94,18 @@ class PSMModel(Model):
         self.psm_finetune_head = psm_finetune_head
         self.checkpoint_loaded = self.reload_checkpoint()
 
-        self.diffnoise = DiffNoise(self.psm_config)
-        self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
-            self.psm_config.diffusion_sampling
-        ](self.diffnoise.alphas_cumprod, self.psm_config)
+        if self.psm_config.diffusion_mode == "edm":
+            self.diffnoise = DiffNoise_EDM(self.psm_config)
+        else:
+            self.diffnoise = DiffNoise(self.psm_config)
+            self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
+                self.psm_config.diffusion_sampling
+            ](self.diffnoise.alphas_cumprod, self.psm_config)
 
-        self.time_step_sampler = TimeStepSampler(self.psm_config.num_timesteps)
+        if self.psm_config.diffusion_mode == "edm":
+            self.time_step_sampler = NoiseStepSampler_EDM()
+        else:
+            self.time_step_sampler = TimeStepSampler(self.psm_config.num_timesteps)
 
         self.loss_fn = loss_fn(args)
 
@@ -271,6 +282,7 @@ class PSMModel(Model):
         is_seq_only,
         is_complex,
         time_step,
+        noise_step,
         batched_data,
     ):
         """
@@ -295,12 +307,21 @@ class PSMModel(Model):
         mask_choice = torch.tensor([i for i in mask_choice]).to(clean_mask.device)
         clean_mask = clean_mask.unsqueeze(-1).repeat(1, nnodes)
         mask_choice = mask_choice.unsqueeze(-1).repeat(1, nnodes)
-        time_protein = (
-            (torch.rand(n_graph, device=clean_mask.device) * time_step)
-            .unsqueeze(-1)
-            .repeat(1, nnodes)
-        )
-        time_step = time_step.unsqueeze(-1).repeat(1, nnodes)
+
+        if time_step is not None:
+            time_protein = (
+                (torch.rand(n_graph, device=clean_mask.device) * time_step)
+                .unsqueeze(-1)
+                .repeat(1, nnodes)
+            )
+            time_step = time_step.unsqueeze(-1).repeat(1, nnodes)
+        elif noise_step is not None:
+            noise_step_protein = (
+                (torch.rand(n_graph, device=clean_mask.device) * noise_step)
+                .unsqueeze(-1)
+                .repeat(1, nnodes)
+            )
+            noise_step = noise_step.unsqueeze(-1).repeat(1, nnodes)
 
         # mode 0:
         aa_mask = torch.where(
@@ -317,11 +338,18 @@ class PSMModel(Model):
             (mask_choice == 1) & ~is_seq_only.unsqueeze(-1), False, aa_mask
         )
         # set ligand time t2 > t1 for mode 1
-        time_step = torch.where(
-            (mask_choice == 1) & is_complex.unsqueeze(-1) & is_protein,
-            time_protein,
-            time_step,
-        )
+        if time_step is not None:
+            time_step = torch.where(
+                (mask_choice == 1) & is_complex.unsqueeze(-1) & is_protein,
+                time_protein,
+                time_step,
+            )
+        elif noise_step is not None:
+            noise_step = torch.where(
+                (mask_choice == 1) & is_complex.unsqueeze(-1) & is_protein,
+                noise_step_protein,
+                noise_step,
+            )
 
         # mode 2:
         clean_mask = torch.where(
@@ -337,11 +365,18 @@ class PSMModel(Model):
                 True,
                 clean_mask,
             )
-            time_step = torch.where(
-                (mask_choice == 3) & is_protein & is_complex.unsqueeze(-1),
-                0.0,
-                time_step,
-            )
+            if time_step is not None:
+                time_step = torch.where(
+                    (mask_choice == 3) & is_protein & is_complex.unsqueeze(-1),
+                    time_protein,
+                    time_step,
+                )
+            elif noise_step is not None:
+                noise_step = torch.where(
+                    (mask_choice == 3) & is_protein & is_complex.unsqueeze(-1),
+                    noise_step_protein,
+                    noise_step,
+                )
 
         # set padding mask to clean
         clean_mask = clean_mask.masked_fill(padding_mask, True)
@@ -352,24 +387,45 @@ class PSMModel(Model):
         # set special token "<.>" to clean
         token_id = batched_data["token_id"]
         clean_mask = clean_mask.masked_fill(token_id == 156, True)
-        time_step = time_step.masked_fill(token_id == 156, 0.0)
 
-        # set T noise if protein is seq only
-        time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
-        # set 0 noise for padding
-        time_step = time_step.masked_fill(padding_mask, 0.0)
+        if time_step is not None:
+            time_step = time_step.masked_fill(token_id == 156, 0.0)
+            # set T noise if protein is seq only
+            time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
+            # set 0 noise for padding
+            time_step = time_step.masked_fill(padding_mask, 0.0)
+            # # TODO: found this may cause instability issue, need to check
+            # # # set T noise for batched_data["protein_mask"] nan/inf coords
+            time_step = time_step.masked_fill(
+                batched_data["protein_mask"].any(dim=-1), 1.0
+            )
 
-        # # TODO: found this may cause instability issue, need to check
-        # # # set T noise for batched_data["protein_mask"] nan/inf coords
-        time_step = time_step.masked_fill(batched_data["protein_mask"].any(dim=-1), 1.0)
+        if noise_step is not None:
+            noise_step = noise_step.masked_fill(token_id == 156, 0.0)
+            # set T noise if protein is seq only
+            noise_step = noise_step.masked_fill(
+                is_seq_only.unsqueeze(-1), 3.0
+            )  # NOTE: 3σ is used as the maximum value
+            # set 0 noise for padding
+            noise_step = noise_step.masked_fill(padding_mask, 0.0)
+            # # TODO: found this may cause instability issue, need to check
+            # # # set T noise for batched_data["protein_mask"] nan/inf coords
+            noise_step = noise_step.masked_fill(
+                batched_data["protein_mask"].any(dim=-1), 3.0
+            )
+
         # make sure noise really replaces nan/inf coords
         clean_mask = clean_mask.masked_fill(
             batched_data["protein_mask"].any(dim=-1), False
         )
 
-        time_step = time_step.masked_fill(clean_mask, 0.0)
+        if time_step is not None:
+            time_step = time_step.masked_fill(clean_mask, 0.0)
 
-        return clean_mask, aa_mask, time_step
+        if noise_step is not None:
+            noise_step = noise_step.masked_fill(clean_mask, 0.0)
+
+        return clean_mask, aa_mask, time_step, noise_step
 
     def _create_system_tags(self, batched_data):
         token_id = batched_data["token_id"]
@@ -438,6 +494,7 @@ class PSMModel(Model):
         mask_pos=None,
         mask_angle=None,
         mode_mask=None,
+        noise_step=None,
         time_step=None,
         clean_mask=None,
         infer=False,
@@ -459,32 +516,55 @@ class PSMModel(Model):
             R = uniform_random_rotation(
                 ori_pos.size(0), device=ori_pos.device, dtype=ori_pos.dtype
             )
-            T = torch.randn(
-                ori_pos.size(0), 3, device=ori_pos.device, dtype=ori_pos.dtype
-            ).unsqueeze(1)
-            ori_pos = torch.bmm(ori_pos, R) + T
+            # T = torch.randn(
+            #     ori_pos.size(0), 3, device=ori_pos.device, dtype=ori_pos.dtype
+            # ).unsqueeze(1)
+            ori_pos = torch.bmm(ori_pos, R)  # + T
             batched_data["forces"] = torch.bmm(batched_data["forces"].float(), R)
             # batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
             # batched_data["cell"] = torch.bmm(batched_data["cell"], R)
 
         batched_data["ori_pos"] = ori_pos
 
-        (
-            noise_pos,
-            noise,
-            sqrt_one_minus_alphas_cumprod_t,
-            sqrt_alphas_cumprod_t,
-        ) = self.diffnoise.noise_sample(
-            x_start=ori_pos,
-            t=time_step,
-            non_atom_mask=batched_data["non_atom_mask"],
-            is_stable_periodic=batched_data["is_stable_periodic"],
-            x_init=batched_data["init_pos"],
-            clean_mask=clean_mask,
-        )
+        if self.psm_config.diffusion_mode == "edm":
+            (
+                noise_pos,
+                noise,
+                sigma_edm,
+                weight_edm,
+            ) = self.diffnoise.noise_sample(
+                x_start=ori_pos,
+                noise_step=noise_step,
+                non_atom_mask=batched_data["non_atom_mask"],
+                is_stable_periodic=batched_data["is_stable_periodic"],
+                x_init=batched_data["init_pos"],
+                clean_mask=clean_mask,
+            )
+            sigma = sigma_edm
+            alpha = None
+            weight = weight_edm
+        else:
+            (
+                noise_pos,
+                noise,
+                sqrt_one_minus_alphas_cumprod_t,
+                sqrt_alphas_cumprod_t,
+            ) = self.diffnoise.noise_sample(
+                x_start=ori_pos,
+                t=time_step,
+                non_atom_mask=batched_data["non_atom_mask"],
+                is_stable_periodic=batched_data["is_stable_periodic"],
+                x_init=batched_data["init_pos"],
+                clean_mask=clean_mask,
+            )
+            sigma = sqrt_one_minus_alphas_cumprod_t
+            alpha = sqrt_alphas_cumprod_t
+            weight = None
+
         noise_pos = complete_cell(noise_pos, batched_data)
 
-        return noise_pos, noise, sqrt_one_minus_alphas_cumprod_t, sqrt_alphas_cumprod_t
+        # return noise_pos, noise, sqrt_one_minus_alphas_cumprod_t, sqrt_alphas_cumprod_t
+        return noise_pos, noise, sigma, alpha, weight
 
     def load_pretrained_weights(self, args, checkpoint_path):
         """
@@ -551,7 +631,15 @@ class PSMModel(Model):
             #     batched_data["pos"]
             # )  # zero position to avoid any potential leakage
             batched_data["cell"] = torch.zeros_like(batched_data["cell"])
-            self.sample(batched_data=batched_data)
+            if self.psm_config.diffusion_mode == "edm":
+                raise NotImplementedError
+                # if self.psm_config.edm_sampling_method == "af3":
+                #     self.sample_AF3(batched_data=batched_data)
+                # elif self.psm_config.edm_sampling_method == "2nd":
+                #     pass
+            else:
+                self.sample(batched_data=batched_data)
+
             match_result_one_time = self.sampled_structure_converter.convert_and_match(
                 batched_data, original_pos, sample_time_index
             )
@@ -587,9 +675,18 @@ class PSMModel(Model):
         pos = batched_data["pos"]
 
         n_graphs = pos.size(0)
-        time_step, clean_mask = self.time_step_sampler.sample(
-            n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
-        )
+
+        if self.psm_config.diffusion_mode == "edm":
+            time_step = None
+            noise_step, clean_mask = self.time_step_sampler.sample(
+                n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
+            )
+        else:
+            noise_step = None
+            time_step, clean_mask = self.time_step_sampler.sample(
+                n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
+            )
+
         clean_mask = clean_mask & ~(
             batched_data["is_protein"].any(dim=-1) | batched_data["is_complex"]
         )  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
@@ -610,7 +707,7 @@ class PSMModel(Model):
         aa_mask = batched_data["protein_masked_aa"] & batched_data["is_protein"]
         aa_mask = aa_mask & ~padding_mask
 
-        clean_mask, aa_mask, time_step = self._protein_pretrain_mode(
+        clean_mask, aa_mask, time_step, noise_step = self._protein_pretrain_mode(
             clean_mask,
             aa_mask,
             padding_mask,
@@ -618,6 +715,7 @@ class PSMModel(Model):
             batched_data["is_seq_only"],
             batched_data["is_complex"],
             time_step,
+            noise_step,
             batched_data,
         )
 
@@ -654,21 +752,39 @@ class PSMModel(Model):
         (
             pos,
             noise,
-            sqrt_one_minus_alphas_cumprod_t,
-            sqrt_alphas_cumprod_t,
+            sigma,
+            alpha,
+            weight,
         ) = self._set_noise(
             padding_mask=padding_mask,
             batched_data=batched_data,
             time_step=time_step,
+            noise_step=noise_step,
             clean_mask=clean_mask,
         )
         batched_data["pos"] = pos
-        batched_data[
-            "sqrt_one_minus_alphas_cumprod_t"
-        ] = sqrt_one_minus_alphas_cumprod_t
-        batched_data["sqrt_alphas_cumprod_t"] = sqrt_alphas_cumprod_t
 
-        return clean_mask, aa_mask, time_step, noise, padding_mask
+        if self.psm_config.diffusion_mode == "edm":
+            batched_data["sigma_edm"] = sigma
+            batched_data["sqrt_one_minus_alphas_cumprod_t"] = None
+            batched_data["sqrt_alphas_cumprod_t"] = None
+        else:
+            batched_data["sigma_edm"] = None
+            batched_data["sqrt_one_minus_alphas_cumprod_t"] = sigma
+            batched_data["sqrt_alphas_cumprod_t"] = alpha
+
+        if self.psm_config.diffusion_mode == "edm":
+            c_skip, c_out, c_in, c_noise = self.diffnoise.precondition(sigma)
+        else:
+            c_skip, c_out, c_in, c_noise = None, None, None, None
+
+        batched_data["c_skip"] = c_skip
+        batched_data["c_out"] = c_out
+        batched_data["c_in"] = c_in
+        batched_data["c_noise"] = c_noise
+        batched_data["weight"] = weight
+
+        return clean_mask, aa_mask, time_step, noise_step, noise, padding_mask
 
     def forward(self, batched_data, **kwargs):
         """
@@ -686,6 +802,7 @@ class PSMModel(Model):
             clean_mask,
             aa_mask,
             time_step,
+            noise_step,
             noise,
             padding_mask,
         ) = self._pre_forward_operation(batched_data)
@@ -708,13 +825,27 @@ class PSMModel(Model):
         result_dict["aa_mask"] = aa_mask
         result_dict["diff_loss_mask"] = batched_data["diff_loss_mask"]
         result_dict["ori_pos"] = batched_data["ori_pos"]
-        result_dict["sqrt_alphas_cumprod_t"] = batched_data["sqrt_alphas_cumprod_t"]
-        result_dict["sqrt_one_minus_alphas_cumprod_t"] = batched_data[
-            "sqrt_one_minus_alphas_cumprod_t"
-        ]
+        # result_dict["sqrt_alphas_cumprod_t"] = batched_data["sqrt_alphas_cumprod_t"]
+        # result_dict["sqrt_one_minus_alphas_cumprod_t"] = batched_data[
+        #     "sqrt_one_minus_alphas_cumprod_t"
+        # ]
         result_dict["force_label"] = batched_data["forces"]
         result_dict["padding_mask"] = padding_mask
-        result_dict["time_step"] = time_step
+
+        if self.psm_config.diffusion_mode == "edm":
+            result_dict["noise_step"] = noise_step
+            result_dict["weight_edm"] = batched_data["weight"]
+            result_dict["time_step"] = None
+            result_dict["sqrt_alphas_cumprod_t"] = None
+            result_dict["sqrt_one_minus_alphas_cumprod_t"] = None
+        else:
+            result_dict["noise_step"] = None
+            result_dict["weight_edm"] = None
+            result_dict["time_step"] = time_step
+            result_dict["sqrt_alphas_cumprod_t"] = batched_data["sqrt_alphas_cumprod_t"]
+            result_dict["sqrt_one_minus_alphas_cumprod_t"] = batched_data[
+                "sqrt_one_minus_alphas_cumprod_t"
+            ]
 
         if self.psm_config.sample_in_validation and not self.training:
             result_dict.update(match_results)
@@ -1314,6 +1445,10 @@ class PSM(nn.Module):
 
         pos = batched_data["pos"]
 
+        if self.psm_config.diffusion_mode == "edm":
+            pos_noised_no_c_in = batched_data["pos"].clone()
+            batched_data["pos"] = batched_data["pos"] * batched_data["c_in"]
+
         if self.args.AutoGradForce:
             pos.requires_grad_(True)
 
@@ -1426,6 +1561,7 @@ class PSM(nn.Module):
                         padding_mask,
                         pbc_expand_batched,
                     )
+
         elif self.args.backbone in ["dit"]:
             encoder_output = self.encoder(
                 token_embedding,
@@ -1444,16 +1580,7 @@ class PSM(nn.Module):
             ):
                 encoder_output = self.layer_norm(encoder_output)
                 decoder_x_output, decoder_vec_output = encoder_output, None
-                # if not self.args.seq_only:
-                #     decoder_x_output, decoder_vec_output = self.decoder(
-                #         batched_data,
-                #         encoder_output.transpose(0, 1),
-                #         mixed_attn_bias,
-                #         # None,
-                #         padding_mask,
-                #         pbc_expand_batched,
-                #         time_embed=time_embed,
-                #     )
+
         elif self.args.backbone in ["ditgeom"]:
             encoder_output = self.encoder(
                 token_embedding,
@@ -1604,32 +1731,41 @@ class PSM(nn.Module):
                         self.energy_head["periodic"](encoder_output).squeeze(-1),
                         self.energy_head["molecule"](encoder_output).squeeze(-1),
                     )
-
-                if self.args.diffusion_mode == "epsilon":
-                    scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
-                    logit_bias = torch.logit(
-                        batched_data["sqrt_one_minus_alphas_cumprod_t"]
-                    )
-                    scale = torch.sigmoid(scale_shift + logit_bias)
+                print(f"{noise_pred=}")
+                if self.args.diffusion_mode == "edm":
                     noise_pred = (
-                        scale * (batched_data["pos"] - batched_data["init_pos"])
-                        + (1 - scale) * noise_pred
+                        batched_data["c_skip"] * pos_noised_no_c_in
+                        + batched_data["c_out"] * noise_pred
                     )
                     noise_pred_periodic = (
-                        scale * (batched_data["pos"] - batched_data["init_pos"])
-                        + (1 - scale) * noise_pred_periodic
+                        batched_data["c_skip"] * pos_noised_no_c_in
+                        + batched_data["c_out"] * noise_pred_periodic
                     )
-                elif self.args.diffusion_mode == "x0":
-                    scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
-                    logit_bias = torch.logit(
-                        batched_data["sqrt_one_minus_alphas_cumprod_t"]
-                    )
-                    scale = torch.sigmoid(scale_shift + logit_bias)
-                    noise_pred = scale * noise_pred + (1 - scale) * batched_data["pos"]
-                else:
-                    raise ValueError(
-                        f"diffusion mode: {self.args.diffusion_mode} is not supported"
-                    )
+                # elif self.args.diffusion_mode == "epsilon":
+                #     scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
+                #     logit_bias = torch.logit(
+                #         batched_data["sqrt_one_minus_alphas_cumprod_t"]
+                #     )
+                #     scale = torch.sigmoid(scale_shift + logit_bias)
+                #     noise_pred = (
+                #         scale * (batched_data["pos"] - batched_data["init_pos"])
+                #         + (1 - scale) * noise_pred
+                #     )
+                #     noise_pred_periodic = (
+                #         scale * (batched_data["pos"] - batched_data["init_pos"])
+                #         + (1 - scale) * noise_pred_periodic
+                #     )
+                # elif self.args.diffusion_mode == "x0":
+                #     scale_shift = self.mlp_w(time_embed)  # .unsqueeze(-1)
+                #     logit_bias = torch.logit(
+                #         batched_data["sqrt_one_minus_alphas_cumprod_t"]
+                #     )
+                #     scale = torch.sigmoid(scale_shift + logit_bias)
+                #     noise_pred = scale * noise_pred + (1 - scale) * batched_data["pos"]
+                # else:
+                #     raise ValueError(
+                #         f"diffusion mode: {self.args.diffusion_mode} is not supported"
+                #     )
 
                 if (
                     self.args.AutoGradForce

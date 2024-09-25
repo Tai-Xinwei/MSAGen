@@ -6,7 +6,11 @@ import torch.nn as nn
 from torch import Tensor
 
 from sfm.models.psm.invariant.mixture_bias import GaussianLayer, NonLinear
-from sfm.models.psm.modules.timestep_encoder import TimeStepEncoder
+from sfm.models.psm.modules.timestep_encoder import (
+    FourierEmbedding_AF3,
+    PositionalEmbedding_EDM,
+    TimeStepEncoder,
+)
 from sfm.models.psm.psm_config import PSMConfig
 
 
@@ -262,7 +266,22 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             2, psm_config.num_3d_bias_kernel // 2
         )
 
-        # self.init_pos_emb = nn.Linear(3, psm_config.embedding_dim, bias=False)
+        self.init_pos_emb = nn.Linear(3, psm_config.embedding_dim, bias=False)
+
+        if psm_config.noise_embedding == "positional":
+            self.noise_cond_embed_edm = PositionalEmbedding_EDM(
+                num_channels=psm_config.embedding_dim,
+            )
+        elif psm_config.noise_embedding == "fourier":
+            self.noise_cond_embed_edm = FourierEmbedding_AF3(
+                num_channels=psm_config.embedding_dim,
+            )
+            self.noise_proj = nn.Sequential(
+                nn.LayerNorm(psm_config.embedding_dim),
+                nn.Linear(
+                    psm_config.embedding_dim, psm_config.embedding_dim, bias=False
+                ),
+            )
 
     @torch.compiler.disable(recursive=False)
     def _pos_emb(
@@ -463,7 +482,15 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             )
             pos_attn_bias += init_pos_attn_bias
 
-        if time_step is not None:
+        if self.psm_config.diffusion_mode == "edm":
+            noise_embed_edm = self.noise_cond_embed_edm(
+                batched_data["c_noise"].flatten()
+            ).to(condition_embedding.dtype)
+            time_embed = noise_embed_edm.reshape(
+                (pos_embedding.size(0), pos_embedding.size(1), -1)
+            )
+            # time_embed = self.noise_proj(time_embed)
+        elif time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)
 
         if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
@@ -477,8 +504,11 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             )
 
             # # time raito is 0 at time step == 0, time raito is 1 at time step >= 1e-3, linear increase between 0 and 1e-3
-            time_ratio = torch.clamp(time_step / 0.001, 0.0, 1.0)
-            pos_embedding += atom_feature_embedding * time_ratio.unsqueeze(-1)
+            if time_step is not None:
+                time_ratio = torch.clamp(time_step / 0.001, 0.0, 1.0)
+                pos_embedding += atom_feature_embedding * time_ratio.unsqueeze(-1)
+            else:
+                pos_embedding += atom_feature_embedding
 
         return (
             pos_embedding,

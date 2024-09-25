@@ -364,62 +364,72 @@ class DiffMAE3dCriterions(nn.Module):
 
         # # hard distance loss
         time_step = model_output["time_step"]
-
-        time_coefficient = ((1 - time_step) * torch.exp(-time_step / 0.1)).unsqueeze(-1)
-
-        if dist_mask_protein_near.any():
-            hard_dist_loss = (delta * time_coefficient)[
-                dist_mask_protein_near
-            ].mean() * 2
-        else:
-            hard_dist_loss = None
-
-        if dist_mask_protein_mid.any() and hard_dist_loss is not None:
-            hard_dist_loss = (
-                hard_dist_loss
-                + (delta * time_coefficient)[dist_mask_protein_mid].mean()
-            )
-        elif dist_mask_protein_mid.any() and hard_dist_loss is None:
-            hard_dist_loss = (delta * time_coefficient)[dist_mask_protein_mid].mean()
-
-        if dist_mask_protein_far.any() and hard_dist_loss is not None:
-            hard_dist_loss = (
-                hard_dist_loss
-                + (delta * time_coefficient)[dist_mask_protein_far].mean() * 0.25
-            )
-        elif dist_mask_protein_far.any() and hard_dist_loss is None:
-            hard_dist_loss = (delta * time_coefficient)[
-                dist_mask_protein_far
-            ].mean() * 0.25
-
-        protein_ligand_mask = (is_protein.unsqueeze(1) & is_ligand.unsqueeze(2)) | (
-            is_ligand.unsqueeze(1) & is_protein.unsqueeze(2)
-        )
-        inter_dist_mask_near = (
-            (delta_pos_label <= 4) & (delta_pos_label > 0.1) & protein_ligand_mask
-        )
-        inter_dist_mask_far = (
-            (delta_pos_label < 8) & (delta_pos_label > 4) & protein_ligand_mask
-        )
-
-        if inter_dist_mask_near.any():
-            # time_coefficien_inter = (
-            #     (1 - time_step**2) * torch.exp(-time_step)
-            # ).unsqueeze(-1)
-            time_coefficien_inter = (
+        if time_step is not None:
+            time_coefficient = (
                 (1 - time_step) * torch.exp(-time_step / 0.1)
             ).unsqueeze(-1)
-            inter_dist_loss = (delta * time_coefficien_inter)[
-                inter_dist_mask_near
-            ].mean()
 
-            if inter_dist_mask_far.any():
-                inter_dist_loss += (delta * time_coefficien_inter)[
-                    inter_dist_mask_far
-                ].mean() * 0.5
+            if dist_mask_protein_near.any():
+                hard_dist_loss = (delta * time_coefficient)[
+                    dist_mask_protein_near
+                ].mean() * 2
+            else:
+                hard_dist_loss = None
 
-            num_inter_dist_loss = 1
+            if dist_mask_protein_mid.any() and hard_dist_loss is not None:
+                hard_dist_loss = (
+                    hard_dist_loss
+                    + (delta * time_coefficient)[dist_mask_protein_mid].mean()
+                )
+            elif dist_mask_protein_mid.any() and hard_dist_loss is None:
+                hard_dist_loss = (delta * time_coefficient)[
+                    dist_mask_protein_mid
+                ].mean()
+
+            if dist_mask_protein_far.any() and hard_dist_loss is not None:
+                hard_dist_loss = (
+                    hard_dist_loss
+                    + (delta * time_coefficient)[dist_mask_protein_far].mean() * 0.25
+                )
+            elif dist_mask_protein_far.any() and hard_dist_loss is None:
+                hard_dist_loss = (delta * time_coefficient)[
+                    dist_mask_protein_far
+                ].mean() * 0.25
+
+            protein_ligand_mask = (is_protein.unsqueeze(1) & is_ligand.unsqueeze(2)) | (
+                is_ligand.unsqueeze(1) & is_protein.unsqueeze(2)
+            )
+            inter_dist_mask_near = (
+                (delta_pos_label <= 4) & (delta_pos_label > 0.1) & protein_ligand_mask
+            )
+            inter_dist_mask_far = (
+                (delta_pos_label < 8) & (delta_pos_label > 4) & protein_ligand_mask
+            )
+
+            if inter_dist_mask_near.any():
+                # time_coefficien_inter = (
+                #     (1 - time_step**2) * torch.exp(-time_step)
+                # ).unsqueeze(-1)
+                time_coefficien_inter = (
+                    (1 - time_step) * torch.exp(-time_step / 0.1)
+                ).unsqueeze(-1)
+                inter_dist_loss = (delta * time_coefficien_inter)[
+                    inter_dist_mask_near
+                ].mean()
+
+                if inter_dist_mask_far.any():
+                    inter_dist_loss += (delta * time_coefficien_inter)[
+                        inter_dist_mask_far
+                    ].mean() * 0.5
+
+                num_inter_dist_loss = 1
+            else:
+                inter_dist_loss = torch.tensor(
+                    0.0, device=delta.device, requires_grad=True
+                )
+                num_inter_dist_loss = 0
         else:
+            hard_dist_loss = None
             inter_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
             num_inter_dist_loss = 0
 
@@ -566,7 +576,7 @@ class DiffMAE3dCriterions(nn.Module):
 
                         aligned_pos_label = (
                             torch.einsum("bij,bkj->bki", R.float(), pos_label.float())
-                            + T.float()
+                            # + T.float()
                         )
                         unreduced_noise_loss = self.noise_loss(
                             aligned_noise_pred.to(noise_label.dtype),
@@ -608,12 +618,101 @@ class DiffMAE3dCriterions(nn.Module):
                 unreduced_noise_loss = self.noise_loss(
                     noise_pred.to(noise_label.dtype), pos_label
                 )
+            elif self.diffusion_mode == "edm":
+                weight_pos_edm = model_output["weight_edm"]
+                if not is_seq_only.any():
+                    if self.args.align_x0_in_diffusion_loss:
+                        R, T = self._alignment_x0(
+                            model_output, noise_pred, atomic_numbers
+                        )
+                    else:
+                        R, T = torch.eye(
+                            3, device=noise_pred.device, dtype=noise_pred.dtype
+                        ).unsqueeze(0).repeat(n_graphs, 1, 1), torch.zeros_like(
+                            noise_pred, device=noise_pred.device, dtype=noise_pred.dtype
+                        )
+
+                    if is_protein.any():
+                        # align pred pos and calculate smooth lddt loss for protein
+                        (
+                            smooth_lddt_loss,
+                            hard_dist_loss,
+                            inter_dist_loss,
+                            num_inter_dist_loss,
+                        ) = self.dist_loss(
+                            model_output, R, T, noise_pred, atomic_numbers
+                        )
+                        num_pddt_loss = 1
+
+                        if hard_dist_loss is None:
+                            hard_dist_loss = torch.tensor(
+                                0.0, device=smooth_lddt_loss.device, requires_grad=True
+                            )
+                    else:
+                        smooth_lddt_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        hard_dist_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        inter_dist_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        num_pddt_loss = 0
+                        num_inter_dist_loss = 0
+
+                    if self.args.align_x0_in_diffusion_loss:
+                        pos_label = torch.einsum(
+                            "bij,bkj->bki", R.to(pos_label.dtype), pos_label
+                        )  # + T.to(pos_label.dtype)
+
+                    if weight_pos_edm is not None:
+                        if (
+                            self.args.diffusion_training_loss
+                            == DiffusionTrainingLoss.L1
+                            or self.args.diffusion_training_loss
+                            == DiffusionTrainingLoss.SmoothL1
+                            or self.args.diffusion_training_loss
+                            == DiffusionTrainingLoss.L2
+                        ):
+                            unreduced_noise_loss = (
+                                weight_pos_edm.sqrt()
+                                * self.noise_loss(
+                                    noise_pred.to(pos_label.dtype), pos_label
+                                )
+                            )
+                            unreduced_periodic_noise_loss = (
+                                weight_pos_edm.sqrt()
+                                * self.noise_loss(
+                                    noise_pred_periodic.to(pos_label.dtype), pos_label
+                                )
+                            )
+                        elif (
+                            self.args.diffusion_training_loss
+                            == DiffusionTrainingLoss.MSE
+                        ):
+                            unreduced_noise_loss = weight_pos_edm * self.noise_loss(
+                                noise_pred.to(pos_label.dtype), pos_label
+                            )
+                            unreduced_periodic_noise_loss = (
+                                weight_pos_edm
+                                * self.noise_loss(
+                                    noise_pred_periodic.to(pos_label.dtype), pos_label
+                                )
+                            )
+                    else:
+                        unreduced_noise_loss = self.noise_loss(
+                            noise_pred.to(pos_label.dtype), pos_label
+                        )
+                        unreduced_periodic_noise_loss = self.noise_loss(
+                            noise_pred_periodic.to(pos_label.dtype), pos_label
+                        )
             else:
                 raise ValueError(f"Invalid diffusion mode: {self.diffusion_mode}")
 
             noise_loss, num_noise_sample = self._reduce_force_or_noise_loss(
                 unreduced_noise_loss,
-                ~clean_mask,
+                (~clean_mask) & (~is_seq_only.unsqueeze(-1)),
                 diff_loss_mask & ~protein_mask.any(dim=-1),
                 is_molecule,
                 is_periodic,
