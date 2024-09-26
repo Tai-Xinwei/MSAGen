@@ -60,7 +60,7 @@ jobs:
   - export clean_sample_ratio=0.5
 
   - export equivar_vec_init=ZERO_CENTERED_POS
-  - export strategy=DDP
+  - export strategy=Zero1
   - export fp16=False
 
   - export diff_init_lattice_size=10.0

@@ -32,7 +32,7 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: e2former-Zhihao
+- name: e2former-SPICE-Zhihao
   identity: managed
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: 80G4-A100
@@ -73,7 +73,6 @@ jobs:
   - export max_lr=1.5e-4
 
   - export diffusion_noise_std=0
-  - export equivar_vec_init=ZERO_CENTERED_POS
   - export strategy=DDP
   - export fp16=False
   - export clean_sample_ratio=1.0
@@ -106,14 +105,13 @@ jobs:
   - export psm_finetune_mode=true
 
   - export data_path=/blob/dataset/
-  - export data_path_list="dataset/MD22/AT_AT_CG_CG/radius3_broadcast"
-  - export dataset_name_list='AT_AT_CG_CG'
+  - export data_path_list="SPICE-2.0.1/SPICE_PubChem_500k"
+  - export dataset_name_list='SPICE'
   - export dataset_split_raito='1.0'
-  - export loadcheck_path=''
-  # - export save_dir='/blob/'
-  # - mkdir -p /blob/psm-checkpoints
-  # - mkdir -p /blob/psm-checkpoints/EQV2-oc20+SPICE(100k+400k)-06-29
-  # -   - export save_dir=/blob/psm-checkpoints/EQV2-oc20+SPICE(100k+400k)-06-29
+
+  - export loadcheck_path=$$AMLT_OUTPUT_DIR
+  - export save_dir=$$AMLT_OUTPUT_DIR
+
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - bash scripts/psm/finetune_psm_e2former.sh

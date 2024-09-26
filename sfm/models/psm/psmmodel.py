@@ -1327,7 +1327,7 @@ class PSM(nn.Module):
                     aa_mask,
                     pbc_expand_batched=pbc_expand_batched,
                 )
-
+        decoder_x_output_noise, decoder_vec_output_noise = None, None
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
         if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
@@ -1355,6 +1355,15 @@ class PSM(nn.Module):
                         padding_mask,
                         pbc_expand_batched,
                     )
+        elif self.args.backbone in ["geomformer", "e2former"]:
+            decoder_x_output, decoder_vec_output = self.decoder(
+                batched_data,
+                token_embedding.transpose(0, 1),
+                None,
+                padding_mask,
+                pbc_expand_batched=pbc_expand_batched,
+                # time_embed=time_embed,
+            )
         elif self.args.backbone in ["dit"]:
             encoder_output = self.encoder(
                 token_embedding,
@@ -1402,13 +1411,19 @@ class PSM(nn.Module):
             ):
                 encoder_output = self.layer_norm(encoder_output)
                 if not self.args.seq_only:
-                    decoder_x_output, decoder_vec_output = self.decoder(
+                    (
+                        decoder_x_output_noise,
+                        decoder_vec_output_noise,
+                        decoder_x_output,
+                        decoder_vec_output,
+                    ) = self.decoder(
                         batched_data,
                         encoder_output.transpose(0, 1),
                         mixed_attn_bias,
                         padding_mask,
                         pbc_expand_batched,
                         time_embed=time_embed,
+                        sepFN=True,  # with this, noise output, force/e output are separated
                     )
         elif self.args.backbone in ["graphormer-e2"]:
             encoder_output = self.encoder(
@@ -1454,15 +1469,6 @@ class PSM(nn.Module):
                 padding_mask,
                 pbc_expand_batched,
             )
-        elif self.args.backbone in ["geomformer"]:
-            decoder_x_output, decoder_vec_output = self.decoder(
-                batched_data,
-                token_embedding.transpose(0, 1),
-                None,
-                padding_mask,
-                pbc_expand_batched=pbc_expand_batched,
-                time_embed=time_embed,
-            )
         else:
             decoder_x_output, decoder_vec_output = self.decoder(
                 batched_data,
@@ -1483,9 +1489,14 @@ class PSM(nn.Module):
             else nullcontext()
         ):
             if not self.args.seq_only:
-                noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
+                if decoder_x_output_noise is not None:
+                    noise_pred = self.noise_head(
+                        decoder_x_output_noise, decoder_vec_output_noise
+                    )
+                else:
+                    noise_pred = self.noise_head(decoder_x_output, decoder_vec_output)
 
-                if self.args.backbone in ["dit", "e2dit"]:
+                if self.args.backbone in ["dit"]:
                     energy_per_atom = torch.where(
                         is_periodic.unsqueeze(-1),
                         self.energy_head["periodic"](encoder_output).squeeze(-1),

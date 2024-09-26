@@ -544,7 +544,7 @@ class EquiformerV2_OC20(BaseModel):
         return set(no_wd_list)
 
 
-class EquiformerV2_OC20Backbone(BaseModel):
+class EquiformerV2_OC20Backbone(nn.Module):  # BaseModel
     """
     Equiformer with graph attention built upon SO(2) convolution and feedforward network built upon S2 activation
 

@@ -494,6 +494,7 @@ class GraphAttention(torch.nn.Module):
         alpha_drop=0.1,
         proj_drop=0.1,
         internal_weights=False,
+        attn_weight=False,
     ):
         super().__init__()
         self.irreps_node_input = o3.Irreps(irreps_node_input)
@@ -510,6 +511,7 @@ class GraphAttention(torch.nn.Module):
         self.rescale_degree = rescale_degree
         self.nonlinear_message = nonlinear_message
         self.internal_weights = internal_weights
+        self.attn_weight = attn_weight
         # Merge src and dst
         self.merge_src = LinearRS(
             self.irreps_node_input, self.irreps_pre_attn, bias=True
@@ -541,14 +543,23 @@ class GraphAttention(torch.nn.Module):
                 internal_weights=self.internal_weights,
             )
             self.sep_alpha = LinearRS(self.sep_act.dtp.irreps_out, irreps_alpha)
+            # self.sep_value = SeparableFCTP(
+            #     self.irreps_pre_attn,
+            #     self.irreps_edge_attr,
+            #     irreps_attn_heads,
+            #     fc_neurons=None,
+            #     use_activation=False,
+            #     norm_layer=None,
+            #     internal_weights=True,
+            # )
             self.sep_value = SeparableFCTP(
                 self.irreps_pre_attn,
                 self.irreps_edge_attr,
                 irreps_attn_heads,
-                fc_neurons=None,
-                use_activation=False,
+                fc_neurons=fc_neurons if not self.internal_weights else None,
+                use_activation=True,
                 norm_layer=None,
-                internal_weights=True,
+                internal_weights=self.internal_weights,
             )
             self.vec2heads_alpha = Vec2AttnHeads(
                 o3.Irreps("{}x0e".format(mul_alpha_head)), num_heads
@@ -589,6 +600,18 @@ class GraphAttention(torch.nn.Module):
                 self.irreps_node_input, drop_prob=proj_drop
             )
 
+        if self.attn_weight:
+            attn_weight_input_dim = fc_neurons[0]
+            self.attn_weight2heads = nn.Sequential(
+                nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
+                nn.LayerNorm(attn_weight_input_dim),
+                torch.nn.SiLU(),
+                nn.Linear(attn_weight_input_dim, attn_weight_input_dim),
+                nn.LayerNorm(attn_weight_input_dim),
+                torch.nn.SiLU(),
+                nn.Linear(attn_weight_input_dim, 2 * self.num_heads),
+            )
+
     def forward(
         self,
         node_input,
@@ -625,12 +648,18 @@ class GraphAttention(torch.nn.Module):
             )
 
         # inner product
+
         alpha = self.alpha_act(alpha)
         alpha = torch.einsum("bik, aik -> bi", alpha, self.alpha_dot)
+        if self.attn_weight:
+            attn_weight = self.attn_weight2heads(edge_scalars)
+            alpha = attn_weight[..., : self.num_heads] * alpha
         alpha = torch_geometric.utils.softmax(alpha, edge_dst)
         alpha = alpha.unsqueeze(-1)
         if self.alpha_dropout is not None:
             alpha = self.alpha_dropout(alpha)
+        if self.attn_weight:
+            alpha = attn_weight[..., self.num_heads :].unsqueeze(-1) * alpha
         attn = value * alpha
         attn = scatter(attn, index=edge_dst, dim=0, dim_size=node_input.shape[0])
         attn = self.heads2vec(attn)
@@ -733,6 +762,7 @@ class TransBlock(torch.nn.Module):
         irreps_mlp_mid=None,
         norm_layer="layer",
         internal_weights=False,
+        attn_weight=False,
     ):
         super().__init__()
         self.irreps_node_input = o3.Irreps(irreps_node_input)
@@ -770,6 +800,7 @@ class TransBlock(torch.nn.Module):
             alpha_drop=alpha_drop,
             proj_drop=proj_drop,
             internal_weights=internal_weights,
+            attn_weight=attn_weight,
         )
 
         self.drop_path = GraphDropPath(drop_path_rate) if drop_path_rate > 0.0 else None
@@ -943,6 +974,7 @@ class Equiformer(torch.nn.Module):
         out_drop=0.0,
         drop_path_rate=0.0,
         internal_weights=False,
+        attn_weight=False,
         mean=None,
         std=None,
         scale=None,
@@ -952,6 +984,7 @@ class Equiformer(torch.nn.Module):
         super().__init__()
         irreps_mlp_mid = irreps_node_embedding
         self.internal_weights = internal_weights
+        self.attn_weight = attn_weight
         self.max_radius = max_radius
         self.number_of_basis = number_of_basis
         self.alpha_drop = alpha_drop
@@ -1043,6 +1076,7 @@ class Equiformer(torch.nn.Module):
                 irreps_mlp_mid=self.irreps_mlp_mid,
                 norm_layer=self.norm_layer,
                 internal_weights=self.internal_weights,
+                attn_weight=self.attn_weight,
             )
             self.blocks.append(blk)
 
