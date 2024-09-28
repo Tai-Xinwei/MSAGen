@@ -504,11 +504,17 @@ class FourierEmbedding_AF3(torch.nn.Module):
         self.num_channels = num_channels
         self.proj = nn.Linear(1, num_channels, dtype=torch.float64)
         self.proj.requires_grad_(False)
+        self.noise_proj = nn.Sequential(
+            nn.LayerNorm(num_channels),
+            nn.Linear(num_channels, num_channels, bias=False),
+        )
 
     def forward(self, x):
         x = x.unsqueeze(-1)
         x = self.proj(x)
-        embedding = torch.cos(2 * torch.pi * x)
+        embedding = torch.cos(2 * torch.pi * x).to(self.noise_proj[0].weight.dtype)
+        embedding = self.noise_proj(embedding)
+
         return embedding
 
 

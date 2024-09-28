@@ -162,22 +162,22 @@ class DiffMAE3dCriterions(nn.Module):
         self.molecule_force_loss_ratio = args.molecule_force_loss_ratio
         self.molecule_energy_loss_ratio = args.molecule_energy_loss_ratio
 
-        if args.AutoGradForce:
-            # self.material_force_loss_ratio = 5.0
-            # self.molecule_force_loss_ratio = 10.0
-            # self.material_energy_loss_ratio = 0.5
-            # self.molecule_energy_loss_ratio = 1.0
+        # if args.AutoGradForce:
+        #     # self.material_force_loss_ratio = 5.0
+        #     # self.molecule_force_loss_ratio = 10.0
+        #     # self.material_energy_loss_ratio = 0.5
+        #     # self.molecule_energy_loss_ratio = 1.0
 
-            self.material_force_loss_ratio = 2.0
-            self.molecule_force_loss_ratio = 2.0
-            self.material_energy_loss_ratio = 1.0
-            self.molecule_energy_loss_ratio = 1.0
+        #     self.material_force_loss_ratio = 2.0
+        #     self.molecule_force_loss_ratio = 2.0
+        #     self.material_energy_loss_ratio = 1.0
+        #     self.molecule_energy_loss_ratio = 1.0
 
-            logger.info("overriding force and energy loss ratio in autograd mode:")
-            logger.info(f"{self.material_force_loss_ratio=}")
-            logger.info(f"{self.molecule_force_loss_ratio=}")
-            logger.info(f"{self.material_energy_loss_ratio=}")
-            logger.info(f"{self.molecule_energy_loss_ratio=}")
+        #     logger.info("overriding force and energy loss ratio in autograd mode:")
+        #     logger.info(f"{self.material_force_loss_ratio=}")
+        #     logger.info(f"{self.molecule_force_loss_ratio=}")
+        #     logger.info(f"{self.material_energy_loss_ratio=}")
+        #     logger.info(f"{self.molecule_energy_loss_ratio=}")
 
         self.hard_dist_loss_raito = args.hard_dist_loss_raito
         self.if_total_energy = args.if_total_energy
@@ -517,7 +517,7 @@ class DiffMAE3dCriterions(nn.Module):
         if not self.seq_only:
             # diffussion loss
             if self.diffusion_mode == "epsilon":
-                if not is_seq_only.any():
+                if not is_seq_only.all():
                     pos_pred = self.calculate_pos_pred(model_output)
                     if (
                         self.args.align_x0_in_diffusion_loss and not is_periodic.any()
@@ -620,7 +620,7 @@ class DiffMAE3dCriterions(nn.Module):
                 )
             elif self.diffusion_mode == "edm":
                 weight_pos_edm = model_output["weight_edm"]
-                if not is_seq_only.any():
+                if not is_seq_only.all():
                     if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
                         R, T = self._alignment_x0(
                             model_output, noise_pred, atomic_numbers
@@ -704,6 +704,24 @@ class DiffMAE3dCriterions(nn.Module):
                         unreduced_periodic_noise_loss = self.noise_loss(
                             noise_pred_periodic.to(pos_label.dtype), pos_label
                         )
+                else:
+                    unreduced_noise_loss = self.noise_loss(
+                        noise_pred.to(pos_label.dtype), pos_label
+                    )
+                    unreduced_periodic_noise_loss = self.noise_loss(
+                        noise_pred_periodic.to(pos_label.dtype), pos_label
+                    )
+                    smooth_lddt_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
+                    hard_dist_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
+                    inter_dist_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
+                    num_pddt_loss = 0
+                    num_inter_dist_loss = 0
             else:
                 raise ValueError(f"Invalid diffusion mode: {self.diffusion_mode}")
 
@@ -994,19 +1012,6 @@ class DiffMAE3dCriterions(nn.Module):
             else:
                 loss = loss + periodic_energy_loss
 
-            if torch.any(torch.isnan(periodic_force_loss)) or torch.any(
-                torch.isinf(periodic_force_loss)
-            ):
-                logger.error(
-                    f"NaN or inf detected in periodic_force_loss: {periodic_force_loss}"
-                )
-                periodic_force_loss = torch.tensor(
-                    0.0, device=periodic_force_loss.device, requires_grad=True
-                )
-                num_periodic_force_sample = 0
-            else:
-                loss = loss + periodic_force_loss
-
             if torch.any(torch.isnan(molecule_energy_loss)) or torch.any(
                 torch.isinf(molecule_energy_loss)
             ):
@@ -1020,18 +1025,32 @@ class DiffMAE3dCriterions(nn.Module):
             else:
                 loss = loss + molecule_energy_loss
 
-            if torch.any(torch.isnan(molecule_force_loss)) or torch.any(
-                torch.isinf(molecule_force_loss)
-            ):
-                logger.error(
-                    f"NaN or inf detected in molecule_force_loss: {molecule_force_loss}"
-                )
-                molecule_force_loss = torch.tensor(
-                    0.0, device=molecule_force_loss.device, requires_grad=True
-                )
-                num_molecule_force_sample = 0
-            else:
-                loss = loss + molecule_force_loss
+            if self.args.AutoGradForce:
+                if torch.any(torch.isnan(periodic_force_loss)) or torch.any(
+                    torch.isinf(periodic_force_loss)
+                ):
+                    logger.error(
+                        f"NaN or inf detected in periodic_force_loss: {periodic_force_loss}"
+                    )
+                    periodic_force_loss = torch.tensor(
+                        0.0, device=periodic_force_loss.device, requires_grad=True
+                    )
+                    num_periodic_force_sample = 0
+                else:
+                    loss = loss + periodic_force_loss
+
+                if torch.any(torch.isnan(molecule_force_loss)) or torch.any(
+                    torch.isinf(molecule_force_loss)
+                ):
+                    logger.error(
+                        f"NaN or inf detected in molecule_force_loss: {molecule_force_loss}"
+                    )
+                    molecule_force_loss = torch.tensor(
+                        0.0, device=molecule_force_loss.device, requires_grad=True
+                    )
+                    num_molecule_force_sample = 0
+                else:
+                    loss = loss + molecule_force_loss
 
             if torch.any(torch.isnan(smooth_lddt_loss)) or torch.any(
                 torch.isinf(smooth_lddt_loss)

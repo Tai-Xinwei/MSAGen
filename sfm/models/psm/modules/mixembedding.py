@@ -268,20 +268,15 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
 
         self.init_pos_emb = nn.Linear(3, psm_config.embedding_dim, bias=False)
 
-        if psm_config.noise_embedding == "positional":
-            self.noise_cond_embed_edm = PositionalEmbedding_EDM(
-                num_channels=psm_config.embedding_dim,
-            )
-        elif psm_config.noise_embedding == "fourier":
-            self.noise_cond_embed_edm = FourierEmbedding_AF3(
-                num_channels=psm_config.embedding_dim,
-            )
-            self.noise_proj = nn.Sequential(
-                nn.LayerNorm(psm_config.embedding_dim),
-                nn.Linear(
-                    psm_config.embedding_dim, psm_config.embedding_dim, bias=False
-                ),
-            )
+        if psm_config.diffusion_mode == "edm":
+            if psm_config.noise_embedding == "positional":
+                self.noise_cond_embed_edm = PositionalEmbedding_EDM(
+                    num_channels=psm_config.embedding_dim,
+                )
+            elif psm_config.noise_embedding == "fourier":
+                self.noise_cond_embed_edm = FourierEmbedding_AF3(
+                    num_channels=psm_config.embedding_dim,
+                )
 
     @torch.compiler.disable(recursive=False)
     def _pos_emb(
@@ -489,7 +484,6 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             time_embed = noise_embed_edm.reshape(
                 (pos_embedding.size(0), pos_embedding.size(1), -1)
             )
-            # time_embed = self.noise_proj(time_embed)
         elif time_step is not None:
             time_embed = self.time_step_encoder(time_step, clean_mask)
 

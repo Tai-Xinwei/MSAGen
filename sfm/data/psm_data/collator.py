@@ -15,6 +15,15 @@ def pad_1d_unsqueeze(x, padlen):
     return x.unsqueeze(0)
 
 
+def pad_1d_confidence_unsqueeze(x, padlen):
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = -1 * x.new_ones([padlen], dtype=x.dtype)
+        new_x[:xlen] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
 def pad_2d_unsqueeze(x, padlen):
     x = x + 1  # pad id = 0
     xlen, xdim = x.size()
@@ -127,7 +136,7 @@ def collate_fn(
                 0, item["token_type"].shape[0], dtype=torch.long
             )
         if "confidence" not in item:
-            item["confidence"] = -1.0 * torch.ones([item["token_type"].shape[0]])
+            item["confidence"] = -2 * torch.ones(item["token_type"].shape[0])
 
     idx = torch.tensor([i["idx"] for i in items], dtype=torch.long)
     sample_type = torch.tensor([i["sample_type"] for i in items], dtype=torch.long)
@@ -144,9 +153,11 @@ def collate_fn(
     position_ids = torch.cat(
         [pad_1d_unsqueeze(i["position_ids"], max_node_num) for i in items]
     )
+
     confidence = torch.cat(
-        [pad_1d_unsqueeze(i["confidence"], max_node_num) for i in items]
+        [pad_1d_confidence_unsqueeze(i["confidence"], max_node_num) for i in items]
     )
+
     attn_bias = torch.cat(
         [pad_attn_bias_unsqueeze(i["attn_bias"], max_node_num + 1) for i in items]
     )

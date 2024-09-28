@@ -1219,6 +1219,8 @@ class AFDBLMDBDataset(FoundationModelDataset):
             confidence = data["confidence"][
                 random_start : random_start + self.args.max_length
             ]
+            # if confidence > 50:
+            #     break
         else:
             # CA atom positions, assume all values are valid.
             coords = data["pos"][:, 1, :]
@@ -1479,6 +1481,9 @@ class PDBDataset(AFDBLMDBDataset):
         data["key"] = key
 
         coords = torch.tensor(coords, dtype=torch.float64)
+
+        N = data["token_type"].shape[0]
+        data["confidence"] = -1.0 * torch.ones(N, dtype=torch.float64)
 
         data["coords"] = coords
         data["num_atoms"] = x.size()[0]
@@ -2076,6 +2081,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
 
         data["adj"] = adj
 
+        data["confidence"] = -1.0 * torch.ones(N, dtype=torch.float64)
         # redundant, but for compatibility
         attn_edge_type = torch.zeros(
             [N, N, data["edge_attr"].size(-1)], dtype=torch.long

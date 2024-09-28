@@ -138,7 +138,7 @@ class PSMConfig(GraphormerConfig):
     af3_sample_gamma_0: float = 0.8
     af3_sample_gamma_min: float = 1.0
     af3_sample_step_scale: float = 1.5
-    noise_embedding: str = "positional"
+    noise_embedding: str = "fourier"
 
     # for RL
     psm_finetuneRL_mode: bool = True

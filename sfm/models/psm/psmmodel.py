@@ -265,9 +265,10 @@ class PSMModel(Model):
 
         # fileter low plddt residues
         if "confidence" in batched_data:
-            confidence_mask = (batched_data["confidence"] < 0.7) & (
-                batched_data["confidence"] > 0.0
+            confidence_mask = (batched_data["confidence"] < 70) & (
+                batched_data["confidence"] >= 0.0
             )
+
             mask = mask | confidence_mask.unsqueeze(-1)
 
         batched_data["protein_mask"] = mask
@@ -1447,7 +1448,7 @@ class PSM(nn.Module):
 
         if self.psm_config.diffusion_mode == "edm":
             pos_noised_no_c_in = batched_data["pos"].clone()
-            batched_data["pos"] = batched_data["pos"] * batched_data["c_in"]
+            batched_data["pos"] = pos * batched_data["c_in"]
 
         if self.args.AutoGradForce:
             pos.requires_grad_(True)
