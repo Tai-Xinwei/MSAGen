@@ -128,7 +128,7 @@ class PSMModel(Model):
             assert len(mode_prob) == 3
             assert sum(mode_prob) == 1.0
         except:
-            mode_prob = [0.0, 0.0, 1.0]
+            mode_prob = [0.2, 0.7, 0.1]
         self.mode_prob = mode_prob
         logger.info(f"protein mode prob: {mode_prob}")
 

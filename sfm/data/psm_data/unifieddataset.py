@@ -15,6 +15,7 @@ from sfm.data.psm_data.dataset import (
     AFDBLMDBDataset,
     ESMDataset,
     MatterSimDataset,
+    MGnifyDataset,
     PDBComplexDataset,
     PDBDataset,
     PlainPM6FullLMDBDataset,
@@ -123,6 +124,12 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 self.sizes.append(train_dataset.sizes)
             elif dataset_name == "esm":
                 dataset = ESMDataset(args, data_path, **kwargs)
+                train_dataset, valid_dataset = dataset.split_dataset()
+                len_total = len(dataset)
+                self.dataset_lens[dataset_name] = len(train_dataset)
+                self.sizes.append(train_dataset.sizes)
+            elif dataset_name == "mgnify":
+                dataset = MGnifyDataset(args, data_path, **kwargs)
                 train_dataset, valid_dataset = dataset.split_dataset()
                 len_total = len(dataset)
                 self.dataset_lens[dataset_name] = len(train_dataset)

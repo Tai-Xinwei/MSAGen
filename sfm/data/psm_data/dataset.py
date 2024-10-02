@@ -1440,6 +1440,91 @@ class ESMDataset(AFDBLMDBDataset):
         return data
 
 
+class MGnifyDataset(AFDBLMDBDataset):
+    def __init__(
+        self,
+        args: PSMConfig,
+        lmdb_path: Optional[str],
+        keys: Optional[List[str]] = None,
+        sizes: Optional[List[int]] = None,
+    ):
+        version = "mgnify90.cluster_size_gt10.sequence_length_lt2700.20240927_4719953c.plddt_gt70.lmdb"
+        if lmdb_path.find(version) == -1:
+            self.lmdb_path = os.path.join(lmdb_path, version)
+        else:
+            self.lmdb_path = lmdb_path
+        self.args = args
+
+        # for dataloader with num_workers > 1
+        self._env, self._txn = None, None
+        self._sizes, self._keys = None, None
+
+        if keys is not None:
+            self._env = lmdb.open(
+                str(self.lmdb_path),
+                subdir=True,
+                readonly=True,
+                lock=False,
+                readahead=False,
+                meminit=False,
+            )
+            self._txn = self._env.begin(write=False)
+            self._keys = keys
+            self._sizes = sizes
+
+    def __getitem__(self, idx: Union[int, np.integer]) -> Data:
+        key = self.keys[idx]
+        value = self.txn.get(key.encode())
+        if value is None:
+            raise IndexError(f"Name {key} has no data in the dataset")
+        data = bstr2obj(value)
+
+        # random cut off the sequence data["aa"] to self.max_length
+        if len(data["aa"]) > self.args.max_length:
+            random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
+            data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
+            coords = data["pos"][random_start : random_start + self.args.max_length, :]
+            confidence = data["confidence"][
+                random_start : random_start + self.args.max_length
+            ]
+        else:
+            # CA atom positions, assume all values are valid.
+            coords = data["pos"]
+            confidence = data["confidence"]
+
+        # minus 1 due to add padding index=0 in collator
+        x = torch.tensor([VOCAB[tok] - 1 for tok in data["aa"]], dtype=torch.int64)
+
+        data["sample_type"] = 2
+        data["token_type"] = x
+        data["idx"] = idx
+
+        coords = torch.tensor(coords, dtype=torch.float64)
+        data["coords"] = coords
+        data["confidence"] = torch.tensor(confidence, dtype=torch.float64)
+        data["num_atoms"] = x.size()[0]
+
+        data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+        data["pbc"] = torch.zeros(3, dtype=torch.float64).bool()
+        data["stress"] = torch.zeros((3, 3), dtype=torch.float64, device=x.device)
+        data["forces"] = torch.zeros(
+            (x.size()[0], 3), dtype=torch.float64, device=x.device
+        )
+        data["energy"] = torch.tensor([0.0], dtype=torch.float64, device=x.device)
+        data["energy_per_atom"] = torch.tensor(
+            [0.0], dtype=torch.float64, device=x.device
+        )
+
+        data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+        data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+
+        data = self.generate_2dgraphfeat(data)
+
+        data["is_stable_periodic"] = False
+
+        return data
+
+
 class PDBDataset(AFDBLMDBDataset):
     def __init__(
         self,

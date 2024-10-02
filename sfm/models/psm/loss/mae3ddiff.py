@@ -947,7 +947,7 @@ class DiffMAE3dCriterions(nn.Module):
                 )
                 num_protein_noise_sample = 0
             else:
-                loss = loss + 2.0 * protein_noise_loss
+                loss = loss + 4.0 * protein_noise_loss
 
             if torch.any(torch.isnan(complex_noise_loss)) or torch.any(
                 torch.isinf(complex_noise_loss)
@@ -960,7 +960,7 @@ class DiffMAE3dCriterions(nn.Module):
                 )
                 num_complex_noise_sample = 0
             else:
-                loss = loss + 2.0 * complex_noise_loss
+                loss = loss + 4.0 * complex_noise_loss
 
             if torch.any(torch.isnan(periodic_noise_loss)) or torch.any(
                 torch.isinf(periodic_noise_loss)

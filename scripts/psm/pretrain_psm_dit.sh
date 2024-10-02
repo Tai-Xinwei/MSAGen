@@ -7,12 +7,12 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 
-# [ -z "${layers}" ] && layers=36
-# [ -z "${hidden_size}" ] && hidden_size=2048
-# [ -z "${ffn_size}" ] && ffn_size=8192
-[ -z "${layers}" ] && layers=12
-[ -z "${hidden_size}" ] && hidden_size=1024
-[ -z "${ffn_size}" ] && ffn_size=4096
+[ -z "${layers}" ] && layers=36
+[ -z "${hidden_size}" ] && hidden_size=2048
+[ -z "${ffn_size}" ] && ffn_size=8192
+# [ -z "${layers}" ] && layers=12
+# [ -z "${hidden_size}" ] && hidden_size=1024
+# [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -38,7 +38,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${warmup_num_steps}" ] && warmup_num_steps=1000
 [ -z "${train_batch_size}" ] && train_batch_size=1024
 [ -z "${val_batch_size}" ] && val_batch_size=1024
-[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=16
+[ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 [ -z "${strategy}" ] && strategy=Zero1
 [ -z "${save_epoch_interval}" ] && save_epoch_interval=1
 [ -z "${save_batch_interval}" ] && save_batch_interval=4000
@@ -46,7 +46,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
 [ -z "${mode_prob}" ] && mode_prob='0.2,0.7,0.1'
-[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.4,0.4,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
 
@@ -87,11 +87,11 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,8,8,2'
 # [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='64,16,24,16,12'
 
-[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240630_PDB_Training_Data,20240101_PDB_Training_Data'
-[ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdbcomplexmultimer,pdb'
-[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.5,0.45,0.05'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,32'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4,1,4'
+[ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240630_PDB_Training_Data,20240101_PDB_Training_Data,MGnify'
+[ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdbcomplexmultimer,pdb,mgnify'
+[ -z "${dataset_split_raito}" ] && dataset_split_raito='0.6,0.20,0.05,0.15'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,32,32'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4,1,4,4'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,afdb,pdbcomplexmultimer'
@@ -178,7 +178,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${mm_tensorcore}" ] && mm_tensorcore="tf32"
 [ -z "${compile}" ] && compile=False
 
-[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b_stage2_2/checkpoints/global_step37500/mp_rank_00_model_states.pt"
+[ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b_stage2_3/checkpoints/global_step42500/mp_rank_00_model_states.pt"
 # [ -z "${loadcheck_path}" ] && loadcheck_path="/data/peiran/output/dit300m/global_step16000/mp_rank_00_model_states.pt"
 [ -z "${save_dir}" ] && save_dir='/data/peiran/output/dit300m'
 
@@ -204,7 +204,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${diffusion_mode}" ] && diffusion_mode=epsilon #epsilon, edm
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
-[ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L2"
+[ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L1"
 
 
 [ -z "${num_timesteps}" ] && num_timesteps=5000
@@ -324,7 +324,7 @@ DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.p
           data_path_list=\"$data_path_list\" dataset_name_list=\"$dataset_name_list\" \
           dataset_split_raito=\"$dataset_split_raito\" \
           save_dir=$save_dir \
-          seed=7776 \
+          seed=7777 \
           mask_ratio=$mask_ratio \
           d_tilde=$d_tilde \
           strategy=$strategy \
