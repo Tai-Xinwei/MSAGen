@@ -511,3 +511,116 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
             pos_attn_bias,
             condition_embedding + time_embed,
         )
+
+
+class ProteaEmbedding(PSMMix3dDitEmbedding):
+    """
+    Class for the embedding layer in the PSM model.
+    """
+
+    def forward(
+        self,
+        batched_data: Dict,
+        time_step: Optional[Tensor] = None,
+        clean_mask: Optional[Tensor] = None,
+        aa_mask: Optional[Tensor] = None,
+        pbc_expand_batched: Optional[Dict[str, Tensor]] = None,
+    ) -> Tensor:
+        """
+        Forward pass of the PSMMixEmbedding class.
+        Args:
+            batched_data: Input data for the forward pass.
+        Returns:
+            x: The embedding representation.
+            padding_mask: The padding mask.
+        """
+        token_id = batched_data["token_id"]
+        padding_mask = token_id.eq(0)  # B x T x 1
+        is_periodic = batched_data["is_periodic"]
+        molecule_mask = (
+            (token_id <= 129) & (token_id > 1) & (~is_periodic.unsqueeze(-1))
+        )
+
+        if aa_mask is not None:
+            mask_token_type = token_id.masked_fill(
+                aa_mask, 157
+            )  # 157 is the mask token
+        else:
+            mask_token_type = token_id
+
+        batched_data["masked_token_type"] = mask_token_type
+        condition_embedding = self.embed(mask_token_type)
+
+        pos_embedding, pos_attn_bias = self._pos_emb(
+            batched_data["pos"],
+            pbc_expand_batched["expand_pos"]
+            if pbc_expand_batched is not None
+            else None,
+            batched_data["adj"],
+            clean_mask,
+            molecule_mask,
+            padding_mask,
+            batched_data,
+            pbc_expand_batched=pbc_expand_batched,
+        )
+
+        if "init_pos" in batched_data and (batched_data["init_pos"] != 0.0).any():
+            init_pos = batched_data["init_pos"].to(self.pos_emb.weight.dtype)
+            # init_pos_embedding = self.init_pos_emb(init_pos)
+            init_pos_embedding, init_pos_attn_bias = self._pos_emb(
+                init_pos,
+                pbc_expand_batched["init_expand_pos"]
+                if pbc_expand_batched is not None
+                else None,
+                batched_data["adj"],
+                clean_mask,
+                molecule_mask,
+                padding_mask,
+                batched_data,
+                pbc_expand_batched=pbc_expand_batched,
+            )
+
+            init_pos_mask = (
+                (init_pos != 0.0).any(dim=-1, keepdim=False).any(dim=-1, keepdim=False)
+            )
+            pos_embedding[init_pos_mask, :] += init_pos_embedding[init_pos_mask, :]
+
+            init_pos_attn_bias = init_pos_attn_bias.masked_fill(
+                ~init_pos_mask.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), 0.0
+            )
+            pos_attn_bias += init_pos_attn_bias
+
+        if self.psm_config.diffusion_mode == "edm":
+            noise_embed_edm = self.noise_cond_embed_edm(
+                batched_data["c_noise"].flatten()
+            ).to(condition_embedding.dtype)
+            time_embed = noise_embed_edm.reshape(
+                (pos_embedding.size(0), pos_embedding.size(1), -1)
+            )
+        elif time_step is not None:
+            time_embed = self.time_step_encoder(time_step, clean_mask)
+
+        if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
+            atom_feature_embedding = self.atom_feature_embed(
+                batched_data["node_attr"][:, :, 1:]
+            ).sum(
+                dim=-2
+            )  # B x T x #ATOM_FEATURE x D -> # B x T x D
+            atom_feature_embedding = atom_feature_embedding.masked_fill(
+                ~molecule_mask.unsqueeze(-1), 0.0
+            )
+
+            # # time raito is 0 at time step == 0, time raito is 1 at time step >= 1e-3, linear increase between 0 and 1e-3
+            if time_step is not None:
+                time_ratio = torch.clamp(time_step / 0.001, 0.0, 1.0)
+                pos_embedding += atom_feature_embedding * time_ratio.unsqueeze(-1)
+            else:
+                pos_embedding += atom_feature_embedding
+
+        return (
+            pos_embedding,
+            padding_mask,
+            time_embed,
+            pos_attn_bias,
+            condition_embedding + time_embed,
+        )

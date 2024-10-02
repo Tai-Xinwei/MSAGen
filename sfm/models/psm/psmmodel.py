@@ -48,6 +48,7 @@ from .modules.dataaug import uniform_random_rotation
 from .modules.diffusion import DIFFUSION_PROCESS_REGISTER
 from .modules.sampled_structure_converter import SampledStructureConverter
 from .modules.timestep_encoder import (
+    Diff1d3dNoise,
     DiffNoise,
     DiffNoise_EDM,
     NoiseStepSampler_EDM,
@@ -96,6 +97,11 @@ class PSMModel(Model):
 
         if self.psm_config.diffusion_mode == "edm":
             self.diffnoise = DiffNoise_EDM(self.psm_config)
+        elif self.psm_config.diffusion_mode == "protea":
+            self.diffnoise = Diff1d3dNoise(self.psm_config)
+            self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
+                self.psm_config.diffusion_sampling
+            ](self.diffnoise.alphas_cumprod, self.psm_config)
         else:
             self.diffnoise = DiffNoise(self.psm_config)
             self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
@@ -129,8 +135,16 @@ class PSMModel(Model):
             assert sum(mode_prob) == 1.0
         except:
             mode_prob = [0.2, 0.7, 0.1]
-        self.mode_prob = mode_prob
-        logger.info(f"protein mode prob: {mode_prob}")
+
+        if self.psm_config.diffusion_mode == "protea":
+            mode_prob = [0.0, 1.0, 0.0]
+            self.psm_config.mask_ratio = 0.0
+            logger.info(
+                "Protein mode prob is set to [0.0, 1.0, 0.0] in protea mode, mask ratio is set to 0.0"
+            )
+        else:
+            self.mode_prob = mode_prob
+            logger.info(f"protein mode prob: {mode_prob}")
 
         try:
             complex_mode_prob = [
@@ -139,9 +153,16 @@ class PSMModel(Model):
             assert len(complex_mode_prob) == 4
             assert sum(complex_mode_prob) == 1.0
         except:
-            complex_mode_prob = [0.0, 0.0, 1.0, 0.0]
-        self.complex_mode_prob = complex_mode_prob
-        logger.info(f"complex mode prob: {complex_mode_prob}")
+            complex_mode_prob = [1.0, 0.0, 0.0, 0.0]
+
+        if self.psm_config.diffusion_mode == "protea":
+            complex_mode_prob = [1.0, 0.0, 0.0, 0.0]
+            logger.info(
+                "Complex mode prob is set to [1.0, 0.0, 0.0, 0.0] in protea mode"
+            )
+        else:
+            self.complex_mode_prob = complex_mode_prob
+            logger.info(f"complex mode prob: {complex_mode_prob}")
 
     def reload_checkpoint(self):
         if self.psm_config.psm_finetune_mode or self.psm_config.psm_validation_mode:
@@ -544,6 +565,24 @@ class PSMModel(Model):
             sigma = sigma_edm
             alpha = None
             weight = weight_edm
+        elif self.psm_config.diffusion_mode == "protea":
+            (
+                noise_pos,
+                noise,
+                sqrt_one_minus_alphas_cumprod_t,
+                sqrt_alphas_cumprod_t,
+            ) = self.diffnoise.noise_sample(
+                x_start=ori_pos,
+                token_id=batched_data["token_id"],
+                t=time_step,
+                non_atom_mask=batched_data["non_atom_mask"],
+                is_stable_periodic=batched_data["is_stable_periodic"],
+                x_init=batched_data["init_pos"],
+                clean_mask=clean_mask,
+            )
+            sigma = sqrt_one_minus_alphas_cumprod_t
+            alpha = sqrt_alphas_cumprod_t
+            weight = None
         else:
             (
                 noise_pos,
@@ -769,6 +808,10 @@ class PSMModel(Model):
             batched_data["sigma_edm"] = sigma
             batched_data["sqrt_one_minus_alphas_cumprod_t"] = None
             batched_data["sqrt_alphas_cumprod_t"] = None
+        elif self.psm_config.diffusion_mode == "protea":
+            batched_data["sigma_edm"] = None
+            batched_data["sqrt_one_minus_alphas_cumprod_t"] = sigma
+            batched_data["sqrt_alphas_cumprod_t"] = alpha
         else:
             batched_data["sigma_edm"] = None
             batched_data["sqrt_one_minus_alphas_cumprod_t"] = sigma

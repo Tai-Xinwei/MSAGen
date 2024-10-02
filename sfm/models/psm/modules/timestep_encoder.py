@@ -327,6 +327,85 @@ class DiffNoise(nn.Module):
         return x_start + noise, noise, sigma
 
 
+class Diff1d3dNoise(DiffNoise):
+    def __init__(self, psm_config: PSMConfig):
+        super(Diff1d3dNoise, self).__init__(psm_config)
+
+    def get_noise(self, pos, non_atom_mask, is_stable_periodic):
+        if self.torch_generator is None:
+            self.torch_generator = torch.Generator(device=pos.device)
+            self.torch_generator.manual_seed(dist.get_rank())
+        noise = (
+            torch.randn(
+                pos.size(),
+                device=pos.device,
+                dtype=pos.dtype,
+                generator=self.torch_generator,
+            )
+            * self.unit_noise_scale
+        )
+        # for non-cell corner nodes (atoms in molecules, amino acids in proteins and atoms in materials)
+        # use zero-centered noise
+        noise = noise.masked_fill(non_atom_mask.unsqueeze(-1), 0.0)
+        noise_center = noise.sum(dim=1, keepdim=True) / torch.sum(
+            (~non_atom_mask).long(), dim=-1
+        ).unsqueeze(-1).unsqueeze(-1)
+        noise[~is_stable_periodic] -= noise_center[~is_stable_periodic]
+        noise = noise.masked_fill(non_atom_mask.unsqueeze(-1), 0.0)
+        # for cell corner nodes (the noise is centered so that the noised cell is centered at the original point)
+        noise = self._noise_lattice_vectors(
+            pos, non_atom_mask, noise, is_stable_periodic
+        )
+        return noise
+
+    def get_sampling_start(self, init_pos, non_atom_mask, is_stable_periodic):
+        noise = self.get_noise(init_pos, non_atom_mask, is_stable_periodic)
+        return init_pos + noise
+
+    def noise_sample(
+        self,
+        x_start,
+        t,
+        non_atom_mask: Tensor,
+        is_stable_periodic: Tensor,
+        x_init=None,
+        clean_mask: Optional[Tensor] = None,
+    ):
+        t = (t * self.psm_config.num_timesteps).long()
+        noise = self.get_noise(x_start, non_atom_mask, is_stable_periodic)
+
+        sqrt_alphas_cumprod_t = self._extract(
+            self.sqrt_alphas_cumprod, t, x_start.shape
+        )
+        sqrt_one_minus_alphas_cumprod_t = self._extract(
+            self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
+        )
+
+        if x_init is None:
+            x_t = (
+                sqrt_alphas_cumprod_t * x_start
+                + sqrt_one_minus_alphas_cumprod_t * noise
+            )
+        else:
+            x_t = (
+                sqrt_alphas_cumprod_t * (x_start - x_init)
+                + sqrt_one_minus_alphas_cumprod_t * noise
+                + x_init
+            )
+
+        if clean_mask is not None:
+            if len(clean_mask.shape) == 1:
+                x_t = torch.where(clean_mask.unsqueeze(-1).unsqueeze(-1), x_start, x_t)
+            elif len(clean_mask.shape) == 2:
+                x_t = torch.where(clean_mask.unsqueeze(-1), x_start, x_t)
+            else:
+                raise ValueError(
+                    f"clean_mask should be [B] or [B, L] tensor, but it's shape is {clean_mask.shape}"
+                )
+
+        return x_t, noise, sqrt_one_minus_alphas_cumprod_t, sqrt_alphas_cumprod_t
+
+
 class NoiseStepSampler_EDM:
     def __init__(self):
         pass
