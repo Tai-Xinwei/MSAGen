@@ -519,6 +519,27 @@ class ProteaEmbedding(PSMMix3dDitEmbedding):
     Class for the embedding layer in the PSM model.
     """
 
+    def __init__(self, psm_config: PSMConfig, use_unified_batch_sampler: bool = False):
+        super(ProteaEmbedding, self).__init__(psm_config, use_unified_batch_sampler)
+
+        self.embed = nn.Embedding(160, psm_config.encoder_embed_dim // 2)
+
+        self.pos_embedding_proj = nn.Linear(
+            psm_config.num_3d_bias_kernel, psm_config.embedding_dim // 2
+        )
+        self.pos_feature_emb = nn.Linear(
+            psm_config.num_3d_bias_kernel, psm_config.embedding_dim // 2, bias=False
+        )
+        self.atom_feature_embed = nn.Embedding(
+            psm_config.num_atom_features, psm_config.encoder_embed_dim // 2
+        )
+
+        self.time_step_encoder = TimeStepEncoder(
+            psm_config.num_timesteps,
+            psm_config.embedding_dim // 2,
+            psm_config.diffusion_time_step_encoder_type,
+        )
+
     def forward(
         self,
         batched_data: Dict,
@@ -544,19 +565,13 @@ class ProteaEmbedding(PSMMix3dDitEmbedding):
         )
 
         if aa_mask is not None:
-            mask_token_type = token_id.masked_fill(
-                aa_mask, 157
-            )  # 157 is the mask token
+            token_id.masked_fill(aa_mask, 157)  # 157 is the mask token
         else:
-            mask_token_type = token_id
+            pass
 
-        if "one_hot_token_id" not in batched_data:
-            batched_data["masked_token_type"] = mask_token_type
-            condition_embedding = self.embed(mask_token_type)
-        else:
-            condition_embedding = torch.matmul(
-                batched_data["one_hot_token_id"], self.embed.weight
-            )
+        condition_embedding = torch.matmul(
+            batched_data["one_hot_token_id"], self.embed.weight
+        )
 
         pos_embedding, pos_attn_bias = self._pos_emb(
             batched_data["pos"],
@@ -582,6 +597,8 @@ class ProteaEmbedding(PSMMix3dDitEmbedding):
             time_embed = self.time_step_encoder(time_step, clean_mask)
             time_1d_embed = self.time_step_encoder(time_step_1d, ~aa_mask)
 
+            time_embed = torch.cat([time_embed, time_1d_embed], dim=-1)
+
         if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
             atom_feature_embedding = self.atom_feature_embed(
                 batched_data["node_attr"][:, :, 1:]
@@ -595,14 +612,16 @@ class ProteaEmbedding(PSMMix3dDitEmbedding):
             # # time raito is 0 at time step == 0, time raito is 1 at time step >= 1e-3, linear increase between 0 and 1e-3
             if time_step is not None:
                 time_ratio = torch.clamp(time_step / 0.001, 0.0, 1.0)
-                pos_embedding += atom_feature_embedding * time_ratio.unsqueeze(-1)
+                condition_embedding += atom_feature_embedding * time_ratio.unsqueeze(-1)
             else:
-                pos_embedding += atom_feature_embedding
+                condition_embedding += atom_feature_embedding
+
+        x = torch.cat([pos_embedding, condition_embedding], dim=-1)
 
         return (
-            pos_embedding + time_embed,
+            x,
             padding_mask,
             time_embed,
             pos_attn_bias,
-            condition_embedding + time_1d_embed,
+            time_embed,
         )

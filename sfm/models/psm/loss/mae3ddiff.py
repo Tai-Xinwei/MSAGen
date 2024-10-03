@@ -1456,7 +1456,7 @@ class DiffProteaCriterions(DiffMAE3dCriterions):
                     )
 
                     unreduced_aa_diff_loss = self.aa_diff_loss(
-                        model_output["aa_logits"], batched_data["one_hot_token_id"]
+                        model_output["aa_logits"], batched_data["noise_1d"]
                     )
 
                 else:
