@@ -21,7 +21,7 @@ from sfm.data.psm_data.unifieddataset import (
     UnifiedPSMDataset,
 )
 from sfm.logging import logger
-from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions
+from sfm.models.psm.loss.mae3ddiff import DiffMAE3dCriterions, DiffProteaCriterions
 from sfm.models.psm.psm_config import PSMConfig
 from sfm.models.psm.psm_optimizer import (
     DECAY_COSINE_RATE,
@@ -121,24 +121,44 @@ def main(args: DictConfig) -> None:
             molecule_energy_per_atom_std = args.molecule_energy_per_atom_std_override
 
         def loss_fn(args):
-            return DiffMAE3dCriterions(
-                args,
-                dataset.molecule_energy_mean,
-                dataset.molecule_energy_std,
-                dataset.periodic_energy_mean,
-                dataset.periodic_energy_std,
-                dataset.molecule_energy_per_atom_mean,
-                molecule_energy_per_atom_std,
-                dataset.periodic_energy_per_atom_mean,
-                dataset.periodic_energy_per_atom_std,
-                dataset.molecule_force_mean,
-                dataset.molecule_force_std,
-                dataset.periodic_force_mean,
-                dataset.periodic_force_std,
-            )
+            if args.diffusion_mode == "protea":
+                return DiffProteaCriterions(
+                    args,
+                    dataset.molecule_energy_mean,
+                    dataset.molecule_energy_std,
+                    dataset.periodic_energy_mean,
+                    dataset.periodic_energy_std,
+                    dataset.molecule_energy_per_atom_mean,
+                    molecule_energy_per_atom_std,
+                    dataset.periodic_energy_per_atom_mean,
+                    dataset.periodic_energy_per_atom_std,
+                    dataset.molecule_force_mean,
+                    dataset.molecule_force_std,
+                    dataset.periodic_force_mean,
+                    dataset.periodic_force_std,
+                )
+            else:
+                return DiffMAE3dCriterions(
+                    args,
+                    dataset.molecule_energy_mean,
+                    dataset.molecule_energy_std,
+                    dataset.periodic_energy_mean,
+                    dataset.periodic_energy_std,
+                    dataset.molecule_energy_per_atom_mean,
+                    molecule_energy_per_atom_std,
+                    dataset.periodic_energy_per_atom_mean,
+                    dataset.periodic_energy_per_atom_std,
+                    dataset.molecule_force_mean,
+                    dataset.molecule_force_std,
+                    dataset.periodic_force_mean,
+                    dataset.periodic_force_std,
+                )
 
     else:
-        loss_fn = DiffMAE3dCriterions
+        if args.diffusion_mode == "protea":
+            loss_fn = DiffProteaCriterions
+        else:
+            loss_fn = DiffMAE3dCriterions
 
     model = PSMModel(args, loss_fn, psm_finetune_head=finetune_module)
 

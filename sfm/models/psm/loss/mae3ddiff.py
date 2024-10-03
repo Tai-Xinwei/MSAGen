@@ -1251,3 +1251,517 @@ class PolicyGradientLoss(nn.Module):
         loss = value_loss if alternate_counter > 0 else policy_loss
 
         return loss, logging_output
+
+
+class DiffProteaCriterions(DiffMAE3dCriterions):
+    def __init__(
+        self,
+        args: PSMConfig,
+        molecule_energy_mean: float = 0.0,
+        molecule_energy_std: float = 1.0,
+        periodic_energy_mean: float = 0.0,
+        periodic_energy_std: float = 1.0,
+        molecule_energy_per_atom_mean: float = 0.0,
+        molecule_energy_per_atom_std: float = 1.0,
+        periodic_energy_per_atom_mean: float = 0.0,
+        periodic_energy_per_atom_std: float = 1.0,
+        molecule_force_mean: float = 0.0,
+        molecule_force_std: float = 1.0,
+        periodic_force_mean: float = 0.0,
+        periodic_force_std: float = 1.0,
+    ) -> None:
+        super(DiffProteaCriterions, self).__init__(
+            args,
+            molecule_energy_mean,
+            molecule_energy_std,
+            periodic_energy_mean,
+            periodic_energy_std,
+            molecule_energy_per_atom_mean,
+            molecule_energy_per_atom_std,
+            periodic_energy_per_atom_mean,
+            periodic_energy_per_atom_std,
+            molecule_force_mean,
+            molecule_force_std,
+            periodic_force_mean,
+            periodic_force_std,
+        )
+
+        self.aa_diff_loss = nn.L1Loss(reduction="none")
+
+    def _reduce_aa_diff_noise_loss(
+        self,
+        force_or_noise_loss,
+        sample_mask,
+        token_mask,
+        is_molecule,
+        is_periodic,
+        molecule_loss_factor=1.0,
+        periodic_loss_factor=1.0,
+    ):
+        if len(sample_mask.shape) == (len(token_mask.shape) - 1):
+            sample_mask = sample_mask & token_mask.any(dim=-1)
+        elif len(sample_mask.shape) == len(token_mask.shape):
+            sample_mask = sample_mask & token_mask
+        else:
+            raise ValueError(
+                f"sample_mask and token_mask have incompatible shapes: {sample_mask.shape} and {token_mask.shape}"
+            )
+
+        num_samples = torch.sum(sample_mask.long())
+        force_or_noise_loss = (
+            force_or_noise_loss.clone()
+        )  # force_or_noise_loss cloned since it will be resued multiple times
+        if num_samples > 0:
+            # multiply the loss by std (across all atoms and all 3 coordinates) of force labels
+            # note that this works only when using MAE loss
+            # for example, with MSE loss, we need to multiply squre of the std
+            # for noise loss, the factors should be 1.0
+            force_or_noise_loss[is_molecule] = (
+                force_or_noise_loss[is_molecule] * molecule_loss_factor
+            )
+            force_or_noise_loss[is_periodic] = (
+                force_or_noise_loss[is_periodic] * periodic_loss_factor
+            )
+            force_or_noise_loss = force_or_noise_loss.masked_fill(
+                ~token_mask.unsqueeze(-1), 0.0
+            )
+            if len(sample_mask.shape) == 1:
+                force_or_noise_loss = torch.sum(
+                    force_or_noise_loss[sample_mask], dim=[1, 2]
+                ) / (160.0 * torch.sum(token_mask[sample_mask], dim=-1))
+            elif len(sample_mask.shape) == 2:
+                # TODO: need to average over tokens in one sample first then all smaples
+                force_or_noise_loss = torch.sum(
+                    force_or_noise_loss[sample_mask], dim=[0, 1]
+                ) / (160.0 * torch.sum(token_mask[sample_mask], dim=-1))
+            else:
+                raise ValueError(
+                    f"sample_mask has an unexpected shape: {sample_mask.shape}"
+                )
+            force_or_noise_loss = force_or_noise_loss.mean()
+        else:
+            force_or_noise_loss = torch.tensor(
+                0.0, device=force_or_noise_loss.device, requires_grad=True
+            )
+        return force_or_noise_loss, num_samples
+
+    def forward(self, model_output, batched_data):
+        energy_per_atom_label = batched_data["energy_per_atom"]
+        batched_data["energy"]
+        atomic_numbers = batched_data["token_id"]
+        noise_label = model_output["noise"]
+        model_output["force_label"]
+        pos_label = model_output["ori_pos"]
+        model_output["forces"]
+        model_output["energy_per_atom"]
+        model_output["total_energy"]
+        noise_pred = model_output["noise_pred"]
+        noise_pred_periodic = model_output["noise_pred_periodic"]
+        model_output["non_atom_mask"]
+        clean_mask = model_output["clean_mask"]
+        aa_mask = model_output["aa_mask"]
+        is_protein = model_output["is_protein"]
+        is_molecule = model_output["is_molecule"]
+        is_periodic = model_output["is_periodic"]
+        is_complex = model_output["is_complex"]
+        is_seq_only = model_output["is_seq_only"]
+        diff_loss_mask = model_output["diff_loss_mask"]
+        protein_mask = model_output["protein_mask"]
+        sqrt_one_minus_alphas_cumprod_t = model_output[
+            "sqrt_one_minus_alphas_cumprod_t"
+        ]
+        sqrt_alphas_cumprod_t = model_output["sqrt_alphas_cumprod_t"]
+
+        n_graphs = energy_per_atom_label.size()[0]
+        if clean_mask is None:
+            clean_mask = torch.zeros(
+                n_graphs, dtype=torch.bool, device=energy_per_atom_label.device
+            )
+
+        # energy and force loss only apply on total clean samples
+        total_clean = clean_mask.all(dim=-1)
+        total_clean & batched_data["has_energy"]
+        total_clean & batched_data["has_forces"]
+
+        if not self.seq_only:
+            # diffussion loss
+            if self.diffusion_mode == "protea":
+                if not is_seq_only.all():
+                    pos_pred = self.calculate_pos_pred(model_output)
+                    if (
+                        self.args.align_x0_in_diffusion_loss and not is_periodic.any()
+                    ):  # and not is_periodic.any():
+                        R, T = self._alignment_x0(
+                            model_output, pos_pred, atomic_numbers
+                        )
+                    else:
+                        R, T = torch.eye(
+                            3, device=pos_pred.device, dtype=pos_pred.dtype
+                        ).unsqueeze(0).repeat(n_graphs, 1, 1), torch.zeros_like(
+                            pos_pred, device=pos_pred.device, dtype=pos_pred.dtype
+                        )
+
+                    if is_protein.any():
+                        # align pred pos and calculate smooth lddt loss for protein
+                        (
+                            smooth_lddt_loss,
+                            hard_dist_loss,
+                            inter_dist_loss,
+                            num_inter_dist_loss,
+                        ) = self.dist_loss(model_output, R, T, pos_pred, atomic_numbers)
+                        num_pddt_loss = 1
+                        if hard_dist_loss is None:
+                            hard_dist_loss = torch.tensor(
+                                0.0, device=smooth_lddt_loss.device, requires_grad=True
+                            )
+                    else:
+                        smooth_lddt_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        hard_dist_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        inter_dist_loss = torch.tensor(
+                            0.0, device=noise_label.device, requires_grad=True
+                        )
+                        num_pddt_loss = 0
+                        num_inter_dist_loss = 0
+
+                    if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
+                        # noise pred loss
+                        aligned_noise_pred = (
+                            sqrt_alphas_cumprod_t * pos_label
+                            + sqrt_one_minus_alphas_cumprod_t
+                            * (noise_label - noise_pred)
+                        )
+
+                        aligned_pos_label = (
+                            torch.einsum("bij,bkj->bki", R.float(), pos_label.float())
+                            # + T.float()
+                        )
+                        unreduced_noise_loss = self.noise_loss(
+                            aligned_noise_pred.to(noise_label.dtype),
+                            (aligned_pos_label) * sqrt_alphas_cumprod_t,
+                        )
+                        unreduced_noise_loss = (
+                            unreduced_noise_loss / sqrt_one_minus_alphas_cumprod_t
+                        )
+                    else:
+                        unreduced_noise_loss = self.noise_loss(
+                            noise_pred.to(noise_label.dtype), noise_label
+                        )
+
+                    unreduced_periodic_noise_loss = self.noise_loss(
+                        noise_pred_periodic.to(noise_label.dtype), noise_label
+                    )
+
+                    unreduced_aa_diff_loss = self.aa_diff_loss(
+                        model_output["aa_logits"], batched_data["one_hot_token_id"]
+                    )
+
+                else:
+                    unreduced_noise_loss = self.noise_loss(
+                        noise_pred.to(noise_label.dtype), noise_label
+                    )
+                    unreduced_periodic_noise_loss = self.noise_loss(
+                        noise_pred_periodic.to(noise_label.dtype), noise_label
+                    )
+                    smooth_lddt_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
+                    hard_dist_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
+                    inter_dist_loss = torch.tensor(
+                        0.0, device=noise_label.device, requires_grad=True
+                    )
+                    num_pddt_loss = 0
+                    num_inter_dist_loss = 0
+            else:
+                raise ValueError(f"Invalid diffusion mode: {self.diffusion_mode}")
+
+            noise_loss, num_noise_sample = self._reduce_force_or_noise_loss(
+                unreduced_noise_loss,
+                (~clean_mask) & (~is_seq_only.unsqueeze(-1)),
+                diff_loss_mask & ~protein_mask.any(dim=-1),
+                is_molecule,
+                is_periodic,
+                1.0,
+                1.0,
+            )
+            (
+                molecule_noise_loss,
+                num_molecule_noise_sample,
+            ) = self._reduce_force_or_noise_loss(
+                unreduced_noise_loss,
+                (~clean_mask) & is_molecule.unsqueeze(-1) & (~is_complex.unsqueeze(-1)),
+                diff_loss_mask & ~protein_mask.any(dim=-1),
+                is_molecule,
+                is_periodic,
+                1.0,
+                1.0,
+            )
+            (
+                periodic_noise_loss,
+                num_periodic_noise_sample,
+            ) = self._reduce_force_or_noise_loss(
+                unreduced_periodic_noise_loss,  # unreduced_periodic_noise_loss,
+                (~clean_mask) & is_periodic.unsqueeze(-1),
+                diff_loss_mask & ~protein_mask.any(dim=-1),
+                is_molecule,
+                is_periodic,
+                1.0,
+                1.0,
+            )
+            (
+                protein_noise_loss,
+                num_protein_noise_sample,
+            ) = self._reduce_force_or_noise_loss(
+                unreduced_noise_loss,
+                (~clean_mask)
+                & is_protein
+                & (~is_seq_only.unsqueeze(-1))
+                & (~is_complex.unsqueeze(-1)),
+                diff_loss_mask & ~protein_mask.any(dim=-1),
+                is_molecule,
+                is_periodic,
+                1.0,
+                1.0,
+            )
+            (
+                complex_noise_loss,
+                num_complex_noise_sample,
+            ) = self._reduce_force_or_noise_loss(
+                unreduced_noise_loss,
+                (~clean_mask) & is_complex.unsqueeze(-1) & (~is_seq_only.unsqueeze(-1)),
+                diff_loss_mask & ~protein_mask.any(dim=-1) & atomic_numbers.ne(2),
+                is_molecule,
+                is_periodic,
+                1.0,
+                1.0,
+            )
+
+            if self.args.diffusion_training_loss == DiffusionTrainingLoss.L2:
+                molecule_noise_loss = torch.sqrt(molecule_noise_loss + self.epsilon)
+                periodic_noise_loss = torch.sqrt(periodic_noise_loss + self.epsilon)
+                protein_noise_loss = torch.sqrt(protein_noise_loss + self.epsilon)
+                complex_noise_loss = torch.sqrt(complex_noise_loss + self.epsilon)
+
+            (
+                aa_diff_loss,
+                num_aa_diff_token,
+            ) = self._reduce_aa_diff_noise_loss(
+                unreduced_aa_diff_loss,
+                aa_mask,
+                diff_loss_mask,
+                is_molecule,
+                is_periodic,
+                1.0,
+                1.0,
+            )
+        else:
+            noise_loss = torch.tensor(
+                0.0, device=noise_label.device, requires_grad=True
+            )
+            molecule_noise_loss = torch.tensor(
+                0.0, device=noise_label.device, requires_grad=True
+            )
+            periodic_noise_loss = torch.tensor(
+                0.0, device=noise_label.device, requires_grad=True
+            )
+            protein_noise_loss = torch.tensor(
+                0.0, device=noise_label.device, requires_grad=True
+            )
+            aa_diff_loss = torch.tensor(
+                0.0, device=noise_label.device, requires_grad=True
+            )
+
+            num_noise_sample = 0
+            num_molecule_noise_sample = 0
+            num_periodic_noise_sample = 0
+            num_protein_noise_sample = 0
+            num_complex_noise_sample = 0
+            num_aa_diff_token = 0
+
+        if not is_seq_only.all():
+            loss = torch.tensor(0.0, device=atomic_numbers.device, requires_grad=True)
+
+            if torch.any(torch.isnan(protein_noise_loss)) or torch.any(
+                torch.isinf(protein_noise_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in protein_noise_loss: {protein_noise_loss}"
+                )
+                protein_noise_loss = torch.tensor(
+                    0.0, device=protein_noise_loss.device, requires_grad=True
+                )
+                num_protein_noise_sample = 0
+            else:
+                loss = loss + 4.0 * protein_noise_loss
+
+            if torch.any(torch.isnan(complex_noise_loss)) or torch.any(
+                torch.isinf(complex_noise_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in complex_noise_loss: {complex_noise_loss}"
+                )
+                complex_noise_loss = torch.tensor(
+                    0.0, device=complex_noise_loss.device, requires_grad=True
+                )
+                num_complex_noise_sample = 0
+            else:
+                loss = loss + 4.0 * complex_noise_loss
+
+            if torch.any(torch.isnan(periodic_noise_loss)) or torch.any(
+                torch.isinf(periodic_noise_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in periodic_noise_loss: {periodic_noise_loss}"
+                )
+                periodic_noise_loss = torch.tensor(
+                    0.0, device=periodic_noise_loss.device, requires_grad=True
+                )
+                num_periodic_noise_sample = 0
+            else:
+                loss = loss + periodic_noise_loss
+
+            if torch.any(torch.isnan(molecule_noise_loss)) or torch.any(
+                torch.isinf(molecule_noise_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in molecule_noise_loss: {molecule_noise_loss}"
+                )
+                molecule_noise_loss = torch.tensor(
+                    0.0, device=molecule_noise_loss.device, requires_grad=True
+                )
+                num_molecule_noise_sample = 0
+            else:
+                loss = loss + molecule_noise_loss
+
+            if torch.any(torch.isnan(aa_diff_loss)) or torch.any(
+                torch.isinf(aa_diff_loss)
+            ):
+                logger.error(f"NaN or inf detected in noise_loss: {noise_loss}")
+                aa_diff_loss = torch.tensor(
+                    0.0, device=noise_loss.device, requires_grad=True
+                )
+                num_aa_diff_token = 0
+            else:
+                loss = loss + aa_diff_loss
+
+            if torch.any(torch.isnan(smooth_lddt_loss)) or torch.any(
+                torch.isinf(smooth_lddt_loss)
+            ):
+                logger.error(
+                    f"NaN or inf detected in smooth_lddt_loss: {smooth_lddt_loss}"
+                )
+                smooth_lddt_loss = torch.tensor(
+                    0.0, device=smooth_lddt_loss.device, requires_grad=True
+                )
+            else:
+                loss = loss + smooth_lddt_loss
+
+            if torch.any(torch.isnan(loss)) or torch.any(torch.isinf(loss)):
+                logger.error(
+                    f"NaN or inf detected in loss: {loss}, molecule_noise_loss: {molecule_noise_loss}, periodic_noise_loss: {periodic_noise_loss}, protein_noise_loss: {protein_noise_loss}, complex_noise_loss: {complex_noise_loss}, noise_loss: {noise_loss}, aa_diff_loss: {aa_diff_loss}"
+                )
+                loss = torch.tensor(
+                    0.0, device=atomic_numbers.device, requires_grad=True
+                )
+        else:
+            loss = aa_diff_loss
+
+        # for loss exist in every sample of the batch, no extra number of samples are recorded (will use batch size in loss reduction)
+        # for loss does not exist in every example of the batch, use a tuple, where the first element is the averaged loss value
+        # and the second element is the number of samples (or token numbers) in the batch with that loss considered
+        logging_output = {
+            "total_loss": loss.to(torch.float32),
+            "noise_loss": (float(noise_loss), int(num_noise_sample)),
+            "molecule_noise_loss": (
+                float(molecule_noise_loss.detach()),
+                int(num_molecule_noise_sample),
+            ),
+            "periodic_noise_loss": (
+                float(periodic_noise_loss.detach()),
+                int(num_periodic_noise_sample),
+            ),
+            "protein_noise_loss": (
+                float(protein_noise_loss.detach()),
+                int(num_protein_noise_sample),
+            ),
+            "complex_noise_loss": (
+                float(complex_noise_loss.detach()),
+                int(num_complex_noise_sample),
+            ),
+            "aa_diff_loss": (float(aa_diff_loss.detach()), int(num_aa_diff_token)),
+            "smooth_lddt_loss": (float(smooth_lddt_loss.detach()), int(num_pddt_loss)),
+            "hard_dist_loss": (float(hard_dist_loss.detach()), int(num_pddt_loss)),
+            "inter_dist_loss": (
+                float(inter_dist_loss.detach()),
+                int(num_inter_dist_loss),
+            ),
+        }
+
+        def _reduce_matched_result(model_output, metric_name, min_or_max: str):
+            metric = model_output[metric_name]
+            matched_mask = ~metric.isnan()
+            num_matched_samples = int(torch.sum(matched_mask.long()))
+            matched_rate = float(torch.mean(matched_mask.float()))
+            if num_matched_samples > 0:
+                mean_metric = float(
+                    torch.sum(metric[matched_mask]) / num_matched_samples
+                )
+                metric_tuple = (mean_metric, num_matched_samples)
+            else:
+                metric_tuple = (0.0, 0)
+            matched_rate_tuple = (matched_rate, metric.numel())
+            torch_min_or_max_func = torch.min if min_or_max == "min" else torch.max
+            if metric.size()[-1] > 1:
+                any_matched_mask = ~metric.isnan().any(dim=-1)
+                num_any_matched_samples = int(torch.sum(any_matched_mask))
+                best_metric = torch_min_or_max_func(metric, dim=-1)[0]
+                if num_any_matched_samples > 0:
+                    best_metric = float(
+                        torch.sum(best_metric[any_matched_mask])
+                        / num_any_matched_samples
+                    )
+                    best_metric_tuple = (best_metric, num_any_matched_samples)
+                else:
+                    best_metric_tuple = (0.0, 0)
+                any_matched_rate_tuple = (
+                    float(torch.mean(any_matched_mask.float())),
+                    int(metric.size()[0]),
+                )
+            else:
+                best_metric_tuple = metric_tuple
+                any_matched_rate_tuple = matched_rate_tuple
+            return (
+                metric_tuple,
+                matched_rate_tuple,
+                best_metric_tuple,
+                any_matched_rate_tuple,
+            )
+
+        if "rmsd" in model_output:
+            (
+                logging_output["rmsd"],
+                logging_output["matched_rate"],
+                logging_output["min_rmsd"],
+                logging_output["any_matched_rate"],
+            ) = _reduce_matched_result(model_output, "rmsd", "min")
+        if "tm_score" in model_output:
+            (
+                logging_output["tm_score"],
+                _,
+                logging_output["max_tm_score"],
+                _,
+            ) = _reduce_matched_result(model_output, "tm_score", "max")
+        if "lddt" in model_output:
+            (
+                logging_output["lddt"],
+                _,
+                logging_output["max_lddt"],
+                _,
+            ) = _reduce_matched_result(model_output, "lddt", "max")
+
+        return loss, logging_output

@@ -201,7 +201,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
-[ -z "${diffusion_mode}" ] && diffusion_mode=epsilon #epsilon, edm
+[ -z "${diffusion_mode}" ] && diffusion_mode=protea #epsilon, edm
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L1"

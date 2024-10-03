@@ -10,6 +10,7 @@ from contextlib import nullcontext
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from tqdm import tqdm
 
 from sfm.data.psm_data.utils import VOCAB
@@ -34,7 +35,11 @@ from sfm.models.psm.invariant.dit_encoder import PSMDiTEncoder
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
-from sfm.models.psm.modules.mixembedding import PSMMix3dDitEmbedding, PSMMix3dEmbedding
+from sfm.models.psm.modules.mixembedding import (
+    ProteaEmbedding,
+    PSMMix3dDitEmbedding,
+    PSMMix3dEmbedding,
+)
 from sfm.models.psm.modules.mixembedding_equiv import PSMMix3DEquivEmbedding
 from sfm.models.psm.modules.pbc import CellExpander
 from sfm.models.psm.psm_config import ForceHeadType, GaussianFeatureNodeType, PSMConfig
@@ -48,7 +53,6 @@ from .modules.dataaug import uniform_random_rotation
 from .modules.diffusion import DIFFUSION_PROCESS_REGISTER
 from .modules.sampled_structure_converter import SampledStructureConverter
 from .modules.timestep_encoder import (
-    Diff1d3dNoise,
     DiffNoise,
     DiffNoise_EDM,
     NoiseStepSampler_EDM,
@@ -97,11 +101,6 @@ class PSMModel(Model):
 
         if self.psm_config.diffusion_mode == "edm":
             self.diffnoise = DiffNoise_EDM(self.psm_config)
-        elif self.psm_config.diffusion_mode == "protea":
-            self.diffnoise = Diff1d3dNoise(self.psm_config)
-            self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
-                self.psm_config.diffusion_sampling
-            ](self.diffnoise.alphas_cumprod, self.psm_config)
         else:
             self.diffnoise = DiffNoise(self.psm_config)
             self.diffusion_process = DIFFUSION_PROCESS_REGISTER[
@@ -139,6 +138,7 @@ class PSMModel(Model):
         if self.psm_config.diffusion_mode == "protea":
             mode_prob = [0.0, 1.0, 0.0]
             self.psm_config.mask_ratio = 0.0
+            self.mode_prob = mode_prob
             logger.info(
                 "Protein mode prob is set to [0.0, 1.0, 0.0] in protea mode, mask ratio is set to 0.0"
             )
@@ -157,6 +157,7 @@ class PSMModel(Model):
 
         if self.psm_config.diffusion_mode == "protea":
             complex_mode_prob = [1.0, 0.0, 0.0, 0.0]
+            self.complex_mode_prob = complex_mode_prob
             logger.info(
                 "Complex mode prob is set to [1.0, 0.0, 0.0, 0.0] in protea mode"
             )
@@ -449,6 +450,73 @@ class PSMModel(Model):
 
         return clean_mask, aa_mask, time_step, noise_step
 
+    def _protea_pretrain_mode(
+        self,
+        clean_mask,
+        aa_mask,
+        padding_mask,
+        is_protein,
+        is_seq_only,
+        is_complex,
+        time_step,
+        time_step_1d,
+        noise_step,
+        batched_data,
+    ):
+        """
+        For protein pretrain mode, we have 3 modes:
+        0: 50% masked seq and 50% noised structure to structure and seq
+        1: clean seq to structure
+        2: 50% masked seq to structure and masked seq
+        For Complex pretrain mode, we have 3 modes:
+        0: clean protein seq to protein structure and molecule structure, time_protein == time_ligand
+        1: clean protein seq to protein structure and molecule structure, time_protein < time_ligand
+        2: 50% masked protein seq and 50% noised structure to protein structure and seq, molecule all clean
+        3: clean protein seq and structure to ligand structure
+
+        """
+        n_graph, nnodes = aa_mask.size()[:2]
+        clean_mask = clean_mask.unsqueeze(-1).repeat(1, nnodes)
+
+        time_step = time_step.unsqueeze(-1).repeat(1, nnodes)
+        time_step_1d = time_step_1d.unsqueeze(-1).repeat(1, nnodes)
+
+        # set mask_aa to all True tensor
+        aa_mask = torch.ones_like(aa_mask, dtype=torch.bool)
+
+        # set padding mask to clean
+        clean_mask = clean_mask.masked_fill(padding_mask, True)
+        aa_mask = aa_mask.masked_fill(padding_mask, False)
+        clean_mask = clean_mask.masked_fill(
+            is_seq_only.unsqueeze(-1),
+            False if self.psm_config.mlm_from_decoder_feature else True,
+        )
+
+        # set special token "<.>" to clean
+        token_id = batched_data["token_id"]
+        clean_mask = clean_mask.masked_fill(token_id == 156, True)
+        aa_mask = aa_mask.masked_fill(token_id == 156, False)
+
+        time_step = time_step.masked_fill(token_id == 156, 0.0)
+        time_step_1d = time_step_1d.masked_fill(token_id == 156, 0.0)
+        # set T noise if protein is seq only
+        time_step = time_step.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
+        time_step_1d = time_step_1d.masked_fill(is_seq_only.unsqueeze(-1), 1.0)
+        # set 0 noise for padding
+        time_step = time_step.masked_fill(padding_mask, 0.0)
+        time_step_1d = time_step_1d.masked_fill(padding_mask, 0.0)
+        # # TODO: found this may cause instability issue, need to check
+        # # # set T noise for batched_data["protein_mask"] nan/inf coords
+        time_step = time_step.masked_fill(batched_data["protein_mask"].any(dim=-1), 1.0)
+
+        # make sure noise really replaces nan/inf coords
+        clean_mask = clean_mask.masked_fill(
+            batched_data["protein_mask"].any(dim=-1), False
+        )
+        time_step = time_step.masked_fill(clean_mask, 0.0)
+
+        return clean_mask, aa_mask, time_step, time_step_1d, noise_step
+
     def _create_system_tags(self, batched_data):
         token_id = batched_data["token_id"]
         sample_type = batched_data["sample_type"]
@@ -518,7 +586,9 @@ class PSMModel(Model):
         mode_mask=None,
         noise_step=None,
         time_step=None,
+        time_step_1d=None,
         clean_mask=None,
+        clean_mask_1d=None,
         infer=False,
     ):
         """
@@ -573,15 +643,36 @@ class PSMModel(Model):
                 sqrt_alphas_cumprod_t,
             ) = self.diffnoise.noise_sample(
                 x_start=ori_pos,
-                token_id=batched_data["token_id"],
                 t=time_step,
                 non_atom_mask=batched_data["non_atom_mask"],
                 is_stable_periodic=batched_data["is_stable_periodic"],
                 x_init=batched_data["init_pos"],
                 clean_mask=clean_mask,
             )
+
+            # set convert token_id to one_hot_token_id
+            batched_data["one_hot_token_id"] = F.one_hot(
+                batched_data["token_id"], num_classes=160
+            ).float()
+
+            (
+                batched_data["one_hot_token_id"],
+                noise_1d,
+                sqrt_one_minus_alphas_cumprod_t_1d,
+                sqrt_alphas_cumprod_t_1d,
+            ) = self.diffnoise.noise_sample(
+                x_start=batched_data["one_hot_token_id"],
+                t=time_step_1d,
+                non_atom_mask=batched_data["non_atom_mask"],
+                is_stable_periodic=batched_data["is_stable_periodic"],
+                clean_mask=clean_mask,
+            )
+
             sigma = sqrt_one_minus_alphas_cumprod_t
             alpha = sqrt_alphas_cumprod_t
+            batched_data["sigma_1d"] = sqrt_one_minus_alphas_cumprod_t_1d
+            batched_data["alpha_1d"] = sqrt_alphas_cumprod_t_1d
+            batched_data["noise_1d"] = noise_1d
             weight = None
         else:
             (
@@ -718,11 +809,21 @@ class PSMModel(Model):
 
         if self.psm_config.diffusion_mode == "edm":
             time_step = None
+            time_step_1d = None
             noise_step, clean_mask = self.time_step_sampler.sample(
+                n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
+            )
+        elif self.psm_config.diffusion_mode == "protea":
+            noise_step = None
+            time_step, clean_mask = self.time_step_sampler.sample(
+                n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
+            )
+            time_step_1d, _ = self.time_step_sampler.sample(
                 n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
             )
         else:
             noise_step = None
+            time_step_1d = None
             time_step, clean_mask = self.time_step_sampler.sample(
                 n_graphs, pos.device, pos.dtype, self.psm_config.clean_sample_ratio
             )
@@ -747,17 +848,37 @@ class PSMModel(Model):
         aa_mask = batched_data["protein_masked_aa"] & batched_data["is_protein"]
         aa_mask = aa_mask & ~padding_mask
 
-        clean_mask, aa_mask, time_step, noise_step = self._protein_pretrain_mode(
-            clean_mask,
-            aa_mask,
-            padding_mask,
-            batched_data["is_protein"],
-            batched_data["is_seq_only"],
-            batched_data["is_complex"],
-            time_step,
-            noise_step,
-            batched_data,
-        )
+        if self.psm_config.diffusion_mode == "protea":
+            (
+                clean_mask,
+                aa_mask,
+                time_step,
+                time_step_1d,
+                noise_step,
+            ) = self._protea_pretrain_mode(
+                clean_mask,
+                aa_mask,
+                padding_mask,
+                batched_data["is_protein"],
+                batched_data["is_seq_only"],
+                batched_data["is_complex"],
+                time_step,
+                time_step_1d,
+                noise_step,
+                batched_data,
+            )
+        else:
+            clean_mask, aa_mask, time_step, noise_step = self._protein_pretrain_mode(
+                clean_mask,
+                aa_mask,
+                padding_mask,
+                batched_data["is_protein"],
+                batched_data["is_seq_only"],
+                batched_data["is_complex"],
+                time_step,
+                noise_step,
+                batched_data,
+            )
 
         if self.psm_config.psm_finetune_mode:
             if self.training:
@@ -799,6 +920,7 @@ class PSMModel(Model):
             padding_mask=padding_mask,
             batched_data=batched_data,
             time_step=time_step,
+            time_step_1d=time_step_1d,
             noise_step=noise_step,
             clean_mask=clean_mask,
         )
@@ -828,7 +950,15 @@ class PSMModel(Model):
         batched_data["c_noise"] = c_noise
         batched_data["weight"] = weight
 
-        return clean_mask, aa_mask, time_step, noise_step, noise, padding_mask
+        return (
+            clean_mask,
+            aa_mask,
+            time_step,
+            time_step_1d,
+            noise_step,
+            noise,
+            padding_mask,
+        )
 
     def forward(self, batched_data, **kwargs):
         """
@@ -846,6 +976,7 @@ class PSMModel(Model):
             clean_mask,
             aa_mask,
             time_step,
+            time_step_1d,
             noise_step,
             noise,
             padding_mask,
@@ -859,6 +990,7 @@ class PSMModel(Model):
             result_dict = self.net(
                 batched_data,
                 time_step=time_step,
+                time_step_1d=time_step_1d,
                 clean_mask=clean_mask,
                 aa_mask=aa_mask,
                 **kwargs,
@@ -1228,7 +1360,10 @@ class PSM(nn.Module):
                 psm_config, use_unified_batch_sampler=args.use_unified_batch_sampler
             )
         elif args.backbone in ["dit", "e2dit", "ditgeom"]:
-            self.embedding = PSMMix3dDitEmbedding(psm_config)
+            if self.psm_config.diffusion_mode == "protea":
+                self.embedding = ProteaEmbedding(psm_config)
+            else:
+                self.embedding = PSMMix3dDitEmbedding(psm_config)
         elif args.backbone in ["vanillatransformer_equiv"]:
             self.embedding = PSMMix3DEquivEmbedding(psm_config)
         else:
@@ -1461,6 +1596,7 @@ class PSM(nn.Module):
         self,
         batched_data,
         time_step=None,
+        time_step_1d=None,
         clean_mask=None,
         aa_mask=None,
         padding_mask=None,
@@ -1560,6 +1696,7 @@ class PSM(nn.Module):
                 ) = self.embedding(
                     batched_data,
                     time_step,
+                    time_step_1d,
                     clean_mask,
                     aa_mask,
                     pbc_expand_batched=pbc_expand_batched,
@@ -1890,6 +2027,9 @@ class PSM(nn.Module):
             "num_atoms": batched_data["num_atoms"],
             "pos": batched_data["pos"],
         }
+
+        if "one_hot_token_id" in batched_data:
+            result_dict["one_hot_token_id"] = batched_data["one_hot_token_id"]
 
         if self.psm_config.psm_finetune_mode:
             result_dict.update(

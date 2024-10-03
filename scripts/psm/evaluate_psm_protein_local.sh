@@ -13,9 +13,9 @@
 
 MODEL_CONFIG=PSM1B_DIT
 num_sampling_time=5
-global_step=global_step5000
+global_step=global_step35000
 ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v20_std20_1b_stage1/checkpoints
-# global_step=global_step47500
+# global_step=global_step55000
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b_stage2_3/checkpoints
 # global_step=global_step4000
 # ckpt_folder_path=/data/peiran/output
