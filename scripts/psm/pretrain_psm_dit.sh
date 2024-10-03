@@ -7,12 +7,12 @@ export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
 
 
-[ -z "${layers}" ] && layers=36
-[ -z "${hidden_size}" ] && hidden_size=2048
-[ -z "${ffn_size}" ] && ffn_size=8192
-# [ -z "${layers}" ] && layers=12
-# [ -z "${hidden_size}" ] && hidden_size=1024
-# [ -z "${ffn_size}" ] && ffn_size=4096
+# [ -z "${layers}" ] && layers=36
+# [ -z "${hidden_size}" ] && hidden_size=2048
+# [ -z "${ffn_size}" ] && ffn_size=8192
+[ -z "${layers}" ] && layers=12
+[ -z "${hidden_size}" ] && hidden_size=1024
+[ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
 [ -z "${num_pred_attn_layer}" ] && num_pred_attn_layer=2
 [ -z "${atom_loss_coeff}" ] && atom_loss_coeff=1.0
@@ -45,8 +45,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${log_interval}" ] && log_interval=20
 [ -z "${epochs}" ] && epochs=1000
 [ -z "${val_batch_interval}" ] && val_batch_interval=10000
-[ -z "${mode_prob}" ] && mode_prob='0.2,0.7,0.1'
-[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
+[ -z "${mode_prob}" ] && mode_prob='0.0,1.0,0.0' #'0.2,0.7,0.1'
+[ -z "${complex_mode_prob}" ] && complex_mode_prob='0.0,1.0,0.0,0.0' #'0.6,0.2,0.1,0.1' #sss prob of independent mask_pos==mask_type, mask_pos==full, mask_type==full
 
 [ -z "${data_path}" ] && data_path='/fastdata/peiran/psm/'
 
@@ -90,8 +90,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${data_path_list}" ] && data_path_list='AFDB50-plddt70.lmdb,20240630_PDB_Training_Data,20240101_PDB_Training_Data,MGnify'
 [ -z "${dataset_name_list}" ] && dataset_name_list='afdb,pdbcomplexmultimer,pdb,mgnify'
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='0.6,0.20,0.05,0.15'
-# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,32,32'
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4,1,4,4'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='32,8,32,32'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size='4,1,4,4'
 
 # [ -z "${data_path_list}" ] && data_path_list='PubChemQC-B3LYP-PM6,AFDB50-plddt70.lmdb,20240630_PDB_Training_Data'
 # [ -z "${dataset_name_list}" ] && dataset_name_list='pm6-wb97xd3,afdb,pdbcomplexmultimer'
@@ -200,8 +200,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=7.0
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 
-[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
-[ -z "${diffusion_mode}" ] && diffusion_mode=protea #epsilon, edm
+[ -z "${diffusion_noise_std}" ] && diffusion_noise_std=1.0
+[ -z "${diffusion_mode}" ] && diffusion_mode=edm #epsilon, edm
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L1"

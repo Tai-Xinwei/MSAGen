@@ -590,6 +590,7 @@ class PSMModel(Model):
         clean_mask=None,
         clean_mask_1d=None,
         infer=False,
+        aa_mask=None,
     ):
         """
         set diffusion noise here
@@ -665,7 +666,7 @@ class PSMModel(Model):
                 t=time_step_1d,
                 non_atom_mask=batched_data["non_atom_mask"],
                 is_stable_periodic=batched_data["is_stable_periodic"],
-                clean_mask=clean_mask,
+                clean_mask=~aa_mask,
             )
 
             sigma = sqrt_one_minus_alphas_cumprod_t
@@ -923,6 +924,7 @@ class PSMModel(Model):
             time_step_1d=time_step_1d,
             noise_step=noise_step,
             clean_mask=clean_mask,
+            aa_mask=aa_mask,
         )
         batched_data["pos"] = pos
 
