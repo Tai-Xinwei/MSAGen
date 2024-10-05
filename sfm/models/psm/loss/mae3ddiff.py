@@ -183,6 +183,7 @@ class DiffMAE3dCriterions(nn.Module):
         self.if_total_energy = args.if_total_energy
 
         self.epsilon = 1e-5
+        self.diffusion_rescale_coeff = args.diffusion_rescale_coeff
 
     def _reduce_energy_loss(
         self, energy_loss, loss_mask, is_molecule, is_periodic, use_per_atom_energy=True
@@ -311,7 +312,8 @@ class DiffMAE3dCriterions(nn.Module):
         # pos_pred = torch.einsum("bij,bkj->bki", R.float(), pos_pred.float()) + T.float()
 
         # smooth lddt loss
-        pos_label = model_output["ori_pos"].float()
+        pos_label = model_output["ori_pos"].float() * self.diffusion_rescale_coeff
+        pos_pred = pos_pred * self.diffusion_rescale_coeff
         B, L = pos_label.shape[:2]
 
         # make is_protein mask contain ligand in complex data
@@ -518,7 +520,9 @@ class DiffMAE3dCriterions(nn.Module):
             # diffussion loss
             if self.diffusion_mode == "epsilon":
                 if not is_seq_only.all():
-                    pos_pred = self.calculate_pos_pred(model_output)
+                    pos_pred = self.calculate_pos_pred(
+                        model_output
+                    )  # * self.diffusion_rescale_coeff
                     if (
                         self.args.align_x0_in_diffusion_loss and not is_periodic.any()
                     ):  # and not is_periodic.any():
@@ -578,28 +582,42 @@ class DiffMAE3dCriterions(nn.Module):
                             torch.einsum("bij,bkj->bki", R.float(), pos_label.float())
                             # + T.float()
                         )
-                        unreduced_noise_loss = self.noise_loss(
-                            aligned_noise_pred.to(noise_label.dtype),
-                            (aligned_pos_label) * sqrt_alphas_cumprod_t,
-                        )
                         unreduced_noise_loss = (
-                            unreduced_noise_loss / sqrt_one_minus_alphas_cumprod_t
-                        )
-                    else:
-                        unreduced_noise_loss = self.noise_loss(
-                            noise_pred.to(noise_label.dtype), noise_label
+                            self.noise_loss(
+                                aligned_noise_pred.to(noise_label.dtype),
+                                (aligned_pos_label) * sqrt_alphas_cumprod_t,
+                            )
+                            * self.diffusion_rescale_coeff
                         )
 
-                    unreduced_periodic_noise_loss = self.noise_loss(
-                        noise_pred_periodic.to(noise_label.dtype), noise_label
+                        unreduced_noise_loss = (
+                            unreduced_noise_loss / sqrt_one_minus_alphas_cumprod_t
+                        ) * self.diffusion_rescale_coeff
+                    else:
+                        unreduced_noise_loss = (
+                            self.noise_loss(
+                                noise_pred.to(noise_label.dtype), noise_label
+                            )
+                            * self.diffusion_rescale_coeff
+                        )
+
+                    unreduced_periodic_noise_loss = (
+                        self.noise_loss(
+                            noise_pred_periodic.to(noise_label.dtype), noise_label
+                        )
+                        * self.diffusion_rescale_coeff
                     )
 
                 else:
-                    unreduced_noise_loss = self.noise_loss(
-                        noise_pred.to(noise_label.dtype), noise_label
+                    unreduced_noise_loss = (
+                        self.noise_loss(noise_pred.to(noise_label.dtype), noise_label)
+                        * self.diffusion_rescale_coeff
                     )
-                    unreduced_periodic_noise_loss = self.noise_loss(
-                        noise_pred_periodic.to(noise_label.dtype), noise_label
+                    unreduced_periodic_noise_loss = (
+                        self.noise_loss(
+                            noise_pred_periodic.to(noise_label.dtype), noise_label
+                        )
+                        * self.diffusion_rescale_coeff
                     )
                     smooth_lddt_loss = torch.tensor(
                         0.0, device=noise_label.device, requires_grad=True

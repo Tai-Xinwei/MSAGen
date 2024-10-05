@@ -37,6 +37,7 @@ from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.modules.mixembedding import (
     ProteaEmbedding,
+    PSMLightEmbedding,
     PSMMix3dDitEmbedding,
     PSMMix3dEmbedding,
 )
@@ -427,14 +428,14 @@ class PSMModel(Model):
             noise_step = noise_step.masked_fill(token_id == 156, 0.0)
             # set T noise if protein is seq only
             noise_step = noise_step.masked_fill(
-                is_seq_only.unsqueeze(-1), 3.0
+                is_seq_only.unsqueeze(-1), 5.0
             )  # NOTE: 3σ is used as the maximum value
             # set 0 noise for padding
             noise_step = noise_step.masked_fill(padding_mask, 0.0)
             # # TODO: found this may cause instability issue, need to check
             # # # set T noise for batched_data["protein_mask"] nan/inf coords
             noise_step = noise_step.masked_fill(
-                batched_data["protein_mask"].any(dim=-1), 3.0
+                batched_data["protein_mask"].any(dim=-1), 5.0
             )
 
         # make sure noise really replaces nan/inf coords
@@ -617,6 +618,7 @@ class PSMModel(Model):
             # batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
             # batched_data["cell"] = torch.bmm(batched_data["cell"], R)
 
+        ori_pos = ori_pos / self.psm_config.diffusion_rescale_coeff
         batched_data["ori_pos"] = ori_pos
 
         if self.psm_config.diffusion_mode == "edm":
@@ -1196,6 +1198,9 @@ class PSMModel(Model):
 
             batched_data["pos"] = batched_data["pos"].detach()
 
+        batched_data["pos"] = (
+            batched_data["pos"] * self.psm_config.diffusion_rescale_coeff
+        )
         pred_pos = batched_data["pos"].clone()
         if (
             self.psm_config.psm_finetune_mode
@@ -1365,7 +1370,8 @@ class PSM(nn.Module):
             if self.psm_config.diffusion_mode == "protea":
                 self.embedding = ProteaEmbedding(psm_config)
             else:
-                self.embedding = PSMMix3dDitEmbedding(psm_config)
+                # self.embedding = PSMMix3dDitEmbedding(psm_config)
+                self.embedding = PSMLightEmbedding(psm_config)
         elif args.backbone in ["vanillatransformer_equiv"]:
             self.embedding = PSMMix3DEquivEmbedding(psm_config)
         else:
@@ -1955,11 +1961,14 @@ class PSM(nn.Module):
                     # and pbc_expand_batched is not None
                     and ~(batched_data["is_protein"].any())
                 ):
-                    forces = self.autograd_force_head(
-                        energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
-                            dim=-1, keepdim=True
-                        ),
-                        pos,
+                    forces = (
+                        self.autograd_force_head(
+                            energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
+                                dim=-1, keepdim=True
+                            ),
+                            pos,
+                        )
+                        * self.psm_config.diffusion_rescale_coeff
                     )
                 elif self.args.NoisePredForce:
                     forces = (

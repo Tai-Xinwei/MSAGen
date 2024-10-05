@@ -60,7 +60,7 @@ jobs:
   - export act_dropout=0.1
   - export weight_decay=0.0
   - export droppath_prob=0.0
-  - export mask_ratio=0.15
+  - export mask_ratio=0.0
   - export d_tilde=1.0
   - export max_lr=2e-4
   - export strategy=Zero1
@@ -90,8 +90,13 @@ jobs:
   - export dataset_micro_batch_size='16,16,16,2'
   - export fp16=False
   - export clean_sample_ratio=0.7
-  - export diffusion_noise_std=20.0
+  - export mode_prob='0.0,1.0,0.0'
+  - export complex_mode_prob='1.0,0.0,0.0,0.0'
+  - export diffusion_noise_std=1.0
+  - export diffusion_rescale_coeff=20.0
+  - export diffusion_training_loss=L2
   - export molecule_energy_loss_ratio=1.0
+  - export molecule_force_loss_ratio=1.0
   - export material_energy_loss_ratio=1.0
   - export material_force_loss_ratio=1.0
   - export AutoGradForce=True
@@ -106,7 +111,7 @@ jobs:
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v20_1b_stage1/checkpoints/global_step28728/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
   # - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v15_1b_stage2/checkpoints
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v20_std20_1b_stage1/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v20_std1_1b_stage1/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
