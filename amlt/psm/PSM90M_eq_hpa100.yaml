@@ -32,42 +32,48 @@ code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: e2dit-3types-1nodes-300M-fixmf-alignall
+- name: e2former-pretrain-forcehead
   identity: managed
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: ${NODES}xG${GPUS_PER_NODE}-IB
   mpi: true
   process_count_per_node: 1
   command:
-  - export wandb_run_name=e2dit-3types-1nodes-300M-fixmf-alignall
-  - mkdir -p /blob/psm-checkpoints/e2dit-3types-1nodes-300M-fixmf-alignall
-  - export save_dir=/blob/psm-checkpoints/e2dit-3types-1nodes-300M-fixmf-alignall
-  - export loadcheck_path=/blob/psm-checkpoints/e2dit-3types-1nodes-300M-fixmf-alignall
   - export OMPI_COMM_WORLD_SIZE=${NODES}
   - export HYDRA_FULL_ERROR=1
   - export load_ckpt=False
   - export MASTER_PORT=62352
+#   mkdir /blob/pfmexp/output
+#   mkdir /blob/experiment/psm/psmV0test_0507
+#   mkdir /blob/experiment/psm/psmV0test_0507/checkpoints
 
-  # - export molecule_energy_loss_ratio=1.0
-  # - export material_energy_loss_ratio=0.2
-  # - export material_force_loss_ratio=1.8
+  # - wget https://azcopyvnext.azureedge.net/releases/release-10.21.2-20231106/azcopy_linux_amd64_10.21.2.tar.gz
+  # - tar -xzf azcopy_linux_amd64_10.21.2.tar.gz
+  # - azcopy_linux_amd64_10.21.2/azcopy copy --recursive /blob/psm/GEMS /nfs/psmdata/
+  # - azcopy_linux_amd64_10.21.2/azcopy copy --recursive /blob/psm/deshaw-md /nfs/psmdata/
+  # - ls -l /nfs/psmdata/
 
+  - export pbc_cutoff=20.0
+  - export pbc_expanded_num_cell_per_direction=5
+  - export pbc_expanded_token_cutoff=256
+  - export pbc_multigraph_cutoff=5.0
+  - export pbc_use_local_attention=False
+
+  # e2former settings
+  - export save_batch_interval=2500
+  - export train_batch_size=128
+  - export val_batch_size=128
   - export gradient_accumulation_steps=4
-  - export max_lr=1e-4
-  # - export total_num_steps=200000000
-  # - export warmup_num_steps=12000
-  # - export clean_sample_ratio=0.5
-  - export warmup_num_steps=5000
-  - export total_num_steps=400000
-  - export max_lr=1e-4
-  - export mask_ratio=0.3
-  - export clean_sample_ratio=0.6
+  - export val_batch_interval=0
 
-  - export equivar_vec_init=RELATIVE_POS_VEC_BIAS
-  - export equivar_use_linear_bias=false
-  - export equivar_use_attention_bias=false
+  - export total_num_steps=200000000
+  - export warmup_num_steps=1000
+  - export max_lr=1.5e-4
+
+  - export diffusion_noise_std=0
   - export strategy=DDP
   - export fp16=False
+  - export clean_sample_ratio=1.0
 
   - export diff_init_lattice_size=10.0
   - export diffusion_sampling="ddpm"
@@ -76,38 +82,121 @@ jobs:
   - export ddpm_beta_end=2e-3
   - export ddpm_schedule=sigmoid
 
+  - export equivar_use_linear_bias=True
+  - export equivar_use_attention_bias=True
+
   - export use_unified_batch_sampler=True
   - export rescale_loss_with_std=True
   - export only_use_rotary_embedding_for_protein=True
   - export use_memory_efficient_attention=False
 
-  # - export data_path=/blob/
-  - export data_path=/nfs6/psmdata/
+# Zhihao
+  - export save_epoch_interval=20
+  - export wandb_team=''
+  - export wandb_group=psm_E2former_test
+  - export wandb_project=psm_dev_stype
+  - export WANDB_API_KEY="local-065f023e262b3ae11107532ba5463cd2d800d739"
+  - export wandb_key="local-065f023e262b3ae11107532ba5463cd2d800d739"
+  - export wandb_run_name="e2former-pretrain-forcehead"
 
-  - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240630_PDB_Training_Data'
-  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdbcomplexmultimer'
-  - export dataset_split_raito='0.05,0.15,0.3,0.45,0.05'
-  - export dataset_micro_batch_size='8,8,32,8,2'
-  # - export dataset_micro_batch_size='1,1,6,1,1'
-  - export molecule_ref_energy_source="PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train"
-  - export molecule_outlier_energy_atoms=""
-  - ls /blob
-  # - export dataset_name_list='afdb'
-  # - export dataset_split_raito='1.0'
-  # - export dataset_micro_batch_size="4"
-  # - export data_path_list="data/AFDB70-plddt70.lmdb" #"psm/data/matter-sim-15M-force-filtered-merged"
+  - export psm_finetune_mode=True
 
-  # - export ifresume=True
-  - mkdir -p /blob/psm-checkpoints/e2dit-2node-20240807
-  - export save_dir=/blob/psm-checkpoints/e2dit-2node-20240807
-  - export loadcheck_path=$$save_dir
+  # - export data_path=/nfs6/psmdata/
+  - export data_path=/blob/psm/
+  # - export supervise_force_from_head_when_autograd=True
 
-  - export wandb_group='Lin_psm_dev_afdb'
-  - df -hl
+  - export data_path_list="GEMS/general_protein_fragments,deshaw-md/db_data_all_600"
+  - export dataset_name_list='GEMS,deshaw'
+  - export dataset_micro_batch_size="16,1"
+  - export dataset_split_raito='0.1,0.9'
+
+  - export loadcheck_path=$$AMLT_OUTPUT_DIR
+  - export save_dir=$$AMLT_OUTPUT_DIR
+
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
-  - pip install nvidia-dali-cuda120
-  - bash scripts/psm/pretrain_psm_e2former.sh
+  - bash scripts/psm/finetune_psm_e2former.sh
+  - sleep infinity
   submit_args:
     container_args:
-      shm_size: 512g
+      shm_size: 1024g
+
+# - name: e2dit-3types-1nodes-300M-fixmf-alignall
+#   identity: managed
+#   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
+#   sku: ${NODES}xG${GPUS_PER_NODE}-IB
+#   mpi: true
+#   process_count_per_node: 1
+#   command:
+#   - export wandb_run_name=e2dit-3types-1nodes-300M-fixmf-alignall
+#   - mkdir -p /blob/psm-checkpoints/e2dit-3types-1nodes-300M-fixmf-alignall
+#   - export save_dir=/blob/psm-checkpoints/e2dit-3types-1nodes-300M-fixmf-alignall
+#   - export loadcheck_path=/blob/psm-checkpoints/e2dit-3types-1nodes-300M-fixmf-alignall
+#   - export OMPI_COMM_WORLD_SIZE=${NODES}
+#   - export HYDRA_FULL_ERROR=1
+#   - export load_ckpt=False
+#   - export MASTER_PORT=62352
+
+#   # - export molecule_energy_loss_ratio=1.0
+#   # - export material_energy_loss_ratio=0.2
+#   # - export material_force_loss_ratio=1.8
+
+#   - export gradient_accumulation_steps=4
+#   - export max_lr=1e-4
+#   # - export total_num_steps=200000000
+#   # - export warmup_num_steps=12000
+#   # - export clean_sample_ratio=0.5
+#   - export warmup_num_steps=5000
+#   - export total_num_steps=400000
+#   - export max_lr=1e-4
+#   - export mask_ratio=0.3
+#   - export clean_sample_ratio=0.6
+
+#   - export equivar_vec_init=RELATIVE_POS_VEC_BIAS
+#   - export equivar_use_linear_bias=false
+#   - export equivar_use_attention_bias=false
+#   - export strategy=DDP
+#   - export fp16=False
+
+#   - export diff_init_lattice_size=10.0
+#   - export diffusion_sampling="ddpm"
+#   - export num_timesteps=5000
+#   - export ddpm_beta_start=1e-7
+#   - export ddpm_beta_end=2e-3
+#   - export ddpm_schedule=sigmoid
+
+#   - export use_unified_batch_sampler=True
+#   - export rescale_loss_with_std=True
+#   - export only_use_rotary_embedding_for_protein=True
+#   - export use_memory_efficient_attention=False
+
+#   # - export data_path=/blob/
+#   - export data_path=/nfs6/psmdata/
+
+#   - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240630_PDB_Training_Data'
+#   - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,afdb,pdbcomplexmultimer'
+#   - export dataset_split_raito='0.05,0.15,0.3,0.45,0.05'
+#   - export dataset_micro_batch_size='8,8,32,8,2'
+#   # - export dataset_micro_batch_size='1,1,6,1,1'
+#   - export molecule_ref_energy_source="PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train"
+#   - export molecule_outlier_energy_atoms=""
+#   - ls /blob
+#   # - export dataset_name_list='afdb'
+#   # - export dataset_split_raito='1.0'
+#   # - export dataset_micro_batch_size="4"
+#   # - export data_path_list="data/AFDB70-plddt70.lmdb" #"psm/data/matter-sim-15M-force-filtered-merged"
+
+#   # - export ifresume=True
+#   - mkdir -p /blob/psm-checkpoints/e2dit-2node-20240807
+#   - export save_dir=/blob/psm-checkpoints/e2dit-2node-20240807
+#   - export loadcheck_path=$$save_dir
+
+#   - export wandb_group='Lin_psm_dev_afdb'
+#   - df -hl
+#   - eval "$$(conda shell.bash hook)" && conda activate sfm
+#   - python setup_cython.py build_ext --inplace
+#   - pip install nvidia-dali-cuda120
+#   - bash scripts/psm/pretrain_psm_e2former.sh
+#   submit_args:
+#     container_args:
+#       shm_size: 512g

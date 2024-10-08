@@ -165,6 +165,9 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 "double_walled_nanotube",  # double_walled_nanotube/radius3_broadcast_kmeans
                 "oc20",
                 "deshaw",
+                "deshaw_120",
+                "deshaw_400",
+                "deshaw_650",
                 "GEMS",
             ]:
                 dataset = SmallMolDataset(

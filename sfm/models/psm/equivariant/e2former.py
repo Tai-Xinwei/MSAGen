@@ -27,6 +27,14 @@ from sfm.models.psm.equivariant.equiformer.graph_attention_transformer import (
     sort_irreps_even_first,
 )
 from sfm.models.psm.equivariant.equiformer_v2.drop import DropPath
+from sfm.models.psm.equivariant.equiformer_v2.edge_rot_mat import init_edge_rot_mat
+from sfm.models.psm.equivariant.equiformer_v2.equiformer_v2_oc20 import (
+    CoefficientMappingModule,
+    EdgeDegreeEmbedding,
+)
+from sfm.models.psm.equivariant.equiformer_v2.equiformer_v2_oc20 import (
+    SO3_Rotation as eqv2_SO3_Rotation,
+)
 
 # from .e2former_att import *
 from sfm.models.psm.equivariant.layer_norm import (  # ,\; EquivariantInstanceNorm,EquivariantGraphNorm; EquivariantRMSNormArraySphericalHarmonicsV2,
@@ -1023,7 +1031,7 @@ class Body3_interaction_MACE(torch.nn.Module):
             self.irreps_node_input, self.irreps_small, bias=True, act=None
         )
 
-        self.num_elements = 80
+        self.num_elements = 300
         self.dtp = EquivariantProductBasisBlock(
             node_feats_irreps=self.irreps_small,
             target_irreps=self.irreps_small,
@@ -4815,7 +4823,7 @@ class TransBlock(torch.nn.Module):
 
         self.norm_1 = get_norm_layer(norm_layer)(self.irreps_node_input)
         func = None
-        if attn_type in [None, "None", "nb", "w2head3"]:
+        if attn_type in [None, "None", "nb", "w2head3", "default"]:
             func = E2Attention
         elif attn_type in [17]:
             func = E2Attention_pbias
@@ -5102,8 +5110,9 @@ class EdgeDegreeEmbeddingNetwork_higherorder(torch.nn.Module):
         irreps_node_embedding,
         avg_aggregate_num=10,
         number_of_basis=32,
-        cutoff=None,
+        cutoff=15,
         time_embed=False,
+        use_atom_edge=False,
         **kwargs,
     ):
         super().__init__()
@@ -5119,19 +5128,30 @@ class EdgeDegreeEmbeddingNetwork_higherorder(torch.nn.Module):
         self.gbf_projs = nn.ModuleList()
 
         self.scalar_dim = self.irreps_node_embedding[0][0]
-        self.embed = nn.Embedding(256, self.scalar_dim)
-        self.embed.weight.data.normal_(0, 1 / self.scalar_dim**0.5)
         if time_embed:
             self.time_embed_proj = nn.Sequential(
                 nn.Linear(self.scalar_dim, self.scalar_dim, bias=True),
                 nn.SiLU(),
                 nn.Linear(self.scalar_dim, number_of_basis, bias=True),
             )
-
+        self.max_num_elements = 300
+        self.use_atom_edge = use_atom_edge
+        if use_atom_edge:
+            self.source_embedding = nn.Embedding(self.max_num_elements, 32)
+            self.target_embedding = nn.Embedding(self.max_num_elements, 32)
+        else:
+            self.source_embedding = None
+            self.target_embedding = None
         self.weight_list = nn.ParameterList()
         for idx in range(len(self.irreps_node_embedding)):
             self.gbf_projs.append(
-                RadialProfile([number_of_basis, number_of_basis], use_layer_norm=False)
+                RadialProfile(
+                    [
+                        number_of_basis + 64 if use_atom_edge else number_of_basis,
+                        number_of_basis,
+                    ],
+                    use_layer_norm=True,
+                )
             )
 
             out_feature = self.irreps_node_embedding[idx][0]
@@ -5169,14 +5189,27 @@ class EdgeDegreeEmbeddingNetwork_higherorder(torch.nn.Module):
         """
 
         B, L = node_pos.shape[:2]
-        self.embed(atomic_numbers)  # B*L*hidden
 
         # edge_vec = node_pos.unsqueeze(2) - node_pos.unsqueeze(1)  # B, L, L, 3
         node_type_edge = batched_data["node_type_edge"]
         edge_dis_embed = self.gbf(edge_dis, node_type_edge.long())
         if time_embed is not None:
             edge_dis_embed += self.time_embed_proj(time_embed).unsqueeze(-2)
-        edge_dis_embed = torch.where(attn_mask, 0, edge_dis_embed)
+
+        if self.source_embedding is not None:
+            src_atm = self.source_embedding(atomic_numbers)  # B*L*hidden
+            tgt_atm = self.target_embedding(atomic_numbers)  # B*L*hidden
+
+            edge_dis_embed = torch.cat(
+                [
+                    edge_dis_embed,
+                    tgt_atm.reshape(B, L, 1, -1).repeat(1, 1, L, 1),
+                    src_atm.reshape(B, 1, L, -1).repeat(1, L, 1, 1),
+                ],
+                dim=-1,
+            )
+
+        edge_vec = edge_vec / edge_dis.unsqueeze(dim=-1)
         node_features = []
         for idx in range(len(self.irreps_node_embedding)):
             # if self.irreps_node_embedding[idx][1].l ==0:
@@ -5189,11 +5222,13 @@ class EdgeDegreeEmbeddingNetwork_higherorder(torch.nn.Module):
             lx = o3.spherical_harmonics(
                 l=self.irreps_node_embedding[idx][1].l,
                 x=edge_vec,
-                normalize=True,
+                normalize=False,
                 normalization="norm",
             )  # * adj.reshape(B,L,L,1) #B*L*L*(2l+1)
             edge_fea = edge_dis_embed
             edge_fea = self.gbf_projs[idx](edge_dis_embed)
+            edge_fea = torch.where(attn_mask, 0, edge_fea)
+
             # lx_embed = torch.einsum("bmnd,bnh->bmhd",lx,node_embed) #lx:B*L*L*(2l+1)  node_embed:B*L*hidden
             lx_embed = torch.einsum(
                 "bmnd,bmnh->bmhd", lx, edge_fea
@@ -5209,13 +5244,13 @@ class EdgeDegreeEmbeddingNetwork_higherorder(torch.nn.Module):
         return node_features
 
 
-class EdgeDegreeEmbeddingNetwork_higherorder_bias(torch.nn.Module):
+class EdgeDegreeEmbeddingNetwork_eqv2(torch.nn.Module):
     def __init__(
         self,
         irreps_node_embedding,
         avg_aggregate_num=10,
         number_of_basis=32,
-        cutoff=None,
+        cutoff=15,
         time_embed=False,
         **kwargs,
     ):
@@ -5228,37 +5263,47 @@ class EdgeDegreeEmbeddingNetwork_higherorder_bias(torch.nn.Module):
         )
         if self.irreps_node_embedding[0][1].l != 0:
             raise ValueError("node embedding must have sph order 0 embedding.")
-        self.gbf = GaussianLayer(number_of_basis)  # default output_dim = 128
-        self.gbf_projs = nn.ModuleList()
 
-        self.scalar_dim = self.irreps_node_embedding[0][0]
-        self.embed = nn.Embedding(256, self.scalar_dim)
-        self.embed.weight.data.normal_(0, 1 / self.scalar_dim**0.5)
-        if time_embed:
-            self.time_embed_proj = nn.Sequential(
-                nn.Linear(self.scalar_dim, self.scalar_dim, bias=True),
-                nn.SiLU(),
-                nn.Linear(self.scalar_dim, number_of_basis, bias=True),
-            )
+        self.rbf = GaussianSmearing(
+            number_of_basis, cutoff=cutoff, basis_width_scalar=2
+        )
 
-        self.weight_list = nn.ParameterList()
-        self.bias_list = nn.ParameterList()
-        for idx in range(len(self.irreps_node_embedding)):
-            self.gbf_projs.append(
-                RadialProfile([number_of_basis, number_of_basis], use_layer_norm=False)
-            )
+        self.so3_rotation = nn.ModuleList()
+        self.so3_rotation.append(eqv2_SO3_Rotation(2))
+        self.mappingReduced = CoefficientMappingModule([2], [2])
+        self.lmax = self.irreps_node_embedding[-1][1].l
 
-            out_feature = self.irreps_node_embedding[idx][0]
-            weight = torch.nn.Parameter(torch.randn(out_feature, number_of_basis))
-            bound = 1 / math.sqrt(number_of_basis)
-            torch.nn.init.uniform_(weight, -bound, bound)
-            self.weight_list.append(weight)
+        self.sph_ch = number_of_basis
+        self.max_num_elements = 300
+        self.source_embedding = nn.Embedding(self.max_num_elements, number_of_basis)
+        self.target_embedding = nn.Embedding(self.max_num_elements, number_of_basis)
+        nn.init.uniform_(self.source_embedding.weight.data, -0.001, 0.001)
+        nn.init.uniform_(self.target_embedding.weight.data, -0.001, 0.001)
 
-            bias = torch.nn.Parameter(torch.zeros(1, 1, out_feature, 1))
-            self.bias_list.append(bias)
+        self.edge_degree_embedding = EdgeDegreeEmbedding(
+            self.sph_ch,
+            [self.lmax],
+            [self.lmax],
+            self.so3_rotation,
+            self.mappingReduced,
+            max_num_elements=self.max_num_elements,
+            edge_channels_list=[number_of_basis * 3, number_of_basis, number_of_basis],
+            use_atom_edge_embedding=False,
+            rescale_factor=10,
+        )
 
-        self.proj = IrrepsLinear(self.irreps_node_embedding, self.irreps_node_embedding)
-        self.avg_aggregate_num = avg_aggregate_num
+        self.proj = IrrepsLinear(
+            "+".join(
+                [
+                    f"{self.sph_ch}x0e",
+                    f"{self.sph_ch}x1e",
+                    f"{self.sph_ch}x2e",
+                    f"{self.sph_ch}x3e",
+                    f"{self.sph_ch}x4e",
+                ][: self.lmax + 1]
+            ),
+            self.irreps_node_embedding,
+        )
 
     def forward(
         self,
@@ -5286,45 +5331,38 @@ class EdgeDegreeEmbeddingNetwork_higherorder_bias(torch.nn.Module):
         """
 
         B, L = node_pos.shape[:2]
-        self.embed(atomic_numbers)  # B*L*hidden
+        atomic_numbers = atomic_numbers.reshape(B * L)
+        edge_idx = torch.argwhere(attn_mask.squeeze(dim=-1))
+        edge_idx = torch.stack(
+            [edge_idx[:, 0] * L + edge_idx[:, 1], edge_idx[:, 0] * L + edge_idx[:, 2]],
+            dim=0,
+        )
+        edge_dis = edge_dis[attn_mask.squeeze(dim=-1)]
+        edge_vec = edge_vec[attn_mask.squeeze(dim=-1)]
+        src_atm = self.source_embedding(atomic_numbers[edge_idx[0]])  # B*L*hidden
+        tgt_atm = self.target_embedding(atomic_numbers[edge_idx[1]])  # B*L*hidden
 
-        # edge_vec = node_pos.unsqueeze(2) - node_pos.unsqueeze(1)  # B, L, L, 3
-        node_type_edge = batched_data["node_type_edge"]
-        edge_dis_embed = self.gbf(edge_dis, node_type_edge.long())
-        if time_embed is not None:
-            edge_dis_embed += self.time_embed_proj(time_embed).unsqueeze(-2)
-        edge_dis_embed = torch.where(attn_mask, 0, edge_dis_embed)
-        node_features = []
-        for idx in range(len(self.irreps_node_embedding)):
-            # if self.irreps_node_embedding[idx][1].l ==0:
-            #     node_features.append(torch.zeros(
-            #                         (B,L,self.irreps_node_embedding[idx][0]),
-            #                          dtype=edge_dis.dtype,
-            #                          device = edge_dis.device))
-            #     continue
+        edge_dis_embed = self.rbf(edge_dis)
+        edge_dis_embed = torch.cat([edge_dis_embed, src_atm, tgt_atm], dim=-1)
 
-            lx = o3.spherical_harmonics(
-                l=self.irreps_node_embedding[idx][1].l,
-                x=edge_vec,
-                normalize=True,
-                normalization="norm",
-            )  # * adj.reshape(B,L,L,1) #B*L*L*(2l+1)
-            edge_fea = self.gbf_projs[idx](edge_dis_embed)
-            # lx_embed = torch.einsum("bmnd,bnh->bmhd",lx,node_embed) #lx:B*L*L*(2l+1)  node_embed:B*L*hidden
-            lx_embed = torch.einsum(
-                "bmnd,bmnh->bmhd", lx, edge_fea
-            )  # lx:B*L*L*(2l+1)  edge_fea:B*L*L*number of basis
+        edge_rot_mat = init_edge_rot_mat(edge_vec)  # must be ****x3
+        self.so3_rotation[0].set_wigner(edge_rot_mat)
+        node_embed = self.edge_degree_embedding(
+            atomic_numbers, edge_dis_embed, edge_idx
+        )
+        node_embed = node_embed.embedding  # (B*L,-1,self.sph_ch)
 
-            lx_embed = (
-                torch.matmul(self.weight_list[idx], lx_embed) + self.bias_list[idx]
-            ).reshape(
-                B, L, -1
-            )  # self.weight_list[idx]:irreps_channel*hidden, lx_embed:B*L*hidden*(2l+1)
-            node_features.append(lx_embed)
-
-        node_features = torch.cat(node_features, dim=-1) / self.avg_aggregate_num**0.5
-        node_features = self.proj(node_features)
-        return node_features
+        node_embed_new = []
+        start = 0
+        for l in range(self.lmax + 1):
+            node_embed_new.append(
+                node_embed[:, start : start + 2 * l + 1]
+                .permute(0, 2, 1)
+                .reshape(B, L, -1)
+            )
+        node_embed_new = torch.cat(node_embed_new, dim=-1)
+        node_embed_new = self.proj(node_embed_new)
+        return node_embed_new
 
 
 class E2former(torch.nn.Module):
@@ -5428,9 +5466,19 @@ class E2former(torch.nn.Module):
                 cutoff=self.max_radius,
                 number_of_basis=self.number_of_basis,
                 time_embed=self.time_embed,
+                use_atom_edge=True,
             )
-        elif edge_embedtype == "highorder_bias":
-            self.edge_deg_embed_dense = EdgeDegreeEmbeddingNetwork_higherorder_bias(
+        elif edge_embedtype == "noatomedge":
+            self.edge_deg_embed_dense = EdgeDegreeEmbeddingNetwork_higherorder(
+                self.irreps_node_embedding,
+                _AVG_DEGREE,
+                cutoff=self.max_radius,
+                number_of_basis=self.number_of_basis,
+                time_embed=self.time_embed,
+                use_atom_edge=False,
+            )
+        elif edge_embedtype == "eqv2":
+            self.edge_deg_embed_dense = EdgeDegreeEmbeddingNetwork_eqv2(
                 self.irreps_node_embedding,
                 _AVG_DEGREE,
                 cutoff=self.max_radius,
@@ -5465,21 +5513,26 @@ class E2former(torch.nn.Module):
             self.blocks.append(blk)
 
         self.scalar_dim = self.irreps_node_embedding[0][0]
-        self.norm_final_noise = get_norm_layer(norm_layer)(self.irreps_node_embedding)
         self.output_proj_noise = IrrepsLinear(
             self.irreps_node_embedding,
             f"{self.scalar_dim}x0e+{self.scalar_dim}x1e",
             bias=True,
             act="smoothleakyrelu",
         )  # B*L*irreps
+        self.norm_final_noise = get_norm_layer(norm_layer)(
+            o3.Irreps(f"{self.scalar_dim}x0e+{self.scalar_dim}x1e")
+        )
 
-        self.norm_final = get_norm_layer(norm_layer)(self.irreps_node_embedding)
         self.output_proj = IrrepsLinear(
             self.irreps_node_embedding,
             f"{self.scalar_dim}x0e+{self.scalar_dim}x1e",
             bias=True,
             act="smoothleakyrelu",
         )  # B*L*irreps
+
+        self.norm_final = get_norm_layer(norm_layer)(
+            o3.Irreps(f"{self.scalar_dim}x0e+{self.scalar_dim}x1e")
+        )
         # self.output_ffn = FeedForwardNetwork(
         #     irreps_node_input=self.irreps_node_embedding,  # self.concat_norm_output.irreps_out,
         #     irreps_node_output=o3.Irreps(f"{self.irreps_node_embedding[0][0]}x1e"),
@@ -5614,7 +5667,9 @@ class E2former(torch.nn.Module):
         """
 
         tensortype = self.default_node_embedding.weight.dtype
-        node_pos = batched_data["pos"].to(tensortype)
+        node_pos = batched_data["pos"]
+        # .to(tensortype)
+        node_pos.requires_grad = True
         device = node_pos.device
         B, L, _ = node_pos.shape
         atomic_numbers = batched_data["masked_token_type"].reshape(B, L)
@@ -5756,7 +5811,7 @@ class E2former(torch.nn.Module):
                 node_irreps_noise = node_irreps
             # if torch.any(torch.isnan(node_irreps)):assert(False)
 
-        node_irreps = self.output_proj(self.norm_final(node_irreps))
+        node_irreps = self.norm_final(self.output_proj(node_irreps))
         node_embedding_ef = node_irreps[..., : self.scalar_dim]  # the part of order 0
         node_vec_ef = (
             node_irreps[..., self.scalar_dim :]
@@ -5764,8 +5819,8 @@ class E2former(torch.nn.Module):
             .permute(0, 1, 3, 2)
         )
         if sepFN:
-            node_irreps_noise = self.output_proj_noise(
-                self.norm_final_noise(node_irreps_noise)
+            node_irreps_noise = self.norm_final_noise(
+                self.output_proj_noise(node_irreps_noise)
             )
             node_embedding_noise = node_irreps_noise[
                 ..., : self.scalar_dim

@@ -1,10 +1,10 @@
-description: Run Deshaw data generation on AzureML
+description: Run E2former on AzureML
 
 target:
   service: sing
-  # name: msroctovc
-  name: msrresrchvc
-  # workspace_name: sfm-ws
+  name: msroctovc
+  # name: msrresrchvc
+  workspace_name: sfm-ws
 
 env_defaults:
   NODES: 1
@@ -105,5 +105,8 @@ jobs:
   - pip install nvidia-dali-cuda120
   - bash scripts/psm/pretrain_psm_e2former.sh
   submit_args:
+    env:
+      AMLT_DOCKERFILE_TEMPLATE: "none"
+      _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
     container_args:
       shm_size: 512g

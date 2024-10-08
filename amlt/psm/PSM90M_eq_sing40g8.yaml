@@ -7,19 +7,14 @@
 description: PSMV0
 
 env_defaults:
-  NODES: 1
-  GPUS_PER_NODE: 4
+  NODES: 6
+  GPUS_PER_NODE: 8
   WANDB_API_KEY: "local-065f023e262b3ae11107532ba5463cd2d800d739"
 
 target:
-  service: aml
-  name: sfm-madft-nc96adsa100v4-swcen
-# target:
-#   service: sing
-#   # name: msroctovc
-#   name: msrresrchvc
-#   workspace_name: sfm-ws
-
+  service: sing
+  name: msroctovc
+  workspace_name: sfm-ws
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -32,18 +27,21 @@ storage:
       container_name: madft-nn
       mount_dir: /blob
 
+
 code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: e2former-pretrain-autograd
+- name: e2former-pretrain-forcehead
   identity: managed
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
-  sku: 80G4-A100
+  sku: ${NODES}x40G${GPUS_PER_NODE}-A100-IB
   sla_tier: Premium
-
+  priority: High
+  mpi: true
+  process_count_per_node: 1
   command:
-
+  - export OMPI_COMM_WORLD_SIZE=${NODES}
   - export HYDRA_FULL_ERROR=1
   - export load_ckpt=False
   - export MASTER_PORT=62352
@@ -58,13 +56,6 @@ jobs:
   - export pbc_use_local_attention=False
 
   # e2former settings
-  - export num_pred_attn_layer=4
-  - export layers=8
-  - export hidden_size=128
-
-
-  - export dataset_split_raito=0.4,0.2,0.4
-
   - export save_batch_interval=2500
   - export train_batch_size=16
   - export val_batch_size=16
@@ -74,13 +65,12 @@ jobs:
 
   - export total_num_steps=200000000
   - export warmup_num_steps=1000
-  - export max_lr=1e-5
+  - export max_lr=1.5e-4
 
   - export diffusion_noise_std=0
   - export strategy=DDP
   - export fp16=False
   - export clean_sample_ratio=1.0
-  - export force_loss_type=L1
 
   - export diff_init_lattice_size=10.0
   - export diffusion_sampling="ddpm"
@@ -104,25 +94,17 @@ jobs:
   - export wandb_project=psm_dev_stype
   - export WANDB_API_KEY="local-065f023e262b3ae11107532ba5463cd2d800d739"
   - export wandb_key="local-065f023e262b3ae11107532ba5463cd2d800d739"
-  - export wandb_run_name="e2former-pretrain-autograd"
+  - export wandb_run_name="e2former-pretrain-forcehead"
 
   - export psm_finetune_mode=True
 
   - export data_path=/blob/dataset/
   # - export supervise_force_from_head_when_autograd=True
 
-  # - export data_path_list="SPICE-2.0.1/SPICE_PubChem_500k"
-  # - export dataset_name_list='SPICE'
-  # - export dataset_micro_batch_size="16"
-  # - export dataset_split_raito='1.0'
   - export data_path_list="GEMS/general_protein_fragments,deshaw/db_data_all_600"
   - export dataset_name_list='GEMS,deshaw'
-  - export dataset_micro_batch_size="32,1"
-  - export dataset_split_raito='0.5,0.5'
-
-  # - export data_path_list='deshaw/db_data_filter/1FME-0-protein-dft-m06-2x'
-  # - export dataset_name_list='deshaw'
-  # - export dataset_micro_batch_size=2
+  - export dataset_micro_batch_size="384,1"
+  - export dataset_split_raito='0.1,0.9'
 
   - export loadcheck_path=$$AMLT_OUTPUT_DIR
   - export save_dir=$$AMLT_OUTPUT_DIR

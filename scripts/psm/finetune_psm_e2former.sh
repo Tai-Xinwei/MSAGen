@@ -57,14 +57,17 @@ export MKL_THREADING_LAYER='GNU'
 # [ -z "${data_path}" ] && data_path='/fastdata/peiran/tox/48organisms-fullatom.lmdb/'
 
 [ -z "${shuffle}" ] && shuffle=True
-[ -z "${data_path}" ] && data_path='/data/used_data/'
+[ -z "${data_path}" ] && data_path='/data/sfm/'
 # [ -z "${data_path_list}" ] && data_path_list="SPICE-2.0.1/SPICE_PubChem_Set_1_Single_Points_Dataset_v1.3"
 # [ -z "${dataset_name_list}" ] && dataset_name_list="SPICE-2.0.1/SPICE_PubChem_Set_1_Single_Points_Dataset_v1.3"
-[ -z "${data_path_list}" ] && data_path_list='MD22/AT_AT_CG_CG/radius3_broadcast'
-[ -z "${dataset_name_list}" ] && dataset_name_list='AT_AT_CG_CG'
+# [ -z "${data_path_list}" ] && data_path_list='deshaw_600'
+# [ -z "${dataset_name_list}" ] && dataset_name_list='deshaw'
+# [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="1"
+[ -z "${data_path_list}" ] && data_path_list='GEMS/general_protein_fragments'
+[ -z "${dataset_name_list}" ] && dataset_name_list='GEMS'
+[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="128"
 [ -z "${dataset_split_raito}" ] && dataset_split_raito='1.0'
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
-[ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="16"
 [ -z "${gradient_accumulation_steps}" ] && gradient_accumulation_steps=8
 
 [ -z "${loadcheck_path}" ] && loadcheck_path=''
@@ -73,13 +76,14 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${add_3d}" ] && add_3d=true
 [ -z "${no_2d}" ] && no_2d=false
 [ -z "${pipeline_model_parallel_size}" ] && pipeline_model_parallel_size=0
+[ -z "${force_loss_type}" ] && force_loss_type="L1"
+[ -z "${psm_finetune_skip_ori_head}" ] && psm_finetune_skip_ori_head=False
 
-[ -z "${wandb}" ] && wandb=false
-[ -z "${wandb_group}" ] && wandb_group=""
-[ -z "${wandb_team}" ] && wandb_team=faralley
-[ -z "${wandb_project}" ] && wandb_project=psm_debug_workshop
-[ -z "${wandb_run_name}" ] && wandb_run_name=SPICE
-[ -z "${wandb_key}" ] && wandb_key=1059e2793fc0c6ba4d85481bb10d9d1930e34ef1
+[ -z "${wandb_group}" ] && wandb_group=Lin_psm_dev_3mod
+[ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
+[ -z "${wandb_project}" ] && wandb_project=psm_dev
+[ -z "${wandb_key}" ] && wandb_key=local-065f023e262b3ae11107532ba5463cd2d800d739
+[ -z "${psm_finetune_noise_mode}" ] && psm_finetune_noise_mode=zero
 # [ -z "${wandb_group}" ] && wandb_group=psm_dev
 # [ -z "${wandb_team}" ] && wandb_team=ai4s-sfm
 # [ -z "${wandb_project}" ] && wandb_project=psm_dev
@@ -92,12 +96,12 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${MASTER_PORT}" ] && MASTER_PORT=62348
 [ -z "${MASTER_ADDR}" ] && MASTER_ADDR=127.0.0.1
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
+[ -z "${supervise_force_from_head_when_autograd}" ] && supervise_force_from_head_when_autograd=False
 
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
-# [ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
-[ -z "${n_gpu}" ] && n_gpu=1
+[ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
 echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
 echo "MASTER_PORT: ${MASTER_PORT}"
@@ -143,22 +147,27 @@ echo "pipeline_model_parallel_size: ${pipeline_model_parallel_size}"
 # export NCCL_DEBUG=INFO
 # export NCCL_IB_PCI_RELAXED_ORDERING=1
 # export NCCL_IB_DISABLE=1
+
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
+# export OMPI_COMM_WORLD_RANK=1
+# export OMPI_COMM_WORLD_SIZE=1
+
 # export NCCL_SOCKET_IFNAME=eth0
-# export OMP_NUM_THREADS=1
+export OMP_NUM_THREADS=1
 
 # wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-
-# wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
-wandb login --relogin --host=https://api.wandb.ai $wandb_key
 
 export WANDB_API_KEY=$wandb_key
+wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
+# wandb login --relogin --host=https://api.wandb.ai $wandb_key
 
+# if [ -z "${OMPI_COMM_WORLD_SIZE}" ]
 if [[ -z "${OMPI_COMM_WORLD_SIZE}" ]]
 then
   DISTRIBUTED_ARGS=""
 else
+  # if [ $OMPI_COMM_WORLD_SIZE==1 ]
   if (( $OMPI_COMM_WORLD_SIZE == 1))
   then
     DISTRIBUTED_ARGS="--nproc_per_node $n_gpu \
@@ -176,8 +185,8 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_small_mol.py \
           --config-name=config_psm.yaml \
-          psm_finetune_mode=true \
-          wandb=False wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          psm_finetune_mode=$psm_finetune_mode \
+          wandb=True wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
           wandb_run_name=$wandb_run_name \
           node_type_edge_method=EXCHANGABLE \
           backbone=e2former \
@@ -185,15 +194,16 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_small_mol.py \
           backbone_config.num_layers=9 \
           backbone_config.irreps_node_embedding="256x0e+256x1e+256x2e" \
           backbone_config.irreps_head="16x0e+16x1e+16x2e" \
-          backbone_config.num_attn_heads=32 \
+          backbone_config.num_attn_heads=16 \
           backbone_config.number_of_basis=128 \
           backbone_config.pbc_max_radius=5 \
           backbone_config.max_radius=5 \
-          backbone_config.attn_type="triple" \
+          backbone_config.attn_type='linear' \
           backbone_config.tp_type='v2' \
           backbone_config.edge_embedtype='highorder' \
           backbone_config.basis_type='gaussiansmear' \
-          backbone_config.ffn_type='default' \
+          backbone_config.ffn_type='3body' \
+          backbone_config.norm_layer='layer' \
           encoder_embed_dim=256 \
           encoder_layers=9 \
           num_pred_attn_layer=9 \
@@ -230,4 +240,10 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/finetune_psm_small_mol.py \
           use_unified_batch_sampler=True \
           gradient_accumulation_steps=4 \
           save_epoch_interval=$save_epoch_interval total_num_epochs=$epochs \
-          save_batch_interval=$save_batch_interval log_interval=$log_interval
+          save_batch_interval=$save_batch_interval log_interval=$log_interval \
+          psm_finetune_noise_mode=$psm_finetune_noise_mode \
+          save_batch_interval=$save_batch_interval log_interval=$log_interval\
+          force_loss_type=$force_loss_type \
+          psm_finetune_skip_ori_head=True \
+          # AutoGradForce=True \
+          #supervise_force_from_head_when_autograd=$supervise_force_from_head_when_autograd

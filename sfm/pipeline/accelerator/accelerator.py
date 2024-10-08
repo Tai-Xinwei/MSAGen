@@ -312,9 +312,13 @@ class SingleNodeAccelerator(Accelerator):
         self.model.eval()
 
         batch_data = move_to_device(batch_data, self.device)
-        with torch.no_grad():
+        if self.args.AutoGradForce is True:
             pred = self.model(batch_data)
             model_output = self.model.compute_loss(pred, batch_data)
+        elif self.args.AutoGradForce is False:
+            with torch.no_grad():
+                pred = self.model(batch_data)
+                model_output = self.model.compute_loss(pred, batch_data)
 
         if hasattr(batch_data, "batch_size"):
             num_examples = batch_data.batch_size

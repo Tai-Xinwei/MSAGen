@@ -580,7 +580,8 @@ class PSMModel(Model):
         )  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
 
         # Do not predict energy of molecule with heavy atom avoid loss instability.
-        clean_mask = clean_mask & ~batched_data["is_heavy_atom"]
+        if self.psm_config.clean_sample_ratio < 1.0:
+            clean_mask = clean_mask & ~batched_data["is_heavy_atom"]
 
         clean_mask = clean_mask | (
             (batched_data["is_periodic"]) & (~batched_data["is_stable_periodic"])
@@ -665,6 +666,9 @@ class PSMModel(Model):
                 **kwargs,
             )
 
+        result_dict["data_name"] = (
+            batched_data["data_name"] if "data_name" in batched_data else None
+        )
         result_dict["noise"] = noise
         result_dict["clean_mask"] = clean_mask
         result_dict["aa_mask"] = aa_mask
@@ -1067,91 +1071,105 @@ class PSM(nn.Module):
         else:
             raise NotImplementedError
 
-        # simple energy, force and noise prediction heads
-        self.energy_head = nn.ModuleDict()
-        self.forces_head = nn.ModuleDict()
+        if not (
+            self.psm_config.psm_finetune_mode
+            and self.psm_config.psm_finetune_skip_ori_head
+        ):
+            # simple energy, force and noise prediction heads
+            self.energy_head = nn.ModuleDict()
+            self.forces_head = nn.ModuleDict()
 
-        for key in {"molecule", "periodic", "protein"}:
-            if args.backbone in [
-                "vanillatransformer",
-                "vanillatransformer_equiv",
-                "vectorvanillatransformer",
-                # "dit",
-                # "e2dit",
-            ]:
-                self.energy_head.update(
-                    {
-                        key: nn.Sequential(
-                            # AdaNorm(psm_config.embedding_dim)
-                            # if self.psm_config.decoder_feat4energy
-                            # else nn.Identity(),
-                            nn.Linear(
-                                psm_config.embedding_dim,
-                                psm_config.embedding_dim,
-                                bias=True,
-                            ),
-                            nn.SiLU(),
-                            nn.LayerNorm(psm_config.embedding_dim),
-                            nn.Linear(psm_config.embedding_dim, 1, bias=True),
-                        )
-                    }
-                )
-            else:
-                self.energy_head.update(
-                    {
-                        key: nn.Sequential(
-                            nn.Linear(
-                                psm_config.embedding_dim,
-                                psm_config.embedding_dim,
-                                bias=True,
-                            ),
-                            nn.SiLU(),
-                            nn.Linear(psm_config.embedding_dim, 1, bias=True),
-                        )
-                    }
-                )
-
-            if args.backbone in [
-                "vanillatransformer",
-                "vanillatransformer_equiv",
-                "vectorvanillatransformer",
-            ]:
-                self.noise_head = VectorOutput(psm_config.embedding_dim)
-                if self.psm_config.force_head_type == ForceHeadType.LINEAR:
-                    self.forces_head.update(
-                        {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+            for key in {"molecule", "periodic", "protein"}:
+                if args.backbone in [
+                    "vanillatransformer",
+                    "vanillatransformer_equiv",
+                    "vectorvanillatransformer",
+                    # "dit",
+                    # "e2dit",
+                ]:
+                    self.energy_head.update(
+                        {
+                            key: nn.Sequential(
+                                # AdaNorm(psm_config.embedding_dim)
+                                # if self.psm_config.decoder_feat4energy
+                                # else nn.Identity(),
+                                nn.Linear(
+                                    psm_config.embedding_dim,
+                                    psm_config.embedding_dim,
+                                    bias=True,
+                                ),
+                                nn.SiLU(),
+                                nn.LayerNorm(psm_config.embedding_dim),
+                                nn.Linear(psm_config.embedding_dim, 1, bias=True),
+                            )
+                        }
                     )
                 else:
-                    self.forces_head.update(
-                        {key: ForceVecOutput(psm_config.embedding_dim)}
-                    )
-            # elif args.backbone in ["dit"]:
-            #     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
-            #     if self.psm_config.force_head_type == ForceHeadType.LINEAR:
-            #         self.forces_head.update(
-            #             {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
-            #         )
-            #     else:
-            #         self.forces_head.update(
-            #             {key: ForceGatedOutput(psm_config.embedding_dim)}
-            #         )
-            else:
-                self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
-                if self.psm_config.force_head_type == ForceHeadType.LINEAR:
-                    self.forces_head.update(
-                        {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
-                    )
-                else:
-                    self.forces_head.update(
-                        {key: EquivariantVectorOutput(psm_config.embedding_dim)}
+                    self.energy_head.update(
+                        {
+                            key: nn.Sequential(
+                                nn.Linear(
+                                    psm_config.embedding_dim,
+                                    psm_config.embedding_dim,
+                                    bias=True,
+                                ),
+                                nn.SiLU(),
+                                nn.Linear(psm_config.embedding_dim, 1, bias=True),
+                            )
+                        }
                     )
 
-        # aa mask predict head
-        self.aa_mask_head = nn.Sequential(
-            nn.Linear(psm_config.embedding_dim, psm_config.embedding_dim, bias=False),
-            nn.SiLU(),
-            nn.Linear(psm_config.embedding_dim, 160, bias=False),
-        )
+                if args.backbone in [
+                    "vanillatransformer",
+                    "vanillatransformer_equiv",
+                    "vectorvanillatransformer",
+                ]:
+                    self.noise_head = VectorOutput(psm_config.embedding_dim)
+                    if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                        self.forces_head.update(
+                            {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                        )
+                    else:
+                        self.forces_head.update(
+                            {key: ForceVecOutput(psm_config.embedding_dim)}
+                        )
+                # elif args.backbone in ["dit"]:
+                #     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
+                #     if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                #         self.forces_head.update(
+                #             {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                #         )
+                #     else:
+                #         self.forces_head.update(
+                #             {key: ForceGatedOutput(psm_config.embedding_dim)}
+                #         )
+                else:
+                    self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
+                    if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                        self.forces_head.update(
+                            {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                        )
+                    else:
+                        self.forces_head.update(
+                            {key: EquivariantVectorOutput(psm_config.embedding_dim)}
+                        )
+
+            # aa mask predict head
+            self.aa_mask_head = nn.Sequential(
+                nn.Linear(
+                    psm_config.embedding_dim, psm_config.embedding_dim, bias=False
+                ),
+                nn.SiLU(),
+                nn.Linear(psm_config.embedding_dim, 160, bias=False),
+            )
+
+            if self.args.AutoGradForce:
+                self.autograd_force_head = GradientHead(
+                    molecule_energy_per_atom_std=molecule_energy_per_atom_std,
+                    periodic_energy_per_atom_std=periodic_energy_per_atom_std,
+                    molecule_force_std=molecule_force_std,
+                    periodic_force_std=periodic_force_std,
+                )
 
         self.mlp_w = nn.Sequential(
             nn.Linear(psm_config.embedding_dim, psm_config.embedding_dim, bias=False),
@@ -1167,14 +1185,6 @@ class PSM(nn.Module):
         ]:
             self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
             self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
-
-        if self.args.AutoGradForce:
-            self.autograd_force_head = GradientHead(
-                molecule_energy_per_atom_std=molecule_energy_per_atom_std,
-                periodic_energy_per_atom_std=periodic_energy_per_atom_std,
-                molecule_force_std=molecule_force_std,
-                periodic_force_std=periodic_force_std,
-            )
 
         self.num_vocab = max([VOCAB[key] for key in VOCAB]) + 1
 
@@ -1488,7 +1498,12 @@ class PSM(nn.Module):
             if self.args.fp16
             else nullcontext()
         ):
-            if not self.args.seq_only:
+            if not self.args.seq_only and (
+                not (
+                    self.psm_config.psm_finetune_mode
+                    and self.psm_config.psm_finetune_skip_ori_head
+                )
+            ):
                 if decoder_x_output_noise is not None:
                     noise_pred = self.noise_head(
                         decoder_x_output_noise, decoder_vec_output_noise
@@ -1595,14 +1610,19 @@ class PSM(nn.Module):
                 forces = torch.zeros_like(batched_data["pos"])
                 noise_pred = torch.zeros_like(batched_data["pos"])
                 autograd_forces = None
+                aa_logits = None
 
-            if (
-                self.encoder is not None
-                and not self.psm_config.mlm_from_decoder_feature
+            if not (
+                self.psm_config.psm_finetune_mode
+                and self.psm_config.psm_finetune_skip_ori_head
             ):
-                aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
-            else:
-                aa_logits = self.aa_mask_head(decoder_x_output)
+                if (
+                    self.encoder is not None
+                    and not self.psm_config.mlm_from_decoder_feature
+                ):
+                    aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
+                else:
+                    aa_logits = self.aa_mask_head(decoder_x_output)
 
         result_dict = {
             "energy_per_atom": energy_per_atom,

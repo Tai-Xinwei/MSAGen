@@ -45,6 +45,7 @@ class GradientHead(torch.nn.Module):
             inputs=pos,
             grad_outputs=grad_outputs,
             create_graph=self.training,
+            retain_graph=True,
         )
 
         force_grad = grad[0]

@@ -547,6 +547,7 @@ class SmallMolDataset(FoundationModelDataset):
                 raise ValueError(
                     "sorry, when using pubchem the basis should be def2-tzvp"
                 )
+        self.data_name = data_name
         (
             self.atom_reference,
             self.system_ref,
@@ -647,6 +648,7 @@ class SmallMolDataset(FoundationModelDataset):
             * self.unit,  # this is used from model training, mean/ref is removed.
             "has_energy": torch.tensor([self.has_energy], dtype=torch.bool),
             "has_forces": torch.tensor([self.has_forces], dtype=torch.bool),
+            "data_name": self.data_name,
         }
         if self.is_pbc:
             cell_corner_pos_matrix = torch.tensor(
@@ -737,11 +739,11 @@ class SmallMolDataset(FoundationModelDataset):
                 "has_energy",
                 "has_forces",
                 "sample_type",
+                "data_name",
             ]:
-                out[key] = torch.tensor(out[key], dtype=torch.float32)
+                out[key] = out[key].clone().detach().float()
 
         out = self.generate_2dgraphfeat(out)
-
         return out
 
     def generate_2dgraphfeat(self, data):
