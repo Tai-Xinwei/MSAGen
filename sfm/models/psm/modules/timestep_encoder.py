@@ -123,7 +123,13 @@ class DiffNoise(nn.Module):
         super(DiffNoise, self).__init__()
         self.psm_config = psm_config
 
-        assert psm_config.ddpm_schedule in ["linear", "quadratic", "sigmoid", "cosine"]
+        assert psm_config.ddpm_schedule in [
+            "linear",
+            "quadratic",
+            "sigmoid",
+            "cosine",
+            "sqrt",
+        ]
         (
             self.sqrt_alphas_cumprod,
             self.sqrt_one_minus_alphas_cumprod,
@@ -150,6 +156,10 @@ class DiffNoise(nn.Module):
         elif schedule_type == "sigmoid":
             betas = torch.linspace(-6, 6, num_timesteps)
             beta_list = torch.sigmoid(betas) * (beta_end - beta_start) + beta_start
+        elif schedule_type == "sqrt":
+            x = 1 - torch.sqrt(torch.linspace(0, 1, num_timesteps + 1) + 0.0001)
+            beta_list = 1 - x[1:] / x[:-1]
+            beta_list[beta_list > 0.999] = 0.999
         elif schedule_type == "cosine":
             s = 0.008
             steps = num_timesteps + 1

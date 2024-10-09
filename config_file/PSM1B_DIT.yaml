@@ -37,7 +37,7 @@ num_timesteps: 5000
 num_timesteps_stepsize: -1
 ddpm_beta_start: 1.0e-07
 ddpm_beta_end: 1.0e-2
-ddpm_schedule: quadratic #sigmoid, cosine, linear, quadratic
+ddpm_schedule: sigmoid #sigmoid, cosine, linear, quadratic
 noise_mode: diff
 num_edges: 25600
 num_atom_features: 5120

@@ -220,7 +220,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${num_timesteps}" ] && num_timesteps=5000
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
 [ -z "${ddpm_beta_end}" ] && ddpm_beta_end=1e-2
-[ -z "${ddpm_schedule}" ] && ddpm_schedule=quadratic #sigmoid, cosine, linaer, quadratic
+[ -z "${ddpm_schedule}" ] && ddpm_schedule=sqrt #sigmoid, cosine, linaer, quadratic, sqrt
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=False
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=False
