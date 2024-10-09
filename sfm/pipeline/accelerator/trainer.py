@@ -675,15 +675,16 @@ class Trainer(object):
 
                 self.state.batch = 0
 
-                if self.should_do_epoch_validate():
-                    valid_log = self.validate()
-                else:
-                    valid_log = None
-
                 self.accelerator.barrier()
                 if self.should_save_epoch_checkpoint():
                     checkpoint_name = f"checkpoint_E{self.state.epoch}.pt"
                     self.save_checkpoint(checkpoint_name, self.state)
+
+                if self.should_do_epoch_validate():
+                    valid_log = self.validate()
+                else:
+                    valid_log = None
+                self.accelerator.barrier()
 
                 # if use early stopping
                 if self.args.early_stopping:
@@ -779,8 +780,8 @@ class Trainer(object):
             )
 
         for idx, batch_data in enumerate(self.valid_data_loader):
-            # with torch.no_grad(): # comment for autograd calculation
-            output = self.accelerator.valid_step(batch_data, epoch=self.state.epoch)
+            with torch.no_grad():  # comment for autograd calculation
+                output = self.accelerator.valid_step(batch_data, epoch=self.state.epoch)
             loss_accumulator.add(output.valid_loss, output.num_examples)
             interval_loss_accumulator.add(
                 output.valid_loss,

@@ -520,9 +520,7 @@ class DiffMAE3dCriterions(nn.Module):
             # diffussion loss
             if self.diffusion_mode == "epsilon":
                 if not is_seq_only.all():
-                    pos_pred = self.calculate_pos_pred(
-                        model_output
-                    )  # * self.diffusion_rescale_coeff
+                    pos_pred = self.calculate_pos_pred(model_output)
                     if (
                         self.args.align_x0_in_diffusion_loss and not is_periodic.any()
                     ):  # and not is_periodic.any():
@@ -580,7 +578,7 @@ class DiffMAE3dCriterions(nn.Module):
 
                         aligned_pos_label = (
                             torch.einsum("bij,bkj->bki", R.float(), pos_label.float())
-                            # + T.float()
+                            + T.float()
                         )
                         unreduced_noise_loss = (
                             self.noise_loss(
@@ -682,7 +680,7 @@ class DiffMAE3dCriterions(nn.Module):
                     if self.args.align_x0_in_diffusion_loss and not is_periodic.any():
                         pos_label = torch.einsum(
                             "bij,bkj->bki", R.to(pos_label.dtype), pos_label
-                        )  # + T.to(pos_label.dtype)
+                        ) + T.to(pos_label.dtype)
 
                     if weight_pos_edm is not None:
                         if self.args.diffusion_training_loss in [

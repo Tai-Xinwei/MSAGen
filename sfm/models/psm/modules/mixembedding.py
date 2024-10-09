@@ -665,6 +665,7 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
         pos = pos.to(self.pos_emb.weight.dtype)  # / self.psm_config.diffusion_noise_std
 
         # inf_nan_mask = batched_data["protein_mask"].any(dim=-1)
+        padding_mask_tmp = padding_mask | batched_data["token_id"].eq(156)
 
         if pbc_expand_batched is not None:
             expand_pos = expand_pos.to(
@@ -672,7 +673,7 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
             )  # / self.psm_config.diffusion_noise_std
             expand_pos = torch.cat([pos, expand_pos], dim=1)
             expand_mask = torch.cat(
-                [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
+                [padding_mask_tmp, pbc_expand_batched["expand_mask"]], dim=-1
             )
 
             # expand_pos = self.center_pos(expand_pos, expand_mask)
@@ -701,8 +702,7 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
             )
         else:
             delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
-            padding_mask = padding_mask | batched_data["token_id"].eq(156)
-            expand_mask = padding_mask
+            expand_mask = padding_mask_tmp
             expand_molecule_mask = molecule_mask
             expand_clean_mask = clean_mask
             expand_pos = pos
@@ -739,7 +739,7 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
         )
 
         graph_attn_bias = graph_attn_bias.masked_fill(
-            padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0
+            padding_mask_tmp.unsqueeze(-1).unsqueeze(-1), 0.0
         )
         graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2)
 
@@ -776,12 +776,18 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
         else:
             mask_token_type = token_id
 
-        batched_data["masked_token_type"] = mask_token_type
-        condition_embedding = self.embed(mask_token_type)
+        if "hot_token_id" not in batched_data:
+            batched_data["masked_token_type"] = mask_token_type
+            condition_embedding = self.embed(mask_token_type)
+        else:
+            condition_embedding = torch.matmul(
+                batched_data["one_hot_token_id"], self.embed.weight
+            )
 
         pos_embedding = self.pos_emb(
             batched_data["pos"].to(self.pos_emb.weight.dtype)
         ).masked_fill(padding_mask.unsqueeze(-1), 0.0)
+
         # pos_attn_bias = self._pos_emb(
         #     batched_data["pos"],
         #     pbc_expand_batched["expand_pos"]
@@ -795,7 +801,22 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
         #     pbc_expand_batched=pbc_expand_batched,
         # )
 
-        time_embed = self.time_step_encoder(time_step, clean_mask)
+        if self.psm_config.diffusion_mode == "edm":
+            noise_embed_edm = self.noise_cond_embed_edm(
+                batched_data["c_noise"].flatten()
+            ).to(condition_embedding.dtype)
+            time_embed = noise_embed_edm.reshape(
+                (pos_embedding.size(0), pos_embedding.size(1), -1)
+            )
+        elif time_step is not None:
+            time_embed = self.time_step_encoder(time_step, clean_mask)
+
+        # if time_step_1d is not None:
+        #     time_1d_embed = self.time_step_encoder(time_step_1d, ~aa_mask)
+        # else:
+        #     time_1d_embed = self.time_step_encoder(torch.zeros_like(time_step), clean_mask)
+
+        # time_embed = torch.cat([time_embed, time_1d_embed], dim=-1)
 
         if self.psm_config.use_2d_atom_features and "node_attr" in batched_data:
             atom_feature_embedding = self.atom_feature_embed(
@@ -823,3 +844,11 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
             None,
             time_embed,
         )
+
+        # return (
+        #     x + time_embed,
+        #     padding_mask,
+        #     time_embed,
+        #     None,
+        #     torch.cat([condition_embedding, atom_feature_embedding], dim=-1).to(x.dtype),
+        # )

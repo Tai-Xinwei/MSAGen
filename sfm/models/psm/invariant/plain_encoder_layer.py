@@ -103,7 +103,7 @@ class PSMPlainEncoderLayer(nn.Module):
         LayerNorm is applied either before or after the self-attention/ffn
         modules similar to the original Transformer implementation.
         """
-        math_kernel = ifbackprop and pbc_expand_batched is not None
+        math_kernel = ifbackprop  # and pbc_expand_batched is not None
 
         residual = x
         x = self.top_layer_norm(x)

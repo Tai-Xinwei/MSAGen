@@ -428,14 +428,14 @@ class PSMModel(Model):
             noise_step = noise_step.masked_fill(token_id == 156, 0.0)
             # set T noise if protein is seq only
             noise_step = noise_step.masked_fill(
-                is_seq_only.unsqueeze(-1), 5.0
+                is_seq_only.unsqueeze(-1), 3.0
             )  # NOTE: 3σ is used as the maximum value
             # set 0 noise for padding
             noise_step = noise_step.masked_fill(padding_mask, 0.0)
             # # TODO: found this may cause instability issue, need to check
             # # # set T noise for batched_data["protein_mask"] nan/inf coords
             noise_step = noise_step.masked_fill(
-                batched_data["protein_mask"].any(dim=-1), 5.0
+                batched_data["protein_mask"].any(dim=-1), 3.0
             )
 
         # make sure noise really replaces nan/inf coords
@@ -1202,6 +1202,7 @@ class PSMModel(Model):
             batched_data["pos"] * self.psm_config.diffusion_rescale_coeff
         )
         pred_pos = batched_data["pos"].clone()
+
         if (
             self.psm_config.psm_finetune_mode
             and self.psm_finetune_head.__class__.__name__ == "PerResidueLDDTCaPredictor"

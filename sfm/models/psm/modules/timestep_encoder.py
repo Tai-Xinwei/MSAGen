@@ -130,7 +130,7 @@ class DiffNoise(nn.Module):
             self.alphas_cumprod,
             self.beta_list,
         ) = self._beta_schedule(
-            psm_config.num_timesteps + 1,
+            psm_config.num_timesteps,  # + 1,
             psm_config.ddpm_beta_start,
             psm_config.ddpm_beta_end,
             psm_config.ddpm_schedule,
@@ -277,7 +277,7 @@ class DiffNoise(nn.Module):
         x_init=None,
         clean_mask: Optional[Tensor] = None,
     ):
-        t = (t * self.psm_config.num_timesteps).long()
+        t = (t * (self.psm_config.num_timesteps - 1)).long()
         noise = self.get_noise(x_start, non_atom_mask, is_stable_periodic)
 
         sqrt_alphas_cumprod_t = self._extract(
@@ -451,7 +451,7 @@ class DiffNoise_EDM(nn.Module):
         # )
         rnd_normal = noise_step
         sigma = self.sigma(rnd_normal).unsqueeze(-1)
-        weight = (sigma**2 + self.sigma_data**2) / (sigma + self.sigma_data) ** 2
+        weight = (sigma**2 + self.sigma_data**2) / (sigma * self.sigma_data) ** 2
         noise = self.get_noise(x_start, non_atom_mask, is_stable_periodic)
         n = sigma * noise
         x_noised = x_start + n  ## NOTE: x_init have no effect on EDM

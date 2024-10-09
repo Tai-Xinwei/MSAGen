@@ -36,8 +36,8 @@ mode_prob: 0.2,0.6,0.2
 num_timesteps: 5000
 num_timesteps_stepsize: -1
 ddpm_beta_start: 1.0e-07
-ddpm_beta_end: 0.002
-ddpm_schedule: sigmoid
+ddpm_beta_end: 1.0e-2
+ddpm_schedule: quadratic #sigmoid, cosine, linear, quadratic
 noise_mode: diff
 num_edges: 25600
 num_atom_features: 5120
@@ -95,7 +95,7 @@ molecule_outlier_energy_atoms: DEPRECATED_PM6_ATOM_ENERGY_OUTLIER_LIST
 diffusion_sampling: ddpm
 diffusion_mode: epsilon
 diffusion_noise_std: 1.0
-diffusion_rescale_coeff: 20.0
+diffusion_rescale_coeff: 1.0
 ddim_eta: 0.0
 ddim_steps: 50
 clean_sample_ratio: 0.6
