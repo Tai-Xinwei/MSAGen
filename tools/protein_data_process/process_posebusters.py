@@ -6,15 +6,112 @@ from pathlib import Path
 
 import click
 import lmdb
+import numpy as np
 from absl import logging
 from joblib import delayed, Parallel
 
 from commons import obj2bstr
-from process_mmcif import process_one_structure, remove_hydrogens_from_graph
+from process_mmcif import process_one_structure
+from process_mmcif import remove_hydrogens_from_graph
 from process_mmcif import show_lmdb, show_one_structure
 
 
 logging.set_verbosity(logging.INFO)
+
+
+def filter_clashing_chains_with_ligand(data: dict, ligid: str, cutoff=1.7, percent=0.3):
+    '''Filter out chains clashing with ligands'''
+    def _is_clashing(pos_no_nan):
+        for graph in data['nonpoly_graphs']:
+            if graph['name'] != ligid:
+                # only check clashing with specific ligand
+                continue
+            pos = graph['node_coord'][
+                np.any(~np.isnan(graph['node_coord']), axis=-1)]
+            dist = np.linalg.norm(pos_no_nan[:, None] - pos[None, :], axis=-1)
+            num_clash = np.sum(np.min(dist, axis=-1) < cutoff)
+            if float(num_clash) / len(dist) > percent:
+                return True
+        return False
+    # filter polymer chains
+    polymer_chains = {}
+    for chainid, chain in data['polymer_chains'].items():
+        chainpos = chain['allatom_coord'][
+            np.any(~np.isnan(chain['allatom_coord']), axis=-1)]
+        if _is_clashing(chainpos):
+            logging.warning(f"Chain '{chainid}' clashes with specific ligand"
+                            f"'{ligid}' in PDB {data['pdbid']}.")
+        else:
+            polymer_chains[chainid] = chain
+    data['polymer_chains'] = polymer_chains
+    # filter nonpoly graphs
+    nonpoly_graphs = []
+    for graph in data['nonpoly_graphs']:
+        if graph['name'] == ligid:
+            nonpoly_graphs.append(graph)
+            continue
+        graphpos = graph['node_coord'][
+            np.any(~np.isnan(graph['node_coord']), axis=-1)]
+        if _is_clashing(graphpos):
+            _l = f"{graph['chain_id']}_{graph['residue_number']}_{graph['name']}"
+            logging.warning(f"Ligand '{_l}' clashes with specific ligand "
+                            f"'{ligid}' in PDB {data['pdbid']}.")
+        else:
+            nonpoly_graphs.append(graph)
+    data['nonpoly_graphs'] = nonpoly_graphs
+
+    return data
+
+
+def remove_clashing_chains(data: dict,
+                           cutoff: float = 1.7,
+                           percent: float = 0.3,
+                           ) -> dict:
+  """Remove clasing chains from the processed data."""
+  if not data:
+    return data
+  # collect all positions without NAN for different chains
+  positions = []
+  for chainid, chain in data['polymer_chains'].items():
+    pos = chain['allatom_coord'][
+      np.any(~np.isnan(chain['allatom_coord']), axis=-1)]
+    positions.append(('polymer_chains', chainid, pos))
+  for idx, graph in enumerate(data['nonpoly_graphs']):
+    pos = graph['node_coord'][
+      np.any(~np.isnan(graph['node_coord']), axis=-1)]
+    positions.append(('nonpoly_graphs', idx, pos))
+  # calculate the ratio of clashing atoms and filtering
+  exclude_indices = set()
+  for i, (key1, idx1, pos1) in enumerate(positions):
+    for j, (key2, idx2, pos2) in enumerate(positions[i+1:], i+1):
+      dist = np.linalg.norm(pos1[:, None] - pos2[None, :], axis=-1)
+      r1 = 1.0 * np.sum(np.min(dist, axis=1) < cutoff) / len(pos1)
+      r2 = 1.0 * np.sum(np.min(dist, axis=0) < cutoff) / len(pos2)
+      if r1 > percent or r2 > percent:
+        key = (key2, idx2) if r2 >= r1 else (key1, idx1)
+        exclude_indices.add(key)
+  # print log for clashing chains, residues and atoms
+  for key, idx in exclude_indices:
+    if key == 'polymer_chains':
+      logging.warning(f"Clashing polymer chain '{idx}', {data['pdbid']}.")
+    else:
+      _s = '{}_{}_{}'.format(data[key][idx]['chain_id'],
+                             data[key][idx]['residue_number'],
+                             data[key][idx]['name'])
+      logging.warning(f"Clashing small molecule '{_s}', {data['pdbid']}.")
+  # filter out clashing chains
+  polymer_chains = {}
+  for chainid, chain in data['polymer_chains'].items():
+    if ('polymer_chains', chainid) not in exclude_indices:
+      polymer_chains[chainid] = chain
+  data['polymer_chains'] = polymer_chains
+  nonpoly_graphs = []
+  for idx, graph in enumerate(data['nonpoly_graphs']):
+    if ('nonpoly_graphs', idx) not in exclude_indices:
+      nonpoly_graphs.append(graph)
+  data['nonpoly_graphs'] = nonpoly_graphs
+
+  return data
 
 
 def main(args):
@@ -49,6 +146,8 @@ def main(args):
         try:
             pdbid, ligid = pdbid_ligid.split('_')
             data = process_one_structure(chem_comp_path, mmcif_paths[pdbid])
+            data = filter_clashing_chains_with_ligand(data, ligid)
+            data = remove_clashing_chains(data)
             nonpoly_graphs =[]
             for graph in data['nonpoly_graphs']:
                 if args.remove_hydrogens:
@@ -61,7 +160,7 @@ def main(args):
             logging.error(f"Failed to process {pdbid_ligid}, {e}")
             return {}
 
-    # data = _process_one('7BJJ_TVW')
+    # data = _process_one('7QE4_NGA')
     # show_one_structure(data)
     selected_pdbid_ligid = inpdir_paths.keys()
     results = Parallel(n_jobs=args.num_workers)(
