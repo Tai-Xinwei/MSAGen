@@ -95,10 +95,28 @@ class TimeStepSampler:
     def __init__(self, num_timesteps):
         self.num_timesteps = num_timesteps
 
+    # def sample(self, n_graph, device, dtype, clean_sample_ratio: float = 0.0):
+    #     time_step = torch.rand(size=(n_graph // 2 + 1,), device=device)
+    #     time_step = torch.cat([time_step, 1.0 - time_step], dim=0)[:n_graph]
+    #     time_step = time_step.to(dtype=dtype)
+    #     clean_mask = torch.tensor(
+    #         np.random.rand(n_graph) <= clean_sample_ratio,
+    #         dtype=torch.bool,
+    #         device=device,
+    #     )
+    #     return time_step, clean_mask
+
     def sample(self, n_graph, device, dtype, clean_sample_ratio: float = 0.0):
-        time_step = torch.rand(size=(n_graph // 2 + 1,), device=device)
-        time_step = torch.cat([time_step, 1.0 - time_step], dim=0)[:n_graph]
+        time_step = torch.randn(size=(n_graph,), device=device)
         time_step = time_step.to(dtype=dtype)
+
+        time_step = torch.where(time_step < 0, time_step * 0.2, time_step * 0.25)
+        time_step = time_step + 0.4
+
+        time_backup = torch.rand(size=(n_graph,), device=device)
+        time_step = torch.where(
+            (time_step < 1e-4) | (time_step > 1), time_backup, time_step
+        )
         clean_mask = torch.tensor(
             np.random.rand(n_graph) <= clean_sample_ratio,
             dtype=torch.bool,

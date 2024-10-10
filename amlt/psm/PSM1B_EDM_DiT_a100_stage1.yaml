@@ -97,7 +97,7 @@ jobs:
   # - export diffusion_mode=edm
   - export diffusion_noise_std=1.0
   - export diffusion_rescale_coeff=1.0
-  - export ddpm_schedule=sigmoid
+  - export ddpm_schedule=sqrt
   - export ddpm_beta_start=1e-7
   - export ddpm_beta_end=1e-2
   - export diffusion_rescale_coeff=1.0
@@ -114,7 +114,7 @@ jobs:
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v18_1b_stage1/checkpoints/global_step30000/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
   # - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v15_1b_stage2/checkpoints
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_scale1_sigmoid_dit_v20_1b_stage1/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_scale1_sqrt_dit_v20_1b_stage1/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120

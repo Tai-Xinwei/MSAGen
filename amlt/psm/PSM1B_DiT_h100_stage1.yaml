@@ -7,7 +7,7 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 12
+  NODES: 4
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -23,7 +23,7 @@ environment:
 
 storage:
   eastus2:
-    storage_account_name: sfmdataeastus2prem # Storage account
+    storage_account_name: sfmdataeastus2 # Storage account
     container_name: psm # Container name
     mount_dir: /psm
   arca100:
@@ -74,18 +74,24 @@ jobs:
   - export max_length=512
   - export gradient_accumulation_steps=8
   - export log_interval=100
-  # - export data_path=/psm/data_2/
-  - export data_path=/tmp/data_2/
-  - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
-  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,esm,pdb,esm,pdbcomplexmultimer'
-  - export dataset_split_raito='0.03,0.15,0.3,0.3,0.1,0.02,0.1'
-  # - export dataset_micro_batch_size='8,8,32,8,8,8,2'
-  - export dataset_micro_batch_size='4,4,16,8,8,8,2'
+  - export data_path=/psm/data/
+  # - export data_path=/tmp/data/
+  - export data_path_list='AFDB70-plddt70-reduce.lmdb,MGnify,20240101_PDB_Training_Data,20240630_PDB_Training_Data'
+  - export dataset_name_list='esm,mgnify,pdb,pdbcomplexmultimer'
+  - export dataset_split_raito='0.6,0.2,0.02,0.18'
+  - export dataset_micro_batch_size='16,16,16,2'
   - export fp16=False
-  - export clean_sample_ratio=0.5
-  - export molecule_energy_loss_ratio=1.0
-  - export material_energy_loss_ratio=1.0
-  - export material_force_loss_ratio=1.0
+  - export clean_sample_ratio=0.7
+  - export diffusion_noise_std=1.0
+  - export diffusion_rescale_coeff=1.0
+  - export ddpm_schedule=sigmoid
+  - export ddpm_beta_start=1e-7
+  - export ddpm_beta_end=1e-2
+  - export diffusion_training_loss=L2
+  - export molecule_energy_loss_ratio=0.5
+  - export molecule_force_loss_ratio=0.5
+  - export material_energy_loss_ratio=0.5
+  - export material_force_loss_ratio=0.5
   - export AutoGradForce=True
   - export use_hard_dist_loss=False
   - export use_unified_batch_sampler=True
@@ -94,14 +100,14 @@ jobs:
   - export encoderfeat4noise=True
   - export only_use_rotary_embedding_for_protein=True
   - export if_total_energy=False
-  - export save_batch_interval=2500
-  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v15_1b/checkpoints/global_step5000/mp_rank_00_model_states.pt
+  - export save_batch_interval=5000
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_scalet_scale1_sigmoid_dit_v20_1b_stage1/checkpoints/global_step30000/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v15_1b/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_scalet_scale1_sigmoid_dit_v20_1b_stage1/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120
-  - bash ./scripts/psm/azcopydata.sh
+  # - bash ./scripts/psm/azcopydata.sh
   - bash ./scripts/psm/pretrain_psm_dit.sh
   submit_args:
     container_args:
