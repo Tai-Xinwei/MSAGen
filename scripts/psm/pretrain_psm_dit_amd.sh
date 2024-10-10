@@ -252,7 +252,7 @@ export MKL_THREADING_LAYER='GNU'
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
-[ -z "${n_gpu}" ] && n_gpu=$(nvidia-smi -L | wc -l)
+[ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]') # new for MI250x
 echo "n_gpu: ${n_gpu}"
 echo "MASTER_ADDR: ${MASTER_ADDR}"
 echo "MASTER_PORT: ${MASTER_PORT}"
@@ -298,6 +298,10 @@ export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
 export OMP_NUM_THREADS=4
+# environmental variables for Singularity MI250x:
+export HSA_ENABLE_SDMA=0
+export NCCL_IB_PCI_RELAXED_ORDERING=1
+export NCCL_NET_GDR_LEVEL=3
 
 wandb login --relogin --host=https://microsoft-research.wandb.io $wandb_key
 export WANDB_API_KEY=$wandb_key
