@@ -210,6 +210,115 @@ class SO2_Convolution(torch.nn.Module):
             return out_embedding
 
 
+# class SO2_Convolution(torch.nn.Module):
+#     """
+#     SO(2) Block: Perform SO(2) convolutions for all m (orders)
+
+#     Args:
+#         sphere_channels (int):      Number of spherical channels
+#         m_output_channels (int):    Number of output channels used during the SO(2) conv
+#         lmax_list (list:int):       List of degrees (l) for each resolution
+#         mmax_list (list:int):       List of orders (m) for each resolution
+#         mappingReduced (CoefficientMappingModule): Used to extract a subset of m components
+#         internal_weights (bool):    If True, not using radial function to multiply inputs features
+#         edge_channels_list (list:int):  List of sizes of invariant edge embedding. For example, [input_channels, hidden_channels, hidden_channels].
+#         extra_m0_output_channels (int): If not None, return `out_embedding` (SO3_Embedding) and `extra_m0_features` (Tensor).
+#     """
+
+#     def __init__(
+#         self,
+#         sphere_channels,
+#         m_output_channels,
+#         lmax_list,
+#         mmax_list,
+#         mappingReduced,
+#         internal_weights=True,
+#         edge_channels_list=None,
+#         extra_m0_output_channels=None,
+#     ):
+#         super(SO2_Convolution, self).__init__()
+#         self.sphere_channels = sphere_channels
+#         self.m_output_channels = m_output_channels
+#         self.lmax_list = lmax_list
+#         self.mmax_list = mmax_list
+#         self.mappingReduced = mappingReduced
+#         self.num_resolutions = len(lmax_list)
+#         self.internal_weights = internal_weights
+#         self.edge_channels_list = copy.deepcopy(edge_channels_list)
+#         self.extra_m0_output_channels = extra_m0_output_channels
+
+#         num_channels_rad = 0  # for radial function
+
+
+#         if extra_m0_output_channels is not None:
+#             self.fc_extra = Linear(sphere_channels, extra_m0_output_channels)
+#         # SO(2) convolution for non-zero m
+#         self.so2_linear = nn.ModuleList()
+#         for l in range(0, max(self.lmax_list) + 1):
+#             self.so2_linear.append(Linear(sphere_channels, m_output_channels,bias = (l==0)))
+
+#         # Embedding function of distance
+#         self.rad_func = None
+#         if not self.internal_weights:
+#             assert self.edge_channels_list is not None
+#             self.edge_channels_list.append(int((max(self.lmax_list) + 1) * self.sphere_channels))
+#             self.rad_func = RadialFunction(self.edge_channels_list)
+
+#     def forward(self, x, x_edge):
+#         num_edges = len(x_edge)
+#         out = []
+
+#         # Reshape the spherical harmonics based on m (order)
+#         # x._m_primary(self.mappingReduced)
+
+#         # radial function
+#         if self.rad_func is not None:
+#             x_edge = self.rad_func(x_edge)
+#         offset_rad = 0
+
+#         # Compute m=0 coefficients separately since they only have real values (no imaginary)
+#         x_0 = x.embedding.narrow(1, 0, self.mappingReduced.m_size[0])
+#         x_0 = x_0.reshape(num_edges, -1)
+
+
+#         offset = 0
+#         out = []
+#         for idx in range(self.lmax_list[0]+1):
+#             l = idx
+#             in_feature = self.sphere_channels
+#             x_m = x.embedding.narrow(1, offset, 2*l+1)
+#             offset += 2*l+1
+
+
+#             if self.rad_func is not None:
+#                 x_edge_0 = x_edge.narrow(1, idx*self.sphere_channels, self.sphere_channels).reshape(num_edges,1,self.sphere_channels)
+#                 x_m = x_m * x_edge_0
+
+#             x_m = self.so2_linear[l](x_m)
+#             out.append(x_m)
+
+#         x_0_extra = None
+#         # extract extra m0 features
+#         if self.extra_m0_output_channels is not None:
+#             x_0_extra = self.fc_extra(x.embedding.narrow(1, 0, 1)).reshape(num_edges,-1)
+
+
+#         out = torch.cat(out, dim=1)
+#         out_embedding = SO3_Embedding(
+#             0,
+#             x.lmax_list.copy(),
+#             self.m_output_channels,
+#             device=x.device,
+#             dtype=x.dtype,
+#         )
+#         out_embedding.set_embedding(out)
+#         out_embedding.set_lmax_mmax(self.lmax_list.copy(), self.mmax_list.copy())
+
+
+#         if self.extra_m0_output_channels is not None:
+#             return out_embedding, x_0_extra
+#         else:
+#             return out_embedding
 class SO2_Linear(torch.nn.Module):
     """
     SO(2) Linear: Perform SO(2) linear for all m (orders).

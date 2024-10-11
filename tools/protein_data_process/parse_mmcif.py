@@ -22,6 +22,7 @@ from typing import Any, Mapping, Optional, Sequence, Tuple
 
 from absl import logging
 from Bio import PDB
+from Bio.Data import PDBData
 
 
 # Type aliases:
@@ -46,27 +47,18 @@ class AtomSite:
   author_chain_id: str
   mmcif_chain_id: str
   author_seq_num: str
-  mmcif_seq_num: int
+  mmcif_seq_num: str
   insertion_code: str
   hetatm_atom: str
-  model_num: int
+  model_num: str
   name: str
   type: str
   x: float
   y: float
   z: float
-  mmcif_alt_id: str
+  altloc: str
   occupancy: float
-
-@dataclasses.dataclass(frozen=True)
-class AtomCartn:
-  name: str
-  type: str
-  x: float
-  y: float
-  z: float
-  mmcif_alt_id: str
-  occupancy: float
+  tempfactor: float
 
 
 # Used to map SEQRES index to a residue in the structure.
@@ -84,22 +76,18 @@ class ResidueAtPosition:
   type: str
   is_missing: bool
   hetflag: str
-  atoms: Optional[Sequence[AtomCartn]] = None
+  atoms: Optional[Sequence[AtomSite]]
 
 
 @dataclasses.dataclass(frozen=True)
-class PolyChain:
-  entity_id: str
-  orig_entity_id: str
-  type: str
-  pdbx_seq: str
-  pdbx_can: str
+class MmcifChain:
   mmcif_chain_id: str
-  orig_mmcif_chain_id: str
   author_chain_id: str
-  orig_author_chain_id: str
-  monomers: Optional[Sequence[Monomer]] = None
-  residues: Optional[Sequence[ResidueAtPosition]] = None
+  entity_id: str
+  entity_type: str
+  type: str
+  seqres: str
+  residues: Optional[Sequence[ResidueAtPosition]]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -111,19 +99,16 @@ class MmcifObject:
       files being processed.
     header: Biopython header.
     structure: Biopython structure.
-    chain_to_seqres: Dict mapping chain_id to 1 letter amino acid sequence. E.g.
-      {'A': 'ABCDEFG'}
-    seqres_to_structure: Dict; for each chain_id contains a mapping between
-      SEQRES index and a ResidueAtPosition. e.g. {'A': {0: ResidueAtPosition,
-                                                        1: ResidueAtPosition,
+    chains: Dict; each chain_id indicate a MmcifChain contains a mapping between
+      SEQRES index and a ResidueAtPosition. e.g. {'A': {1: ResidueAtPosition,
+                                                        2: ResidueAtPosition,
                                                         ...}}
     raw_string: The raw string used to construct the MmcifObject.
   """
   file_id: str
   header: PdbHeader
   structure: PdbStructure
-  polymer_chains: Mapping[ChainId, PolyChain]
-  nonpoly_chains: Mapping[ChainId, Sequence[ResidueAtPosition]]
+  chains: Mapping[ChainId, MmcifChain]
   raw_string: Any
 
 
@@ -231,217 +216,193 @@ def parse(*,
 
     header = _get_header(parsed_info)
 
-    # Get chemical component information.
-    chem_comps = mmcif_loop_to_dict('_chem_comp.', '_chem_comp.id', parsed_info)
-
-    # Determine the polymer chains, and their start numbers according to the
+    # Determine the valid mmcif chains, and their start numbers according to the
     # internal mmCIF numbering scheme (likely but not guaranteed to be 1).
-    valid_chains = _get_polymer_chains(parsed_info=parsed_info)
-    if not valid_chains:
-      return ParsingResult(
-          None, {(file_id, ''): 'No polymer chains found in this file.'})
-    if not all([len(seq.monomers) == len(seq.pdbx_can.replace('\n', ''))
-                for _, seq in valid_chains.items()]):
-      return ParsingResult(
-          None, {(file_id, ''): 'Mismatch for entity polymer sequence.'})
-    seq_start_num = {chain_id: min([monomer.num for monomer in seq.monomers])
-                     for chain_id, seq in valid_chains.items()}
+    valid_chains = _get_valid_chains(parsed_info=parsed_info)
 
-    # Loop over the atoms for which we have coordinates. Populate two mappings:
-    # -mmcif_to_author_chain_id (maps internal mmCIF chain ids to chain ids used
-    # the authors / Biopython).
-    # -seq_to_structure_mappings (maps idx into sequence to ResidueAtPosition).
-    # -seq_to_structure_coords (maps idx into sequence to a list of AtomCartn).
-    # -nonpoly_structure_mappings (maps ResiduePosition to ResidueAtPosition).
-    # -nonpoly_structure_coords (maps ResiduePosition to a list of AtomCartn).
-    mmcif_to_author_chain_id = {}
-    seq_to_structure_mappings = {}
-    seq_to_structure_coords = collections.defaultdict(dict)
-    nonpoly_structure_mappings = {}
-    nonpoly_structure_coords = collections.defaultdict(dict)
+    # Loop over the atoms for which we have coordinates, and their start numbers
+    # according to the internal mmCIF numbering scheme.
+    valid_atoms = collections.defaultdict(dict)
     for atom in _get_atom_site_list(parsed_info):
       if atom.model_num != '1':
         # We only process the first model at the moment.
         continue
+      if atom.mmcif_chain_id not in valid_chains:
+        # We only process chains that are valid.
+        logging.warning('Chain %s not valid: %s', atom.mmcif_chain_id, file_id)
+        continue
+      if atom.mmcif_seq_num == '.':
+        idx = int(atom.author_seq_num)
+      else:
+        idx = int(atom.mmcif_seq_num)
+      current = valid_atoms[atom.mmcif_chain_id].get(idx, [])
+      current.append(atom)
+      valid_atoms[atom.mmcif_chain_id][idx] = current
 
-      mmcif_to_author_chain_id[atom.mmcif_chain_id] = atom.author_chain_id
+    # AlphaFold3 supplementary information section 2.1
+    # - Keep alternative locations with the largest occupancy.
+    for chain_id, chain_data in valid_atoms.items():
+      for idx, atoms in chain_data.items():
+        if any([_.altloc != '.' for _ in atoms]):
+          chain_data[idx] = _select_atoms(atoms)
 
-      hetflag = ' '
-      if atom.hetatm_atom == 'HETATM':
-        # Water atoms are assigned a special hetflag of W in Biopython. We
-        # need to do the same, so that this hetflag can be used to fetch
-        # a residue from the Biopython structure by id.
-        if atom.residue_name in ('HOH', 'WAT'):
-          hetflag = 'W'
+    # Get chemical component information.
+    chem_comps = mmcif_loop_to_dict('_chem_comp.', '_chem_comp.id', parsed_info)
+
+    # Loop over the atoms for which we have coordinates. Populate one mapping:
+    # -seq_to_structure_mappings: (maps idx into sequence to ResidueAtPosition)
+    seq_to_structure_mappings = collections.defaultdict(dict)
+    for chain_id, chain_data in valid_atoms.items():
+      for idx, atoms in chain_data.items():
+        if atoms and _is_same(atoms):
+          atom = atoms[0]
+          hetflag = ' '
+          if atom.hetatm_atom == 'HETATM':
+            # Water atoms are assigned a special hetflag of W in Biopython. We
+            # need to do the same, so that this hetflag can be used to fetch
+            # a residue from the Biopython structure by id.
+            if atom.residue_name in ('HOH', 'WAT'):
+              hetflag = 'W'
+            else:
+              hetflag = 'H_' + atom.residue_name
+          insertion_code = atom.insertion_code
+          if not _is_set(atom.insertion_code):
+            insertion_code = ' '
+          residue_type = chem_comps[atom.residue_name]['_chem_comp.type']
+          position = ResiduePosition(chain_id=atom.author_chain_id,
+                                     residue_number=int(atom.author_seq_num),
+                                     insertion_code=insertion_code)
+          current = ResidueAtPosition(position=position,
+                                      name=atom.residue_name,
+                                      type=residue_type,
+                                      is_missing=False,
+                                      hetflag=hetflag,
+                                      atoms=atoms)
+          seq_to_structure_mappings[chain_id][idx] = current
         else:
-          hetflag = 'H_' + atom.residue_name
-
-      insertion_code = atom.insertion_code
-      if not _is_set(atom.insertion_code):
-        insertion_code = ' '
-
-      restype = chem_comps[atom.residue_name]['_chem_comp.type']
-
-      position = ResiduePosition(chain_id=atom.author_chain_id,
-                                 residue_number=int(atom.author_seq_num),
-                                 insertion_code=insertion_code)
-      current_residue = ResidueAtPosition(position=position,
-                                          name=atom.residue_name,
-                                          type=restype,
-                                          is_missing=False,
-                                          hetflag=hetflag,
-                                          atoms=None)
-      current_atom = AtomCartn(name=atom.name,
-                               type=atom.type,
-                               x=float(atom.x),
-                               y=float(atom.y),
-                               z=float(atom.z),
-                               mmcif_alt_id=atom.mmcif_alt_id,
-                               occupancy=float(atom.occupancy))
-
-      if atom.mmcif_chain_id in valid_chains: # Polymer residue and atoms.
-        seq_idx = int(atom.mmcif_seq_num) - seq_start_num[atom.mmcif_chain_id]
-        current = seq_to_structure_mappings.get(atom.author_chain_id, {})
-        current[seq_idx] = current_residue
-        seq_to_structure_mappings[atom.author_chain_id] = current
-        current = seq_to_structure_coords[atom.author_chain_id].get(seq_idx, [])
-        current.append(current_atom)
-        seq_to_structure_coords[atom.author_chain_id][seq_idx] = current
-      else: # Non-polymer residue and atoms.
-        current = nonpoly_structure_mappings.get(atom.author_chain_id, {})
-        current[position] = current_residue
-        nonpoly_structure_mappings[atom.author_chain_id] = current
-        current = nonpoly_structure_coords[atom.author_chain_id].get(position, [])
-        current.append(current_atom)
-        nonpoly_structure_coords[atom.author_chain_id][position] = current
-
-    # Merge atoms into the ResidueAtPosition for all residues
-    for author_chain, chain_data in seq_to_structure_mappings.items():
-      for idx, residue in chain_data.items():
-        atoms = seq_to_structure_coords[author_chain].get(idx, [])
-        # AlphaFold3 supplementary information section 2.1
-        # Keep alternative locations with the largest occupancy.
-        seq_to_structure_mappings[author_chain][idx] = dataclasses.replace(
-            residue, atoms=_select_atoms(atoms))
-    for author_chain, chain_data in nonpoly_structure_mappings.items():
-      for pos, residue in chain_data.items():
-        atoms = nonpoly_structure_coords[author_chain].get(pos, [])
-        # AlphaFold3 supplementary information section 2.1
-        # Keep alternative locations with the largest occupancy.
-        nonpoly_structure_mappings[author_chain][pos] = dataclasses.replace(
-            residue, atoms=_select_atoms(atoms))
+          logging.warning('Chain %s resiude %s may have wrong atoms: %s',
+                          chain_id, idx, file_id)
 
     # Add missing residue information to seq_to_structure_mappings.
-    for chain_id, seq_info in valid_chains.items():
-      if chain_id not in mmcif_to_author_chain_id:
-        raise ValueError(f'Coordinates of chain {chain_id} missed in model 1.')
-      author_chain = mmcif_to_author_chain_id[chain_id]
-      current_mapping = seq_to_structure_mappings[author_chain]
-      for idx, monomer in enumerate(seq_info.monomers):
-        if idx not in current_mapping:
-          restype = chem_comps[monomer.id]['_chem_comp.type']
-          current_mapping[idx] = ResidueAtPosition(position=None,
-                                                   name=monomer.id,
-                                                   type=restype,
-                                                   is_missing=True,
-                                                   hetflag=' ',
-                                                   atoms=[])
+    for chain_id, mapping in seq_to_structure_mappings.items():
+      for mon in valid_chains[chain_id]:
+        if mon.num not in mapping:
+          residue_type = chem_comps[mon.id]['_chem_comp.type']
+          mapping[mon.num] = ResidueAtPosition(position=None,
+                                               name=mon.id,
+                                               type=residue_type,
+                                               is_missing=True,
+                                               hetflag=' ',
+                                               atoms=[])
 
-    # If parse assembly mmCIF, we should remapping the entity_id and asym_id.
-    entity_remapping = {}
-    if '_pdbx_entity_remapping.entity_id' in parsed_info:
-      entity_remapping = mmcif_loop_to_dict('_pdbx_entity_remapping.',
-                                            '_pdbx_entity_remapping.entity_id',
-                                            parsed_info)
-
-    # If parse assembly mmCIF, we should remapping the asym_id.
-    chain_remapping = {}
-    if '_pdbx_chain_remapping.label_asym_id' in parsed_info:
-      chain_remapping = mmcif_loop_to_dict('_pdbx_chain_remapping.',
-                                           '_pdbx_chain_remapping.label_asym_id',
-                                           parsed_info)
-
-    # Extract all polymer and non-polymer chains
-    polymer_chains = {}
-    for chain_id, seq_info in valid_chains.items():
-      author_chain = mmcif_to_author_chain_id[chain_id]
-      current_residues = []
-      for idx in sorted(seq_to_structure_mappings[author_chain].keys()):
-        residue = seq_to_structure_mappings[author_chain][idx]
+    # AlphaFold3 supplementary information section 2.1
+    # - Keep alternative locations with the largest occupancy.
+    # - MSE residues are converted to MET residues.
+    # - Fix arginine naming ambiguities (ensuring NH1 closer to CD than NH2).
+    for chain_id, mapping in seq_to_structure_mappings.items():
+      for idx, residue in mapping.items():
+        # # Keep alternative locations with the largest occupancy.
+        # if any([_.altloc != '.' for _ in residue.atoms]):
+        #   _atoms = _select_atoms(residue.atoms)
+        #   residue = dataclasses.replace(residue, atoms=_atoms)
+        # MSE residues are converted to MET residues.
         if residue.name == 'MSE':
-          # AlphaFold3 supplementary information section 2.1
-          # MSE residues are converted to MET residues
-          atoms = []
-          for atom in residue.atoms:
-            if atom.name == 'SE':
-              atom = dataclasses.replace(atom, name='SD', type='S')
-            atoms.append(atom)
-          residue = dataclasses.replace(
-            residue, name='MET', hetflag=' ', atoms=atoms)
+          _atoms = []
+          for a in residue.atoms:
+            if a.name != 'SE':
+              a = dataclasses.replace(a, residue_name='MET')
+            else:
+              a = dataclasses.replace(a, residue_name='MET', name='SD', type='S')
+            _atoms.append(a)
+          residue = dataclasses.replace(residue, name='MET', atoms=_atoms)
+        # Fix arginine naming ambiguities (ensuring NH1 closer to CD than NH2).
         if residue.name == 'ARG':
-          # AlphaFold3 supplementary information section 2.1
-          # arginine naming ambiguities are fixed
-          # (ensuring NH1 is always closer to CD than NH2)
-          _cd = None
-          _nh1, idx_nh1 = None, None
-          _nh2, idx_nh2 = None, None
-          atoms = []
-          for i, atom in enumerate(residue.atoms):
-            if atom.name == 'CD':
-              _cd = atom
-            elif atom.name == 'NH1':
-              _nh1, idx_nh1 = atom, i
-            elif atom.name == 'NH2':
-              _nh2, idx_nh2 = atom, i
-            atoms.append(atom)
+          _cd, _nh1, _nh2 = None, None, None
+          _atoms = []
+          for i, a in enumerate(residue.atoms):
+            if a.name == 'CD':
+              _cd = i
+            elif a.name == 'NH1':
+              _nh1 = i
+            elif a.name == 'NH2':
+              _nh2 = i
+            _atoms.append(a)
           if _cd and _nh1 and _nh2:
-            d1 = (_cd.x - _nh1.x)**2 + (_cd.y - _nh1.y)**2 + (_cd.z - _nh1.z)**2
-            d2 = (_cd.x - _nh2.x)**2 + (_cd.y - _nh2.y)**2 + (_cd.z - _nh2.z)**2
+            cd, nh1, nh2 = _atoms[_cd], _atoms[_nh1], _atoms[_nh2]
+            d1 = (cd.x - nh1.x)**2 + (cd.y - nh1.y)**2 + (cd.z - nh1.z)**2
+            d2 = (cd.x - nh2.x)**2 + (cd.y - nh2.y)**2 + (cd.z - nh2.z)**2
             if d1 > d2:
-              atoms[idx_nh1] = dataclasses.replace(_nh2, name='NH1')
-              atoms[idx_nh2] = dataclasses.replace(_nh1, name='NH2')
-          residue = dataclasses.replace(residue, atoms=atoms)
-        current_residues.append(residue)
+              _atoms[_nh1] = dataclasses.replace(nh2, name='NH1')
+              _atoms[_nh2] = dataclasses.replace(nh1, name='NH2')
+          residue = dataclasses.replace(residue, atoms=_atoms)
+        seq_to_structure_mappings[chain_id][idx] = residue
 
-      orig_entity_id = entity_remapping.get(seq_info.entity_id, {}).get(
-        '_pdbx_entity_remapping.orig_entity_id', seq_info.entity_id)
-      orig_mmcif_chain_id = chain_remapping.get(chain_id, {}).get(
-        '_pdbx_chain_remapping.orig_label_asym_id', chain_id)
-      orig_author_chain_id = chain_remapping.get(chain_id, {}).get(
-        '_pdbx_chain_remapping.orig_auth_asym_id', author_chain)
+    # Process entity information and mapping mmcif asyms with metadata
+    entitys = mmcif_loop_to_dict('_entity.', '_entity.id', parsed_info)
 
-      polymer_chains[author_chain] = PolyChain(
-        entity_id=seq_info.entity_id,
-        orig_entity_id=orig_entity_id,
-        type=seq_info.type,
-        pdbx_seq=seq_info.pdbx_seq,
-        pdbx_can=seq_info.pdbx_can,
-        mmcif_chain_id=chain_id,
-        orig_mmcif_chain_id=orig_mmcif_chain_id,
-        author_chain_id=author_chain,
-        orig_author_chain_id=orig_author_chain_id,
-        monomers=seq_info.monomers,
-        residues=current_residues,
-        )
-      assert len(current_residues) == len(seq_info.monomers), (
-          f'Mismatch between sequence and structure for chain {chain_id}')
-    nonpoly_chains = {}
-    for chain_id, chain_data in nonpoly_structure_mappings.items():
-      current = []
-      for pos, residue in chain_data.items():
-        if residue.name in ('HOH', 'WAT'):
-          # AlphaFold3 supplementary section 2.1: waters are removed.
-          continue
-        current.append(residue)
-      if current:
-        nonpoly_chains[chain_id] = current
+    # Get entity information. Will allow us to identify which of these polymers
+    # are proteins, DNAs and RNAs.
+    entity_polys = mmcif_loop_to_dict('_entity_poly.',
+                                      '_entity_poly.entity_id',
+                                      parsed_info)
+
+    # Get chains information for each entity. Necessary so that we can return a
+    # dict keyed on chain id rather than entity.
+    struct_asyms = mmcif_loop_to_dict('_struct_asym.',
+                                      '_struct_asym.id',
+                                      parsed_info)
+
+    mmcif_chains = {}
+    for chain_id, mapping in seq_to_structure_mappings.items():
+      entity_id = struct_asyms[chain_id]['_struct_asym.entity_id']
+      entity_type = entitys[entity_id]['_entity.type']
+      if entity_type == 'water':
+        # AlphaFold3 supplementary section 2.1: waters are removed.
+        continue
+      if entity_id in entity_polys:
+        chain_type = entity_polys[entity_id]['_entity_poly.type']
+      else:
+        chain_type = entity_type
+
+      sorted_indices = sorted(mapping.keys())
+      residues = [mapping[_] for _ in sorted_indices]
+      allkeys = set(range(sorted_indices[0], sorted_indices[-1] + 1))
+      assert mapping.keys() == allkeys, (
+        f'Chain {chain_id} may miss residues {allkeys - mapping.keys()}')
+
+      for r in residues:
+        if not r.is_missing:
+          author_chain_id = r.position.chain_id
+          break
+      else:
+        raise ValueError(f'No author chain id found for chain {chain_id}')
+
+      if chain_type in ('polypeptide(L)', 'polypeptide(D)'):
+        seq = [PDBData.protein_letters_3to1.get(f'{_.name:<3s}', 'X')
+               for _ in residues]
+      elif chain_type in ('polydeoxyribonucleotide', 'polyribonucleotide'):
+        seq = [PDBData.nucleic_letters_3to1.get(f'{_.name:<3s}', 'N')
+               for _ in residues]
+      else:
+        seq = ['?'] * len(residues)
+      seqres = ''.join(seq)
+
+      mmcif_chains[chain_id] = MmcifChain(mmcif_chain_id=chain_id,
+                                          author_chain_id=author_chain_id,
+                                          entity_id=entity_id,
+                                          entity_type=entity_type,
+                                          type=chain_type,
+                                          seqres=seqres,
+                                          residues=residues)
+    if all([v.entity_type != 'polymer' for _, v in mmcif_chains.items()]):
+      return ParsingResult(
+        None, {(file_id, ''): 'No polymer chains found in this file.'})
 
     mmcif_object = MmcifObject(
         file_id=file_id,
         header=header,
         structure=first_model_structure,
-        polymer_chains=polymer_chains,
-        nonpoly_chains=nonpoly_chains,
+        chains=mmcif_chains,
         raw_string=parsed_info)
 
     return ParsingResult(mmcif_object=mmcif_object, errors=errors)
@@ -479,8 +440,8 @@ def _get_header(parsed_info: MmCIFDict) -> PdbHeader:
   if '_pdbx_audit_revision_history.revision_date' in parsed_info:
     header['release_date'] = get_release_date(parsed_info)
   else:
-    logging.warning('Could not determine release_date: %s',
-                    parsed_info['_entry.id'])
+    logging.debug('Could not determine release_date: %s',
+                  parsed_info['_entry.id'])
 
   header['resolution'] = 0.00
   for res_key in ('_refine.ls_d_res_high', '_em_3d_reconstruction.resolution',
@@ -498,28 +459,49 @@ def _get_header(parsed_info: MmCIFDict) -> PdbHeader:
 
 def _get_atom_site_list(parsed_info: MmCIFDict) -> Sequence[AtomSite]:
   """Returns list of atom sites; contains data not present in the structure."""
-  return [AtomSite(*site) for site in zip(  # pylint:disable=g-complex-comprehension
-      parsed_info['_atom_site.label_comp_id'],      # residue_name: str
-      parsed_info['_atom_site.auth_asym_id'],       # author_chain_id: str
-      parsed_info['_atom_site.label_asym_id'],      # mmcif_chain_id: str
-      parsed_info['_atom_site.auth_seq_id'],        # author_seq_num: str
-      parsed_info['_atom_site.label_seq_id'],       # mmcif_seq_num: int
-      parsed_info['_atom_site.pdbx_PDB_ins_code'],  # insertion_code: str
-      parsed_info['_atom_site.group_PDB'],          # hetatm_atom: str
-      parsed_info['_atom_site.pdbx_PDB_model_num'], # model_num: str
-      parsed_info['_atom_site.label_atom_id'],      # name: str
-      parsed_info['_atom_site.type_symbol'],        # type: str
-      parsed_info['_atom_site.Cartn_x'],            # x: str
-      parsed_info['_atom_site.Cartn_y'],            # y: str
-      parsed_info['_atom_site.Cartn_z'],            # z: str
-      parsed_info['_atom_site.label_alt_id'],       # mmcif_alt_id: str
-      parsed_info['_atom_site.occupancy'],          # occupancy: float
-      )]
+  atoms = []
+  for site in zip( # pylint:disable=g-complex-comprehension
+    parsed_info['_atom_site.label_comp_id'],      # residue_name: str
+    parsed_info['_atom_site.auth_asym_id'],       # author_chain_id: str
+    parsed_info['_atom_site.label_asym_id'],      # mmcif_chain_id: str
+    parsed_info['_atom_site.auth_seq_id'],        # author_seq_num: str
+    parsed_info['_atom_site.label_seq_id'],       # mmcif_seq_num: str
+    parsed_info['_atom_site.pdbx_PDB_ins_code'],  # insertion_code: str
+    parsed_info['_atom_site.group_PDB'],          # hetatm_atom: str
+    parsed_info['_atom_site.pdbx_PDB_model_num'], # model_num: str
+    parsed_info['_atom_site.label_atom_id'],      # name: str
+    parsed_info['_atom_site.type_symbol'],        # type: str
+    parsed_info['_atom_site.Cartn_x'],            # x: float
+    parsed_info['_atom_site.Cartn_y'],            # y: float
+    parsed_info['_atom_site.Cartn_z'],            # z: float
+    parsed_info['_atom_site.label_alt_id'],       # altloc: str
+    parsed_info['_atom_site.occupancy'],          # occupancy: float
+    parsed_info['_atom_site.B_iso_or_equiv'],     # tempfactor: float
+    ):
+    atoms.append(AtomSite(
+      residue_name=site[0],
+      author_chain_id=site[1],
+      mmcif_chain_id=site[2],
+      author_seq_num=site[3],
+      mmcif_seq_num=site[4],
+      insertion_code=site[5],
+      hetatm_atom=site[6],
+      model_num=site[7],
+      name=site[8],
+      type=site[9],
+      x=float(site[10]),
+      y=float(site[11]),
+      z=float(site[12]),
+      altloc=site[13],
+      occupancy=float(site[14]),
+      tempfactor=float(site[15]),
+      ))
+  return atoms
 
 
-def _get_polymer_chains(
+def _get_valid_chains(
     *, parsed_info: Mapping[str, Any]) -> Mapping[ChainId, Sequence[Monomer]]:
-  """Extracts polymer information for protein, DNA and RNA chains.
+  """Extracts valid chains information for mmcif chains.
 
   Args:
     parsed_info: _mmcif_dict produced by the Biopython parser.
@@ -527,56 +509,31 @@ def _get_polymer_chains(
   Returns:
     A dict mapping mmcif chain id to a list of Monomers.
   """
-  # Get polymer information for each entity in the structure.
-  entity_poly_seqs = mmcif_loop_to_list('_entity_poly_seq.', parsed_info)
+  # Get sequence information for each entity in the structure.
+  valid_chains = collections.defaultdict(list)
 
-  polymers = collections.defaultdict(list)
-  for entity_poly_seq in entity_poly_seqs:
-    polymers[entity_poly_seq['_entity_poly_seq.entity_id']].append(
-        Monomer(id=entity_poly_seq['_entity_poly_seq.mon_id'],
-                num=int(entity_poly_seq['_entity_poly_seq.num'])))
+  # Get pdbx_poly_seq_scheme information for each entity in the structure.
+  for poly_seq in mmcif_loop_to_list('_pdbx_poly_seq_scheme.', parsed_info):
+    asym_id = poly_seq['_pdbx_poly_seq_scheme.asym_id']
+    mon_id = poly_seq['_pdbx_poly_seq_scheme.mon_id']
+    seq_num = int(poly_seq['_pdbx_poly_seq_scheme.seq_id'])
+    valid_chains[asym_id].append(Monomer(id=mon_id, num=seq_num))
 
-  # Get entity information. Will allow us to identify which of these polymers
-  # are proteins, DNAs and RNAs.
-  entity_polys = mmcif_loop_to_dict('_entity_poly.',
-                                    '_entity_poly.entity_id',
-                                    parsed_info)
+  # Get pdbx_branch_scheme information for each entity in the structure.
+  for branch in mmcif_loop_to_list('_pdbx_branch_scheme.', parsed_info):
+    asym_id = branch['_pdbx_branch_scheme.asym_id']
+    mon_id = branch['_pdbx_branch_scheme.mon_id']
+    seq_num = int(branch['_pdbx_branch_scheme.pdb_seq_num'])
+    valid_chains[asym_id].append(Monomer(id=mon_id, num=seq_num))
 
-  # Get chains information for each entity. Necessary so that we can return a
-  # dict keyed on chain id rather than entity.
-  struct_asyms = mmcif_loop_to_list('_struct_asym.', parsed_info)
-
-  entity_to_mmcif_chains = collections.defaultdict(list)
-  for struct_asym in struct_asyms:
-    chain_id = struct_asym['_struct_asym.id']
-    entity_id = struct_asym['_struct_asym.entity_id']
-    entity_to_mmcif_chains[entity_id].append(chain_id)
-
-  # Identify and return the valid polymer chains.
-  valid_chains = {}
-  for entity_id, seq_info in polymers.items():
-    entity_poly = entity_polys[entity_id]
-    for chain_id in entity_to_mmcif_chains[entity_id]:
-      valid_chains[chain_id] = PolyChain(
-        entity_id=entity_id,
-        orig_entity_id=entity_id,
-        type=entity_poly['_entity_poly.type'],
-        pdbx_seq=entity_poly['_entity_poly.pdbx_seq_one_letter_code'],
-        pdbx_can=entity_poly['_entity_poly.pdbx_seq_one_letter_code_can'],
-        mmcif_chain_id=chain_id,
-        orig_mmcif_chain_id=chain_id,
-        author_chain_id='',
-        orig_author_chain_id='',
-        monomers=seq_info,
-        residues=None,
-        )
+  # Get pdbx_nonpoly_scheme information for each entity in the structure.
+  for nonpoly in mmcif_loop_to_list('_pdbx_nonpoly_scheme.', parsed_info):
+    asym_id = nonpoly['_pdbx_nonpoly_scheme.asym_id']
+    mon_id = nonpoly['_pdbx_nonpoly_scheme.mon_id']
+    seq_num = int(nonpoly['_pdbx_nonpoly_scheme.pdb_seq_num'])
+    valid_chains[asym_id].append(Monomer(id=mon_id, num=seq_num))
 
   return valid_chains
-
-
-def _is_set(data: str) -> bool:
-  """Returns False if data is a special mmCIF character indicating 'unset'."""
-  return data not in ('.', '?')
 
 
 def _select_atoms(atoms: Sequence[AtomSite]) -> Sequence[AtomSite]:
@@ -590,11 +547,9 @@ def _select_atoms(atoms: Sequence[AtomSite]) -> Sequence[AtomSite]:
   Returns:
     A list contains selected atoms with largets occupancy.
   """
-  if all([_.mmcif_alt_id == '.' for _ in atoms]): # atoms=[] also returns True.
-    return atoms
   group_atoms = collections.defaultdict(list)
   for atom in atoms:
-      group_atoms[atom.mmcif_alt_id].append(atom)
+      group_atoms[atom.altloc].append(atom)
   common_atoms = group_atoms.pop('.', [])
   max_key, max_occupancy = None, -1.0
   for alt_id, group in group_atoms.items():
@@ -602,6 +557,27 @@ def _select_atoms(atoms: Sequence[AtomSite]) -> Sequence[AtomSite]:
     if current_occupancy > max_occupancy:
       max_key, max_occupancy = alt_id, current_occupancy
   return group_atoms[max_key] + common_atoms
+
+
+def _is_same(atoms: Sequence[AtomSite]) -> bool:
+  """Check if all atoms are in same residue or not."""
+  if not atoms:
+    return True
+  refa = atoms[0]
+  for a in atoms[1:]:
+    if not (a.residue_name == refa.residue_name and
+            a.mmcif_chain_id == refa.mmcif_chain_id and
+            a.mmcif_seq_num == refa.mmcif_seq_num and
+            a.author_chain_id == refa.author_chain_id and
+            a.author_seq_num == refa.author_seq_num and
+            a.insertion_code == refa.insertion_code):
+      return False
+  return True
+
+
+def _is_set(data: str) -> bool:
+  """Returns False if data is a special mmCIF character indicating 'unset'."""
+  return data not in ('.', '?')
 
 
 if __name__ == '__main__':
@@ -622,34 +598,39 @@ if __name__ == '__main__':
   else:
     sys.exit(f'Input mmCIF file should be *.cif or *.cif.gz, {inppath}')
 
-  file_id = inppath.name.split('.')[0].split('-')[0]
+  file_id = inppath.name.split('.')[0].split('-assembly')[0]
   result = parse(file_id=file_id, mmcif_string=mmcif_string)
   assert result.mmcif_object, f'Parsing failed for {inppath}, {result.errors}'
-  polymer_chains = result.mmcif_object.polymer_chains
-  nonpoly_chains = result.mmcif_object.nonpoly_chains
 
   # show mmcif parsing result
   print(file_id)
   print(result.mmcif_object.header)
   print(result.mmcif_object.structure)
+  print(result.mmcif_object.chains.keys())
   print(type(result.mmcif_object.raw_string))
+
   print('-'*80)
-  print('polymer_chains', len(polymer_chains))
-  for chain_id, chain in sorted(polymer_chains.items(), key=lambda x: x[0]):
+  print('chains[id]:', MmcifChain)
+  for kc, vc in MmcifChain.__annotations__.items():
+    print(f'  {kc}: {vc}')
+    if kc == 'residues':
+      for kr, vr in ResidueAtPosition.__annotations__.items():
+        print(f'    {kr}: {vr}')
+        if kr == 'position':
+          for kp, vp in ResiduePosition.__annotations__.items():
+            print(f'       {kp}: {vp}')
+        if kr == 'atoms':
+          for ka, va in AtomSite.__annotations__.items():
+            print(f'       {ka}: {va}')
+
+  sorted_chains = sorted(result.mmcif_object.chains.items(), key=lambda x: x[0])
+  for chain_id, chain in sorted_chains:
     print('-'*80)
-    print(f'{file_id}_{chain_id}', chain.type, len(chain.residues), 'reisudes')
-    print(chain.pdbx_seq)
-    # print(chain_data.pdbx_can)
-    idx = 1
-    for residue in chain.residues:
-      if idx <= 5 or idx >= len(chain.residues) - 5:
-        print(residue.position, residue.name, len(residue.atoms), 'atoms')
-      idx += 1
-  print('-'*80)
-  print('nonpoly_chains', len(nonpoly_chains))
-  for chain_id, residues in sorted(nonpoly_chains.items(), key=lambda x: x[0]):
-    residues = nonpoly_chains[chain_id]
-    print('-'*80)
-    print(f'{file_id}_{chain_id}')
-    for residue in residues:
-      print(residue.position, residue.name, len(residue.atoms), 'atoms')
+    print(f'mmcif_asym={chain.mmcif_chain_id} entity_id={chain.entity_id} '
+          f'author_chain={chain.author_chain_id} {chain.entity_type} '
+          f'{chain.type} {len(chain.residues)} reisudes')
+    print(chain.seqres)
+    for idx, residue in enumerate(chain.residues):
+      if idx < 5 or idx >= len(chain.residues) - 5:
+        print(f'{idx:<4d} {residue.name:<3s} {len(residue.atoms):3d} atoms',
+              residue.position, residue.is_missing)

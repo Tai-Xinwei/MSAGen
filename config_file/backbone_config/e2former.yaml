@@ -1,12 +1,13 @@
-irreps_node_embedding: "512x0e+512x1e+64x2e"
+# irreps_node_embedding: "512x0e+512x1e+64x2e"
+irreps_node_embedding: "128x0e+128x1e+128x2e"
 num_layers: 8
 pbc_max_radius: 7.0
 max_radius: 15.0
-basis_type: "gaussiansmear"
-number_of_basis: 32
-num_attn_heads: 32
+basis_type: "gaussian"
+number_of_basis: 128
+num_attn_heads: 4
 attn_scalar_head: 32
-irreps_head: "16x0e+16x1e+2x2e"
+irreps_head: "32x0e+32x1e+32x2e"
 rescale_degree: False
 nonlinear_message: False
 norm_layer: "layer"
@@ -14,10 +15,10 @@ alpha_drop: 0.2
 proj_drop: 0.0
 out_drop: 0.0
 drop_path_rate: 0.0
-attn_type: null
-tp_type : null
+attn_type: "linear"
+tp_type : 'v2'
 edge_embedtype: "highorder"
 attn_biastype: "share"
-ffn_type: 'default'
+ffn_type: '3body'
 add_rope: False
 time_embed: False

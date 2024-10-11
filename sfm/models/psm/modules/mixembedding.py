@@ -249,6 +249,149 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
     Class for the embedding layer in the PSM model.
     """
 
+    def __init__(self, psm_config: PSMConfig, use_unified_batch_sampler: bool = False):
+        super(PSMMix3dDitEmbedding, self).__init__(
+            psm_config, use_unified_batch_sampler
+        )
+        self.gbf = GaussianLayer(
+            psm_config.num_3d_bias_kernel // 2, psm_config.num_edges
+        )
+        self.mol_graph_2d_bond_feat = nn.Embedding(
+            2, psm_config.num_3d_bias_kernel // 2
+        )
+        # self.pair_token_edge_emb = nn.Embedding(psm_config.num_edges, psm_config.num_3d_bias_kernel//2, padding_idx=0)
+
+    @torch.compiler.disable(recursive=False)
+    def _pos_emb(
+        self,
+        pos: Optional[torch.Tensor],
+        expand_pos: torch.Tensor,
+        adj: torch.Tensor,
+        clean_mask: torch.Tensor,
+        molecule_mask: torch.Tensor,
+        padding_mask: torch.Tensor,
+        batched_data: torch.Tensor,
+        pbc_expand_batched: Optional[Dict[str, Tensor]] = None,
+    ):
+        pos = pos.to(self.pos_emb.weight.dtype)
+
+        inf_nan_mask = batched_data["protein_mask"].any(dim=-1)
+
+        # inf_pos_mask = pos.eq(float("inf")).any(dim=-1)
+        # pos = pos.masked_fill(inf_pos_mask.unsqueeze(-1), 0.0)
+
+        if pbc_expand_batched is not None:
+            # assert (
+            #     self.use_unified_batch_sampler
+            # ), "Only support unified batch sampler for now"
+            expand_pos = expand_pos.to(self.pos_emb.weight.dtype)
+            expand_pos = torch.cat([pos, expand_pos], dim=1)
+            expand_mask = torch.cat(
+                [padding_mask, pbc_expand_batched["expand_mask"]], dim=-1
+            )
+
+            # expand_pos = self.center_pos(expand_pos, expand_mask)
+            delta_pos = pos.unsqueeze(2) - expand_pos.unsqueeze(1)
+            B, L, expand_L = delta_pos.size()[:3]
+            adj = torch.ones(B, L, expand_L, device=adj.device, dtype=torch.bool)
+            local_attention_weight = pbc_expand_batched["local_attention_weight"]
+            node_type_edge = pbc_expand_batched["expand_node_type_edge"]
+            expand_molecule_mask = torch.cat(
+                [
+                    molecule_mask,
+                    torch.zeros_like(
+                        pbc_expand_batched["expand_mask"], dtype=torch.bool
+                    ),
+                ],
+                dim=-1,
+            )
+            expand_clean_mask = torch.cat(
+                [
+                    clean_mask,
+                    torch.ones_like(
+                        pbc_expand_batched["expand_mask"], dtype=torch.bool
+                    ),
+                ],
+                dim=-1,
+            )
+        else:
+            delta_pos = pos.unsqueeze(2) - pos.unsqueeze(1)
+            padding_mask = (
+                padding_mask | inf_nan_mask | batched_data["token_id"].eq(156)
+            )
+            expand_mask = padding_mask
+            expand_molecule_mask = molecule_mask
+            expand_clean_mask = clean_mask
+            expand_pos = pos
+            local_attention_weight = None
+            node_type_edge = batched_data["node_type_edge"]
+
+        dist = delta_pos.norm(dim=-1)
+
+        adj = adj.masked_fill(~molecule_mask.unsqueeze(-1), True)
+
+        edge_feature = self.gbf(dist, node_type_edge.long())
+
+        edge_bond_feature = self.mol_graph_2d_bond_feat(adj.long())
+        edge_bond_feature = edge_bond_feature.masked_fill(
+            ~expand_molecule_mask.unsqueeze(1).unsqueeze(-1), 0.0
+        )
+        edge_bond_feature = edge_bond_feature.masked_fill(
+            ~molecule_mask.unsqueeze(2).unsqueeze(-1), 0.0
+        )
+
+        if clean_mask is not None:
+            adj = adj.masked_fill(clean_mask.unsqueeze(-1), True)
+            edge_bond_feature = edge_bond_feature.masked_fill(
+                expand_clean_mask.unsqueeze(1).unsqueeze(-1), 0.0
+            )
+            edge_bond_feature = edge_bond_feature.masked_fill(
+                clean_mask.unsqueeze(2).unsqueeze(-1), 0.0
+            )
+
+        edge_feature = torch.cat([edge_feature, edge_bond_feature], dim=-1)
+
+        graph_attn_bias = self.gbf_proj(edge_feature)
+        graph_attn_bias = graph_attn_bias.masked_fill(
+            expand_mask.unsqueeze(1).unsqueeze(-1), float("-inf")
+        )
+
+        graph_attn_bias = graph_attn_bias.masked_fill(
+            padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0
+        )
+        graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2)
+
+        dist = graph_attn_bias.sum(dim=1)
+        min_dtype = torch.finfo(dist.dtype).min
+        dist = dist.masked_fill(expand_mask.unsqueeze(1), min_dtype)
+        dist = dist.masked_fill(padding_mask.unsqueeze(-1), min_dtype)
+        if local_attention_weight is not None:
+            local_attention_weight = local_attention_weight.to(dtype=pos.dtype)
+            dist = dist.masked_fill(local_attention_weight <= 1e-5, min_dtype)
+
+        pos_emb = self.pos_emb(expand_pos).masked_fill(expand_mask.unsqueeze(-1), 0.0)
+
+        dist = torch.nn.functional.softmax(dist.float() * self.scaling, dim=-1)
+        if local_attention_weight is not None:
+            dist = dist * local_attention_weight
+            edge_feature = edge_feature * local_attention_weight.unsqueeze(-1)
+
+        pos_feature_emb = torch.matmul(dist, pos_emb).to(self.pos_emb.weight.dtype)
+        pos_feature_emb = self.pos_feature_emb(pos_feature_emb)
+
+        edge_feature = edge_feature.masked_fill(
+            expand_mask.unsqueeze(1).unsqueeze(-1), 0.0
+        )
+
+        edge_feature = edge_feature.sum(dim=-2)
+        pos_feature_emb += self.pos_embedding_proj(edge_feature)
+
+        pos_feature_emb = pos_feature_emb.masked_fill(
+            padding_mask.unsqueeze(-1), 0.0
+        ).to(self.pos_emb.weight.dtype)
+
+        return pos_feature_emb, graph_attn_bias
+
     def forward(
         self,
         batched_data: Dict,
@@ -268,7 +411,9 @@ class PSMMix3dDitEmbedding(PSMMix3dEmbedding):
         token_id = batched_data["token_id"]
         padding_mask = token_id.eq(0)  # B x T x 1
         is_periodic = batched_data["is_periodic"]
-        molecule_mask = (token_id <= 129) & (~is_periodic.unsqueeze(-1))
+        molecule_mask = (
+            (token_id <= 129) & (token_id > 1) & (~is_periodic.unsqueeze(-1))
+        )
 
         if aa_mask is not None:
             mask_token_type = token_id.masked_fill(

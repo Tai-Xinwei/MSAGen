@@ -779,8 +779,13 @@ class Trainer(object):
             )
 
         for idx, batch_data in enumerate(self.valid_data_loader):
-            with torch.no_grad():
+            if self.args.AutoGradForce is True:
                 output = self.accelerator.valid_step(batch_data, epoch=self.state.epoch)
+            elif self.args.AutoGradForce is False:
+                with torch.no_grad():
+                    output = self.accelerator.valid_step(
+                        batch_data, epoch=self.state.epoch
+                    )
             loss_accumulator.add(output.valid_loss, output.num_examples)
             interval_loss_accumulator.add(
                 output.valid_loss,

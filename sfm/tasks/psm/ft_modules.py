@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
+from sfm.models.psm.modules.autograd import GradientHead
 from sfm.models.psm.modules.confidence_model import compute_plddt, lddt_loss
 from sfm.models.psm.psmmodel import PSMConfig
 from sfm.utils.register import Register
@@ -76,6 +77,7 @@ class MDEnergyForceHead(PSMFinetuneBaseModule):
 
         self.energy_loss_weight = args.energy_loss_weight
         self.force_loss_weight = args.force_loss_weight
+        self.auto_grad = args.AutoGradForce
 
         embedding_dim = args.encoder_embed_dim
         self.energy_head = nn.Sequential(
@@ -83,7 +85,11 @@ class MDEnergyForceHead(PSMFinetuneBaseModule):
             nn.SiLU(),
             nn.Linear(embedding_dim, 1, bias=True),
         )
-        self.force_head = EquivariantVectorOutput(embedding_dim)
+
+        if not self.auto_grad:
+            self.force_head = EquivariantVectorOutput(embedding_dim)
+        else:
+            self.force_head = GradientHead()
 
     def update_batched_data(self, samples, batched_data):
         return batched_data
@@ -92,10 +98,21 @@ class MDEnergyForceHead(PSMFinetuneBaseModule):
         decoder_x_output = result_dict["decoder_x_output"]
         decoder_vec_output = result_dict["decoder_vec_output"]
         energy_out = self.energy_head(decoder_x_output).squeeze(-1)
-        result_dict["pred_energy"] = energy_out.masked_fill(
-            result_dict["non_atom_mask"], 0.0
-        ).sum(dim=-1)
-        force_out = self.force_head(decoder_x_output, decoder_vec_output).squeeze(-1)
+        energy_out = energy_out.masked_fill(result_dict["non_atom_mask"], 0.0)
+        result_dict["pred_energy"] = energy_out.sum(dim=-1)
+        if not self.auto_grad:
+            force_out = self.force_head(decoder_x_output, decoder_vec_output).squeeze(
+                -1
+            )
+        else:
+            force_out = self.force_head(
+                energy_out,
+                result_dict["non_atom_mask"],
+                result_dict["pos"],
+                result_dict["is_periodic"],
+                result_dict["is_molecule"],
+            )
+
         expanded_mask = result_dict["non_atom_mask"].unsqueeze(-1).expand_as(force_out)
         result_dict["pred_forces"] = force_out.masked_fill(expanded_mask, 0.0)
         return result_dict
@@ -105,7 +122,8 @@ class MDEnergyForceHead(PSMFinetuneBaseModule):
         e_true = batched_data["energy"]
         f_pred = model_output["pred_forces"]
         f_true = batched_data["forces"]
-        if self.args.loss_unit == "kcal/mol":
+
+        if self.args.loss_unit != "ev":
             e_true /= kcalmol_to_ev
             f_true /= kcalmol_to_ev
 
@@ -123,6 +141,111 @@ class MDEnergyForceHead(PSMFinetuneBaseModule):
             "force_loss": (f_loss, size),
             # "force_loss_mse": (f_loss_mse, size),
         }
+        return loss, logging_output
+
+
+@PSM_FT_REGISTER.register("md_energy_force_multi_head")
+class MDEnergyForceMultiHead(PSMFinetuneBaseModule):
+    def __init__(self, args: PSMConfig):
+        super().__init__(args)
+
+        self.energy_loss_weight = args.energy_loss_weight
+        self.force_loss_weight = args.force_loss_weight
+        self.auto_grad = args.AutoGradForce
+
+        embedding_dim = args.encoder_embed_dim
+
+        # Initialize multiple energy and force heads based on dataset_name_list
+        self.energy_heads = nn.ModuleDict()
+        self.force_heads = nn.ModuleDict()
+
+        for dataset_name in args.dataset_name_list.split(","):
+            # Create energy head for each dataset_name
+            if dataset_name not in ["deshaw_400", "deshaw_650"]:
+                self.energy_heads[dataset_name] = nn.Sequential(
+                    nn.Linear(embedding_dim, embedding_dim, bias=True),
+                    nn.SiLU(),
+                    nn.Linear(embedding_dim, 1, bias=True),
+                )
+
+                # If dataset_name is not "deshaw_400" or "deshaw_650", create force head
+                if not self.auto_grad:
+                    self.force_heads[dataset_name] = EquivariantVectorOutput(
+                        embedding_dim
+                    )
+                else:
+                    self.force_heads[dataset_name] = GradientHead()
+
+    def update_batched_data(self, samples, batched_data):
+        return batched_data
+
+    def forward(self, result_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        decoder_x_output = result_dict["decoder_x_output"]
+        decoder_vec_output = result_dict["decoder_vec_output"]
+        dataset_name = result_dict["data_name"][0]
+
+        # Use the correct energy head based on dataset_name
+        energy_head = (
+            dataset_name
+            if dataset_name not in ["deshaw_400", "deshaw_650"]
+            else "deshaw_120"
+        )
+        energy_out = self.energy_heads[energy_head](decoder_x_output).squeeze(-1)
+        energy_out = energy_out.masked_fill(result_dict["non_atom_mask"], 0.0)
+        result_dict["pred_energy"] = energy_out.sum(dim=-1)
+
+        # If dataset_name is not "deshaw_400" or "deshaw_650", process force head
+        if dataset_name not in ["deshaw_400", "deshaw_650"]:
+            if not self.auto_grad:
+                force_out = self.force_heads[dataset_name](
+                    decoder_x_output, decoder_vec_output
+                ).squeeze(-1)
+            else:
+                force_out = self.force_heads[dataset_name](
+                    energy_out,
+                    result_dict["non_atom_mask"],
+                    result_dict["pos"],
+                    result_dict["is_periodic"],
+                    result_dict["is_molecule"],
+                )
+
+            expanded_mask = (
+                result_dict["non_atom_mask"].unsqueeze(-1).expand_as(force_out)
+            )
+            result_dict["pred_forces"] = force_out.masked_fill(expanded_mask, 0.0)
+
+        return result_dict
+
+    def update_loss(self, loss, logging_output, model_output, batched_data):
+        e_pred = model_output["pred_energy"]
+        e_true = batched_data["energy"]
+        f_pred = model_output.get("pred_forces", None)
+        f_true = batched_data.get("forces", None)
+
+        if self.args.loss_unit != "ev":
+            e_true /= kcalmol_to_ev
+            if f_true is not None:
+                f_true /= kcalmol_to_ev
+
+        e_loss = torch.mean(torch.abs(e_pred - e_true))
+        loss = self.energy_loss_weight * e_loss
+
+        if f_pred is not None and f_true is not None:
+            f_loss = torch.mean(torch.abs(f_pred - f_true))
+            loss += self.force_loss_weight * f_loss
+        else:
+            f_loss = None
+
+        size = e_true.shape[0]
+
+        logging_output = {
+            "loss": loss,
+            "energy_loss": (e_loss, size),
+        }
+
+        if f_loss is not None:
+            logging_output["force_loss"] = (f_loss, size)
+
         return loss, logging_output
 
 

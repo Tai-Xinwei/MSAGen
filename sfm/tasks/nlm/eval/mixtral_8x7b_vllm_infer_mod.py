@@ -33,7 +33,7 @@ class SFMMoEVLLMGenerator:
 
         llm = LLM(
             model=converted_nlm_path,
-            tensor_parallel_size=2,
+            tensor_parallel_size=4,
             pipeline_parallel_size=1,
             gpu_memory_utilization=0.9,
         )

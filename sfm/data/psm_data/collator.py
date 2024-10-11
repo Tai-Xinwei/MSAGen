@@ -264,4 +264,7 @@ def collate_fn(
         )
         if "key" in items[0]:
             batched_data["key"] = [i["key"] for i in items]
+
+    if "data_name" in items[0]:
+        batched_data["data_name"] = [i["data_name"] for i in items]
     return batched_data

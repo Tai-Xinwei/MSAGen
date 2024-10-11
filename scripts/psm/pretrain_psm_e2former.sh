@@ -4,7 +4,7 @@
 ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
-[ -z "${layers}" ] && layers=1
+[ -z "${layers}" ] && layers=18
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
@@ -135,7 +135,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${pbc_use_local_attention}" ] && pbc_use_local_attention=True
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 [ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
-
 
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"

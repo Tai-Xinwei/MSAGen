@@ -6,6 +6,7 @@ import shutil
 from argparse import ArgumentParser
 from pathlib import Path
 
+import click
 import safetensors.torch as st
 import torch
 import torch.nn.functional as F
@@ -19,7 +20,9 @@ from sfm.data.sci_data.NlmTokenizer import NlmTokenizer
 prefix_re = re.compile(r" ?\<[a-z]\>")
 
 
-def download_and_convert_ckpt(mixtral_blob_path, nlm_blob_path, local_path):
+def download_and_convert_ckpt(
+    mixtral_blob_path: str, nlm_blob_path: str, local_path: str
+) -> None:
     os.makedirs(local_path, exist_ok=True)
     bar = tqdm(total=35)
 
@@ -130,12 +133,8 @@ def download_and_convert_ckpt(mixtral_blob_path, nlm_blob_path, local_path):
     print(f"Maped {tensor_index['metadata']['total_size']} tensors")
 
     # Other config files
-    config = json.load(open(os.path.join(mixtral_blob_path, "config.json")))
-    config["vocab_size"] = 33982
-    with open(os.path.join(local_path, "config.json"), "w") as f:
-        json.dump(config, f, indent=2)
-
     for file in [
+        "config.json",
         "generation_config.json",
         "special_tokens_map.json",
         "tokenizer.json",
@@ -145,6 +144,11 @@ def download_and_convert_ckpt(mixtral_blob_path, nlm_blob_path, local_path):
         shutil.copyfile(
             os.path.join(mixtral_blob_path, file), os.path.join(local_path, file)
         )
+
+    config = json.load(open(os.path.join(mixtral_blob_path, "config.json")))
+    config["vocab_size"] = 38078
+    with open(os.path.join(local_path, "config.json"), "w") as f:
+        json.dump(config, f, indent=2)
 
     # show file list in local_path
     print("Files in local_path:")
@@ -156,7 +160,9 @@ def download_and_convert_ckpt(mixtral_blob_path, nlm_blob_path, local_path):
 
 
 class SFMMoEGenerator:
-    def __init__(self, mixtral_path, nlm_path, local_path):
+    def __init__(
+        self, mixtral_path: str, mixtral_blob_path: str, nlm_path: str, local_path: str
+    ) -> None:
         """
         SFMGenerator class is used to generate responses for the given input string.
         """
@@ -171,7 +177,7 @@ class SFMMoEGenerator:
         else:
             CKPT_READY = False
         if not CKPT_READY:
-            download_and_convert_ckpt(mixtral_path, nlm_path, local_path)
+            download_and_convert_ckpt(mixtral_blob_path, nlm_path, local_path)
         quantization_config = BitsAndBytesConfig(
             load_in_8bit=True, llm_int8_threshold=6.0
         )
@@ -245,14 +251,30 @@ class SFMMoEGenerator:
         return confidence
 
 
-def unit_test():
-    mixtral_path = "mistralai/Mixtral-8x7B-Instruct-v0.1"
-    nlm_path = (
-        "/home/yeqi/mount/nlm/shufxi/nlm/8x7b/inst/20240903153854/global_step2585"
-    )
-    # local_path = "/data/yeqi/cache/nlm_mixtral_8x7b_inst_2585"
-    local_path = "/data/yeqi/cache/nlm_moe"
-    generator = SFMMoEGenerator(mixtral_path, nlm_path, local_path)
+@click.command()
+@click.option(
+    "--mixtral_path",
+    type=str,
+    default="mistralai/Mixtral-8x7B-Instruct-v0.1",
+    help="mixtral path",
+)
+@click.option(
+    "--mixtral_blob_path",
+    type=str,
+    default="/nlm/Mixtral-8x7B-v0.1",
+    help="mixtral blob path",
+)
+@click.option(
+    "--nlm_path",
+    type=str,
+    default="/nlm/shufxi/nlm/8x7b/inst/20240903153854/global_step2585",
+    help="nlm path",
+)
+@click.option("--local_path", type=str, default="./cache/nlm_moe", help="local path")
+def unit_test(
+    mixtral_path: str, mixtral_blob_path: str, nlm_path: str, local_path: str
+) -> None:
+    generator = SFMMoEGenerator(mixtral_path, mixtral_blob_path, nlm_path, local_path)
     # No
     prompt1 = (
         "Can <mol>N1(C)CC(N)=[NH+][C@](C)(c2cccc(NC(=O)c3ccc(Cl)cn3)c2)C1=O</mol>"

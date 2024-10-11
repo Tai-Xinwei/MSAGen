@@ -9,11 +9,17 @@ description: PSMV0
 env_defaults:
   NODES: 1
   GPUS_PER_NODE: 4
-  WANDB_API_KEY: ""
+  WANDB_API_KEY: "local-065f023e262b3ae11107532ba5463cd2d800d739"
 
 target:
   service: aml
-  name: sfm-madft-nc96adsa100v4-eastus2
+  name: sfm-madft-nc96adsa100v4-swcen
+# target:
+#   service: sing
+#   # name: msroctovc
+#   name: msrresrchvc
+#   workspace_name: sfm-ws
+
 
 environment:
   image: ai4s-sfm:20240531.170731
@@ -26,17 +32,15 @@ storage:
       container_name: madft-nn
       mount_dir: /blob
 
-
-
 code:
   local_dir: ../SFM_framework
 
 jobs:
-- name: e2former-Zhihao
+- name: e2former-pretrain-autograd
   identity: managed
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM]
   sku: 80G4-A100
-  priority: high
+  sla_tier: Premium
 
   command:
 
@@ -70,13 +74,13 @@ jobs:
 
   - export total_num_steps=200000000
   - export warmup_num_steps=1000
-  - export max_lr=1.5e-4
+  - export max_lr=1e-5
 
   - export diffusion_noise_std=0
-  - export equivar_vec_init=ZERO_CENTERED_POS
   - export strategy=DDP
   - export fp16=False
   - export clean_sample_ratio=1.0
+  - export force_loss_type=L1
 
   - export diff_init_lattice_size=10.0
   - export diffusion_sampling="ddpm"
@@ -88,7 +92,6 @@ jobs:
   - export equivar_use_linear_bias=True
   - export equivar_use_attention_bias=True
 
-  - export dataset_micro_batch_size="16"
   - export use_unified_batch_sampler=True
   - export rescale_loss_with_std=True
   - export only_use_rotary_embedding_for_protein=True
@@ -98,25 +101,38 @@ jobs:
   - export save_epoch_interval=20
   - export wandb_team=''
   - export wandb_group=psm_E2former_test
-  - export wandb_project=psm_dev
-  - export WANDB_API_KEY="027c1cc85f4e19ca1c378cfc81418c9ea526bb6d" #Zhihao's key
-  - export wandb_key="027c1cc85f4e19ca1c378cfc81418c9ea526bb6d"
-  - export wandb_run_name="128xall"
+  - export wandb_project=psm_dev_stype
+  - export WANDB_API_KEY="local-065f023e262b3ae11107532ba5463cd2d800d739"
+  - export wandb_key="local-065f023e262b3ae11107532ba5463cd2d800d739"
+  - export wandb_run_name="e2former-pretrain-autograd"
 
-  - export psm_finetune_mode=true
+  - export psm_finetune_mode=True
 
   - export data_path=/blob/dataset/
-  - export data_path_list="dataset/MD22/AT_AT_CG_CG/radius3_broadcast"
-  - export dataset_name_list='AT_AT_CG_CG'
-  - export dataset_split_raito='1.0'
-  - export loadcheck_path=''
-  # - export save_dir='/blob/'
-  # - mkdir -p /blob/psm-checkpoints
-  # - mkdir -p /blob/psm-checkpoints/EQV2-oc20+SPICE(100k+400k)-06-29
-  # -   - export save_dir=/blob/psm-checkpoints/EQV2-oc20+SPICE(100k+400k)-06-29
+  # - export supervise_force_from_head_when_autograd=True
+
+  # - export data_path_list="SPICE-2.0.1/SPICE_PubChem_500k"
+  # - export dataset_name_list='SPICE'
+  # - export dataset_micro_batch_size="16"
+  # - export dataset_split_raito='1.0'
+  - export data_path_list="GEMS/general_protein_fragments,deshaw/db_data_all_600"
+  - export dataset_name_list='GEMS,deshaw'
+  - export dataset_micro_batch_size="32,1"
+  - export dataset_split_raito='0.5,0.5'
+
+  # - export data_path_list='deshaw/db_data_filter/1FME-0-protein-dft-m06-2x'
+  # - export dataset_name_list='deshaw'
+  # - export dataset_micro_batch_size=2
+
+  - export loadcheck_path=$$AMLT_OUTPUT_DIR
+  - export save_dir=$$AMLT_OUTPUT_DIR
+
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - bash scripts/psm/finetune_psm_e2former.sh
   submit_args:
+    env:
+      AMLT_DOCKERFILE_TEMPLATE: "none"
+      _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
     container_args:
       shm_size: 1024g
