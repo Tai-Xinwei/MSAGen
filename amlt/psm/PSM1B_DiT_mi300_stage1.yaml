@@ -4,6 +4,8 @@
 # 3. Specify the Azure storage account and container to use
 # 4. Submit the job with this yaml file
 
+description: PSMV1_mi300x
+
 env_defaults:
   NODES: 4
   GPUS: 8
@@ -83,8 +85,8 @@ jobs:
   - export ligand_crop_size=20.0
   - export gradient_accumulation_steps=4
   - export log_interval=100
-  - export data_path=/psm/data/
-  # - export data_path=/tmp/data/
+  # - export data_path=/psm/data/
+  - export data_path=/tmp/data_3/
   - export data_path_list='AFDB70-plddt70-reduce.lmdb,MGnify,20240101_PDB_Training_Data'
   - export dataset_name_list='esm,mgnify,pdb'
   - export dataset_split_raito='0.6,0.3,0.1'
@@ -115,9 +117,11 @@ jobs:
   - export psm_finetune_mode=False
   - export save_dir=/sfm/sfmexpresults/peiran/psm_mi300_dit_v20_1b_stage1_edm/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
-  # - bash ./scripts/psm/azcopydata.sh
+  - bash ./scripts/psm/azcopydata.sh
   - bash ./scripts/psm/pretrain_psm_dit_amd.sh
   submit_args:
     env:
       AMLT_DOCKERFILE_TEMPLATE: "none"
       _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity
+    container_args:
+      SHARED_MEMORY_PERCENT: 1.0
