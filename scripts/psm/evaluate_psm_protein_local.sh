@@ -11,19 +11,23 @@
 # CKPT_PATH=/casp/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints/global_step75000/mp_rank_00_model_states.pt
 # SMPL_PATH=/casp/sfm/sfmexpresults/jianwei/psmv1_dit_v13_1b/checkpoints/global_step75000/prediction
 
-
 num_sampling_time=5
 
 MODEL_CONFIG=PSM1B_DIT
-global_step=global_step30000
-ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_scalet_scale1_sigmoid_dit_v20_1b_stage1/checkpoints
+global_step=global_step15000
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_scale1_sigmoid_dit_v20_1b_stage1/checkpoints
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_scalet_scale1_sigmoid_dit_v20_1b_stage1/checkpoints
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_sigmoid6e3_dit_v20_1b_stage1/checkpoints
+ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_dit_v20_1b_stage1/checkpoints2
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_r2_6e3_dit_v20_1b_stage1/checkpoints2
+
 
 # MODEL_CONFIG=PSM3B_DIT
 # global_step=global_step120000
 # ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b_stage2_3/checkpoints
 
 # MODEL_CONFIG=PSM300M_DIT
-# global_step=global_step26000
+# global_step=global_step40000
 # ckpt_folder_path=/data/peiran/output/dit300m/
 
 CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
@@ -51,5 +55,10 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   num_sampling_time=$num_sampling_time \
   loadcheck_path=$CKPT_PATH \
   sampled_structure_output_path=$SMPL_PATH \
+  ddpm_beta_end=6e-3 \
+  diffusion_rescale_coeff=2 \
+  diffusion_mode=edm \
+
+echo $CKPT_PATH
 
 ./tools/protein_evaluation/EvaluateProteinTest.py /fastdata/peiran/psm/ProteinTest/cameo-subset-casp14-and-casp15-combined.lmdb/ $SMPL_PATH $num_sampling_time

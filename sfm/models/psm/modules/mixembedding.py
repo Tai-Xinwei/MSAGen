@@ -840,9 +840,9 @@ class PSMLightEmbedding(PSMMix3dDitEmbedding):
         return (
             x,
             padding_mask,
-            time_embed,
+            time_embed.to(x.dtype),
             None,
-            time_embed,
+            time_embed.to(x.dtype),
         )
 
         # return (

@@ -99,6 +99,7 @@ class TimeStepSampler:
         time_step = torch.rand(size=(n_graph // 2 + 1,), device=device)
         time_step = torch.cat([time_step, 1.0 - time_step], dim=0)[:n_graph]
         time_step = time_step.to(dtype=dtype)
+
         clean_mask = torch.tensor(
             np.random.rand(n_graph) <= clean_sample_ratio,
             dtype=torch.bool,

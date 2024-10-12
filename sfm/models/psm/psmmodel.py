@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import os
+import token
 from contextlib import nullcontext
 
 import numpy as np
@@ -428,14 +429,14 @@ class PSMModel(Model):
             noise_step = noise_step.masked_fill(token_id == 156, 0.0)
             # set T noise if protein is seq only
             noise_step = noise_step.masked_fill(
-                is_seq_only.unsqueeze(-1), 3.0
+                is_seq_only.unsqueeze(-1), 4.0
             )  # NOTE: 3σ is used as the maximum value
             # set 0 noise for padding
             noise_step = noise_step.masked_fill(padding_mask, 0.0)
             # # TODO: found this may cause instability issue, need to check
             # # # set T noise for batched_data["protein_mask"] nan/inf coords
             noise_step = noise_step.masked_fill(
-                batched_data["protein_mask"].any(dim=-1), 3.0
+                batched_data["protein_mask"].any(dim=-1), 4.0
             )
 
         # make sure noise really replaces nan/inf coords
@@ -766,9 +767,8 @@ class PSMModel(Model):
             # )  # zero position to avoid any potential leakage
             batched_data["cell"] = torch.zeros_like(batched_data["cell"])
             if self.psm_config.diffusion_mode == "edm":
-                raise NotImplementedError
                 # if self.psm_config.edm_sampling_method == "af3":
-                #     self.sample_AF3(batched_data=batched_data)
+                self.sample_AF3(batched_data=batched_data)
                 # elif self.psm_config.edm_sampling_method == "2nd":
                 #     pass
             else:
@@ -1203,6 +1203,204 @@ class PSMModel(Model):
         )
         pred_pos = batched_data["pos"].clone()
 
+        if (
+            self.psm_config.psm_finetune_mode
+            and self.psm_finetune_head.__class__.__name__ == "PerResidueLDDTCaPredictor"
+        ):
+            logger.info("Running PerResidueLDDTCaPredictor")
+            plddt = self.psm_finetune_head(
+                {
+                    "decoder_x_output": decoder_x_output,
+                    "is_protein": batched_data["is_protein"],
+                }
+            )
+            plddt_residue = plddt["plddt"]
+            mean_plddt = plddt["mean_plddt"]
+            plddt_per_prot = (plddt_residue * batched_data["is_protein"]).sum(
+                dim=-1
+            ) / (1e-10 + batched_data["is_protein"].sum(dim=-1))
+            batched_data["plddt_residue"] = plddt_residue
+            batched_data["mean_plddt"] = mean_plddt
+            batched_data["plddt_per_prot"] = plddt_per_prot
+
+        loss = torch.sum((pred_pos - orig_pos) ** 2, dim=-1, keepdim=True)
+
+        return {
+            "loss": loss,
+            "pred_pos": pred_pos,
+            "orig_pos": orig_pos,
+        }
+
+    @torch.no_grad()
+    def sample_AF3(
+        self,
+        batched_data,
+        perturb=None,
+        time_step=None,
+        mask_aa=None,
+        mask_pos=None,
+        mask_angle=None,
+        padding_mask=None,
+        mode_mask=None,
+        time_pos=None,
+        time_aa=None,
+        segment_labels=None,
+        masked_tokens=None,
+        **unused,
+    ):
+        """
+        Sample method in AF3 for EDM Model
+        """
+        if "ori_pos" in batched_data:
+            batched_data["pos"] = batched_data["ori_pos"]
+
+        self._create_protein_mask(batched_data)
+        self._create_system_tags(batched_data)
+
+        device = batched_data["pos"].device
+
+        n_graphs = batched_data["pos"].shape[0]
+
+        token_id = batched_data["token_id"]
+        padding_mask = token_id.eq(0)  # B x T x 1
+
+        orig_pos = center_pos(batched_data, padding_mask)
+
+        self._create_initial_pos_for_diffusion(batched_data)
+
+        clean_mask = torch.zeros_like(token_id, dtype=torch.bool, device=device)
+        if self.psm_config.sample_ligand_only:
+            clean_mask = batched_data["is_protein"]
+
+        clean_mask = clean_mask.masked_fill(token_id == 156, True)
+        clean_mask = clean_mask.masked_fill(padding_mask, True)
+        clean_mask = clean_mask.masked_fill(
+            batched_data["protein_mask"].any(dim=-1), False
+        )
+
+        batched_data["pos"] = self.diffnoise.get_sampling_start(
+            batched_data["init_pos"],
+            batched_data["non_atom_mask"],
+            batched_data["is_stable_periodic"],
+        )
+
+        if clean_mask is not None:
+            batched_data["pos"] = torch.where(
+                clean_mask.unsqueeze(-1), orig_pos, batched_data["pos"]
+            )
+
+        batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
+
+        if self.args.backbone in [
+            "dit",
+        ]:
+            if_recenter = False
+        else:
+            if_recenter = True
+
+        if if_recenter:
+            batched_data["pos"] = center_pos(
+                batched_data, padding_mask=padding_mask, clean_mask=clean_mask
+            )  # centering to remove noise translation
+
+        # AF3 Sampling
+        num_steps = self.psm_config.edm_sample_num_steps
+        rho = self.psm_config.edm_sample_rho
+        inv_rho = 1.0 / rho
+        sigma_min = self.psm_config.edm_sample_sigma_min
+        sigma_max = self.psm_config.edm_sample_sigma_max
+        gamma_0 = self.psm_config.af3_sample_gamma_0
+        gamma_min = self.psm_config.af3_sample_gamma_min
+        noise_scale = self.psm_config.diffusion_noise_std
+        step_scale = self.psm_config.af3_sample_step_scale
+        sigma_data = self.psm_config.edm_sigma_data
+
+        # Time step discretization.
+        step_indices = torch.arange(
+            num_steps, dtype=batched_data["pos"].dtype, device=device
+        )
+
+        t_steps = (
+            sigma_data
+            * (
+                sigma_max**inv_rho
+                + step_indices
+                / (num_steps - 1)
+                * (sigma_min**inv_rho - sigma_max**inv_rho)
+            )
+            ** rho
+            * torch.ones((n_graphs,), device=device)
+        )  # shape is (B, )
+
+        decoder_x_output = None
+
+        for i, (t_prev, t_cur) in tqdm(
+            enumerate(zip(t_steps[:-1], t_steps[1:]))
+        ):  # 1, ..., N
+            x_cur = batched_data["pos"].clone()
+
+            gamma = gamma_0 if t_cur > gamma_min else 0.0
+
+            # clean mask
+            t_prev = t_prev.unsqueeze(-1).repeat(1, x_cur.shape[1])
+            t_cur = t_cur.unsqueeze(-1).repeat(1, x_cur.shape[1])
+            if clean_mask is not None:
+                t_prev = t_prev.masked_fill(clean_mask, 0.0)
+                t_cur = t_cur.masked_fill(clean_mask, 0.0)
+
+            # Data Augmentation
+            R = uniform_random_rotation(
+                x_cur.size(0), device=x_cur.device, dtype=x_cur.dtype
+            )
+            x_cur = torch.bmm(x_cur, R)
+
+            # Reshape sigma to (B, L, 1)
+            t_prev = t_prev.unsqueeze(-1)
+            t_cur = t_cur.unsqueeze(-1)
+            t_hat = (1.0 + gamma) * t_prev
+
+            # Euler step.
+            ksi = (
+                noise_scale
+                * (t_hat**2 - t_prev**2).sqrt()
+                * torch.randn_like(x_cur)
+            )
+            x_noisy = x_cur + ksi
+            c_skip, c_out, c_in, c_noise = self.diffnoise.precondition(t_hat)
+            batched_data["edm_sigma"] = t_hat
+            batched_data["pos"] = x_noisy
+            batched_data["c_skip"] = c_skip
+            batched_data["c_out"] = c_out
+            batched_data["c_in"] = c_in
+            batched_data["c_noise"] = c_noise
+
+            net_result = self.net(
+                batched_data,
+                time_step=None,
+                clean_mask=clean_mask,
+                padding_mask=padding_mask,
+            )
+            x0_pred = net_result["noise_pred"]
+            if self.psm_config.psm_finetune_mode:
+                decoder_x_output = net_result["decoder_x_output"]
+            delta = (x_noisy - x0_pred) / t_hat
+            dt = t_cur - t_hat
+            x_next = x_noisy + dt * delta * step_scale
+            batched_data["pos"] = x_next
+
+            if clean_mask is not None:
+                batched_data["pos"] = torch.where(
+                    clean_mask.unsqueeze(-1), orig_pos, batched_data["pos"]
+                )
+            batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
+            if if_recenter:
+                batched_data["pos"] = center_pos(
+                    batched_data, padding_mask=padding_mask, clean_mask=clean_mask
+                )  # centering to remove noise translation
+
+            batched_data["pos"] = batched_data["pos"].detach()
+
+        pred_pos = batched_data["pos"].clone()
         if (
             self.psm_config.psm_finetune_mode
             and self.psm_finetune_head.__class__.__name__ == "PerResidueLDDTCaPredictor"

@@ -132,7 +132,7 @@ NoisePredForce: false
 seq_only: false
 freeze_backbone: false
 hard_dist_loss_raito: 20.0
-use_hard_dist_loss: true
+use_hard_dist_loss: false
 if_total_energy: false
 num_force_and_noise_head_layers: 2
 psm_validation_mode: false

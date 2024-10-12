@@ -1081,7 +1081,7 @@ class DiffMAE3dCriterions(nn.Module):
                 loss = loss + smooth_lddt_loss
 
             if self.args.use_hard_dist_loss:
-                (1.0 / (20 * hard_dist_loss.item() ** 1.2) if num_pddt_loss > 0 else 0)
+                # (1.0 / (20 * hard_dist_loss.item() ** 1.2) if num_pddt_loss > 0 else 0)
 
                 if torch.any(torch.isnan(hard_dist_loss)) or torch.any(
                     torch.isinf(hard_dist_loss)
