@@ -1069,7 +1069,13 @@ class MatterSimDataset:
                 [data["coords"], cell_corner_pos], dim=0
             )  # expand pos with cell corners
 
-        if "forces" not in data and "energy" not in data and "stress" not in data:
+        if (
+            "forces" not in data
+            and "energy" not in data
+            and "stress" not in data
+            and "info" not in data
+            and "energy" not in data["info"]
+        ):
             data["energy"] = torch.tensor([0.0], dtype=torch.float64)
             data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
             data["stress"] = torch.zeros([3, 3], dtype=torch.float64)
