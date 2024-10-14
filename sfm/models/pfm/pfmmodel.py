@@ -51,50 +51,49 @@ class PFMModel(Model):
 
         self.net = PFM(args, pfm_config, mlm_only=mlm_only)
 
-        if load_ckpt:
+        if load_ckpt or args.infer:
             self.load_pretrained_weights(args, checkpoint_path=args.loadcheck_path)
 
     def load_pretrained_weights(self, args, checkpoint_path):
         """
         Load pretrained weights from a given state_dict.
         """
-        if args.ft or args.infer:
-            checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
-            if "model" in checkpoints_state:
-                checkpoints_state = checkpoints_state["model"]
-            elif "module" in checkpoints_state:
-                checkpoints_state = checkpoints_state["module"]
+        checkpoints_state = torch.load(checkpoint_path, map_location="cpu")
+        if "model" in checkpoints_state:
+            checkpoints_state = checkpoints_state["model"]
+        elif "module" in checkpoints_state:
+            checkpoints_state = checkpoints_state["module"]
 
-            IncompatibleKeys = self.load_state_dict(checkpoints_state, strict=False)
-            IncompatibleKeys = IncompatibleKeys._asdict()
+        IncompatibleKeys = self.load_state_dict(checkpoints_state, strict=False)
+        IncompatibleKeys = IncompatibleKeys._asdict()
 
-            missing_keys = []
-            for keys in IncompatibleKeys["missing_keys"]:
-                if keys.find("dummy") == -1:
-                    missing_keys.append(keys)
+        missing_keys = []
+        for keys in IncompatibleKeys["missing_keys"]:
+            if keys.find("dummy") == -1:
+                missing_keys.append(keys)
 
-            unexpected_keys = []
-            for keys in IncompatibleKeys["unexpected_keys"]:
-                if keys.find("dummy") == -1:
-                    unexpected_keys.append(keys)
+        unexpected_keys = []
+        for keys in IncompatibleKeys["unexpected_keys"]:
+            if keys.find("dummy") == -1:
+                unexpected_keys.append(keys)
 
-            if len(missing_keys) > 0:
-                logger.info(
-                    "Missing keys in {}: {}".format(
-                        checkpoint_path,
-                        missing_keys,
-                    )
+        if len(missing_keys) > 0:
+            logger.info(
+                "Missing keys in {}: {}".format(
+                    checkpoint_path,
+                    missing_keys,
                 )
+            )
 
-            if len(unexpected_keys) > 0:
-                logger.info(
-                    "Unexpected keys {}: {}".format(
-                        checkpoint_path,
-                        unexpected_keys,
-                    )
+        if len(unexpected_keys) > 0:
+            logger.info(
+                "Unexpected keys {}: {}".format(
+                    checkpoint_path,
+                    unexpected_keys,
                 )
+            )
 
-            logger.info(f"checkpoint: {checkpoint_path} is loaded")
+        logger.info(f"checkpoint: {checkpoint_path} is loaded")
 
     def max_positions(self):
         return self.net.max_positions

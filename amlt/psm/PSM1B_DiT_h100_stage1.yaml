@@ -74,21 +74,20 @@ jobs:
   - export max_length=384
   - export max_residue_num=768
   - export ligand_crop_size=20.0
-  - export gradient_accumulation_steps=8
+  - export gradient_accumulation_steps=4
   - export log_interval=100
   - export data_path=/psm/data/
-  # - export data_path=/tmp/data/
-  # - export data_path_list='AFDB70-plddt70-reduce.lmdb,MGnify,20240101_PDB_Training_Data,20240630_PDB_Training_Data'
-  # - export dataset_name_list='esm,mgnify,pdb,pdbcomplexmultimer'
-  # - export dataset_split_raito='0.6,0.2,0.02,0.18'
-  # - export dataset_micro_batch_size='16,16,16,2'
-  - export data_path_list='AFDB70-plddt70-reduce.lmdb,MGnify,20240101_PDB_Training_Data'
-  - export dataset_name_list='esm,mgnify,pdb'
-  - export dataset_split_raito='0.6,0.3,0.1'
-  - export dataset_micro_batch_size='16,16,16'
+  - export data_path_list='AFDB70-plddt70-reduce.lmdb,MGnify,20240101_PDB_Training_Data,20240630_PDB_Training_Data'
+  - export dataset_name_list='esm,mgnify,pdb,pdbcomplexmultimer'
+  - export dataset_split_raito='0.6,0.2,0.04,0.16'
+  - export dataset_micro_batch_size='16,16,16,3'
+  # - export data_path_list='AFDB70-plddt70-reduce.lmdb,MGnify,20240101_PDB_Training_Data'
+  # - export dataset_name_list='esm,mgnify,pdb'
+  # - export dataset_split_raito='0.6,0.3,0.1'
+  # - export dataset_micro_batch_size='16,16,16'
   - export fp16=False
   - export clean_sample_ratio=0.7
-  - export diffusion_mode=epsilon
+  - export diffusion_mode=edm # epsilon
   - export diffusion_noise_std=1.0
   - export diffusion_rescale_coeff=1.0
   - export ddpm_schedule=sigmoid
@@ -110,7 +109,7 @@ jobs:
   - export save_batch_interval=5000
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_sigmoid_dit_v20_1b_stage1/checkpoints/global_step30000/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_sigmoid6e3_dit_v20_1b_stage1/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_dit_v20_1b_stage1_2/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120

@@ -33,6 +33,7 @@ from sfm.models.psm.equivariant.nodetaskhead import (
 )
 from sfm.models.psm.equivariant.vectorVT import VectorVanillaTransformer
 from sfm.models.psm.invariant.dit_encoder import PSMDiTEncoder
+from sfm.models.psm.invariant.ditp_encoder import PSMPDiTPairEncoder
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
 from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
@@ -116,7 +117,7 @@ class PSMModel(Model):
 
         self.loss_fn = loss_fn(args)
 
-        if self.args.backbone in ["vanillatransformer", "dit", "e2dit"]:
+        if self.args.backbone in ["vanillatransformer", "dit", "e2dit", "ditp"]:
             self.disable_data_aug = getattr(self.args, "disable_data_aug", False)
             if self.psm_config.psm_finetune_mode:
                 self.disable_data_aug = True
@@ -604,7 +605,7 @@ class PSMModel(Model):
         self._create_initial_pos_for_diffusion(batched_data)
 
         if (
-            self.args.backbone in ["vanillatransformer", "dit", "e2dit"]
+            self.args.backbone in ["vanillatransformer", "dit", "e2dit", "ditp"]
             and not self.disable_data_aug
             and not batched_data["is_periodic"].any()  # do not rotate pbc material
         ):
@@ -1128,9 +1129,7 @@ class PSMModel(Model):
 
         batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
 
-        if self.args.backbone in [
-            "dit",
-        ]:
+        if self.args.backbone in ["dit", "ditp"]:
             if_recenter = False
         else:
             if_recenter = True
@@ -1291,9 +1290,7 @@ class PSMModel(Model):
 
         batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
 
-        if self.args.backbone in [
-            "dit",
-        ]:
+        if self.args.backbone in ["dit", "ditp"]:
             if_recenter = False
         else:
             if_recenter = True
@@ -1334,8 +1331,8 @@ class PSMModel(Model):
 
         decoder_x_output = None
 
-        for i, (t_prev, t_cur) in tqdm(
-            enumerate(zip(t_steps[:-1], t_steps[1:]))
+        for i, (t_prev, t_cur) in enumerate(
+            zip(t_steps[:-1], t_steps[1:])
         ):  # 1, ..., N
             x_cur = batched_data["pos"].clone()
 
@@ -1565,7 +1562,7 @@ class PSM(nn.Module):
             self.embedding = PSMMix3dEmbedding(
                 psm_config, use_unified_batch_sampler=args.use_unified_batch_sampler
             )
-        elif args.backbone in ["dit", "e2dit", "ditgeom"]:
+        elif args.backbone in ["dit", "e2dit", "ditgeom", "ditp"]:
             if self.psm_config.diffusion_mode == "protea":
                 self.embedding = ProteaEmbedding(psm_config)
             else:
@@ -1612,6 +1609,9 @@ class PSM(nn.Module):
             self.encoder = PSMDiTEncoder(args, psm_config)
             # self.decoder = EquivariantDecoder(psm_config)
             self.decoder = None
+        elif args.backbone in ["ditp"]:
+            self.encoder = PSMPDiTPairEncoder(args, psm_config)
+            self.decoder = None
         elif args.backbone in ["ditgeom"]:
             # Implement the encoder
             self.encoder = PSMDiTEncoder(args, psm_config)
@@ -1654,7 +1654,7 @@ class PSM(nn.Module):
                         )
                     }
                 )
-            elif args.backbone in ["dit", "e2dit", "ditgeom"]:
+            elif args.backbone in ["dit", "e2dit", "ditgeom", "ditp"]:
                 if args.decoder_feat4energy:
                     self.energy_head.update(
                         {
@@ -1703,7 +1703,7 @@ class PSM(nn.Module):
                     self.forces_head.update(
                         {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
-            elif args.backbone in ["dit", "e2dit", "ditgeom"]:
+            elif args.backbone in ["dit", "e2dit", "ditgeom", "ditp"]:
                 if self.psm_config.encoderfeat4noise:
                     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
                     self.periodic_noise_head = VectorGatedOutput(
@@ -1757,6 +1757,7 @@ class PSM(nn.Module):
             "dit",
             "e2dit",
             "ditgeom",
+            "ditp",
         ]:
             self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
             self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
@@ -1893,6 +1894,7 @@ class PSM(nn.Module):
                 "vanillatransformer_equiv",
                 "dit",
                 "e2dit",
+                "ditp",
             ]:
                 (
                     token_embedding,
@@ -1950,7 +1952,7 @@ class PSM(nn.Module):
                         pbc_expand_batched,
                     )
 
-        elif self.args.backbone in ["dit"]:
+        elif self.args.backbone in ["dit", "ditp"]:
             encoder_output = self.encoder(
                 token_embedding,
                 pos_embedding,
