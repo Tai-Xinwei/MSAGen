@@ -289,21 +289,23 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             data["energy_per_atom"] = (
                 torch.tensor(total_energy) - reference_energy
             ) / data["num_atoms"]
+            data["has_energy"] = torch.tensor([1], dtype=torch.bool)
 
             if self.energy_per_atom_scale is not None:
                 data["energy_per_atom"] *= self.energy_per_atom_scale
         else:
             data["energy"] = torch.tensor([0.0], dtype=torch.float64)
             data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
+            data["has_energy"] = torch.tensor([0], dtype=torch.bool)
 
         has_forces = data.get("forces") is not None
         if has_forces:
             data["forces"] = torch.tensor(data["forces"], dtype=torch.float64)
+            data["has_forces"] = torch.tensor([1], dtype=torch.bool)
         else:
             data["forces"] = torch.zeros((x.size()[0], 3), dtype=torch.float64)
+            data["has_forces"] = torch.tensor([0], dtype=torch.bool)
 
-        data["has_energy"] = torch.tensor([1], dtype=torch.bool)
-        data["has_forces"] = torch.tensor([has_forces], dtype=torch.bool)
         data = self.generate_2dgraphfeat(data)
 
         data["is_stable_periodic"] = False
@@ -454,6 +456,50 @@ class PubChemQCB3lypPM6Dataset(MoleculeLMDBDataset):
         x["edge_feat"] = np.array(x["edge_feat"]).reshape(-1, 3)
         assert x["edge_index"].shape[1] == x["edge_feat"].shape[0]
 
+        return x
+
+
+class GEOMDataset(MoleculeLMDBDataset):
+    def __init__(self, args, path, version=None, keys=None, sizes=None):
+        assert os.path.exists(path)
+        super().__init__(args, path, keys=keys, sizes=sizes)
+
+    @classmethod
+    def _open_db(cls, lmdb_path):
+        env = lmdb.open(
+            str(lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        txn = env.begin(write=False)
+        metadata = pkl.loads(txn.get("metadata".encode()))
+        keys = metadata["keys"]
+        sizes = metadata["sizes"]
+        return env, txn, keys, sizes
+
+    def _ensure_init_db(self):
+        if self._env is not None:
+            return
+        self._env, self._txn, self._keys, self._sizes = self._open_db(self.lmdb_path)
+
+    def raw(self, idx: Union[int, np.integer]) -> Data:
+        x = super().raw(idx)
+        x["node_feat"] = np.array(x["node_feat"]).reshape(-1, 9)
+        x["coords"] = np.array(x["coords"]).reshape(-1, 3)
+        x["num_nodes"] = len(x["node_feat"])
+        assert x["num_nodes"] == len(x["node_feat"]) == len(x["coords"])
+
+        forces = x.get("forces")
+        if forces is not None:
+            x["forces"] = np.array(forces).reshape(-1, 3)
+            assert x["num_nodes"] == len(x["forces"])
+
+        x["edge_index"] = np.array(x["edge_index"]).reshape(2, -1)
+        x["edge_feat"] = np.array(x["edge_feat"]).reshape(-1, 3)
+        assert x["edge_index"].shape[1] == x["edge_feat"].shape[0]
         return x
 
 
@@ -2221,3 +2267,20 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 indices.append(idx)
 
         self._keys = [self.keys[idx] for idx in indices]
+
+
+if __name__ == "__main__":
+
+    class Namespace:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    args = Namespace(
+        molecule_ref_energy_source="PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train",
+        data_path="/sfmarca100/sfm/psm",
+        molecule_outlier_energy_atoms="DEPRECATED_PM6_ATOM_ENERGY_OUTLIER_LIST",
+        preprocess_2d_bond_features_with_cuda=True,
+    )
+    dataset = GEOMDataset(args, "geom_drugs_test.lmdb")
+    print(len(dataset))
+    print(dataset[0])
