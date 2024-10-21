@@ -1888,16 +1888,17 @@ class PDBComplexDataset(AFDBLMDBDataset):
     ):
         # version = "20240630_snapshot.20240714_2753ddc5.subset_release_date_before_20200430.ligand_protein.excludeNAs.removeHs.lmdb"
         # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.lmdb"
-        version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.lmdb.rmfarligfull.lmdb"
-        # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs_rmfarlig_complexonly.lmdb"
-        # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.lmdb"
+        # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.lmdb.rmfarligfull.lmdb"
+        version = "20240630_snapshot.20241014_dc38f92a.from_assembly.release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.filter_leaving_ligands.lmdb"
+
+        testflag = "PoseBusters"
         self.crop_radius = args.crop_radius
         self.max_residue_num = args.max_residue_num
         self.ligand_crop_size = args.ligand_crop_size
 
         self.iter_flag = True
 
-        if lmdb_path.find(version) == -1:
+        if lmdb_path.find(version) == -1 and lmdb_path.find(testflag) == -1:
             lmdb_path = os.path.join(lmdb_path, version)
         super().__init__(args, lmdb_path, keys=keys, sizes=sizes)
 
@@ -1938,17 +1939,15 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 # pick random ligand from non-polymer to choose crop center
                 center_ligand_idx = random.choice(range(len(non_polymers)))
                 crop_center_ligand = non_polymers[center_ligand_idx]["node_coord"]
-                # keep_num = self.max_residue_num - len(crop_center_ligand)
+                keep_num = self.max_residue_num - len(crop_center_ligand)
                 # pick random atom from ligand as crop center, there is nan in the ligand node_coord, avoid it
                 crop_center_ligand = crop_center_ligand[
                     np.any(~np.isnan(crop_center_ligand), axis=-1)
                 ]
                 crop_center = random.choice(crop_center_ligand)
-                # add a noise
-                crop_center += np.random.normal(0, 5, crop_center.shape)
             else:
                 center_ligand_idx = -1
-                # keep_num = self.max_residue_num
+                keep_num = self.max_residue_num
                 # pick random polymer from non-polymer to choose crop center
                 polymer_chains_idx = random.choice(range(len(polymer_chains_idxes)))
                 chain_name = polymer_chains_idxes[polymer_chains_idx]
@@ -1958,10 +1957,10 @@ class PDBComplexDataset(AFDBLMDBDataset):
                     np.any(~np.isnan(crop_center_polymer), axis=-1)
                 ]
                 crop_center = random.choice(crop_center_polymer)
-            # self.iter_flag = not self.iter_flag
+            self.iter_flag = not self.iter_flag
         elif len(polymer_chains_idxes) > 0:
             center_ligand_idx = -1
-            # keep_num = self.max_residue_num
+            keep_num = self.max_residue_num
             # pick random polymer from non-polymer to choose crop center
             polymer_chains_idx = random.choice(range(len(polymer_chains_idxes)))
             chain_name = polymer_chains_idxes[polymer_chains_idx]
@@ -1977,21 +1976,21 @@ class PDBComplexDataset(AFDBLMDBDataset):
             )
 
         # crop the complex and multimers
-        cropped_chain_idxes_list, candidate_ligand_idx_list = spatial_crop_psm(
+        cropped_chain_idxes_list, center_ligand_idx = spatial_crop_psm(
             polymer_chains,
             non_polymers,
             polymer_chains_idxes,
             self.crop_radius,
             center_ligand_idx,
             crop_center,
-            ligand_buffer=5,
-            keep_num=self.max_residue_num,
+            ligand_crop_size=self.ligand_crop_size,
+            keep_num=keep_num,
         )
 
         # reconstruct the graph
         data = self._reconstruct_graph(
             cropped_chain_idxes_list,
-            candidate_ligand_idx_list,
+            center_ligand_idx,
             polymer_chains,
             non_polymers,
         )
@@ -2001,7 +2000,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
     def _reconstruct_graph(
         self,
         cropped_chain_idxes_list,
-        candidate_ligand_idx_list,
+        center_ligand_idx,
         polymer_chains,
         non_polymers,
     ):
@@ -2013,7 +2012,6 @@ class PDBComplexDataset(AFDBLMDBDataset):
         position_ids = []
         start_position_ids = 0
         polymer_len = 0
-
         # reconstruct the polymer chains
         for idx, chain in enumerate(cropped_chain_idxes_list):
             chain_name = chain["chain_name"]
@@ -2060,63 +2058,45 @@ class PDBComplexDataset(AFDBLMDBDataset):
         else:
             x = []
 
-        # reconstruct the ligands
-        if len(candidate_ligand_idx_list) > 0:
-            if polymer_len > 0:  # count for [.] between polymers and ligands
+        # reconstruct the ligand
+        if center_ligand_idx != -1:
+            ligand = non_polymers[center_ligand_idx]
+
+            # rescontruct the atom type of the ligand
+            atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
+            if len(x) > 0:
+                x.extend([VOCAB["."] - 1] + atom_ids)
+                pos = np.concatenate([np.zeros((1, 3)), ligand["node_coord"]], axis=0)
+                # build position ids for ligand, but this may not used in the attention, just for length alignment
+                position_ids.extend(
+                    range(start_position_ids, start_position_ids + len(atom_ids) + 1)
+                )
+            else:
+                x.extend(atom_ids)
+                pos = ligand["node_coord"]
+                # build position ids for ligand, but this may not used in the attention, just for length alignment
+                position_ids.extend(
+                    range(start_position_ids, start_position_ids + len(atom_ids))
+                )
+
+            # rescontruct the coords of the ligand
+            coords.append(pos)
+
+            if polymer_len == 0:
+                node_feature = torch.from_numpy(ligand["node_feat"])
+            else:
+                node_feature = torch.cat(
+                    [
+                        node_feature,
+                        torch.zeros((1, 9), dtype=torch.int32),
+                        torch.from_numpy(ligand["node_feat"]),
+                    ],
+                    dim=0,
+                )
                 polymer_len += 1
 
-            cum_ligand_len = 0
-            for idx, center_ligand_idx in enumerate(candidate_ligand_idx_list):
-                ligand = non_polymers[center_ligand_idx]
-
-                # rescontruct the atom type of the ligand
-                atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
-                if len(x) > 0 or idx != 0:
-                    x.extend([VOCAB["."] - 1] + atom_ids)
-                    pos = np.concatenate(
-                        [np.zeros((1, 3)), ligand["node_coord"]], axis=0
-                    )
-                    # build position ids for ligand, but this may not used in the attention, just for length alignment
-                    position_ids.extend(
-                        range(
-                            start_position_ids, start_position_ids + len(atom_ids) + 1
-                        )
-                    )
-                else:
-                    x.extend(atom_ids)
-                    pos = ligand["node_coord"]
-                    # build position ids for ligand, but this may not used in the attention, just for length alignment
-                    position_ids.extend(
-                        range(start_position_ids, start_position_ids + len(atom_ids))
-                    )
-
-                # rescontruct the coords of the ligand
-                coords.append(pos)
-
-                if polymer_len == 0 and idx == 0:
-                    node_feature = torch.from_numpy(ligand["node_feat"])
-                else:
-                    node_feature = torch.cat(
-                        [
-                            node_feature,
-                            torch.zeros((1, 9), dtype=torch.int32),
-                            torch.from_numpy(ligand["node_feat"]),
-                        ],
-                        dim=0,
-                    )
-
-                if idx == 0:
-                    edge_index = ligand["edge_index"]
-                else:
-                    edge_index = np.concatenate(
-                        [
-                            edge_index,
-                            ligand["edge_index"] + cum_ligand_len,
-                        ],
-                        axis=1,
-                    )
-                cum_ligand_len += len(atom_ids) + 1
-                # edge_attr = ligand["edge_feat"]
+            edge_index = ligand["edge_index"]
+            # edge_attr = ligand["edge_feat"]
         else:
             edge_index = None
 
@@ -2282,3 +2262,413 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 indices.append(idx)
 
         self._keys = [self.keys[idx] for idx in indices]
+
+
+# class PDBComplexDataset(AFDBLMDBDataset):
+#     def __init__(
+#         self,
+#         args: PSMConfig,
+#         lmdb_path: Optional[str],
+#         keys: Optional[List[str]] = None,
+#         sizes: Optional[List[int]] = None,
+#     ):
+#         # version = "20240630_snapshot.20240714_2753ddc5.subset_release_date_before_20200430.ligand_protein.excludeNAs.removeHs.lmdb"
+#         # version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.lmdb"
+#         version = "20240630_snapshot.from_assembly.20240819_6aa7f9bc.subset_release_date_before_20200430.ligand_protein.lmdb.rmfarligfull.lmdb"
+#         # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs_rmfarlig_complexonly.lmdb"
+#         # version = "20240630_snapshot.from_assembly.20240927_92546327.subset_release_date_before_20200430.resolution_less_than_9angstrom.exclude_DNARNAs.lmdb"
+#         self.crop_radius = args.crop_radius
+#         self.max_residue_num = args.max_residue_num
+#         self.ligand_crop_size = args.ligand_crop_size
+
+#         self.iter_flag = True
+
+#         if lmdb_path.find(version) == -1:
+#             lmdb_path = os.path.join(lmdb_path, version)
+#         super().__init__(args, lmdb_path, keys=keys, sizes=sizes)
+
+#     def _init_db(self):
+#         self._env = lmdb.open(
+#             str(self.lmdb_path),
+#             subdir=True,
+#             readonly=True,
+#             lock=False,
+#             readahead=False,
+#             meminit=False,
+#         )
+#         self._txn = self.env.begin(write=False)
+#         metadata = bstr2obj(self.txn.get("__metadata__".encode()))
+#         if self._keys is None:
+#             self._keys = metadata["keys"]
+
+#     def _crop_and_reconstruct_graph(self, data):
+#         polymer_chains = data["polymer_chains"]
+#         non_polymers = data["nonpoly_graphs"]
+
+#         polymer_chains_idxes = []
+#         for key in polymer_chains.keys():
+#             # # TODO: filter DNA/RNA chains, needs to be considered in the future
+#             # if np.any(polymer_chains[key]["restype"] == "N"):
+#             #     continue
+
+#             # some croped polymer has all Nan coords, so we need to avoid it
+#             if np.any(~np.isnan(polymer_chains[key]["center_coord"])):
+#                 polymer_chains_idxes.append(key)
+#             # else:
+#             #     print(len(non_polymers), data["pdbid"], polymer_chains[key])
+
+#         # random generate crop center
+#         if len(non_polymers) > 0:
+#             if self.iter_flag:
+#                 polymer_chains_idx = -1
+#                 # pick random ligand from non-polymer to choose crop center
+#                 center_ligand_idx = random.choice(range(len(non_polymers)))
+#                 crop_center_ligand = non_polymers[center_ligand_idx]["node_coord"]
+#                 # keep_num = self.max_residue_num - len(crop_center_ligand)
+#                 # pick random atom from ligand as crop center, there is nan in the ligand node_coord, avoid it
+#                 crop_center_ligand = crop_center_ligand[
+#                     np.any(~np.isnan(crop_center_ligand), axis=-1)
+#                 ]
+#                 crop_center = random.choice(crop_center_ligand)
+#                 # add a noise
+#                 crop_center += np.random.normal(0, 5, crop_center.shape)
+#             else:
+#                 center_ligand_idx = -1
+#                 # keep_num = self.max_residue_num
+#                 # pick random polymer from non-polymer to choose crop center
+#                 polymer_chains_idx = random.choice(range(len(polymer_chains_idxes)))
+#                 chain_name = polymer_chains_idxes[polymer_chains_idx]
+#                 crop_center_polymer = polymer_chains[chain_name]["center_coord"]
+#                 # pick random atom from polymer as crop center, there is nan in the ligand node_coord, avoid it
+#                 crop_center_polymer = crop_center_polymer[
+#                     np.any(~np.isnan(crop_center_polymer), axis=-1)
+#                 ]
+#                 crop_center = random.choice(crop_center_polymer)
+#         #     # self.iter_flag = not self.iter_flag
+#         elif len(polymer_chains_idxes) > 0:
+#             center_ligand_idx = -1
+#             # keep_num = self.max_residue_num
+#             # pick random polymer from non-polymer to choose crop center
+#             polymer_chains_idx = random.choice(range(len(polymer_chains_idxes)))
+#             chain_name = polymer_chains_idxes[polymer_chains_idx]
+#             crop_center_polymer = polymer_chains[chain_name]["center_coord"]
+#             # pick random atom from polymer as crop center, there is nan in the ligand node_coord, avoid it
+#             crop_center_polymer = crop_center_polymer[
+#                 np.any(~np.isnan(crop_center_polymer), axis=-1)
+#             ]
+#             crop_center = random.choice(crop_center_polymer)
+#         else:
+#             raise ValueError(
+#                 "No polymer or ligand in the complex, our model can't handle it"
+#             )
+
+#         # crop the complex and multimers
+#         cropped_chain_idxes_list, candidate_ligand_idx_list = spatial_crop_psm(
+#             polymer_chains,
+#             non_polymers,
+#             polymer_chains_idxes,
+#             self.crop_radius,
+#             center_ligand_idx,
+#             crop_center,
+#             ligand_buffer=5,
+#             keep_num=self.max_residue_num,
+#         )
+
+#         # reconstruct the graph
+#         data = self._reconstruct_graph(
+#             cropped_chain_idxes_list,
+#             candidate_ligand_idx_list,
+#             polymer_chains,
+#             non_polymers,
+#         )
+
+#         return data
+
+#     def _reconstruct_graph(
+#         self,
+#         cropped_chain_idxes_list,
+#         candidate_ligand_idx_list,
+#         polymer_chains,
+#         non_polymers,
+#     ):
+#         """
+#         Reconstruct the graph from the cropped complex and multimers
+#         """
+#         token_type = []
+#         coords = []
+#         position_ids = []
+#         start_position_ids = 0
+#         polymer_len = 0
+
+#         # reconstruct the polymer chains
+
+#         # # shuffle the chain order
+#         # random.shuffle(cropped_chain_idxes_list)
+
+#         for idx, chain in enumerate(cropped_chain_idxes_list):
+#             chain_name = chain["chain_name"]
+#             cropped_chain_idxes = chain["cropped_chain_idxes"]
+#             chain = polymer_chains[chain_name]
+
+#             # rescontruct the residue sequence
+#             crop_chain = chain["seqres"][cropped_chain_idxes].tolist()
+#             if idx == len(cropped_chain_idxes_list) - 1:
+#                 token_type.extend(crop_chain)
+#             else:
+#                 token_type.extend(crop_chain + ["."])
+
+#             # rescontruct the coords
+#             if idx == len(cropped_chain_idxes_list) - 1:
+#                 crop_coords = chain["center_coord"][cropped_chain_idxes]
+#             else:
+#                 crop_coords = np.concatenate(
+#                     [
+#                         chain["center_coord"][cropped_chain_idxes],
+#                         np.zeros((1, 3)),
+#                     ],
+#                     axis=0,
+#                 )
+#             coords.append(crop_coords)
+
+#             # build discontinuous position ids for rope
+#             if idx == len(cropped_chain_idxes_list) - 1:
+#                 position_ids.extend(
+#                     range(start_position_ids, start_position_ids + len(crop_chain))
+#                 )
+#                 start_position_ids = start_position_ids + len(crop_chain) + 1000
+#                 polymer_len += len(crop_chain)
+#             else:
+#                 position_ids.extend(
+#                     range(start_position_ids, start_position_ids + len(crop_chain) + 1)
+#                 )
+#                 start_position_ids = start_position_ids + len(crop_chain) + 1 + 1000
+#                 polymer_len += len(crop_chain) + 1
+
+#         if polymer_len > 0:
+#             x = [VOCAB[tok] - 1 for tok in token_type]
+#             node_feature = torch.zeros((len(x), 9), dtype=torch.int32)
+#         else:
+#             x = []
+
+#         # reconstruct the ligands
+#         if len(candidate_ligand_idx_list) > 0:
+#             if polymer_len > 0:  # count for [.] between polymers and ligands
+#                 polymer_len += 1
+
+#             cum_ligand_len = 0
+#             for idx, center_ligand_idx in enumerate(candidate_ligand_idx_list):
+#                 ligand = non_polymers[center_ligand_idx]
+
+#                 # rescontruct the atom type of the ligand
+#                 atom_ids = (ligand["node_feat"][:, 0] + 1).tolist()
+#                 if len(x) > 0 or idx != 0:
+#                     x.extend([VOCAB["."] - 1] + atom_ids)
+#                     pos = np.concatenate(
+#                         [np.zeros((1, 3)), ligand["node_coord"]], axis=0
+#                     )
+#                     # build position ids for ligand, but this may not used in the attention, just for length alignment
+#                     position_ids.extend(
+#                         range(
+#                             start_position_ids, start_position_ids + len(atom_ids) + 1
+#                         )
+#                     )
+#                 else:
+#                     x.extend(atom_ids)
+#                     pos = ligand["node_coord"]
+#                     # build position ids for ligand, but this may not used in the attention, just for length alignment
+#                     position_ids.extend(
+#                         range(start_position_ids, start_position_ids + len(atom_ids))
+#                     )
+
+#                 # rescontruct the coords of the ligand
+#                 coords.append(pos)
+
+#                 if polymer_len == 0 and idx == 0:
+#                     node_feature = torch.from_numpy(ligand["node_feat"])
+#                 else:
+#                     node_feature = torch.cat(
+#                         [
+#                             node_feature,
+#                             torch.zeros((1, 9), dtype=torch.int32),
+#                             torch.from_numpy(ligand["node_feat"]),
+#                         ],
+#                         dim=0,
+#                     )
+
+#                 if idx == 0:
+#                     edge_index = ligand["edge_index"]
+#                 else:
+#                     edge_index = np.concatenate(
+#                         [
+#                             edge_index,
+#                             ligand["edge_index"] + cum_ligand_len,
+#                         ],
+#                         axis=1,
+#                     )
+#                 cum_ligand_len += len(atom_ids) + 1
+#                 # edge_attr = ligand["edge_feat"]
+#         else:
+#             edge_index = None
+
+#         edge_attr = torch.zeros([0, 3], dtype=torch.long)
+#         x = torch.tensor(x, dtype=torch.int32)
+#         coords = torch.tensor(np.concatenate(coords, axis=0), dtype=torch.float64)
+#         position_ids = torch.tensor(position_ids, dtype=torch.int32)
+
+#         data = {
+#             "token_type": x,
+#             "coords": coords,
+#             "polymer_len": polymer_len,
+#             "position_ids": position_ids,
+#             "node_feature": node_feature,
+#             "edge_index": edge_index,
+#             "edge_attr": edge_attr,
+#         }
+
+#         return data
+
+#     def __getitem__(self, index: int) -> dict:
+#         key = self.keys[index]
+#         value = self.txn.get(key.encode())
+#         if value is None:
+#             raise IndexError(f"Name {key} has no data in the dataset")
+#         ori_data = bstr2obj(value)
+
+#         # crop and reconstruct the graph
+#         data = self._crop_and_reconstruct_graph(ori_data)
+
+#         data["idx"] = index
+#         data["key"] = key
+#         N = data["token_type"].shape[0]
+#         data["num_atoms"] = N
+
+#         polymer_len = data["polymer_len"]
+
+#         data["x"] = data["token_type"]
+#         assert (
+#             data["node_feature"][:, 0].shape[0] == data["token_type"].shape[0]
+#         ), f"{data['node_feature'][:, 0].shape[0]} != {data['token_type'].shape[0]}"
+#         data["node_feature"][:, 0] = data["token_type"]
+#         data["node_attr"] = convert_to_single_emb(data["node_feature"].long())
+
+#         if data["edge_index"] is not None:
+#             # complex
+#             data["sample_type"] = 6
+#             adj = torch.zeros([N, N], dtype=torch.bool)
+#             adj[
+#                 data["edge_index"][0, :] + polymer_len,
+#                 data["edge_index"][1, :] + polymer_len,
+#             ] = True
+#             adj[torch.arange(N), torch.arange(N)] = True
+#             # allow interaction between protein and ligand, and protein and protein
+#             polymer_ligand_adj = torch.zeros([N, N], dtype=torch.bool)
+#             polymer_ligand_adj[:polymer_len] = True
+#             polymer_ligand_adj |= (
+#                 polymer_ligand_adj.clone().T
+#             )  # torch disallow inplace operationS
+#             adj |= polymer_ligand_adj
+#         else:
+#             # multimers, sample type was 7 here, but we use 6 to avoid the allreduce error
+#             data["sample_type"] = 6
+#             edge_index = torch.zeros([2, 0], dtype=torch.long)
+#             edge_attr = torch.zeros([0, 3], dtype=torch.long)
+#             data["edge_index"] = edge_index
+#             data["edge_attr"] = edge_attr
+#             adj = torch.ones([N, N], dtype=torch.bool)
+
+#         data["adj"] = adj
+
+#         data["confidence"] = -1.0 * torch.ones(N, dtype=torch.float64)
+#         # redundant, but for compatibility
+#         attn_edge_type = torch.zeros(
+#             [N, N, data["edge_attr"].size(-1)], dtype=torch.long
+#         )
+#         data["attn_edge_type"] = attn_edge_type
+#         data["cell"] = torch.zeros((3, 3), dtype=torch.float64)
+#         data["pbc"] = torch.zeros(3, dtype=torch.bool)
+#         data["stress"] = torch.zeros((3, 3), dtype=torch.float64)
+#         data["forces"] = torch.zeros((N, 3), dtype=torch.float64)
+#         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+#         data["has_energy"] = torch.tensor([0], dtype=torch.bool)
+#         data["has_forces"] = torch.tensor([0], dtype=torch.bool)
+#         data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
+#         data["energy"] = torch.tensor([0.0], dtype=torch.float64)
+#         data["in_degree"] = adj.long().sum(dim=1).view(-1)
+#         data["is_stable_periodic"] = False
+
+#         return data
+
+#     def __len__(self) -> int:
+#         return len(self.keys)
+
+#     def collate(self, batch: List[Data]) -> Data:
+#         result = collate_fn(batch)
+#         polymer_len = torch.tensor([i["polymer_len"] for i in batch])
+#         result.update(dict(polymer_len=polymer_len))
+#         return result
+
+#     def split_dataset(self, validation_ratio=0.03, sort=False):
+#         num_samples = len(self.keys)
+#         # Shuffle the indices and split them into training and validation sets
+#         indices = list(range(num_samples))
+#         random.Random(12345).shuffle(indices)
+
+#         num_validation_samples = int(num_samples * validation_ratio)
+#         num_training_samples = num_samples - num_validation_samples
+
+#         # training_indices = indices[:num_training_samples]
+#         validation_indices = indices[num_training_samples:]
+#         training_indices = indices
+#         # validation_indices = indices
+
+#         # Create training and validation datasets
+#         dataset_train = self.__class__(
+#             self.args,
+#             self.lmdb_path,
+#             keys=[self._keys[idx] for idx in training_indices],
+#         )
+#         # dataset_train._sizes = [self._sizes[idx] for idx in training_indices]
+
+#         dataset_val = self.__class__(
+#             self.args,
+#             self.lmdb_path,
+#             keys=[self._keys[idx] for idx in validation_indices],
+#         )
+#         # dataset_val._sizes = [self._sizes[idx] for idx in validation_indices]
+
+#         return dataset_train, dataset_val
+
+#     def filter_AllNan_indices(self):
+#         """
+#         Filter a list of sample indices. Remove those that are longer than
+#         specified in *max_sizes*.
+
+#         WARNING: don't update, override method in child classes
+
+#         Args:
+#             indices (np.array): original array of sample indices
+#             max_sizes (int or list[int] or tuple[int]): max sample size,
+#                 can be defined separately for src and tgt (then list or tuple)
+#         """
+#         indices = []
+#         for idx in range(len(self.keys)):
+#             key = self.keys[idx]
+#             value = self.txn.get(key.encode())
+#             if value is None:
+#                 raise IndexError(f"Name {key} has no data in the dataset")
+#             ori_data = bstr2obj(value)
+#             polymer_chains = ori_data["polymer_chains"]
+#             polymer_chains_idxes = []
+#             for key in polymer_chains.keys():
+#                 # # TODO: filter DNA/RNA chains, needs to be considered in the future
+#                 # if np.any(polymer_chains[key]["restype"] == "N"):
+#                 #     continue
+
+#                 # some croped polymer has all Nan coords, so we need to avoid it
+#                 if np.any(~np.isnan(polymer_chains[key]["center_coord"])):
+#                     polymer_chains_idxes.append(key)
+
+#             if len(polymer_chains_idxes) > 0:
+#                 indices.append(idx)
+
+#         self._keys = [self.keys[idx] for idx in indices]

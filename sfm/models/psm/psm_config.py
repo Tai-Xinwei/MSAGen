@@ -71,7 +71,7 @@ class PSMConfig(GraphormerConfig):
     num_residues: int = 32
     max_num_aa: int = 1024
 
-    encoder_pair_embed_dim: int = 64
+    encoder_pair_embed_dim: int = 32
     decoder_ffn_dim: int = 1024
 
     task: str = "mae"
@@ -167,7 +167,7 @@ class PSMConfig(GraphormerConfig):
     smooth_factor: float = 20.0
     use_smooth_equviariant_norm: bool = False
     no_rotary_embedding_for_vector: bool = False
-    mlm_from_decoder_feature: bool = True
+    mlm_from_decoder_feature: bool = False
     disable_data_aug: bool = False
     use_fp32_in_decoder: bool = False
 

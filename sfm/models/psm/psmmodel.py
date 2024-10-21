@@ -23,6 +23,7 @@ from sfm.models.psm.equivariant.equivariant import EquivariantDecoder
 from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.equivariant.nodetaskhead import (
     ConditionVectorGatedOutput,
+    DiffusionModule,
     ForceGatedOutput,
     ForceVecOutput,
     NodeTaskHead,
@@ -35,13 +36,15 @@ from sfm.models.psm.equivariant.vectorVT import VectorVanillaTransformer
 from sfm.models.psm.invariant.dit_encoder import PSMDiTEncoder
 from sfm.models.psm.invariant.ditp_encoder import PSMPDiTPairEncoder
 from sfm.models.psm.invariant.invariant_encoder import PSMEncoder
-from sfm.models.psm.invariant.plain_encoder import PSMPlainEncoder
+from sfm.models.psm.invariant.plain_encoder import PSMPairPlainEncoder, PSMPlainEncoder
 from sfm.models.psm.modules.embedding import PSMMixEmbedding
 from sfm.models.psm.modules.mixembedding import (
     ProteaEmbedding,
     PSMLightEmbedding,
+    PSMLightPEmbedding,
     PSMMix3dDitEmbedding,
     PSMMix3dEmbedding,
+    PSMSeqEmbedding,
 )
 from sfm.models.psm.modules.mixembedding_equiv import PSMMix3DEquivEmbedding
 from sfm.models.psm.modules.pbc import CellExpander
@@ -117,7 +120,14 @@ class PSMModel(Model):
 
         self.loss_fn = loss_fn(args)
 
-        if self.args.backbone in ["vanillatransformer", "dit", "e2dit", "ditp"]:
+        if self.args.backbone in [
+            "vanillatransformer",
+            "dit",
+            "e2dit",
+            "ditp",
+            "exp",
+            "exp2",
+        ]:
             self.disable_data_aug = getattr(self.args, "disable_data_aug", False)
             if self.psm_config.psm_finetune_mode:
                 self.disable_data_aug = True
@@ -605,17 +615,18 @@ class PSMModel(Model):
         self._create_initial_pos_for_diffusion(batched_data)
 
         if (
-            self.args.backbone in ["vanillatransformer", "dit", "e2dit", "ditp"]
+            self.args.backbone
+            in ["vanillatransformer", "dit", "e2dit", "ditp", "exp", "exp2"]
             and not self.disable_data_aug
             and not batched_data["is_periodic"].any()  # do not rotate pbc material
         ):
             R = uniform_random_rotation(
                 ori_pos.size(0), device=ori_pos.device, dtype=ori_pos.dtype
             )
-            # T = torch.randn(
-            #     ori_pos.size(0), 3, device=ori_pos.device, dtype=ori_pos.dtype
-            # ).unsqueeze(1)
-            ori_pos = torch.bmm(ori_pos, R)  # + T
+            T = torch.randn(
+                ori_pos.size(0), 3, device=ori_pos.device, dtype=ori_pos.dtype
+            ).unsqueeze(1)
+            ori_pos = torch.bmm(ori_pos, R) + T
             batched_data["forces"] = torch.bmm(batched_data["forces"].float(), R)
             # batched_data["init_pos"] = torch.bmm(batched_data["init_pos"], R)
             # batched_data["cell"] = torch.bmm(batched_data["cell"], R)
@@ -1290,7 +1301,7 @@ class PSMModel(Model):
 
         batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
 
-        if self.args.backbone in ["dit", "ditp"]:
+        if self.args.backbone in ["dit", "ditp", "exp", "exp2"]:
             if_recenter = False
         else:
             if_recenter = True
@@ -1562,14 +1573,18 @@ class PSM(nn.Module):
             self.embedding = PSMMix3dEmbedding(
                 psm_config, use_unified_batch_sampler=args.use_unified_batch_sampler
             )
-        elif args.backbone in ["dit", "e2dit", "ditgeom", "ditp"]:
+        elif args.backbone in ["dit", "e2dit", "ditgeom"]:
             if self.psm_config.diffusion_mode == "protea":
                 self.embedding = ProteaEmbedding(psm_config)
             else:
                 # self.embedding = PSMMix3dDitEmbedding(psm_config)
                 self.embedding = PSMLightEmbedding(psm_config)
+        elif args.backbone in ["ditp"]:
+            self.embedding = PSMLightPEmbedding(psm_config)
         elif args.backbone in ["vanillatransformer_equiv"]:
             self.embedding = PSMMix3DEquivEmbedding(psm_config)
+        elif args.backbone in ["exp", "exp2"]:
+            self.embedding = PSMSeqEmbedding(psm_config)
         else:
             self.embedding = PSMMixEmbedding(psm_config)
 
@@ -1599,8 +1614,18 @@ class PSM(nn.Module):
             self.encoder = PSMPlainEncoder(args, psm_config)
             # Implement the decoder
             # self.decoder = EquivariantDecoder(psm_config)
-            # self.decoder = NodeTaskHead(psm_config)
-            self.decoder = VectorVanillaTransformer(psm_config)
+            self.decoder = NodeTaskHead(psm_config)
+            # self.decoder = VectorVanillaTransformer(psm_config)
+        elif args.backbone in ["exp"]:
+            # Implement the encoder
+            self.encoder = PSMPlainEncoder(args, psm_config)
+            # Implement the decoder
+            self.decoder = DiffusionModule(args, psm_config)
+        elif args.backbone in ["exp2"]:
+            # Implement the encoder
+            self.encoder = PSMPairPlainEncoder(args, psm_config)
+            # Implement the decoder
+            self.decoder = DiffusionModule(args, psm_config)
         elif args.backbone in ["vectorvanillatransformer"]:
             self.encoder = None
             self.decoder = VectorVanillaTransformer(psm_config)
@@ -1636,6 +1661,8 @@ class PSM(nn.Module):
                 # "dit",
                 # "e2dit",
                 # "ditgeom",
+                "exp",
+                "exp2",
             ]:
                 self.energy_head.update(
                     {
@@ -1703,12 +1730,36 @@ class PSM(nn.Module):
                     self.forces_head.update(
                         {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
+            elif args.backbone in ["exp", "exp2"]:
+                if self.psm_config.encoderfeat4noise:
+                    self.noise_head = VectorProjOutput(psm_config.embedding_dim)
+                    self.periodic_noise_head = VectorProjOutput(
+                        psm_config.embedding_dim
+                    )
+                else:
+                    self.noise_head = VectorProjOutput(psm_config.embedding_dim)
+                    self.periodic_noise_head = VectorProjOutput(
+                        psm_config.embedding_dim
+                    )
+
+                if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                    self.forces_head.update(
+                        {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                    )
+                else:
+                    self.forces_head.update(
+                        {key: VectorGatedOutput(psm_config.embedding_dim)}
+                    )
             elif args.backbone in ["dit", "e2dit", "ditgeom", "ditp"]:
                 if self.psm_config.encoderfeat4noise:
                     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
                     self.periodic_noise_head = VectorGatedOutput(
                         psm_config.embedding_dim
                     )
+                    # self.noise_head = VectorProjOutput(psm_config.embedding_dim)
+                    # self.periodic_noise_head = VectorProjOutput(
+                    #     psm_config.embedding_dim
+                    # )
                 else:
                     self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
                     self.periodic_noise_head = EquivariantVectorOutput(
@@ -1758,6 +1809,8 @@ class PSM(nn.Module):
             "e2dit",
             "ditgeom",
             "ditp",
+            "exp",
+            "exp2",
         ]:
             self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
             self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
@@ -1766,6 +1819,14 @@ class PSM(nn.Module):
         self.autograd_force_head = GradientHead()
 
         self.num_vocab = max([VOCAB[key] for key in VOCAB]) + 1
+
+        self.dist_head = nn.Sequential(
+            nn.SiLU(), nn.Linear(psm_config.encoder_pair_embed_dim, 1, bias=False)
+        )
+
+        self.pair_proj = nn.Linear(
+            psm_config.embedding_dim, 2 * psm_config.encoder_pair_embed_dim, bias=False
+        )
 
         # self.inv_KbT = nn.Parameter(torch.zeros(1), requires_grad=True)
 
@@ -1854,6 +1915,8 @@ class PSM(nn.Module):
             and self.args.backbone == "graphormer"
         )
 
+        dist_map = None
+
         # B, L, H is Batch, Length, Hidden
         # token_embedding: B x L x H
         # padding_mask: B x L
@@ -1895,6 +1958,8 @@ class PSM(nn.Module):
                 "dit",
                 "e2dit",
                 "ditp",
+                "exp",
+                "exp2",
             ]:
                 (
                     token_embedding,
@@ -1951,6 +2016,72 @@ class PSM(nn.Module):
                         padding_mask,
                         pbc_expand_batched,
                     )
+                encoder_output = encoder_output.transpose(0, 1)
+
+        elif self.args.backbone in ["exp"]:
+            encoder_output = self.encoder(
+                token_embedding.transpose(0, 1),
+                padding_mask,
+                batched_data,
+                pbc_expand_batched,
+                mixed_attn_bias=mixed_attn_bias,
+                ifbackprop=self.args.AutoGradForce,
+            )
+
+            with (
+                torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+                if self.args.fp16
+                else nullcontext()
+            ):
+                encoder_output = self.layer_norm(encoder_output)
+                q, k = self.pair_proj(encoder_output.transpose(0, 1)).chunk(2, dim=-1)
+                pair_feat = torch.einsum("bld,bkd->blkd", q, k)
+                dist_map = self.dist_head(pair_feat)
+
+                if not self.args.seq_only:
+                    decoder_x_output = self.decoder(
+                        batched_data,
+                        encoder_output,
+                        time_embed,
+                        mixed_attn_bias,
+                        padding_mask,
+                        pbc_expand_batched,
+                        pair_feat=pair_feat,
+                    )
+
+                decoder_vec_output = None
+                encoder_output = encoder_output.transpose(0, 1)
+        elif self.args.backbone in ["exp2"]:
+            encoder_output, x_pair = self.encoder(
+                token_embedding.transpose(0, 1),
+                padding_mask,
+                batched_data,
+                pbc_expand_batched,
+                mixed_attn_bias=mixed_attn_bias,
+                ifbackprop=self.args.AutoGradForce,
+            )
+
+            with (
+                torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
+                if self.args.fp16
+                else nullcontext()
+            ):
+                encoder_output = self.layer_norm(encoder_output)
+                dist_map = self.dist_head(x_pair)
+
+                if not self.args.seq_only:
+                    decoder_x_output = self.decoder(
+                        batched_data,
+                        encoder_output,
+                        time_embed,
+                        mixed_attn_bias,
+                        padding_mask,
+                        pbc_expand_batched,
+                        pair_feat=x_pair,
+                    )
+
+                decoder_vec_output = None
+                encoder_output = encoder_output.transpose(0, 1)
 
         elif self.args.backbone in ["dit", "ditp"]:
             encoder_output = self.encoder(
@@ -2217,9 +2348,16 @@ class PSM(nn.Module):
                 self.encoder is not None
                 and not self.psm_config.mlm_from_decoder_feature
             ):
-                aa_logits = self.aa_mask_head(encoder_output.transpose(0, 1))
+                aa_logits = self.aa_mask_head(encoder_output)
+                # q, k = self.pair_proj(encoder_output).chunk(2, dim=-1)
+                # dist_map = torch.einsum("bld,bkd->blkd", q, k)
+                # dist_map = self.dist_head(dist_map)
             else:
                 aa_logits = self.aa_mask_head(decoder_x_output)
+
+                # q, k = self.pair_proj(decoder_x_output).chunk(2, dim=-1)
+                # pair_feat = torch.einsum("bld,bkd->blkd", q, k)
+                # dist_map = self.dist_head(dist_map)
 
         result_dict = {
             "energy_per_atom": energy_per_atom,
@@ -2238,6 +2376,7 @@ class PSM(nn.Module):
             "is_seq_only": batched_data["is_seq_only"],
             "num_atoms": batched_data["num_atoms"],
             "pos": batched_data["pos"],
+            "dist_map": dist_map,
         }
 
         if "one_hot_token_id" in batched_data:

@@ -143,6 +143,7 @@ class DiffMAE3dCriterions(nn.Module):
             )
 
         self.aa_mlm_loss = nn.CrossEntropyLoss(reduction="mean")
+        self.contact_loss = nn.L1Loss(reduction="mean")
 
         self.molecule_energy_mean = molecule_energy_mean
         self.molecule_energy_std = molecule_energy_std
@@ -231,6 +232,7 @@ class DiffMAE3dCriterions(nn.Module):
         is_periodic,
         molecule_loss_factor=1.0,
         periodic_loss_factor=1.0,
+        is_protein=None,
     ):
         if len(sample_mask.shape) == (len(token_mask.shape) - 1):
             sample_mask = sample_mask & token_mask.any(dim=-1)
@@ -265,6 +267,11 @@ class DiffMAE3dCriterions(nn.Module):
                 ) / (3.0 * torch.sum(token_mask[sample_mask], dim=-1))
             elif len(sample_mask.shape) == 2:
                 # TODO: need to average over tokens in one sample first then all smaples
+                if is_protein is not None:
+                    force_or_noise_loss[~is_protein] = (
+                        force_or_noise_loss[~is_protein] * 4
+                    )
+
                 force_or_noise_loss = torch.sum(
                     force_or_noise_loss[sample_mask], dim=[0, 1]
                 ) / (3.0 * torch.sum(token_mask[sample_mask], dim=-1))
@@ -272,6 +279,7 @@ class DiffMAE3dCriterions(nn.Module):
                 raise ValueError(
                     f"sample_mask has an unexpected shape: {sample_mask.shape}"
                 )
+
             force_or_noise_loss = force_or_noise_loss.mean()
         else:
             force_or_noise_loss = torch.tensor(
@@ -364,6 +372,64 @@ class DiffMAE3dCriterions(nn.Module):
         )
         lddt = error.mean()
 
+        dist_map = model_output["dist_map"]
+        if dist_map is not None:
+            mask_temp = torch.ones(L, L, dtype=torch.bool, device=delta.device)
+
+            # Create upper and lower triangular masks
+            upper_mask = torch.triu(mask_temp, diagonal=6)
+            lower_mask = torch.tril(mask_temp, diagonal=-6)
+
+            # Combine the masks
+            mask_temp = upper_mask | lower_mask
+
+            protein_contact_mask = (
+                (delta_pos_label >= 4)
+                & (delta_pos_label <= 20)
+                & pair_protein_mask
+                & mask_temp
+            )
+            protein_contact_mask = protein_contact_mask & dist_mask
+            delta = dist_map.squeeze(-1) - delta_pos_label
+            contact_loss = torch.abs(delta[protein_contact_mask]).mean()
+            # contact_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
+
+            # if L > 6 and dist_map is not None:
+            #     # filter out 3 lines around diagnal
+            #     mask_temp = torch.ones(L, L, dtype=torch.bool, device=delta.device)
+
+            #     # Create upper and lower triangular masks
+            #     upper_mask = torch.triu(mask_temp, diagonal=6)
+            #     lower_mask = torch.tril(mask_temp, diagonal=-6)
+
+            #     # Combine the masks
+            #     mask_temp = upper_mask | lower_mask
+
+            #     protein_contact_mask = (
+            #         (delta_pos_label >= 6) & pair_protein_mask & mask_temp
+            #     )
+            #     contact_label = (delta_pos_label <= 12).long()
+
+            #     contact_loss = self.contact_loss(
+            #         dist_map[protein_contact_mask],
+            #         contact_label[protein_contact_mask],
+            #     )
+
+            #     contact_acc = (
+            #         (
+            #             dist_map[protein_contact_mask].view(-1, dist_map.size(-1)).argmax(dim=-1)
+            #             == contact_label[protein_contact_mask]
+            #         )
+            #         .to(torch.float32)
+            #         .mean()
+            #     )
+            contact_acc = 0.0
+            num_contact_losss = 1
+        else:
+            contact_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
+            contact_acc = 0.0
+            num_contact_losss = 0
+
         # # hard distance loss
         time_step = model_output["time_step"]
         if time_step is not None:
@@ -435,7 +501,15 @@ class DiffMAE3dCriterions(nn.Module):
             inter_dist_loss = torch.tensor(0.0, device=delta.device, requires_grad=True)
             num_inter_dist_loss = 0
 
-        return 1 - lddt, hard_dist_loss, inter_dist_loss, num_inter_dist_loss
+        return (
+            1 - lddt,
+            hard_dist_loss,
+            inter_dist_loss,
+            num_inter_dist_loss,
+            contact_loss,
+            contact_acc,
+            num_contact_losss,
+        )
 
     def _rescale_autograd_force(
         self,
@@ -504,6 +578,7 @@ class DiffMAE3dCriterions(nn.Module):
             "sqrt_one_minus_alphas_cumprod_t"
         ]
         sqrt_alphas_cumprod_t = model_output["sqrt_alphas_cumprod_t"]
+        dist_map = model_output["dist_map"]
 
         n_graphs = energy_per_atom_label.size()[0]
         if clean_mask is None:
@@ -541,6 +616,9 @@ class DiffMAE3dCriterions(nn.Module):
                             hard_dist_loss,
                             inter_dist_loss,
                             num_inter_dist_loss,
+                            contact_loss,
+                            contact_acc,
+                            num_contact_losss,
                         ) = self.dist_loss(model_output, R, T, pos_pred, atomic_numbers)
                         num_pddt_loss = 1
                         if hard_dist_loss is None:
@@ -655,6 +733,9 @@ class DiffMAE3dCriterions(nn.Module):
                             hard_dist_loss,
                             inter_dist_loss,
                             num_inter_dist_loss,
+                            contact_loss,
+                            contact_acc,
+                            num_contact_losss,
                         ) = self.dist_loss(
                             model_output, R, T, noise_pred, atomic_numbers
                         )
@@ -800,6 +881,7 @@ class DiffMAE3dCriterions(nn.Module):
                 is_periodic,
                 1.0,
                 1.0,
+                is_protein=is_protein,
             )
 
             if self.args.diffusion_training_loss == DiffusionTrainingLoss.L2:
@@ -914,6 +996,8 @@ class DiffMAE3dCriterions(nn.Module):
             protein_noise_loss = torch.tensor(
                 0.0, device=noise_label.device, requires_grad=True
             )
+            contact_loss = torch.tensor(0.0, device=dist_map.device, requires_grad=True)
+
             num_energy_sample = 0
             num_molecule_energy_sample = 0
             num_periodic_energy_sample = 0
@@ -925,6 +1009,7 @@ class DiffMAE3dCriterions(nn.Module):
             num_periodic_noise_sample = 0
             num_protein_noise_sample = 0
             num_complex_noise_sample = 0
+            num_contact_losss = 0
 
         # mlm loss
         if aa_mask.any():
@@ -1014,6 +1099,17 @@ class DiffMAE3dCriterions(nn.Module):
                 num_aa_mask_token = 0
             else:
                 loss = loss + aa_mlm_loss
+
+            if torch.any(torch.isnan(contact_loss)) or torch.any(
+                torch.isinf(contact_loss)
+            ):
+                logger.error(f"NaN or inf detected in contact_loss: {contact_loss}")
+                contact_loss = torch.tensor(
+                    0.0, device=contact_loss.device, requires_grad=True
+                )
+                num_aa_mask_token = 0
+            else:
+                loss = loss + contact_loss
 
             if torch.any(torch.isnan(periodic_energy_loss)) or torch.any(
                 torch.isinf(periodic_energy_loss)
@@ -1161,6 +1257,8 @@ class DiffMAE3dCriterions(nn.Module):
             ),
             "aa_mlm_loss": (float(aa_mlm_loss.detach()), int(num_aa_mask_token)),
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
+            "contact_loss": (float(contact_loss.detach()), int(num_contact_losss)),
+            "contact_acc": (float(contact_acc), int(num_contact_losss)),
             "smooth_lddt_loss": (float(smooth_lddt_loss.detach()), int(num_pddt_loss)),
             "hard_dist_loss": (float(hard_dist_loss.detach()), int(num_pddt_loss)),
             "inter_dist_loss": (

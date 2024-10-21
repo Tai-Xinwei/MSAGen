@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from sfm.models.psm.invariant.dit_encoder import DiTBlock
 from sfm.models.psm.modules.multihead_attention import (
     MemEffAttnWithProteinRotaryEmbedding,
 )
@@ -294,3 +295,69 @@ class ForceGatedOutput(nn.Module):
         vec = vec.view(x.size(0), x.size(1), 3, -1)
         x = self.vec_proj(vec).squeeze(-1) * gate
         return x
+
+
+class DiffusionModule(nn.Module):
+    def __init__(
+        self,
+        args,
+        psm_config: PSMConfig,
+    ):
+        super().__init__()
+
+        self.layers = nn.ModuleList([])
+
+        self.pos_emb = nn.Linear(3, psm_config.embedding_dim, bias=False)
+
+        self.pair_feat_bias = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(
+                psm_config.encoder_pair_embed_dim,
+                psm_config.num_attention_heads,
+                bias=False,
+            ),
+        )
+
+        for nl in range(psm_config.num_pred_attn_layer):
+            self.layers.extend([DiTBlock(args, psm_config)])
+
+    def forward(
+        self,
+        batched_data: Dict,
+        x,
+        time_emb,
+        attn_bias,
+        padding_mask,
+        mixed_attn_bias: Optional[Tensor] = None,
+        pbc_expand_batched: Optional[Dict] = None,
+        ifbackprop: bool = False,
+        pair_feat: Optional[Tensor] = None,
+    ) -> Tensor:
+        x = x.transpose(0, 1)
+
+        pos_embedding = self.pos_emb(
+            batched_data["pos"].to(self.pos_emb.weight.dtype)
+        ).masked_fill(padding_mask.unsqueeze(-1), 0.0)
+
+        if pair_feat is not None:
+            pair_feat_bias = self.pair_feat_bias(pair_feat).permute(0, 3, 1, 2)
+        else:
+            pair_feat_bias = None
+
+        if mixed_attn_bias is not None:
+            mixed_attn_bias = mixed_attn_bias + pair_feat_bias
+        else:
+            mixed_attn_bias = pair_feat_bias
+
+        for _, layer in enumerate(self.layers):
+            pos_embedding = layer(
+                pos_embedding + time_emb,
+                x,
+                padding_mask,
+                batched_data,
+                pbc_expand_batched=pbc_expand_batched,
+                mixed_attn_bias=mixed_attn_bias,
+                ifbackprop=ifbackprop,
+            )
+
+        return pos_embedding

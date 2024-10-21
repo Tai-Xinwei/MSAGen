@@ -64,8 +64,14 @@ class DiTPairBlock(nn.Module):
         )
         self.pair_feat_bias = nn.Sequential(
             nn.SiLU(),
-            nn.Linear(psm_config.encoder_pair_embed_dim, 1, bias=False),
+            nn.Linear(
+                psm_config.encoder_pair_embed_dim,
+                psm_config.num_attention_heads,
+                bias=False,
+            ),
         )
+
+        self.pair_ln = nn.LayerNorm(psm_config.encoder_pair_embed_dim)
 
     def forward(
         self,
@@ -80,14 +86,16 @@ class DiTPairBlock(nn.Module):
     ):
         math_kernel = ifbackprop  # and pbc_expand_batched is not None
 
-        p1, p2 = self.adaLN_modulation(c).chunk(2, dim=-1)
-        pair_feat_i = torch.einsum("lbh,kbh->lkbh", p1, p2).permute(2, 0, 1, 3)
+        p1, p2 = self.adaLN_modulation(x).chunk(2, dim=-1)
+        pair_feat_i = torch.einsum("blh,bkh->blkh", p1, p2)
         if pair_feat is not None:
             pair_feat = pair_feat + pair_feat_i
         else:
             pair_feat = pair_feat_i
 
-        pair_feat_bias = self.pair_feat_bias(pair_feat)
+        pair_feat = self.pair_ln(pair_feat) + pair_feat
+
+        pair_feat_bias = self.pair_feat_bias(pair_feat).permute(0, 3, 1, 2)
         if mixed_attn_bias is not None:
             mixed_attn_bias = mixed_attn_bias + pair_feat_bias
         else:

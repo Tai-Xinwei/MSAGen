@@ -14,15 +14,10 @@
 num_sampling_time=5
 
 MODEL_CONFIG=PSM1B_DIT
-global_step=global_step50000
-# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_scale1_sigmoid_dit_v20_1b_stage1/checkpoints
-# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_scalet_scale1_sigmoid_dit_v20_1b_stage1/checkpoints
-# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_sigmoid6e3_dit_v20_1b_stage1/checkpoints
-# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_r100_2e3_dit_v20_1b_stage1/checkpoints
-ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_dit_v20_1b_stage1/checkpoints2
-# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_dit_v20_1b_stage1_2/checkpoints
-# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_dit_v20_1b_stage1_3/checkpoints
-
+global_step=global_step110000
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_dit_v20_1b_stage1/checkpoints2
+ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_nopdb/checkpoints
+# ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1/checkpoints
 
 # MODEL_CONFIG=PSM3B_DIT
 # global_step=global_step120000
@@ -34,7 +29,6 @@ ckpt_folder_path=/data/peiran/blob/sfmarca100/sfm/sfmexpresults/peiran/psmv1_edm
 
 CKPT_PATH=$ckpt_folder_path/$global_step/mp_rank_00_model_states.pt
 SMPL_PATH=/home/peiranjin/output/$global_step/prediction
-
 
 DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_psm.py \
   --config-name=$MODEL_CONFIG \
@@ -58,6 +52,10 @@ DDP_TIMEOUT_MINUTES=3000 torchrun --nproc_per_node gpu sfm/tasks/psm/pretrain_ps
   loadcheck_path=$CKPT_PATH \
   sampled_structure_output_path=$SMPL_PATH \
   diffusion_mode=edm \
+  backbone=exp \
+  encoder_layers=26 \
+  num_pred_attn_layer=4 \
+  encoderfeat4noise=False \
   # ddpm_beta_end=2e-3 \
   # diffusion_rescale_coeff=100 \
 
