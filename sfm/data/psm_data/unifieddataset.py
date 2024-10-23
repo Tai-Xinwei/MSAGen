@@ -7,7 +7,12 @@ from typing import Iterator, Optional
 import numpy as np
 import torch
 from torch.utils.data import IterableDataset
-from torch.utils.data.distributed import DistributedSampler, T_co
+from torch.utils.data.distributed import DistributedSampler
+
+try:
+    from torch.utils.data.distributed import T_co
+except ImportError:
+    from torch.utils.data.distributed import _T_co as T_co
 
 from sfm.data.dataset import FoundationModelDataset
 from sfm.data.psm_data.collator import collate_fn
@@ -144,13 +149,19 @@ class UnifiedPSMDataset(FoundationModelDataset):
                 self.periodic_force_std = train_dataset.force_std
             elif dataset_name == "matbench":
                 train_dataset = MatBenchDataset(args, split="train_val", **kwargs)
-                valid_dataset = MatBenchDataset(args, split="test", **kwargs)
+                valid_dataset = MatBenchDataset(
+                    args,
+                    split="test",
+                    y_mean=train_dataset.y_mean,
+                    y_std=train_dataset.y_std,
+                    **kwargs,
+                )
                 self.dataset_lens[dataset_name] = len(train_dataset)
                 len_total = len(train_dataset) + len(valid_dataset)
-                self.periodic_energy_mean = 0.0
-                self.periodic_energy_std = 1.0
-                self.periodic_energy_per_atom_mean = 0.0
-                self.periodic_energy_per_atom_std = 1.0
+                self.periodic_energy_mean = train_dataset.y_mean
+                self.periodic_energy_std = train_dataset.y_std
+                self.periodic_energy_per_atom_mean = train_dataset.y_mean
+                self.periodic_energy_per_atom_std = train_dataset.y_std
                 self.periodic_force_mean = 0.0
                 self.periodic_force_std = 1.0
             elif dataset_name in [

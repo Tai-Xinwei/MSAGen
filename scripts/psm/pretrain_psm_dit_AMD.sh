@@ -157,6 +157,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${disable_data_aug}" ] && disable_data_aug=False
 [ -z "${align_x0_in_diffusion_loss}" ] && align_x0_in_diffusion_loss=False
 
+[ -z "${profiling}" ] && profiling=False
+[ -z "${prof_dir}" ] && prof_dir="./prof"
+[ -z "${ptensorboard}" ] && ptensorboard=False
+[ -z "${allreduce_log_path}" ] && allreduce_log_path="/tmp/stragglers"
+
 echo -e "\n\n"
 echo "==================================MP==========================================="
 [ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]')
@@ -196,6 +201,7 @@ echo "dataset_name: ${dataset_name}"
 echo "mask_ratio: ${mask_ratio}"
 echo "mode_prob: ${mode_prob}"
 echo "noise_mode: ${noise_mode}"
+echo "profiling: ${profiling}"
 
 # export NCCL_ASYNC_ERROR_HADNLING=1
 # export NCCL_DEBUG=INFO
@@ -204,7 +210,8 @@ echo "noise_mode: ${noise_mode}"
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE
 # export NCCL_SOCKET_IFNAME=eth0
-export OMP_NUM_THREADS=4
+export OMP_NUM_THREADS=16
+
 # environmental variables for Singularity AMD:
 export HSA_ENABLE_SDMA=0
 export NCCL_IB_PCI_RELAXED_ORDERING=1

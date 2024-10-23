@@ -13,18 +13,12 @@ target:
   workspace_name: sfm-ws
 
 environment:
-  image: ai4s-sfm/amd:20240917.094627
+  image: ai4s-sfm/amd:20241015.130144
   registry: msrmoldyn.azurecr.io
   username: msrmoldyn
   setup:
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
-  - sudo chown -R aiscuser /opt/rocm-6.1.2/
-  - pip install /opt/rocm/share/amd_smi
-  - wget https://raw.githubusercontent.com/wiki/ROCm/pytorch/files/install_kdb_files_for_pytorch_wheels.sh
-  - export GFX_ARCH=gfx90a
-  - export ROCM_VERSION=6.1
-  - bash ./install_kdb_files_for_pytorch_wheels.sh
 
 storage:
   eastus2:
@@ -105,6 +99,8 @@ jobs:
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints
   - export psm_finetune_mode=False
   - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v13_1b/checkpoints
+  - export profiling=False
+  - export prof_dir=/psm/exp/eray/prof_mi250x/
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - bash ./scripts/psm/pretrain_psm_dit_AMD.sh
   submit_args:

@@ -13,18 +13,12 @@ target:
   workspace_name: sfm-ws
 
 environment:
-  image: ai4s-sfm/amd:20240917.094627
+  image: ai4s-sfm/amd:20241022.151209
   registry: msrmoldyn.azurecr.io
   username: msrmoldyn
   setup:
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
-  - sudo chown -R aiscuser /opt
-  - pip install /opt/rocm/share/amd_smi
-  - wget https://raw.githubusercontent.com/wiki/ROCm/pytorch/files/install_kdb_files_for_pytorch_wheels.sh
-  - export GFX_ARCH=gfx942
-  - export ROCM_VERSION=6.1
-  - bash ./install_kdb_files_for_pytorch_wheels.sh
 
 storage:
   eastus2:
@@ -43,7 +37,7 @@ jobs:
 - name: psmv1_dit_v13_3b_mi300x
   identity: managed
   tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM,ProjectID:PRJ-0502-A18]
-  sku: ${NODES1}xG${GPUS}-MI300
+  sku: ${NODES}xG${GPUS}-MI300
   sla_tier: premium
   mpi: true
   process_count_per_node: 1
@@ -97,6 +91,8 @@ jobs:
   - export loadcheck_path=.
   - export psm_finetune_mode=False
   - export save_dir=./output
+  - export profiling=False
+  - export prof_dir=/psm/exp/eray/prof_mi300x/
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - bash ./scripts/psm/pretrain_psm_dit_AMD.sh
   submit_args:

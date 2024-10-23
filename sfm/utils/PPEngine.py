@@ -147,12 +147,22 @@ class SFMPipeEngine(DeepSpeedEngine):
 
         self._force_grad_boundary = False
 
-        self.batch_timer = ThroughputTimer(
-            batch_size=self.train_batch_size(),
-            logging_fn=self.tput_log,
-            monitor_memory=False,
-            steps_per_output=self.steps_per_print(),
-        )
+        try:
+            self.batch_timer = ThroughputTimer(
+                batch_size=self.train_batch_size(),
+                logging_fn=self.tput_log,
+                monitor_memory=False,
+                steps_per_output=self.steps_per_print(),
+            )
+        except TypeError:
+            self.batch_timer = ThroughputTimer(
+                self._config.timers_config,  # deepspeed >= 0.14.4
+                batch_size=self.train_batch_size(),
+                logging_fn=self.tput_log,
+                monitor_memory=False,
+                steps_per_output=self.steps_per_print(),
+            )
+
         # PipelineEngine needs to handle data loading specially due to only the first
         # and last stages loading inputs/labels. We construct a sampler that uses
         if self.training_data:
