@@ -126,6 +126,11 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${if_total_energy}" ] && if_total_energy=False
 [ -z "${decoder_feat4energy}" ] && decoder_feat4energy=True
 
+[ -z "${profiling}" ] && profiling=False
+[ -z "${prof_dir}" ] && prof_dir="./prof"
+[ -z "${ptensorboard}" ] && ptensorboard=False
+[ -z "${allreduce_log_path}" ] && allreduce_log_path="/tmp/stragglers"
+
 echo -e "\n\n"
 echo "==================================MP==========================================="
 [ -z "${n_gpu}" ] && n_gpu=$(rocm-smi | grep -c '^[0-9]') # new for MI250x
@@ -165,6 +170,7 @@ echo "dataset_name: ${dataset_name}"
 echo "mask_ratio: ${mask_ratio}"
 echo "mode_prob: ${mode_prob}"
 echo "noise_mode: ${noise_mode}"
+echo "profiling: ${profiling}"
 
 export OMPI_COMM_WORLD_RANK=$OMPI_COMM_WORLD_RANK
 export OMPI_COMM_WORLD_SIZE=$OMPI_COMM_WORLD_SIZE

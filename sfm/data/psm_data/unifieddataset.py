@@ -7,7 +7,12 @@ from typing import Iterator, Optional
 import numpy as np
 import torch
 from torch.utils.data import IterableDataset
-from torch.utils.data.distributed import DistributedSampler, T_co
+from torch.utils.data.distributed import DistributedSampler
+
+try:
+    from torch.utils.data.distributed import T_co
+except ImportError:
+    from torch.utils.data.distributed import _T_co as T_co
 
 from sfm.data.dataset import FoundationModelDataset
 from sfm.data.psm_data.collator import collate_fn

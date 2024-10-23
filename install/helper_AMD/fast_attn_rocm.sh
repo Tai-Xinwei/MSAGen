@@ -16,21 +16,21 @@ function install_flashattn() {
   if python -c "import flash_attn" &> /dev/null; then
     echo "Skipping flash attention installation as it is already installed."
   else
-    git clone --recursive https://github.com/ROCmSoftwarePlatform/flash-attention.git /tmp/flash-attn
-    cd /tmp/flash-attn
-    export GPU_ARCHS="gfx90a" # mi2xx
-    # export GPU_ARCHS="gfx941;gfx942" # mi3xx
+    git clone --recursive https://github.com/ROCm/flash-attention.git /tmp/flash-attention
+    cd /tmp/flash-attention
+    export GPU_ARCHS="$1"
     export PYTHON_SITE_PACKAGES=$(python -c 'import site; print(site.getsitepackages()[0])')
-    pip install --disable-pip-version-check \
-        --no-cache-dir --no-build-isolation .
+    python setup.py install
     cd $ROOT
-    rm -rf /tmp/flash-attn
+    rm -rf /tmp/flash-attention
   fi
 }
 
 function main() {
-  install_flashattn
-  check_environment
+  echo "Passed argument: $1"
+
+  install_flashattn "$1"
+  check_environment "$1"
 }
 
 main "$@"

@@ -1001,7 +1001,7 @@ class Trainer(object):
                 torch.profiler.ProfilerActivity.CUDA,
             ],
             schedule=torch.profiler.schedule(
-                wait=1, warmup=1, active=8, repeat=9, skip_first=0
+                wait=0, warmup=1, active=1, repeat=1, skip_first=0
             ),
             # custom profiling results (TB in Torch ReadMe:)
             # https://github.com/pytorch/kineto/blob/main/tb_plugin/README.md

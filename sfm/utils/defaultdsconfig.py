@@ -100,7 +100,7 @@ DEFAULT_DS_CONFIG = {
     },
     "flops_profiler": {
         "enabled": False,
-        "profile_step": 1,
+        "profile_step": 10,
         "module_depth": -1,
         "top_modules": 1,
         "detailed": True,

@@ -13,14 +13,12 @@ target:
   workspace_name: sfm-ws
 
 environment:
-  image: ai4s-sfm/amd:20240723.071509
+  image: ai4s-sfm/amd:20241015.130144
   registry: msrmoldyn.azurecr.io
   username: msrmoldyn
   setup:
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
-  # - bash ./install/helper_AMD/fast_attn_rocm.sh
-  - bash ./install/helper_AMD/torch_geo_rocm.sh
 
 storage:
   blob:
@@ -96,6 +94,8 @@ jobs:
   # - export save_dir=/psm/experiment/psm/psmv1_vt_v5_noenergy/checkpoints
   - export loadcheck_path='.'
   - export save_dir='./output'
+  - export profiling=False
+  - export prof_dir=/psm/exp/eray/prof_mi250x/
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - bash ./scripts/psm/pretrain_psm_vanillatransformer_AMD.sh
   submit_args:
