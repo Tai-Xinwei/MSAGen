@@ -24,6 +24,7 @@ from sfm.models.psm.equivariant.geomformer import EquivariantVectorOutput
 from sfm.models.psm.equivariant.nodetaskhead import (
     ConditionVectorGatedOutput,
     DiffusionModule,
+    DiffusionModule2,
     ForceGatedOutput,
     ForceVecOutput,
     NodeTaskHead,
@@ -1625,7 +1626,7 @@ class PSM(nn.Module):
             # Implement the encoder
             self.encoder = PSMPairPlainEncoder(args, psm_config)
             # Implement the decoder
-            self.decoder = DiffusionModule(args, psm_config)
+            self.decoder = DiffusionModule2(args, psm_config)
         elif args.backbone in ["vectorvanillatransformer"]:
             self.encoder = None
             self.decoder = VectorVanillaTransformer(psm_config)

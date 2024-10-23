@@ -323,7 +323,7 @@ echo "DISTRIBUTED_ARGS: ${DISTRIBUTED_ARGS}"
 DDP_TIMEOUT_MINUTES=3000 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
           backbone_config=graphormer \
-          backbone=exp \
+          backbone=exp2 \
           encoder_attention_heads=$num_head \
           encoder_layers=$layers \
           num_pred_attn_layer=$num_pred_attn_layer \
