@@ -320,7 +320,7 @@ class QHNet_backbone_MADFT(nn.Module):
         return batch_data
 
 
-class Equiformerv2SO2(BaseModel):
+class Equiformerv2SO2(nn.Module):  # BaseModel
     def __init__(
         self,
         order=4,
@@ -372,6 +372,7 @@ class Equiformerv2SO2(BaseModel):
             None,
             max_radius=max_radius,
             lmax_list=[order],
+            mmax_list=[order],
             sphere_channels=embedding_dim,
             num_layers=num_gnn_layers,
             **kwargs,
@@ -391,7 +392,8 @@ class Equiformerv2SO2(BaseModel):
         self,
         batched_data: Dict,
         token_embedding: torch.Tensor,
-        padding_mask: torch.Tensor,
+        mixed_attn_bias=None,
+        padding_mask: torch.Tensor = None,
         pbc_expand_batched: Optional[Dict] = None,
     ) -> torch.Tensor:
         """

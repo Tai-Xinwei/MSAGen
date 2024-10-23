@@ -204,3 +204,5 @@ log/
 
 bace/
 divided_data/
+
+*.whl

@@ -79,6 +79,10 @@ class PSMModel(Model):
         loss_fn=None,
         not_init=False,
         psm_finetune_head: nn.Module = None,
+        molecule_energy_per_atom_std=1.0,
+        periodic_energy_per_atom_std=1.0,
+        molecule_force_std=1.0,
+        periodic_force_std=1.0,
     ):
         """
         Initialize the PSMModel class.
@@ -101,7 +105,14 @@ class PSMModel(Model):
         if args.rank == 0:
             logger.info(self.args)
 
-        self.net = PSM(args, self.psm_config)
+        self.net = PSM(
+            args,
+            self.psm_config,
+            molecule_energy_per_atom_std=molecule_energy_per_atom_std,
+            periodic_energy_per_atom_std=periodic_energy_per_atom_std,
+            molecule_force_std=molecule_force_std,
+            periodic_force_std=periodic_force_std,
+        )
 
         self.psm_finetune_head = psm_finetune_head
         self.checkpoint_loaded = self.reload_checkpoint()
@@ -186,6 +197,7 @@ class PSMModel(Model):
                     self.args, checkpoint_path=self.args.loadcheck_path
                 )
                 loaded = True
+                logger.info(f"checkpoint: {self.args.loadcheck_path} is loaded")
             else:
                 logger.warning(
                     "Finetune or validation mode, but no checkpoint is loaded"
@@ -849,7 +861,8 @@ class PSMModel(Model):
         )  # Proteins are always corrupted. For proteins, we only consider diffusion training on structure for now.
 
         # Do not predict energy of molecule with heavy atom avoid loss instability.
-        clean_mask = clean_mask & ~batched_data["is_heavy_atom"]
+        if self.psm_config.clean_sample_ratio < 1.0:
+            clean_mask = clean_mask & ~batched_data["is_heavy_atom"]
 
         clean_mask = clean_mask | (
             (batched_data["is_periodic"]) & (~batched_data["is_stable_periodic"])
@@ -1013,6 +1026,9 @@ class PSMModel(Model):
                 **kwargs,
             )
 
+        result_dict["data_name"] = (
+            batched_data["data_name"] if "data_name" in batched_data else None
+        )
         result_dict["noise"] = noise
         result_dict["clean_mask"] = clean_mask
         result_dict["aa_mask"] = aa_mask
@@ -1554,7 +1570,15 @@ class PSM(nn.Module):
     Class for training Physics science module
     """
 
-    def __init__(self, args, psm_config: PSMConfig):
+    def __init__(
+        self,
+        args,
+        psm_config: PSMConfig,
+        molecule_energy_per_atom_std=1.0,
+        periodic_energy_per_atom_std=1.0,
+        molecule_force_std=1.0,
+        periodic_force_std=1.0,
+    ):
         super().__init__()
         self.max_positions = args.max_positions
         self.args = args
@@ -1650,9 +1674,13 @@ class PSM(nn.Module):
         else:
             raise NotImplementedError
 
-        # simple energy, force and noise prediction heads
-        self.energy_head = nn.ModuleDict()
-        self.forces_head = nn.ModuleDict()
+        if not (
+            self.psm_config.psm_finetune_mode
+            and self.psm_config.psm_finetune_skip_ori_head
+        ):
+            # simple energy, force and noise prediction heads
+            self.energy_head = nn.ModuleDict()
+            self.forces_head = nn.ModuleDict()
 
         for key in {"molecule", "periodic", "protein"}:
             if args.backbone in [
@@ -1790,12 +1818,57 @@ class PSM(nn.Module):
                         {key: EquivariantVectorOutput(psm_config.embedding_dim)}
                     )
 
-        # aa mask predict head
-        self.aa_mask_head = nn.Sequential(
-            nn.Linear(psm_config.embedding_dim, psm_config.embedding_dim, bias=False),
-            nn.SiLU(),
-            nn.Linear(psm_config.embedding_dim, 160, bias=False),
-        )
+                if args.backbone in [
+                    "vanillatransformer",
+                    "vanillatransformer_equiv",
+                    "vectorvanillatransformer",
+                ]:
+                    self.noise_head = VectorOutput(psm_config.embedding_dim)
+                    if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                        self.forces_head.update(
+                            {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                        )
+                    else:
+                        self.forces_head.update(
+                            {key: ForceVecOutput(psm_config.embedding_dim)}
+                        )
+                # elif args.backbone in ["dit"]:
+                #     self.noise_head = VectorGatedOutput(psm_config.embedding_dim)
+                #     if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                #         self.forces_head.update(
+                #             {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                #         )
+                #     else:
+                #         self.forces_head.update(
+                #             {key: ForceGatedOutput(psm_config.embedding_dim)}
+                #         )
+                else:
+                    self.noise_head = EquivariantVectorOutput(psm_config.embedding_dim)
+                    if self.psm_config.force_head_type == ForceHeadType.LINEAR:
+                        self.forces_head.update(
+                            {key: nn.Linear(psm_config.embedding_dim, 1, bias=False)}
+                        )
+                    else:
+                        self.forces_head.update(
+                            {key: EquivariantVectorOutput(psm_config.embedding_dim)}
+                        )
+
+            # aa mask predict head
+            self.aa_mask_head = nn.Sequential(
+                nn.Linear(
+                    psm_config.embedding_dim, psm_config.embedding_dim, bias=False
+                ),
+                nn.SiLU(),
+                nn.Linear(psm_config.embedding_dim, 160, bias=False),
+            )
+
+            if self.args.AutoGradForce:
+                self.autograd_force_head = GradientHead(
+                    molecule_energy_per_atom_std=molecule_energy_per_atom_std,
+                    periodic_energy_per_atom_std=periodic_energy_per_atom_std,
+                    molecule_force_std=molecule_force_std,
+                    periodic_force_std=periodic_force_std,
+                )
 
         self.mlp_w = nn.Sequential(
             nn.Linear(psm_config.embedding_dim, psm_config.embedding_dim, bias=False),
@@ -1989,7 +2062,7 @@ class PSM(nn.Module):
                     aa_mask,
                     pbc_expand_batched=pbc_expand_batched,
                 )
-
+        decoder_x_output_noise, decoder_vec_output_noise = None, None
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
         if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
@@ -2148,7 +2221,12 @@ class PSM(nn.Module):
             ):
                 encoder_output = self.layer_norm(encoder_output)
                 if not self.args.seq_only:
-                    decoder_x_output, decoder_vec_output = self.decoder(
+                    (
+                        decoder_x_output_noise,
+                        decoder_vec_output_noise,
+                        decoder_x_output,
+                        decoder_vec_output,
+                    ) = self.decoder(
                         batched_data,
                         encoder_output.transpose(0, 1),
                         # mixed_attn_bias,
@@ -2156,6 +2234,7 @@ class PSM(nn.Module):
                         padding_mask,
                         pbc_expand_batched,
                         time_embed=time_embed,
+                        sepFN=True,  # with this, noise output, force/e output are separated
                     )
         elif self.args.backbone in ["graphormer-e2"]:
             encoder_output = self.encoder(
@@ -2191,7 +2270,7 @@ class PSM(nn.Module):
                     mixed_attn_bias[-1] if mixed_attn_bias is not None else None,
                     padding_mask,
                     pbc_expand_batched,
-                    time_embed=None,  # time_embed,
+                    time_embed=time_embed,
                 )
         elif self.args.backbone in ["vectorvanillatransformer"]:
             decoder_x_output, decoder_vec_output = self.decoder(
@@ -2200,15 +2279,6 @@ class PSM(nn.Module):
                 mixed_attn_bias,
                 padding_mask,
                 pbc_expand_batched,
-            )
-        elif self.args.backbone in ["geomformer"]:
-            decoder_x_output, decoder_vec_output = self.decoder(
-                batched_data,
-                token_embedding.transpose(0, 1),
-                None,
-                padding_mask,
-                pbc_expand_batched=pbc_expand_batched,
-                time_embed=time_embed,
             )
         else:
             decoder_x_output, decoder_vec_output = self.decoder(
@@ -2291,18 +2361,30 @@ class PSM(nn.Module):
 
                 if (
                     self.args.AutoGradForce
-                    # and pbc_expand_batched is not None
-                    and ~(batched_data["is_protein"].any())
-                ):
-                    forces = (
-                        self.autograd_force_head(
-                            energy_per_atom.masked_fill(non_atom_mask, 0.0).sum(
-                                dim=-1, keepdim=True
-                            ),
-                            pos,
-                        )
-                        * self.psm_config.diffusion_rescale_coeff
+                    and (clean_mask.all(dim=-1)).any()
+                    and batched_data["has_forces"].any()
+                    and (
+                        batched_data["is_molecule"].any()
+                        or batched_data["is_periodic"].any()
                     )
+                ):
+                    autograd_forces = self.autograd_force_head(
+                        energy_per_atom,
+                        non_atom_mask,
+                        pos,
+                        batched_data["is_periodic"],
+                        batched_data["is_molecule"],
+                    )
+                else:
+                    autograd_forces = None
+
+                if (
+                    (not self.psm_config.supervise_force_from_head_when_autograd)
+                    and self.args.AutoGradForce
+                    and autograd_forces is not None
+                ):
+                    forces = autograd_forces
+                    autograd_forces = None
                 elif self.args.NoisePredForce:
                     forces = (
                         -noise_pred
@@ -2345,9 +2427,9 @@ class PSM(nn.Module):
                 noise_pred = torch.zeros_like(batched_data["pos"])
                 noise_pred_periodic = torch.zeros_like(batched_data["pos"])
 
-            if (
-                self.encoder is not None
-                and not self.psm_config.mlm_from_decoder_feature
+            if not (
+                self.psm_config.psm_finetune_mode
+                and self.psm_config.psm_finetune_skip_ori_head
             ):
                 aa_logits = self.aa_mask_head(encoder_output)
                 # q, k = self.pair_proj(encoder_output).chunk(2, dim=-1)

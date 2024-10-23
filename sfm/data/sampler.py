@@ -14,7 +14,12 @@ from deepspeed import (
     dist,
 )
 from torch.utils.data import Dataset
-from torch.utils.data.distributed import DistributedSampler, T_co
+from torch.utils.data.distributed import DistributedSampler
+
+try:
+    from torch.utils.data.distributed import T_co
+except ImportError:
+    from torch.utils.data.distributed import _T_co as T_co
 
 
 class WeightedDistributedSampler(DistributedSampler):

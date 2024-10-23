@@ -191,6 +191,7 @@ class PSMConfig(GraphormerConfig):
     decoder_feat4energy: bool = True
     encoderfeat4noise: bool = False
     AutoGradForce: bool = False
+    supervise_force_from_head_when_autograd: bool = False
     NoisePredForce: bool = False
     seq_only: bool = False
     freeze_backbone: bool = False
@@ -213,6 +214,7 @@ class PSMConfig(GraphormerConfig):
     psm_finetune_reset_head: bool = False
     psm_finetune_noise_mode: str = "diffusion"
     psm_finetune_valid_noise_mode: str = "diffusion"
+    psm_finetune_skip_ori_head: bool = False
     only_use_rotary_embedding_for_protein: bool = False
     psm_validate_for_train_set: bool = False
     # only for dpm solver

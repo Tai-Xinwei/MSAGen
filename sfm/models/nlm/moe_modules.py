@@ -3,9 +3,6 @@
 from typing import Optional
 
 import torch
-from megablocks.layers import common, dmoe, moe
-from megablocks.layers.arguments import Arguments as MegablocksArguments
-from megablocks.layers.moe import mlp
 from torch import nn
 from torch.utils.checkpoint import checkpoint
 from transformers.activations import ACT2FN
@@ -26,10 +23,6 @@ try:
 except ImportError:
     logger.info("using MixtralRMSNorm")
     RMSNorm = MixtralRMSNorm
-
-# see https://github.com/databricks/megablocks/issues/83
-# reduce memory usage
-mlp.MLP = lambda a: None
 
 
 def load_balancing_loss_func(
@@ -69,40 +62,6 @@ def load_balancing_loss_func(
     loss = all_expert_loss.sum(dim=-1).mean() * n_exp
 
     return loss
-
-
-def to_magablocks_config(config: MoeModelConfig) -> MegablocksArguments:
-    return MegablocksArguments(
-        # Model arguments.
-        hidden_size=config.hidden_size,
-        ffn_hidden_size=config.intermediate_size,
-        num_layers=1,
-        bias=False,
-        return_bias=False,
-        activation_fn=ACT2FN[config.hidden_act],
-        # MoE arguments.
-        moe_num_experts=config.num_local_experts,
-        moe_top_k=config.num_experts_per_tok,
-        moe_capacity_factor=1.0,  # Seems to be unused in DMOE
-        moe_normalize_expert_weights=1.0,
-        moe_loss_weight=config.router_aux_loss_coef,
-        moe_jitter_eps=config.router_jitter_noise,
-        # Parallelism arguments.
-        moe_expert_model_parallelism=False,
-        expert_parallel_group=None,
-        moe_weight_parallelism=False,
-        weight_parallel_group=None,
-        pipeline_model_parallel_size=1,
-        num_layers_per_virtual_pipeline_stage=None,
-        # Compute arguments
-        memory_optimized_mlp=config.moe_memory_optimized_mlp,
-        mlp_type="glu",
-        mlp_impl=config.moe_impl,  # grouped, sparse
-        # Initialization arguments.
-        fp16=config.fp16,
-        bf16=config.bf16,
-        device=torch.tensor([]).device,  # the default device
-    )
 
 
 class MoeEmbeddingsPP(nn.Module):
@@ -231,79 +190,7 @@ class SafeMixtralSparseMoeBlock(MixtralSparseMoeBlock):
             batch_size, sequence_length, hidden_dim
         )
 
-        # Note: as MegaBlocks returns the rougting scores rather than the logits,
-        # we need to return the scores here
         return final_hidden_states, routing_scores
-
-
-class MegaBlockMoeBlock(dmoe.dMoE):
-    def __init__(self, config: MoeModelConfig):
-        args = to_magablocks_config(config)
-        super().__init__(args)
-        self.config = config
-        self.args = args
-
-    def forward(self, x):
-        # NOTE: If we're going to cast the activations to lower precision
-        # do it before we permute the tokens to save bandwidth.
-        x = common.cast_if_autocast_enabled(x)
-
-        # Compute the expert scores and assignments.
-        scores, expert_weights, top_experts = self.router(x)
-
-        # Compute the experts.
-        ret = self.experts(x, scores, expert_weights, top_experts)
-
-        # We compute the loss by ourselves
-        # so we need to clear the loss by MegaBlocks
-        moe.clear_load_balancing_loss()
-        return ret, scores
-
-    def state_dict(self):
-        """
-        Build a state dict that is compatible with mixtral.
-        """
-        router_state_dict = self.router.layer.state_dict()
-
-        state_dict = dict()
-        state_dict["gate.weight"] = router_state_dict["weight"]
-        for i in range(self.config.num_local_experts):
-            slice_begin = i * self.config.intermediate_size
-            slice_end = (i + 1) * self.config.intermediate_size
-            state_dict[f"experts.{i}.w1.weight"] = self.experts.mlp.w1[
-                slice_begin:slice_end
-            ].T
-            state_dict[f"experts.{i}.w2.weight"] = self.experts.mlp.w2[
-                slice_begin:slice_end
-            ]
-            state_dict[f"experts.{i}.w3.weight"] = self.experts.mlp.v1[
-                slice_begin:slice_end
-            ].T
-
-        return state_dict
-
-    def load_state_dict(self, state_dict, strict=True, assign=False):
-        """
-        Load a state dict that is compatible with mixtral.
-        """
-        router_state_dict = dict()
-        router_state_dict["weight"] = state_dict["gate.weight"]
-        self.router.layer.load_state_dict(router_state_dict, strict, assign)
-
-        w1 = torch.zeros(self.config.hidden_size, self.config.intermediate_size)
-        w2 = torch.zeros(self.config.hidden_size, self.config.intermediate_size)
-        v1 = torch.zeros(self.config.hidden_size, self.config.intermediate_size)
-
-        for i in range(self.config.num_local_experts):
-            slice_begin = i * self.config.intermediate_size
-            slice_end = (i + 1) * self.config.intermediate_size
-            w1[slice_begin:slice_end] = state_dict[f"experts.{i}.w1.weight"].T
-            w2[slice_begin:slice_end] = state_dict[f"experts.{i}.w2.weight"]
-            v1[slice_begin:slice_end] = state_dict[f"experts.{i}.w3.weight"].T
-
-        expert_state_dict = {"w1": w1, "w2": w2, "v1": v1}
-
-        self.experts.mlp.load_state_dict(expert_state_dict, strict, assign)
 
 
 class MoeDecoderLayerPP(nn.Module):
@@ -315,10 +202,7 @@ class MoeDecoderLayerPP(nn.Module):
         self.dummy = torch.nn.Linear(1, 1)  # Make DeepSpeed happy
 
         self.self_attn = MixtralFlashAttention2(config, layer_idx=layer_idx)
-        if config.moe_impl == "vanilla":
-            self.block_sparse_moe = SafeMixtralSparseMoeBlock(config)
-        else:
-            self.block_sparse_moe = MegaBlockMoeBlock(config)
+        self.block_sparse_moe = SafeMixtralSparseMoeBlock(config)
         self.input_layernorm = RMSNorm(config.hidden_size)
         self.post_attention_layernorm = RMSNorm(config.hidden_size)
 

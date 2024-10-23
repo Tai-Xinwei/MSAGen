@@ -544,7 +544,7 @@ class EquiformerV2_OC20(BaseModel):
         return set(no_wd_list)
 
 
-class EquiformerV2_OC20Backbone(BaseModel):
+class EquiformerV2_OC20Backbone(nn.Module):  # BaseModel
     """
     Equiformer with graph attention built upon SO(2) convolution and feedforward network built upon S2 activation
 
@@ -602,7 +602,7 @@ class EquiformerV2_OC20Backbone(BaseModel):
         otf_graph=True,
         max_neighbors=500,
         max_radius=5.0,
-        max_num_elements=90,
+        max_num_elements=200,
         num_layers=12,
         sphere_channels=128,
         attn_hidden_channels=128,
@@ -863,7 +863,6 @@ class EquiformerV2_OC20Backbone(BaseModel):
             init_embed = self.unifiedtokentoembedding(data["token_embedding"])
         else:
             init_embed = self.sphere_embedding(atomic_numbers)
-
         for i in range(self.num_resolutions):
             x.embedding[:, offset_res, :] = init_embed[
                 :, offset : offset + self.sphere_channels

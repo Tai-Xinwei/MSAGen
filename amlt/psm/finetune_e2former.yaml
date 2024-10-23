@@ -13,7 +13,7 @@ env_defaults:
 
 target:
   service: aml
-  name: es-madft-nc96-eastus2
+  name: sfm-madft-nc96adsa100v4-eastus2
 
 environment:
   image: ai4s-sfm:20240531.170731

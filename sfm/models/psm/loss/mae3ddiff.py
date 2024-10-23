@@ -560,6 +560,11 @@ class DiffMAE3dCriterions(nn.Module):
         force_label = model_output["force_label"]
         pos_label = model_output["ori_pos"]
         force_pred = model_output["forces"]
+        autograd_force_pred = (
+            model_output["autograd_forces"]
+            if "autograd_forces" in model_output
+            else None
+        )
         energy_per_atom_pred = model_output["energy_per_atom"]
         total_energy_pred = model_output["total_energy"]
         noise_pred = model_output["noise_pred"]
@@ -961,10 +966,51 @@ class DiffMAE3dCriterions(nn.Module):
                 self.periodic_force_std,
             )
 
-            if self.args.force_loss_type == ForceLoss.L2:
-                molecule_force_loss = torch.sqrt(molecule_force_loss + self.epsilon)
-                periodic_force_loss = torch.sqrt(periodic_force_loss + self.epsilon)
-
+            if autograd_force_pred is not None:
+                unreduced_autograd_force_loss = self.force_loss(
+                    autograd_force_pred.to(dtype=force_label.dtype), force_label
+                )
+                (
+                    autograd_force_loss,
+                    num_autograd_force_sample,
+                ) = self._reduce_force_or_noise_loss(
+                    unreduced_autograd_force_loss,
+                    force_mask,
+                    ~non_atom_mask,
+                    is_molecule,
+                    is_periodic,
+                    self.molecule_force_std,
+                    self.periodic_force_std,
+                )
+                (
+                    molecule_autograd_force_loss,
+                    num_molecule_autograd_force_sample,
+                ) = self._reduce_force_or_noise_loss(
+                    unreduced_autograd_force_loss,
+                    force_mask & is_molecule,
+                    ~non_atom_mask,
+                    is_molecule,
+                    is_periodic,
+                    self.molecule_force_std,
+                    self.periodic_force_std,
+                )
+                (
+                    periodic_autograd_force_loss,
+                    num_periodic_autograd_force_sample,
+                ) = self._reduce_force_or_noise_loss(
+                    unreduced_autograd_force_loss,
+                    force_mask & is_periodic,
+                    ~non_atom_mask,
+                    is_molecule,
+                    is_periodic,
+                    self.molecule_force_std,
+                    self.periodic_force_std,
+                )
+            else:
+                autograd_force_loss = torch.tensor(
+                    0.0, device=energy_per_atom_label.device, requires_grad=True
+                )
+                num_autograd_force_sample = 0
         else:
             energy_loss = torch.tensor(
                 0.0, device=energy_per_atom_label.device, requires_grad=True
@@ -998,6 +1044,9 @@ class DiffMAE3dCriterions(nn.Module):
             )
             contact_loss = torch.tensor(0.0, device=dist_map.device, requires_grad=True)
 
+            autograd_force_loss = torch.tensor(
+                0.0, device=energy_per_atom_label.device, requires_grad=True
+            )
             num_energy_sample = 0
             num_molecule_energy_sample = 0
             num_periodic_energy_sample = 0
@@ -1010,6 +1059,7 @@ class DiffMAE3dCriterions(nn.Module):
             num_protein_noise_sample = 0
             num_complex_noise_sample = 0
             num_contact_losss = 0
+            num_autograd_force_sample = 0
 
         # mlm loss
         if aa_mask.any():
@@ -1266,6 +1316,24 @@ class DiffMAE3dCriterions(nn.Module):
                 int(num_inter_dist_loss),
             ),
         }
+
+        if autograd_force_pred is not None:
+            logging_output.update(
+                {
+                    "autograd_force_loss": (
+                        autograd_force_loss,
+                        num_autograd_force_sample,
+                    ),
+                    "molecule_autograd_force_loss": (
+                        molecule_autograd_force_loss,
+                        num_molecule_autograd_force_sample,
+                    ),
+                    "periodic_autograd_force_loss": (
+                        periodic_autograd_force_loss,
+                        num_periodic_autograd_force_sample,
+                    ),
+                }
+            )
 
         def _reduce_matched_result(model_output, metric_name, min_or_max: str):
             metric = model_output[metric_name]

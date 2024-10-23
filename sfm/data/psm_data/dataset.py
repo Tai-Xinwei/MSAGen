@@ -23,6 +23,7 @@ from numpy.linalg import norm
 from rdkit import Chem
 from sympy.utilities.iterables import multiset_permutations
 from torch.utils.data import Subset
+from torch_cluster import radius_graph
 from torch_geometric.data import Data
 from tqdm import tqdm
 
@@ -288,21 +289,23 @@ class MoleculeLMDBDataset(FoundationModelDataset):
             data["energy_per_atom"] = (
                 torch.tensor(total_energy) - reference_energy
             ) / data["num_atoms"]
+            data["has_energy"] = torch.tensor([1], dtype=torch.bool)
 
             if self.energy_per_atom_scale is not None:
                 data["energy_per_atom"] *= self.energy_per_atom_scale
         else:
             data["energy"] = torch.tensor([0.0], dtype=torch.float64)
             data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
+            data["has_energy"] = torch.tensor([0], dtype=torch.bool)
 
         has_forces = data.get("forces") is not None
         if has_forces:
             data["forces"] = torch.tensor(data["forces"], dtype=torch.float64)
+            data["has_forces"] = torch.tensor([1], dtype=torch.bool)
         else:
             data["forces"] = torch.zeros((x.size()[0], 3), dtype=torch.float64)
+            data["has_forces"] = torch.tensor([0], dtype=torch.bool)
 
-        data["has_energy"] = torch.tensor([1], dtype=torch.bool)
-        data["has_forces"] = torch.tensor([has_forces], dtype=torch.bool)
         data = self.generate_2dgraphfeat(data)
 
         data["is_stable_periodic"] = False
@@ -456,6 +459,50 @@ class PubChemQCB3lypPM6Dataset(MoleculeLMDBDataset):
         return x
 
 
+class GEOMDataset(MoleculeLMDBDataset):
+    def __init__(self, args, path, version=None, keys=None, sizes=None):
+        assert os.path.exists(path)
+        super().__init__(args, path, keys=keys, sizes=sizes)
+
+    @classmethod
+    def _open_db(cls, lmdb_path):
+        env = lmdb.open(
+            str(lmdb_path),
+            subdir=True,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        txn = env.begin(write=False)
+        metadata = pkl.loads(txn.get("metadata".encode()))
+        keys = metadata["keys"]
+        sizes = metadata["sizes"]
+        return env, txn, keys, sizes
+
+    def _ensure_init_db(self):
+        if self._env is not None:
+            return
+        self._env, self._txn, self._keys, self._sizes = self._open_db(self.lmdb_path)
+
+    def raw(self, idx: Union[int, np.integer]) -> Data:
+        x = super().raw(idx)
+        x["node_feat"] = np.array(x["node_feat"]).reshape(-1, 9)
+        x["coords"] = np.array(x["coords"]).reshape(-1, 3)
+        x["num_nodes"] = len(x["node_feat"])
+        assert x["num_nodes"] == len(x["node_feat"]) == len(x["coords"])
+
+        forces = x.get("forces")
+        if forces is not None:
+            x["forces"] = np.array(forces).reshape(-1, 3)
+            assert x["num_nodes"] == len(x["forces"])
+
+        x["edge_index"] = np.array(x["edge_index"]).reshape(2, -1)
+        x["edge_feat"] = np.array(x["edge_feat"]).reshape(-1, 3)
+        assert x["edge_index"].shape[1] == x["edge_feat"].shape[0]
+        return x
+
+
 class PM6FullLMDBDataset(MoleculeLMDBDataset):
     latest_version = "20240527.1"
     energy_mean: float = -42774.16038176129
@@ -546,6 +593,7 @@ class SmallMolDataset(FoundationModelDataset):
                 raise ValueError(
                     "sorry, when using pubchem the basis should be def2-tzvp"
                 )
+        self.data_name = data_name
         (
             self.atom_reference,
             self.system_ref,
@@ -646,6 +694,7 @@ class SmallMolDataset(FoundationModelDataset):
             * self.unit,  # this is used from model training, mean/ref is removed.
             "has_energy": torch.tensor([self.has_energy], dtype=torch.bool),
             "has_forces": torch.tensor([self.has_forces], dtype=torch.bool),
+            "data_name": self.data_name,
         }
         if self.is_pbc:
             cell_corner_pos_matrix = torch.tensor(
@@ -736,14 +785,49 @@ class SmallMolDataset(FoundationModelDataset):
                 "has_energy",
                 "has_forces",
                 "sample_type",
+                "data_name",
             ]:
-                out[key] = torch.tensor(out[key], dtype=torch.float32)
+                out[key] = out[key].clone().detach().float()
 
         out = self.generate_2dgraphfeat(out)
-
         return out
 
     def generate_2dgraphfeat(self, data):
+        N = data["num_atoms"]
+        adj = torch.zeros([N, N], dtype=torch.bool)
+        if "edge_index" not in data or data["edge_index"] is None:
+            data["edge_attr"] = None
+            edge_index = radius_graph(data["coords"], 10)
+            data["edge_index"] = edge_index
+        edge_index = torch.tensor(data["edge_index"].clone().detach(), dtype=torch.long)
+        edge_attr = torch.ones((data["edge_index"].shape[1], 1), dtype=torch.long)
+        attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+        attn_edge_type[edge_index[0, :], edge_index[1, :]] = edge_attr + 1
+        adj[edge_index[0, :], edge_index[1, :]] = True
+        indgree = adj.long().sum(dim=1).view(-1)
+
+        data["edge_index"] = edge_index
+        data["edge_attr"] = edge_attr
+        data["node_attr"] = data["token_type"].reshape(-1, 1)
+
+        data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
+        data["in_degree"] = indgree
+
+        if self.args.preprocess_2d_bond_features_with_cuda:
+            data["adj"] = adj
+            data["attn_edge_type"] = attn_edge_type
+        else:
+            shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+            max_dist = np.amax(shortest_path_result)
+            edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+            spatial_pos = torch.from_numpy((shortest_path_result)).long()
+            data["edge_input"] = torch.tensor(edge_input, dtype=torch.long)
+            data["spatial_pos"] = spatial_pos
+
+        return data
+
+    @classmethod
+    def generate_graph_feature(cls, data, preprocess_2d_bond_features_with_cuda):
         N = data["num_atoms"]
         adj = torch.zeros([N, N], dtype=torch.bool)
 
@@ -761,7 +845,7 @@ class SmallMolDataset(FoundationModelDataset):
         data["attn_bias"] = torch.zeros([N + 1, N + 1], dtype=torch.float)
         data["in_degree"] = indgree
 
-        if self.args.preprocess_2d_bond_features_with_cuda:
+        if preprocess_2d_bond_features_with_cuda:
             data["adj"] = adj
             data["attn_edge_type"] = attn_edge_type
         else:
@@ -795,21 +879,41 @@ class SmallMolDataset(FoundationModelDataset):
             self.env.close()
             self.env = None
 
-    def split_dataset(self, validation_ratio=0.03, sort=False):
+    def split_dataset(self, training_ratio=0.03, validation_ratio=0.2, sort=False):
         num_samples = self.num_samples
         # Shuffle the indices and split them into training and validation sets
         indices = list(range(num_samples))
         random.Random(12345).shuffle(indices)
+        assert (
+            training_ratio + validation_ratio <= 1.0
+        ), f"Invalid training_ratio '{training_ratio}' and validation_ratio '{validation_ratio}'"
 
         num_validation_samples = int(num_samples * validation_ratio)
-        num_training_samples = num_samples - num_validation_samples
+        num_training_samples = int(num_samples * training_ratio)
 
         training_indices = indices[:num_training_samples]
-        validation_indices = indices[num_training_samples:]
+        validation_indices = indices[-num_validation_samples:]
 
         dataset_train = Subset(self, training_indices)
         dataset_val = Subset(self, validation_indices)
         return dataset_train, dataset_val
+
+    # def split_dataset(self, training_ratio=0.03, validation_ratio=0.2, sort=False):
+    #     num_samples = self.num_samples
+    #     # Shuffle the indices and split them into training and validation sets
+    #     indices = list(range(num_samples))
+    #     random.Random(12345).shuffle(indices)
+    #     assert training_ratio + validation_ratio <= 1.0, f"Invalid training_ratio '{training_ratio}' and validation_ratio '{validation_ratio}'"
+
+    #     num_validation_samples = int(num_samples * validation_ratio)
+    #     num_training_samples = int(num_samples * training_ratio)
+
+    #     training_indices = indices[:num_training_samples]
+    #     validation_indices = indices[:]
+
+    #     dataset_train = Subset(self, training_indices)
+    #     dataset_val = Subset(self, validation_indices)
+    #     return dataset_train, dataset_val
 
     def split_train_valid_test(self, ratio_list: list, sort=False, shuffle=True):
         num_samples = self.num_samples
@@ -1011,7 +1115,13 @@ class MatterSimDataset:
                 [data["coords"], cell_corner_pos], dim=0
             )  # expand pos with cell corners
 
-        if "forces" not in data and "energy" not in data and "stress" not in data:
+        if (
+            "forces" not in data
+            and "energy" not in data
+            and "stress" not in data
+            and "info" not in data
+            and "energy" not in data["info"]
+        ):
             data["energy"] = torch.tensor([0.0], dtype=torch.float64)
             data["energy_per_atom"] = torch.tensor([0.0], dtype=torch.float64)
             data["stress"] = torch.zeros([3, 3], dtype=torch.float64)

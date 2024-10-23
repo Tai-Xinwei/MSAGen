@@ -1,0 +1,109 @@
+# Amulet configuration file to run PSM DiT training on AMD MI300x Singularity system
+# Steps to run:
+# 1. copy data folder https://itpeus4data.blob.core.windows.net/shuz/data/pcq-pos-custom/ to your Azure storage blob container
+# 2. copy script mae_3d.sh in FoundationModelProp/ to your Azure storage blob container
+# 3. Specify the Azure storage account and container to use
+# 4. Submit the job with this yaml file
+
+description: PSMV1_mi300x
+
+env_defaults:
+  NODES: 4
+  GPUS: 8
+  WANDB_API_KEY: ${WANDB_API_KEY}
+
+target:
+  service: sing
+  name: whitney02
+  workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm/amd:20241022.151209
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+  setup:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: psmv1_dit_v15_3b_mi300x
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM,ProjectID:PRJ-0502-A18]
+  sku: ${NODES}xG${GPUS}-IB
+  mpi: true
+  identity: managed
+  process_count_per_node: 1
+  command:
+  - export WANDB_TEAM=ai4s-sfm
+  - export wandb_group=psm_DiT_3B
+  - export wandb_project=psm_VT
+  - export WANDB_API_KEY=${WANDB_API_KEY}
+  - mkdir ./output
+  - export path=run.sh
+  - export num_pred_attn_layer=2
+  - export layers=36
+  - export hidden_size=2048
+  - export ffn_size=8192
+  - export num_head=32
+  - export dropout=0.1
+  - export attn_dropout=0.1
+  - export act_dropout=0.1
+  - export weight_decay=0.0
+  - export droppath_prob=0.0
+  - export mask_ratio=0.15
+  - export d_tilde=1.0
+  - export max_lr=4e-5
+  - export strategy=Zero1
+  - export pipeline_model_parallel_size=0
+  - export total_num_steps=500000
+  - export warmup_num_steps=10000
+  - export train_batch_size=3072
+  - export val_batch_size=768
+  - export max_tokens=16000
+  - export max_length=512
+  - export max_residue_num=512
+  - export ligand_crop_size=16.0
+  - export gradient_accumulation_steps=16
+  - export log_interval=100
+  - export data_path=/psm/data/
+  # - export data_path=/tmp/data_2/
+  # - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
+  # - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,esm,pdb,esm,pdbcomplexmultimer'
+  # - export dataset_split_raito='0.05,0.13,0.3,0.3,0.02,0.1,0.1'
+  # - export dataset_micro_batch_size='3,3,16,3,3,3,2'
+  # - export dataset_micro_batch_size='1,1,8,3,3,3,2'
+  # - export data_path_list='matter-gen-force-filtered,PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
+  # - export dataset_name_list='mattersim,pm6-wb97xd3,esm,pdb,esm,pdbcomplexmultimer'
+  # - export dataset_split_raito='0.2,0.2,0.3,0.02,0.18,0.1'
+  - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70-CA.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
+  - export dataset_name_list='mattersim,mattersim,pm6-wb97xd3,esm,pdb,esm,pdbcomplexmultimer'
+  - export dataset_split_raito='0.03,0.15,0.2,0.3,0.02,0.1,0.2'
+  - export dataset_micro_batch_size='3,3,16,2,2,2,2'
+  - export fp16=False
+  - export clean_sample_ratio=0.7
+  - export molecule_energy_loss_ratio=1.0
+  - export material_energy_loss_ratio=1.0
+  - export material_force_loss_ratio=1.0
+  - export AutoGradForce=False
+  - export use_hard_dist_loss=False
+  - export use_unified_batch_sampler=True
+  - export align_x0_in_diffusion_loss=True
+  - export decoder_feat4energy=False
+  - export encoderfeat4noise=True
+  - export only_use_rotary_embedding_for_protein=True
+  - export if_total_energy=False
+  - export save_batch_interval=2500
+  - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b/checkpoints/global_step52500/mp_rank_00_model_states.pt
+  - export psm_finetune_mode=True
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v16_3b/checkpoints
+  - export profiling=False
+  - export prof_dir=/psm/exp/eray/prof_mi300x/
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+    # - bash ./scripts/psm/azcopydata.sh
+  - bash ./scripts/psm/pretrain_psm_dit_AMD.sh
+  submit_args:
+    env:
+      AMLT_DOCKERFILE_TEMPLATE: "none"
+      _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity

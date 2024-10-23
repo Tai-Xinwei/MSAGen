@@ -780,8 +780,13 @@ class Trainer(object):
             )
 
         for idx, batch_data in enumerate(self.valid_data_loader):
-            with torch.no_grad():  # comment for autograd calculation
+            if self.args.AutoGradForce is True:
                 output = self.accelerator.valid_step(batch_data, epoch=self.state.epoch)
+            elif self.args.AutoGradForce is False:
+                with torch.no_grad():
+                    output = self.accelerator.valid_step(
+                        batch_data, epoch=self.state.epoch
+                    )
             loss_accumulator.add(output.valid_loss, output.num_examples)
             interval_loss_accumulator.add(
                 output.valid_loss,
@@ -997,7 +1002,7 @@ class Trainer(object):
                 torch.profiler.ProfilerActivity.CUDA,
             ],
             schedule=torch.profiler.schedule(
-                wait=1, warmup=1, active=8, repeat=9, skip_first=0
+                wait=0, warmup=1, active=1, repeat=1, skip_first=0
             ),
             # custom profiling results (TB in Torch ReadMe:)
             # https://github.com/pytorch/kineto/blob/main/tb_plugin/README.md

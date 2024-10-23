@@ -20,7 +20,7 @@ def radius_graph_pbc(
     radius,
     max_num_neighbors_threshold,
     enforce_max_neighbors_strictly: bool = False,
-    rep_clip: int = 1,
+    rep_clip: int = 5,
     pbc=None,
 ):
     if pbc is None:
@@ -80,45 +80,47 @@ def radius_graph_pbc(
     pos2 = torch.index_select(atom_pos, 0, index2)
 
     # # Calculate required number of unit cells in each direction.
-    # # Smallest distance between planes separated by a1 is
-    # # 1 / ||(a2 x a3) / V||_2, since a2 x a3 is the area of the plane.
-    # # Note that the unit cell volume V = a1 * (a2 x a3) and that
-    # # (a2 x a3) / V is also the reciprocal primitive vector
-    # # (crystallographer's definition).
+    # Smallest distance between planes separated by a1 is
+    # 1 / ||(a2 x a3) / V||_2, since a2 x a3 is the area of the plane.
+    # Note that the unit cell volume V = a1 * (a2 x a3) and that
+    # (a2 x a3) / V is also the reciprocal primitive vector
+    # (crystallographer's definition).
 
-    # cross_a2a3 = torch.cross(data.cell[:, 1], data.cell[:, 2], dim=-1)
-    # cell_vol = torch.sum(data.cell[:, 0] * cross_a2a3, dim=-1, keepdim=True)
+    cross_a2a3 = torch.cross(data.cell[:, 1], data.cell[:, 2], dim=-1)
+    cell_vol = torch.sum(data.cell[:, 0] * cross_a2a3, dim=-1, keepdim=True)
 
-    # if pbc[0]:
-    #     inv_min_dist_a1 = torch.norm(cross_a2a3 / cell_vol, p=2, dim=-1)
-    #     rep_a1 = torch.ceil(radius * inv_min_dist_a1)
-    # else:
-    #     rep_a1 = data.cell.new_zeros(1)
+    if pbc[0]:
+        inv_min_dist_a1 = torch.norm(cross_a2a3 / cell_vol, p=2, dim=-1)
+        rep_a1 = torch.ceil(radius * inv_min_dist_a1)
+    else:
+        rep_a1 = data.cell.new_zeros(1)
 
-    # if pbc[1]:
-    #     cross_a3a1 = torch.cross(data.cell[:, 2], data.cell[:, 0], dim=-1)
-    #     inv_min_dist_a2 = torch.norm(cross_a3a1 / cell_vol, p=2, dim=-1)
-    #     rep_a2 = torch.ceil(radius * inv_min_dist_a2)
-    # else:
-    #     rep_a2 = data.cell.new_zeros(1)
+    if pbc[1]:
+        cross_a3a1 = torch.cross(data.cell[:, 2], data.cell[:, 0], dim=-1)
+        inv_min_dist_a2 = torch.norm(cross_a3a1 / cell_vol, p=2, dim=-1)
+        rep_a2 = torch.ceil(radius * inv_min_dist_a2)
+    else:
+        rep_a2 = data.cell.new_zeros(1)
 
-    # if pbc[2]:
-    #     cross_a1a2 = torch.cross(data.cell[:, 0], data.cell[:, 1], dim=-1)
-    #     inv_min_dist_a3 = torch.norm(cross_a1a2 / cell_vol, p=2, dim=-1)
-    #     rep_a3 = torch.ceil(radius * inv_min_dist_a3)
-    # else:
-    #     rep_a3 = data.cell.new_zeros(1)
+    if pbc[2]:
+        cross_a1a2 = torch.cross(data.cell[:, 0], data.cell[:, 1], dim=-1)
+        inv_min_dist_a3 = torch.norm(cross_a1a2 / cell_vol, p=2, dim=-1)
+        rep_a3 = torch.ceil(radius * inv_min_dist_a3)
+    else:
+        rep_a3 = data.cell.new_zeros(1)
 
     # # Take the max over all images for uniformity. This is essentially padding.
     # # Note that this can significantly increase the number of computed distances
     # # if the required repetitions are very different between images
     # # (which they usually are). Changing this to sparse (scatter) operations
     # # might be worth the effort if this function becomes a bottleneck.
-    # max_rep = [rep_a1.max().clip(max = rep_clip),
-    #            rep_a2.max().clip(max = rep_clip),
-    #            rep_a3.max().clip(max = rep_clip)]
-    max_rep = [rep_clip, rep_clip, rep_clip]
-    # print(rep_a1,rep_a2,rep_a3,max_rep)
+    max_rep = [
+        rep_a1.max().clip(max=rep_clip),
+        rep_a2.max().clip(max=rep_clip),
+        rep_a3.max().clip(max=rep_clip),
+    ]
+    # max_rep = [rep_clip,rep_clip,rep_clip]
+    # print(max_rep)
     # Tensor of unit cells
     cells_per_dim = [
         torch.arange(-rep, rep + 1, device=device, dtype=data.cell.dtype)

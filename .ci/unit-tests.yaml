@@ -65,6 +65,7 @@ steps:
     pip install deepspeed==0.14.0 sacremoses==0.1.1 torch-tb-profiler==0.4.3 hydra-core torch-geometric==2.5.3
     pip install matbench
     pip install ase==3.23.0
+    pip install --find-links https://data.pyg.org/whl/torch-2.3.0+cu121.html torch-geometric==2.5.3 pyg_lib torch_scatter torch_sparse torch_cluster
     pip install -e . --no-deps
     python setup_cython.py build_ext --inplace
     pytest tests/

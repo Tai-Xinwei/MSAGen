@@ -44,12 +44,13 @@ class SmallMolConfig(DistributedTrainConfig, PSMConfig):
     backbone: str = "graphormer"
     train_val_test_split: List[float] = field(
         default_factory=lambda: [0.2, 0.7, 0.1]
+        # default_factory=lambda: [0.97, 0.03, 0.0]
     )  # NOTE: This is only for MD data
     shuffle: bool = True
     vsc_debug: bool = False
     energy_loss_weight: float = 0.01
     force_loss_weight: float = 0.99
-    finetune_module: str = "md_energy_force_head"
+    finetune_module: str = "md_energy_force_head"  # if "", skip reset ft head
     loss_unit: str = "ev"
 
 
@@ -211,9 +212,10 @@ def finetune(cfg: DictConfig) -> None:
 
     finetune_module = None
     extra_collate_fn = None
-    if args.psm_finetune_mode and args.finetune_module is not None:
-        finetune_module = PSM_FT_REGISTER[args.finetune_module](args)
-        extra_collate_fn = finetune_module.update_batched_data
+    if len(args.finetune_module) > 0:
+        if args.psm_finetune_mode and args.finetune_module is not None:
+            finetune_module = PSM_FT_REGISTER[args.finetune_module](args)
+            extra_collate_fn = finetune_module.update_batched_data
 
     train_data, valid_data, test_data = load_data(
         args, extra_collate_fn=extra_collate_fn

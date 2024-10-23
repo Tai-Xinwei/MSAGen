@@ -4,7 +4,7 @@
 ulimit -c unlimited
 export MKL_SERVICE_FORCE_INTEL=1
 export MKL_THREADING_LAYER='GNU'
-[ -z "${layers}" ] && layers=1
+[ -z "${layers}" ] && layers=18
 [ -z "${hidden_size}" ] && hidden_size=1024
 [ -z "${ffn_size}" ] && ffn_size=4096
 [ -z "${num_head}" ] && num_head=32
@@ -136,7 +136,6 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${diffusion_noise_std}" ] && diffusion_noise_std=10.0
 [ -z "${diffusion_mode}" ] && diffusion_mode=epsilon
 
-
 [ -z "${diff_init_lattice_size}" ] && diff_init_lattice_size=10.0
 [ -z "${diffusion_sampling}" ] && diffusion_sampling="ddpm"
 [ -z "${diffusion_training_loss}" ] && diffusion_training_loss="L1"
@@ -246,11 +245,11 @@ export wandb=True
  #3mod-e2dit102-1024
 torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           --config-name=config_psm.yaml \
-          wandb=$wandb wandb_group=test wandb_team=$wandb_team wandb_project=$wandb_project \
-          wandb_run_name="dit" \
+          wandb=$wandb wandb_group=$wandb_group wandb_team=$wandb_team wandb_project=$wandb_project \
+          wandb_run_name=$wandb_run_name \
           clean_sample_ratio=$clean_sample_ratio \
           node_type_edge_method=EXCHANGABLE \
-          backbone=dit \
+          backbone=e2dit \
           backbone_config=e2former \
           backbone_config.num_layers=4 \
           backbone_config.irreps_node_embedding="1024x0e+1024x1e" \
@@ -265,6 +264,7 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           backbone_config.basis_type='gaussiansmear' \
           backbone_config.attn_biastype='share' \
           backbone_config.add_rope=True \
+          backbone_config.time_embed=False \
           encoder_embed_dim=1024 \
           encoder_attention_heads=$num_head \
           encoder_layers=12 \

@@ -148,7 +148,6 @@ def collate_fn(
     has_energy = torch.cat([i["has_energy"] for i in items], dim=0)
     has_forces = torch.cat([i["has_forces"] for i in items], dim=0)
     energy_per_atom = torch.cat(energy_per_atom)
-
     x = torch.cat([pad_2d_unsqueeze(i["node_attr"], max_node_num) for i in items])
     position_ids = torch.cat(
         [pad_1d_unsqueeze(i["position_ids"], max_node_num) for i in items]
@@ -281,4 +280,7 @@ def collate_fn(
         )
         if "key" in items[0]:
             batched_data["key"] = [i["key"] for i in items]
+
+    if "data_name" in items[0]:
+        batched_data["data_name"] = [i["data_name"] for i in items]
     return batched_data

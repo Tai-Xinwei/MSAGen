@@ -1,0 +1,101 @@
+# Amulet configuration file to run PSM DiT training on AMD MI300x Singularity system
+
+description: PSMV1_mi300x
+
+env_defaults:
+  NODES: 4
+  GPUS: 8
+  WANDB_API_KEY: ${WANDB_API_KEY}
+
+target:
+  service: sing
+  name: whitney02
+  workspace_name: sfm-ws
+
+environment:
+  image: ai4s-sfm/amd:20241022.151209
+  registry: msrmoldyn.azurecr.io
+  username: msrmoldyn
+  setup:
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - python setup_cython.py build_ext --inplace
+
+storage:
+  eastus2:
+    storage_account_name: sfmdataeastus2 # Storage account
+    container_name: psm # Container name
+    mount_dir: /psm
+  arca100:
+    storage_account_name: sfmarca100 # Storage account
+    container_name: sfm # Container name
+    mount_dir: /sfm
+
+code:
+  local_dir: ../SFM_framework
+
+jobs:
+- name: psmv1_dit_v13_3b_mi300x
+  identity: managed
+  tags: [Project_Name:Science_Foundation_Model,ProjectID:PRJ-0209-A40,Experiment:SFM_PSM,ProjectID:PRJ-0502-A18]
+  sku: ${NODES}xG${GPUS}-MI300
+  sla_tier: premium
+  mpi: true
+  process_count_per_node: 1
+  command:
+  - mkdir ./output
+  - export path=run.sh
+  - export num_pred_attn_layer=2
+  - export layers=20
+  - export hidden_size=1536
+  - export ffn_size=6144
+  - export num_head=32
+  - export atom_loss_coeff=1.0
+  - export pos_loss_coeff=1.0
+  - export sandwich_ln="true"
+  - export dropout=0.1
+  - export attn_dropout=0.1
+  - export act_dropout=0.1
+  - export weight_decay=0.0
+  - export droppath_prob=0.0
+  - export mask_ratio=0.3
+  - export d_tilde=1.0
+  - export max_lr=1e-4
+  - export strategy=Zero1
+  # - export strategy=Pipeline
+  - export pipeline_model_parallel_size=0
+  - export total_num_steps=400000
+  - export warmup_num_steps=5000
+  - export train_batch_size=2048
+  - export val_batch_size=768
+  - export max_tokens=16000
+  - export max_length=512
+  - export gradient_accumulation_steps=8
+  - export log_interval=20
+  - export data_path=/psm/data/
+  - export data_path_list='matter-sim-15M-force-filtered-merged,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,ur50_23_bpe_pack512.lmdb'
+  - export dataset_name_list='mattersim,mattersim,pm6,afdb,ur50'
+  - export dataset_split_raito='0.1,0.2,0.2,0.4,0.1'
+  - export dataset_micro_batch_size='2,2,16,4,4'
+  - export fp16=False
+  - export clean_sample_ratio=0.5
+  - export molecule_energy_loss_ratio=20.0
+  - export material_energy_loss_ratio=5.0
+  - export material_force_loss_ratio=1.0
+  - export AutoGradForce=False
+  - export use_hard_dist_loss=True
+  - export use_unified_batch_sampler=True
+  - export decoder_feat4energy=True
+  - export only_use_rotary_embedding_for_protein=True
+  - export if_total_energy=False
+  - export save_batch_interval=2500
+  - export loadcheck_path=.
+  - export psm_finetune_mode=False
+  - export save_dir=./output
+  - export profiling=False
+  - export prof_dir=/psm/exp/eray/prof_mi300x/
+  - eval "$$(conda shell.bash hook)" && conda activate sfm
+  - bash ./scripts/psm/pretrain_psm_dit_AMD.sh
+  submit_args:
+    env:
+      AMLT_DOCKERFILE_TEMPLATE: "none"
+      _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/3eaeebff-de6e-4e20-9473-24de9ca067dc/resourceGroups/sfm-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/sfm-job-identity

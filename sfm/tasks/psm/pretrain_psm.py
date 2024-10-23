@@ -160,8 +160,15 @@ def main(args: DictConfig) -> None:
         else:
             loss_fn = DiffMAE3dCriterions
 
-    model = PSMModel(args, loss_fn, psm_finetune_head=finetune_module)
-
+    model = PSMModel(
+        args,
+        loss_fn,
+        psm_finetune_head=finetune_module,
+        molecule_energy_per_atom_std=dataset.molecule_energy_per_atom_std,
+        periodic_energy_per_atom_std=dataset.periodic_energy_per_atom_std,
+        molecule_force_std=dataset.molecule_force_std,
+        periodic_force_std=dataset.periodic_force_std,
+    )
     # define optimizer here
     if args.group_optimizer:
         optimizer = myAdam(

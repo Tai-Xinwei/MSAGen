@@ -1,36 +1,50 @@
-# FROM rocm/dev-ubuntu-22.04 AS base
-FROM rocm/pytorch:rocm6.1_ubuntu22.04_py3.10_pytorch_2.4 AS base
-FROM singularitybase.azurecr.io/base/job/pytorch/acpt-rocm5.7_ubuntu20.04_py3.10_pytorch_2.0.1:20231222T092720818 AS singularity
+FROM rocm/dev-ubuntu-22.04:latest AS base
+FROM rocm/dev-ubuntu-22.04:5.7 AS rocm5
+FROM singularitybase.azurecr.io/installer/base/singularity-installer:20240723T094352909 AS installer
+FROM singularitybase.azurecr.io/validations/base/singularity-tests:20240916T145736532 AS validator
 
 ENV SINGULARITY_IMAGE_ACCELERATOR=AMD
 ENV SINGULARITY_IMAGE_FRAMEWORK=PYTORCH
 ENV SINGULARITY_IMAGE_ACCELERATOR_SKU=
+ENV GPU_ARCHS=gfx942
+ENV PYTORCH_ROCM_ARCH=gfx942
 
 FROM base
 
 RUN apt update && \
     apt install --no-install-recommends --no-install-suggests -yq \
-        wget make git unzip libaio1 libaio-dev openssh-server \
-        openmpi-bin openmpi-doc libopenmpi-dev
+        wget make curl git unzip cmake ninja-build libaio1 libaio-dev openssh-server \
+        openmpi-bin openmpi-doc libopenmpi-dev libjpeg-dev python3-dev python3-pip \
+        build-essential zlib1g-dev libncurses5-dev libgdbm-dev ccache tmux \
+        ca-certificates sudo bzip2 libx11-6 rocthrust
 
-# rocm/dev-ubuntu-22.04 does not have conda installed
-# ENV CONDA_DIR /opt/conda
-# RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-#         -O ~/miniconda.sh && /bin/bash ~/miniconda.sh -b -p /opt/conda
-
-# ENV PATH=$CONDA_DIR/bin:$PATH
+ENV CONDA_DIR /opt/conda
+RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+        -O ~/miniconda.sh && /bin/bash ~/miniconda.sh -b -p /opt/conda
+ENV PATH=$CONDA_DIR/bin:$PATH
 
 RUN --mount=type=bind,source=install,target=/tmp/install \
     eval "$(conda shell.bash hook)" && \
     conda env create -f /tmp/install/helper_AMD/environment.yaml -n sfm && \
-    conda activate sfm
+    conda activate sfm && \
+    pip install /opt/rocm/share/amd_smi
 
-# fails to detect GPUs when built on non AMD GPU machine
-# RUN --mount=type=bind,source=install,target=/tmp/install \
-#     eval "$(conda shell.bash hook)" && \
+# stable PyT
+RUN --mount=type=bind,source=install,target=/tmp/install \
+    eval "$(conda shell.bash hook)" && \
+    conda activate sfm && \
+    bash /tmp/install/helper_AMD/torch_geo_rocm.sh torch-2.3 && \
+    bash /tmp/install/helper_AMD/fast_attn_rocm.sh $GPU_ARCHS && \
+    bash /tmp/install/helper_AMD/kdb.sh $GPU_ARCHS
+
+# nightly PyT -- performance boost for MI300x
+# RUN eval "$(conda shell.bash hook)" && \
 #     conda activate sfm && \
-#     bash /tmp/install/helper_AMD/torch_geo_rocm.sh && \
-#     bash /tmp/install/helper_AMD/torch_geo_rocm.sh
+#     pip install --pre torch==2.6.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm6.2 && \
+#     pip install deepspeed==0.15.2 && \
+#     bash /tmp/install/helper_AMD/torch_geo_rocm.sh torch-2.6 && \
+#     bash /tmp/install/helper_AMD/fast_attn_rocm.sh $GPU_ARCHS && \
+#     bash /tmp/install/helper_AMD/kdb.sh $GPU_ARCHS
 
 RUN rm -rf /var/lib/apt/lists/* && \
     apt purge --auto-remove -y && \
@@ -38,8 +52,13 @@ RUN rm -rf /var/lib/apt/lists/* && \
     conda clean --all --yes && \
     pip cache purge
 
-COPY --from=singularity /opt/microsoft/_singularity/installations/ /opt/microsoft/_singularity/installations/
+# get rocm 5 additions
+COPY --from=rocm5 /opt/rocm/lib/libamdhip64.so.5 /opt/rocm/lib/libamdhip64.so.5
+
+# install Singularity add-ons
+COPY --from=installer /installer /opt/microsoft/_singularity/installations/
 RUN /opt/microsoft/_singularity/installations/singularity/installer.sh
 
-COPY --from=singularity /opt/microsoft/_singularity/validations/ /opt/microsoft/_singularity/validations/
+# validate with the script provided by Singularity
+COPY --from=validator /validations /opt/microsoft/_singularity/validations/
 RUN /opt/microsoft/_singularity/validations/validator.sh

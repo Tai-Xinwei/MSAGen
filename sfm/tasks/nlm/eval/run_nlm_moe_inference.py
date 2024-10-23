@@ -15,12 +15,18 @@ class NLMMoEInferencer:
         self.output_dir = output_dir
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-        self.file_paths = glob(os.path.join(input_dir, "test*"))
-        if os.path.exists(os.path.join(input_dir, "sfmdata.prot.test.tsv")):
-            print("Found sfmdata.prot.test.tsv file, adding to list")
-            self.file_paths.append(os.path.join(input_dir, "sfmdata.prot.test.tsv"))
-        else:
-            print("No sfmdata.prot.test.tsv file found")
+        file_names = [
+            "test.bbbp.instruct.tsv",
+            "test.bace.instruct.tsv",
+            "test.desc2mol.tsv",
+            "test.mol2desc.tsv",
+            "test.raw.i2s_i.txt",
+            "test.raw.s2i_s.txt",
+            "test.molinstruct.reaction.tsv",
+            "test.hERG.tsv",
+            "test.uspto50k.retro.osmi.tsv",
+        ]
+        self.file_paths = [os.path.join(input_dir, fn) for fn in file_names]
         print("Found {} test files".format(len(self.file_paths)))
         print("Test files: {}".format(self.file_paths))
 
@@ -29,7 +35,7 @@ class NLMMoEInferencer:
         for fn in self.file_paths:
             print("Checking file: {}".format(fn))
             basename = os.path.basename(fn)
-            fn_out = basename + ".response.pkl"
+            fn_out = basename.replace(".txt", "").replace(".tsv", "") + ".response.pkl"
             fn_out = os.path.join(self.output_dir, fn_out)
 
             if os.path.exists(fn_out):
