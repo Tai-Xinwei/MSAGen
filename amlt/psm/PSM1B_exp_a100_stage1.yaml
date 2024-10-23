@@ -7,7 +7,7 @@
 description: PSMV1
 
 env_defaults:
-  NODES: 4
+  NODES: 8
   GPUS: 8
   WANDB_API_KEY: "local-094f941ede8eda7a00c307f50595f054be5382f7"
 
@@ -73,7 +73,7 @@ jobs:
   - export max_length=384
   - export max_residue_num=768
   - export ligand_crop_size=20.0
-  - export gradient_accumulation_steps=8
+  - export gradient_accumulation_steps=4
   - export log_interval=100
   - export data_path=/nfs7/psmdata/
   # - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
@@ -92,10 +92,14 @@ jobs:
   # - export dataset_name_list='afdb,mgnify,pdb'
   # - export dataset_split_raito='0.6,0.3,0.1'
   # - export dataset_micro_batch_size='16,16,16'
-  - export data_path_list='AFDB70-plddt70.lmdb'
-  - export dataset_name_list='afdb'
-  - export dataset_split_raito='1.0'
-  - export dataset_micro_batch_size='16'
+  # - export data_path_list='AFDB70-plddt70.lmdb,MGnify'
+  # - export dataset_name_list='afdb,mgnify'
+  # - export dataset_split_raito='0.7,0.3'
+  # - export dataset_micro_batch_size='16,16'
+  - export data_path_list='AFDB70-plddt70.lmdb,20240101_PDB_Training_Data'
+  - export dataset_name_list='afdb,pdb'
+  - export dataset_split_raito='0.7,0.3'
+  - export dataset_micro_batch_size='16,16'
   - export fp16=False
   - export clean_sample_ratio=0.7
   - export diffusion_mode=edm
@@ -121,7 +125,7 @@ jobs:
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_scale1_sigmoid_dit_v20_1b_stage1/checkpoints/global_step57456/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
   # - export save_dir=/sfm/sfmexpresults/peiran/psmv1_dit_v15_1b_stage2/checkpoints
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_afdb/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp2_v20_1b_stage1_afdbpdb/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
   - pip install nvidia-dali-cuda120

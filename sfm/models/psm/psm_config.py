@@ -68,6 +68,7 @@ class PSMConfig(GraphormerConfig):
     seq_masking_method: str = "transformerM"
 
     add_rope: bool = True
+    rope_theta: int = 10000
     num_residues: int = 32
     max_num_aa: int = 1024
 
