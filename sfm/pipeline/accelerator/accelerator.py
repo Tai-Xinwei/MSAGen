@@ -1116,16 +1116,18 @@ class DeepSpeedAccelerator(Accelerator):
             or self.args.strategy == TrainStrategy.ThreeD
         ):
             dp_rank = self.model_engine.mpu.get_data_parallel_rank()
+            num_replicas = self.model_engine.mpu.get_data_parallel_world_size()
         else:
             dp_rank = self.model_engine.global_rank
+            num_replicas = self.model_engine.dp_world_size
 
         if self.args.use_unified_batch_sampler:
             self.train_sampler = UnifiedDataSampler(
                 train_data,
                 self.args.dataset_split_raito,
                 self.args.dataset_micro_batch_size,
-                num_replicas=self.world_size,
-                rank=self.rank,
+                num_replicas=num_replicas,
+                rank=dp_rank,
                 seed=self.args.seed,
             )
             self.train_data_loader = DataLoader(
@@ -1159,7 +1161,7 @@ class DeepSpeedAccelerator(Accelerator):
                 num_tokens_fn=self.train_data.num_tokens,
                 shuffle=True,
                 drop_last=False,
-                num_replicas=self.model_engine.dp_world_size,
+                num_replicas=num_replicas,
                 rank=dp_rank,
             )
             self.train_data_loader = DataLoader(
@@ -1202,8 +1204,8 @@ class DeepSpeedAccelerator(Accelerator):
                     val_data,
                     self.args.dataset_split_raito,
                     self.args.dataset_micro_batch_size,
-                    num_replicas=self.world_size,
-                    rank=self.rank,
+                    num_replicas=num_replicas,
+                    rank=dp_rank,
                     seed=self.args.seed,
                 )
                 self.valid_data_loader = DataLoader(
@@ -1214,7 +1216,7 @@ class DeepSpeedAccelerator(Accelerator):
             else:
                 validsampler = torch.utils.data.distributed.DistributedSampler(
                     self.valid_data,
-                    num_replicas=self.model_engine.dp_world_size,
+                    num_replicas=num_replicas,
                     rank=dp_rank,
                     shuffle=False,
                 )

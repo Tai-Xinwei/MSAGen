@@ -1128,7 +1128,7 @@ class SFMPipeEngine(DeepSpeedEngine):
         if isinstance(outputs, tuple):
             # print("length of outputs:", len(outputs))
             # for t in outputs:
-            # print(t.shape, t.dtype, t.requires_grad)
+            #     print(t.shape, t.dtype, t.requires_grad)
             out_tensors = [t for t in outputs if t.is_floating_point()]
             assert len(out_tensors) == len(grad_tensors)
             try:
@@ -1437,10 +1437,10 @@ class SFMPipeEngine(DeepSpeedEngine):
                 for idx, buffer in enumerate(inputs):
                     # Skip tensors that will not produce a grad
                     if not buffer.is_floating_point():
-                        assert buffer.grad is None
+                        assert buffer.grad is None, f"buffer {idx} has no grad!"
                         continue
                     # print(buffer.shape) #和GraphormerSentenceEncoderLayer_PP中tensor shape比较，定位错误bufferss
-                    assert buffer.grad is not None
+                    assert buffer.grad is None, f"buffer {idx} has no grad!"
                     p2p.send(buffer.grad, self.prev_stage)
 
         # We can free up the input buffer now
