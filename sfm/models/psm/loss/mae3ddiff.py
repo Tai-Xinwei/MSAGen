@@ -385,7 +385,7 @@ class DiffMAE3dCriterions(nn.Module):
 
             protein_contact_mask = (
                 (delta_pos_label >= 4)
-                & (delta_pos_label <= 20)
+                & (delta_pos_label <= 32)
                 & pair_protein_mask
                 & mask_temp
             )
@@ -1308,7 +1308,7 @@ class DiffMAE3dCriterions(nn.Module):
             "aa_mlm_loss": (float(aa_mlm_loss.detach()), int(num_aa_mask_token)),
             "aa_acc": (float(aa_acc), int(num_aa_mask_token)),
             "contact_loss": (float(contact_loss.detach()), int(num_contact_losss)),
-            "contact_acc": (float(contact_acc), int(num_contact_losss)),
+            # "contact_acc": (float(contact_acc), int(num_contact_losss)),
             "smooth_lddt_loss": (float(smooth_lddt_loss.detach()), int(num_pddt_loss)),
             "hard_dist_loss": (float(hard_dist_loss.detach()), int(num_pddt_loss)),
             "inter_dist_loss": (
