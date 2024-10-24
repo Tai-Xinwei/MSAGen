@@ -106,9 +106,9 @@ def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
         "CASP14 Hard": ["FM/TBM", "FM"],
         "CASP15 Easy": ["TBM-easy", "TBM-hard"],
         "CASP15 Hard": ["FM/TBM", "FM"],
-        "(   0, 384]": ["MultiDom"],
-        "( 384, 512]": ["MultiDom"],
-        "( 512,8192]": ["MultiDom"],
+        "(   0, 384]": ["Easy", "Medium", "Hard", "MultiDom"],
+        "( 384, 512]": ["Easy", "Medium", "Hard", "MultiDom"],
+        "( 512,8192]": ["Easy", "Medium", "Hard", "MultiDom"],
     }
     # group score by target
     records = []
