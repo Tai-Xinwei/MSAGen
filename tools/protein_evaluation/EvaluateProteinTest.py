@@ -106,6 +106,9 @@ def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
         "CASP14 Hard": ["FM/TBM", "FM"],
         "CASP15 Easy": ["TBM-easy", "TBM-hard"],
         "CASP15 Hard": ["FM/TBM", "FM"],
+        "(   0, 384]": ["MultiDom"],
+        "( 384, 512]": ["MultiDom"],
+        "( 512,8192]": ["MultiDom"],
     }
     # group score by target
     records = []
@@ -128,8 +131,15 @@ def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
     # calculate average score for each category
     scores = []
     for key, groups in CATEGORY.items():
-        _type = key.split()[0]
-        subdf = newdf[(newdf["Type"] == _type) & newdf["Group"].isin(groups)]
+        if key.startswith("("):
+            low, high = [int(_) for _ in key.strip('(]').split(",")]
+            subdf = newdf[(newdf["Length"] > low) &
+                          (newdf["Length"] <= high) &
+                          newdf["Group"].isin(groups)]
+        else:
+            cate_type = key.split()[0]
+            subdf = newdf[(newdf["Type"] == cate_type) &
+                          newdf["Group"].isin(groups)]
         scores.append(
             {
                 "CatAndGroup": key,
@@ -140,6 +150,7 @@ def calculate_average_score(df: pd.DataFrame) -> pd.DataFrame:
                 "Top5LDDT": subdf["ModelMax_LDDT"].mean() * 100,
             }
         )
+    # calculate average score for dataframe
     meandf = pd.DataFrame(scores).set_index("CatAndGroup")
     return newdf, meandf
 
