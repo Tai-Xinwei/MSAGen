@@ -17,18 +17,13 @@ target:
   workspace_name: sfm-ws
 
 environment:
-  image: ai4s-sfm/amd:20240917.094627
+  # image: ai4s-sfm/amd:20240917.094627
+  image: ai4s-sfm/amd:20241022.151209
   registry: msrmoldyn.azurecr.io
   username: msrmoldyn
   setup:
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace
-  - sudo chown -R aiscuser /opt
-  - pip install /opt/rocm/share/amd_smi
-  - wget https://raw.githubusercontent.com/wiki/ROCm/pytorch/files/install_kdb_files_for_pytorch_wheels.sh
-  - export GFX_ARCH=gfx942
-  - export ROCM_VERSION=6.1
-  - bash ./install_kdb_files_for_pytorch_wheels.sh
 
 storage:
   eastus2:
