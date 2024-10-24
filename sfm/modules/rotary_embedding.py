@@ -172,8 +172,8 @@ class SFMRotaryEmbedding(torch.nn.Module):
         self,
         dim,
         max_position_embeddings=16384,
-        # base=500000,
-        base=10000,
+        base=500000,
+        # base=10000,
         device=None,
         scaling_factor=1.0,
     ):
