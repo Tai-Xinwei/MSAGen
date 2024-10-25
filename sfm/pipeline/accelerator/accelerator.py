@@ -447,7 +447,7 @@ class DdpAccelerator(SingleNodeAccelerator):
             rank=self.rank,
             timeout=timedelta(minutes=int(ddp_timeout))
             if ddp_timeout is not None
-            else timedelta(minutes=5),
+            else timedelta(minutes=30),
         )
 
         torch.distributed.barrier()

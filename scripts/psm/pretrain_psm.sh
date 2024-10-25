@@ -56,8 +56,8 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${dataset_micro_batch_size}" ] && dataset_micro_batch_size="8,4,2,4,2,2,2,4"
 [ -z "${use_unified_batch_sampler}" ] && use_unified_batch_sampler=True
 
-[ -z "${loadcheck_path}" ] && loadcheck_path='/fastdata/peiran/tox/checkpoints/psmV0test/'
-[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20240903-1437'
+[ -z "${loadcheck_path}" ] && loadcheck_path='/mntd/shiyu/checkpoints/psm-checkpoints/pubchem-pm6-diffusion-molecule-protein-periodic-8xG8-fp32-ddp-unified-sampler-continued-fastpreprocess-20240725-1050/checkpoint_E7_B109439.pt'
+[ -z "${save_dir}" ] && save_dir='/mntd/shiyu/checkpoints/psm-checkpoints/debug-20240927-1041'
 # [ -z "${save_dir}" ] && save_dir='/home/peiran/FMproj/output/'
 [ -z "${dataset_name}" ] && dataset_name="."
 [ -z "${add_3d}" ] && add_3d=true
@@ -76,7 +76,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${OMPI_COMM_WORLD_SIZE}" ] && OMPI_COMM_WORLD_SIZE=1
 
 [ -z "${equivar_vec_init}" ] && equivar_vec_init="RELATIVE_POS_VEC_BIAS"
-[ -z "${pbc_cutoff}" ] && pbc_cutoff=20.0
+[ -z "${pbc_cutoff}" ] && pbc_cutoff=40.0
 [ -z "${pbc_expanded_num_cell_per_direction}" ] && pbc_expanded_num_cell_per_direction=5
 [ -z "${pbc_expanded_token_cutoff}" ] && pbc_expanded_token_cutoff=512
 [ -z "${pbc_multigraph_cutoff}" ] && pbc_multigraph_cutoff=7.0
@@ -89,6 +89,7 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${ddpm_beta_start}" ] && ddpm_beta_start=1e-7
 [ -z "${ddpm_beta_end}" ] && ddpm_beta_end=2e-3
 [ -z "${ddpm_schedule}" ] && ddpm_schedule=sigmoid
+[ -z "${num_timesteps_stepsize}" ] && num_timesteps_stepsize=-1
 
 [ -z "${equivar_use_linear_bias}" ] && equivar_use_linear_bias=True
 [ -z "${equivar_use_attention_bias}" ] && equivar_use_attention_bias=True
@@ -134,11 +135,15 @@ export MKL_THREADING_LAYER='GNU'
 [ -z "${molecule_energy_loss_ratio}" ] && molecule_energy_loss_ratio=1
 [ -z "${energy_per_atom_label_scale}" ] && energy_per_atom_label_scale=1.0
 
-[ -z "${AutoGradForce}" ] && AutoGradForce=False
-[ -z "${supervise_force_from_head_when_autograd}" ] && supervise_force_from_head_when_autograd=False
+[ -z "${AutoGradForce}" ] && AutoGradForce=True
+[ -z "${supervise_force_from_head_when_autograd}" ] && supervise_force_from_head_when_autograd=True
 
 [ -z "${molecule_ref_energy_source}" ] && molecule_ref_energy_source='PubChemQC-B3LYP-PM6/wb97xd3/1.0.0/train'
 [ -z "${molecule_outlier_energy_atoms}" ] && molecule_outlier_energy_atoms=''
+
+[ -z "${relax_after_sampling_structure}" ] && relax_after_sampling_structure=False
+[ -z "${structure_relax_step_size}" ] && structure_relax_step_size=1e-3
+[ -z "${use_autograd_force_for_relaxation_and_md}" ] && use_autograd_force_for_relaxation_and_md=True
 
 echo -e "\n\n"
 echo "==================================MP==========================================="
@@ -275,4 +280,8 @@ torchrun $DISTRIBUTED_ARGS sfm/tasks/psm/pretrain_psm.py \
           AutoGradForce=$AutoGradForce \
           molecule_ref_energy_source=$molecule_ref_energy_source \
           molecule_outlier_energy_atoms=$molecule_outlier_energy_atoms \
-          supervise_force_from_head_when_autograd=$supervise_force_from_head_when_autograd
+          supervise_force_from_head_when_autograd=$supervise_force_from_head_when_autograd \
+          relax_after_sampling_structure=$relax_after_sampling_structure \
+          structure_relax_step_size=$structure_relax_step_size \
+          use_autograd_force_for_relaxation_and_md=$use_autograd_force_for_relaxation_and_md \
+          num_timesteps_stepsize=$num_timesteps_stepsize

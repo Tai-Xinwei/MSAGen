@@ -846,6 +846,13 @@ class DiffMAE3dCriterions(nn.Module):
                 logging_output["min_rmsd"],
                 logging_output["any_matched_rate"],
             ) = _reduce_matched_result(model_output, "rmsd", "min")
+        if "relaxed_rmsd" in model_output:
+            (
+                logging_output["relaxed_rmsd"],
+                logging_output["relaxed_matched_rate"],
+                logging_output["relaxed_min_rmsd"],
+                logging_output["relaxed_any_matched_rate"],
+            ) = _reduce_matched_result(model_output, "relaxed_rmsd", "min")
         if "tm_score" in model_output:
             (
                 logging_output["tm_score"],
@@ -860,5 +867,19 @@ class DiffMAE3dCriterions(nn.Module):
                 logging_output["max_lddt"],
                 _,
             ) = _reduce_matched_result(model_output, "lddt", "max")
+        if "p1" in model_output:
+            (
+                logging_output["p1"],
+                _,
+                logging_output["min_p1"],
+                _,
+            ) = _reduce_matched_result(model_output, "p1", "min")
+        if "relaxed_p1" in model_output:
+            (
+                logging_output["relaxed_p1"],
+                _,
+                logging_output["relaxed_min_p1"],
+                _,
+            ) = _reduce_matched_result(model_output, "relaxed_p1", "min")
 
         return loss, logging_output

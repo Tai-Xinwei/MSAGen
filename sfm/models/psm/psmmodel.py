@@ -10,7 +10,6 @@ from contextlib import nullcontext
 import numpy as np
 import torch
 import torch.nn as nn
-from tqdm import tqdm
 
 from sfm.data.psm_data.utils import VOCAB
 from sfm.logging import logger
@@ -36,7 +35,6 @@ from sfm.models.psm.modules.mixembedding import PSMMix3dDitEmbedding, PSMMix3dEm
 from sfm.models.psm.modules.mixembedding_equiv import PSMMix3DEquivEmbedding
 from sfm.models.psm.modules.pbc import CellExpander
 from sfm.models.psm.psm_config import ForceHeadType, GaussianFeatureNodeType, PSMConfig
-from sfm.modules.layer_norm import AdaNorm
 from sfm.pipeline.accelerator.dataclasses import ModelOutput
 from sfm.pipeline.accelerator.trainer import Model
 
@@ -118,7 +116,9 @@ class PSMModel(Model):
 
         if self.psm_config.sample_in_validation:
             self.sampled_structure_converter = SampledStructureConverter(
-                self.psm_config.sampled_structure_output_path
+                self.psm_config.sampled_structure_output_path,
+                self.psm_config,
+                self,
             )
 
         try:
@@ -528,9 +528,9 @@ class PSMModel(Model):
         for sample_time_index in range(self.psm_config.num_sampling_time):
             original_pos = batched_data["pos"].clone()
             original_cell = batched_data["cell"].clone()
-            # batched_data["pos"] = torch.zeros_like(
-            #     batched_data["pos"]
-            # )  # zero position to avoid any potential leakage
+            batched_data["pos"] = torch.zeros_like(
+                batched_data["pos"]
+            )  # zero position to avoid any potential leakage
             batched_data["cell"] = torch.zeros_like(batched_data["cell"])
             self.sample(batched_data=batched_data)
             match_result_one_time = self.sampled_structure_converter.convert_and_match(
@@ -555,7 +555,7 @@ class PSMModel(Model):
         self.net.train()
         return match_results
 
-    def forward(self, batched_data, **kwargs):
+    def forward(self, batched_data, skip_sample=False, **kwargs):
         """
         Forward pass of the model.
 
@@ -564,7 +564,11 @@ class PSMModel(Model):
             **kwargs: Additional keyword arguments.
         """
 
-        if self.psm_config.sample_in_validation and not self.training:
+        if (
+            self.psm_config.sample_in_validation
+            and not self.training
+            and not skip_sample
+        ):
             match_results = self.sample_and_calc_match_metric(batched_data)
 
         self._create_system_tags(batched_data)
@@ -682,7 +686,11 @@ class PSMModel(Model):
         result_dict["padding_mask"] = padding_mask
         result_dict["time_step"] = time_step
 
-        if self.psm_config.sample_in_validation and not self.training:
+        if (
+            self.psm_config.sample_in_validation
+            and not self.training
+            and not skip_sample
+        ):
             result_dict.update(match_results)
 
         if self.psm_finetune_head:

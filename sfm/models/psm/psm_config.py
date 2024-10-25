@@ -194,6 +194,17 @@ class PSMConfig(GraphormerConfig):
     # dali pipeline
     use_dali_pipeline: bool = False
 
+    # for structure relaxation
+    relax_after_sampling_structure: bool = False
+    structure_relax_step_size: float = 0.01
+    use_autograd_force_for_relaxation_and_md: bool = False
+    relax_ase_steps: int = 8000
+    relax_initial_cell_matrix: str = "1,1,1"
+    relax_lower_deformation: int = 0
+    relax_upper_deformation: int = 0
+    relax_deformation_step: int = 5
+    relax_fmax: float = 0.01
+
     def __init__(
         self,
         args,
@@ -203,3 +214,6 @@ class PSMConfig(GraphormerConfig):
         for k, v in asdict(self).items():
             if hasattr(args, k):
                 setattr(self, k, getattr(args, k))
+        self.relax_initial_cell_matrix = [
+            int(i) for i in self.relax_initial_cell_matrix.split(",")
+        ]
