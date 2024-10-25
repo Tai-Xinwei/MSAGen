@@ -2176,6 +2176,10 @@ class PDBComplexDataset(AFDBLMDBDataset):
         position_ids = []
         start_position_ids = 0
         polymer_len = 0
+
+        # shuffle the chain idxes to avoid the order of the chains
+        random.shuffle(cropped_chain_idxes_list)
+
         # reconstruct the polymer chains
         for idx, chain in enumerate(cropped_chain_idxes_list):
             chain_name = chain["chain_name"]
