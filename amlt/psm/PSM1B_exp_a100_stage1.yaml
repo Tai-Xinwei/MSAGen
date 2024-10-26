@@ -50,6 +50,7 @@ jobs:
   - export path=run.sh
   - export num_pred_attn_layer=4
   - export layers=26
+  - export backbone=exp
   - export hidden_size=1536
   - export ffn_size=6144
   - export num_head=32
@@ -86,14 +87,14 @@ jobs:
   # - export dataset_name_list='pm6-wb97xd3,afdb,pdb,esm,pdbcomplexmultimer'
   # - export dataset_split_raito='0.2,0.3,0.02,0.3,0.18'
   # - export dataset_micro_batch_size='16,8,8,8,2'
-  # - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240101_PDB_Training_Data,20240630_PDB_Training_Data'
-  # - export dataset_name_list='afdb,mgnify,pdb,pdbcomplexmultimer'
-  # - export dataset_split_raito='0.6,0.2,0.04,0.16'
-  # - export dataset_micro_batch_size='16,16,16,2'
-  - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240101_PDB_Training_Data'
-  - export dataset_name_list='afdb,mgnify,pdb'
-  - export dataset_split_raito='0.5,0.3,0.2'
-  - export dataset_micro_batch_size='16,16,16'
+  - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240101_PDB_Training_Data,20240630_PDB_Training_Data'
+  - export dataset_name_list='afdb,mgnify,pdb,pdbcomplexmultimer'
+  - export dataset_split_raito='0.4,0.3,0.2,0.1'
+  - export dataset_micro_batch_size='16,16,16,2'
+  # - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240101_PDB_Training_Data'
+  # - export dataset_name_list='afdb,mgnify,pdb'
+  # - export dataset_split_raito='0.5,0.3,0.2'
+  # - export dataset_micro_batch_size='16,16,16'
   # - export data_path_list='AFDB70-plddt70.lmdb,MGnify'
   # - export dataset_name_list='afdb,mgnify'
   # - export dataset_split_raito='0.7,0.3'
@@ -130,7 +131,7 @@ jobs:
   - export save_batch_interval=5000
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_nopdb/checkpoints/global_step202768/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp2_v21_1b_stage1_nocomplex/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp_v21_1b_stage1_all/checkpoints
   # - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp2_v21_1b_stage1_nocomplex/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace

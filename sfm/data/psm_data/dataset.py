@@ -2212,6 +2212,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
         token_type = []
         coords = []
         position_ids = []
+        chain_ids = []
         start_position_ids = 0
         polymer_len = 0
 
@@ -2250,12 +2251,14 @@ class PDBComplexDataset(AFDBLMDBDataset):
                     range(start_position_ids, start_position_ids + len(crop_chain))
                 )
                 start_position_ids = start_position_ids + len(crop_chain) + 1000
+                chain_ids.extend([idx + 1] * len(crop_chain))
                 polymer_len += len(crop_chain)
             else:
                 position_ids.extend(
                     range(start_position_ids, start_position_ids + len(crop_chain) + 1)
                 )
                 start_position_ids = start_position_ids + len(crop_chain) + 1 + 1000
+                chain_ids.extend([idx + 1] * len(crop_chain) + [0])
                 polymer_len += len(crop_chain) + 1
 
         if polymer_len > 0:
@@ -2277,6 +2280,9 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 position_ids.extend(
                     range(start_position_ids, start_position_ids + len(atom_ids) + 1)
                 )
+                chain_ids.extend(
+                    [len(cropped_chain_idxes_list) + 1] * len(atom_ids) + [0]
+                )
             else:
                 x.extend(atom_ids)
                 pos = ligand["node_coord"]
@@ -2284,6 +2290,7 @@ class PDBComplexDataset(AFDBLMDBDataset):
                 position_ids.extend(
                     range(start_position_ids, start_position_ids + len(atom_ids))
                 )
+                chain_ids.extend([len(cropped_chain_idxes_list) + 1] * len(atom_ids))
 
             # rescontruct the coords of the ligand
             coords.append(pos)
@@ -2310,12 +2317,14 @@ class PDBComplexDataset(AFDBLMDBDataset):
         x = torch.tensor(x, dtype=torch.int32)
         coords = torch.tensor(np.concatenate(coords, axis=0), dtype=torch.float64)
         position_ids = torch.tensor(position_ids, dtype=torch.int32)
+        chain_ids = torch.tensor(chain_ids, dtype=torch.int32)
 
         data = {
             "token_type": x,
             "coords": coords,
             "polymer_len": polymer_len,
             "position_ids": position_ids,
+            "chain_ids": chain_ids,
             "node_feature": node_feature,
             "edge_index": edge_index,
             "edge_attr": edge_attr,

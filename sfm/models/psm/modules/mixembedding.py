@@ -1110,6 +1110,9 @@ class PSMSeqEmbedding(nn.Module):
             psm_config.num_atom_features, psm_config.encoder_embed_dim
         )
 
+        # maximum 100 chains
+        self.chain_id_embed = nn.Embedding(100, psm_config.encoder_embed_dim)
+
         self.time_step_encoder = TimeStepEncoder(
             psm_config.num_timesteps,
             psm_config.embedding_dim,
@@ -1146,6 +1149,7 @@ class PSMSeqEmbedding(nn.Module):
             padding_mask: The padding mask.
         """
         token_id = batched_data["token_id"]
+        chain_id = batched_data["chain_ids"]
         padding_mask = token_id.eq(0)  # B x T x 1
         is_periodic = batched_data["is_periodic"]
         molecule_mask = (
@@ -1184,6 +1188,9 @@ class PSMSeqEmbedding(nn.Module):
             )
 
             x += atom_feature_embedding
+
+        chain_embed = self.chain_id_embed(chain_id)
+        x = x + chain_embed
 
         return (
             x,
