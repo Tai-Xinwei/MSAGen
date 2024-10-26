@@ -540,7 +540,7 @@ class FourierEmbedding_AF3(torch.nn.Module):
 
     def forward(self, x):
         x = x.unsqueeze(-1)
-        x = self.proj(x)
+        x = self.proj(x.to(self.proj.weight.dtype))
         embedding = torch.cos(2 * torch.pi * x).to(self.noise_proj[0].weight.dtype)
         embedding = self.noise_proj(embedding)
 

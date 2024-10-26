@@ -75,7 +75,7 @@ jobs:
   - export max_length=384
   - export max_residue_num=768
   - export ligand_crop_size=20.0
-  - export gradient_accumulation_steps=8
+  - export gradient_accumulation_steps=4
   - export log_interval=100
   - export data_path=/nfs6/psmdata/
   # - export data_path_list='matter-gen-force-filtered,matter-sim-15M-merged,PubChemQC-B3LYP-PM6,AFDB70-plddt70.lmdb,20240101_PDB_Training_Data,ESM_ATLAS_reduce.lmdb,20240630_PDB_Training_Data'
@@ -93,7 +93,7 @@ jobs:
   - export data_path_list='AFDB70-plddt70.lmdb,MGnify,20240101_PDB_Training_Data'
   - export dataset_name_list='afdb,mgnify,pdb'
   - export dataset_split_raito='0.5,0.3,0.2'
-  - export dataset_micro_batch_size='16,16,16'
+  - export dataset_micro_batch_size='32,32,32'
   # - export data_path_list='AFDB70-plddt70.lmdb,MGnify'
   # - export dataset_name_list='afdb,mgnify'
   # - export dataset_split_raito='0.7,0.3'
