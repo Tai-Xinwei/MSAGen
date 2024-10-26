@@ -25,6 +25,7 @@ from sfm.models.psm.equivariant.nodetaskhead import (
     ConditionVectorGatedOutput,
     DiffusionModule,
     DiffusionModule2,
+    DiffusionModule3,
     ForceGatedOutput,
     ForceVecOutput,
     NodeTaskHead,
@@ -139,6 +140,7 @@ class PSMModel(Model):
             "ditp",
             "exp",
             "exp2",
+            "exp3",
         ]:
             self.disable_data_aug = getattr(self.args, "disable_data_aug", False)
             if self.psm_config.psm_finetune_mode:
@@ -629,7 +631,7 @@ class PSMModel(Model):
 
         if (
             self.args.backbone
-            in ["vanillatransformer", "dit", "e2dit", "ditp", "exp", "exp2"]
+            in ["vanillatransformer", "dit", "e2dit", "ditp", "exp", "exp2", "exp3"]
             and not self.disable_data_aug
             and not batched_data["is_periodic"].any()  # do not rotate pbc material
         ):
@@ -1318,7 +1320,7 @@ class PSMModel(Model):
 
         batched_data["pos"] = complete_cell(batched_data["pos"], batched_data)
 
-        if self.args.backbone in ["dit", "ditp", "exp", "exp2"]:
+        if self.args.backbone in ["dit", "ditp", "exp", "exp2", "exp3"]:
             if_recenter = False
         else:
             if_recenter = True
@@ -1608,7 +1610,7 @@ class PSM(nn.Module):
             self.embedding = PSMLightPEmbedding(psm_config)
         elif args.backbone in ["vanillatransformer_equiv"]:
             self.embedding = PSMMix3DEquivEmbedding(psm_config)
-        elif args.backbone in ["exp", "exp2"]:
+        elif args.backbone in ["exp", "exp2", "exp3"]:
             self.embedding = PSMSeqEmbedding(psm_config)
         else:
             self.embedding = PSMMixEmbedding(psm_config)
@@ -1651,6 +1653,11 @@ class PSM(nn.Module):
             self.encoder = PSMPairPlainEncoder(args, psm_config)
             # Implement the decoder
             self.decoder = DiffusionModule2(args, psm_config)
+        elif args.backbone in ["exp3"]:
+            # Implement the encoder
+            self.encoder = PSMPairPlainEncoder(args, psm_config)
+            # Implement the decoder
+            self.decoder = DiffusionModule3(args, psm_config)
         elif args.backbone in ["vectorvanillatransformer"]:
             self.encoder = None
             self.decoder = VectorVanillaTransformer(psm_config)
@@ -1692,6 +1699,7 @@ class PSM(nn.Module):
                 # "ditgeom",
                 "exp",
                 "exp2",
+                "exp3",
             ]:
                 self.energy_head.update(
                     {
@@ -1759,7 +1767,7 @@ class PSM(nn.Module):
                     self.forces_head.update(
                         {key: ForceVecOutput(psm_config.embedding_dim)}
                     )
-            elif args.backbone in ["exp", "exp2"]:
+            elif args.backbone in ["exp", "exp2", "exp3"]:
                 if self.psm_config.encoderfeat4noise:
                     self.noise_head = VectorProjOutput(psm_config.embedding_dim)
                     self.periodic_noise_head = VectorProjOutput(
@@ -1885,6 +1893,7 @@ class PSM(nn.Module):
             "ditp",
             "exp",
             "exp2",
+            "exp3",
         ]:
             self.layer_norm = nn.LayerNorm(psm_config.embedding_dim)
             self.layer_norm_vec = nn.LayerNorm(psm_config.embedding_dim)
@@ -2034,6 +2043,7 @@ class PSM(nn.Module):
                 "ditp",
                 "exp",
                 "exp2",
+                "exp3",
             ]:
                 (
                     token_embedding,
@@ -2125,7 +2135,7 @@ class PSM(nn.Module):
 
                 decoder_vec_output = None
                 encoder_output = encoder_output.transpose(0, 1)
-        elif self.args.backbone in ["exp2"]:
+        elif self.args.backbone in ["exp2", "exp3"]:
             encoder_output, x_pair = self.encoder(
                 token_embedding.transpose(0, 1),
                 padding_mask,

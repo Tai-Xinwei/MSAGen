@@ -48,10 +48,10 @@ jobs:
   - export WANDB_API_KEY=${WANDB_API_KEY}
   - mkdir ./output
   - export path=run.sh
-  - export num_pred_attn_layer=32
-  - export layers=32
-  - export hidden_size=1024
-  - export ffn_size=4096
+  - export num_pred_attn_layer=4
+  - export layers=26
+  - export hidden_size=1536
+  - export ffn_size=6144
   - export num_head=32
   - export atom_loss_coeff=1.0
   - export pos_loss_coeff=1.0
@@ -130,7 +130,7 @@ jobs:
   - export save_batch_interval=5000
   - export loadcheck_path=/sfm/sfmexpresults/peiran/psmv1_edm_exp_v20_1b_stage1_nopdb/checkpoints/global_step202768/mp_rank_00_model_states.pt
   - export psm_finetune_mode=False
-  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp2_deep_v21_1b_stage1_nocomplex/checkpoints
+  - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp2_mode2_v21_1b_stage1_nocomplex/checkpoints
   # - export save_dir=/sfm/sfmexpresults/peiran/psmv1_edm_exp2_v21_1b_stage1_nocomplex/checkpoints
   - eval "$$(conda shell.bash hook)" && conda activate sfm
   - python setup_cython.py build_ext --inplace

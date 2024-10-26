@@ -73,7 +73,8 @@ class PSMConfig(GraphormerConfig):
     max_num_aa: int = 1024
 
     encoder_pair_embed_dim: int = 32
-    decoder_ffn_dim: int = 1024
+    decoder_ffn_dim: int = 2048
+    decoder_hidden_dim: int = 512
 
     task: str = "mae"
     sample_mode: bool = False
