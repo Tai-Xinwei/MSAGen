@@ -1997,7 +1997,7 @@ class PSM(nn.Module):
         # token_type: B x L  (0 is used for PADDING)
         with (
             torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
-            if self.args.fp16
+            if False  # self.args.fp16
             else nullcontext()
         ):
             if (
@@ -2062,7 +2062,7 @@ class PSM(nn.Module):
                     aa_mask,
                     pbc_expand_batched=pbc_expand_batched,
                 )
-        decoder_x_output_noise, decoder_vec_output_noise = None, None
+
         # for invariant model struct, we first used encoder to get invariant feature
         # then used equivariant decoder to get equivariant output: like force, noise.
         if self.args.backbone in ["vanillatransformer", "vanillatransformer_equiv"]:
@@ -2137,7 +2137,7 @@ class PSM(nn.Module):
 
             with (
                 torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
-                if self.args.fp16
+                if False  # self.args.fp16
                 else nullcontext()
             ):
                 encoder_output = self.layer_norm(encoder_output)
@@ -2296,7 +2296,7 @@ class PSM(nn.Module):
 
         with (
             torch.cuda.amp.autocast(enabled=True, dtype=torch.float32)
-            if self.args.fp16
+            if False  # self.args.fp16
             else nullcontext()
         ):
             if not self.args.seq_only:

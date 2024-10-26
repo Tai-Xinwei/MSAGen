@@ -1167,7 +1167,7 @@ class PSMSeqEmbedding(nn.Module):
 
         if self.psm_config.diffusion_mode == "edm":
             noise_embed_edm = self.noise_cond_embed_edm(
-                batched_data["c_noise"].flatten()
+                batched_data["c_noise"].to(x.dtype).flatten()
             ).to(x.dtype)
             time_embed = noise_embed_edm.reshape((x.size(0), x.size(1), -1))
         elif time_step is not None:
