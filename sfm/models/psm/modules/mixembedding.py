@@ -1110,8 +1110,8 @@ class PSMSeqEmbedding(nn.Module):
             psm_config.num_atom_features, psm_config.encoder_embed_dim
         )
 
-        # maximum 100 chains
-        self.chain_id_embed = nn.Embedding(100, psm_config.encoder_embed_dim)
+        # maximum 300 chains
+        self.chain_id_embed = nn.Embedding(300, psm_config.encoder_embed_dim)
 
         self.time_step_encoder = TimeStepEncoder(
             psm_config.num_timesteps,

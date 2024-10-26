@@ -1338,7 +1338,7 @@ class AFDBLMDBDataset(FoundationModelDataset):
 
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
-            if np.random.rand() < 0.25:
+            if np.random.rand() < 0.5:
                 random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
                 data["aa"] = data["aa"][
                     random_start : random_start + self.args.max_length
@@ -1533,7 +1533,7 @@ class ESMDataset(AFDBLMDBDataset):
 
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
-            if np.random.rand() < 0.25:
+            if np.random.rand() < 0.5:
                 random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
                 data["aa"] = data["aa"][
                     random_start : random_start + self.args.max_length
@@ -1632,7 +1632,7 @@ class MGnifyDataset(AFDBLMDBDataset):
 
         # random cut off the sequence data["aa"] to self.max_length
         if len(data["aa"]) > self.args.max_length:
-            if np.random.rand() < 0.25:
+            if np.random.rand() < 0.5:
                 random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
                 data["aa"] = data["aa"][
                     random_start : random_start + self.args.max_length
@@ -1739,7 +1739,7 @@ class PDBDataset(AFDBLMDBDataset):
             # random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
             # data["aa"] = data["aa"][random_start : random_start + self.args.max_length]
             # coords = data["pos"][random_start : random_start + self.args.max_length, :]
-            if np.random.rand() < 0.25:
+            if np.random.rand() < 0.5:
                 random_start = random.randint(0, len(data["aa"]) - self.args.max_length)
                 data["aa"] = data["aa"][
                     random_start : random_start + self.args.max_length
